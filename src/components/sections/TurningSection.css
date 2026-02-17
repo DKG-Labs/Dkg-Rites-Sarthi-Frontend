@@ -1,0 +1,277 @@
+/* Turning Section Component Styles */
+.turning-section {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+/* No Production highlight */
+.turning-table .no-production td,
+.turning-table .no-production th,
+.turning-mobile-card.no-production {
+  background-color: #f9cf99;
+  /* light orange */
+}
+
+.turning-table .no-production td {
+  color: #7a3e00;
+}
+
+.turning-section__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background-color: #fef7f0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.turning-section__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.turning-section__subtitle {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.turning-section__toggle {
+  padding: 6px 14px;
+  font-size: 18px;
+}
+
+/* Table wrapper */
+.turning-table-wrapper {
+  padding: 12px;
+  overflow-x: auto;
+}
+
+/* Table styles */
+.turning-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 2px solid #4a7c59;
+}
+
+.turning-th {
+  background-color: #fef7f0;
+  color: #1f4d2e;
+  border: 1px solid #4a7c59;
+  padding: 6px 10px;
+  font-weight: 600;
+  font-size: 12px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+/* Header row styling for repeating headers */
+.turning-header-row {
+  background-color: #fef7f0;
+}
+
+.turning-th--time {
+  min-width: 90px;
+  border-left: 3px solid #0d0d0d;
+}
+
+.turning-th--checkbox {
+  min-width: 90px;
+}
+
+.turning-th--lot {
+  min-width: 120px;
+}
+
+.turning-th--parallel {
+  min-width: 120px;
+}
+
+.turning-th--full {
+  min-width: 140px;
+}
+
+.turning-th--dia {
+  min-width: 120px;
+}
+
+/* Table cells */
+.turning-td {
+  border: 1px solid #4a7c59;
+  padding: 4px 8px;
+  text-align: center;
+  vertical-align: middle;
+  background-color: #fff;
+}
+
+.turning-td--time {
+  font-weight: 600;
+  border-left: 3px solid #0d0d0d;
+  font-size: 12px;
+}
+
+/* Form controls */
+.turning-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.turning-select {
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.turning-input {
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.turning-parallel-input,
+.turning-full-input,
+.turning-dia-input {
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  text-align: center;
+  font-size: 12px;
+}
+
+/* Parallel Length input cells */
+.turning-td--parallel-input {
+  padding: 2px 6px;
+}
+
+/* Full Turning Length input cells */
+.turning-td--full-input {
+  padding: 2px 6px;
+}
+
+/* Turning Dia input cells */
+.turning-td--dia-input {
+  padding: 2px 6px;
+}
+
+/* Rejected No. row styling */
+.turning-row--rejected {
+  background-color: #e0f2fe;
+}
+
+.turning-td--rejected-label {
+  background-color: #e0f2fe;
+  padding: 4px 8px;
+}
+
+.turning-rejected-label {
+  font-weight: 500;
+  color: #333;
+  font-size: 11px;
+}
+
+.turning-td--rejected-input {
+  background-color: #fff;
+  padding: 2px 6px;
+}
+
+.turning-input--rejected {
+  width: 100%;
+  text-align: center;
+  padding: 4px 6px;
+  font-size: 12px;
+}
+
+/* Disabled state for rejected input */
+.turning-input--rejected:disabled {
+  background-color: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+  border-color: #e5e7eb;
+}
+
+/* Remarks row styling */
+.turning-row--remarks {
+  background-color: #f5f5f5;
+}
+
+.turning-td--remarks-label {
+  background-color: #f5f5f5;
+  padding: 4px 8px;
+  width: 80px;
+}
+
+.turning-remarks-label {
+  font-weight: 500;
+  color: #333;
+  font-size: 11px;
+}
+
+.turning-td--remarks-input {
+  background-color: #fff;
+  padding: 2px 6px;
+  text-align: left;
+}
+
+.turning-td--remarks-input .form-control {
+  width: 100%;
+  text-align: left;
+}
+
+/* Mobile Cards - Hidden on desktop */
+.turning-mobile-cards {
+  display: none;
+}
+
+/* Mobile Responsive Styles - Horizontal Scrolling Table */
+@media (max-width: 768px) {
+  .turning-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 8px;
+    position: relative;
+  }
+
+  /* Keep table visible on mobile with horizontal scroll */
+  .turning-table {
+    display: table;
+    min-width: 800px;
+    /* Ensure table is wide enough to require scrolling */
+  }
+
+  /* Hide mobile card layout */
+  .turning-mobile-cards {
+    display: none;
+  }
+
+  /* Add scroll hint */
+  .turning-table-wrapper::after {
+    content: '← Scroll horizontally to see all columns →';
+    display: block;
+    text-align: center;
+    padding: 8px;
+    font-size: 12px;
+    color: #6b7280;
+    font-style: italic;
+  }
+}
+
+@media (max-width: 480px) {
+  .turning-section__header {
+    padding: 10px 12px;
+  }
+
+  .turning-section__title {
+    font-size: 14px;
+  }
+}

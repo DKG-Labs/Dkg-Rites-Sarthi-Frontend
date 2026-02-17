@@ -1,0 +1,90 @@
+/* CalibrationDocumentsPage.css - Styles for Calibration & Documents Page */
+
+.calibration-page-container {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.calibration-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.calibration-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #3b82f6;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.calibration-back-btn:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+
+.calibration-page-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+/* Tablet responsive */
+@media (max-width: 1024px) {
+  .calibration-page-container {
+    padding: 20px;
+  }
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .calibration-page-container {
+    padding: 16px;
+  }
+
+  .calibration-page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .calibration-back-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .calibration-page-title {
+    font-size: 20px;
+  }
+}
+
+/* Small mobile */
+@media (max-width: 480px) {
+  .calibration-page-container {
+    padding: 12px;
+  }
+
+  .calibration-page-title {
+    font-size: 18px;
+  }
+
+  .calibration-back-btn {
+    padding: 14px 20px;
+    font-size: 15px;
+  }
+}
+

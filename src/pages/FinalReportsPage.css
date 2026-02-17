@@ -1,0 +1,183 @@
+.rep-container {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  font-family: "Inter", sans-serif;
+}
+
+/* ---------- HEADER ---------- */
+.rep-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.rep-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.rep-subtitle {
+  margin-top: 4px;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.rep-btn-outline {
+  padding: 8px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+/* ---------- CARD ---------- */
+.rep-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.rep-card-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.rep-card-header p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #707a84;
+}
+
+/* ---------- TABLE ---------- */
+.rep-table-wrapper {
+  margin-top: 16px;
+  overflow-x: auto;
+}
+
+.rep-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 800px;
+}
+
+.rep-table th,
+.rep-table td {
+  padding: 10px;
+  border: 1px solid #e5e7eb;
+  font-size: 14px;
+}
+
+.rep-table th {
+  background: #f9fafb;
+  font-weight: 600;
+}
+
+/* STATUS COLORS */
+.rep-status {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.rep-ok {
+  background: #e9fbe8;
+  color: #15803d;
+}
+
+.rep-not {
+  background: #ffe2e2;
+  color: #b91c1c;
+}
+
+.rep-pending {
+  background: #fff7cd;
+  color: #b45309;
+}
+
+/* SUCCESS BANNER */
+.rep-success-banner {
+  margin-top: 16px;
+  padding: 12px;
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+  border-radius: 8px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* ---------- FORM GRID ---------- */
+.rep-grid {
+  display: grid;
+  gap: 16px;
+  margin-top: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.rep-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rep-field label {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.rep-field input,
+.rep-field select,
+.rep-field textarea {
+  padding: 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.rep-field.full {
+  grid-column: 1 / -1;
+}
+
+/* ---------- ACTIONS ---------- */
+.rep-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.rep-btn-primary {
+  background: #0ea5e9;
+  border: 1px solid #0ea5e9;
+  color: white;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+/* ---------- RESPONSIVE ---------- */
+@media (max-width: 768px) {
+  .rep-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .rep-actions {
+    flex-direction: column-reverse;
+  }
+
+  .rep-btn-outline,
+  .rep-btn-primary {
+    width: 100%;
+  }
+}

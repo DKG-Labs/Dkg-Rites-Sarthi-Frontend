@@ -1,0 +1,193 @@
+/* SubmoduleNav.css - Shared styles for submodule navigation (Raw Material, Process, Final) */
+
+.submodule-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.submodule-nav::-webkit-scrollbar {
+  height: 4px;
+}
+
+.submodule-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.submodule-nav::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 2px;
+}
+
+.submodule-nav-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  white-space: nowrap;
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+
+.submodule-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #475569;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.submodule-nav-btn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.submodule-nav-btn.active {
+  background: #1e40af;
+  color: #ffffff;
+  border-color: #1e40af;
+}
+
+.submodule-nav-btn.active:hover {
+  background: #1e3a8a;
+  border-color: #1e3a8a;
+}
+
+.submodule-nav-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.submodule-nav-btn-text {
+  display: inline;
+}
+
+/* Tablet responsive - 1024px */
+@media (max-width: 1024px) {
+  .submodule-nav {
+    padding: 10px 12px;
+    gap: 6px;
+  }
+
+  .submodule-nav-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+}
+
+/* Mobile responsive - 768px */
+@media (max-width: 768px) {
+  .submodule-nav {
+    padding: 10px;
+    gap: 8px;
+    justify-content: flex-start;
+    border-radius: 8px;
+  }
+
+  .submodule-nav-label {
+    font-size: 11px;
+    padding: 6px 0;
+  }
+
+  .submodule-nav-btn {
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 8px;
+    text-align: center;
+    border-radius: 8px;
+  }
+
+  .submodule-nav-btn span:last-child {
+    font-size: 9px;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .submodule-nav-icon {
+    font-size: 20px;
+  }
+}
+
+/* Small mobile - 480px */
+@media (max-width: 480px) {
+  .submodule-nav {
+    padding: 8px;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  .submodule-nav-label {
+    font-size: 10px;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    padding: 4px 0;
+  }
+
+  .submodule-nav-btn {
+    padding: 10px 6px;
+    border-radius: 10px;
+  }
+
+  .submodule-nav-btn span:last-child {
+    font-size: 8px;
+  }
+
+  .submodule-nav-icon {
+    font-size: 22px;
+  }
+
+  .submodule-nav-btn.active {
+    box-shadow: 0 2px 8px rgba(30, 64, 175, 0.3);
+  }
+}
+
+/* Extra small mobile - 360px */
+@media (max-width: 360px) {
+  .submodule-nav {
+    padding: 6px;
+    gap: 4px;
+  }
+
+  .submodule-nav-label {
+    display: none;
+  }
+
+  .submodule-nav-btn {
+    padding: 8px 6px;
+    min-width: 48px;
+  }
+
+  .submodule-nav-btn span:last-child {
+    display: none;
+  }
+
+  .submodule-nav-icon {
+    font-size: 24px;
+  }
+}
+

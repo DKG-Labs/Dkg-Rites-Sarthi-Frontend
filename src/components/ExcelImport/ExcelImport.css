@@ -1,0 +1,59 @@
+/* ExcelImport Component - BEM Naming */
+.excel-import {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.excel-import__btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.excel-import__btn--download {
+  background: #ecfdf5;
+  border-color: #10b981;
+  color: #047857;
+}
+
+.excel-import__btn--download:hover {
+  background: #d1fae5;
+}
+
+.excel-import__btn--import {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #1d4ed8;
+}
+
+.excel-import__btn--import:hover {
+  background: #dbeafe;
+}
+
+.excel-import__input {
+  display: none;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .excel-import {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .excel-import__btn {
+    flex: 1;
+    justify-content: center;
+    padding: 10px 12px;
+  }
+}
+

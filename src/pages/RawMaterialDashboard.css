@@ -1,0 +1,280 @@
+/* RawMaterialDashboard.css - Styles for Raw Material Inspection Dashboard */
+
+/* 3-column grid layout for desktop */
+.rm-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.rm-form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.rm-form-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+.rm-form-label.required::after {
+  content: ' *';
+  color: #ef4444;
+}
+
+.rm-form-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  font-size: 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background-color: #ffffff;
+  box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.rm-form-input:focus {
+  outline: none;
+  border-color: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
+}
+
+.rm-form-input:disabled {
+  background-color: #f3f4f6;
+  cursor: not-allowed;
+}
+
+.rm-form-hint {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+.rm-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.rm-page-header h1 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+.rm-back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  background-color: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-height: 44px;
+}
+
+.rm-back-button:hover {
+  background-color: #e5e7eb;
+}
+
+.rm-card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rm-card-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.rm-action-buttons {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+/* Sub Module Session Styles */
+.submodule-session {
+  padding: 24px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  margin-top: 24px;
+}
+
+.submodule-session-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.submodule-session-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 8px 0;
+}
+
+.submodule-session-subtitle {
+  font-size: 14px;
+  color: #64748b;
+  margin: 0;
+}
+
+.submodule-buttons {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+.submodule-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background: #ffffff;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-height: 120px;
+}
+
+.submodule-btn:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  transform: translateY(-2px);
+}
+
+.submodule-btn-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+}
+
+.submodule-btn-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+  text-align: center;
+  margin: 0;
+}
+
+.submodule-btn-desc {
+  font-size: 12px;
+  color: #64748b;
+  text-align: center;
+  margin-top: 4px;
+}
+
+/* Tablet responsive */
+@media (max-width: 1024px) {
+  .rm-form-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .submodule-buttons {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .rm-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rm-page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .rm-back-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .rm-card-header {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .rm-card-title {
+    font-size: 16px !important;
+  }
+
+  .rm-action-buttons {
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+
+  .rm-action-buttons button {
+    width: 100% !important;
+    justify-content: center;
+  }
+
+  .submodule-buttons {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .submodule-btn {
+    padding: 20px 16px;
+    min-height: 100px;
+  }
+
+  .submodule-btn-icon {
+    font-size: 28px;
+  }
+
+  .submodule-btn-title {
+    font-size: 15px;
+  }
+
+  /* Make tables scrollable */
+  .data-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Small mobile */
+@media (max-width: 480px) {
+  .rm-form-input {
+    font-size: 16px;
+    min-height: 52px;
+    padding: 14px 16px;
+  }
+
+  .rm-form-label {
+    font-size: 13px;
+  }
+
+  .rm-page-header h1 {
+    font-size: 18px;
+  }
+
+  .submodule-buttons {
+    grid-template-columns: 1fr;
+  }
+
+  .submodule-btn-desc {
+    display: none;
+  }
+}
+

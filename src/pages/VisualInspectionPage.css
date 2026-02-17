@@ -1,0 +1,178 @@
+/* VisualInspectionPage.css - Styles for Visual Inspection Page */
+
+.visual-page-container {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.visual-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.visual-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #3b82f6;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.visual-back-btn:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+
+.visual-page-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+/* Defect Grid */
+.visual-defect-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.visual-defect-row {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  transition: border-color 0.25s ease, background-color 0.25s ease;
+}
+
+.visual-defect-row.matching {
+  border-color: #d1fae5;
+  background: #f0fdf4;
+}
+
+.visual-defect-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-right: 8px;
+}
+
+.visual-defect-row label {
+  margin-right: 8px;
+  white-space: nowrap;
+  font-weight: 500;
+  color: #1f2937;
+  min-width: 100px;
+}
+
+.visual-defect-count {
+  width: 140px;
+  margin-left: 0;
+}
+
+/* Defective Note */
+.visual-defect-note {
+  margin-top: 16px;
+  padding: 12px 16px;
+  background: #fef3c7;
+  border-left: 4px solid #f59e0b;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  color: #92400e;
+}
+
+.visual-defect-note strong {
+  color: #78350f;
+}
+
+/* Heat Selector */
+.visual-heat-selector {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+/* Single Heat Display */
+.visual-heat-selector.visual-heat-single {
+  padding: 12px 16px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.visual-heat-single-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: #166534;
+  white-space: nowrap;
+}
+
+/* Tablet responsive */
+@media (max-width: 1024px) {
+  .visual-page-container {
+    padding: 20px;
+  }
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .visual-page-container {
+    padding: 16px;
+  }
+
+  .visual-page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .visual-back-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .visual-page-title {
+    font-size: 20px;
+  }
+
+  .visual-defect-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .visual-defect-count {
+    width: 100%;
+  }
+}
+
+/* Small mobile */
+@media (max-width: 480px) {
+  .visual-page-container {
+    padding: 12px;
+  }
+
+  .visual-page-title {
+    font-size: 18px;
+  }
+}
+

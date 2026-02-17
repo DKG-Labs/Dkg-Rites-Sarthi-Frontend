@@ -1,0 +1,27 @@
+{
+  "name": "@sarthi/finance-module",
+  "version": "1.0.0",
+  "description": "Finance Dashboard Module for SARTHI Inspection System",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "sarthi",
+    "inspection",
+    "finance",
+    "billing",
+    "payments",
+    "dashboard"
+  ],
+  "author": "SARTHI Development Team",
+  "license": "MIT",
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "react-router-dom": "^6.0.0"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
+

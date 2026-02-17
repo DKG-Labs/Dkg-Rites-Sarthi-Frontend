@@ -1,0 +1,310 @@
+/* =====================================================
+   SHEARING SECTION STYLES
+   ===================================================== */
+
+.shearing-section {
+  margin-bottom: 20px;
+}
+
+/* No Production highlight */
+.shearing-table .no-production td,
+.shearing-table .no-production th,
+.shearing-mobile-card.no-production {
+  background-color: #f9cf99;
+  /* light orange */
+}
+
+.shearing-table .no-production td {
+  color: #7a3e00;
+}
+
+.shearing-section__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.shearing-section__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.shearing-section__actions .btn {
+  padding: var(--space-8, 8px) var(--space-16, 16px);
+  font-size: var(--font-size-xl, 18px);
+}
+
+/* Table wrapper */
+.shearing-table-wrapper {
+  overflow-x: auto;
+  padding: 16px;
+}
+
+/* Table styles */
+.shearing-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #4a7c59;
+}
+
+.shearing-th {
+  background-color: #fef7f0;
+  border: 1px solid #4a7c59;
+  padding: 6px 10px;
+  font-weight: 600;
+  font-size: 12px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+/* Header row styling for repeating headers */
+.shearing-header-row {
+  background-color: #fef7f0;
+}
+
+.shearing-th--time {
+  min-width: 90px;
+  border-left: 1px solid #0d0d0d;
+}
+
+.shearing-th--checkbox {
+  min-width: 90px;
+}
+
+.shearing-th--lot {
+  min-width: 120px;
+}
+
+.shearing-th--rejected {
+  background-color: #e0f2fe;
+  min-width: 140px;
+}
+
+.shearing-th--length {
+  min-width: 120px;
+}
+
+.shearing-th--quality {
+  min-width: 140px;
+}
+
+.shearing-th--edges {
+  min-width: 120px;
+}
+
+.shearing-th--cracked {
+  min-width: 120px;
+}
+
+/* Table cells */
+.shearing-td {
+  border: 1px solid #4a7c59;
+  padding: 4px 8px;
+  text-align: center;
+  vertical-align: middle;
+  background-color: #fff;
+}
+
+.shearing-td--time {
+  font-weight: 600;
+  border-left: 1px solid #070707;
+  font-size: 12px;
+}
+
+.shearing-td--rejected {
+  background-color: #e0f2fe;
+}
+
+/* Form controls */
+.shearing-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.shearing-select {
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.shearing-input {
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.shearing-input--rejected {
+  background-color: #fff;
+}
+
+/* Length of Cut Bar input cells */
+.shearing-td--length-input {
+  padding: 2px 6px;
+}
+
+.shearing-length-input {
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  text-align: center;
+  font-size: 12px;
+}
+
+/* Quality / Improper Dia input cells */
+.shearing-td--quality-input {
+  padding: 2px 6px;
+}
+
+/* Sharp Edges dropdown cells */
+.shearing-td--edge-dropdown {
+  padding: 2px 6px;
+}
+
+/* Cracked Edges dropdown cells */
+.shearing-td--cracked-dropdown {
+  padding: 2px 6px;
+}
+
+/* Sample label styling */
+.shearing-sample-label {
+  font-size: 11px;
+  color: #666;
+  font-weight: 500;
+}
+
+/* Rejected No. row styling */
+.shearing-row--rejected {
+  background-color: #e0f2fe;
+}
+
+.shearing-td--rejected-label {
+  background-color: #e0f2fe;
+  padding: 4px 8px;
+}
+
+.shearing-rejected-label {
+  font-weight: 500;
+  color: #333;
+  font-size: 11px;
+}
+
+.shearing-td--rejected-input {
+  background-color: #fff;
+  padding: 2px 6px;
+}
+
+.shearing-input--rejected {
+  width: 100%;
+  text-align: center;
+  padding: 4px 6px;
+  font-size: 12px;
+}
+
+/* Disabled state for rejected input */
+.shearing-input--rejected:disabled {
+  background-color: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+  border-color: #e5e7eb;
+}
+
+/* Remarks row styling */
+.shearing-row--remarks {
+  background-color: #f5f5f5;
+}
+
+.shearing-td--remarks-label {
+  background-color: #f5f5f5;
+  padding: 4px 8px;
+  width: 80px;
+}
+
+.shearing-remarks-label {
+  font-weight: 500;
+  color: #333;
+  font-size: 11px;
+}
+
+.shearing-td--remarks-input {
+  background-color: #fff;
+  padding: 2px 6px;
+  text-align: left;
+}
+
+.shearing-td--remarks-input .form-control {
+  width: 100%;
+  text-align: left;
+}
+
+/* Hide mobile cards on desktop */
+.shearing-mobile-cards {
+  display: none;
+}
+
+/* =====================================================
+   TABLET RESPONSIVE (768px - 1024px)
+   ===================================================== */
+
+@media (max-width: 1024px) {
+
+  .shearing-th,
+  .shearing-td {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+
+  .shearing-th--time,
+  .shearing-td--time {
+    min-width: 90px;
+  }
+}
+
+/* =====================================================
+   MOBILE RESPONSIVE (≤768px) - Horizontal Scrolling Table
+   ===================================================== */
+
+@media (max-width: 768px) {
+  .shearing-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 8px;
+    position: relative;
+  }
+
+  /* Keep table visible on mobile with horizontal scroll */
+  .shearing-table {
+    display: table;
+    min-width: 800px;
+    /* Ensure table is wide enough to require scrolling */
+  }
+
+  /* Hide mobile card layout */
+  .shearing-mobile-cards {
+    display: none;
+  }
+
+  /* Add scroll hint */
+  .shearing-table-wrapper::after {
+    content: '← Scroll horizontally to see all columns →';
+    display: block;
+    text-align: center;
+    padding: 8px;
+    font-size: 12px;
+    color: #6b7280;
+    font-style: italic;
+  }
+}
+
+@media (max-width: 480px) {
+  .shearing-section__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}

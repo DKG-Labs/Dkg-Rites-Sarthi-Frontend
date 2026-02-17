@@ -1,0 +1,167 @@
+/* Premium Pagination Styles */
+.pg-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 12px 16px;
+  font-family: 'Inter', sans-serif;
+  color: #64748b;
+  font-size: 12px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.pg-count {
+  font-weight: 500;
+  color: #94a3b8;
+  margin-right: auto;
+}
+
+.pg-rows {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pg-rows select {
+  padding: 4px 24px 4px 8px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background-color: white;
+  color: #475569;
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 4px center;
+  background-size: 14px;
+}
+
+.pg-rows select:hover {
+  border-color: #cbd5e1;
+}
+
+.pg-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.pg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background: white;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pg-btn:hover:not(:disabled) {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+.pg-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #f1f5f9;
+}
+
+/* Themes per Level */
+/* Level 1 - Default (Teal) */
+.pg-theme-teal .pg-btn:hover:not(:disabled) {
+  border-color: #14b8a6;
+  color: #0d9488;
+  background: #f0fdfa;
+}
+
+/* Level 2 - Blue */
+.pg-theme-blue {
+  background: #f0f9ff;
+  /* Match L2 bg */
+  border-top: 1px solid #e0f2fe;
+}
+
+.pg-theme-blue .pg-rows select {
+  border-color: #bae6fd;
+  color: #0369a1;
+}
+
+.pg-theme-blue .pg-btn {
+  border-color: #bae6fd;
+  color: #0284c7;
+  background: white;
+}
+
+.pg-theme-blue .pg-btn:hover:not(:disabled) {
+  background: #0ea5e9;
+  color: white;
+  border-color: #0ea5e9;
+}
+
+/* Level 3 - Orange */
+.pg-theme-orange {
+  background: #fff7ed;
+  /* Match L3 bg */
+  border-top: 1px solid #ffedd5;
+}
+
+.pg-theme-orange .pg-rows select {
+  border-color: #fed7aa;
+  color: #c2410c;
+}
+
+.pg-theme-orange .pg-btn {
+  border-color: #fed7aa;
+  color: #e65100;
+  background: white;
+}
+
+.pg-theme-orange .pg-btn:hover:not(:disabled) {
+  background: #f97316;
+  color: white;
+  border-color: #f97316;
+}
+
+/* Level 4 - Slate */
+.pg-theme-slate {
+  background: #f8fafc;
+  /* Match L4 bg */
+  border-top: 1px solid #e2e8f0;
+}
+
+/* --- Mobile Responsiveness --- */
+@media (max-width: 600px) {
+  .pg-wrapper {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .pg-count {
+    width: 100%;
+    margin-right: 0;
+    text-align: center;
+    order: 3;
+    padding-top: 4px;
+    border-top: 1px dashed #e2e8f0;
+  }
+
+  .pg-rows {
+    order: 1;
+  }
+
+  .pg-buttons {
+    order: 2;
+  }
+}

@@ -1,0 +1,297 @@
+/* Application & Deflection Test - Responsive CSS */
+.ad-container {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Header */
+.ad-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.ad-title { margin: 0; font-size: 20px; font-weight: 700; }
+.ad-subtitle { margin: 4px 0 0; color: #64748b; font-size: 13px; }
+
+/* Tabs */
+.ad-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 2px solid #e2e8f0;
+  margin-bottom: 16px;
+}
+.ad-tab {
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  color: #64748b;
+  transition: all 0.2s;
+}
+.ad-tab:hover {
+  color: #0ea5e9;
+  background: #f0f9ff;
+}
+.ad-tab.active {
+  color: #0ea5e9;
+  border-bottom-color: #0ea5e9;
+}
+
+/* Tab Content */
+.ad-tab-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Buttons */
+.ad-btn { padding: 8px 14px; font-size: 14px; font-weight: 600; border-radius: 6px; cursor: pointer; }
+.ad-btn-outline { background: white; border: 1px solid #d1d5db; }
+.ad-btn-primary { background: #0ea5e9; border: 1px solid #0ea5e9; color: white; }
+
+/* Cards */
+.ad-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px;
+}
+
+/* Lot Header */
+.ad-lot-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 12px;
+}
+.ad-lot-info { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.ad-lot-badge { font-size: 14px; font-weight: 600; color: #1e293b; }
+.ad-lot-meta { font-size: 13px; color: #64748b; }
+.ad-lot-sample { font-size: 13px; color: #475569; }
+
+/* Test Info Row */
+.ad-test-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 12px;
+  background: #f1f5f9;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+.ad-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ad-info-label {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 500;
+}
+.ad-info-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+/* Sampling Block */
+.ad-sampling-block {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+.ad-sampling-second { background: #fffbeb; border-color: #f59e0b; }
+.ad-sampling-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+.ad-sampling-title { font-size: 14px; font-weight: 600; color: #1e293b; }
+
+/* Simplified Input Row */
+.ad-simple-input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.ad-simple-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 200px;
+}
+.ad-input-r1, .ad-input-r2 {
+  width: 200px;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 12px;
+}
+.ad-simple-input-info {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: #475569;
+  padding: 10px 0;
+}
+.ad-simple-input-info span {
+  background: #fff;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+
+/* Input Grid - kept for potential future use */
+.ad-input-grid {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 12px 16px;
+  margin-bottom: 12px;
+}
+.ad-input-wrapper { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.ad-input-label { font-size: 11px; color: #64748b; font-weight: 500; }
+.ad-input-sm { width: 100%; max-width: 65px; text-align: center; padding: 10px 6px; }
+.ad-input-sm.pass { border-color: #16a34a; background: #f0fdf4; }
+.ad-input-sm.fail { border-color: #dc2626; background: #fef2f2; }
+
+/* Fields */
+.ad-field { display: flex; flex-direction: column; gap: 6px; }
+.ad-label { font-size: 13px; font-weight: 600; }
+.ad-label.required::after { content: " *"; color: red; }
+
+/* Inputs */
+.ad-input { padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; }
+.ad-textarea { resize: vertical; min-height: 60px; }
+
+/* Summary Row */
+.ad-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: #475569;
+  padding-top: 10px;
+  border-top: 1px dashed #e2e8f0;
+}
+.ad-summary-left { display: flex; gap: 10px; flex-wrap: wrap; }
+.ad-summary-item { background: #fff; padding: 6px 12px; border-radius: 6px; border: 1px solid #e2e8f0; }
+.ad-r1, .ad-r2 { color: #dc2626; }
+.ad-ok { color: #16a34a; }
+.ad-fail { color: #dc2626; }
+
+/* Pagination */
+.ad-pagination { display: flex; align-items: center; gap: 8px; }
+.ad-page-btn { padding: 5px 10px; font-size: 12px; font-weight: 500; border: 1px solid #e2e8f0; border-radius: 4px; background: #fff; cursor: pointer; }
+.ad-page-btn:hover:not(:disabled) { background: #f1f5f9; }
+.ad-page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.ad-page-info { font-size: 12px; color: #64748b; min-width: 90px; text-align: center; }
+
+/* Dimension Grid */
+.ad-dim-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.ad-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Sampling Labels */
+.ad-sampling-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  background: #f1f5f9;
+  border-radius: 6px;
+}
+.ad-sampling-second-label {
+  background: #fef3c7;
+  color: #92400e;
+  border-left: 4px solid #f59e0b;
+}
+
+/* Summary Row */
+.ad-summary-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+.ad-summary-item {
+  font-size: 13px;
+  color: #475569;
+}
+.ad-summary-item strong {
+  color: #1e293b;
+  font-weight: 600;
+}
+
+/* Final Row */
+.ad-final-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+.ad-final-result { display: flex; flex-direction: column; gap: 8px; }
+.ad-result-box { padding: 10px 16px; border: 2px solid; border-radius: 8px; font-weight: 700; font-size: 16px; text-align: center; width: fit-content; }
+.ad-result-note { font-size: 11px; color: #64748b; line-height: 1.8; background: #f8fafc; padding: 8px 10px; border-radius: 6px; border: 1px solid #e2e8f0; }
+.ad-note-ok { color: #16a34a; font-weight: 600; }
+.ad-note-fail { color: #dc2626; font-weight: 600; }
+.ad-remarks { display: flex; flex-direction: column; gap: 6px; }
+
+/* Action Buttons */
+.ad-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 16px; }
+
+/* RESPONSIVE */
+@media (max-width: 1024px) {
+  .ad-input-grid { grid-template-columns: repeat(8, 1fr); }
+  .ad-test-info { gap: 12px; }
+  .ad-dim-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 768px) {
+  .ad-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .ad-input-grid { grid-template-columns: repeat(5, 1fr); gap: 10px 12px; }
+  .ad-input-sm { max-width: 100%; }
+  .ad-final-row { grid-template-columns: 1fr; }
+  .ad-summary-row { flex-direction: column; gap: 10px; }
+  .ad-pagination { width: 100%; justify-content: center; }
+  .ad-actions { flex-direction: column-reverse; }
+  .ad-btn { width: 100%; }
+  .ad-simple-input-row { flex-direction: column; gap: 16px; }
+  .ad-simple-input-group { width: 100%; min-width: unset; }
+  .ad-input-r1, .ad-input-r2 { width: 100%; }
+  .ad-simple-input-info { gap: 8px; }
+  .ad-test-info { gap: 8px; }
+  .ad-info-item { flex: 1 1 45%; }
+  .ad-dim-grid { grid-template-columns: 1fr; }
+  .ad-tabs { overflow-x: auto; }
+  .ad-tab { white-space: nowrap; }
+}
+@media (max-width: 480px) {
+  .ad-input-grid { grid-template-columns: repeat(4, 1fr); }
+  .ad-info-item { flex: 1 1 100%; }
+  .ad-tab { font-size: 12px; padding: 8px 14px; }
+}

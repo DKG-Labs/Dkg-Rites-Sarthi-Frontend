@@ -1,0 +1,306 @@
+/* ============ BASE STYLES ============ */
+.chem-page {
+  padding: 20px;
+}
+
+.chem-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.chem-header-text h1 {
+  font-size: 22px;
+  margin: 0;
+}
+
+.chem-header-text p {
+  font-size: 14px;
+  color: #475569;
+  margin: 2px 0 0;
+}
+
+.back-btn {
+  white-space: nowrap;
+  margin-top: 8px;
+}
+
+/* ======================================================
+   DESKTOP VIEW (>= 1025px)
+====================================================== */
+@media (min-width: 1025px) {
+  .desktop-fields {
+    display: block;
+  }
+
+  .mobile-fields {
+    display: none !important;
+  }
+
+  .chem-section {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+
+  .chem-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 16px;
+  }
+
+  /* ---------- Header Labels ---------- */
+  .chem-label-grid {
+    display: grid;
+    grid-template-columns: 150px repeat(5, 1fr);
+    align-items: center;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    padding-bottom: 6px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .chem-label-grid span:first-child {
+    color: transparent;
+  }
+
+  /* ---------- Data Rows (Ladle / Product / Remarks) ---------- */
+  .chem-row {
+    display: grid;
+    grid-template-columns: 150px repeat(5, 1fr);
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  /* Left labels */
+  .chem-row-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #334155;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    height: 100%;
+    padding-left: 4px;
+    white-space: nowrap;
+  }
+
+  /* Aligning inputs and values directly in grid columns */
+  .chem-input-grid {
+    display: contents;
+  }
+
+  /* ---------- Ladle Value Box ---------- */
+  .ladle-value {
+    background: #f1f5f9;
+    border: 1px solid #d0d7df;
+    border-radius: 6px;
+    padding: 8px 10px;
+    text-align: center;
+    font-weight: 600;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ---------- Product Value Input ---------- */
+  .product-input {
+    padding: 8px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    text-align: center;
+    transition: border 0.2s ease;
+    height: 40px;
+  }
+
+  .product-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+  }
+
+  /* Validation color coding */
+  .product-input.pass {
+    border-color: #22c55e;
+    background: #f0fdf4;
+  }
+
+  .product-input.fail {
+    border-color: #ef4444;
+    background: #fee2e2;
+  }
+
+  /* ---------- Remarks ---------- */
+  .remarks-input {
+    grid-column: 2 / -1; /* start after label column */
+    width: 100%;
+    min-height: 70px;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    font-size: 14px;
+    resize: vertical;
+  }
+
+  /* ---------- Footer Buttons ---------- */
+  .chem-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 20px;
+  }
+}
+
+/* ======================================================
+   TABLET + MOBILE VIEW (<= 1024px)
+====================================================== */
+@media (max-width: 1024px) {
+  .desktop-fields {
+    display: none !important;
+  }
+
+  .chem-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .chem-header-text h1 {
+    font-size: 18px;
+  }
+
+  .chem-header-text p {
+    font-size: 13px;
+  }
+
+  .back-btn {
+    align-self: flex-start;
+    margin-top: 4px;
+  }
+
+  /* Accordion container */
+  .mobile-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .mobile-lot {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
+    overflow: hidden;
+    transition: all 0.3s ease;
+  }
+
+  .mobile-lot-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 14px;
+    font-weight: 700;
+    background: #f1f5f9;
+    cursor: pointer;
+  }
+
+  /* Accordion animation */
+  .mobile-lot-body {
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transition: all 0.35s ease-in-out;
+  }
+
+  .mobile-lot.open .mobile-lot-body {
+    max-height: 2000px;
+    opacity: 1;
+  }
+
+  /* Fields grid (tablet: 3 per row, mobile: 2 per row) */
+  .mobile-lot-body-content {
+    padding: 14px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+  }
+
+  .mobile-field-block {
+    display: flex;
+    flex-direction: column;
+    background: #f9fafb;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 10px;
+    gap: 4px;
+  }
+
+  .mobile-field-label {
+    font-weight: 700;
+    font-size: 14px;
+  }
+
+  .mobile-ladle {
+    font-size: 13px;
+    color: #475569;
+  }
+
+  .mobile-product {
+    padding: 8px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+  }
+
+  /* Validation color coding for mobile */
+  .mobile-product.pass {
+    border-color: #22c55e;
+    background: #f0fdf4;
+  }
+
+  .mobile-product.fail {
+    border-color: #ef4444;
+    background: #fee2e2;
+  }
+
+  /* Remarks full width */
+  .remarks-block {
+    grid-column: 1 / -1;
+  }
+
+  .remarks-input {
+    width: 100%;
+    min-height: 60px;
+  }
+
+  .arrow {
+    font-size: 16px;
+    transition: transform 0.3s ease;
+  }
+
+  .mobile-lot.open .arrow {
+    transform: rotate(180deg);
+  }
+
+  .chem-footer {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .btn {
+    width: 100%;
+  }
+}
+
+/* ============ SMALL PHONES (<=400px) ============ */
+@media (max-width: 400px) {
+  .mobile-lot-body-content {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,320 @@
+/* MaterialTestingPage.css */
+
+.material-testing-page-container {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.material-testing-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.material-testing-page-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+.material-testing-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #3b82f6;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.material-testing-back-btn:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+
+/* Heat Toggle */
+.material-heat-toggle {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.heat-toggle-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0369a1;
+  white-space: nowrap;
+}
+
+.heat-toggle-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.heat-toggle-btn {
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #0369a1;
+  background: #fff;
+  border: 1px solid #7dd3fc;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.heat-toggle-btn:hover {
+  background: #e0f2fe;
+}
+
+.heat-toggle-btn.active {
+  background: #0d9488;
+  color: #fff;
+  border-color: #0d9488;
+}
+
+/* Single Heat Display */
+.material-heat-toggle.material-heat-single {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  justify-content: flex-start;
+}
+
+.material-heat-toggle.material-heat-single .heat-single-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: #166534;
+  white-space: nowrap;
+}
+
+/* Table Styles */
+.material-testing-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.material-testing-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.material-testing-table th,
+.material-testing-table td {
+  padding: 10px 8px;
+  text-align: center;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 14px;
+}
+
+.material-testing-table th {
+  background: #f8fafc;
+  font-weight: 600;
+  font-size: 13px;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.material-testing-table .form-control {
+  width: 100%;
+  min-width: 60px;
+  padding: 8px 6px;
+  font-size: 14px;
+  text-align: center;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+
+/* Validation color coding - Pass (Green) */
+.material-testing-table .form-control.pass,
+.inclusion-rating-inputs .form-control.pass {
+  border-color: #22c55e;
+  background-color: #dcfce7;
+}
+
+/* Validation color coding - Fail (Red) */
+.material-testing-table .form-control.fail,
+.inclusion-rating-inputs .form-control.fail {
+  border-color: #ef4444;
+  background-color: #fee2e2;
+}
+
+/* Inclusion Section */
+.inclusion-section {
+  background: #f8fafc;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.inclusion-section-title {
+  margin: 0 0 16px 0;
+  color: #334155;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.inclusion-sample-card {
+  padding: 12px;
+  background: #fff;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  margin-bottom: 12px;
+}
+
+.inclusion-sample-card:last-child {
+  margin-bottom: 0;
+}
+
+.inclusion-sample-label {
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #475569;
+}
+
+.inclusion-rating-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.inclusion-rating-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.inclusion-rating-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 6px;
+  color: #64748b;
+}
+
+.required-star {
+  color: #ef4444;
+}
+
+.inclusion-rating-inputs {
+  display: flex;
+  gap: 8px;
+}
+
+.inclusion-rating-inputs .form-control {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Responsive Styles */
+@media (max-width: 1024px) {
+  .inclusion-rating-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .material-heat-toggle {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .heat-toggle-buttons {
+    width: 100%;
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .material-testing-page-container {
+    padding: 16px;
+  }
+
+  .material-testing-page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .material-testing-back-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .material-testing-page-title {
+    font-size: 20px;
+  }
+
+  .inclusion-rating-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Mobile card layout for table */
+  .material-testing-table thead {
+    display: none;
+  }
+
+  .material-testing-table tbody tr {
+    display: block;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+
+  .material-testing-table tbody td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border: none;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  .material-testing-table tbody td:last-child {
+    border-bottom: none;
+  }
+
+  .material-testing-table tbody td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: #475569;
+    font-size: 13px;
+    min-width: 100px;
+  }
+
+  .material-testing-table tbody td .form-control {
+    width: 100px;
+  }
+}
+
+@media (max-width: 480px) {
+  .material-testing-page-container {
+    padding: 12px;
+  }
+
+  .material-testing-page-title {
+    font-size: 18px;
+  }
+
+  .heat-toggle-btn {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+}
+

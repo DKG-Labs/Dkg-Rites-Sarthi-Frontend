@@ -1,0 +1,239 @@
+/* PackingStoragePage.css */
+
+.packing-storage-page-container {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.packing-storage-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.packing-storage-page-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+.packing-storage-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #3b82f6;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.packing-storage-back-btn:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+
+/* Heat Summary */
+.packing-heat-summary {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: #f0fdfa;
+  border: 1px solid #99f6e4;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.packing-summary-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f766e;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.packing-heat-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.packing-heat-tag {
+  padding: 6px 12px;
+  background: #0d9488;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 16px;
+}
+
+/* Checklist Styles */
+.packing-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.packing-checklist-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  gap: 20px;
+}
+
+.packing-checklist-label {
+  flex: 1;
+}
+
+.packing-checklist-text {
+  font-size: 15px;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.packing-checklist-options {
+  display: flex;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.packing-radio-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.packing-radio-label input[type="radio"] {
+  accent-color: #0d9488;
+  width: 18px;
+  height: 18px;
+}
+
+.packing-radio-text {
+  font-size: 14px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+
+.packing-radio-yes {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.packing-radio-no {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.packing-radio-na {
+  color: #6b7280;
+  background: #e5e7eb;
+}
+
+/* Remarks Section */
+.packing-remarks-section {
+  padding: 16px;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+}
+
+.packing-remarks-label {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  color: #92400e;
+  margin-bottom: 12px;
+}
+
+.packing-remarks-textarea {
+  width: 100%;
+  min-height: 100px;
+  resize: vertical;
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+  .packing-storage-page-container {
+    padding: 16px;
+  }
+
+  .packing-storage-page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .packing-storage-back-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .packing-storage-page-title {
+    font-size: 20px;
+  }
+
+  .packing-heat-summary {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .packing-checklist-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .packing-checklist-options {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .packing-storage-page-container {
+    padding: 12px;
+  }
+
+  .packing-storage-page-title {
+    font-size: 18px;
+  }
+
+  .packing-checklist-item {
+    padding: 12px;
+  }
+
+  .packing-checklist-text {
+    font-size: 14px;
+  }
+
+  .packing-radio-text {
+    font-size: 12px;
+    padding: 4px 8px;
+  }
+
+  .packing-checklist-options {
+    gap: 8px;
+  }
+}
+

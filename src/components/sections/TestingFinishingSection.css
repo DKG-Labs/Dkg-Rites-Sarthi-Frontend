@@ -1,0 +1,268 @@
+/* =====================================================
+   TESTING & FINISHING SECTION COMPONENT STYLES
+   ===================================================== */
+
+.testing-finishing-section {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.testing-finishing-section__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.testing-finishing-section__title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+}
+
+.testing-finishing-section__subtitle {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 4px 0 0;
+}
+
+.section-master-no-production-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  user-select: none;
+}
+
+.section-master-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.testing-finishing-section__toggle {
+  padding: 8px 16px;
+  font-size: 1.25rem;
+}
+
+/* Table Styles */
+.testing-finishing-table-wrapper {
+  padding: 12px;
+  overflow-x: auto;
+}
+
+.testing-finishing-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 2px solid #4a7c59;
+}
+
+.testing-finishing-th {
+  background-color: #fef7f0;
+  color: #1f4d2e;
+  border: 1px solid #4a7c59;
+  padding: 6px 10px;
+  font-weight: 600;
+  font-size: 12px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.testing-finishing-th--time {
+  min-width: 80px;
+  border-left: 3px solid #0d0d0d;
+}
+
+.testing-finishing-th--checkbox {
+  min-width: 80px;
+}
+
+.testing-finishing-th--lot {
+  min-width: 100px;
+}
+
+.testing-finishing-th--toe-load {
+  min-width: 100px;
+}
+
+.testing-finishing-th--weight {
+  min-width: 100px;
+}
+
+.testing-finishing-th--paint {
+  min-width: 120px;
+}
+
+.testing-finishing-th--erc-coating {
+  min-width: 140px;
+}
+
+.testing-finishing-td {
+  border: 1px solid #4a7c59;
+  padding: 4px 8px;
+  text-align: center;
+  vertical-align: middle;
+  background-color: #fff;
+}
+
+.testing-finishing-td--time {
+  font-weight: 600;
+  border-left: 3px solid #0d0d0d;
+  font-size: 12px;
+}
+
+.testing-finishing-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.testing-finishing-select {
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.testing-finishing-input {
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 12px;
+  text-align: center;
+}
+
+/* Rejected Row */
+.testing-finishing-row--rejected {
+  background-color: #e3f2fd;
+}
+
+.testing-finishing-td--rejected-label {
+  background-color: #e3f2fd;
+  font-weight: 600;
+  color: #1565c0;
+}
+
+.testing-finishing-rejected-label {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.testing-finishing-td--rejected-input {
+  background-color: #fff;
+  padding: 2px 6px;
+}
+
+.testing-finishing-td--rejected-input input {
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 12px;
+  text-align: center;
+}
+
+/* Disabled state for rejected input */
+.testing-finishing-td--rejected-input input:disabled {
+  background-color: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+  border-color: #e5e7eb;
+}
+
+/* Remarks Row */
+.testing-finishing-row--remarks {
+  background-color: #f5f5f5;
+}
+
+.testing-finishing-td--remarks-label {
+  background-color: #f5f5f5;
+  padding: 4px 8px;
+  width: 80px;
+}
+
+.testing-finishing-remarks-label {
+  font-weight: 500;
+  color: #333;
+  font-size: 11px;
+}
+
+.testing-finishing-td--remarks-input {
+  background-color: #fff;
+  padding: 2px 6px;
+  text-align: left;
+}
+
+.testing-finishing-td--remarks-input .form-control {
+  width: 100%;
+  text-align: left;
+}
+
+/* Mobile Cards - hidden on desktop */
+.testing-finishing-mobile-cards {
+  display: none;
+}
+
+/* Mobile Responsive - Horizontal Scrolling Table */
+@media (max-width: 768px) {
+  .testing-finishing-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 8px;
+    position: relative;
+  }
+
+  /* Keep table visible on mobile with horizontal scroll */
+  .testing-finishing-table {
+    display: table;
+    min-width: 800px;
+    /* Ensure table is wide enough to require scrolling */
+  }
+
+  /* Hide mobile card layout */
+  .testing-finishing-mobile-cards {
+    display: none;
+  }
+
+  /* Add scroll hint */
+  .testing-finishing-table-wrapper::after {
+    content: '← Scroll horizontally to see all columns →';
+    display: block;
+    text-align: center;
+    padding: 8px;
+    font-size: 12px;
+    color: #6b7280;
+    font-style: italic;
+  }
+}
+
+@media (max-width: 480px) {
+  .testing-finishing-section__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
+
+/* No Production highlight */
+.testing-finishing-table .no-production td,
+.testing-finishing-table .no-production th,
+.testing-finishing-mobile-card.no-production {
+  background-color: #f9cf99;
+  /* light orange */
+}
+
+.testing-finishing-table .no-production td {
+  color: #7a3e00;
+}

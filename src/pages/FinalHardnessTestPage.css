@@ -1,0 +1,288 @@
+.fh-page {
+  padding: 20px;
+}
+
+/* Lot card */
+.lot-section {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 18px;
+  margin-bottom: 24px;
+}
+
+.lot-header {
+  background: #f1f5f9;
+  padding: 10px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.limit-box {
+  margin-top: 12px;
+  padding: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+/* Sampling Header */
+.sampling-header {
+  margin-top: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.yellow-bg {
+  background: #fff3b0;
+  padding: 10px;
+  border-radius: 8px;
+}
+
+/* Rows dropdown */
+.rows-dropdown {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rows-dropdown select {
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+}
+
+/* Values grid */
+.values-grid {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 16px 20px;
+}
+
+.input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.input-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  text-align: center;
+}
+
+.value-input {
+  width: 100%;
+  max-width: 65px;
+  padding: 10px 6px;
+  border-radius: 6px;
+  text-align: center;
+  border: 1px solid #cbd5e1;
+  font-size: 14px;
+}
+
+.value-input.pass {
+  border-color: #22c55e;
+  background: #dcfce7;
+}
+
+.value-input.fail {
+  border-color: #ef4444;
+  background: #fee2e2;
+}
+
+/* ========= Compact Summary Row ========= */
+.compact-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px dashed #e2e8f0;
+  margin-top: 12px;
+}
+
+.summary-item {
+  background: #fff;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.r1-value, .r2-value {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.ok-value {
+  color: #16a34a;
+}
+
+.fail-value {
+  color: #dc2626;
+}
+
+.result-box {
+  padding: 8px 24px;
+  border-radius: 8px;
+  border: 2px solid;
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.result-box.small {
+  padding: 6px 18px;
+  border-width: 2px;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Remarks */
+.final-row {
+  margin-top: 16px;
+}
+
+.remarks-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.remarks-box {
+  padding: 10px;
+  font-size: 13px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  width: 100%;
+  resize: vertical;
+}
+
+/* Popup */
+.popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.popup-box {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  width: 320px;
+}
+
+.popup-actions {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.popup-btn {
+  padding: 7px 14px;
+  border-radius: 6px;
+  background: #e2e8f0;
+}
+
+.popup-btn.primary {
+  background: #0f766e;
+  color: white;
+}
+
+/* Bottom buttons */
+.bottom-actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* ========= RESPONSIVE DESIGN ========= */
+
+/* Tablet (≤1024px) */
+@media (max-width: 1024px) {
+  .values-grid {
+    grid-template-columns: repeat(8, 1fr);
+    gap: 14px 18px;
+  }
+}
+
+/* Mobile (≤768px) */
+@media (max-width: 768px) {
+  .values-grid {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px 12px;
+  }
+
+  .input-label {
+    font-size: 10px;
+  }
+
+  .value-input {
+    max-width: 55px;
+    padding: 8px 4px;
+    font-size: 13px;
+  }
+
+  .compact-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .summary-item {
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+
+  .result-box.small {
+    padding: 8px 16px;
+    font-size: 13px;
+    text-align: center;
+  }
+}
+
+/* Small Mobile (≤480px) */
+@media (max-width: 480px) {
+  .values-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px 10px;
+  }
+
+  .input-label {
+    font-size: 9px;
+  }
+
+  .value-input {
+    max-width: 50px;
+    padding: 6px 3px;
+    font-size: 12px;
+  }
+
+  .summary-item {
+    font-size: 11px;
+    padding: 6px 8px;
+  }
+
+  .result-box.small {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}

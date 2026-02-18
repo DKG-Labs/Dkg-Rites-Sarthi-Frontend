@@ -17,9 +17,9 @@
 //     ? 'http://localhost:8080/sarthi-backend'
 //     : 'https://sarthibackendservice-bfe2eag3byfkbsa6.canadacentral-01.azurewebsites.net/sarthi-backend';
 
-export const API_BASE_URL = 'https://rites-app-free-01-hgeee8a5bcb8b5cs.centralindia-01.azurewebsites.net/sarthi-backend';
+//export const API_BASE_URL = 'https://rites-app-free-01-hgeee8a5bcb8b5cs.centralindia-01.azurewebsites.net/sarthi-backend';
 // API Configuration determined by exports above
-
+export const API_BASE_URL ="https://api.ritesqasarthi.com/sarthi-backend";
 
 /**
  * Common API endpoints

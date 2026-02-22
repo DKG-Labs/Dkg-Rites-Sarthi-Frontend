@@ -7,9 +7,20 @@ import {
 } from 'recharts';
 import './ProfessionalCardSection.css';
 
-const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid }) => {
+const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid, selectedProduct }) => {
     const [activeMainCard, setActiveMainCard] = useState('summary');
-    const [summarySubTab, setSummarySubTab] = useState('erc');
+
+    // Map selectedProduct to summary data keys
+    const getSummaryKey = (prod) => {
+        if (!prod || prod === 'all') return 'erc';
+        const p = prod.toLowerCase();
+        if (p.includes('erc')) return 'erc';
+        if (p.includes('sleeper')) return 'sleeper';
+        if (p.includes('rail pad') || p.includes('railpad')) return 'railpad';
+        return 'erc'; // Default
+    };
+
+    const summarySubTab = getSummaryKey(selectedProduct);
     const [activeReport, setActiveReport] = useState('mpr');
     const [lwclSelection, setLwclSelection] = useState({ po: '', lot: '' });
     const [perfSearch, setPerfSearch] = useState('');
@@ -61,11 +72,7 @@ const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid }) => {
                 const currentSummary = SUMMARY_DATA[summarySubTab];
                 return (
                     <div className="summary-tab-content fade-in">
-                        <div className="sub-nav-tabs">
-                            <button onClick={() => setSummarySubTab('erc')} className={`sub-nav-btn ${summarySubTab === 'erc' ? 'active' : ''}`}>ERC</button>
-                            <button onClick={() => setSummarySubTab('sleeper')} className={`sub-nav-btn ${summarySubTab === 'sleeper' ? 'active' : ''}`}>Sleeper</button>
-                            <button onClick={() => setSummarySubTab('railpad')} className={`sub-nav-btn ${summarySubTab === 'railpad' ? 'active' : ''}`}>Rail Pad</button>
-                        </div>
+
 
                         <div className="kpi-cards-container">
                             {currentSummary.kpis.map((kpi, index) => (
@@ -168,9 +175,24 @@ const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid }) => {
                             ))}
                         </div>
 
-                        {/* First Row of Charts */}
+                        {/* First Row of Charts - Interchanged Position and Size */}
                         <div className="quality-charts-row">
                             <div className="q-chart-card wide-60">
+                                <h3>Pareto Analysis</h3>
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <ComposedChart data={QUALITY_DATA.pareto}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                        <XAxis dataKey="name" axisLine={false} tickLine={false} hide={false} fontSize={10} angle={-15} textAnchor="end" interval={0} />
+                                        <YAxis yAxisId="left" axisLine={false} tickLine={false} />
+                                        <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tickFormatter={(val) => `${val}%`} />
+                                        <Tooltip />
+                                        <Bar yAxisId="left" dataKey="count" fill="#2563eb" barSize={30} radius={[4, 4, 0, 0]} />
+                                        <Line yAxisId="right" type="monotone" dataKey="cumulative" stroke="#ef4444" strokeWidth={2} dot={{ r: 4, fill: '#ef4444' }} />
+                                    </ComposedChart>
+                                </ResponsiveContainer>
+                            </div>
+
+                            <div className="q-chart-card wide-40">
                                 <h3>Stage-wise Rejection %</h3>
                                 <ResponsiveContainer width="100%" height={300}>
                                     <BarChart data={QUALITY_DATA.stageRejection}>
@@ -184,21 +206,6 @@ const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid }) => {
                                             ))}
                                         </Bar>
                                     </BarChart>
-                                </ResponsiveContainer>
-                            </div>
-
-                            <div className="q-chart-card wide-40">
-                                <h3>Pareto Analysis</h3>
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <ComposedChart data={QUALITY_DATA.pareto}>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                        <XAxis dataKey="name" axisLine={false} tickLine={false} hide={false} fontSize={10} angle={-15} textAnchor="end" interval={0} />
-                                        <YAxis yAxisId="left" axisLine={false} tickLine={false} />
-                                        <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tickFormatter={(val) => `${val}%`} />
-                                        <Tooltip />
-                                        <Bar yAxisId="left" dataKey="count" fill="#2563eb" barSize={30} radius={[4, 4, 0, 0]} />
-                                        <Line yAxisId="right" type="monotone" dataKey="cumulative" stroke="#ef4444" strokeWidth={2} dot={{ r: 4, fill: '#ef4444' }} />
-                                    </ComposedChart>
                                 </ResponsiveContainer>
                             </div>
                         </div>
@@ -425,27 +432,30 @@ const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid }) => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filteredRecords.map((record, idx) => (
-                                        <tr key={record.id} className="row-hover">
-                                            <td className="row-id">{idx + 1}</td>
-                                            <td className="vendor-name">{record.manufacturer}</td>
-                                            <td>
-                                                <span className="ie-tag">👤 {record.inspector}</span>
-                                            </td>
-                                            <td>
-                                                <span className={`stage-tag stage-${record.stage.toLowerCase().replace(' ', '-')}`}>
-                                                    {record.stage}
-                                                </span>
-                                            </td>
-                                            <td className="text-right font-bold">{record.inspected}</td>
-                                            <td className="text-right font-bold text-emerald">{record.accepted}</td>
-                                            <td className="text-right font-bold text-red">{record.rejected}</td>
-                                            <td className="text-right">
-                                                <span className="rejection-badge">{record.rejectionRate}</span>
-                                            </td>
-                                            <td className="reason-cell">{record.reason}</td>
-                                        </tr>
-                                    ))}
+                                    {filteredRecords.map((record, idx) => {
+                                        const rowClass = (idx % 2 === 0) ? 'row-odd' : 'row-even';
+                                        return (
+                                            <tr key={record.id} className={rowClass}>
+                                                <td className="row-id">{idx + 1}</td>
+                                                <td className="vendor-name">{record.manufacturer}</td>
+                                                <td>
+                                                    <span className="ie-tag">👤 {record.inspector}</span>
+                                                </td>
+                                                <td>
+                                                    <span className={`stage-tag stage-${record.stage.toLowerCase().replace(' ', '-')}`}>
+                                                        {record.stage}
+                                                    </span>
+                                                </td>
+                                                <td className="text-right font-bold">{record.inspected}</td>
+                                                <td className="text-right font-bold text-emerald">{record.accepted}</td>
+                                                <td className="text-right font-bold text-red">{record.rejected}</td>
+                                                <td className="text-right">
+                                                    <span className="rejection-badge">{record.rejectionRate}</span>
+                                                </td>
+                                                <td className="reason-cell">{record.reason}</td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
 
@@ -465,15 +475,19 @@ const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid }) => {
                     <div className="reports-tab-content fade-in">
                         {/* Report Navigation Tabs */}
                         <div className="reports-filter-pills">
-                            {REPORTS_DATA.tabs.map((tab) => (
-                                <button
-                                    key={tab.id}
-                                    className={`report-pill ${activeReport === tab.id ? 'active' : ''}`}
-                                    onClick={() => setActiveReport(tab.id)}
-                                >
-                                    {tab.label}
-                                </button>
-                            ))}
+                            {REPORTS_DATA.tabs.map((tab) => {
+                                const icons = { mpr: '📋', mau: '📈', lwcl: '🔄', qmr: '🛡️' };
+                                return (
+                                    <button
+                                        key={tab.id}
+                                        className={`report-pill ${activeReport === tab.id ? 'active' : ''}`}
+                                        onClick={() => setActiveReport(tab.id)}
+                                    >
+                                        <span className="pill-icon">{icons[tab.id]}</span>
+                                        {tab.label}
+                                    </button>
+                                );
+                            })}
                         </div>
 
                         <div className="report-viewer-content">
@@ -482,8 +496,9 @@ const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid }) => {
                                     <div className="report-card-header">
                                         <h3>Monthly Progress Report</h3>
                                         <div className="header-actions">
-                                            <button className="btn-icon">📥</button>
-                                            <button className="btn-icon">⎙</button>
+                                            <button className="btn-icon" title="Download Excel">📥</button>
+                                            <button className="btn-icon" title="Print Report">⎙</button>
+                                            <button className="btn-icon" title="Share">🔗</button>
                                         </div>
                                     </div>
                                     <div className="report-table-wrapper">
@@ -502,19 +517,22 @@ const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid }) => {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {REPORTS_DATA.mpr.map((row, idx) => (
-                                                    <tr key={idx}>
-                                                        <td>{row.rly}</td>
-                                                        <td className="font-mono text-xs">{row.poNo}</td>
-                                                        <td>{row.manufacturer}</td>
-                                                        <td className="text-right font-bold">{row.poQty}</td>
-                                                        <td className="text-right">{row.monthlyRM}</td>
-                                                        <td className="text-right">{row.monthlyProcess}</td>
-                                                        <td className="text-right">{row.monthlyFinal}</td>
-                                                        <td className="text-right">{row.totalInspected}</td>
-                                                        <td className="text-right font-bold text-accent">{row.poBalance}</td>
-                                                    </tr>
-                                                ))}
+                                                {REPORTS_DATA.mpr.map((row, idx) => {
+                                                    const rowClass = (idx % 2 === 0) ? 'row-odd' : 'row-even';
+                                                    return (
+                                                        <tr key={idx} className={rowClass}>
+                                                            <td>{row.rly}</td>
+                                                            <td className="font-mono text-xs">{row.poNo}</td>
+                                                            <td>{row.manufacturer}</td>
+                                                            <td className="text-right font-bold">{row.poQty}</td>
+                                                            <td className="text-right">{row.monthlyRM}</td>
+                                                            <td className="text-right">{row.monthlyProcess}</td>
+                                                            <td className="text-right">{row.monthlyFinal}</td>
+                                                            <td className="text-right">{row.totalInspected}</td>
+                                                            <td className="text-right font-bold text-accent">{row.poBalance}</td>
+                                                        </tr>
+                                                    );
+                                                })}
                                             </tbody>
                                         </table>
                                     </div>
@@ -526,6 +544,10 @@ const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid }) => {
                                     <div className="report-card mb-6">
                                         <div className="report-card-header">
                                             <h3>Monthly Analysis of Units</h3>
+                                            <div className="header-actions">
+                                                <button className="btn-icon" title="Download Excel">📥</button>
+                                                <button className="btn-icon" title="Print Report">⎙</button>
+                                            </div>
                                         </div>
                                         <div className="report-table-wrapper">
                                             <table className="report-data-table">
@@ -541,17 +563,20 @@ const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid }) => {
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {REPORTS_DATA.mau.table.map((row, idx) => (
-                                                        <tr key={idx}>
-                                                            <td className="font-bold">{row.manufacturer}</td>
-                                                            <td className="text-right">{row.manufactured}</td>
-                                                            <td className="text-right">{row.inspected}</td>
-                                                            <td className="text-right text-red font-bold">{row.rejected}</td>
-                                                            <td className="text-right">{row.rmRej}</td>
-                                                            <td className="text-right text-red font-bold">{row.processRej}</td>
-                                                            <td className="text-right">{row.finalRej}</td>
-                                                        </tr>
-                                                    ))}
+                                                    {REPORTS_DATA.mau.table.map((row, idx) => {
+                                                        const rowClass = (idx % 2 === 0) ? 'row-odd' : 'row-even';
+                                                        return (
+                                                            <tr key={idx} className={rowClass}>
+                                                                <td className="font-bold">{row.manufacturer}</td>
+                                                                <td className="text-right">{row.manufactured}</td>
+                                                                <td className="text-right">{row.inspected}</td>
+                                                                <td className="text-right text-red font-bold">{row.rejected}</td>
+                                                                <td className="text-right">{row.rmRej}</td>
+                                                                <td className="text-right text-red font-bold">{row.processRej}</td>
+                                                                <td className="text-right">{row.finalRej}</td>
+                                                            </tr>
+                                                        );
+                                                    })}
                                                 </tbody>
                                             </table>
                                         </div>
@@ -564,8 +589,8 @@ const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid }) => {
                                                 <BarChart data={REPORTS_DATA.mau.production}>
                                                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
                                                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
-                                                    <Tooltip />
-                                                    <Bar dataKey="value" fill="#4f46e5" radius={[4, 4, 0, 0]} barSize={40} />
+                                                    <Tooltip contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                                                    <Bar dataKey="value" fill="#10b981" radius={[4, 4, 0, 0]} barSize={40} />
                                                 </BarChart>
                                             </ResponsiveContainer>
                                         </div>
@@ -573,11 +598,11 @@ const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid }) => {
                                             <h4>Rejection % Analysis</h4>
                                             <ResponsiveContainer width="100%" height={250}>
                                                 <RadarChart cx="50%" cy="50%" outerRadius="80%" data={REPORTS_DATA.mau.rejectionRadar}>
-                                                    <PolarGrid />
-                                                    <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10 }} />
-                                                    <PolarRadiusAxis />
-                                                    <Radar name="Rejection" dataKey="A" stroke="#ef4444" fill="#ef4444" fillOpacity={0.6} />
-                                                    <Tooltip />
+                                                    <PolarGrid stroke="#e2e8f0" />
+                                                    <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fill: '#64748b' }} />
+                                                    <PolarRadiusAxis angle={30} domain={[0, 1.5]} hide />
+                                                    <Radar name="Rejection" dataKey="A" stroke="#059669" fill="#10b981" fillOpacity={0.6} />
+                                                    <Tooltip contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
                                                 </RadarChart>
                                             </ResponsiveContainer>
                                         </div>
@@ -596,17 +621,20 @@ const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid }) => {
                                                     value={lwclSelection.po}
                                                     onChange={(e) => setLwclSelection({ ...lwclSelection, po: e.target.value })}
                                                 >
-                                                    <option value="">Select PO</option>
-                                                    {REPORTS_DATA.lwcl.poNumbers.map(n => <option key={n} value={n}>{n}</option>)}
+                                                    <option value="">Select PO No.</option>
+                                                    {REPORTS_DATA.lwcl.poNumbers.map(po => <option key={po} value={po}>{po}</option>)}
                                                 </select>
                                                 <select
                                                     className="report-select"
                                                     value={lwclSelection.lot}
                                                     onChange={(e) => setLwclSelection({ ...lwclSelection, lot: e.target.value })}
                                                 >
-                                                    <option value="">Select Lot</option>
-                                                    {REPORTS_DATA.lwcl.lots.map(n => <option key={n} value={n}>{n}</option>)}
+                                                    <option value="">Select Lot No.</option>
+                                                    {REPORTS_DATA.lwcl.lots.map(lot => <option key={lot} value={lot}>{lot}</option>)}
                                                 </select>
+                                                <div className="header-actions" style={{ marginLeft: '1rem' }}>
+                                                    <button className="btn-icon" title="Print">⎙</button>
+                                                </div>
                                             </div>
                                         </div>
 
@@ -630,21 +658,24 @@ const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid }) => {
                                                             </tr>
                                                         </thead>
                                                         <tbody>
-                                                            {REPORTS_DATA.lwcl.table.map((row, idx) => (
-                                                                <tr key={idx}>
-                                                                    <td>{row.date}</td>
-                                                                    <td className="font-bold">{row.shift}</td>
-                                                                    <td className="text-right text-emerald font-bold">{row.accepted}</td>
-                                                                    <td className="text-right text-red font-bold">{row.rejected}</td>
-                                                                    <td className="text-right">{row.shearing}</td>
-                                                                    <td className="text-right">{row.turning}</td>
-                                                                    <td className="text-right">{row.mpi}</td>
-                                                                    <td className="text-right">{row.forging}</td>
-                                                                    <td className="text-right">{row.quenching}</td>
-                                                                    <td className="text-right">{row.tempering}</td>
-                                                                    <td className="text-right">{row.testing}</td>
-                                                                </tr>
-                                                            ))}
+                                                            {REPORTS_DATA.lwcl.table.map((row, idx) => {
+                                                                const rowClass = (idx % 2 === 0) ? 'row-odd' : 'row-even';
+                                                                return (
+                                                                    <tr key={idx} className={rowClass}>
+                                                                        <td>{row.date}</td>
+                                                                        <td className="font-bold">{row.shift}</td>
+                                                                        <td className="text-right text-emerald font-bold">{row.accepted}</td>
+                                                                        <td className="text-right text-red font-bold">{row.rejected}</td>
+                                                                        <td className="text-right">{row.shearing}</td>
+                                                                        <td className="text-right">{row.turning}</td>
+                                                                        <td className="text-right">{row.mpi}</td>
+                                                                        <td className="text-right">{row.forging}</td>
+                                                                        <td className="text-right">{row.quenching}</td>
+                                                                        <td className="text-right">{row.tempering}</td>
+                                                                        <td className="text-right">{row.testing}</td>
+                                                                    </tr>
+                                                                );
+                                                            })}
                                                         </tbody>
                                                     </table>
                                                 </div>
@@ -689,16 +720,19 @@ const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid }) => {
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {REPORTS_DATA.qmr.map((row, idx) => (
-                                                        <tr key={idx}>
-                                                            <td className="font-medium text-slate-700">{row.parameter}</td>
-                                                            <td className="text-right">{row.rm}</td>
-                                                            <td className="text-right">{row.process}</td>
-                                                            <td className="text-right">{row.final}</td>
-                                                            <td className="text-right font-bold">{row.overallNos}</td>
-                                                            <td className="text-right font-bold text-slate-800">{row.overallPct}</td>
-                                                        </tr>
-                                                    ))}
+                                                    {REPORTS_DATA.qmr.map((row, idx) => {
+                                                        const rowClass = (idx % 2 === 0) ? 'row-odd' : 'row-even';
+                                                        return (
+                                                            <tr key={idx} className={rowClass}>
+                                                                <td className="font-medium text-slate-700">{row.parameter}</td>
+                                                                <td className="text-right">{row.rm}</td>
+                                                                <td className="text-right">{row.process}</td>
+                                                                <td className="text-right">{row.final}</td>
+                                                                <td className="text-right font-bold">{row.overallNos}</td>
+                                                                <td className="text-right font-bold text-slate-800">{row.overallPct}</td>
+                                                            </tr>
+                                                        );
+                                                    })}
                                                 </tbody>
                                             </table>
                                         </div>

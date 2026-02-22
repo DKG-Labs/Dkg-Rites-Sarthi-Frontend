@@ -1,21 +1,39 @@
 ﻿/* Railway Board Dashboard - Premium Styles */
 
 .railway-dashboard-container {
-    padding: 24px 32px;
-    background-color: #fdfbf7;
-    /* var(--color-cream-50) approximate */
+    padding: 2rem 3rem;
+    background-color: #f0fdfa;
+    /* Extremely light mint / Emerald 50 */
     min-height: 100vh;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    color: #1e293b;
-    /* Slate 800 */
+    font-family: 'Inter', -apple-system, sans-serif;
+    color: #0f172a;
 }
 
-/* Header */
+/* Header Refinement */
 .dashboard-header {
-    margin-bottom: 24px;
+    margin-bottom: 2.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
 }
 
-/* Product Toggle */
+.dashboard-title {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: 800;
+    color: #064e3b;
+    /* Emerald 900 */
+    letter-spacing: -0.025em;
+}
+
+.dashboard-subtitle {
+    font-size: 0.875rem;
+    color: #64748b;
+    font-weight: 500;
+    margin-top: 0.25rem;
+}
+
+/* Product Toggle - Pill Design */
 .product-toggle-container {
     display: flex;
     justify-content: center;
@@ -49,10 +67,10 @@
 }
 
 .product-toggle-btn.active {
-    background-color: #3b82f6;
-    /* Blue 500 */
+    background-color: #10b981;
+    /* Light Green / Emerald 500 */
     color: white;
-    box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
+    box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.3);
 }
 
 .header-controls {
@@ -64,110 +82,126 @@
 
 .filter-bar {
     display: flex;
-    align-items: flex-end;
-    /* Align to the bottom of labels */
-    gap: 16px;
-    margin-bottom: 24px;
-    background: rgba(255, 255, 255, 0.7);
-    padding: 16px;
-    border-radius: 12px;
-    border: 1px solid rgba(226, 232, 240, 0.8);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-    flex-wrap: wrap;
+    align-items: center;
+    gap: 2.5rem;
+    margin-bottom: 2.5rem;
+    background: white;
+    padding: 2rem;
+    border-radius: 20px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04);
+    position: relative;
+    overflow: hidden;
+}
+
+.content-card-integrated {
+    background: white;
+    border-radius: 24px;
+    padding: 2.5rem;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04);
+    margin-bottom: 2.5rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.content-card-integrated::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 6px;
+    background: #10b981;
+}
+
+.filter-bar::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 6px;
+    background: #10b981;
 }
 
 .filter-group {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    /* Center labels horizontally */
-    gap: 8px;
-    min-width: 120px;
+    align-items: flex-start;
+    /* Align labels to the left for better readability */
+    gap: 10px;
+    flex: 1;
+    /* Grow to fill space */
 }
 
 .filter-label {
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 700;
-    color: #475569;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    text-align: center;
-}
-
-.dashboard-title {
-    font-size: 28px;
-    font-weight: 700;
-    color: #0f172a;
-    /* Slate 900 */
-    margin: 0;
-    margin-bottom: 4px;
-    letter-spacing: -0.5px;
-}
-
-.dashboard-subtitle {
-    font-size: 14px;
     color: #64748b;
-    /* Slate 500 */
-    font-weight: 500;
-}
-
-.header-controls {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+    /* Neutral Slate color */
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-left: 2px;
 }
 
 .dashboard-select {
-    padding: 8px 16px;
-    border: 1px solid #cbd5e1;
-    /* Slate 300 */
-    border-radius: 8px;
-    background-color: white;
-    color: #475569;
-    /* Slate 600 */
-    font-size: 13px;
+    padding: 10px 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background-color: #f8fafc;
+    /* Subtle gray background */
+    color: #334155;
+    font-size: 14px;
     font-weight: 500;
     cursor: pointer;
     outline: none;
-    min-width: 180px;
-    transition: all 0.2s;
+    width: 100%;
+    /* Take full width of filter-group */
+    transition: all 0.2s ease;
 }
 
 .dashboard-select:hover {
-    border-color: #94a3b8;
-    /* Slate 400 */
+    border-color: #cbd5e1;
+    background-color: #ffffff;
 }
 
 .dashboard-select:focus {
-    border-color: #14b8a6;
-    /* Teal 500 */
-    box-shadow: 0 0 0 2px rgba(20, 184, 166, 0.1);
+    border-color: #10b981;
+    /* Match green theme */
+    background-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
 }
 
 /* Date Picker Refinement */
 .date-picker-card {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 0;
-    background: white;
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
-    padding: 2px 4px;
-    height: 38px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 2px 8px;
+    height: 42px;
+    width: 100%;
+    /* Force full width */
     transition: all 0.2s ease;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .date-picker-card:focus-within {
-    border-color: #14b8a6;
-    box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.1);
+    border-color: #10b981;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
 }
 
 .date-input-wrapper {
     display: flex;
     align-items: center;
-    padding: 0 8px;
+    padding: 0 4px;
     gap: 4px;
+    flex: 1;
+    /* Expand contents */
 }
 
 .premium-date-input {
@@ -178,7 +212,8 @@
     font-weight: 500;
     color: #334155;
     font-family: inherit;
-    width: 120px;
+    width: 100%;
+    /* Expand to fill wrapper */
     cursor: pointer;
 }
 
@@ -242,26 +277,36 @@
 
 .kpi-card {
     background: white;
-    border-radius: 12px;
-    padding: 16px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.1);
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
     border: 1px solid #e2e8f0;
-    transition: all 0.2s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
     position: relative;
     overflow: hidden;
 }
 
 .kpi-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    transform: translateY(-4px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    border-color: #10b981;
 }
 
 .kpi-card.active {
-    border-color: #14b8a6;
-    /* Teal 500 */
-    background-color: #f0fdfa;
-    /* Teal 50 */
+    border-color: #10b981;
+    background-color: #ecfdf5;
+    box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.1);
+}
+
+.kpi-card.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: #10b981;
 }
 
 .kpi-label {
@@ -394,21 +439,51 @@
     border-collapse: separate;
     border-spacing: 0;
     font-size: 13px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.data-table th:first-child {
+    border-top-left-radius: 12px;
+}
+
+.data-table th:last-child {
+    border-top-right-radius: 12px;
+}
+
+.data-table tr:last-child td:first-child {
+    border-bottom-left-radius: 12px;
+}
+
+.data-table tr:last-child td:last-child {
+    border-bottom-right-radius: 12px;
 }
 
 .data-table th {
-    background: #fff7ed;
-    /* Orange 50 - The specific light orange tint requested */
-    color: #0f172a;
-    font-weight: 600;
+    background: #d1fae5;
+    /* Emerald 100 - Light Green Header */
+    color: #065f46;
+    /* Emerald 800 - Contrast text */
+    font-weight: 700;
     text-transform: uppercase;
     font-size: 11px;
     letter-spacing: 0.5px;
-    padding: 16px;
+    padding: 14px 16px;
     text-align: left;
-    border-bottom: 2px solid #fdba74;
-    /* Orange 200 border */
+    border-bottom: 2px solid #10b981;
+    /* Emerald 500 border */
     white-space: nowrap;
+}
+
+tr.row-odd,
+tr.row-odd td {
+    background-color: #ecfdf5 !important;
+}
+
+tr.row-even,
+tr.row-even td {
+    background-color: #ffffff !important;
 }
 
 .data-table td {
@@ -421,11 +496,6 @@
 .clickable-row {
     cursor: pointer;
     transition: background 0.1s;
-}
-
-.clickable-row:hover {
-    background-color: #f8fafc;
-    /* Slate 50 */
 }
 
 /* Table Utilities */
@@ -533,25 +603,42 @@
 }
 
 .data-table.nested-table {
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    box-shadow: 0 4px 15px -3px rgba(0, 0, 0, 0.08);
+    /* More premium shadow */
     background: white;
-    border-radius: 8px;
+    border-radius: 12px;
     overflow: hidden;
-    border: 1px solid #e0f2fe;
-    /* Sky 100 */
+    border: 1px solid #d1fae5;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.data-table.nested-table th:first-child {
+    border-top-left-radius: 12px;
+}
+
+.data-table.nested-table th:last-child {
+    border-top-right-radius: 12px;
+}
+
+.data-table.nested-table tr:last-child td:first-child {
+    border-bottom-left-radius: 12px;
+}
+
+.data-table.nested-table tr:last-child td:last-child {
+    border-bottom-right-radius: 12px;
 }
 
 .data-table.nested-table th {
-    background: #e0f2fe;
-    /* Sky 100 */
-    color: #0369a1;
-    /* Sky 700 */
+    background: #d1fae5;
+    color: #065f46;
     font-size: 11px;
-    border-bottom: 2px solid #bae6fd;
-    /* Sky 200 */
+    border-bottom: 2px solid #10b981;
     padding: 14px;
     font-weight: 700;
 }
+
+/* Nested table specific zebra overrides handled by global tr.row-odd/even rules above */
 
 /* Level 3: Inspection Calls (Amber/Orange Theme) */
 .nested-table-wrapper.level-3 {
@@ -577,12 +664,9 @@
 }
 
 .nested-table-wrapper.level-3 .data-table.nested-table th {
-    background: #ffedd5;
-    /* Orange 100 */
-    color: #c2410c;
-    /* Orange 700 */
-    border-bottom-color: #fed7aa;
-    /* Orange 200 */
+    background: #d1fae5;
+    color: #065f46;
+    border-bottom-color: #10b981;
 }
 
 /* Level 4: Digital Production Register (Slate/Gray Theme) */
@@ -864,12 +948,19 @@
 
 /* Header Styling: Light Gray/Slate instead of Blue/Indigo */
 .level-4-table thead tr:first-child th {
-    background: #f8fafc !important;
-    /* Clean Screen Gray */
-    color: #0f172a !important;
+    background: #d1fae5 !important;
+    color: #065f46 !important;
     font-weight: 700 !important;
     text-transform: uppercase;
-    border-bottom: 2px solid #64748b !important;
+    border-bottom: 2px solid #10b981 !important;
+}
+
+.level-4-table tbody tr.row-odd {
+    background-color: #d1fae5 !important;
+}
+
+.level-4-table tbody tr.row-even {
+    background-color: #ffffff !important;
 }
 
 /* Process Section Colors (Distinct Pastels) */

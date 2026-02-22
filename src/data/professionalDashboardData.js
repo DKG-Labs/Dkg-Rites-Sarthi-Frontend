@@ -1,9 +1,9 @@
 export const PROFESSIONAL_MAIN_CARDS = [
     { id: 'summary', title: 'Summary', icon: '📊', color: '#dc2626' },
     { id: 'quality', title: 'Quality Surveillance', icon: '🛡️', color: '#166534' },
-    { id: 'lifecycle', title: 'PO Lifecycle', icon: '🔄', color: '#1e40af' },
+    { id: 'lifecycle', title: 'PO Lifecycle', icon: '🔄', color: '#10b981' },
     { id: 'performance', title: 'Performance Matrix', icon: '📈', color: '#f59e0b' },
-    { id: 'reports', title: 'Reports', icon: '📑', color: '#3b82f6' },
+    { id: 'reports', title: 'Reports', icon: '📑', color: '#10b981' },
 ];
 
 export const SUMMARY_DATA = {

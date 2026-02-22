@@ -2,15 +2,12 @@ import React from 'react';
 
 const VENDORS = ['Prakash Metallics', 'Kalimata', 'Royal'];
 const RITES_RIOS = ['CRIO', 'NRIO', 'ERIO', 'WRIO', 'SRIO'];
-const PRODUCTS = ['ERC', 'PSC Sleeper', 'Rail Pad', 'Elastomeric Pad'];
 const RAIL_ZONES = [
     'CR', 'ER', 'ECR', 'ECoR', 'NR', 'NCR', 'NER', 'NFR', 'NWR',
     'SR', 'SCR', 'SER', 'SECR', 'SWR', 'WR', 'WCR', 'Metro', 'SCoR', 'KR'
 ];
 
 const FilterBar = ({
-    selectedCategory, setSelectedCategory,
-    selectedProduct, setSelectedProduct,
     selectedZone, setSelectedZone,
     selectedVendor, setSelectedVendor,
     selectedRio, setSelectedRio,
@@ -45,32 +42,7 @@ const FilterBar = ({
                 </div>
             </div>
 
-            {/* Product Category Dropdown */}
-            <div className="filter-group">
-                <label className="filter-label">Category</label>
-                <select
-                    className="dashboard-select"
-                    value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(e.target.value)}
-                >
-                    <option value="Track Components">Track Components</option>
-                </select>
-            </div>
 
-            {/* Product Dropdown */}
-            <div className="filter-group">
-                <label className="filter-label">Product</label>
-                <select
-                    className="dashboard-select"
-                    value={selectedProduct}
-                    onChange={(e) => setSelectedProduct(e.target.value)}
-                >
-                    <option value="all">All Products</option>
-                    {PRODUCTS.map(prod => (
-                        <option key={prod} value={prod}>{prod}</option>
-                    ))}
-                </select>
-            </div>
 
             {/* Zone Dropdown */}
             <div className="filter-group">

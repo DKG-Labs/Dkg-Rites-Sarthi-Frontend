@@ -32,7 +32,6 @@ const RailwayBoardDashboard = () => {
     const { data: reportData, loading, error } = useReportData(reportService.getLevel1Report, null);
 
     // Filter State with Persistence (Normalized 'all' for internal state)
-    const [selectedCategory, setSelectedCategory] = useState('Track Components');
     const [selectedProduct, setSelectedProduct] = useState(() => {
         const val = localStorage.getItem('dash_selectedProduct');
         return (val === 'All' || !val) ? 'all' : val;
@@ -211,10 +210,6 @@ const RailwayBoardDashboard = () => {
             />
 
             <FilterBar
-                selectedCategory={selectedCategory}
-                setSelectedCategory={setSelectedCategory}
-                selectedProduct={selectedProduct}
-                setSelectedProduct={setSelectedProduct}
                 selectedZone={selectedZone}
                 setSelectedZone={setSelectedZone}
                 selectedVendor={selectedVendor}
@@ -232,6 +227,7 @@ const RailwayBoardDashboard = () => {
                 poTable={poTable}
                 poGraph={poGraph}
                 kpiGrid={kpiGrid}
+                selectedProduct={selectedProduct}
             />
         </div>
     );

@@ -89,53 +89,56 @@ function Level4Table({ callNo, parentSerial, railway }) {
                         </tr>
                     </thead>
                     <tbody>
-                        {paginatedData.map((shift, index) => (
-                            <tr key={index} className="clickable-row">
-                                <td>{shift.basicDetails?.date ? new Date(shift.basicDetails.date).toLocaleDateString() : 'Invalid Date'}</td>
-                                <td>{shift.basicDetails?.shift || '-'}</td>
-                                <td>{index + 1}</td>
-                                <td>{shift.basicDetails?.poSrNo || callNo}</td>
-                                <td>{shift.basicDetails?.lotNumber || '-'}</td>
-                                <td>{shift.basicDetails?.totalAcceptedQty ?? 0}</td>
-                                <td>{shift.basicDetails?.totalRejectionQty ?? 0}</td>
+                        {paginatedData.map((shift, index) => {
+                            const rowClass = (index % 2 === 0) ? 'row-odd' : 'row-even';
+                            return (
+                                <tr key={index} className={rowClass}>
+                                    <td>{shift.basicDetails?.date ? new Date(shift.basicDetails.date).toLocaleDateString() : 'Invalid Date'}</td>
+                                    <td>{shift.basicDetails?.shift || '-'}</td>
+                                    <td>{index + 1}</td>
+                                    <td>{shift.basicDetails?.poSrNo || callNo}</td>
+                                    <td>{shift.basicDetails?.lotNumber || '-'}</td>
+                                    <td>{shift.basicDetails?.totalAcceptedQty ?? 0}</td>
+                                    <td>{shift.basicDetails?.totalRejectionQty ?? 0}</td>
 
-                                <td>{shift.processQty?.shearingProductionQty ?? 0}</td><td>{shift.processQty?.shearingRejectionQty ?? 0}</td>
-                                <td>{shift.processQty?.turningProductionQty ?? 0}</td><td>{shift.processQty?.turningRejectionQty ?? 0}</td>
-                                <td>{shift.processQty?.mpiProductionQty ?? 0}</td><td>{shift.processQty?.mpiRejectionQty ?? 0}</td>
-                                <td>{shift.processQty?.forgingProductionQty ?? 0}</td><td>{shift.processQty?.forgingRejectionQty ?? 0}</td>
-                                <td>{shift.processQty?.quenchingProductionQty ?? 0}</td><td>{shift.processQty?.quenchingRejectionQty ?? 0}</td>
-                                <td>{shift.processQty?.temperingProductionQty ?? 0}</td><td>{shift.processQty?.temperingRejectionQty ?? 0}</td>
-                                <td>{shift.shearingDefects?.lengthOfCutBar ?? 0}</td>
-                                <td>{shift.shearingDefects?.ovalityImproperDiaAtEnd ?? 0}</td>
-                                <td>{shift.shearingDefects?.sharpEdges ?? 0}</td>
-                                <td>{shift.shearingDefects?.crackedEdges ?? 0}</td>
+                                    <td>{shift.processQty?.shearingProductionQty ?? 0}</td><td>{shift.processQty?.shearingRejectionQty ?? 0}</td>
+                                    <td>{shift.processQty?.turningProductionQty ?? 0}</td><td>{shift.processQty?.turningRejectionQty ?? 0}</td>
+                                    <td>{shift.processQty?.mpiProductionQty ?? 0}</td><td>{shift.processQty?.mpiRejectionQty ?? 0}</td>
+                                    <td>{shift.processQty?.forgingProductionQty ?? 0}</td><td>{shift.processQty?.forgingRejectionQty ?? 0}</td>
+                                    <td>{shift.processQty?.quenchingProductionQty ?? 0}</td><td>{shift.processQty?.quenchingRejectionQty ?? 0}</td>
+                                    <td>{shift.processQty?.temperingProductionQty ?? 0}</td><td>{shift.processQty?.temperingRejectionQty ?? 0}</td>
+                                    <td>{shift.shearingDefects?.lengthOfCutBar ?? 0}</td>
+                                    <td>{shift.shearingDefects?.ovalityImproperDiaAtEnd ?? 0}</td>
+                                    <td>{shift.shearingDefects?.sharpEdges ?? 0}</td>
+                                    <td>{shift.shearingDefects?.crackedEdges ?? 0}</td>
 
-                                <td>{shift.turningDefects?.parallelLength ?? 0}</td>
-                                <td>{shift.turningDefects?.fullTurningLength ?? 0}</td>
-                                <td>{shift.turningDefects?.turningDia ?? 0}</td>
+                                    <td>{shift.turningDefects?.parallelLength ?? 0}</td>
+                                    <td>{shift.turningDefects?.fullTurningLength ?? 0}</td>
+                                    <td>{shift.turningDefects?.turningDia ?? 0}</td>
 
-                                <td>{shift.processQty?.mpiRejectionQty ?? 0}</td>
+                                    <td>{shift.processQty?.mpiRejectionQty ?? 0}</td>
 
-                                <td>{shift.forgingDefects?.forgingTemperature ?? 0}</td>
-                                <td>{shift.forgingDefects?.forgingStabilisationRejection ?? 0}</td>
-                                <td>{shift.forgingDefects?.improperForging ?? 0}</td>
-                                <td>{shift.forgingDefects?.forgingMarksNotches ?? 0}</td>
+                                    <td>{shift.forgingDefects?.forgingTemperature ?? 0}</td>
+                                    <td>{shift.forgingDefects?.forgingStabilisationRejection ?? 0}</td>
+                                    <td>{shift.forgingDefects?.improperForging ?? 0}</td>
+                                    <td>{shift.forgingDefects?.forgingMarksNotches ?? 0}</td>
 
-                                <td>{shift.testingDefects?.temperingHardness ?? 0}</td>
+                                    <td>{shift.testingDefects?.temperingHardness ?? 0}</td>
 
-                                <td>{shift.dimensionalDefects?.boxGauge ?? 0}</td>
-                                <td>{shift.dimensionalDefects?.flatBearingArea ?? 0}</td>
-                                <td>{shift.dimensionalDefects?.fallingGauge ?? 0}</td>
+                                    <td>{shift.dimensionalDefects?.boxGauge ?? 0}</td>
+                                    <td>{shift.dimensionalDefects?.flatBearingArea ?? 0}</td>
+                                    <td>{shift.dimensionalDefects?.fallingGauge ?? 0}</td>
 
-                                <td>{shift.visualDefects?.surfaceDefect ?? 0}</td>
-                                <td>{shift.visualDefects?.embossingDefect ?? 0}</td>
-                                <td>{shift.visualDefects?.marking ?? 0}</td>
+                                    <td>{shift.visualDefects?.surfaceDefect ?? 0}</td>
+                                    <td>{shift.visualDefects?.embossingDefect ?? 0}</td>
+                                    <td>{shift.visualDefects?.marking ?? 0}</td>
 
-                                <td>0</td>
-                                <td>{shift.testingDefects?.toeLoad ?? 0}</td><td>{shift.testingDefects?.weight ?? 0}</td>
-                                <td>{shift.finishingDefects?.paintIdentification ?? 0}</td><td>{shift.finishingDefects?.ercCoating ?? 0}</td>
-                            </tr>
-                        ))}
+                                    <td>0</td>
+                                    <td>{shift.testingDefects?.toeLoad ?? 0}</td><td>{shift.testingDefects?.weight ?? 0}</td>
+                                    <td>{shift.finishingDefects?.paintIdentification ?? 0}</td><td>{shift.finishingDefects?.ercCoating ?? 0}</td>
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>
@@ -159,10 +162,12 @@ function Level3Row({ call, expandedCall, toggleCall, parentSerial, index, railwa
     const isProcess = call.stageOfInspection === 'Process' || call.inspectionType === 'Process';
     // const shifts = SHIFT_RESULTS[call.call_no] || [];
 
+    const rowClass = (index % 2 === 0) ? 'row-odd' : 'row-even';
+
     return (
         <React.Fragment>
             <tr
-                className={`clickable-row ${isExpanded ? 'expanded-row-parent' : ''}`}
+                className={`${rowClass} ${isExpanded ? 'expanded-row-parent' : ''}`}
                 onClick={(e) => { e.stopPropagation(); toggleCall(call.inspectionCallNumber); }}
             >
                 <td className="text-center">
@@ -265,10 +270,12 @@ function Level2Row({ row, index, expandedSerial, toggleSerial, expandedCall, tog
     const compositeId = `${poNo}_${row.rlyPoSrNo}`;
     const isExpanded = expandedSerial === compositeId;
 
+    const rowClass = (index % 2 === 0) ? 'row-odd' : 'row-even';
+
     return (
         <React.Fragment>
             <tr
-                className={`clickable-row ${isExpanded ? 'expanded-row-parent' : ''}`}
+                className={`${rowClass} ${isExpanded ? 'expanded-row-parent' : ''}`}
                 onClick={(e) => { e.stopPropagation(); toggleSerial(poNo, row.rlyPoSrNo); }}
             >
                 <td className="text-center">
@@ -391,10 +398,12 @@ export const Level1Row = React.memo(({
 }) => {
     const isExpanded = expandedPo === po.poNo;
 
+    const rowClass = (index % 2 === 0) ? 'row-odd' : 'row-even';
+
     return (
         <React.Fragment>
             <tr
-                className={`clickable-row ${isExpanded ? 'expanded-row-parent' : ''}`}
+                className={`${rowClass} ${isExpanded ? 'expanded-row-parent' : ''}`}
                 onClick={() => togglePo(po?.poNo)}
             >
                 <td className="text-center">

@@ -70,8 +70,25 @@
     overflow: visible;
 }
 
-.main-card:hover {
-    background: #f1f5f9;
+.main-card:hover,
+.main-card.active:hover {
+    background: #ecfdf5 !important;
+    color: #10b981;
+}
+
+.main-card:hover .main-card-title,
+.main-card.active:hover .main-card-title {
+    color: #10b981;
+}
+
+.main-card:hover .main-card-icon-wrapper,
+.main-card.active:hover .main-card-icon-wrapper {
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.main-card:hover .main-card-icon,
+.main-card.active:hover .main-card-icon {
+    filter: none;
 }
 
 .main-card.active {
@@ -796,22 +813,50 @@
 
 .perf-data-table-new {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.perf-data-table-new th:first-child {
+    border-top-left-radius: 12px;
+}
+
+.perf-data-table-new th:last-child {
+    border-top-right-radius: 12px;
+}
+
+.perf-data-table-new tr:last-child td:first-child {
+    border-bottom-left-radius: 12px;
+}
+
+.perf-data-table-new tr:last-child td:last-child {
+    border-bottom-right-radius: 12px;
 }
 
 .perf-data-table-new th {
-    background: #f8fafc;
+    background: #d1fae5;
     padding: 1rem 1.5rem;
     text-align: left;
     font-size: 0.75rem;
     font-weight: 700;
-    color: #64748b;
-    border-bottom: 2px solid #f1f5f9;
+    color: #065f46;
+    border-bottom: 2px solid #10b981;
+}
+
+.perf-data-table-new tr.row-odd {
+    background-color: #d1fae5;
+}
+
+.perf-data-table-new tr.row-even {
+    background-color: #ffffff;
 }
 
 .perf-data-table-new td {
     padding: 1.25rem 1.5rem;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid #e2e8f0;
     font-size: 0.875rem;
 }
 
@@ -882,24 +927,33 @@
 }
 
 .report-pill {
-    padding: 0.625rem 1.5rem;
-    background: #f1f5f9;
-    border: none;
-    border-radius: 100px;
+    padding: 0.75rem 1.625rem;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
     font-size: 0.8125rem;
-    font-weight: 700;
-    color: #475569;
+    font-weight: 600;
+    color: #64748b;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .report-pill:hover {
-    background: #e2e8f0;
+    border-color: #10b981;
+    color: #10b981;
+    background: #ecfdf5;
+    transform: translateY(-1px);
 }
 
 .report-pill.active {
-    background: #4f46e5;
+    background: #10b981;
+    border-color: #10b981;
     color: white;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
 }
 
 .reports-tab-content {
@@ -915,25 +969,45 @@
 .report-card {
     background: white;
     border-radius: 20px;
-    padding: 1.5rem;
-    border: 1px solid #f1f5f9;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    padding: 2rem;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.04), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+    position: relative;
+    overflow: hidden;
+}
+
+.report-card::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 4px;
+    background: #10b981;
 }
 
 .report-card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1.5rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid #f8fafc;
+    margin-bottom: 2rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid #f1f5f9;
 }
 
 .report-card-header h3 {
     margin: 0;
-    font-size: 1.125rem;
-    font-weight: 700;
-    color: #1e293b;
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.report-card-header h3::before {
+    content: '📊';
+    font-size: 1.5rem;
 }
 
 .selection-group {
@@ -942,14 +1016,26 @@
 }
 
 .report-select {
-    padding: 0.5rem 1rem;
-    border-radius: 8px;
+    padding: 0.625rem 1.25rem;
+    border-radius: 10px;
     border: 1px solid #e2e8f0;
     font-size: 0.875rem;
-    background: #f8fafc;
+    font-weight: 500;
+    background: #ffffff;
     color: #334155;
     cursor: pointer;
-    min-width: 150px;
+    min-width: 180px;
+    transition: all 0.2s;
+    outline: none;
+}
+
+.report-select:hover {
+    border-color: #10b981;
+}
+
+.report-select:focus {
+    border-color: #10b981;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
 }
 
 .report-table-wrapper {
@@ -960,33 +1046,62 @@
 
 .report-data-table {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
     font-size: 0.8125rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.report-data-table th:first-child {
+    border-top-left-radius: 12px;
+}
+
+.report-data-table th:last-child {
+    border-top-right-radius: 12px;
+}
+
+.report-data-table tr:last-child td:first-child {
+    border-bottom-left-radius: 12px;
+}
+
+.report-data-table tr:last-child td:last-child {
+    border-bottom-right-radius: 12px;
 }
 
 .report-data-table th {
     background: #f8fafc;
-    padding: 0.75rem 1rem;
+    padding: 1.25rem 1rem;
     text-align: left;
     font-weight: 700;
-    color: #64748b;
+    color: #475569;
     text-transform: uppercase;
-    letter-spacing: 0.025em;
-    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.6875rem;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid #e2e8f0;
+    white-space: nowrap;
 }
 
 .report-data-table td {
-    padding: 0.875rem 1rem;
+    padding: 1.125rem 1rem;
     border-bottom: 1px solid #f1f5f9;
     color: #334155;
+    font-size: 0.875rem;
 }
 
-.report-data-table tr:hover {
-    background: #fdfdfd;
+tr.row-odd,
+tr.row-odd td {
+    background-color: #ecfdf5 !important;
+}
+
+tr.row-even,
+tr.row-even td {
+    background-color: #ffffff !important;
 }
 
 .text-right {
-    text-align: right;
+    text-align: right !important;
 }
 
 .text-red {
@@ -1013,17 +1128,21 @@
 
 .report-chart-card {
     background: white;
-    padding: 1.5rem;
+    padding: 2rem;
     border-radius: 20px;
-    border: 1px solid #f1f5f9;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.04);
+    position: relative;
+    overflow: hidden;
 }
 
 .report-chart-card h4 {
     margin: 0 0 1.5rem 0;
-    font-size: 0.9375rem;
-    color: #475569;
-    font-weight: 600;
+    font-size: 1rem;
+    color: #0f172a;
+    font-weight: 700;
+    padding-left: 1rem;
+    border-left: 3px solid #10b981;
 }
 
 .sticky-header {

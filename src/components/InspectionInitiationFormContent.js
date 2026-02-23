@@ -584,7 +584,7 @@ const InspectionInitiationFormContent = ({ call, formData, onFormDataChange, sho
       extDp: convertDateToISO(poData.ext_dp || ''),
       origDpStart: convertDateToISO(poData.orig_dp_start || poData.po_date),
       stageOfInspection: stageOfInspection,
-      callQty: poData.total_offered_qty || call.call_qty,
+      callQty: calculateTotalCallQty() || poData.total_offered_qty || call.call_qty,
       placeOfInspection: call.place_of_inspection,
       rmIcNumber: call.rm_ic_number || poData.rm_ic_number || '',
       processIcNumber: call.process_ic_number || poData.process_ic_number || '',
@@ -592,6 +592,26 @@ const InspectionInitiationFormContent = ({ call, formData, onFormDataChange, sho
       status: 'approved',
       createdBy: userId
     };
+  };
+
+  /* Helper to calculate total call quantity based on all lots/heats */
+  const calculateTotalCallQty = () => {
+    const isProcess = call.product_type === 'Process' || call.product_type?.includes('Process');
+
+    // For Process Material, use lotDetailsList if available
+    if (isProcess && poData.lotDetailsList && poData.lotDetailsList.length > 0) {
+      const total = poData.lotDetailsList.reduce((sum, lot) => sum + (Number(lot.offeredQty) || 0), 0);
+      return total > 0 ? total : (poData.totalOfferedQtyMt || call.call_qty || 0);
+    }
+
+    // For Raw Material and Final Product, use subPoList if available
+    if (subPoList && subPoList.length > 0) {
+      const total = subPoList.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+      return total > 0 ? total : (poData.totalOfferedQtyMt || call.call_qty || 0);
+    }
+
+    // Fallback to existing fields
+    return poData.totalOfferedQtyMt || poData.total_offered_qty || poData.total_offered_qty_mt || call.call_qty || 0;
   };
 
   /* Build Section C payload for API (batch) */
@@ -969,11 +989,7 @@ const InspectionInitiationFormContent = ({ call, formData, onFormDataChange, sho
               </div>
               <div className="form-group">
                 <label className="form-label">PO_QTY</label>
-                <input type="text" className="form-input" value={poData.po_qty || call.po_qty} disabled />
-              </div>
-              <div className="form-group">
-                <label className="form-label">INSP_PLACE</label>
-                <textarea className="form-textarea" value={poData.place_of_inspection || call.place_of_inspection || 'N/A'} readOnly disabled />
+                <input type="text" className="form-input" value={`${poData.po_qty || call.po_qty} ${poData.unit || 'Nos'}`} disabled />
               </div>
               <div className="form-group">
                 <label className="form-label">VENDOR_NAME</label>
@@ -1119,13 +1135,7 @@ const InspectionInitiationFormContent = ({ call, formData, onFormDataChange, sho
               </div>
               <div className="form-group">
                 <label className="form-label">CALL QTY (MT)</label>
-                <input type="text" className="form-input" value={
-                  poData.totalOfferedQtyMt ||
-                  poData.total_offered_qty ||
-                  poData.total_offered_qty_mt ||
-                  call.call_qty ||
-                  'N/A'
-                } disabled />
+                <input type="text" className="form-input" value={calculateTotalCallQty() || 'N/A'} disabled />
               </div>
               <div className="form-group">
                 <label className="form-label">PLACE OF INSPECTION</label>

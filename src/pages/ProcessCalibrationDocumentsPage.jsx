@@ -60,6 +60,7 @@ const ProcessCalibrationDocumentsPage = ({ call, onBack, selectedLines = [], onN
 
   const inspectionCallNo = currentCallData?.call_no || call?.call_no || '';
   const poNo = activeLinePoNo;
+  const shift = lineData?.shift || 'A';
 
   // Track previous line for saving data before switching
   const prevLineRef = useRef(activeLine);
@@ -73,26 +74,26 @@ const ProcessCalibrationDocumentsPage = ({ call, onBack, selectedLines = [], onN
   const saveToLocal = useCallback(() => {
     if (!inspectionCallNo || !poNo || calibrationData.length === 0) return;
     if (!isInitialLoadComplete.current || !hasDataBeenModified.current) return;
-    saveToLocalStorage('calibration', inspectionCallNo, poNo, activeLine, calibrationData);
-  }, [inspectionCallNo, poNo, activeLine, calibrationData]);
+    saveToLocalStorage('calibration', inspectionCallNo, poNo, activeLine, calibrationData, shift);
+  }, [inspectionCallNo, poNo, activeLine, calibrationData, shift]);
 
   // Load data from localStorage
   const loadFromLocal = useCallback(() => {
     if (!inspectionCallNo || !poNo) return false;
-    const stored = loadFromLocalStorage('calibration', inspectionCallNo, poNo, activeLine);
+    const stored = loadFromLocalStorage('calibration', inspectionCallNo, poNo, activeLine, shift);
     if (stored && stored.length > 0) {
       setCalibrationData(stored);
       return true;
     }
     return false;
-  }, [inspectionCallNo, poNo, activeLine]);
+  }, [inspectionCallNo, poNo, activeLine, shift]);
 
   // Save to localStorage when line changes
   useEffect(() => {
     if (prevLineRef.current !== activeLine || prevPoNoRef.current !== poNo) {
       // Save previous line's data if modified
       if (prevPoNoRef.current && prevLineRef.current && calibrationData.length > 0 && hasDataBeenModified.current) {
-        saveToLocalStorage('calibration', inspectionCallNo, prevPoNoRef.current, prevLineRef.current, calibrationData);
+        saveToLocalStorage('calibration', inspectionCallNo, prevPoNoRef.current, prevLineRef.current, calibrationData, shift);
       }
       prevLineRef.current = activeLine;
       prevPoNoRef.current = poNo;
@@ -100,18 +101,18 @@ const ProcessCalibrationDocumentsPage = ({ call, onBack, selectedLines = [], onN
       isInitialLoadComplete.current = false;
       hasDataBeenModified.current = false;
     }
-  }, [activeLine, poNo, inspectionCallNo, calibrationData]);
+  }, [activeLine, poNo, inspectionCallNo, calibrationData, shift]);
 
   // Listen for global saveDraft event (triggered by Finish Inspection)
   useEffect(() => {
     const handler = () => {
       // Force save current data to localStorage (bypass modified flag)
       if (!inspectionCallNo || !poNo || calibrationData.length === 0) return;
-      saveToLocalStorage('calibration', inspectionCallNo, poNo, activeLine, calibrationData);
+      saveToLocalStorage('calibration', inspectionCallNo, poNo, activeLine, calibrationData, shift);
     };
     window.addEventListener('process:saveDraft', handler);
     return () => window.removeEventListener('process:saveDraft', handler);
-  }, [inspectionCallNo, poNo, activeLine, calibrationData]);
+  }, [inspectionCallNo, poNo, activeLine, calibrationData, shift]);
 
   // Save on unmount
   useEffect(() => {

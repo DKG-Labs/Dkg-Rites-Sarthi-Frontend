@@ -6,23 +6,24 @@
 const STORAGE_PREFIX = 'process_inspection_';
 
 /**
- * Generate storage key for a specific submodule and line
+ * Generate storage key for a specific submodule, line and shift
  * Optional lotNo parameter for lot-specific data (e.g., lineFinalResult per lot)
  */
-const getStorageKey = (submodule, inspectionCallNo, poNo, lineNo, lotNo = null) => {
+const getStorageKey = (submodule, inspectionCallNo, poNo, lineNo, shift = '', lotNo = null) => {
+  const shiftSuffix = shift ? `_${shift}` : '';
   if (lotNo) {
-    return `${STORAGE_PREFIX}${submodule}_${inspectionCallNo}_${poNo}_${lineNo}_${lotNo}`;
+    return `${STORAGE_PREFIX}${submodule}_${inspectionCallNo}_${poNo}_${lineNo}${shiftSuffix}_${lotNo}`;
   }
-  return `${STORAGE_PREFIX}${submodule}_${inspectionCallNo}_${poNo}_${lineNo}`;
+  return `${STORAGE_PREFIX}${submodule}_${inspectionCallNo}_${poNo}_${lineNo}${shiftSuffix}`;
 };
 
 /**
  * Save data to localStorage (persists across page refresh)
  * Optional lotNo parameter for lot-specific data
  */
-export const saveToLocalStorage = (submodule, inspectionCallNo, poNo, lineNo, data, lotNo = null) => {
+export const saveToLocalStorage = (submodule, inspectionCallNo, poNo, lineNo, data, shift = '', lotNo = null) => {
   try {
-    const key = getStorageKey(submodule, inspectionCallNo, poNo, lineNo, lotNo);
+    const key = getStorageKey(submodule, inspectionCallNo, poNo, lineNo, shift, lotNo);
     localStorage.setItem(key, JSON.stringify(data));
     return true;
   } catch (error) {
@@ -35,9 +36,9 @@ export const saveToLocalStorage = (submodule, inspectionCallNo, poNo, lineNo, da
  * Load data from localStorage
  * Optional lotNo parameter for lot-specific data
  */
-export const loadFromLocalStorage = (submodule, inspectionCallNo, poNo, lineNo, lotNo = null) => {
+export const loadFromLocalStorage = (submodule, inspectionCallNo, poNo, lineNo, shift = '', lotNo = null) => {
   try {
-    const key = getStorageKey(submodule, inspectionCallNo, poNo, lineNo, lotNo);
+    const key = getStorageKey(submodule, inspectionCallNo, poNo, lineNo, shift, lotNo);
     const stored = localStorage.getItem(key);
     return stored ? JSON.parse(stored) : null;
   } catch (error) {
@@ -50,9 +51,9 @@ export const loadFromLocalStorage = (submodule, inspectionCallNo, poNo, lineNo, 
  * Clear data from localStorage for a specific submodule
  * Optional lotNo parameter for lot-specific data
  */
-export const clearFromLocalStorage = (submodule, inspectionCallNo, poNo, lineNo, lotNo = null) => {
+export const clearFromLocalStorage = (submodule, inspectionCallNo, poNo, lineNo, shift = '', lotNo = null) => {
   try {
-    const key = getStorageKey(submodule, inspectionCallNo, poNo, lineNo, lotNo);
+    const key = getStorageKey(submodule, inspectionCallNo, poNo, lineNo, shift, lotNo);
     localStorage.removeItem(key);
     return true;
   } catch (error) {
@@ -171,7 +172,7 @@ const transformToBackendFormat = (data, submodule) => {
  * Maps storage keys to backend DTO field names
  * Transforms frontend array-based data to backend numbered field format
  */
-export const getAllProcessData = (inspectionCallNo, poNo, lineNo) => {
+export const getAllProcessData = (inspectionCallNo, poNo, lineNo, shift = '') => {
   const submoduleMapping = {
     'calibration': 'calibrationDocuments',
     'staticCheck': 'staticPeriodicChecks',
@@ -192,7 +193,7 @@ export const getAllProcessData = (inspectionCallNo, poNo, lineNo) => {
 
   const allData = {};
   Object.entries(submoduleMapping).forEach(([storageKey, dtoKey]) => {
-    const data = loadFromLocalStorage(storageKey, inspectionCallNo, poNo, lineNo);
+    const data = loadFromLocalStorage(storageKey, inspectionCallNo, poNo, lineNo, shift);
     if (data) {
       // `staticCheck` is saved as a single object per line in the UI; backend expects a list
       if (storageKey === 'staticCheck') {
@@ -228,8 +229,13 @@ export const getAllProcessData = (inspectionCallNo, poNo, lineNo) => {
 
 /**
  * Clear all process inspection data from localStorage for a given call/PO/line
+ * @param {string} inspectionCallNo
+ * @param {string} poNo
+ * @param {string} lineNo
+ * @param {string} shift - Specific shift to clear
+ * @param {boolean} clearAllShifts - If true, clears data for ALL shifts of this call/PO/line
  */
-export const clearAllProcessData = (inspectionCallNo, poNo, lineNo) => {
+export const clearAllProcessData = (inspectionCallNo, poNo, lineNo, shift = '', clearAllShifts = false) => {
   const submodules = [
     'calibration',
     'staticCheck',
@@ -245,62 +251,84 @@ export const clearAllProcessData = (inspectionCallNo, poNo, lineNo) => {
     'lineFinalResult'
   ];
 
-  submodules.forEach(submodule => {
-    clearFromLocalStorage(submodule, inspectionCallNo, poNo, lineNo);
-  });
-
-  // CRITICAL: lot-specific lineFinalResult keys are NOT cleared by the above loop 
-  // because clearFromLocalStorage expects a lotNo to match the exact key.
-  // We need to scan localStorage for ANY keys matching the pattern for THIS call, PO, and line.
-  try {
-    const pattern = `${STORAGE_PREFIX}lineFinalResult_${inspectionCallNo}_${poNo}_${lineNo}`;
+  if (clearAllShifts) {
+    // Comprehensive scan to remove ALL shift variants for this call/PO/line
+    const patterns = submodules.map(sub => `${STORAGE_PREFIX}${sub}_${inspectionCallNo}_${poNo}_${lineNo}`);
     const keysToRemove = [];
 
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith(pattern)) {
-        keysToRemove.push(key);
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && patterns.some(pattern => key.startsWith(pattern))) {
+          keysToRemove.push(key);
+        }
       }
-    }
 
-    keysToRemove.forEach(key => {
-      localStorage.removeItem(key);
-      console.log(`Clarifying stale lot-specific key: ${key}`);
+      keysToRemove.forEach(key => {
+        localStorage.removeItem(key);
+        console.log(`🧹 [Cleanup] Removed all-shift key: ${key}`);
+      });
+    } catch (error) {
+      console.error('❌ [Cleanup] Error during comprehensive localStorage clear:', error);
+    }
+  } else {
+    // Standard cleanup for a specific shift
+    submodules.forEach(submodule => {
+      clearFromLocalStorage(submodule, inspectionCallNo, poNo, lineNo, shift);
     });
-  } catch (error) {
-    console.error('Error clearing lot-specific process data:', error);
+
+    // Handle lot-specific keys for the specific shift
+    try {
+      const shiftSuffix = shift ? `_${shift}` : '';
+      const pattern = `${STORAGE_PREFIX}lineFinalResult_${inspectionCallNo}_${poNo}_${lineNo}${shiftSuffix}`;
+      const keysToRemove = [];
+
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(pattern)) {
+          keysToRemove.push(key);
+        }
+      }
+
+      keysToRemove.forEach(key => {
+        localStorage.removeItem(key);
+        console.log(`🧹 [Cleanup] Removed shift-specific lot key: ${key}`);
+      });
+    } catch (error) {
+      console.error('❌ [Cleanup] Error clearing shift-specific process data:', error);
+    }
   }
 };
 
 /**
  * Save all 8-hour grid data for a line
  */
-export const saveGridDataForLine = (inspectionCallNo, poNo, lineNo, gridData) => {
+export const saveGridDataForLine = (inspectionCallNo, poNo, lineNo, shift, gridData) => {
   const { shearing, turning, mpi, forging, quenching, tempering, finalCheck, testingFinishing } = gridData;
 
-  if (shearing) saveToLocalStorage('shearing', inspectionCallNo, poNo, lineNo, shearing);
-  if (turning) saveToLocalStorage('turning', inspectionCallNo, poNo, lineNo, turning);
-  if (mpi) saveToLocalStorage('mpi', inspectionCallNo, poNo, lineNo, mpi);
-  if (forging) saveToLocalStorage('forging', inspectionCallNo, poNo, lineNo, forging);
-  if (quenching) saveToLocalStorage('quenching', inspectionCallNo, poNo, lineNo, quenching);
-  if (tempering) saveToLocalStorage('tempering', inspectionCallNo, poNo, lineNo, tempering);
-  if (finalCheck) saveToLocalStorage('finalCheck', inspectionCallNo, poNo, lineNo, finalCheck);
-  if (testingFinishing) saveToLocalStorage('testingFinishing', inspectionCallNo, poNo, lineNo, testingFinishing);
+  if (shearing) saveToLocalStorage('shearing', inspectionCallNo, poNo, lineNo, shearing, shift);
+  if (turning) saveToLocalStorage('turning', inspectionCallNo, poNo, lineNo, turning, shift);
+  if (mpi) saveToLocalStorage('mpi', inspectionCallNo, poNo, lineNo, mpi, shift);
+  if (forging) saveToLocalStorage('forging', inspectionCallNo, poNo, lineNo, forging, shift);
+  if (quenching) saveToLocalStorage('quenching', inspectionCallNo, poNo, lineNo, quenching, shift);
+  if (tempering) saveToLocalStorage('tempering', inspectionCallNo, poNo, lineNo, tempering, shift);
+  if (finalCheck) saveToLocalStorage('finalCheck', inspectionCallNo, poNo, lineNo, finalCheck, shift);
+  if (testingFinishing) saveToLocalStorage('testingFinishing', inspectionCallNo, poNo, lineNo, testingFinishing, shift);
 };
 
 /**
  * Load all 8-hour grid data for a line
  */
-export const loadGridDataForLine = (inspectionCallNo, poNo, lineNo) => {
+export const loadGridDataForLine = (inspectionCallNo, poNo, lineNo, shift) => {
   return {
-    shearing: loadFromLocalStorage('shearing', inspectionCallNo, poNo, lineNo),
-    turning: loadFromLocalStorage('turning', inspectionCallNo, poNo, lineNo),
-    mpi: loadFromLocalStorage('mpi', inspectionCallNo, poNo, lineNo),
-    forging: loadFromLocalStorage('forging', inspectionCallNo, poNo, lineNo),
-    quenching: loadFromLocalStorage('quenching', inspectionCallNo, poNo, lineNo),
-    tempering: loadFromLocalStorage('tempering', inspectionCallNo, poNo, lineNo),
-    finalCheck: loadFromLocalStorage('finalCheck', inspectionCallNo, poNo, lineNo),
-    testingFinishing: loadFromLocalStorage('testingFinishing', inspectionCallNo, poNo, lineNo)
+    shearing: loadFromLocalStorage('shearing', inspectionCallNo, poNo, lineNo, shift),
+    turning: loadFromLocalStorage('turning', inspectionCallNo, poNo, lineNo, shift),
+    mpi: loadFromLocalStorage('mpi', inspectionCallNo, poNo, lineNo, shift),
+    forging: loadFromLocalStorage('forging', inspectionCallNo, poNo, lineNo, shift),
+    quenching: loadFromLocalStorage('quenching', inspectionCallNo, poNo, lineNo, shift),
+    tempering: loadFromLocalStorage('tempering', inspectionCallNo, poNo, lineNo, shift),
+    finalCheck: loadFromLocalStorage('finalCheck', inspectionCallNo, poNo, lineNo, shift),
+    testingFinishing: loadFromLocalStorage('testingFinishing', inspectionCallNo, poNo, lineNo, shift)
   };
 };
 

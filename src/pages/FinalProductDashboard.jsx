@@ -752,7 +752,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
           updated[lot.lotNo] = {
             stdPackingNo: 50,
             bagsStdPacking: '',
-            nonStdBagsCount: 0,
+            nonStdBagsCount: '',
             nonStdBagsQty: [],
             holograms: [{ type: 'range', from: '', to: '' }],
             remarks: '',
@@ -1656,7 +1656,7 @@ Workflow Status: ✅ Transitioned to COMPLETED
               const data = lotInspectionData[lot.lotNo] || {
                 stdPackingNo: 50,
                 bagsStdPacking: '',
-                nonStdBagsCount: 0,
+                nonStdBagsCount: '',
                 nonStdBagsQty: [],
                 holograms: [{ type: 'range', from: '', to: '' }],
                 remarks: '',

@@ -81,6 +81,19 @@ const InspectionInitiationFormContent = ({ call, formData, onFormDataChange, sho
     const loadData = async () => {
       setIsLoading(true);
 
+      // Helper to clean duplicated PO number from RLY/PO_NO/PO_NO/PO_SR strings
+      const cleanPoString = (str) => {
+        if (!str || typeof str !== 'string') return str;
+        const parts = str.split('/');
+        // Pattern: RLY/PO_NO/PO_NO/PO_SR (length 4) or RLY/PO_NO/PO_NO (length 3)
+        if (parts.length >= 3 && parts[1] === parts[2]) {
+          const newParts = [...parts];
+          newParts.splice(2, 1);
+          return newParts.join('/');
+        }
+        return str;
+      };
+
       // Check if this is Process material or Final Product - fetch from database
       // Use product_type from API (values: "Raw Material", "Process", "Final")
       const productType = call.product_type || '';
@@ -140,8 +153,8 @@ const InspectionInitiationFormContent = ({ call, formData, onFormDataChange, sho
               lotDetailsList: processData.lotDetailsList || [],
               rlyCd: processData.rlyCd,
               poSerialNo: processData.poSerialNo,
-              rly_po_no: processData.rlyPoNo,
-              rly_po_no_serial: processData.rlyPoNoSerial,
+              rly_po_no: cleanPoString(processData.rlyPoNo),
+              rly_po_no_serial: cleanPoString(processData.rlyPoNoSerial),
               vendorDetails: processData.vendorDetails,
               totalOfferedQtyMt: processData.totalOfferedQtyMt,
               vendorName: processData.vendorName || processData.companyName,
@@ -218,9 +231,9 @@ const InspectionInitiationFormContent = ({ call, formData, onFormDataChange, sho
                 vendorDetails: poDataFromDb.vendorDetails,
                 totalOfferedQtyMt: poDataFromDb.totalOfferedQtyMt,
                 vendorName: poDataFromDb.vendorName,
-                rly_po_no: poDataFromDb.rlyPoNo,
+                rly_po_no: cleanPoString(poDataFromDb.rlyPoNo),
                 po_serial_no: poDataFromDb.poSerialNo,
-                rly_po_no_serial: poDataFromDb.rlyPoNoSerial,
+                rly_po_no_serial: cleanPoString(poDataFromDb.rlyPoNoSerial),
                 po_date: poDataFromDb.poDate,
                 po_amend_no: poDataFromDb.maNo || 'N/A',
                 po_amend_dates: poDataFromDb.maDate || 'N/A',
@@ -375,9 +388,9 @@ const InspectionInitiationFormContent = ({ call, formData, onFormDataChange, sho
             // Transform database response to match expected format
             const transformedPoData = {
               po_no: poDataFromDb.poNo,
-              rly_po_no: poDataFromDb.rlyPoNo, // NEW: RLY/PO_NO format
+              rly_po_no: cleanPoString(poDataFromDb.rlyPoNo), // NEW: RLY/PO_NO format
               po_serial_no: poDataFromDb.poSerialNo, // NEW: PO Serial Number
-              rly_po_no_serial: poDataFromDb.rlyPoNoSerial, // NEW: RLY/PO_NO/PO_SR format
+              rly_po_no_serial: cleanPoString(poDataFromDb.rlyPoNoSerial), // NEW: RLY/PO_NO/PO_SR format
               po_date: poDataFromDb.poDate,
               po_amend_no: poDataFromDb.maNo || 'N/A',
               po_amend_dates: poDataFromDb.maDate || 'N/A',

@@ -10,7 +10,8 @@ import {
   loadFromLocalStorage
 } from '../services/processLocalStorageService';
 
-const ProcessStaticPeriodicCheckPage = ({ call, onBack, selectedLines = [], onNavigateSubmodule, productionLines = [], allCallOptions = [], mapping = null }) => {
+const ProcessStaticPeriodicCheckPage = ({ call, onBack, selectedLines = [], onNavigateSubmodule, lineData, productionLines = [], allCallOptions = [], mapping = null }) => {
+  const shift = lineData?.shift || 'A';
   const [activeLine, setActiveLine] = useState((selectedLines && selectedLines[0]) || 'Line-1');
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -73,26 +74,26 @@ const ProcessStaticPeriodicCheckPage = ({ call, onBack, selectedLines = [], onNa
   const saveToLocal = useCallback(() => {
     if (!inspectionCallNo || !poNo || !perLineState[activeLine]) return;
     if (!isInitialLoadComplete.current || !hasDataBeenModified.current) return;
-    saveToLocalStorage('staticCheck', inspectionCallNo, poNo, activeLine, perLineState[activeLine]);
-  }, [inspectionCallNo, poNo, activeLine, perLineState]);
+    saveToLocalStorage('staticCheck', inspectionCallNo, poNo, activeLine, perLineState[activeLine], shift);
+  }, [inspectionCallNo, poNo, activeLine, perLineState, shift]);
 
   // Load data from localStorage
   const loadFromLocal = useCallback(() => {
     if (!inspectionCallNo || !poNo) return false;
-    const stored = loadFromLocalStorage('staticCheck', inspectionCallNo, poNo, activeLine);
+    const stored = loadFromLocalStorage('staticCheck', inspectionCallNo, poNo, activeLine, shift);
     if (stored) {
       setPerLineState(prev => ({ ...prev, [activeLine]: stored }));
       return true;
     }
     return false;
-  }, [inspectionCallNo, poNo, activeLine]);
+  }, [inspectionCallNo, poNo, activeLine, shift]);
 
   // Save to localStorage when line changes
   useEffect(() => {
     if (prevLineRef.current !== activeLine || prevPoNoRef.current !== poNo) {
       // Save previous line's data if modified
       if (prevPoNoRef.current && prevLineRef.current && perLineState[prevLineRef.current] && hasDataBeenModified.current) {
-        saveToLocalStorage('staticCheck', inspectionCallNo, prevPoNoRef.current, prevLineRef.current, perLineState[prevLineRef.current]);
+        saveToLocalStorage('staticCheck', inspectionCallNo, prevPoNoRef.current, prevLineRef.current, perLineState[prevLineRef.current], shift);
       }
       prevLineRef.current = activeLine;
       prevPoNoRef.current = poNo;
@@ -100,7 +101,7 @@ const ProcessStaticPeriodicCheckPage = ({ call, onBack, selectedLines = [], onNa
       isInitialLoadComplete.current = false;
       hasDataBeenModified.current = false;
     }
-  }, [activeLine, poNo, inspectionCallNo, perLineState]);
+  }, [activeLine, poNo, inspectionCallNo, perLineState, shift]);
 
   // Save on unmount
   useEffect(() => {
@@ -113,11 +114,11 @@ const ProcessStaticPeriodicCheckPage = ({ call, onBack, selectedLines = [], onNa
       // Force save current per-line state to localStorage (bypass modified flag)
       const data = perLineState[activeLine];
       if (!inspectionCallNo || !poNo || !data) return;
-      saveToLocalStorage('staticCheck', inspectionCallNo, poNo, activeLine, data);
+      saveToLocalStorage('staticCheck', inspectionCallNo, poNo, activeLine, data, shift);
     };
     window.addEventListener('process:saveDraft', handler);
     return () => window.removeEventListener('process:saveDraft', handler);
-  }, [inspectionCallNo, poNo, activeLine, perLineState]);
+  }, [inspectionCallNo, poNo, activeLine, perLineState, shift]);
 
   /**
    * Fetch static periodic check data - first from localStorage, then backend

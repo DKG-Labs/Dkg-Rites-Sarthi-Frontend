@@ -26,7 +26,7 @@ import {
 import { isSessionEnded } from '../utils/inspectionSessionControl';
 import './ProcessParametersGridPage.css';
 
-const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift: selectedShift = 'A', selectedLines = [], onNavigateSubmodule, productionLines = [], allCallOptions = [], callInitiationDataCache = {}, mapping = null }) => {
+const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A', selectedLines = [], onNavigateSubmodule, productionLines = [], allCallOptions = [], callInitiationDataCache = {}, mapping = null }) => {
   const [activeLine, setActiveLine] = useState((selectedLines && selectedLines[0]) || 'Line-1');
 
   // Get line index for active line
@@ -313,7 +313,6 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift: selec
 
   const inspectionCallNo = currentCallData?.call_no || call?.call_no || '';
 
-  const shift = selectedShift; // A, B, C, G - provided by parent (Section B)
 
   // Track previous line to save data before switching
   const prevLineRef = useRef(activeLine);
@@ -351,8 +350,8 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift: selec
       return;
     }
 
-    console.log('Saving grid data to localStorage:', { inspectionCallNo, poNo, activeLine });
-    saveGridDataForLine(inspectionCallNo, poNo, activeLine, {
+    console.log('Saving grid data to localStorage:', { inspectionCallNo, poNo, activeLine, shift });
+    saveGridDataForLine(inspectionCallNo, poNo, activeLine, shift, {
       shearing: shearingData,
       turning: turningData,
       mpi: mpiData,
@@ -362,7 +361,7 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift: selec
       finalCheck: finalCheckData,
       testingFinishing: testingFinishingData
     });
-  }, [inspectionCallNo, poNo, activeLine, shearingData, turningData, mpiData, forgingData, quenchingData, temperingData, finalCheckData, testingFinishingData]);
+  }, [inspectionCallNo, poNo, activeLine, shearingData, turningData, mpiData, forgingData, quenchingData, temperingData, finalCheckData, testingFinishingData, shift]);
 
 
 
@@ -418,7 +417,7 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift: selec
       poNo,
       activeLine
     };
-  }, [inspectionCallNo, poNo, activeLine]);
+  }, [inspectionCallNo, poNo, activeLine, shift]);
 
   // Save to localStorage when data changes (debounced 500ms for faster persistence)
   useEffect(() => {
@@ -440,8 +439,8 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift: selec
 
       const { inspectionCallNo: callNo, poNo: po, activeLine: line } = currentContextRef.current;
       if (callNo && po && line) {
-        console.log('Saving data on beforeunload/visibilitychange:', { callNo, po, line });
-        saveGridDataForLine(callNo, po, line, currentDataRef.current);
+        console.log('Saving data on beforeunload/visibilitychange:', { callNo, po, line, shift });
+        saveGridDataForLine(callNo, po, line, shift, currentDataRef.current);
       }
     };
 
@@ -455,8 +454,8 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift: selec
       // Save immediately on unmount without checks - always save if we have context
       const { inspectionCallNo: callNo, poNo: po, activeLine: line } = currentContextRef.current;
       if (callNo && po && line && hasDataBeenModified.current) {
-        console.log('Saving data on component unmount:', { callNo, po, line });
-        saveGridDataForLine(callNo, po, line, currentDataRef.current);
+        console.log('Saving data on component unmount:', { callNo, po, line, shift });
+        saveGridDataForLine(callNo, po, line, shift, currentDataRef.current);
       }
     };
 
@@ -479,7 +478,7 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift: selec
       // Save on unmount using refs
       saveOnUnmount();
     };
-  }, []); // Empty dependency - uses refs which always have latest values
+  }, [shift]); // Empty dependency - uses refs which always have latest values
 
   // Migrate old shearing data structure to new structure
   const migrateShearingData = useCallback((oldData) => {
@@ -736,19 +735,19 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift: selec
     // Save previous line's data before loading new line (only if data was modified)
     if (prevLineRef.current && prevPoNoRef.current &&
       (prevLineRef.current !== activeLine || prevPoNoRef.current !== poNo)) {
-      console.log('Saving previous line data before loading new line:', prevLineRef.current);
+      console.log('Saving previous line data before loading new line:', prevLineRef.current, shift);
       // Force save when switching lines (bypass the modification check)
-      saveGridDataForLine(inspectionCallNo, prevPoNoRef.current, prevLineRef.current, currentDataRef.current);
+      saveGridDataForLine(inspectionCallNo, prevPoNoRef.current, prevLineRef.current, shift, currentDataRef.current);
     }
 
     // Update refs to current line
     prevLineRef.current = activeLine;
     prevPoNoRef.current = poNo;
 
-    console.log('fetchAllGridData: Loading data for', { inspectionCallNo, poNo, activeLine });
+    console.log('fetchAllGridData: Loading data for', { inspectionCallNo, poNo, activeLine, shift });
 
     // First try to load from localStorage directly
-    const storedData = loadGridDataForLine(inspectionCallNo, poNo, activeLine);
+    const storedData = loadGridDataForLine(inspectionCallNo, poNo, activeLine, shift);
     console.log('fetchAllGridData: storedData from localStorage:', storedData);
 
     // Check if any data exists for this line
@@ -888,7 +887,7 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift: selec
     } finally {
       setIsLoading(false);
     }
-  }, [inspectionCallNo, poNo, activeLine, getDefaultShearingData, getDefaultTurningData, getDefaultMpiData, getDefaultForgingData, getDefaultQuenchingData, getDefaultTemperingData, getDefaultFinalCheckData, getDefaultTestingFinishingData, migrateShearingData, migrateForgingData, migrateQuenchingData, migrateTemperingData, migrateFinalCheckData, migrateTestingFinishingData]);
+  }, [inspectionCallNo, poNo, activeLine, getDefaultShearingData, getDefaultTurningData, getDefaultMpiData, getDefaultForgingData, getDefaultQuenchingData, getDefaultTemperingData, getDefaultFinalCheckData, getDefaultTestingFinishingData, migrateShearingData, migrateForgingData, migrateQuenchingData, migrateTemperingData, migrateFinalCheckData, migrateTestingFinishingData, shift]);
 
   // Load data on mount and when line/PO changes
   useEffect(() => {

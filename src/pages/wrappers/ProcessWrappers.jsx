@@ -13,7 +13,7 @@ import { ROUTES, PROCESS_SUBMODULE_ROUTES } from '../../routes';
  */
 export const ProcessDashboardWrapper = () => {
   const navigate = useNavigate();
-  const { selectedCall, selectedCalls, processProductionLines, setLandingActiveTab } = useInspection();
+  const { selectedCall, selectedCalls, processProductionLines, processShift, setLandingActiveTab } = useInspection();
 
   const handleBack = () => {
     // Ensure landing page shows Pending tab and forces a refresh of pending calls
@@ -25,7 +25,9 @@ export const ProcessDashboardWrapper = () => {
   const handleNavigateToSubModule = (subModule, lineData = null) => {
     // Store line data in sessionStorage for sub-modules to access
     if (lineData) {
-      sessionStorage.setItem('processCurrentLineData', JSON.stringify(lineData));
+      // Inject shift into lineData so submodules have it
+      const enrichedLineData = { ...lineData, shift: processShift };
+      sessionStorage.setItem('processCurrentLineData', JSON.stringify(enrichedLineData));
     }
     const route = PROCESS_SUBMODULE_ROUTES[subModule];
     if (route) {
@@ -58,6 +60,7 @@ export const ProcessDashboardWrapper = () => {
       onNavigateToSubModule={handleNavigateToSubModule}
       productionLines={processProductionLines}
       availableCalls={availableCalls}
+      shift={processShift}
     />
   );
 };

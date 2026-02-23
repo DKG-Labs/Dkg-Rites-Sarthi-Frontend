@@ -11,7 +11,8 @@ import {
   loadFromLocalStorage
 } from '../services/processLocalStorageService';
 
-const ProcessOilTankCounterPage = ({ call, onBack, selectedLines = [], onNavigateSubmodule, productionLines = [], allCallOptions = [], mapping = null }) => {
+const ProcessOilTankCounterPage = ({ call, onBack, selectedLines = [], onNavigateSubmodule, lineData, productionLines = [], allCallOptions = [], mapping = null }) => {
+  const shift = lineData?.shift || 'A';
   const [activeLine, setActiveLine] = useState((selectedLines && selectedLines[0]) || 'Line-1');
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -60,30 +61,30 @@ const ProcessOilTankCounterPage = ({ call, onBack, selectedLines = [], onNavigat
   // Save current data to localStorage
   const saveToLocal = useCallback(() => {
     if (!inspectionCallNo || !poNo || !perLineState[activeLine]) return;
-    saveToLocalStorage('oilTank', inspectionCallNo, poNo, activeLine, perLineState[activeLine]);
-  }, [inspectionCallNo, poNo, activeLine, perLineState]);
+    saveToLocalStorage('oilTank', inspectionCallNo, poNo, activeLine, perLineState[activeLine], shift);
+  }, [inspectionCallNo, poNo, activeLine, perLineState, shift]);
 
   // Load data from localStorage
   const loadFromLocal = useCallback(() => {
     if (!inspectionCallNo || !poNo) return false;
-    const stored = loadFromLocalStorage('oilTank', inspectionCallNo, poNo, activeLine);
+    const stored = loadFromLocalStorage('oilTank', inspectionCallNo, poNo, activeLine, shift);
     if (stored) {
       setPerLineState(prev => ({ ...prev, [activeLine]: stored }));
       return true;
     }
     return false;
-  }, [inspectionCallNo, poNo, activeLine]);
+  }, [inspectionCallNo, poNo, activeLine, shift]);
 
   // Save to localStorage when line changes
   useEffect(() => {
     if (prevLineRef.current !== activeLine || prevPoNoRef.current !== poNo) {
       if (prevPoNoRef.current && prevLineRef.current && perLineState[prevLineRef.current]) {
-        saveToLocalStorage('oilTank', inspectionCallNo, prevPoNoRef.current, prevLineRef.current, perLineState[prevLineRef.current]);
+        saveToLocalStorage('oilTank', inspectionCallNo, prevPoNoRef.current, prevLineRef.current, perLineState[prevLineRef.current], shift);
       }
       prevLineRef.current = activeLine;
       prevPoNoRef.current = poNo;
     }
-  }, [activeLine, poNo, inspectionCallNo, perLineState]);
+  }, [activeLine, poNo, inspectionCallNo, perLineState, shift]);
 
   // Save on unmount
   useEffect(() => {

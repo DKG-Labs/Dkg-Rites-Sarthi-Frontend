@@ -3574,7 +3574,7 @@ return {
   // Get lot/heat data from cached initiation data (from process_inspection_details table)
   // ONLY use cached initiation data - no fallback to rm_heat_tc_mapping to avoid mock data
   // Memoize lot numbers and maps to ensure stable references
-  const { lineLotNumbers, lineHeatNumbersMap, lotOfferedQtyMap } = useMemo(() => {
+  const { lineLotNumbers, lineHeatNumbersMap, lotOfferedQtyMap, uniqueHeats, lotsByHeat } = useMemo(() => {
     let lotNumbers = [];
     let heatMap = {};
     let offeredQtyMap = {}; // Map of lot number to offered quantity
@@ -3614,7 +3614,26 @@ return {
     }
 
 
-    return { lineLotNumbers: lotNumbers, lineHeatNumbersMap: heatMap, lotOfferedQtyMap: offeredQtyMap };
+    // Group lots by unique heat number for Heat Wise Accountal
+    const heatToLots = {};
+    const uniqueHeatsList = [];
+
+    lotNumbers.forEach(lot => {
+      const heat = heatMap[lot] || 'N/A';
+      if (!heatToLots[heat]) {
+        heatToLots[heat] = [];
+        uniqueHeatsList.push(heat);
+      }
+      heatToLots[heat].push(lot);
+    });
+
+    return {
+      lineLotNumbers: lotNumbers,
+      lineHeatNumbersMap: heatMap,
+      lotOfferedQtyMap: offeredQtyMap,
+      uniqueHeats: uniqueHeatsList,
+      lotsByHeat: heatToLots
+    };
   }, [currentLineInitiationData]);
 
   // Save lineFinalResult to localStorage whenever stage-wise quantities change
@@ -4346,12 +4365,12 @@ return {
         const lineCallNo = line.icNumber || call.call_no;
         const linePoNo = line.poNumber || call.po_no;
 
-        // Load latest grid data from local storage using the line's specific call and PO
-        const gridData = loadGridDataForLine(lineCallNo, linePoNo, `Line-${line.lineNumber}`);
-
         // Get initiation data for this line to get the correct shift
         const lineInitiationData = callInitiationDataCache[lineCallNo];
-        let shift = lineInitiationData?.shiftOfInspection || call.shiftOfInspection || call.shift || 'A';
+        let determinedShift = shift || lineInitiationData?.shiftOfInspection || call.shiftOfInspection || call.shift || 'A';
+
+        // Load latest grid data from local storage using the line's specific call, PO and shift
+        const gridData = loadGridDataForLine(lineCallNo, linePoNo, `Line-${line.lineNumber}`, determinedShift);
 
         // Attempt to derive actual shift from grid data
         // Iterate through all submodules to find the first non-empty row with a shift
@@ -4360,15 +4379,15 @@ return {
           if (gridData?.[sub] && Array.isArray(gridData[sub])) {
             const rowWithShift = gridData[sub].find(r => r.shift);
             if (rowWithShift) {
-              shift = rowWithShift.shift;
+              determinedShift = rowWithShift.shift;
               break;
             }
           }
         }
 
-        const hourLabels = getHourLabels(shift);
+        const hourLabels = getHourLabels(determinedShift);
 
-        console.log(`📋 [Shift Completed] Loading data for Line-${line.lineNumber} (Shift: ${shift}):`, {
+        console.log(`📋 [Shift Completed] Loading data for Line-${line.lineNumber} (Shift: ${determinedShift}):`, {
           lineCallNo,
           linePoNo,
           hasGridData: !!gridData,
@@ -4379,7 +4398,7 @@ return {
           if (!data || !Array.isArray(data)) return [];
           return data.map((row, idx) => ({
             ...row,
-            shift: row.shift || shift,
+            shift: row.shift || determinedShift,
             hourLabel: row.hourLabel || hourLabels[idx] || '',
             createdBy: userId
           }));
@@ -4440,7 +4459,7 @@ return {
             lotNumbers: targetLotDetail?.lotNumber || lotNo || '',
             heatNumbers: targetLotDetail?.heatNumber || '',
             totalOfferedQty: parseInt(targetLotDetail?.offeredQty) || 0,
-            shift: shift
+            shift: determinedShift
           };
 
           const transformedLineDto = transformLineDataForBackend(lotLineDto, manualQuantities, metaData);
@@ -4700,12 +4719,11 @@ return {
         const linePoNo = line.poNumber || call.po_no;
 
         // Get initiation data for this line to get the correct shift
-        // Get initiation data for this line
         const lineInitiationData = callInitiationDataCache[lineCallNo];
-        let shift = lineInitiationData?.shiftOfInspection || call.shiftOfInspection || call.shift || 'A';
+        let determinedShift = shift || lineInitiationData?.shiftOfInspection || call.shiftOfInspection || call.shift || 'A';
 
-        // Load latest grid data from local storage using the line's specific call and PO
-        const gridData = loadGridDataForLine(lineCallNo, linePoNo, `Line-${line.lineNumber}`);
+        // Load latest grid data from local storage using the line's specific call, PO and shift
+        const gridData = loadGridDataForLine(lineCallNo, linePoNo, `Line-${line.lineNumber}`, determinedShift);
 
         // Attempt to derive actual shift from grid data
         const submodules = ['shearing', 'turning', 'mpi', 'forging', 'quenching', 'tempering', 'finalCheck', 'testingFinishing'];
@@ -4713,19 +4731,19 @@ return {
           if (gridData?.[sub] && Array.isArray(gridData[sub])) {
             const rowWithShift = gridData[sub].find(r => r.shift);
             if (rowWithShift) {
-              shift = rowWithShift.shift;
+              determinedShift = rowWithShift.shift;
               break;
             }
           }
         }
 
-        const hourLabels = getHourLabels(shift);
+        const hourLabels = getHourLabels(determinedShift);
 
         const enrichData = (data) => {
           if (!data || !Array.isArray(data)) return [];
           return data.map((row, idx) => ({
             ...row,
-            shift: row.shift || shift,
+            shift: row.shift || determinedShift,
             hourLabel: row.hourLabel || hourLabels[idx] || '',
             createdBy: userId
           }));
@@ -4785,7 +4803,7 @@ return {
             lotNumbers: targetLotDetail?.lotNumber || lotNo || '',
             heatNumbers: targetLotDetail?.heatNumber || '',
             totalOfferedQty: parseInt(targetLotDetail?.offeredQty) || 0,
-            shift: shift
+            shift: determinedShift
           };
 
           const transformedLineDto = transformLineDataForBackend(lotLineDto, manualQuantities, metaData);
@@ -4826,7 +4844,7 @@ return {
       console.error('❌ [Finish] Error finishing inspection:', error);
       throw error; // Propagate error to caller
     }
-  }, [call, localProductionLines, manufacturingLines, onBack, resetProductionLinesState, callInitiationDataCache, manufacturedQtyByLine, selectedLotByLine]);
+  }, [call, localProductionLines, manufacturingLines, onBack, resetProductionLinesState, callInitiationDataCache, manufacturedQtyByLine, selectedLotByLine, shift]);
 
   /**
    * Handle finish selected calls from modal
@@ -5665,28 +5683,26 @@ return {
                         </td>
                       </tr>
                     )}
-                    {!isLoadingHeatWiseData && !heatWiseDataError && lineLotNumbers.map((lot) => {
-                      const heatNo = lineHeatNumbersMap[lot] || '-';
-                      const offeredQty = lotOfferedQtyMap[lot] || 0;
+                    {!isLoadingHeatWiseData && !heatWiseDataError && uniqueHeats.map((heatNo) => {
+                      const associatedLots = lotsByHeat[heatNo] || [];
 
                       // Get API data for this heat if available
                       const apiData = heatWiseAccountalData[heatNo];
 
-                      // Use API data if available, otherwise fall back to calculated values
-                      // Updated field mappings based on new API response:
-                      // - Accepted RM (MT) = weightAcceptedMt
-                      // - Max No. of ERC Can Be Mfg = rmAcceptedQty
-                      // - Mfg ERC In Process = manufaturedQty
-                      // - Rejected ERC In Process = rejectedQty
-                      // - Accepted ERC In Process = acceptedQty
-                      const weightAcceptedMt = apiData?.weightAcceptedMt ?? offeredQty;
-                      const maxErcCanBeMfg = apiData?.rmAcceptedQty ?? getShearingManufacturedQtyForLot(lot);
-                      const mfgErcInProcess = apiData?.manufaturedQty ?? getShearingManufacturedQtyForLot(lot);
-                      const rejectedErcInProcess = apiData?.rejectedQty ?? getTotalRejectedForLot(lot);
+                      // Aggregate fallback quantities for all lots belonging to this heat
+                      const aggregateOfferedQty = associatedLots.reduce((sum, lot) => sum + (lotOfferedQtyMap[lot] || 0), 0);
+                      const aggregateMfgQty = associatedLots.reduce((sum, lot) => sum + getShearingManufacturedQtyForLot(lot), 0);
+                      const aggregateRejectedQty = associatedLots.reduce((sum, lot) => sum + getTotalRejectedForLot(lot), 0);
+
+                      // Use API data if available, otherwise fall back to aggregated values
+                      const weightAcceptedMt = apiData?.weightAcceptedMt ?? aggregateOfferedQty;
+                      const maxErcCanBeMfg = apiData?.rmAcceptedQty ?? aggregateMfgQty;
+                      const mfgErcInProcess = apiData?.manufaturedQty ?? aggregateMfgQty;
+                      const rejectedErcInProcess = apiData?.rejectedQty ?? aggregateRejectedQty;
                       const acceptedErcInProcess = apiData?.acceptedQty ?? Math.max(0, mfgErcInProcess - rejectedErcInProcess);
 
                       return (
-                        <tr key={lot} style={{
+                        <tr key={heatNo} style={{
                           borderBottom: '1px solid #e5e7eb',
                           backgroundColor: apiData ? '#f0fdf4' : 'white'
                         }}>

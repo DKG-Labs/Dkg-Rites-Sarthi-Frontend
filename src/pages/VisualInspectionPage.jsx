@@ -13,8 +13,8 @@ const WEIGHT_FACTORS = {
 };
 
 // Defects that contribute to total defective length
-// Includes all defect types: Distortion, Twist, Kink, Not Straight, Fold, Lap, Crack, Pit, Groove, Excessive Scaling, Internal Defect
-const LENGTH_DEFECTS = ['Distortion', 'Twist', 'Kink', 'Not Straight', 'Fold', 'Lap', 'Crack', 'Pit', 'Groove', 'Excessive Scaling', 'Internal Defect (Piping, Segregation)'];
+// Includes all defect types: Distortion, Twist, Kink, Not Straight, Fold, Lap, Crack, Pit, Groove, Excessive Scaling, Internal Defect, Other
+const LENGTH_DEFECTS = ['Distortion', 'Twist', 'Kink', 'Not Straight', 'Fold', 'Lap', 'Crack', 'Pit', 'Groove', 'Excessive Scaling', 'Internal Defect (Piping, Segregation)', 'Other'];
 
 /**
  * Visual Inspection Page - Raw Material Sub-module
@@ -37,7 +37,7 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
   // Visual Defects List
   const defectList = useMemo(() => ([
     'No Defect', 'Distortion', 'Twist', 'Kink', 'Not Straight', 'Fold',
-    'Lap', 'Crack', 'Pit', 'Groove', 'Excessive Scaling', 'Internal Defect (Piping, Segregation)'
+    'Lap', 'Crack', 'Pit', 'Groove', 'Excessive Scaling', 'Internal Defect (Piping, Segregation)', 'Other'
   ]), []);
 
   // Load draft data from localStorage or initialize empty
@@ -63,6 +63,7 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
     return heats.map(() => ({
       selectedDefects: defectList.reduce((acc, d) => { acc[d] = false; return acc; }, {}),
       defectCounts: defectList.reduce((acc, d) => { acc[d] = ''; return acc; }, {}),
+      otherRemarks: ''
     }));
   });
 
@@ -72,6 +73,7 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
       const next = heats.map((_, idx) => prev[idx] || {
         selectedDefects: defectList.reduce((acc, d) => { acc[d] = false; return acc; }, {}),
         defectCounts: defectList.reduce((acc, d) => { acc[d] = ''; return acc; }, {}),
+        otherRemarks: ''
       });
       if (activeHeatTab >= heats.length) setActiveHeatTab(Math.max(0, heats.length - 1));
       return next;
@@ -114,8 +116,14 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
             heatDataMap[heatIdx] = {
               selectedDefects: defectList.reduce((acc, d) => { acc[d] = false; return acc; }, {}),
               defectCounts: defectList.reduce((acc, d) => { acc[d] = ''; return acc; }, {}),
+              otherRemarks: '',
               isPassed: false
             };
+          }
+
+          // Load other remarks if present
+          if (item.otherRemarks) {
+            heatDataMap[heatIdx].otherRemarks = item.otherRemarks;
           }
 
           // NEW FORMAT: Backend returns one record per heat with defects and defectLengths maps
@@ -187,10 +195,14 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
         } else {
           Object.keys(sel).forEach(k => { sel[k] = false; counts[k] = ''; });
           sel['No Defect'] = true;
+          hv.otherRemarks = ''; // Clear other remarks on No Defect
         }
       } else {
         sel[defectName] = !sel[defectName];
-        if (!sel[defectName]) counts[defectName] = '';
+        if (!sel[defectName]) {
+          counts[defectName] = '';
+          if (defectName === 'Other') hv.otherRemarks = ''; // Clear other remarks if Other is deselected
+        }
         if (sel['No Defect']) sel['No Defect'] = false;
       }
       hv.selectedDefects = sel;
@@ -205,6 +217,16 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
       const next = [...prev];
       const hv = { ...next[activeHeatTab] };
       hv.defectCounts = { ...hv.defectCounts, [defectName]: value };
+      next[activeHeatTab] = hv;
+      return next;
+    });
+  }, [activeHeatTab]);
+
+  const handleOtherRemarksChange = useCallback((value) => {
+    setHeatVisualData(prev => {
+      const next = [...prev];
+      const hv = { ...next[activeHeatTab] };
+      hv.otherRemarks = value;
       next[activeHeatTab] = hv;
       return next;
     });
@@ -322,7 +344,8 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
         defectLengths: selectedDefects.reduce((acc, defect) => {
           acc[defect] = currentHeatData.defectCounts[defect] || '';
           return acc;
-        }, {})
+        }, {}),
+        otherRemarks: currentHeatData.otherRemarks || ''
       };
 
       await saveVisualInspectionPass(payload);
@@ -508,7 +531,8 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
               const rowClassName = [
                 'checkbox-item',
                 'visual-defect-row',
-                isMatchingDefectType ? 'matching' : 'non-matching'
+                isMatchingDefectType ? 'matching' : 'non-matching',
+                d === 'Other' ? 'other-defect-row' : ''
               ].join(' ');
               return (
                 <div key={d} className={rowClassName} style={{ opacity: isValidationFailed && !checked ? 0.5 : 1 }}>
@@ -536,6 +560,16 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
                       }}
                       title={isValidationFailed ? 'Edit this value to reduce rejected weight' : ''}
                     />
+                  )}
+                  {d === 'Other' && selected[d] && (
+                    <div className="other-remarks-box">
+                      <textarea
+                        className="other-remarks-textarea"
+                        value={hv.otherRemarks || ''}
+                        onChange={(e) => handleOtherRemarksChange(e.target.value)}
+                        placeholder="Enter other defect details..."
+                      />
+                    </div>
                   )}
                 </div>
               );

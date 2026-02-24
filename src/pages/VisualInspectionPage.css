@@ -125,6 +125,33 @@
   white-space: nowrap;
 }
 
+/* Other Defect Styling */
+.visual-defect-row.other-defect-row {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.other-remarks-box {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.other-remarks-textarea {
+  width: 100%;
+  min-height: 60px;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  resize: vertical;
+}
+
+.other-remarks-textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
 /* Tablet responsive */
 @media (max-width: 1024px) {
   .visual-page-container {
@@ -175,4 +202,3 @@
     font-size: 18px;
   }
 }
-

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { MOCK_PO_DATA } from '../data/mockData';
-import { formatDate } from '../utils/helpers';
+import { formatDate, formatPoNoWithSerial } from '../utils/helpers';
 
 const FinalInspection = ({ call, onBack }) => {
   const [sectionAExpanded, setSectionAExpanded] = useState(true);
@@ -37,16 +37,16 @@ const FinalInspection = ({ call, onBack }) => {
       {/* Header with Static Data — same as Raw Material and Process */}
       <div className="card" style={{ background: 'var(--color-gray-100)', marginBottom: 'var(--space-24)' }}>
         <div className="card-header">
-          <h3 className="card-title">Inspection Details (Static Data)</h3>
-          <p className="card-subtitle">Auto-fetched from PO/Sub PO information</p>
+          <h3 className="card-title">Inspection Details</h3>
+          {/* <p className="card-subtitle">Auto-fetched from PO/Sub PO information</p> */}
         </div>
         <div className="form-grid">
           <div className="form-group">
             <label className="form-label">PO Number</label>
-            <input type="text" className="form-input" value={poData.sub_po_no || poData.po_no || ''} disabled />
+            <input type="text" className="form-input" value={formatPoNoWithSerial(poData.po_no, poData.po_serial_no || poData.poSerialNo || poData.sub_po_no)} disabled />
           </div>
           <div className="form-group">
-            <label className="form-label">PO  Date</label>
+            <label className="form-label">PO Date</label>
             <input type="text" className="form-input" value={poData.sub_po_date ? formatDate(poData.sub_po_date) : (poData.po_date ? formatDate(poData.po_date) : '')} disabled />
           </div>
           <div className="form-group">
@@ -55,11 +55,18 @@ const FinalInspection = ({ call, onBack }) => {
           </div>
           <div className="form-group">
             <label className="form-label">Manufacturer</label>
-            <input type="text" className="form-input" value={poData.manufacturer || ''} disabled />
+            <input type="text" className="form-input" value={poData.contractor || poData.manufacturer || ''} disabled />
           </div>
-          <div className="form-group">
+          <div className="form-group" style={{ gridColumn: 'span 2' }}>
             <label className="form-label">Place of Inspection</label>
-            <input type="text" className="form-input" value={poData.place_of_inspection || ''} disabled />
+            <textarea
+              className="form-input"
+              value={poData.companyName
+                ? `${poData.companyName}${poData.unitName ? ' (' + poData.unitName + ')' : ''}${poData.unitAddress ? ' - ' + poData.unitAddress : ''}`
+                : (poData.place_of_inspection || '')}
+              disabled
+              style={{ height: 'auto', minHeight: '38px', resize: 'none' }}
+            />
           </div>
           <div className="form-group">
             <label className="form-label">Stage of Inspection</label>

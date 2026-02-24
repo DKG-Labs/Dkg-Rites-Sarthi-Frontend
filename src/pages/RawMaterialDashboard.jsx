@@ -2205,7 +2205,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       <div className="card" style={{ background: 'var(--color-gray-100)', marginBottom: 'var(--space-24)' }}>
         <div className="card-header rm-card-header">
           <h3 className="card-title rm-card-title">Inspection Details </h3>
-          <p className="card-subtitle">Auto-fetched from PO/Sub PO information</p>
+          {/* <p className="card-subtitle">Auto-fetched from PO/Sub PO information</p> */}
         </div>
         <div className="rm-form-grid">
           <div className="rm-form-group">

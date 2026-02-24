@@ -1,6 +1,6 @@
 ﻿/* eslint-disable unicode-bom */
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { formatDate, getHourLabels } from '../utils/helpers';
+import { formatDate, getHourLabels, formatPoNoWithSerial } from '../utils/helpers';
 import { getAllProcessData, saveToLocalStorage, loadFromLocalStorage, loadGridDataForLine } from '../services/processLocalStorageService';
 import { fetchProcessInitiationData } from '../services/processInitiationDataService';
 import { markAsWithheld } from '../services/callStatusService';
@@ -1377,6 +1377,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         lineNumber: localProductionLines.length + 1,
         icNumber: callNo,
         poNumber: rowData?.po_no || rowData?.poNo || '',
+        poSerialNo: rowData?.po_serial_no || rowData?.poSerialNo || '',
         rawMaterialICs: rowData?.rawMaterialICs || rowData?.rmIcNumber || '',
         productType: rowData?.product_type || rowData?.typeOfErc || 'ERC Process',
         manufacturer: rowData?.vendor_name || rowData?.vendorName || ''
@@ -1418,6 +1419,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
                 return {
                   ...line,
                   poNumber: richData.poNo || richData.po_no || line.poNumber,
+                  poSerialNo: richData.poSerialNo || richData.po_serial_no || line.poSerialNo,
                   rawMaterialICs: richData.rmIcNumber || richData.rawMaterialICs || line.rawMaterialICs,
                   productType: richData.typeOfErc || richData.product_type || line.productType,
                   manufacturer: richData.vendorName || richData.vendor_name || line.manufacturer
@@ -1720,6 +1722,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         lineNumber: localProductionLines.length + 1,
         icNumber: selectedNewCall,
         poNumber: selectedNewCallData?.poNo || '',
+        poSerialNo: selectedNewCallData?.poSerialNo || '',
         rawMaterialICs: selectedNewCallData?.rmIcNumber || '',
         productType: selectedNewCallData?.typeOfErc || 'ERC Process',
         manufacturer: selectedNewCallData?.vendorName || ''
@@ -5114,28 +5117,30 @@ return {
     || '';
 
   const linePoData = currentLineInitiationData ? {
-    po_no: currentLineInitiationData.poNo || '',
+    po_no: formatPoNoWithSerial(currentLineInitiationData.poNo, currentLineInitiationData.poSerialNo),
     sub_po_no: currentProductionLine.rawMaterialICs || '',
     po_date: currentLineInitiationData.poDate || '',
     sub_po_date: currentLineInitiationData.poDate || '',
     contractor: currentLineInitiationData.vendorName || '',
-    manufacturer: lineManufacturer,
-    place_of_inspection: currentLineInitiationData.placeOfInspection || ''
+    manufacturer: currentLineInitiationData.vendorName || lineManufacturer,
+    place_of_inspection: currentLineInitiationData.companyName
+      ? `${currentLineInitiationData.companyName}${currentLineInitiationData.unitName ? ' (' + currentLineInitiationData.unitName + ')' : ''}${currentLineInitiationData.unitAddress ? ' - ' + currentLineInitiationData.unitAddress : ''}`
+      : (currentLineInitiationData.placeOfInspection || '')
   } : (fetchedPoData ? {
-    po_no: fetchedPoData.po_no || '',
+    po_no: formatPoNoWithSerial(fetchedPoData.po_no, fetchedPoData.po_serial_no || fetchedPoData.poSerialNo),
     sub_po_no: fetchedPoData.po_no || '',
     po_date: fetchedPoData.po_date || '',
     sub_po_date: fetchedPoData.po_date || '',
     contractor: fetchedPoData.contractor || fetchedPoData.vendor_name || '',
-    manufacturer: fetchedPoData.manufacturer || '',
+    manufacturer: fetchedPoData.contractor || fetchedPoData.vendor_name || fetchedPoData.manufacturer || '',
     place_of_inspection: fetchedPoData.place_of_inspection || ''
   } : (currentCallData ? {
-    po_no: currentCallData.po_no || '',
+    po_no: formatPoNoWithSerial(currentCallData.po_no, currentCallData.po_serial_no || currentCallData.poSerialNo),
     sub_po_no: currentCallData.sub_po_no || currentProductionLine.rawMaterialICs || '',
     po_date: currentCallData.po_date || '',
     sub_po_date: currentCallData.sub_po_date || currentCallData.po_date || '',
     contractor: currentCallData.contractor || currentCallData.vendor_name || '',
-    manufacturer: currentCallData.manufacturer || currentCallData.vendor_name || '',
+    manufacturer: currentCallData.contractor || currentCallData.vendor_name || currentCallData.manufacturer || '',
     place_of_inspection: currentCallData.place_of_inspection || ''
   } : {
     po_no: '',
@@ -5290,7 +5295,7 @@ return {
                             ))}
                           </select>
                         </td>
-                        <td data-label="PO Number">
+                        <td data-label="PO Number_Sr_no">
                           <input
                             type="text"
                             className="form-input"
@@ -5419,8 +5424,8 @@ return {
       {/* Inspection Details (Static Data) - Based on selected line */}
       <div className="card" style={{ background: 'var(--color-gray-100)', marginBottom: 'var(--space-24)' }}>
         <div className="card-header">
-          <h3 className="card-title">Inspection Details (Static Data) - {selectedLine}</h3>
-          <p className="card-subtitle">Auto-fetched from PO/Sub PO information for selected line</p>
+          <h3 className="card-title">Inspection Details - {selectedLine}</h3>
+          {/* <p className="card-subtitle">Auto-fetched from PO/Sub PO information for selected line</p> */}
         </div>
         <div className="process-form-grid">
           <div className="process-form-group">
@@ -5439,9 +5444,14 @@ return {
             <label className="process-form-label">Manufacturer</label>
             <input type="text" className="process-form-input" value={linePoData.manufacturer || ''} disabled />
           </div>
-          <div className="process-form-group">
+          <div className="process-form-group" style={{ gridColumn: 'span 2' }}>
             <label className="process-form-label">Place of Inspection</label>
-            <input type="text" className="process-form-input" value={linePoData.place_of_inspection || ''} disabled />
+            <textarea
+              className="process-form-input"
+              value={linePoData.place_of_inspection || ''}
+              disabled
+              style={{ height: 'auto', minHeight: '38px', resize: 'none' }}
+            />
           </div>
           <div className="process-form-group">
             <label className="process-form-label">Stage of Inspection</label>

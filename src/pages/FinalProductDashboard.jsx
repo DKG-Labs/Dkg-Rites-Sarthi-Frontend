@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import FormField from "../components/FormField";
-import { formatDate } from "../utils/helpers";
+import { formatDate, formatPoNoWithSerial } from "../utils/helpers";
 import { markAsWithheld } from '../services/callStatusService';
 import { useInspection } from '../context/InspectionContext';
 import {
@@ -233,10 +233,10 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
       // Extract and set PO data - Map backend response to frontend format
       if (dashboardData?.poData) {
         const mappedPoData = {
-          po_no: dashboardData.poData.poNo || dashboardData.poData.rlyPoNo || '',
+          po_no: formatPoNoWithSerial(dashboardData.poData.poNo, dashboardData.poData.poSerialNo),
           po_date: dashboardData.poData.poDate || '',
           contractor: dashboardData.poData.vendorName || '',
-          manufacturer: dashboardData.finalLotDetails?.[0]?.manufacturer || dashboardData.poData.vendorName || '',
+          manufacturer: dashboardData.poData.vendorName || (dashboardData.finalLotDetails?.[0]?.manufacturer || ''),
           // Additional fields for reference
           poSerialNo: dashboardData.poData.poSerialNo || '',
           inspPlace: dashboardData.poData.inspPlace || '',
@@ -248,7 +248,10 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
           cummQtyPassedPreviously: dashboardData.poData.cummQtyPassedPreviously || 0,
           cummQtyRejectedPreviously: dashboardData.poData.cummQtyRejectedPreviously || 0,
           rlyCd: dashboardData.poData.rlyCd || '',
-          rlyShortName: dashboardData.poData.rlyShortName || ''
+          rlyShortName: dashboardData.poData.rlyShortName || '',
+          place_of_inspection: dashboardData.poData.companyName
+            ? `${dashboardData.poData.companyName}${dashboardData.poData.unitName ? ' (' + dashboardData.poData.unitName + ')' : ''}${dashboardData.poData.unitAddress ? ' - ' + dashboardData.poData.unitAddress : ''}`
+            : (dashboardData.poData.inspPlace || '')
         };
         setPoData(mappedPoData);
         console.log('✅ PO Data mapped and set:', mappedPoData);
@@ -1439,16 +1442,16 @@ Workflow Status: ✅ Transitioned to COMPLETED
           <div className="fp-card" style={{ background: 'var(--color-gray-100)', marginBottom: 'var(--space-24)' }}>
             <div className="fp-card-header" style={{ marginBottom: '16px' }}>
               <h2 className="fp-card-title">Inspection Details</h2>
-              <p className="fp-card-subtitle" style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+              {/* <p className="fp-card-subtitle" style={{ fontSize: '12px', color: '#ecececff', marginTop: '4px' }}>
                 Auto-fetched from PO/Sub PO information
-              </p>
+              </p> */}
             </div>
             <div className="fp-grid">
               <div className="fp-form-group">
-                <label className="fp-form-label">Rly zone / PO Sr No</label>
+                <label className="fp-form-label">PO Number / PO Sr No</label>
                 <input
                   className="fp-input"
-                  value={`${poData?.rlyShortName || poData?.rlyCd || ''}/${poData?.poSerialNo || ''}`}
+                  value={poData?.po_no || ''}
                   disabled
                 />
               </div>
@@ -1467,6 +1470,15 @@ Workflow Status: ✅ Transitioned to COMPLETED
               <div className="fp-form-group">
                 <label className="fp-form-label">Manufacturer</label>
                 <input className="fp-input" value={poData?.manufacturer || ''} disabled />
+              </div>
+              <div className="fp-form-group" style={{ gridColumn: 'span 2' }}>
+                <label className="fp-form-label">Place of Inspection</label>
+                <textarea
+                  className="fp-input"
+                  value={poData?.place_of_inspection || ''}
+                  disabled
+                  style={{ height: 'auto', minHeight: '38px', resize: 'none' }}
+                />
               </div>
             </div>
           </div>

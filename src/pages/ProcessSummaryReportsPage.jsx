@@ -3,6 +3,7 @@ import ProcessLineToggle from '../components/ProcessLineToggle';
 import ProcessSubmoduleNav from '../components/ProcessSubmoduleNav';
 import StatusBadge from '../components/StatusBadge';
 import FormField from '../components/FormField';
+import { formatDate, formatPoNoWithSerial } from '../utils/helpers';
 import {
   getSummaryByPoLine,
   saveSummaryReport,
@@ -40,19 +41,15 @@ const ProcessSummaryReportsPage = ({ call, onBack, selectedLines = [], onNavigat
     return null;
   }, [currentProductionLine, allCallOptions]);
 
-  // Get PO number for active line
-  const activeLinePoNo = useMemo(() => {
-    if (currentProductionLine?.poNumber) {
-      return currentProductionLine.poNumber;
-    }
-    if (currentCallData?.po_no) {
-      return currentCallData.po_no;
-    }
-    return call?.po_no || '';
+  // Get formatted PO number for active line
+  const formattedActivePoNo = useMemo(() => {
+    const poNo = currentProductionLine?.poNumber || currentCallData?.po_no || call?.po_no || '';
+    const poSerialNo = currentProductionLine?.poSerialNo || currentCallData?.po_serial_no || currentCallData?.poSerialNo || call?.po_serial_no || call?.poSerialNo || '';
+    return formatPoNoWithSerial(poNo, poSerialNo);
   }, [currentProductionLine, currentCallData, call]);
 
   const inspectionCallNo = call?.call_no || '';
-  const poNo = activeLinePoNo;
+  const poNo = formattedActivePoNo;
 
   // Default mock data for summary
   const lotNumbers = ['LOT-001', 'LOT-002'];

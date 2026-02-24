@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { formatDate, formatPoNoWithSerial } from '../utils/helpers';
 import { useInspection } from '../context/InspectionContext';
 import FinalSubmoduleNav from '../components/FinalSubmoduleNav';
 import "./FinalReportsPage.css";
@@ -126,16 +127,52 @@ export default function FinalReportsPage({ onBack, onNavigateSubmodule }) {
     }
   ];
 
+  // Get formatted PO number
+  const formattedPoNo = useMemo(() => {
+    const poData = cachedData?.dashboardData?.poData || {};
+    return formatPoNoWithSerial(poData.poNo, poData.poSerialNo);
+  }, [cachedData]);
+
   return (
     <div className="rep-container">
 
       {/* HEADER */}
       <div className="rep-header">
         <div>
-          <h1 className="rep-title">Inspection Report</h1>
-          <p className="rep-subtitle">Consolidated Summary of All Modules</p>
+          <h1 className="rep-title">Inspection Report {formattedPoNo && <span style={{ color: '#0d9488', fontSize: 'var(--font-size-lg)' }}>- PO: {formattedPoNo}</span>}</h1>
+          <p className="rep-subtitle">Consolidated Summary of All Modules - Call: {callNo}</p>
         </div>
-        <button className="rep-btn-outline" onClick={onBack}>← Back</button>
+        <div className="rep-header-actions">
+          <button className="rep-btn-outline" onClick={onBack}>← Back</button>
+        </div>
+      </div>
+
+      {/* KEY INFO STRIP */}
+      <div className="rep-info-strip" style={{ flexWrap: 'wrap' }}>
+        <div className="info-item">
+          <label>Lot No:</label>
+          <span>{lotsFromVendor[0]?.lotNo || 'LOT-FP-001'}</span>
+        </div>
+        <div className="info-item">
+          <label>Heat No:</label>
+          <span>{lotsFromVendor[0]?.heatNo || 'HT-9988'}</span>
+        </div>
+        <div className="info-item">
+          <label>Lot Size:</label>
+          <span>{lotsFromVendor.reduce((sum, l) => sum + (l.lotSize || l.offeredQty || 0), 0) || '1000'}</span>
+        </div>
+        <div className="info-item">
+          <label>Sample Size:</label>
+          <span>{lotsFromVendor[0]?.sampleSize || '50'}</span>
+        </div>
+        <div className="info-item" style={{ minWidth: '200px' }}>
+          <label>Contractor:</label>
+          <span>{cachedData?.dashboardData?.poData?.vendorName || '-'}</span>
+        </div>
+        <div className="info-item" style={{ minWidth: '200px' }}>
+          <label>Manufacturer:</label>
+          <span>{cachedData?.dashboardData?.poData?.vendorName || '-'}</span>
+        </div>
       </div>
 
       {/* Submodule Navigation */}
@@ -148,7 +185,7 @@ export default function FinalReportsPage({ onBack, onNavigateSubmodule }) {
       <div className="rep-card">
         <div className="rep-card-header">
           <h3>📘 Test Summary (Auto-Compiled)</h3>
-          <p>Fetched from all test modules</p>
+          <p>Detailed performance status of individual modules</p>
         </div>
 
         <div className="rep-table-wrapper">
@@ -171,8 +208,8 @@ export default function FinalReportsPage({ onBack, onNavigateSubmodule }) {
                   <td>{row.accepted}</td>
                   <td>{row.rejected}</td>
                   <td>
-                    <span className={`rep-status rep-${row.status.toLowerCase()}`}>
-                      {row.status}
+                    <span className={`rep-status-badge ${row.status === 'OK' ? 'status-ok' : 'status-not-ok'}`}>
+                      {row.status === 'OK' ? 'OK' : 'NOT OK'}
                     </span>
                   </td>
                   <td>{row.keyResults}</td>
@@ -184,33 +221,7 @@ export default function FinalReportsPage({ onBack, onNavigateSubmodule }) {
         </div>
 
         <div className="rep-success-banner">
-          ✓ All tests completed — Lot is eligible for acceptance.
-        </div>
-      </div>
-
-      {/* IC SECTION */}
-      <div className="rep-card">
-        <div className="rep-card-header">
-          <h3>📄 Inspection Certificate (IC) Details</h3>
-        </div>
-
-        <div className="rep-grid">
-          <div className="rep-field">
-            <label>IC Number</label>
-            <input disabled value="IC-FP-2025-001" />
-          </div>
-          <div className="rep-field">
-            <label>Lot Number</label>
-            <input disabled value="LOT-FP-001" />
-          </div>
-          <div className="rep-field">
-            <label>PO Number</label>
-            <input disabled value="PO-2025-1001" />
-          </div>
-          <div className="rep-field">
-            <label>Date</label>
-            <input disabled value={new Date().toLocaleDateString()} />
-          </div>
+          ✓ All individual module results are OK. Lot is eligible for final acceptance.
         </div>
       </div>
 
@@ -225,7 +236,7 @@ export default function FinalReportsPage({ onBack, onNavigateSubmodule }) {
             <label>Lot Status</label>
             <select
               value={finalDecision.lotStatus}
-              onChange={(e) => setFinalDecision({...finalDecision, lotStatus: e.target.value})}
+              onChange={(e) => setFinalDecision({ ...finalDecision, lotStatus: e.target.value })}
             >
               <option>Accepted</option>
               <option>Rejected</option>
@@ -238,7 +249,7 @@ export default function FinalReportsPage({ onBack, onNavigateSubmodule }) {
             <input
               type="number"
               value={finalDecision.qtyAccepted}
-              onChange={(e) => setFinalDecision({...finalDecision, qtyAccepted: parseInt(e.target.value) || 0})}
+              onChange={(e) => setFinalDecision({ ...finalDecision, qtyAccepted: parseInt(e.target.value) || 0 })}
             />
           </div>
 
@@ -247,7 +258,7 @@ export default function FinalReportsPage({ onBack, onNavigateSubmodule }) {
             <input
               type="number"
               value={finalDecision.qtyRejected}
-              onChange={(e) => setFinalDecision({...finalDecision, qtyRejected: parseInt(e.target.value) || 0})}
+              onChange={(e) => setFinalDecision({ ...finalDecision, qtyRejected: parseInt(e.target.value) || 0 })}
             />
           </div>
         </div>
@@ -258,7 +269,7 @@ export default function FinalReportsPage({ onBack, onNavigateSubmodule }) {
             rows="3"
             placeholder="Enter final remarks..."
             value={finalDecision.remarks}
-            onChange={(e) => setFinalDecision({...finalDecision, remarks: e.target.value})}
+            onChange={(e) => setFinalDecision({ ...finalDecision, remarks: e.target.value })}
           ></textarea>
         </div>
 

@@ -1082,13 +1082,7 @@ const InspectionInitiationFormContent = ({ call, formData, onFormDataChange, sho
                 <input
                   type="text"
                   className="form-input"
-                  value={(() => {
-                    if (poData.rly_po_no_serial) return poData.rly_po_no_serial;
-                    if (poData.rlyCd && poData.poSerialNo) {
-                      return `${poData.rlyCd}/${poData.poSerialNo}`;
-                    }
-                    return `${poData.po_no || call.po_no} / ${poData.pl_no || '1'}`;
-                  })()}
+                  value={poData.rly_po_no_serial || poData.rly_po_no || `${poData.po_no || call.po_no} / ${poData.pl_no || '1'}`}
                   disabled
                 />
               </div>

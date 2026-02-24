@@ -703,6 +703,8 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
     }
   };
 
+
+  /*
   // Get date options for Shift C (today and yesterday)
   const getDateOptions = () => {
     const today = new Date();
@@ -713,6 +715,7 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
       { value: yesterday.toISOString().split('T')[0], label: `${yesterday.toLocaleDateString('en-GB')} (Yesterday)` }
     ];
   };
+  */
 
   const handleBulkStart = (calls, scheduleInfo) => {
     const { unscheduledCalls, scheduledCalls, refreshSchedules } = scheduleInfo || {};
@@ -1314,9 +1317,13 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
               onChange={(e) => {
                 setShiftDetailsShift(e.target.value);
                 setShiftDetailsError('');
+
+                // Automatically set date to today for A, B, General - Commented out for manual selection
+                /*
                 if (e.target.value && e.target.value !== 'C') {
                   setShiftDetailsDate(new Date().toISOString().split('T')[0]);
                 }
+                */
               }}
             >
               <option value="">Select Shift</option>
@@ -1331,29 +1338,42 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
             <label className="form-label required">
               Date of Inspection
             </label>
-            {shiftDetailsShift === 'C' ? (
-              <select
-                className="form-control"
-                value={shiftDetailsDate}
-                onChange={(e) => {
-                  setShiftDetailsDate(e.target.value);
-                  setShiftDetailsError('');
-                }}
-              >
-                {getDateOptions().map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            ) : (
-              <input
-                type="text"
-                className="form-control"
-                value={shiftDetailsDate ? new Date(shiftDetailsDate).toLocaleDateString('en-GB') : ''}
-                disabled
-              />
-            )}
+            <input
+              type="date"
+              className="form-control"
+              value={shiftDetailsDate}
+              onChange={(e) => {
+                setShiftDetailsDate(e.target.value);
+                setShiftDetailsError('');
+              }}
+            />
+
+            {/* Previous shift-based rendering - Commented out for reference as requested */}
+            {/*
+              {shiftDetailsShift === 'C' ? (
+                <select
+                  className="form-control"
+                  value={shiftDetailsDate}
+                  onChange={(e) => {
+                    setShiftDetailsDate(e.target.value);
+                    setShiftDetailsError('');
+                  }}
+                >
+                  {getDateOptions && getDateOptions().map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  className="form-control"
+                  value={shiftDetailsDate ? new Date(shiftDetailsDate).toLocaleDateString('en-GB') : ''}
+                  disabled
+                />
+              )}
+              */}
             <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '4px', display: 'block' }}>
-              {shiftDetailsShift === 'C' ? 'Shift C: Select today or yesterday' : 'Auto-set to today for shifts A, B, General'}
+              Select the date of inspection
             </span>
           </div>
         </div>

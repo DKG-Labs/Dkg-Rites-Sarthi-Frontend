@@ -18,6 +18,8 @@ const ResumeCallModal = ({ isOpen, onClose, call, onConfirm, isResume = true, is
         }
     }, [isOpen, initialShift]);
 
+
+    /*
     // Get date options for Shift C (today and yesterday)
     const getDateOptions = () => {
         const today = new Date();
@@ -28,6 +30,7 @@ const ResumeCallModal = ({ isOpen, onClose, call, onConfirm, isResume = true, is
             { value: yesterday.toISOString().split('T')[0], label: `${yesterday.toLocaleDateString('en-GB')} (Yesterday)` }
         ];
     };
+    */
 
     const handleConfirm = () => {
         if (!shift) {
@@ -86,9 +89,12 @@ const ResumeCallModal = ({ isOpen, onClose, call, onConfirm, isResume = true, is
                         onChange={(e) => {
                             setShift(e.target.value);
                             setError('');
+                            // Automatically set date to today for A, B, General - Commented out to allow manual selection
+                            /*
                             if (e.target.value && e.target.value !== 'C') {
                                 setDate(new Date().toISOString().split('T')[0]);
                             }
+                            */
                         }}
                         disabled={isShiftReadOnly}
                     >
@@ -107,6 +113,22 @@ const ResumeCallModal = ({ isOpen, onClose, call, onConfirm, isResume = true, is
 
                 <div className="form-group">
                     <label className="form-label required">Date of Inspection</label>
+                    {/* Date Picker - Unified for all shifts */}
+                    <input
+                        type="date"
+                        className="form-control"
+                        value={date}
+                        onChange={(e) => {
+                            setDate(e.target.value);
+                            setError('');
+                        }}
+                    />
+
+                    {/* Previous shift-based rendering - Commented out for reference */}
+                    {/*
+                    {shift === 'C' ? ( ... ) : ( ... )}
+                    */}
+                    {/*
                     {shift === 'C' ? (
                         <select
                             className="form-control"
@@ -116,7 +138,7 @@ const ResumeCallModal = ({ isOpen, onClose, call, onConfirm, isResume = true, is
                                 setError('');
                             }}
                         >
-                            {getDateOptions().map((opt) => (
+                            {getDateOptions && getDateOptions().map((opt) => (
                                 <option key={opt.value} value={opt.value}>{opt.label}</option>
                             ))}
                         </select>
@@ -128,8 +150,9 @@ const ResumeCallModal = ({ isOpen, onClose, call, onConfirm, isResume = true, is
                             disabled
                         />
                     )}
+                    */}
                     <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '4px', display: 'block' }}>
-                        {shift === 'C' ? 'Shift C: Select today or yesterday' : 'Auto-set to today for shifts A, B, General'}
+                        Select the date of inspection
                     </span>
                 </div>
             </div>

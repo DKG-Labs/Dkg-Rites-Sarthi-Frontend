@@ -6,6 +6,8 @@ import {
     Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis
 } from 'recharts';
 import './ProfessionalCardSection.css';
+import './InspectionStackedCharts.css';
+import './PerformanceMatrixTheme.css';
 
 const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid, selectedProduct }) => {
     const [activeMainCard, setActiveMainCard] = useState('summary');
@@ -24,7 +26,7 @@ const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid, selectedProduct })
     const [activeReport, setActiveReport] = useState('mpr');
     const [lwclSelection, setLwclSelection] = useState({ po: '', lot: '' });
     const [perfSearch, setPerfSearch] = useState('');
-    const [perfFilters, setPerfFilters] = useState({ vendors: [], inspectors: [], stages: [] });
+    const [perfFilters, setPerfFilters] = useState({ vendors: [], inspectors: [], rios: [], stages: [] });
     const [openDropdown, setOpenDropdown] = useState(null);
 
     const togglePerfFilter = (type, value) => {
@@ -38,32 +40,74 @@ const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid, selectedProduct })
     };
 
     const clearPerfFilters = () => {
-        setPerfFilters({ vendors: [], inspectors: [], stages: [] });
+        setPerfFilters({ vendors: [], inspectors: [], rios: [], stages: [] });
         setPerfSearch('');
     };
 
     const filteredRecords = PERFORMANCE_DATA.records.filter(record => {
         const matchesSearch = record.manufacturer.toLowerCase().includes(perfSearch.toLowerCase()) ||
             record.inspector.toLowerCase().includes(perfSearch.toLowerCase()) ||
+            record.rio.toLowerCase().includes(perfSearch.toLowerCase()) ||
             record.reason.toLowerCase().includes(perfSearch.toLowerCase());
 
         const matchesVendor = perfFilters.vendors.length === 0 || perfFilters.vendors.includes(record.manufacturer);
         const matchesInspector = perfFilters.inspectors.length === 0 || perfFilters.inspectors.includes(record.inspector);
+        const matchesRio = perfFilters.rios.length === 0 || perfFilters.rios.includes(record.rio);
         const matchesStage = perfFilters.stages.length === 0 || perfFilters.stages.includes(record.stage);
 
-        return matchesSearch && matchesVendor && matchesInspector && matchesStage;
+        return matchesSearch && matchesVendor && matchesInspector && matchesRio && matchesStage;
     });
 
     // ... (rest of the logic remains same until renderSubContent)
 
-    // Mock data for charts
+    // --- 4-column stacked bar chart data ---
+    // Inspection Calls Status: 4 groups × 2 stacks (Under Inspection + Pending)
     const inspectionCallsData = [
-        { name: 'Calls', under: 90, pending: 12 }
+        { name: 'Total', under: 90, pending: 12 },
+        { name: 'RM', under: 38, pending: 5 },
+        { name: 'Process', under: 30, pending: 4 },
+        { name: 'Final', under: 22, pending: 3 },
     ];
 
+    // Inspection Details: 4 groups × 2 stacks (Accepted + Rejected)
     const inspectionDetailsData = [
-        { name: 'Inspections', accepted: 8957, rejected: 406 }
+        { name: 'Total', accepted: 8957, rejected: 406 },
+        { name: 'RM', accepted: 3200, rejected: 145 },
+        { name: 'Process', accepted: 3100, rejected: 160 },
+        { name: 'Final', accepted: 2657, rejected: 101 },
     ];
+
+    // Custom tooltip for Inspection Calls Status chart
+    const CallsTooltip = ({ active, payload, label }) => {
+        if (!active || !payload || !payload.length) return null;
+        return (
+            <div className="isc-tooltip">
+                <div className="isc-tooltip-label">{label}</div>
+                {payload.map((p, i) => (
+                    <div key={i} className="isc-tooltip-row">
+                        <span className="isc-tooltip-swatch" style={{ background: p.fill }} />
+                        <span>{p.name}: <strong>{p.value}</strong></span>
+                    </div>
+                ))}
+            </div>
+        );
+    };
+
+    // Custom tooltip for Inspection Details chart
+    const DetailsTooltip = ({ active, payload, label }) => {
+        if (!active || !payload || !payload.length) return null;
+        return (
+            <div className="isc-tooltip">
+                <div className="isc-tooltip-label">{label}</div>
+                {payload.map((p, i) => (
+                    <div key={i} className="isc-tooltip-row">
+                        <span className="isc-tooltip-swatch" style={{ background: p.fill }} />
+                        <span>{p.name}: <strong>{p.value.toLocaleString()}</strong></span>
+                    </div>
+                ))}
+            </div>
+        );
+    };
 
 
     const renderSubContent = () => {
@@ -96,46 +140,96 @@ const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid, selectedProduct })
                             ))}
                         </div>
 
-                        <div className="charts-row">
-                            <div className="chart-card animated-up delay-1">
-                                <h3>Inspection Calls Status</h3>
-                                <p className="chart-subtitle">Total Calls: {inspectionCallsData[0].under + inspectionCallsData[0].pending}</p>
-                                <div className="chart-wrapper-h">
-                                    <ResponsiveContainer width="100%" height={150}>
-                                        <BarChart layout="vertical" data={inspectionCallsData}>
-                                            <XAxis type="number" hide />
-                                            <YAxis dataKey="name" type="category" hide />
-                                            <Tooltip />
-                                            <Bar dataKey="under" stackId="a" fill="#f59e0b" barSize={30} />
-                                            <Bar dataKey="pending" stackId="a" fill="#ef4444" barSize={30} radius={[0, 20, 20, 0]} />
+                        {/* ── Inspection Charts Row ── */}
+                        <div className="isc-charts-row animated-up delay-1">
+
+                            {/* ── Inspection Calls Status ── */}
+                            <div className="isc-chart-card">
+                                <h3 className="isc-chart-title">Inspection Calls Status</h3>
+                                <p className="isc-chart-subtitle">
+                                    Total Calls: {inspectionCallsData[0].under + inspectionCallsData[0].pending}
+                                </p>
+                                <div className="isc-chart-area">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart
+                                            data={inspectionCallsData}
+                                            margin={{ top: 10, right: 16, left: -10, bottom: 0 }}
+                                            barCategoryGap="30%"
+                                            barGap={2}
+                                        >
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                            <XAxis
+                                                dataKey="name"
+                                                axisLine={false}
+                                                tickLine={false}
+                                                tick={{ fill: '#64748b', fontSize: 12, fontWeight: 600 }}
+                                            />
+                                            <YAxis
+                                                axisLine={false}
+                                                tickLine={false}
+                                                tick={{ fill: '#94a3b8', fontSize: 11 }}
+                                                width={30}
+                                            />
+                                            <Tooltip content={<CallsTooltip />} cursor={{ fill: 'rgba(241,245,249,0.7)' }} />
+                                            <Bar dataKey="under" name="Under Inspection" stackId="s" fill="#f59e0b" radius={[0, 0, 0, 0]} />
+                                            <Bar dataKey="pending" name="Pending" stackId="s" fill="#ef4444" radius={[6, 6, 0, 0]} />
                                         </BarChart>
                                     </ResponsiveContainer>
                                 </div>
-                                <div className="chart-legend-row">
-                                    <div className="legend-item"><span className="dot bg-amber"></span> Under Inspection</div>
-                                    <div className="legend-item"><span className="dot bg-red"></span> Pending</div>
+                                <div className="isc-legend-row">
+                                    <div className="isc-legend-item">
+                                        <span className="isc-dot isc-dot--amber"></span> Under Inspection
+                                    </div>
+                                    <div className="isc-legend-item">
+                                        <span className="isc-dot isc-dot--red"></span> Pending
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="chart-card animated-up delay-2">
-                                <h3>Inspection Details</h3>
-                                <p className="chart-subtitle">Total Inspections: {(inspectionDetailsData[0].accepted + inspectionDetailsData[0].rejected).toLocaleString()}</p>
-                                <div className="chart-wrapper-h">
-                                    <ResponsiveContainer width="100%" height={150}>
-                                        <BarChart layout="vertical" data={inspectionDetailsData}>
-                                            <XAxis type="number" hide />
-                                            <YAxis dataKey="name" type="category" hide />
-                                            <Tooltip />
-                                            <Bar dataKey="accepted" stackId="a" fill="#22c55e" barSize={40} />
-                                            <Bar dataKey="rejected" stackId="a" fill="#ef4444" barSize={40} radius={[0, 20, 20, 0]} />
+                            {/* ── Inspection Details ── */}
+                            <div className="isc-chart-card">
+                                <h3 className="isc-chart-title">Inspection Details</h3>
+                                <p className="isc-chart-subtitle">
+                                    Total Inspections: {(inspectionDetailsData[0].accepted + inspectionDetailsData[0].rejected).toLocaleString()}
+                                </p>
+                                <div className="isc-chart-area">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart
+                                            data={inspectionDetailsData}
+                                            margin={{ top: 10, right: 16, left: -10, bottom: 0 }}
+                                            barCategoryGap="30%"
+                                            barGap={2}
+                                        >
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                            <XAxis
+                                                dataKey="name"
+                                                axisLine={false}
+                                                tickLine={false}
+                                                tick={{ fill: '#64748b', fontSize: 12, fontWeight: 600 }}
+                                            />
+                                            <YAxis
+                                                axisLine={false}
+                                                tickLine={false}
+                                                tick={{ fill: '#94a3b8', fontSize: 11 }}
+                                                width={45}
+                                                tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}
+                                            />
+                                            <Tooltip content={<DetailsTooltip />} cursor={{ fill: 'rgba(241,245,249,0.7)' }} />
+                                            <Bar dataKey="accepted" name="Accepted" stackId="s" fill="#22c55e" radius={[0, 0, 0, 0]} />
+                                            <Bar dataKey="rejected" name="Rejected" stackId="s" fill="#ef4444" radius={[6, 6, 0, 0]} />
                                         </BarChart>
                                     </ResponsiveContainer>
                                 </div>
-                                <div className="chart-legend-row">
-                                    <div className="legend-item"><span className="dot bg-emerald"></span> Accepted</div>
-                                    <div className="legend-item"><span className="dot bg-red"></span> Rejected</div>
+                                <div className="isc-legend-row">
+                                    <div className="isc-legend-item">
+                                        <span className="isc-dot isc-dot--emerald"></span> Accepted
+                                    </div>
+                                    <div className="isc-legend-item">
+                                        <span className="isc-dot isc-dot--red"></span> Rejected
+                                    </div>
                                 </div>
                             </div>
+
                         </div>
 
                         <div className="production-grid animated-up delay-3">
@@ -316,7 +410,10 @@ const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid, selectedProduct })
                         <div className="performance-banner">
                             <div className="banner-content">
                                 <h1 className="banner-title">Vendor Performance Matrix</h1>
-                                <p className="banner-subtitle">Real-time quality surveillance and inspection analytics</p>
+                                <p className="banner-subtitle">
+                                    <span className="banner-live-dot"></span>
+                                    Real-time quality surveillance and inspection analytics
+                                </p>
                             </div>
                             <div className="banner-actions">
                                 <div className="search-pill">
@@ -361,10 +458,30 @@ const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid, selectedProduct })
 
                                 <div className="filter-dropdown-container">
                                     <button
+                                        className={`filter-dropdown-btn ${perfFilters.rios.length > 0 ? 'active' : ''}`}
+                                        onClick={() => setOpenDropdown(openDropdown === 'rio' ? null : 'rio')}
+                                    >
+                                        <span className="btn-icon">🌐</span> RITES RIO
+                                        {perfFilters.rios.length > 0 && <span className="filter-count">{perfFilters.rios.length}</span>}
+                                        <span className="arrow">{openDropdown === 'rio' ? '▲' : '▼'}</span>
+                                    </button>
+                                    {openDropdown === 'rio' && (
+                                        <div className="dropdown-panel">
+                                            {PERFORMANCE_DATA.filters.rios.map(r => (
+                                                <div key={r} className="dropdown-item" onClick={() => togglePerfFilter('rios', r)}>
+                                                    <input type="checkbox" checked={perfFilters.rios.includes(r)} readOnly /> {r}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="filter-dropdown-container">
+                                    <button
                                         className={`filter-dropdown-btn ${perfFilters.inspectors.length > 0 ? 'active' : ''}`}
                                         onClick={() => setOpenDropdown(openDropdown === 'inspector' ? null : 'inspector')}
                                     >
-                                        <span className="btn-icon">👤</span> Inspector
+                                        <span className="btn-icon">👤</span> IE
                                         {perfFilters.inspectors.length > 0 && <span className="filter-count">{perfFilters.inspectors.length}</span>}
                                         <span className="arrow">{openDropdown === 'inspector' ? '▲' : '▼'}</span>
                                     </button>
@@ -399,7 +516,7 @@ const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid, selectedProduct })
                                     )}
                                 </div>
 
-                                {(perfFilters.vendors.length > 0 || perfFilters.inspectors.length > 0 || perfFilters.stages.length > 0) && (
+                                {(perfFilters.vendors.length > 0 || perfFilters.inspectors.length > 0 || perfFilters.rios.length > 0 || perfFilters.stages.length > 0) && (
                                     <button className="btn-clear-all" onClick={clearPerfFilters}>✕ Clear All</button>
                                 )}
                             </div>
@@ -422,7 +539,8 @@ const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid, selectedProduct })
                                     <tr>
                                         <th>#</th>
                                         <th>MANUFACTURER</th>
-                                        <th>INSPECTOR</th>
+                                        <th>RITES RIO</th>
+                                        <th>IE</th>
                                         <th>STAGE</th>
                                         <th className="text-right">INSPECTED</th>
                                         <th className="text-right">ACCEPTED</th>
@@ -438,6 +556,9 @@ const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid, selectedProduct })
                                             <tr key={record.id} className={rowClass}>
                                                 <td className="row-id">{idx + 1}</td>
                                                 <td className="vendor-name">{record.manufacturer}</td>
+                                                <td>
+                                                    <span className="rio-tag">{record.rio}</span>
+                                                </td>
                                                 <td>
                                                     <span className="ie-tag">👤 {record.inspector}</span>
                                                 </td>

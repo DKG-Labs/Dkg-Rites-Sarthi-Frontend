@@ -178,11 +178,12 @@ export const PERFORMANCE_DATA = {
     filters: {
         vendors: ['Technical Solutions Pvt. Ltd.', 'Metro Components Ltd.', 'Apex Engineering Corp.'],
         inspectors: ['Vijay Verma', 'Rajesh Kumar', 'Suresh Patel'],
+        rios: ['Northern Region', 'Western Region', 'Central Region'],
         stages: ['Raw Material', 'Process', 'Final']
     },
     records: [
-        { id: 1, manufacturer: 'Technical Solutions Pvt. Ltd.', inspector: 'Vijay Verma', stage: 'Raw Material', inspected: '1,914', accepted: '1,855', rejected: '59', rejectionRate: '3.08%', reason: 'Chemical composition out of specification' },
-        { id: 2, manufacturer: 'Metro Components Ltd.', inspector: 'Rajesh Kumar', stage: 'Final', inspected: '2,431', accepted: '2,367', rejected: '64', rejectionRate: '2.63%', reason: 'Improper heat treatment' },
-        { id: 3, manufacturer: 'Apex Engineering Corp.', inspector: 'Suresh Patel', stage: 'Process', inspected: '1,339', accepted: '1,234', rejected: '105', rejectionRate: '7.84%', reason: 'Dimensional variation beyond tolerance' },
+        { id: 1, manufacturer: 'Technical Solutions Pvt. Ltd.', inspector: 'Vijay Verma', rio: 'Northern Region', stage: 'Raw Material', inspected: '1,914', accepted: '1,855', rejected: '59', rejectionRate: '3.08%', reason: 'Chemical composition out of specification' },
+        { id: 2, manufacturer: 'Metro Components Ltd.', inspector: 'Rajesh Kumar', rio: 'Western Region', stage: 'Final', inspected: '2,431', accepted: '2,367', rejected: '64', rejectionRate: '2.63%', reason: 'Improper heat treatment' },
+        { id: 3, manufacturer: 'Apex Engineering Corp.', inspector: 'Suresh Patel', rio: 'Central Region', stage: 'Process', inspected: '1,339', accepted: '1,234', rejected: '105', rejectionRate: '7.84%', reason: 'Dimensional variation beyond tolerance' },
     ]
 };

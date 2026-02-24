@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import ProcessLineToggle from '../components/ProcessLineToggle';
 import ProcessSubmoduleNav from '../components/ProcessSubmoduleNav';
-import { formatDate, formatPoNoWithSerial } from '../utils/helpers';
+import { formatPoNoWithSerial } from '../utils/helpers';
 import {
   getStaticCheckByPoLine,
   saveStaticPeriodicCheck

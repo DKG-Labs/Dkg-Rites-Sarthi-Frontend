@@ -1,6 +1,6 @@
 ﻿/* eslint-disable unicode-bom */
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { formatDate, getHourLabels, formatPoNoWithSerial } from '../utils/helpers';
+import { getHourLabels, formatPoNoWithSerial } from '../utils/helpers';
 import { getAllProcessData, saveToLocalStorage, loadFromLocalStorage, loadGridDataForLine } from '../services/processLocalStorageService';
 import { fetchProcessInitiationData } from '../services/processInitiationDataService';
 import { markAsWithheld } from '../services/callStatusService';

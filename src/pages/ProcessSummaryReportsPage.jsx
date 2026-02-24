@@ -3,7 +3,7 @@ import ProcessLineToggle from '../components/ProcessLineToggle';
 import ProcessSubmoduleNav from '../components/ProcessSubmoduleNav';
 import StatusBadge from '../components/StatusBadge';
 import FormField from '../components/FormField';
-import { formatDate, formatPoNoWithSerial } from '../utils/helpers';
+import { formatPoNoWithSerial } from '../utils/helpers';
 import {
   getSummaryByPoLine,
   saveSummaryReport,

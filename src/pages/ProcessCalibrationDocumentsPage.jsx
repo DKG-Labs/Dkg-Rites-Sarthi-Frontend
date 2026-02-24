@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import CalibrationModule from '../components/CalibrationModule';
 import ProcessLineToggle from '../components/ProcessLineToggle';
 import ProcessSubmoduleNav from '../components/ProcessSubmoduleNav';
+import { formatDate, formatPoNoWithSerial } from '../utils/helpers';
 // API calls disabled for mock mode - Process Material uses localStorage only
 // import {
 //   getCalibrationByPoLine,
@@ -47,19 +48,15 @@ const ProcessCalibrationDocumentsPage = ({ call, onBack, selectedLines = [], onN
     return null;
   }, [currentProductionLine, allCallOptions]);
 
-  // Get PO number for active line
-  const activeLinePoNo = useMemo(() => {
-    if (currentProductionLine?.poNumber) {
-      return currentProductionLine.poNumber;
-    }
-    if (currentCallData?.po_no) {
-      return currentCallData.po_no;
-    }
-    return call?.po_no || '';
+  // Get formatted PO number for active line
+  const formattedActivePoNo = useMemo(() => {
+    const poNo = currentProductionLine?.poNumber || currentCallData?.po_no || call?.po_no || '';
+    const poSerialNo = currentProductionLine?.poSerialNo || currentCallData?.po_serial_no || currentCallData?.poSerialNo || call?.po_serial_no || call?.poSerialNo || '';
+    return formatPoNoWithSerial(poNo, poSerialNo);
   }, [currentProductionLine, currentCallData, call]);
 
   const inspectionCallNo = currentCallData?.call_no || call?.call_no || '';
-  const poNo = activeLinePoNo;
+  const poNo = formattedActivePoNo;
   const shift = lineData?.shift || 'A';
 
   // Track previous line for saving data before switching

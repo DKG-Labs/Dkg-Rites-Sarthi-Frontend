@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import CalibrationModule from '../components/CalibrationModule';
 import ProcessLineToggle from '../components/ProcessLineToggle';
 import ProcessSubmoduleNav from '../components/ProcessSubmoduleNav';
-import { formatDate, formatPoNoWithSerial } from '../utils/helpers';
+import { formatPoNoWithSerial } from '../utils/helpers';
 // API calls disabled for mock mode - Process Material uses localStorage only
 // import {
 //   getCalibrationByPoLine,

@@ -1,0 +1,464 @@
+/* ================================================================
+   PerformanceMatrixTheme.css  –  Premium Green Design System
+   ALL rules are scoped under .performance-tab-content so they
+   cannot affect any other part of the application.
+   ================================================================ */
+
+/* ─────────────────────────────────────────────────────────────
+   1. BANNER  –  Rich geometric hero with glassmorphism overlay
+   ───────────────────────────────────────────────────────────── */
+.performance-tab-content .performance-banner {
+    background: linear-gradient(135deg, #065f46 0%, #0d9488 45%, #10b981 100%);
+    box-shadow: 0 20px 50px -12px rgba(13, 148, 136, 0.4);
+    border-radius: 28px;
+    position: relative;
+    overflow: hidden;
+    padding: 3rem 2.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Large decorative circle – top-right */
+.performance-tab-content .performance-banner::before {
+    content: '';
+    position: absolute;
+    top: -60px;
+    right: -60px;
+    width: 260px;
+    height: 260px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    pointer-events: none;
+}
+
+/* Small decorative circle – bottom-left */
+.performance-tab-content .performance-banner::after {
+    content: '';
+    position: absolute;
+    bottom: -40px;
+    left: 180px;
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    pointer-events: none;
+}
+
+.performance-tab-content .banner-content {
+    position: relative;
+    z-index: 1;
+}
+
+.performance-tab-content .banner-title {
+    color: #ffffff;
+    font-size: 2.25rem;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    margin: 0 0 0.5rem 0;
+    text-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.performance-tab-content .banner-subtitle {
+    color: #e2fef5;
+    font-size: 1rem;
+    opacity: 0.95;
+    font-weight: 500;
+    margin: 0;
+    letter-spacing: 0.02em;
+}
+
+/* Live indicator dot inside subtitle */
+.performance-tab-content .banner-live-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #6ee7b7;
+    margin-right: 0.4rem;
+    vertical-align: middle;
+    animation: pmLivePulse 1.8s ease-in-out infinite;
+}
+
+@keyframes pmLivePulse {
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.4;
+        transform: scale(1.4);
+    }
+}
+
+.performance-tab-content .banner-actions {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    gap: 0.875rem;
+    align-items: center;
+}
+
+/* Glassmorphic search pill */
+.performance-tab-content .search-pill {
+    background: rgba(255, 255, 255, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(12px);
+    border-radius: 14px;
+    padding: 0.625rem 1.125rem;
+    gap: 0.625rem;
+    transition: background 0.2s;
+}
+
+.performance-tab-content .search-pill:hover {
+    background: rgba(255, 255, 255, 0.26);
+}
+
+.performance-tab-content .search-pill input {
+    color: #ffffff;
+    font-size: 0.875rem;
+    font-weight: 500;
+    width: 190px;
+}
+
+.performance-tab-content .search-pill input::placeholder {
+    color: rgba(255, 255, 255, 0.65);
+}
+
+.performance-tab-content .search-pill .search-icon {
+    filter: brightness(0) invert(1);
+    opacity: 0.75;
+}
+
+/* Export button */
+.performance-tab-content .banner-btn-export {
+    background: rgba(255, 255, 255, 0.95);
+    color: #059669;
+    border: none;
+    padding: 0.7rem 1.5rem;
+    border-radius: 14px;
+    font-weight: 800;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.performance-tab-content .banner-btn-export:hover {
+    background: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+    color: #065f46;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   2. FILTER BAR  –  Elevated card with subtle green accents
+   ───────────────────────────────────────────────────────────── */
+.performance-tab-content .perf-filter-bar-wrapper {
+    background: #ffffff;
+    border: 1px solid #d1fae5;
+    border-radius: 18px;
+    padding: 1rem 1.5rem;
+    margin-bottom: 1.75rem;
+    box-shadow: 0 2px 10px -2px rgba(16, 185, 129, 0.1);
+}
+
+.performance-tab-content .filter-label {
+    font-size: 0.75rem;
+    font-weight: 900;
+    color: #10b981;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-right: 0.5rem;
+}
+
+.performance-tab-content .filter-dropdown-btn {
+    background: #f8fffe;
+    border: 1.5px solid #d1fae5;
+    border-radius: 12px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #065f46;
+    padding: 0.5rem 1rem;
+    transition: all 0.2s ease;
+}
+
+.performance-tab-content .filter-dropdown-btn:hover {
+    background: #ecfdf5;
+    border-color: #10b981;
+    transform: translateY(-1px);
+}
+
+.performance-tab-content .filter-dropdown-btn.active {
+    border-color: #10b981;
+    background: #ecfdf5;
+    color: #059669;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
+}
+
+.performance-tab-content .filter-count {
+    background: #059669;
+    font-size: 0.65rem;
+    font-weight: 800;
+}
+
+.performance-tab-content .btn-clear-all {
+    color: #94a3b8;
+    font-weight: 700;
+    font-size: 0.8125rem;
+    transition: color 0.2s;
+}
+
+.performance-tab-content .btn-clear-all:hover {
+    color: #059669;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   3. KPI SUMMARY CARDS  –  Premium glass-tinted metric cards
+   ───────────────────────────────────────────────────────────── */
+.performance-tab-content .perf-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.25rem;
+    margin-bottom: 1.75rem;
+}
+
+.performance-tab-content .perf-summary-card {
+    border-radius: 20px;
+    padding: 1.5rem 1.75rem;
+    border-left-width: 4px;
+    border-left-style: solid;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    box-shadow: 0 4px 12px -3px rgba(0, 0, 0, 0.06);
+}
+
+.performance-tab-content .perf-summary-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.12);
+}
+
+.performance-tab-content .perf-summary-card::after {
+    content: '';
+    position: absolute;
+    top: -30px;
+    right: -30px;
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    pointer-events: none;
+}
+
+/* Blue – Total Inspected */
+.performance-tab-content .border-l-blue {
+    border-left-color: #3b82f6;
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+}
+
+/* Emerald – Accepted */
+.performance-tab-content .border-l-emerald {
+    border-left-color: #10b981;
+    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+}
+
+/* Red – Rejected */
+.performance-tab-content .border-l-red {
+    border-left-color: #ef4444;
+    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+}
+
+/* Green (replaced purple) – Avg Rejection % */
+.performance-tab-content .border-l-purple {
+    border-left-color: #059669;
+    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+}
+
+.performance-tab-content .card-label {
+    font-size: 0.6875rem;
+    font-weight: 800;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-bottom: 0.25rem;
+}
+
+.performance-tab-content .card-value {
+    font-size: 1.875rem;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    color: #0f172a;
+    margin: 0.25rem 0 0 0;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   4. TABLE  –  Crisp, hoverable, with better tag styles
+   ───────────────────────────────────────────────────────────── */
+.performance-tab-content .perf-table-outer {
+    border-radius: 24px;
+    border: 1px solid #d1fae5;
+    overflow: hidden;
+    box-shadow: 0 8px 24px -6px rgba(5, 150, 105, 0.1);
+}
+
+.performance-tab-content .perf-data-table-new {
+    border: none;
+    border-radius: 0;
+}
+
+/* Header row */
+.performance-tab-content .perf-data-table-new th {
+    background: linear-gradient(90deg, #065f46 0%, #0d9488 100%);
+    color: #ffffff;
+    border-bottom: none;
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    padding: 1rem 1.25rem;
+    font-weight: 800;
+}
+
+/* Alternate rows */
+.performance-tab-content .perf-data-table-new tr.row-odd {
+    background-color: #f0fdf9;
+}
+
+.performance-tab-content .perf-data-table-new tr.row-even {
+    background-color: #ffffff;
+}
+
+/* Row hover highlight */
+.performance-tab-content .perf-data-table-new tbody tr {
+    transition: background-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.performance-tab-content .perf-data-table-new tbody tr:hover {
+    background-color: #dcfce7 !important;
+    box-shadow: inset 3px 0 0 #10b981;
+}
+
+.performance-tab-content .perf-data-table-new td {
+    padding: 1.125rem 1.25rem;
+    border-bottom: 1px solid #f0fdf9;
+    font-size: 0.875rem;
+    color: #1e293b;
+}
+
+/* Row number badge */
+.performance-tab-content .row-id {
+    font-weight: 800;
+    color: #10b981;
+    font-size: 0.8125rem;
+}
+
+/* Vendor name */
+.performance-tab-content .vendor-name {
+    font-weight: 700;
+    color: #065f46;
+}
+
+/* Inspector tag */
+.performance-tab-content .ie-tag {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    color: #065f46;
+    font-weight: 600;
+    font-size: 0.75rem;
+    padding: 0.3rem 0.75rem;
+    border-radius: 100px;
+}
+
+/* RIO tag */
+.performance-tab-content .rio-tag {
+    background: #eff6ff;
+    border: 1px solid #dbeafe;
+    color: #1e40af;
+    font-weight: 600;
+    font-size: 0.75rem;
+    padding: 0.3rem 0.75rem;
+    border-radius: 100px;
+}
+
+/* Stage pills */
+.performance-tab-content .stage-tag.stage-raw-material {
+    background: #dbeafe;
+    color: #1e3a8a;
+    border: 1px solid #bfdbfe;
+}
+
+.performance-tab-content .stage-tag.stage-process {
+    background: #fef3c7;
+    color: #78350f;
+    border: 1px solid #fde68a;
+}
+
+.performance-tab-content .stage-tag.stage-final {
+    background: #d1fae5;
+    color: #065f46;
+    border: 1px solid #6ee7b7;
+}
+
+/* Rejection badge */
+.performance-tab-content .rejection-badge {
+    background: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+    padding: 0.25rem 0.625rem;
+    border-radius: 8px;
+    font-weight: 800;
+    font-size: 0.8125rem;
+}
+
+/* Reason cell */
+.performance-tab-content .reason-cell {
+    color: #475569;
+    font-size: 0.8125rem;
+    max-width: 220px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Table footer */
+.performance-tab-content .perf-table-footer {
+    background: linear-gradient(90deg, #f0fdf9 0%, #ecfdf5 100%);
+    padding: 1rem 1.5rem;
+    font-size: 0.8125rem;
+    color: #065f46;
+    font-weight: 500;
+    border-top: 1px solid #d1fae5;
+}
+
+.performance-tab-content .footer-stats strong {
+    color: #059669;
+    font-weight: 800;
+}
+
+.performance-tab-content .footer-timestamp {
+    color: #94a3b8;
+    font-size: 0.75rem;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   5. DROPDOWN PANEL  –  Polished with green checkbox accents
+   ───────────────────────────────────────────────────────────── */
+.performance-tab-content .dropdown-panel {
+    border: 1px solid #d1fae5;
+    box-shadow: 0 12px 28px -6px rgba(5, 150, 105, 0.15);
+    border-radius: 16px;
+}
+
+.performance-tab-content .dropdown-item:hover {
+    background: #ecfdf5;
+    color: #065f46;
+}
+
+.performance-tab-content .dropdown-item input[type="checkbox"] {
+    accent-color: #10b981;
+    width: 14px;
+    height: 14px;
+}

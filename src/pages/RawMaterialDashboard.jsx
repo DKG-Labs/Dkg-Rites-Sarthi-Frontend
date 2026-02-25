@@ -52,10 +52,32 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
   const [isLoadingFromCache, setIsLoadingFromCache] = useState(false);
 
   // Pre-Inspection Data Entry State
-  const [sourceOfRawMaterial, setSourceOfRawMaterial] = useState('');
-  const [numberOfBundles, setNumberOfBundles] = useState('');
+  // Use lazy initializers to restore from localStorage synchronously on first render
+  const [sourceOfRawMaterial, setSourceOfRawMaterial] = useState(() => {
+    try {
+      const callNo = call?.call_no;
+      if (!callNo) return '';
+      const saved = localStorage.getItem(`${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}`);
+      return saved ? (JSON.parse(saved).sourceOfRawMaterial || '') : '';
+    } catch { return ''; }
+  });
+  const [numberOfBundles, setNumberOfBundles] = useState(() => {
+    try {
+      const callNo = call?.call_no;
+      if (!callNo) return '';
+      const saved = localStorage.getItem(`${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}`);
+      return saved ? (JSON.parse(saved).numberOfBundles || '') : '';
+    } catch { return ''; }
+  });
   // Per-heat remarks: { heatNo: 'remark text', ... }
-  const [heatRemarks, setHeatRemarks] = useState({});
+  const [heatRemarks, setHeatRemarks] = useState(() => {
+    try {
+      const callNo = call?.call_no;
+      if (!callNo) return {};
+      const saved = localStorage.getItem(`${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}`);
+      return saved ? (JSON.parse(saved).heatRemarks || {}) : {};
+    } catch { return {}; }
+  });
   // Collapsible state for Pre-Inspection Data Entry card
   const [isPreInspectionExpanded, setIsPreInspectionExpanded] = useState(true);
 
@@ -491,32 +513,51 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
             }
           }
 
-          // Restore pre-inspection data
+          // Restore pre-inspection data (Bundles, Source)
           if (pausedData.preInspectionData) {
             const mainKey = `${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}`;
             const mainData = localStorage.getItem(mainKey);
             const existingData = mainData ? JSON.parse(mainData) : {};
+
+            // PRIORITIZE LOCAL EDITS: Only restore from backend if local field is empty
+            const restoredBundles = (existingData.numberOfBundles !== undefined && existingData.numberOfBundles !== '')
+              ? existingData.numberOfBundles
+              : pausedData.preInspectionData.numberOfBundles;
+
+            const restoredSource = (existingData.sourceOfRawMaterial !== undefined && existingData.sourceOfRawMaterial !== '')
+              ? existingData.sourceOfRawMaterial
+              : pausedData.preInspectionData.sourceOfRawMaterial;
+
             const updatedData = {
               ...existingData,
-              numberOfBundles: pausedData.preInspectionData.numberOfBundles,
-              sourceOfRawMaterial: pausedData.preInspectionData.sourceOfRawMaterial
+              numberOfBundles: restoredBundles,
+              sourceOfRawMaterial: restoredSource
             };
+
             localStorage.setItem(mainKey, JSON.stringify(updatedData));
-            setNumberOfBundles(pausedData.preInspectionData.numberOfBundles);
-            setSourceOfRawMaterial(pausedData.preInspectionData.sourceOfRawMaterial);
-            console.log('✅ Restored pre-inspection data');
+            setNumberOfBundles(restoredBundles);
+            setSourceOfRawMaterial(restoredSource);
+            console.log('✅ Restored pre-inspection data (prioritizing local edits)');
           }
 
           // Restore heat final results (remarks)
           if (pausedData.heatFinalResults && pausedData.heatFinalResults.length > 0) {
-            const remarksMap = {};
+            const mainKey = `${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}`;
+            const mainData = localStorage.getItem(mainKey);
+            const existingData = mainData ? JSON.parse(mainData) : {};
+            const localRemarks = existingData.heatRemarks || {};
+
+            const remarksMap = { ...localRemarks }; // Start with local remarks
+
             pausedData.heatFinalResults.forEach(result => {
-              if (result.remarks) {
+              // Only take from backend if no local remark exists for this heat
+              if (result.remarks && !remarksMap[result.heatNo]) {
                 remarksMap[result.heatNo] = result.remarks;
               }
             });
+
             setHeatRemarks(remarksMap);
-            console.log('✅ Restored heat remarks');
+            console.log('✅ Restored heat remarks (merged with local edits)');
           }
 
           console.log('✅ All paused inspection data restored successfully');
@@ -611,11 +652,12 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     if (onProductModelChange) onProductModelChange(productModel);
   }, [productModel, onProductModelChange]);
 
-  // Save main inspection data to localStorage when it changes
-  // Note: Restoration is done during API fetch to avoid race conditions
+  // Auto-save main inspection data to localStorage whenever values change
+  // IMPORTANT: Skip saving while still loading — prevents overwriting persisted data with empty initial state
   useEffect(() => {
     const inspectionCallNo = call?.call_no;
     if (!inspectionCallNo) return;
+    if (isLoading) return; // ← Don't save during initial data load (would overwrite with empty values)
 
     const mainKey = `${STORAGE_KEYS.MAIN_INSPECTION}_${inspectionCallNo}`;
     const dataToSave = {
@@ -631,7 +673,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       }, {})
     };
     localStorage.setItem(mainKey, JSON.stringify(dataToSave));
-  }, [call?.call_no, numberOfBundles, sourceOfRawMaterial, heatRemarks, consolidatedHeats]);
+  }, [call?.call_no, isLoading, numberOfBundles, sourceOfRawMaterial, heatRemarks, consolidatedHeats]);
 
   // Handler for heat data changes (e.g., colorCode updates from HeatNumberDetails)
   const handleHeatsUpdate = useCallback((updatedHeats) => {
@@ -1002,7 +1044,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     }
 
     // Check if Number of Bundles is entered
-    if (!numberOfBundles || numberOfBundles.trim() === '') {
+    if (!numberOfBundles || String(numberOfBundles).trim() === '') {
       return { canFinish: false, reason: 'Number of Bundles is required in Pre-Inspection Data' };
     }
 
@@ -1494,11 +1536,21 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       }
 
       // Clear localStorage after successful save
+      const mainKey = `${STORAGE_KEYS.MAIN_INSPECTION}_${inspectionCallNo}`;
+      const dashboardDraftKey = `${DASHBOARD_DRAFT_KEY}${inspectionCallNo}`;
+
       localStorage.removeItem(visualKey);
       localStorage.removeItem(dimKey);
       localStorage.removeItem(matKey);
       localStorage.removeItem(packKey);
       localStorage.removeItem(calKey);
+      localStorage.removeItem(mainKey);
+      localStorage.removeItem(dashboardDraftKey);
+
+      // Reset context cache
+      updateRmPoDataCache(null);
+      updateRmCallDataCache(null);
+      updateRmHeatDataCache([]);
 
       // Show success modal instead of alert
       setResultModalConfig({
@@ -1525,7 +1577,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     } finally {
       setIsSaving(false);
     }
-  }, [call?.call_no, call?.id, call?.pincode, call?.workflowTransitionId, activeHeats, onBack, numberOfBundles, numberOfERC, sourceOfRawMaterial, poData, productModel, heatSubmoduleStatuses, heatRemarks, calculateVisualRejectedWeight, consolidatedHeats, canFinishInspection]);
+  }, [call?.call_no, call?.id, call?.pincode, call?.workflowTransitionId, activeHeats, onBack, numberOfBundles, numberOfERC, sourceOfRawMaterial, poData, productModel, heatSubmoduleStatuses, heatRemarks, calculateVisualRejectedWeight, consolidatedHeats, canFinishInspection, updateRmCallDataCache, updateRmHeatDataCache, updateRmPoDataCache]);
 
   // Withheld modal handlers
   const handleOpenWithheldModal = () => {
@@ -2001,6 +2053,23 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       // Mark as paused in local storage
       markAsPaused(inspectionCallNo);
 
+      // Clear all inspection data from localStorage after successful pause
+      const mainKey = `${STORAGE_KEYS.MAIN_INSPECTION}_${inspectionCallNo}`;
+      const dashboardDraftKey = `${DASHBOARD_DRAFT_KEY}${inspectionCallNo}`;
+
+      localStorage.removeItem(visualKey);
+      localStorage.removeItem(dimKey);
+      localStorage.removeItem(matKey);
+      localStorage.removeItem(packKey);
+      localStorage.removeItem(calKey);
+      localStorage.removeItem(mainKey);
+      localStorage.removeItem(dashboardDraftKey);
+
+      // Reset context cache
+      updateRmPoDataCache(null);
+      updateRmCallDataCache(null);
+      updateRmHeatDataCache([]);
+
       // Show success modal instead of alert
       setResultModalConfig({
         actionType: 'pause',
@@ -2028,7 +2097,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       setIsSaving(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [call, onBack, activeHeats, numberOfBundles, numberOfERC, sourceOfRawMaterial, poData, productModel, heatSubmoduleStatuses, heatRemarks]);
+  }, [call, onBack, activeHeats, numberOfBundles, numberOfERC, sourceOfRawMaterial, poData, productModel, heatSubmoduleStatuses, heatRemarks, updateRmCallDataCache, updateRmHeatDataCache, updateRmPoDataCache]);
 
   // Save Draft handler
   const handleSaveDraft = useCallback(() => {

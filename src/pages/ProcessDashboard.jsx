@@ -1206,6 +1206,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         ...updated[lineIndex],
         icNumber: selectedCallNo,
         poNumber: '',
+        poSerialNo: '',
         rawMaterialICs: '',
         productType: ''
       };
@@ -1230,6 +1231,14 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       const ercType = data.typeOfErc || '';
       const poNumber = data.poNo || selectedCall?.po_no || '';
 
+      // Fetch PO Serial Number separately
+      let poSerialNo = '';
+      try {
+        poSerialNo = await getPoSerialNumberByCallId(selectedCallNo);
+      } catch (e) {
+        console.warn('⚠️ [Production Line] Could not fetch PO serial number:', e);
+      }
+
       console.log('📋 [Production Line] Final values - RM IC:', rmIcNumber, 'ERC Type:', ercType, 'PO:', poNumber);
 
       // Update the production line with fetched data
@@ -1239,6 +1248,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           ...updated[lineIndex],
           icNumber: selectedCallNo,
           poNumber: poNumber,
+          poSerialNo: poSerialNo,
           rawMaterialICs: rmIcNumber,
           productType: ercType
         };
@@ -1408,7 +1418,12 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       const enrichData = async () => {
         try {
           console.log('📤 Background enriching data for call:', callNo);
-          const richData = await fetchProcessInitiationData(callNo);
+
+          // Fetch both initiation data and PO serial number in parallel
+          const [richData, poSerialNo] = await Promise.all([
+            fetchProcessInitiationData(callNo),
+            getPoSerialNumberByCallId(callNo).catch(() => '')
+          ]);
 
           if (richData) {
             console.log('✅ Background data fetched for:', callNo);
@@ -1431,7 +1446,10 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
             // Cache the full initiation data
             setCallInitiationDataCache(prev => ({
               ...prev,
-              [callNo]: richData
+              [callNo]: {
+                ...richData,
+                poSerialNo: poSerialNo || richData.poSerialNo || richData.po_serial_no
+              }
             }));
           }
         } catch (error) {
@@ -5117,7 +5135,7 @@ return {
     || '';
 
   const linePoData = currentLineInitiationData ? {
-    po_no: formatPoNoWithSerial(currentLineInitiationData.poNo, currentLineInitiationData.poSerialNo),
+    po_no: formatPoNoWithSerial(currentLineInitiationData.poNo, currentLineInitiationData.poSerialNo || currentLineInitiationData.po_serial_no || currentProductionLine.poSerialNo),
     sub_po_no: currentProductionLine.rawMaterialICs || '',
     po_date: currentLineInitiationData.poDate || '',
     sub_po_date: currentLineInitiationData.poDate || '',
@@ -5127,7 +5145,7 @@ return {
       ? `${currentLineInitiationData.companyName}${currentLineInitiationData.unitName ? ' (' + currentLineInitiationData.unitName + ')' : ''}${currentLineInitiationData.unitAddress ? ' - ' + currentLineInitiationData.unitAddress : ''}`
       : (currentLineInitiationData.placeOfInspection || '')
   } : (fetchedPoData ? {
-    po_no: formatPoNoWithSerial(fetchedPoData.po_no, fetchedPoData.po_serial_no || fetchedPoData.poSerialNo),
+    po_no: formatPoNoWithSerial(fetchedPoData.po_no, fetchedPoData.po_serial_no || fetchedPoData.poSerialNo || currentProductionLine.poSerialNo),
     sub_po_no: fetchedPoData.po_no || '',
     po_date: fetchedPoData.po_date || '',
     sub_po_date: fetchedPoData.po_date || '',
@@ -5135,7 +5153,7 @@ return {
     manufacturer: fetchedPoData.contractor || fetchedPoData.vendor_name || fetchedPoData.manufacturer || '',
     place_of_inspection: fetchedPoData.place_of_inspection || ''
   } : (currentCallData ? {
-    po_no: formatPoNoWithSerial(currentCallData.po_no, currentCallData.po_serial_no || currentCallData.poSerialNo),
+    po_no: formatPoNoWithSerial(currentCallData.po_no || currentCallData.poNo, currentCallData.po_serial_no || currentCallData.poSerialNo || currentProductionLine.poSerialNo),
     sub_po_no: currentCallData.sub_po_no || currentProductionLine.rawMaterialICs || '',
     po_date: currentCallData.po_date || '',
     sub_po_date: currentCallData.sub_po_date || currentCallData.po_date || '',

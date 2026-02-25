@@ -26,8 +26,8 @@ const ResumeCallModal = ({ isOpen, onClose, call, onConfirm, isResume = true, is
         const yesterday = new Date(Date.now() - 86400000);
         return [
             { value: '', label: 'Select Date' },
-            { value: today.toISOString().split('T')[0], label: `${today.toLocaleDateString('en-GB')} (Today)` },
-            { value: yesterday.toISOString().split('T')[0], label: `${yesterday.toLocaleDateString('en-GB')} (Yesterday)` }
+            { value: today.toISOString().split('T')[0], label: `${formatDate(today.toISOString())} (Today)` },
+            { value: yesterday.toISOString().split('T')[0], label: `${formatDate(yesterday.toISOString())} (Yesterday)` }
         ];
     };
     */
@@ -146,7 +146,7 @@ const ResumeCallModal = ({ isOpen, onClose, call, onConfirm, isResume = true, is
                         <input
                             type="text"
                             className="form-control"
-                            value={date ? new Date(date).toLocaleDateString('en-GB') : ''}
+                            value={date ? formatDate(date) : ''}
                             disabled
                         />
                     )}

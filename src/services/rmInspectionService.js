@@ -81,7 +81,7 @@ export const pauseRawMaterialInspection = async (data) => {
  * - Inspector details
  */
 export const getInspectionDataByCallNo = async (callNo) => {
-  const response = await fetch(`${API_BASE_URL}/call/${callNo}`, {
+  const response = await fetch(`${API_BASE_URL}/call/${encodeURIComponent(callNo)}`, {
     method: 'GET',
     headers: getAuthHeaders()
   });
@@ -102,7 +102,7 @@ export const getInspectionDataByCallNo = async (callNo) => {
  * - Source of raw material
  */
 export const getSummaryByCallNo = async (callNo) => {
-  const response = await fetch(`${API_BASE_URL}/summary/${callNo}`, {
+  const response = await fetch(`${API_BASE_URL}/summary/${encodeURIComponent(callNo)}`, {
     method: 'GET',
     headers: getAuthHeaders()
   });
@@ -120,7 +120,7 @@ export const getSummaryByCallNo = async (callNo) => {
  * - Remarks
  */
 export const getFinalResultsByCallNo = async (callNo) => {
-  const response = await fetch(`${API_BASE_URL}/final-results/${callNo}`, {
+  const response = await fetch(`${API_BASE_URL}/final-results/${encodeURIComponent(callNo)}`, {
     method: 'GET',
     headers: getAuthHeaders()
   });
@@ -141,7 +141,7 @@ export const getFinalResultsByCallNo = async (callNo) => {
  * - %Cr (Chromium) - optional
  */
 export const getLadleValuesByCallNo = async (callNo) => {
-  const response = await fetch(`${API_BASE_URL}/ladle-values/${callNo}`, {
+  const response = await fetch(`${API_BASE_URL}/ladle-values/${encodeURIComponent(callNo)}`, {
     method: 'GET',
     headers: getAuthHeaders()
   });
@@ -152,7 +152,7 @@ export const getLadleValuesByCallNo = async (callNo) => {
 // ==================== Visual Inspection ====================
 
 export const getVisualInspection = async (callNo) => {
-  const response = await fetch(`${API_BASE_URL}/visual/${callNo}`, {
+  const response = await fetch(`${API_BASE_URL}/visual/${encodeURIComponent(callNo)}`, {
     method: 'GET',
     headers: getAuthHeaders()
   });
@@ -181,7 +181,7 @@ export const saveVisualInspectionPass = async (data) => {
 };
 
 export const getVisualInspectionPass = async (callNo) => {
-  const response = await fetch(`${API_BASE_URL}/visual/pass/${callNo}`, {
+  const response = await fetch(`${API_BASE_URL}/visual/pass/${encodeURIComponent(callNo)}`, {
     method: 'GET',
     headers: getAuthHeaders()
   });
@@ -192,7 +192,7 @@ export const getVisualInspectionPass = async (callNo) => {
 // ==================== Dimensional Check ====================
 
 export const getDimensionalCheck = async (callNo) => {
-  const response = await fetch(`${API_BASE_URL}/dimensional/${callNo}`, {
+  const response = await fetch(`${API_BASE_URL}/dimensional/${encodeURIComponent(callNo)}`, {
     method: 'GET',
     headers: getAuthHeaders()
   });
@@ -213,7 +213,7 @@ export const saveDimensionalCheck = async (data) => {
 // ==================== Material Testing ====================
 
 export const getMaterialTesting = async (callNo) => {
-  const response = await fetch(`${API_BASE_URL}/material-testing/${callNo}`, {
+  const response = await fetch(`${API_BASE_URL}/material-testing/${encodeURIComponent(callNo)}`, {
     method: 'GET',
     headers: getAuthHeaders()
   });
@@ -234,7 +234,7 @@ export const saveMaterialTesting = async (data) => {
 // ==================== Packing & Storage ====================
 
 export const getPackingStorage = async (callNo) => {
-  const response = await fetch(`${API_BASE_URL}/packing-storage/${callNo}`, {
+  const response = await fetch(`${API_BASE_URL}/packing-storage/${encodeURIComponent(callNo)}`, {
     method: 'GET',
     headers: getAuthHeaders()
   });
@@ -255,7 +255,7 @@ export const savePackingStorage = async (data) => {
 // ==================== Calibration Documents ====================
 
 export const getCalibrationDocuments = async (callNo) => {
-  const response = await fetch(`${API_BASE_URL}/calibration/${callNo}`, {
+  const response = await fetch(`${API_BASE_URL}/calibration/${encodeURIComponent(callNo)}`, {
     method: 'GET',
     headers: getAuthHeaders()
   });

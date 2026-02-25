@@ -6718,7 +6718,7 @@ return {
                 <div>
                   <span style={{ color: '#64748b' }}>Scheduled Date: </span>
                   <span style={{ fontWeight: '500' }}>
-                    {previousSchedule.scheduleDate ? new Date(previousSchedule.scheduleDate).toLocaleDateString('en-IN') : '-'}
+                    {previousSchedule.scheduleDate ? formatDate(previousSchedule.scheduleDate) : '-'}
                   </span>
                 </div>
                 <div>
@@ -6749,7 +6749,7 @@ return {
             />
             {selectedCallForSchedule?.desired_inspection_date && (
               <small style={{ color: '#64748b' }}>
-                Minimum Date: {new Date(selectedCallForSchedule.desired_inspection_date).toLocaleDateString('en-IN')} (Desired Inspection Date)
+                Minimum Date: {formatDate(selectedCallForSchedule.desired_inspection_date)} (Desired Inspection Date)
               </small>
             )}
           </div>

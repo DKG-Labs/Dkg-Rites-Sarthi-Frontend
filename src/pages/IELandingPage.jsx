@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { formatDate } from '../utils/helpers';
 import { MOCK_INSPECTION_CALLS } from '../data/mockData';
 import Tabs from '../components/Tabs';
 import PendingCallsTab from '../components/PendingCallsTab';
@@ -711,8 +712,8 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
     const yesterday = new Date(Date.now() - 86400000);
     return [
       { value: '', label: 'Select Date' },
-      { value: today.toISOString().split('T')[0], label: `${today.toLocaleDateString('en-GB')} (Today)` },
-      { value: yesterday.toISOString().split('T')[0], label: `${yesterday.toLocaleDateString('en-GB')} (Yesterday)` }
+      { value: today.toISOString().split('T')[0], label: `${formatDate(today.toISOString())} (Today)` },
+      { value: yesterday.toISOString().split('T')[0], label: `${formatDate(yesterday.toISOString())} (Yesterday)` }
     ];
   };
   */
@@ -993,11 +994,7 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
                       <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>Scheduled Date</div>
                       <div style={{ fontWeight: '500', color: '#059669' }}>
                         {call.scheduleInfo?.scheduleDate
-                          ? new Date(call.scheduleInfo.scheduleDate).toLocaleDateString('en-IN', {
-                            day: '2-digit',
-                            month: 'short',
-                            year: 'numeric'
-                          })
+                          ? formatDate(call.scheduleInfo.scheduleDate)
                           : 'N/A'}
                       </div>
                     </div>
@@ -1083,11 +1080,7 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
                 </span>
                 <div style={{ fontWeight: '500' }}>
                   {previousSchedule.scheduleDate
-                    ? new Date(previousSchedule.scheduleDate).toLocaleDateString('en-IN', {
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric'
-                    })
+                    ? formatDate(previousSchedule.scheduleDate)
                     : '-'}
                 </div>
               </div>
@@ -1367,7 +1360,7 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
                 <input
                   type="text"
                   className="form-control"
-                  value={shiftDetailsDate ? new Date(shiftDetailsDate).toLocaleDateString('en-GB') : ''}
+                  value={shiftDetailsDate ? formatDate(shiftDetailsDate) : ''}
                   disabled
                 />
               )}

@@ -27,10 +27,9 @@ const normalizeDateForSearch = (dateStr) => {
 
       return [
         `${day}/${month}/${year}`,  // DD/MM/YYYY
-        `${month}/${day}/${year}`,  // MM/DD/YYYY
+        `${day}-${month}-${year}`,  // DD-MM-YYYY
         `${year}-${month}-${day}`,  // YYYY-MM-DD
-        `${day}/${month}`,          // DD/MM (for partial search)
-        `${month}/${day}`,          // MM/DD (for partial search)
+        `${day}/${month}`,          // DD/MM
         datePart                    // Original format
       ].join('|');
     }

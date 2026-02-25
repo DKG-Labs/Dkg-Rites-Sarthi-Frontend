@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { formatDate } from '../utils/helpers';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { getStoredUser, logoutUser } from '../services/authService';
 import { useInspection } from '../context/InspectionContext';
@@ -123,7 +124,7 @@ const AppLayout = () => {
             </button>
           )}
           <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
-            {new Date().toLocaleString()}
+            {formatDate(new Date())}
           </div>
           <div className="user-info">
             <div className="user-avatar">{currentUser?.userName?.charAt(0)?.toUpperCase() || 'U'}</div>

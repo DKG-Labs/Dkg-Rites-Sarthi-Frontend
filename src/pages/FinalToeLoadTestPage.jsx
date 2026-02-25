@@ -6,6 +6,7 @@ import Pagination from '../components/Pagination';
 import { getHardnessToeLoadAQL } from '../utils/is2500Calculations';
 import { getToeLoadTestsByCall } from '../services/finalInspectionSubmoduleService';
 import './FinalToeLoadTestPage.css';
+import { normalizeErcType } from '../utils/ercUtils';
 
 /**
  * Tolerance band by spring type (used internally for validation)
@@ -17,33 +18,6 @@ const TOLERANCES = {
   'MK-III': { min: 850, max: 1100 },
   'MK-V': { min: 1200, max: 1500 },
   'ERC-J': { min: 650, max: Infinity }
-};
-
-/**
- * Helper to normalize ERC Type string from backend
- * Handles variations like: "MK III", "mk-iii", "mark 3", "mk 3", "erc mk iii"
- */
-const normalizeErcType = (typeStr) => {
-  if (!typeStr) return 'MK-III'; // Default fallback
-
-  const lower = typeStr.toLowerCase().trim();
-
-  // MK-V variations
-  if (lower.includes('mk-v') || lower.includes('mk v') || lower.includes('mark v') || lower.includes('mark 5') || lower.includes('mk 5')) {
-    return 'MK-V';
-  }
-
-  // MK-III variations (default for others)
-  if (lower.includes('mk-iii') || lower.includes('mk iii') || lower.includes('mark iii') || lower.includes('mark 3') || lower.includes('mk 3')) {
-    return 'MK-III';
-  }
-
-  // ERC-J
-  if (lower.includes('erc-j') || lower.includes('erc j') || lower.includes('j-type') || lower.includes('j type') || lower.includes('jtype')) {
-    return 'ERC-J';
-  }
-
-  return 'MK-III'; // Default safe fallback
 };
 
 const FinalToeLoadTestPage = ({ onBack, onNavigateSubmodule }) => {

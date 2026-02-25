@@ -12,8 +12,8 @@ const STORAGE_KEY = 'material_testing_draft_data';
  */
 const SPEC_LIMITS = {
   c: { min: 0.50, max: 0.60 },      // %C: 0.5-0.6 (also ±0.03 from ladle analysis)
-  si: { min: 1.50, max: 2.00 },     // %Si: 1.5-2.0 (also ±0.04 from ladle analysis)
-  mn: { min: 0.80, max: 1.00 },     // %Mn: 0.8-1.0 (also ±0.05 from ladle analysis)
+  si: { min: 1.50, max: 2.00 },     // %Si: 1.5-2.0 (also ±0.05 from ladle analysis)
+  mn: { min: 0.80, max: 1.00 },     // %Mn: 0.8-1.0 (also ±0.04 from ladle analysis)
   p: { min: 0, max: 0.030 },        // %P: ≤0.030 max
   s: { min: 0, max: 0.030 },        // %S: ≤0.030 max
   grainSize: { min: 6, max: 999 },  // Grain Size: ≥6
@@ -26,30 +26,75 @@ const SPEC_LIMITS = {
 };
 
 /**
- * Get validation status for a value based on specification limits
- * Returns 'pass' (green), 'fail' (red), or '' (no color)
+ * Tolerance from ladle value (Same as Final Chemical Analysis)
  */
-const getValueStatus = (field, value) => {
-  if (value === '' || value === null || value === undefined) return '';
-
-  const numValue = parseFloat(value);
-  if (isNaN(numValue)) return '';
-
-  const limits = SPEC_LIMITS[field];
-  if (!limits) return '';
-
-  // Check if value is within acceptable range
-  if (numValue >= limits.min && numValue <= limits.max) {
-    return 'pass';
-  }
-  return 'fail';
+const TOLERANCES = {
+  c: 0.03,
+  mn: 0.04,
+  si: 0.05,
+  s: 0.005,
+  p: 0.005,
 };
+
 
 /**
  * Material Testing Page - Raw Material Sub-module
  * Chemical Analysis & Mechanical Properties (2 samples per Heat)
  */
-const MaterialTestingPage = ({ onBack, heats = [], onNavigateSubmodule, inspectionCallNo = '' }) => {
+const MaterialTestingPage = ({ onBack, heats = [], productModel, onNavigateSubmodule, inspectionCallNo = '' }) => {
+  // 1. Decarb Tolerance based on Product Model
+  // MK-III: Max 0.2064 mm
+  // MK-V: Max 0.23 mm
+  const isMkV = productModel?.toString().toUpperCase().includes('MK-V');
+  const decarbLimit = isMkV ? 0.23 : 0.2064;
+
+  /**
+   * Get validation status for a value based on specification limits
+   * Returns 'pass' (green), 'fail' (red), or '' (no color)
+   */
+  const getValueStatus = (field, value, ladleVal = null) => {
+    if (value === '' || value === null || value === undefined) return '';
+
+    const numValue = parseFloat(value);
+    if (isNaN(numValue)) return '';
+
+    // Special rule for Decarb - Dynamic Limit with Strict Rejection
+    if (field === 'decarb') {
+      return numValue <= decarbLimit ? 'pass' : 'fail';
+    }
+
+    const limits = SPEC_LIMITS[field];
+    if (!limits) return '';
+
+    // 1. Ladle Tolerance Check (if ladle analysis is available)
+    if (ladleVal !== null && TOLERANCES[field] !== undefined) {
+      const lVal = parseFloat(ladleVal);
+      const tolerance = TOLERANCES[field];
+
+      if (!isNaN(lVal)) {
+        // Rule for Sulphur and Phosphorus (matches FinalChemicalAnalysisPage.jsx)
+        // Acceptable if it doesn't cross (Ladle + 0.005) - NO buffer (+0.0001) here
+        if (field === "s" || field === "p") {
+          return numValue <= (lVal + tolerance) ? "pass" : "fail";
+        }
+
+        // Standard rule for Carbon, Silicon, Manganese (± tolerance + expanded spec check)
+        // Matches FinalChemicalAnalysisPage.jsx logic
+        const diff = Math.abs(numValue - lVal);
+        const withinTolerance = diff <= (tolerance + 0.0001); // Standard floating point buffer
+
+        const expandedMin = limits.min - tolerance;
+        const expandedMax = limits.max + tolerance;
+        const withinExpandedRange = numValue >= (expandedMin - 0.0001) && numValue <= (expandedMax + 0.0001);
+
+        return (withinTolerance && withinExpandedRange) ? 'pass' : 'fail';
+      }
+    }
+
+    // 2. Fallback: Basic Specification Check (for non-chemical fields or if ladle is missing)
+    const withinSpec = (numValue >= (limits.min - 0.0001) && numValue <= (limits.max + 0.0001));
+    return withinSpec ? 'pass' : 'fail';
+  };
   const [activeHeatTab, setActiveHeatTab] = useState(0);
   const [ladleValues, setLadleValues] = useState([]);
   const [isLoadingLadle, setIsLoadingLadle] = useState(false);
@@ -186,11 +231,14 @@ const MaterialTestingPage = ({ onBack, heats = [], onNavigateSubmodule, inspecti
           });
 
           // Convert to array format matching heats order
-          const loadedData = heats.map(heat => materialDataByHeat[heat.heatNo] || {
-            samples: [
-              { c: '', si: '', mn: '', p: '', s: '', grainSize: '', inclTypeA: '', inclA: '', inclTypeB: '', inclB: '', inclTypeC: '', inclC: '', inclTypeD: '', inclD: '', hardness: '', decarb: '', remarks: '' },
-              { c: '', si: '', mn: '', p: '', s: '', grainSize: '', inclTypeA: '', inclA: '', inclTypeB: '', inclB: '', inclTypeC: '', inclC: '', inclTypeD: '', inclD: '', hardness: '', decarb: '', remarks: '' }
-            ]
+          const loadedData = heats.map(heat => {
+            const hId = heat.heatNo || heat.heat_no;
+            return materialDataByHeat[hId] || {
+              samples: [
+                { c: '', si: '', mn: '', p: '', s: '', grainSize: '', inclTypeA: '', inclA: '', inclTypeB: '', inclB: '', inclTypeC: '', inclC: '', inclTypeD: '', inclD: '', hardness: '', decarb: '', remarks: '' },
+                { c: '', si: '', mn: '', p: '', s: '', grainSize: '', inclTypeA: '', inclA: '', inclTypeB: '', inclB: '', inclTypeC: '', inclC: '', inclTypeD: '', inclD: '', hardness: '', decarb: '', remarks: '' }
+              ]
+            };
           });
 
           setMaterialData(loadedData);
@@ -292,7 +340,7 @@ const MaterialTestingPage = ({ onBack, heats = [], onNavigateSubmodule, inspecti
             <span><strong>%P:</strong> ≤0.030</span>
             <span><strong>%S:</strong> ≤0.030</span>
             <span><strong>Grain Size:</strong> ≥6</span>
-            <span><strong>Decarb:</strong> ≤0.25mm</span>
+            <span><strong>Decarb ({productModel?.toString().toUpperCase().includes('MK-V') ? 'MK-V' : 'MK-III'}):</strong> ≤{decarbLimit}mm</span>
             <span><strong>Inclusions (A/B/C/D):</strong> ≤2.0 each</span>
           </div>
         </div>
@@ -372,19 +420,19 @@ const MaterialTestingPage = ({ onBack, heats = [], onNavigateSubmodule, inspecti
                       <tr key={sampleIndex}>
                         <td data-label="Sample"><strong>Sample {sampleIndex + 1}</strong></td>
                         <td data-label="%C">
-                          <input type="number" step="0.01" className={`form-control ${getValueStatus('c', sample.c)}`} value={sample.c} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'c', e.target.value)} />
+                          <input type="number" step="0.001" className={`form-control ${getValueStatus('c', sample.c, currentLadleHeat.percentC)}`} value={sample.c} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'c', e.target.value)} />
                         </td>
                         <td data-label="%Si">
-                          <input type="number" step="0.01" className={`form-control ${getValueStatus('si', sample.si)}`} value={sample.si} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'si', e.target.value)} />
+                          <input type="number" step="0.001" className={`form-control ${getValueStatus('si', sample.si, currentLadleHeat.percentSi)}`} value={sample.si} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'si', e.target.value)} />
                         </td>
                         <td data-label="%Mn">
-                          <input type="number" step="0.01" className={`form-control ${getValueStatus('mn', sample.mn)}`} value={sample.mn} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'mn', e.target.value)} />
+                          <input type="number" step="0.001" className={`form-control ${getValueStatus('mn', sample.mn, currentLadleHeat.percentMn)}`} value={sample.mn} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'mn', e.target.value)} />
                         </td>
                         <td data-label="%P">
-                          <input type="number" step="0.01" className={`form-control ${getValueStatus('p', sample.p)}`} value={sample.p} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'p', e.target.value)} />
+                          <input type="number" step="0.001" className={`form-control ${getValueStatus('p', sample.p, currentLadleHeat.percentP)}`} value={sample.p} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'p', e.target.value)} />
                         </td>
                         <td data-label="%S">
-                          <input type="number" step="0.01" className={`form-control ${getValueStatus('s', sample.s)}`} value={sample.s} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 's', e.target.value)} />
+                          <input type="number" step="0.001" className={`form-control ${getValueStatus('s', sample.s, currentLadleHeat.percentS)}`} value={sample.s} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 's', e.target.value)} />
                         </td>
                         <td data-label="Grain Size">
                           <input type="number" step="1" className={`form-control ${getValueStatus('grainSize', sample.grainSize)}`} value={sample.grainSize} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'grainSize', e.target.value)} />

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { formatDate } from '../utils/helpers';
 import InspectionInitiationFormContent from '../components/InspectionInitiationFormContent';
 import { saveInspectionInitiation } from '../services/vendorInspectionService';
 import { markAsUnderInspection, markAsWithheld } from '../services/callStatusService';
@@ -561,7 +562,7 @@ const InspectionInitiationPage = ({ call, onProceed, onBack, onShiftChange, onSe
                 <input
                   type="text"
                   className="modal-input"
-                  value={call.desired_inspection_date ? new Date(call.desired_inspection_date).toLocaleDateString('en-GB') : '-'}
+                  value={call.desired_inspection_date ? formatDate(call.desired_inspection_date) : '-'}
                   disabled
                 />
               </div>

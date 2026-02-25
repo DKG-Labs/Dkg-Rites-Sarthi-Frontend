@@ -301,10 +301,10 @@ const HeatNumberDetails = ({ heats: propHeats, onHeatsChange }) => {
               <label className="heat-form-label">Sub PO Qty (MT)</label>
               <input type="text" className="heat-form-input" value={heat.subPoQty} disabled />
             </div>
-            <div className="heat-form-group">
+            {/* <div className="heat-form-group">
               <label className="heat-form-label">Total Value of PO</label>
               <input type="text" className="heat-form-input" value={heat.totalValueOfPo} disabled />
-            </div>
+            </div> */}
             <div className="heat-form-group">
               <label className="heat-form-label">TC Quantity (MT)</label>
               <input type="text" className="heat-form-input" value={heat.tcQuantity} disabled />

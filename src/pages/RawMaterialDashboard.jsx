@@ -10,6 +10,7 @@ import { markAsWithheld, markAsPaused } from '../services/callStatusService';
 import { saveInspectionInitiation } from '../services/vendorInspectionService';
 import { performTransitionAction } from '../services/workflowService';
 import { getStoredUser } from '../services/authService';
+import { normalizeErcType } from '../utils/ercUtils';
 import './RawMaterialDashboard.css';
 
 // Reason options for withheld inspection
@@ -164,11 +165,6 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
         setIsLoading(false);
         setIsLoadingFromCache(false);
-
-        // Notify parent components
-        if (cachedData.heatData && onHeatsChange) {
-          onHeatsChange(cachedData.heatData);
-        }
 
         console.log('📦 Cache hit! Data loaded instantly.');
         return;
@@ -539,24 +535,12 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     return fetchedHeatData;
   }, [fetchedHeatData]);
 
-  // Determine product model/type from Type of ERC field (Section B) — fall back to product name parsing
+  // Determine product model/type from Type of ERC field or product name parsing
   const productModel = useMemo(() => {
-    // Priority 1: Use Type of ERC from Section B (inspection_call_details.type_of_erc)
-    if (poData.erc_type) {
-      const ercType = poData.erc_type.toString();
-      if (/MK-III/i.test(ercType) || /MK III/i.test(ercType)) return 'MK-III';
-      if (/MK-V/i.test(ercType) || /MK V/i.test(ercType)) return 'MK-V';
-    }
-
-    // Priority 2: Fall back to product name parsing (legacy behavior)
-    const name = (poData.product_name || poData.po_description || '').toString();
-    if (/MK-III/i.test(name) || /MK III/i.test(name)) return 'MK-III';
-    if (/MK-V/i.test(name) || /MK V/i.test(name)) return 'MK-V';
-    if (poData.model && /MK-III/i.test(poData.model)) return 'MK-III';
-    if (poData.model && /MK-V/i.test(poData.model)) return 'MK-V';
-
-    // Default: MK-III
-    return 'MK-III';
+    return normalizeErcType(poData.erc_type) ||
+      normalizeErcType(poData.product_name || poData.po_description) ||
+      normalizeErcType(poData.model) ||
+      'MK-III';
   }, [poData]);
 
   /**
@@ -572,6 +556,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       if (!heatMap.has(heatNo)) {
         heatMap.set(heatNo, {
           ...heat,
+          heatNo, // Ensure heatNo property is explicitly set
           weight: parseFloat(heat.weight) || parseFloat(heat.offeredQty) || 0,
           originalHeats: [heat]
         });
@@ -612,7 +597,10 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
   // Sync consolidated heats and productModel to parent for submodule pages
   useEffect(() => {
-    if (onHeatsChange) onHeatsChange(consolidatedHeats);
+    // Only sync if we have actual heats (prevents clearing context on mount)
+    if (onHeatsChange && consolidatedHeats.length > 0) {
+      onHeatsChange(consolidatedHeats);
+    }
   }, [consolidatedHeats, onHeatsChange]);
 
   useEffect(() => {

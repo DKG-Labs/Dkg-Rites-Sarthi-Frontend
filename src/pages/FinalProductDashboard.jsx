@@ -233,7 +233,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
       // Extract and set PO data - Map backend response to frontend format
       if (dashboardData?.poData) {
         const mappedPoData = {
-          po_no: formatPoNoWithSerial(dashboardData.poData.poNo, dashboardData.poData.poSerialNo),
+          po_no: formatPoNoWithSerial(dashboardData.poData.poNo, dashboardData.poData.poSerialNo, dashboardData.poData.rlyShortName || dashboardData.poData.rlyCd),
           po_date: dashboardData.poData.poDate || '',
           contractor: dashboardData.poData.vendorName || '',
           manufacturer: dashboardData.poData.vendorName || (dashboardData.finalLotDetails?.[0]?.manufacturer || ''),

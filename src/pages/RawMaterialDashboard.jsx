@@ -193,7 +193,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
             po_unit: response.unit || 'MT',
             vendor_name: response.vendorName,
             contractor: response.vendorName,
-            manufacturer: firstHeat?.manufacturer || response.vendorName,
+            manufacturer: response.vendorName,
             place_of_inspection: response.inspPlace || call?.place_of_inspection || 'N/A',
             amendment_no: response.maNo || 'N/A',
             amendment_date: response.maDate || 'N/A',
@@ -206,7 +206,9 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
             sub_po_date: firstHeat?.subPoDate || response.poDate,
             sub_po_qty: firstHeat?.subPoQty || response.poQty,
             product_name: response.itemDescription || response.itemDesc,
-            erc_type: response.ercType || null // Type of ERC from Section B (MK-III, MK-V, etc.)
+            erc_type: response.ercType || null, // Type of ERC from Section B (MK-III, MK-V, etc.)
+            rlyShortName: response.rlyShortName || response.rlyCd || '',
+            poSerialNo: response.poSerialNo || ''
           };
           setFetchedPoData(poData);
           updateRmPoDataCache(callNo, poData); // Cache it!
@@ -664,34 +666,21 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
    * - Returns 'OK' if all fields pass validation
    * - Returns 'NOT OK' if any field fails validation
    */
-  const validateCalibrationHeat = useCallback((heatData) => {
-    if (!heatData) return 'Pending';
+  const validateCalibrationHeat = useCallback((calData) => {
+    if (!calData) return 'Pending';
 
-    const { percentC, percentSi, percentMn, percentP, percentS } = heatData;
+    const gaugesAvailable = calData.gaugesAvailable === true;
 
-    // Check if ALL required fields are filled (excluding remarks)
-    const allFieldsFilled = percentC && percentC !== '' &&
-      percentSi && percentSi !== '' &&
-      percentMn && percentMn !== '' &&
-      percentP && percentP !== '' &&
-      percentS && percentS !== '';
+    // If Gauges available, we consider it OK (requested by user)
+    if (gaugesAvailable) return 'OK';
 
-    if (!allFieldsFilled) return 'Pending';
+    const rdso = calData.rdsoApprovalValidity;
+    const isRdsoFilled = rdso?.approvalId && rdso?.validFrom && rdso?.validTo;
 
-    // All fields are filled, now validate values
-    const c = parseFloat(percentC);
-    const si = parseFloat(percentSi);
-    const mn = parseFloat(percentMn);
-    const p = parseFloat(percentP);
-    const s = parseFloat(percentS);
+    // If RDSO info is filled but Gauges not available (and intentionally checked No), it's NOT OK
+    if (isRdsoFilled && calData.gaugesAvailable === false) return 'NOT OK';
 
-    const cFail = !isNaN(c) && (c < 0.5 || c > 0.6);
-    const siFail = !isNaN(si) && (si < 1.5 || si > 2.0);
-    const mnFail = !isNaN(mn) && (mn < 0.8 || mn > 1.0);
-    const pFail = !isNaN(p) && p > 0.030;
-    const sFail = !isNaN(s) && s > 0.030;
-
-    return (cFail || siFail || mnFail || pFail || sFail) ? 'NOT OK' : 'OK';
+    return 'Pending';
   }, []);
 
   /**
@@ -952,11 +941,8 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           packing: 'Pending'
         };
 
-        // Calibration: Find this heat's product values and validate
-        if (calData?.heats && Array.isArray(calData.heats)) {
-          const heatCalData = calData.heats.find(h => h.heatNo === heatNo);
-          statuses.calibration = validateCalibrationHeat(heatCalData);
-        }
+        // Calibration: Validate overall submodule completion (Ladle Analysis removed)
+        statuses.calibration = validateCalibrationHeat(calData);
 
         // Visual, Dimensional, etc. use the index from consolidatedHeats
         if (Array.isArray(visualData) && visualData[heatIndex]) {
@@ -2185,7 +2171,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         <div style={{ display: 'flex', gap: 'var(--space-24)', flexWrap: 'wrap' }}>
           <div><strong>Call No:</strong> {callNo}</div>
           <div><strong>Shift:</strong> {shiftOfInspection}</div>
-          <div><strong>Date of Inspection:</strong> {dateOfInspection}</div>
+          <div><strong>Date of Inspection:</strong> {formatDate(dateOfInspection)}</div>
         </div>
       </div>
 
@@ -2198,7 +2184,18 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         <div className="rm-form-grid">
           <div className="rm-form-group">
             <label className="rm-form-label">PO Number</label>
-            <input type="text" className="rm-form-input" value={poData.po_no || poData.sub_po_no || ''} disabled />
+            <input
+              type="text"
+              className="rm-form-input"
+              value={(() => {
+                const poNo = poData.po_no || poData.sub_po_no;
+                const serial = poData.poSerialNo
+                  ? poData.poSerialNo.includes('/') ? poData.poSerialNo.split('/').pop() : poData.poSerialNo
+                  : '';
+                return [poData.rlyShortName, poNo, serial].filter(Boolean).join(' / ');
+              })()}
+              disabled
+            />
           </div>
           <div className="rm-form-group">
             <label className="rm-form-label">PO Date</label>
@@ -2210,7 +2207,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           </div>
           <div className="rm-form-group">
             <label className="rm-form-label">Manufacturer</label>
-            <input type="text" className="rm-form-input" value={poData.manufacturer || ''} disabled />
+            <input type="text" className="rm-form-input" value={poData.contractor || poData.vendor_name || ''} disabled />
           </div>
           <div className="rm-form-group">
             <label className="rm-form-label">Place of Inspection</label>

@@ -45,7 +45,7 @@ export const RawMaterialDashboardWrapper = () => {
  */
 export const CalibrationDocumentsWrapper = () => {
   const navigate = useNavigate();
-  const { rmHeats, rmLadleValues, selectedCall } = useInspection();
+  const { selectedCall } = useInspection();
 
   const handleBack = () => navigate(ROUTES.RAW_MATERIAL);
   const handleNavigateSubmodule = (subModule) => {
@@ -56,8 +56,6 @@ export const CalibrationDocumentsWrapper = () => {
   return (
     <CalibrationDocumentsPage
       onBack={handleBack}
-      heats={rmHeats}
-      ladleValues={rmLadleValues}
       inspectionCallNo={selectedCall?.call_no || ''}
       onNavigateSubmodule={handleNavigateSubmodule}
     />

@@ -73,6 +73,7 @@ const CalibrationSubModule = ({ inspectionCallNo = '' }) => {
     localStorage.setItem(storageKey, JSON.stringify(formData));
   }, [formData, inspectionCallNo]);
 
+  // eslint-disable-next-line no-unused-vars
   const handleRDSOChange = (field, value) => {
     setFormData(prev => ({
       ...prev,

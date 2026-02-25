@@ -92,8 +92,10 @@
 
 .rm-card-header {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .rm-card-title {
@@ -277,4 +279,3 @@
     display: none;
   }
 }
-

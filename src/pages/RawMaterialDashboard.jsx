@@ -56,6 +56,8 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
   const [numberOfBundles, setNumberOfBundles] = useState('');
   // Per-heat remarks: { heatNo: 'remark text', ... }
   const [heatRemarks, setHeatRemarks] = useState({});
+  // Collapsible state for Pre-Inspection Data Entry card
+  const [isPreInspectionExpanded, setIsPreInspectionExpanded] = useState(true);
 
   // Finish Inspection state
   const [isSaving, setIsSaving] = useState(false);
@@ -2222,53 +2224,77 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
       {/* Pre-Inspection Data Entry */}
       <div className="card" style={{ marginBottom: 'var(--space-24)' }}>
-        <div className="card-header rm-card-header">
-          <h3 className="card-title rm-card-title">Pre-Inspection Data Entry</h3>
-          {/* <p className="card-subtitle">Heat data from vendor call + cumulative inspection summary</p> */}
+        <div className="card-header rm-card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h3 className="card-title rm-card-title" style={{ margin: 0 }}>Pre-Inspection Data Entry</h3>
+          <button
+            onClick={() => setIsPreInspectionExpanded(prev => !prev)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'none',
+              border: '1px solid #d1d5db',
+              borderRadius: '6px',
+              padding: '4px 12px',
+              cursor: 'pointer',
+              fontSize: '13px',
+              color: '#374151',
+              fontWeight: 500,
+              transition: 'background 0.15s'
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
+            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+          >
+            {isPreInspectionExpanded ? '▲ Collapse' : '▼ Expand'}
+          </button>
         </div>
 
-        {/* Section 1: Heat Data from Vendor Call (with Color Code manual entry) */}
-        <HeatNumberDetails heats={activeHeats} onHeatsChange={handleHeatsUpdate} />
+        {isPreInspectionExpanded && (
+          <>
+            {/* Section 1: Heat Data from Vendor Call (with Color Code manual entry) */}
+            <HeatNumberDetails heats={activeHeats} onHeatsChange={handleHeatsUpdate} />
 
-        {/* Section 2: Cumulative Data Summary - Single Row */}
-        <div style={{ marginTop: '24px', padding: '16px', background: '#f0fdf4', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
-          <h4 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: '600', color: '#166534' }}>
-            📊 Cumulative Data Summary
-          </h4>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end' }}>
-            {/* Total Heats Offered */}
-            <div style={{ flex: '1 1 140px', minWidth: '120px' }}>
-              <label className="rm-form-label" style={{ fontSize: '12px' }}>Total Heats Offered</label>
-              <input type="text" className="rm-form-input" value={numberOfHeats || ''} disabled style={{ height: '38px' }} />
-            </div>
+            {/* Section 2: Cumulative Data Summary - Single Row */}
+            <div style={{ marginTop: '24px', padding: '16px', background: '#f0fdf4', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
+              <h4 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: '600', color: '#166534' }}>
+                📊 Cumulative Data Summary
+              </h4>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end' }}>
+                {/* Total Heats Offered */}
+                <div style={{ flex: '1 1 140px', minWidth: '120px' }}>
+                  <label className="rm-form-label" style={{ fontSize: '12px' }}>Total Heats Offered</label>
+                  <input type="text" className="rm-form-input" value={numberOfHeats || ''} disabled style={{ height: '38px' }} />
+                </div>
 
-            {/* Total Qty Offered */}
-            <div style={{ flex: '1 1 140px', minWidth: '120px' }}>
-              <label className="rm-form-label" style={{ fontSize: '12px' }}>Total Qty Offered (MT)</label>
-              <input type="text" className="rm-form-input" value={totalQuantity || ''} disabled style={{ height: '38px' }} />
-            </div>
+                {/* Total Qty Offered */}
+                <div style={{ flex: '1 1 140px', minWidth: '120px' }}>
+                  <label className="rm-form-label" style={{ fontSize: '12px' }}>Total Qty Offered (MT)</label>
+                  <input type="text" className="rm-form-input" value={totalQuantity || ''} disabled style={{ height: '38px' }} />
+                </div>
 
-            {/* No. of Bundles */}
-            <div style={{ flex: '1 1 140px', minWidth: '120px' }}>
-              <label className="rm-form-label required" style={{ fontSize: '12px' }}>No. of Bundles</label>
-              <input
-                type="number"
-                className="rm-form-input"
-                value={numberOfBundles || ''}
-                onChange={(e) => setNumberOfBundles(e.target.value)}
-                placeholder="Enter"
-                style={{ backgroundColor: '#ffffff', height: '38px' }}
-                required
-              />
-            </div>
+                {/* No. of Bundles */}
+                <div style={{ flex: '1 1 140px', minWidth: '120px' }}>
+                  <label className="rm-form-label required" style={{ fontSize: '12px' }}>No. of Bundles</label>
+                  <input
+                    type="number"
+                    className="rm-form-input"
+                    value={numberOfBundles || ''}
+                    onChange={(e) => setNumberOfBundles(e.target.value)}
+                    placeholder="Enter"
+                    style={{ backgroundColor: '#ffffff', height: '38px' }}
+                    required
+                  />
+                </div>
 
-            {/* No. of ERC */}
-            <div style={{ flex: '1 1 140px', minWidth: '120px' }}>
-              <label className="rm-form-label" style={{ fontSize: '12px' }}>No. of ERC (Finished)</label>
-              <input type="text" className="rm-form-input" value={numberOfERC.toLocaleString()} disabled style={{ height: '38px' }} />
+                {/* No. of ERC */}
+                <div style={{ flex: '1 1 140px', minWidth: '120px' }}>
+                  <label className="rm-form-label" style={{ fontSize: '12px' }}>No. of ERC (Finished)</label>
+                  <input type="text" className="rm-form-input" value={numberOfERC.toLocaleString()} disabled style={{ height: '38px' }} />
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          </>
+        )}
       </div>
 
       {/* Sub Module Session */}

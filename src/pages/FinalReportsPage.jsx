@@ -1,9 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-<<<<<<< HEAD
 import { formatDate, formatPoNoWithSerial } from '../utils/helpers';
-=======
-import { formatPoNoWithSerial } from '../utils/helpers';
->>>>>>> fixedcode
 import { useInspection } from '../context/InspectionContext';
 import FinalSubmoduleNav from '../components/FinalSubmoduleNav';
 import "./FinalReportsPage.css";

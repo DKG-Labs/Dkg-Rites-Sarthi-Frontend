@@ -9,7 +9,7 @@ import './ProfessionalCardSection.css';
 import './InspectionStackedCharts.css';
 import './PerformanceMatrixTheme.css';
 
-const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid, selectedProduct }) => {
+const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid, selectedProduct, summaryData }) => {
     const [activeMainCard, setActiveMainCard] = useState('summary');
 
     // Map selectedProduct to summary data keys
@@ -113,7 +113,51 @@ const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid, selectedProduct })
     const renderSubContent = () => {
         switch (activeMainCard) {
             case 'summary':
-                const currentSummary = SUMMARY_DATA[summarySubTab];
+                const baseSummary = SUMMARY_DATA[summarySubTab];
+                const kpis = baseSummary.kpis.map(kpi => {
+                    if (!summaryData || Array.isArray(summaryData)) return kpi;
+
+                    if (kpi.label === 'PO Issued') {
+                        return { ...kpi, value: (summaryData.poIssued || 0).toLocaleString() };
+                    }
+                    if (kpi.label === 'PO Quantity') {
+                        return {
+                            ...kpi,
+                            isDual: true,
+                            leftValue: (summaryData.poQuantityNos || 0).toLocaleString(),
+                            leftLabel: 'Nos',
+                            rightValue: (summaryData.poQuantityMt || 0).toLocaleString(),
+                            rightLabel: 'MT'
+                        };
+                    }
+                    if (kpi.label === 'Final Inspection Quantity') {
+                        return { ...kpi, value: (summaryData.finalInspectionQuantity || 0).toLocaleString() };
+                    }
+                    return kpi;
+                });
+
+                const production = baseSummary.production.map(p => {
+                    if (!summaryData || Array.isArray(summaryData)) return p;
+
+                    if (p.label === 'Avg Production / Day') {
+                        return { ...p, value: Math.round(summaryData.avgProductionPerDay || 0).toLocaleString() };
+                    }
+                    if (p.label === 'Process Rejection %') {
+                        const val = summaryData.processRejectionPercentage || 0;
+                        return { ...p, value: `${val.toFixed(1)}%`, progress: Math.min(Math.round(val * 10), 100) };
+                    }
+                    if (p.label === 'Final Rejection %') {
+                        const val = summaryData.finalRejectionPercentage || 0;
+                        return { ...p, value: `${val.toFixed(1)}%`, progress: Math.min(Math.round(val * 10), 100) };
+                    }
+                    if (p.label === 'Raw Material Rejection %') {
+                        const val = summaryData.rmRejectionPercentage || 0;
+                        return { ...p, value: `${val.toFixed(1)}%`, progress: Math.min(Math.round(val * 10), 100) };
+                    }
+                    return p;
+                });
+
+                const currentSummary = { ...baseSummary, kpis, production };
                 return (
                     <div className="summary-tab-content fade-in">
 
@@ -124,8 +168,24 @@ const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid, selectedProduct })
                                     <div className="kpi-card-header">
                                         <div className="kpi-info">
                                             <span className="kpi-label">{kpi.label}</span>
-                                            <h2 className={`kpi-value text-glow-${kpi.color}`}>{kpi.value}</h2>
-                                            {kpi.subtext && <span className="kpi-subtext">{kpi.subtext}</span>}
+                                            {kpi.isDual ? (
+                                                <div className="kpi-dual-container">
+                                                    <div className="kpi-dual-item">
+                                                        <h2 className={`kpi-dual-value text-glow-${kpi.color}`}>{kpi.leftValue}</h2>
+                                                        <span className="kpi-dual-label">{kpi.leftLabel}</span>
+                                                    </div>
+                                                    <div className="kpi-divider"></div>
+                                                    <div className="kpi-dual-item">
+                                                        <h2 className={`kpi-dual-value text-glow-${kpi.color}`}>{kpi.rightValue}</h2>
+                                                        <span className="kpi-dual-label">{kpi.rightLabel}</span>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <React.Fragment>
+                                                    <h2 className={`kpi-value text-glow-${kpi.color}`}>{kpi.value}</h2>
+                                                    {kpi.subtext && <span className="kpi-subtext">{kpi.subtext}</span>}
+                                                </React.Fragment>
+                                            )}
                                         </div>
                                         <span className="kpi-icon">{kpi.icon}</span>
                                     </div>

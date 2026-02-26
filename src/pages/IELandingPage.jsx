@@ -704,7 +704,6 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
     }
   };
 
-
   /*
   // Get date options for Shift C (today and yesterday)
   const getDateOptions = () => {

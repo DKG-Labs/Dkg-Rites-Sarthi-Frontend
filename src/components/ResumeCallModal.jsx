@@ -18,7 +18,6 @@ const ResumeCallModal = ({ isOpen, onClose, call, onConfirm, isResume = true, is
         }
     }, [isOpen, initialShift]);
 
-
     /*
     // Get date options for Shift C (today and yesterday)
     const getDateOptions = () => {
@@ -31,7 +30,6 @@ const ResumeCallModal = ({ isOpen, onClose, call, onConfirm, isResume = true, is
         ];
     };
     */
-
     const handleConfirm = () => {
         if (!shift) {
             setError('Please select a shift');

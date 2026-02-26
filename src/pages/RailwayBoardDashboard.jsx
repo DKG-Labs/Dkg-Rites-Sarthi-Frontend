@@ -31,6 +31,9 @@ const RailwayBoardDashboard = () => {
     // Level 1 Data Fetching using custom hook
     const { data: reportData, loading, error } = useReportData(reportService.getLevel1Report, null);
 
+    // Summary Data Fetching
+    const { data: summaryData } = useReportData(reportService.getDashboardSummary, null);
+
     // Filter State with Persistence (Normalized 'all' for internal state)
     const [selectedProduct, setSelectedProduct] = useState(() => {
         const val = localStorage.getItem('dash_selectedProduct');
@@ -228,6 +231,7 @@ const RailwayBoardDashboard = () => {
                 poGraph={poGraph}
                 kpiGrid={kpiGrid}
                 selectedProduct={selectedProduct}
+                summaryData={summaryData}
             />
         </div>
     );

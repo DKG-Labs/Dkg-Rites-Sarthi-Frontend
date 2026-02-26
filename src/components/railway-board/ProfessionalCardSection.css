@@ -318,6 +318,42 @@
     color: #ea580c;
 }
 
+.kpi-dual-container {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    margin: 0.75rem 0;
+}
+
+.kpi-dual-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.kpi-dual-value {
+    font-size: 2.25rem;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    line-height: 1.1;
+}
+
+.kpi-dual-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #64748b;
+    margin-top: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.kpi-divider {
+    width: 2px;
+    height: 2.5rem;
+    background: #f1f5f9;
+    align-self: center;
+    border-radius: 4px;
+}
+
 .kpi-progress-wrapper {
     margin-top: 1rem;
 }

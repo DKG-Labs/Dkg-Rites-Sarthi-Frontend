@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Pagination from '../Pagination';
 import { PROFESSIONAL_MAIN_CARDS, SUMMARY_DATA, QUALITY_DATA, REPORTS_DATA, PERFORMANCE_DATA } from '../../data/professionalDashboardData';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -9,7 +10,46 @@ import './ProfessionalCardSection.css';
 import './InspectionStackedCharts.css';
 import './PerformanceMatrixTheme.css';
 
-const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid, selectedProduct, summaryData }) => {
+const ProfessionalCardSection = ({
+    poTable,
+    poGraph,
+    kpiGrid,
+    selectedProduct,
+    summaryData,
+    // New Performance Matrix Props from API
+    perfData = [],
+    perfLoading = false,
+    perfPagination = { totalElements: 0, totalPages: 0 },
+    perfPage = 0,
+    setPerfPage = () => { },
+    perfRowsPerPage = 10,
+    setPerfRowsPerPage = () => { },
+    // New Monthly Progress Report Props from API
+    mprData = [],
+    mprLoading = false,
+    mprPagination = { totalElements: 0, totalPages: 0 },
+    mprPage = 0,
+    setMprPage = () => { },
+    mprRowsPerPage = 10,
+    setMprRowsPerPage = () => { },
+    // New Monthly Analysis of Units Props from API
+    mauData = [],
+    mauLoading = false,
+    mauPagination = { totalElements: 0, totalPages: 0 },
+    mauPage = 0,
+    setMauPage = () => { },
+    mauRowsPerPage = 10,
+    setMauRowsPerPage = () => { },
+    // New Lot Wise Closed Loop Props from API
+    lwclData = [],
+    lwclLoading = false,
+    lwclCallNo = '',
+    setLwclCallNo = () => { },
+    lwclLotNo = '',
+    setLwclLotNo = () => { },
+    lwclRequestIds = [],
+    lwclLotNumbers = []
+}) => {
     const [activeMainCard, setActiveMainCard] = useState('summary');
 
     // Map selectedProduct to summary data keys
@@ -24,7 +64,6 @@ const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid, selectedProduct, s
 
     const summarySubTab = getSummaryKey(selectedProduct);
     const [activeReport, setActiveReport] = useState('mpr');
-    const [lwclSelection, setLwclSelection] = useState({ po: '', lot: '' });
     const [perfSearch, setPerfSearch] = useState('');
     const [perfFilters, setPerfFilters] = useState({ vendors: [], inspectors: [], rios: [], stages: [] });
     const [openDropdown, setOpenDropdown] = useState(null);
@@ -44,19 +83,7 @@ const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid, selectedProduct, s
         setPerfSearch('');
     };
 
-    const filteredRecords = PERFORMANCE_DATA.records.filter(record => {
-        const matchesSearch = record.manufacturer.toLowerCase().includes(perfSearch.toLowerCase()) ||
-            record.inspector.toLowerCase().includes(perfSearch.toLowerCase()) ||
-            record.rio.toLowerCase().includes(perfSearch.toLowerCase()) ||
-            record.reason.toLowerCase().includes(perfSearch.toLowerCase());
-
-        const matchesVendor = perfFilters.vendors.length === 0 || perfFilters.vendors.includes(record.manufacturer);
-        const matchesInspector = perfFilters.inspectors.length === 0 || perfFilters.inspectors.includes(record.inspector);
-        const matchesRio = perfFilters.rios.length === 0 || perfFilters.rios.includes(record.rio);
-        const matchesStage = perfFilters.stages.length === 0 || perfFilters.stages.includes(record.stage);
-
-        return matchesSearch && matchesVendor && matchesInspector && matchesRio && matchesStage;
-    });
+    // Filtered records logic was removed to fix ESLint warnings as it was not being utilized in the current table implementation.
 
     // ... (rest of the logic remains same until renderSubContent)
 
@@ -594,57 +621,87 @@ const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid, selectedProduct, s
 
                         {/* Record Table */}
                         <div className="perf-table-outer">
-                            <table className="perf-data-table-new">
-                                <thead>
-                                    <tr>
-                                        <th>#</th>
-                                        <th>MANUFACTURER</th>
-                                        <th>RITES RIO</th>
-                                        <th>IE</th>
-                                        <th>STAGE</th>
-                                        <th className="text-right">INSPECTED</th>
-                                        <th className="text-right">ACCEPTED</th>
-                                        <th className="text-right">REJECTED</th>
-                                        <th className="text-right">REJECTION %</th>
-                                        <th>REASON</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {filteredRecords.map((record, idx) => {
-                                        const rowClass = (idx % 2 === 0) ? 'row-odd' : 'row-even';
-                                        return (
-                                            <tr key={record.id} className={rowClass}>
-                                                <td className="row-id">{idx + 1}</td>
-                                                <td className="vendor-name">{record.manufacturer}</td>
-                                                <td>
-                                                    <span className="rio-tag">{record.rio}</span>
-                                                </td>
-                                                <td>
-                                                    <span className="ie-tag">👤 {record.inspector}</span>
-                                                </td>
-                                                <td>
-                                                    <span className={`stage-tag stage-${record.stage.toLowerCase().replace(' ', '-')}`}>
-                                                        {record.stage}
-                                                    </span>
-                                                </td>
-                                                <td className="text-right font-bold">{record.inspected}</td>
-                                                <td className="text-right font-bold text-emerald">{record.accepted}</td>
-                                                <td className="text-right font-bold text-red">{record.rejected}</td>
-                                                <td className="text-right">
-                                                    <span className="rejection-badge">{record.rejectionRate}</span>
-                                                </td>
-                                                <td className="reason-cell">{record.reason}</td>
+                            {perfLoading ? (
+                                <div className="loading-state p-12 text-center text-teal font-medium">
+                                    Loading Performance Data...
+                                </div>
+                            ) : (
+                                <>
+                                    <table className="perf-data-table-new">
+                                        <thead>
+                                            <tr>
+                                                <th>#</th>
+                                                <th>MANUFACTURER</th>
+                                                <th>RITES RIO</th>
+                                                <th>IE</th>
+                                                <th>STAGE</th>
+                                                <th className="text-right">INSPECTED</th>
+                                                <th className="text-right">ACCEPTED</th>
+                                                <th className="text-right">REJECTED</th>
+                                                <th className="text-right">REJECTION %</th>
+                                                {/* <th>REASON</th> */}
                                             </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
+                                        </thead>
+                                        <tbody>
+                                            {perfData.map((record, idx) => {
+                                                const rowClass = (idx % 2 === 0) ? 'row-odd' : 'row-even';
+                                                return (
+                                                    <tr key={idx} className={rowClass}>
+                                                        <td className="row-id">{(perfPage * perfRowsPerPage) + idx + 1}</td>
+                                                        <td className="vendor-name">{record.manufacturerName}</td>
+                                                        <td>
+                                                            <span className="rio-tag">{record.rio}</span>
+                                                        </td>
+                                                        <td>
+                                                            <span className="ie-tag">👤 {record.username}</span>
+                                                        </td>
+                                                        <td>
+                                                            <span className={`stage-tag stage-${record.stage?.toLowerCase().replace(' ', '-') || 'unknown'}`}>
+                                                                {record.stage}
+                                                            </span>
+                                                        </td>
+                                                        <td className="text-right font-bold">{record.inspectedQty?.toLocaleString()}</td>
+                                                        <td className="text-right font-bold text-emerald">{record.acceptedQty?.toLocaleString()}</td>
+                                                        <td className="text-right font-bold text-red">{record.rejectedQty?.toLocaleString()}</td>
+                                                        <td className="text-right">
+                                                            <span className="rejection-badge">{record.rejectionPercentage}%</span>
+                                                        </td>
+                                                        {/* <td className="reason-cell">N/A</td> */}
+                                                    </tr>
+                                                );
+                                            })}
+                                            {perfData.length === 0 && (
+                                                <tr>
+                                                    <td colSpan="9" className="text-center p-8 text-slate-400">
+                                                        No performance records found for the selected criteria.
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+
+                                    {/* API Integrated Pagination */}
+                                    <div className="mt-4">
+                                        <Pagination
+                                            currentPage={perfPage}
+                                            totalPages={perfPagination.totalPages}
+                                            start={perfPage * perfRowsPerPage}
+                                            end={Math.min((perfPage + 1) * perfRowsPerPage, perfPagination.totalElements)}
+                                            totalCount={perfPagination.totalElements}
+                                            onPageChange={setPerfPage}
+                                            rows={perfRowsPerPage}
+                                            onRowsChange={setPerfRowsPerPage}
+                                            theme="orange"
+                                        />
+                                    </div>
+                                </>
+                            )}
 
                             <div className="perf-table-footer">
                                 <div className="footer-stats">
-                                    Showing <strong>{filteredRecords.length}</strong> of <strong>{PERFORMANCE_DATA.records.length}</strong> records
+                                    Showing <strong>{perfData.length}</strong> of <strong>{perfPagination.totalElements}</strong> records
                                 </div>
-                                <div className="footer-timestamp">Last updated: February 13, 2026</div>
+                                <div className="footer-timestamp">Last updated: {new Date().toLocaleDateString()}</div>
                             </div>
                         </div>
                     </div>
@@ -683,39 +740,69 @@ const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid, selectedProduct, s
                                         </div>
                                     </div>
                                     <div className="report-table-wrapper">
-                                        <table className="report-data-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Rly</th>
-                                                    <th>PO Number</th>
-                                                    <th>Manufacturer</th>
-                                                    <th className="text-right">PO Qty</th>
-                                                    <th className="text-right">Monthly RM</th>
-                                                    <th className="text-right">Monthly Process</th>
-                                                    <th className="text-right">Monthly Final</th>
-                                                    <th className="text-right">Total Final Inspected</th>
-                                                    <th className="text-right">PO Balance</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {REPORTS_DATA.mpr.map((row, idx) => {
-                                                    const rowClass = (idx % 2 === 0) ? 'row-odd' : 'row-even';
-                                                    return (
-                                                        <tr key={idx} className={rowClass}>
-                                                            <td>{row.rly}</td>
-                                                            <td className="font-mono text-xs">{row.poNo}</td>
-                                                            <td>{row.manufacturer}</td>
-                                                            <td className="text-right font-bold">{row.poQty}</td>
-                                                            <td className="text-right">{row.monthlyRM}</td>
-                                                            <td className="text-right">{row.monthlyProcess}</td>
-                                                            <td className="text-right">{row.monthlyFinal}</td>
-                                                            <td className="text-right">{row.totalInspected}</td>
-                                                            <td className="text-right font-bold text-accent">{row.poBalance}</td>
+                                        {mprLoading ? (
+                                            <div className="loading-state p-12 text-center text-teal font-medium">
+                                                Loading Monthly Progress Report...
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <table className="report-data-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Rly</th>
+                                                            <th>PO Number</th>
+                                                            <th>Manufacturer</th>
+                                                            <th className="text-right">PO Qty</th>
+                                                            <th className="text-right">Monthly RM</th>
+                                                            <th className="text-right">Monthly Process</th>
+                                                            <th className="text-right">Monthly Final</th>
+                                                            <th className="text-right">Total Final Inspected</th>
+                                                            <th className="text-right">PO Balance</th>
                                                         </tr>
-                                                    );
-                                                })}
-                                            </tbody>
-                                        </table>
+                                                    </thead>
+                                                    <tbody>
+                                                        {mprData.map((row, idx) => {
+                                                            const rowClass = (idx % 2 === 0) ? 'row-odd' : 'row-even';
+                                                            return (
+                                                                <tr key={idx} className={rowClass}>
+                                                                    <td>{row.rly}</td>
+                                                                    <td className="font-mono text-xs">{row.poNumber}</td>
+                                                                    <td>{row.manufacturer}</td>
+                                                                    <td className="text-right font-bold">{row.poQty?.toLocaleString()}</td>
+                                                                    <td className="text-right">{row.monthlyRm?.toLocaleString()}</td>
+                                                                    <td className="text-right">{row.monthlyProcess?.toLocaleString()}</td>
+                                                                    <td className="text-right">{row.monthlyFinal?.toLocaleString()}</td>
+                                                                    <td className="text-right">{row.totalFinalInspected?.toLocaleString()}</td>
+                                                                    <td className="text-right font-bold text-accent">{row.poBalance?.toLocaleString()}</td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                        {mprData.length === 0 && (
+                                                            <tr>
+                                                                <td colSpan="9" className="text-center p-8 text-slate-400">
+                                                                    No progress records found for the selected period.
+                                                                </td>
+                                                            </tr>
+                                                        )}
+                                                    </tbody>
+                                                </table>
+
+                                                {/* API Integrated Pagination for MPR */}
+                                                <div className="mt-4">
+                                                    <Pagination
+                                                        currentPage={mprPage}
+                                                        totalPages={mprPagination.totalPages}
+                                                        start={mprPage * mprRowsPerPage}
+                                                        end={Math.min((mprPage + 1) * mprRowsPerPage, mprPagination.totalElements)}
+                                                        totalCount={mprPagination.totalElements}
+                                                        onPageChange={setMprPage}
+                                                        rows={mprRowsPerPage}
+                                                        onRowsChange={setMprRowsPerPage}
+                                                        theme="teal"
+                                                    />
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             )}
@@ -731,35 +818,65 @@ const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid, selectedProduct, s
                                             </div>
                                         </div>
                                         <div className="report-table-wrapper">
-                                            <table className="report-data-table">
-                                                <thead>
-                                                    <tr>
-                                                        <th>Manufacturer</th>
-                                                        <th className="text-right">Manufactured</th>
-                                                        <th className="text-right">Inspected</th>
-                                                        <th className="text-right">Rejected</th>
-                                                        <th className="text-right">RM Rej %</th>
-                                                        <th className="text-right">Process Rej %</th>
-                                                        <th className="text-right">Final Rej %</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {REPORTS_DATA.mau.table.map((row, idx) => {
-                                                        const rowClass = (idx % 2 === 0) ? 'row-odd' : 'row-even';
-                                                        return (
-                                                            <tr key={idx} className={rowClass}>
-                                                                <td className="font-bold">{row.manufacturer}</td>
-                                                                <td className="text-right">{row.manufactured}</td>
-                                                                <td className="text-right">{row.inspected}</td>
-                                                                <td className="text-right text-red font-bold">{row.rejected}</td>
-                                                                <td className="text-right">{row.rmRej}</td>
-                                                                <td className="text-right text-red font-bold">{row.processRej}</td>
-                                                                <td className="text-right">{row.finalRej}</td>
+                                            {mauLoading ? (
+                                                <div className="loading-state p-12 text-center text-emerald font-medium">
+                                                    Loading Monthly Analysis...
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <table className="report-data-table">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Manufacturer</th>
+                                                                <th className="text-right">Manufactured</th>
+                                                                <th className="text-right">Inspected</th>
+                                                                <th className="text-right">Rejected</th>
+                                                                <th className="text-right">RM Rej %</th>
+                                                                <th className="text-right">Process Rej %</th>
+                                                                <th className="text-right">Final Rej %</th>
                                                             </tr>
-                                                        );
-                                                    })}
-                                                </tbody>
-                                            </table>
+                                                        </thead>
+                                                        <tbody>
+                                                            {mauData.map((row, idx) => {
+                                                                const rowClass = (idx % 2 === 0) ? 'row-odd' : 'row-even';
+                                                                return (
+                                                                    <tr key={idx} className={rowClass}>
+                                                                        <td className="font-bold">{row.manufacturer}</td>
+                                                                        <td className="text-right">{row.manufactured?.toLocaleString()}</td>
+                                                                        <td className="text-right">{row.inspected?.toLocaleString()}</td>
+                                                                        <td className="text-right text-red font-bold">{row.rejected?.toLocaleString()}</td>
+                                                                        <td className="text-right">{row.rmRejPercent?.toFixed(2)}%</td>
+                                                                        <td className="text-right text-red font-bold">{row.processRejPercent?.toFixed(2)}%</td>
+                                                                        <td className="text-right">{row.finalRejPercent?.toFixed(2)}%</td>
+                                                                    </tr>
+                                                                );
+                                                            })}
+                                                            {mauData.length === 0 && (
+                                                                <tr>
+                                                                    <td colSpan="7" className="text-center p-8 text-slate-400">
+                                                                        No analysis records found for the selected period.
+                                                                    </td>
+                                                                </tr>
+                                                            )}
+                                                        </tbody>
+                                                    </table>
+
+                                                    {/* API Integrated Pagination for MAU */}
+                                                    <div className="mt-4">
+                                                        <Pagination
+                                                            currentPage={mauPage}
+                                                            totalPages={mauPagination.totalPages}
+                                                            start={mauPage * mauRowsPerPage}
+                                                            end={Math.min((mauPage + 1) * mauRowsPerPage, mauPagination.totalElements)}
+                                                            totalCount={mauPagination.totalElements}
+                                                            onPageChange={setMauPage}
+                                                            rows={mauRowsPerPage}
+                                                            onRowsChange={setMauRowsPerPage}
+                                                            theme="emerald"
+                                                        />
+                                                    </div>
+                                                </>
+                                            )}
                                         </div>
                                     </div>
 
@@ -797,85 +914,95 @@ const ProfessionalCardSection = ({ poTable, poGraph, kpiGrid, selectedProduct, s
                                         <div className="report-card-header">
                                             <h3>Lot Wise Closed Loop</h3>
                                             <div className="selection-group">
+                                                {/* Call No Dropdown (Requested UI addition) */}
                                                 <select
                                                     className="report-select"
-                                                    value={lwclSelection.po}
-                                                    onChange={(e) => setLwclSelection({ ...lwclSelection, po: e.target.value })}
+                                                    value={lwclCallNo}
+                                                    onChange={(e) => setLwclCallNo(e.target.value)}
                                                 >
-                                                    <option value="">Select PO No.</option>
-                                                    {REPORTS_DATA.lwcl.poNumbers.map(po => <option key={po} value={po}>{po}</option>)}
+                                                    <option value="">Select Call No.</option>
+                                                    {lwclRequestIds.map(id => <option key={id} value={id}>{id}</option>)}
                                                 </select>
+
+                                                {/* Lot No Dropdown */}
                                                 <select
                                                     className="report-select"
-                                                    value={lwclSelection.lot}
-                                                    onChange={(e) => setLwclSelection({ ...lwclSelection, lot: e.target.value })}
+                                                    value={lwclLotNo}
+                                                    onChange={(e) => setLwclLotNo(e.target.value)}
+                                                    disabled={!lwclCallNo}
                                                 >
                                                     <option value="">Select Lot No.</option>
-                                                    {REPORTS_DATA.lwcl.lots.map(lot => <option key={lot} value={lot}>{lot}</option>)}
+                                                    {lwclLotNumbers.map(lot => <option key={lot} value={lot}>{lot}</option>)}
                                                 </select>
+
                                                 <div className="header-actions" style={{ marginLeft: '1rem' }}>
                                                     <button className="btn-icon" title="Print">⎙</button>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        {lwclSelection.po && lwclSelection.lot ? (
+                                        {lwclLoading ? (
+                                            <div className="loading-state p-12 text-center text-indigo-500 font-medium">
+                                                Loading Closed Loop Data...
+                                            </div>
+                                        ) : lwclCallNo && lwclLotNo ? (
                                             <>
                                                 <div className="report-table-wrapper mini-table mb-6">
                                                     <table className="report-data-table ">
                                                         <thead>
                                                             <tr>
-                                                                <th>Date</th>
-                                                                <th>Shift</th>
-                                                                <th className="text-right">Accepted</th>
-                                                                <th className="text-right">Rejected</th>
-                                                                <th className="text-right">Shearing</th>
-                                                                <th className="text-right">Turning</th>
-                                                                <th className="text-right">MPI</th>
-                                                                <th className="text-right">Forging</th>
-                                                                <th className="text-right">Quenching</th>
-                                                                <th className="text-right">Tempering</th>
-                                                                <th className="text-right">Testing</th>
+                                                                <th>Tracking Step</th>
+                                                                <th className="text-right">Quantity</th>
+                                                                <th>Status</th>
+                                                                <th>Remarks</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
-                                                            {REPORTS_DATA.lwcl.table.map((row, idx) => {
-                                                                const rowClass = (idx % 2 === 0) ? 'row-odd' : 'row-even';
-                                                                return (
-                                                                    <tr key={idx} className={rowClass}>
-                                                                        <td>{row.date}</td>
-                                                                        <td className="font-bold">{row.shift}</td>
-                                                                        <td className="text-right text-emerald font-bold">{row.accepted}</td>
-                                                                        <td className="text-right text-red font-bold">{row.rejected}</td>
-                                                                        <td className="text-right">{row.shearing}</td>
-                                                                        <td className="text-right">{row.turning}</td>
-                                                                        <td className="text-right">{row.mpi}</td>
-                                                                        <td className="text-right">{row.forging}</td>
-                                                                        <td className="text-right">{row.quenching}</td>
-                                                                        <td className="text-right">{row.tempering}</td>
-                                                                        <td className="text-right">{row.testing}</td>
-                                                                    </tr>
-                                                                );
-                                                            })}
+                                                            {/* 
+                                                                Backend response for lot-closed-loop might be a single object or a list.
+                                                                We normalize it to an array here to avoid mapping errors.
+                                                            */}
+                                                            {(() => {
+                                                                const normalizedData = Array.isArray(lwclData)
+                                                                    ? lwclData
+                                                                    : (lwclData && typeof lwclData === 'object' && Object.keys(lwclData).length > 0 ? [lwclData] : []);
+
+                                                                if (normalizedData.length === 0) {
+                                                                    return (
+                                                                        <tr>
+                                                                            <td colSpan="4" className="text-center p-8 text-slate-400">
+                                                                                No closed-loop tracking data available for this lot.
+                                                                            </td>
+                                                                        </tr>
+                                                                    );
+                                                                }
+
+                                                                return normalizedData.map((row, idx) => {
+                                                                    const rowClass = (idx % 2 === 0) ? 'row-odd' : 'row-even';
+                                                                    return (
+                                                                        <tr key={idx} className={rowClass}>
+                                                                            <td className="font-bold">{row.step || row.trackingStep || 'N/A'}</td>
+                                                                            <td className="text-right font-bold text-indigo-600">
+                                                                                {row.quantity?.toLocaleString() || row.qty?.toLocaleString() || 0}
+                                                                            </td>
+                                                                            <td>
+                                                                                <span className={`status-pill ${row.status?.toLowerCase() || 'pending'}`}>
+                                                                                    {row.status || 'N/A'}
+                                                                                </span>
+                                                                            </td>
+                                                                            <td>{row.remarks || 'N/A'}</td>
+                                                                        </tr>
+                                                                    );
+                                                                });
+                                                            })()}
                                                         </tbody>
                                                     </table>
                                                 </div>
-                                                <div className="report-chart-card">
-                                                    <h4>Pareto Analysis – Rejection Reasons</h4>
-                                                    <ResponsiveContainer width="100%" height={250}>
-                                                        <BarChart data={REPORTS_DATA.lwcl.pareto}>
-                                                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
-                                                            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
-                                                            <Tooltip />
-                                                            <Bar dataKey="value" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={35} />
-                                                        </BarChart>
-                                                    </ResponsiveContainer>
-                                                </div>
                                             </>
                                         ) : (
-                                            <div className="selection-missing-placeholder">
-                                                <span className="placeholder-icon">📋</span>
-                                                <p>Please select PO Number and Lot Number to view the closed-loop tracking report.</p>
+                                            <div className="p-12 text-center text-slate-400 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+                                                <div className="mb-2">📋</div>
+                                                Please select Call Number and Lot Number to view the closed-loop tracking report.
                                             </div>
                                         )}
                                     </div>

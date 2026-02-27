@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import reportService from '../services/reportService';
 import useReportData from '../hooks/useReportData';
 import './RailwayBoardDashboard.css';
@@ -37,7 +37,7 @@ const RailwayBoardDashboard = () => {
     // Filter State with Persistence (Normalized 'all' for internal state)
     const [selectedProduct, setSelectedProduct] = useState(() => {
         const val = localStorage.getItem('dash_selectedProduct');
-        return (val === 'All' || !val) ? 'all' : val;
+        return (val === 'All' || !val || val === 'all') ? 'ERC' : val;
     });
     const [selectedZone, setSelectedZone] = useState(() => {
         const val = localStorage.getItem('dash_selectedZone');
@@ -52,8 +52,15 @@ const RailwayBoardDashboard = () => {
         return (val === 'All' || val === 'All RIOs' || !val) ? 'all' : val;
     });
 
-    const [fromDate, setFromDate] = useState('');
-    const [toDate, setToDate] = useState('');
+    // Initialize dates with current month range to avoid backend HTTP 500 errors for required parameters
+    const [fromDate, setFromDate] = useState(() => {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+    });
+    const [toDate, setToDate] = useState(() => {
+        const d = new Date();
+        return d.toISOString().split('T')[0];
+    });
 
     // Save Filters
     React.useEffect(() => { localStorage.setItem('dash_selectedProduct', selectedProduct); }, [selectedProduct]);
@@ -62,6 +69,111 @@ const RailwayBoardDashboard = () => {
     React.useEffect(() => { localStorage.setItem('dash_selectedRio', selectedRio); }, [selectedRio]);
 
     const [activeKpi, setActiveKpi] = useState('total_po');
+
+    // Performance Matrix State
+    const [perfPage, setPerfPage] = useState(0);
+    const [perfRowsPerPage, setPerfRowsPerPage] = useState(10);
+
+    // Performance Data Fetching
+    const perfParams = React.useMemo(() => ({
+        page: perfPage,
+        size: perfRowsPerPage,
+        startDate: fromDate,
+        endDate: toDate
+    }), [perfPage, perfRowsPerPage, fromDate, toDate]);
+
+    const { data: perfData, pagination: perfPagination, loading: perfLoading } = useReportData(reportService.getPerformanceMatrix, perfParams);
+
+    // Monthly Progress Report (MPR) State
+    const [mprPage, setMprPage] = useState(0);
+    const [mprRowsPerPage, setMprRowsPerPage] = useState(10);
+
+    // MPR Data Fetching
+    const mprParams = React.useMemo(() => ({
+        page: mprPage,
+        size: mprRowsPerPage,
+        startDate: fromDate,
+        endDate: toDate
+    }), [mprPage, mprRowsPerPage, fromDate, toDate]);
+
+    const { data: mprData, pagination: mprPagination, loading: mprLoading } = useReportData(reportService.getMonthlyProgressReport, mprParams);
+
+    // Monthly Analysis of Units (MAU) State
+    const [mauPage, setMauPage] = useState(0);
+    const [mauRowsPerPage, setMauRowsPerPage] = useState(10);
+
+    // MAU Data Fetching
+    const mauParams = React.useMemo(() => ({
+        page: mauPage,
+        size: mauRowsPerPage,
+        startDate: fromDate,
+        endDate: toDate
+    }), [mauPage, mauRowsPerPage, fromDate, toDate]);
+
+    const { data: mauData, pagination: mauPagination, loading: mauLoading } = useReportData(reportService.getMonthlyAnalysisOfUnits, mauParams);
+
+    // Lot Wise Closed Loop (LWCL) State
+    const [lwclCallNo, setLwclCallNo] = useState('');
+    const [lwclLotNo, setLwclLotNo] = useState('');
+    const [lwclRequestIds, setLwclRequestIds] = useState([]);
+    const [lwclLotNumbers, setLwclLotNumbers] = useState([]);
+
+    useEffect(() => {
+        const fetchIds = async () => {
+            if (!fromDate || !toDate) return;
+            try {
+                const response = await reportService.getRequestIds({ startDate: fromDate, endDate: toDate });
+                // Handle both wrapped and direct responses
+                const data = response.responseData || response;
+                if (data && Array.isArray(data)) {
+                    setLwclRequestIds(data);
+                }
+            } catch (error) {
+                console.error("Error fetching request IDs:", error);
+            }
+        };
+        fetchIds();
+    }, [fromDate, toDate]);
+
+    // Fetch Lot Numbers when Call No changes
+    useEffect(() => {
+        const fetchLots = async () => {
+            if (!lwclCallNo) {
+                setLwclLotNumbers([]);
+                setLwclLotNo('');
+                return;
+            }
+            try {
+                const response = await reportService.getLotNumbers(lwclCallNo);
+                // Handle both wrapped and direct responses
+                const data = response.responseData || response;
+                if (data && Array.isArray(data)) {
+                    setLwclLotNumbers(data);
+                }
+            } catch (error) {
+                console.error("Error fetching lot numbers:", error);
+            }
+        };
+        fetchLots();
+    }, [lwclCallNo]);
+
+    // LWCL Data Fetching
+    const lwclParams = React.useMemo(() => ({
+        callNo: lwclCallNo,
+        lotNo: lwclLotNo
+    }), [lwclCallNo, lwclLotNo]);
+
+    // Memoized LWCL fetch function to prevent infinite update depth error
+    const fetchLwclData = React.useCallback(async (params) => {
+        if (!params || !params.callNo || !params.lotNo) {
+            // Return empty successful response if required parameters are missing
+            return { responseStatus: { statusCode: 0 }, responseData: [] };
+        }
+        return reportService.getLotClosedLoop(params);
+    }, []);
+
+    // LWCL Data Fetching using memoized function and params
+    const { data: lwclData, loading: lwclLoading } = useReportData(fetchLwclData, lwclParams);
 
     // Toggle Handlers
     const togglePo = (poNo) => {
@@ -232,6 +344,39 @@ const RailwayBoardDashboard = () => {
                 kpiGrid={kpiGrid}
                 selectedProduct={selectedProduct}
                 summaryData={summaryData}
+                // Performance Matrix Props
+                perfData={perfData}
+                perfLoading={perfLoading}
+                perfPagination={perfPagination}
+                perfPage={perfPage}
+                setPerfPage={setPerfPage}
+                perfRowsPerPage={perfRowsPerPage}
+                setPerfRowsPerPage={setPerfRowsPerPage}
+                // Monthly Progress Report Props
+                mprData={mprData}
+                mprLoading={mprLoading}
+                mprPagination={mprPagination}
+                mprPage={mprPage}
+                setMprPage={setMprPage}
+                mprRowsPerPage={mprRowsPerPage}
+                setMprRowsPerPage={setMprRowsPerPage}
+                // Monthly Analysis of Units Props
+                mauData={mauData}
+                mauLoading={mauLoading}
+                mauPagination={mauPagination}
+                mauPage={mauPage}
+                setMauPage={setMauPage}
+                mauRowsPerPage={mauRowsPerPage}
+                setMauRowsPerPage={setMauRowsPerPage}
+                // Lot Wise Closed Loop Props
+                lwclData={lwclData}
+                lwclLoading={lwclLoading}
+                lwclCallNo={lwclCallNo}
+                setLwclCallNo={setLwclCallNo}
+                lwclLotNo={lwclLotNo}
+                setLwclLotNo={setLwclLotNo}
+                lwclRequestIds={lwclRequestIds}
+                lwclLotNumbers={lwclLotNumbers}
             />
         </div>
     );

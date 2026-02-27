@@ -629,8 +629,7 @@ const staticDataStyles = `
 
   .production-lines-table tbody td input,
   .production-lines-table tbody td select {
-    width: 100% !important;
-    min-width: auto !important;
+    width: 100%;
   }
 
   .production-lines-table tbody td button {
@@ -689,8 +688,7 @@ const staticDataStyles = `
 
     .production-lines-table tbody td input,
     .production-lines-table tbody td select {
-      width: auto !important;
-      min-width: auto !important;
+      width: auto;
     }
 
     .production-lines-table tbody td button {
@@ -994,7 +992,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       sessionStorage.setItem(`processProductionLinesData_${call.call_no}_${shift}`, JSON.stringify(localProductionLines));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localProductionLines, call?.call_no]);
+  }, [localProductionLines, call?.call_no, shift]);
 
   // Persist additional initiated calls to sessionStorage - scoped to call number
   useEffect(() => {
@@ -1002,7 +1000,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       sessionStorage.setItem(`additionalInitiatedCalls_${call.call_no}_${shift}`, JSON.stringify(additionalInitiatedCalls));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [additionalInitiatedCalls, call?.call_no]);
+  }, [additionalInitiatedCalls, call?.call_no, shift]);
 
   // Persist call initiation data cache to sessionStorage whenever it changes
   useEffect(() => {
@@ -1013,7 +1011,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       console.log(`💾 [Cache] Persisted call initiation data cache to sessionStorage: ${cacheKey}`);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [callInitiationDataCache, call?.call_no]);
+  }, [callInitiationDataCache, call?.call_no, shift]);
 
   // Fetch all process calls on component mount and cache them
   const fetchAllProcessCalls = useCallback(async (forceRefresh = false) => {
@@ -1154,9 +1152,10 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
             return {
               ...line,
               icNumber: singleCall.call_no,
-              poNumber: singleCall.po_no || '',
-              rawMaterialICs: singleCall.rawMaterialICs || '',
-              productType: singleCall.productType || singleCall.product_type || ''
+              // Only fill these if they are currently empty to avoid clobbering fetched data
+              poNumber: line.poNumber || singleCall.po_no || '',
+              rawMaterialICs: line.rawMaterialICs || singleCall.rawMaterialICs || '',
+              productType: line.productType || singleCall.productType || singleCall.product_type || ''
             };
           }
         }
@@ -1170,7 +1169,9 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
             icNumber: '',
             poNumber: '',
             rawMaterialICs: '',
-            productType: ''
+            productType: '',
+            poSerialNo: '',
+            rlyShortName: ''
           };
         }
 
@@ -1206,6 +1207,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         ...updated[lineIndex],
         icNumber: selectedCallNo,
         poNumber: '',
+        poSerialNo: '',
         rawMaterialICs: '',
         productType: ''
       };
@@ -1230,6 +1232,14 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       const ercType = data.typeOfErc || '';
       const poNumber = data.poNo || selectedCall?.po_no || '';
 
+      // Fetch PO Serial Number separately
+      let poSerialNo = '';
+      try {
+        poSerialNo = await getPoSerialNumberByCallId(selectedCallNo);
+      } catch (e) {
+        console.warn('⚠️ [Production Line] Could not fetch PO serial number:', e);
+      }
+
       console.log('📋 [Production Line] Final values - RM IC:', rmIcNumber, 'ERC Type:', ercType, 'PO:', poNumber);
 
       // Update the production line with fetched data
@@ -1239,6 +1249,8 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           ...updated[lineIndex],
           icNumber: selectedCallNo,
           poNumber: poNumber,
+          poSerialNo: poSerialNo,
+          rlyShortName: data.rlyShortName || data.rlyCd || '',
           rawMaterialICs: rmIcNumber,
           productType: ercType
         };
@@ -1408,7 +1420,12 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       const enrichData = async () => {
         try {
           console.log('📤 Background enriching data for call:', callNo);
-          const richData = await fetchProcessInitiationData(callNo);
+
+          // Fetch both initiation data and PO serial number in parallel
+          const [richData, poSerialNo] = await Promise.all([
+            fetchProcessInitiationData(callNo),
+            getPoSerialNumberByCallId(callNo).catch(() => '')
+          ]);
 
           if (richData) {
             console.log('✅ Background data fetched for:', callNo);
@@ -1431,7 +1448,10 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
             // Cache the full initiation data
             setCallInitiationDataCache(prev => ({
               ...prev,
-              [callNo]: richData
+              [callNo]: {
+                ...richData,
+                poSerialNo: poSerialNo || richData.poSerialNo || richData.po_serial_no
+              }
             }));
           }
         } catch (error) {
@@ -1846,7 +1866,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
 
         // Restore production lines from sessionStorage if present to preserve user selections
         try {
-          const savedLines = sessionStorage.getItem(`processProductionLinesData_${callNo} `);
+          const savedLines = sessionStorage.getItem(`processProductionLinesData_${callNo}_${shift}`);
           if (savedLines) {
             const parsed = JSON.parse(savedLines);
             if (parsed && parsed.length > 0) {
@@ -1879,6 +1899,8 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
                   lineNumber: 1,
                   icNumber: mainCall.call_no || '',
                   poNumber: mainCall.po_no || mainCall.poNumber || '',
+                  poSerialNo: mainCall.poSerialNo || mainCall.poSerial || mainCall.po_serial_no || '',
+                  rlyShortName: mainCall.rlyShortName || mainCall.rlyCd || '',
                   rawMaterialICs: mainCall.rawMaterialICs || '',
                   productType: mainCall.product_type || mainCall.productType || ''
                 }]);
@@ -1963,7 +1985,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
 
         // Restore production lines from sessionStorage if present to preserve user selections
         try {
-          const savedLines = sessionStorage.getItem(`processProductionLinesData_${callNo} `);
+          const savedLines = sessionStorage.getItem(`processProductionLinesData_${callNo}_${shift}`);
           if (savedLines) {
             const parsed = JSON.parse(savedLines);
             if (parsed && parsed.length > 0) {
@@ -2008,6 +2030,8 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
                 lineNumber: 1,
                 icNumber: mainCall.call_no || '',
                 poNumber: mainCall.po_no || mainCall.poNumber || '',
+                poSerialNo: mainCall.poSerialNo || mainCall.poSerial || mainCall.po_serial_no || '',
+                rlyShortName: mainCall.rlyShortName || mainCall.rlyCd || '',
                 rawMaterialICs: mainCall.rawMaterialICs || '',
                 productType: mainCall.product_type || mainCall.productType || ''
               }]);
@@ -2114,7 +2138,9 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
                   ...updated[index],
                   rawMaterialICs: data.rmIcNumber || '',
                   productType: data.typeOfErc || '',
-                  poNumber: data.poNo || updated[index].poNumber
+                  poNumber: data.poNo || updated[index].poNumber,
+                  poSerialNo: data.poSerialNo || data.po_serial_no || updated[index].poSerialNo || '',
+                  rlyShortName: data.rlyShortName || data.rlyCd || updated[index].rlyShortName || ''
                 };
                 console.log(`✅ Updated line ${index + 1}: `, updated[index]);
               }
@@ -2187,14 +2213,14 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       sessionStorage.setItem(`processSelectedLineTab_${call.call_no}_${shift}`, selectedLine);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedLine, call?.call_no]);
+  }, [selectedLine, call?.call_no, shift]);
 
   useEffect(() => {
     if (call?.call_no && Object.keys(selectedLotByLine).length > 0) {
       sessionStorage.setItem(`processSelectedLotByLine_${call.call_no}_${shift}`, JSON.stringify(selectedLotByLine));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedLotByLine, call?.call_no]);
+  }, [selectedLotByLine, call?.call_no, shift]);
 
   // Persist manufactured quantities to sessionStorage whenever they change - scoped to call number and shift
   useEffect(() => {
@@ -2202,7 +2228,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       sessionStorage.setItem(`processManufacturedQtyByLine_${call.call_no}_${shift}`, JSON.stringify(manufacturedQtyByLine));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [manufacturedQtyByLine, call?.call_no]);
+  }, [manufacturedQtyByLine, call?.call_no, shift]);
 
   // Listen for lot selection events from toggle tab buttons
   useEffect(() => {
@@ -2402,7 +2428,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       sessionStorage.setItem(`processFinalInspectionRemarks_${call.call_no}_${shift}`, finalInspectionRemarks);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [finalInspectionRemarks, call?.call_no]);
+  }, [finalInspectionRemarks, call?.call_no, shift]);
 
   // Reset session control when dashboard mounts (new inspection)
   useEffect(() => {
@@ -2528,7 +2554,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       };
 
       // Save to localStorage with inspection call number as key
-      const storageKey = `${DASHBOARD_DRAFT_KEY}${inspectionCallNo} `;
+      const storageKey = `${DASHBOARD_DRAFT_KEY}${inspectionCallNo}_${shift}`;
       localStorage.setItem(storageKey, JSON.stringify(draftData));
 
       // Show success message
@@ -2550,7 +2576,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     } finally {
       setIsSavingDraft(false);
     }
-  }, [call?.call_no, localProductionLines, selectedLine, finalInspectionRemarks, productionLinesExpanded]);
+  }, [call?.call_no, localProductionLines, selectedLine, finalInspectionRemarks, productionLinesExpanded, shift]);
 
   // Load draft data from localStorage on mount
   useEffect(() => {
@@ -2558,7 +2584,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     if (!inspectionCallNo) return;
 
     try {
-      const storageKey = `${DASHBOARD_DRAFT_KEY}${inspectionCallNo} `;
+      const storageKey = `${DASHBOARD_DRAFT_KEY}${inspectionCallNo}_${shift}`;
       const savedDraft = localStorage.getItem(storageKey);
 
       if (savedDraft) {
@@ -3378,35 +3404,35 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           const lotManufactured = parseInt(lineMfgQtyByLot.shearing) || 0;
    
           console.log(`📦[Final Results] Line ${ lineIndex + 1 }, Lot ${ lot }: lineMfgQtyByLot = `, lineMfgQtyByLot, 'Shearing Manufactured=`, lotManufactured);
-
-// Calculate rejected for this lot from all modules (shearing, turning, mpi, forging, quenching, tempering)
-// Use the helper function to properly filter by lot
-let lotRejected = 0;
-const modules = ['shearingData', 'turningData', 'mpiData', 'forgingData', 'quenchingData', 'temperingData'];
-modules.forEach((moduleName) => {
+  
+  // Calculate rejected for this lot from all modules (shearing, turning, mpi, forging, quenching, tempering)
+  // Use the helper function to properly filter by lot
+  let lotRejected = 0;
+  const modules = ['shearingData', 'turningData', 'mpiData', 'forgingData', 'quenchingData', 'temperingData'];
+  modules.forEach((moduleName) => {
   lotRejected += calculateRejectedForSpecificLot(moduleName, lot, lineNo);
-});
-
-// Calculate accepted for this lot (Manufactured - Total Rejected from all stages)
-const lotAccepted = Math.max(0, lotManufactured - lotRejected);
-
-totalManufactured += lotManufactured;
-totalAccepted += lotAccepted;
-
-console.log(`📦 [Final Results] Line ${lineIndex + 1}, Lot ${lot}: Manufactured=${lotManufactured}, Rejected=${lotRejected}, Accepted=${lotAccepted}`);
+  });
+  
+  // Calculate accepted for this lot (Manufactured - Total Rejected from all stages)
+  const lotAccepted = Math.max(0, lotManufactured - lotRejected);
+  
+  totalManufactured += lotManufactured;
+  totalAccepted += lotAccepted;
+  
+  console.log(`📦 [Final Results] Line ${lineIndex + 1}, Lot ${lot}: Manufactured=${lotManufactured}, Rejected=${lotRejected}, Accepted=${lotAccepted}`);
         });
       });
-
-console.log(`📊 [Final Results] TOTAL: Manufactured=${totalManufactured}, Accepted=${totalAccepted}`);
-
-return {
+  
+  console.log(`📊 [Final Results] TOTAL: Manufactured=${totalManufactured}, Accepted=${totalAccepted}`);
+  
+  return {
   processManufactured: totalManufactured,
   processInspectionAccepted: totalAccepted
-};
+  };
     } catch (error) {
   console.error('❌ [Final Results] Error:', error);
   return { processManufactured: 0, processInspectionAccepted: 0 };
-}
+  }
   }, [localProductionLines, call?.call_no, call?.po_no, manufacturedQtyByLine, calculateRejectedForSpecificLot]);
   */
 
@@ -4644,7 +4670,8 @@ return {
             remarks: `Shift completed for lot ${lotNo}, heat ${heatNo}. Current shift - Manufactured: ${currentShiftManufacturedQty}, Rejected: ${currentShiftRejectedQty}, Accepted: ${currentShiftAcceptedQty}. Cumulative - Manufactured: ${cumulativeManufacturedQty}, Rejected: ${cumulativeRejectedQty}, Accepted: ${cumulativeAcceptedQty}`,
             actionBy: userId,
             pincode: pincode,
-            shiftCode: lotData.shiftCode
+            shiftCode: lotData.shiftCode,
+            dateOfInspection: sessionStorage.getItem('inspectionDate') || new Date().toISOString().split('T')[0]
           };
 
           console.log(`🔄 [Shift Completed] Sending API call for ${key} (CURRENT SHIFT DATA ONLY):`, actionData);
@@ -5065,7 +5092,8 @@ return {
             remarks: `Inspection ${action === 'INSPECTION_COMPLETE_CONFIRM' ? 'completed' : 'paused'} for lot ${lotNo}, heat ${heatNo}. Current shift - Manufactured: ${currentShiftManufacturedQty}, Rejected: ${currentShiftRejectedQty}, Accepted: ${currentShiftAcceptedQty}. Cumulative - Manufactured: ${cumulativeManufacturedQty}, Rejected: ${cumulativeRejectedQty}, Accepted: ${cumulativeAcceptedQty}`,
             actionBy: userId,
             pincode: pincode,
-            shiftCode: lotData.shiftCode
+            shiftCode: lotData.shiftCode,
+            dateOfInspection: sessionStorage.getItem('inspectionDate') || new Date().toISOString().split('T')[0]
           };
 
           console.log(`🔄 [Finish] Sending API call for ${key} with action ${action}:`, actionData);
@@ -5117,7 +5145,7 @@ return {
     || '';
 
   const linePoData = currentLineInitiationData ? {
-    po_no: formatPoNoWithSerial(currentLineInitiationData.poNo, currentLineInitiationData.poSerialNo),
+    po_no: formatPoNoWithSerial(currentLineInitiationData.poNo, currentLineInitiationData.poSerialNo || currentLineInitiationData.po_serial_no || currentProductionLine.poSerialNo, currentLineInitiationData.rlyShortName || currentLineInitiationData.rlyCd),
     sub_po_no: currentProductionLine.rawMaterialICs || '',
     po_date: currentLineInitiationData.poDate || '',
     sub_po_date: currentLineInitiationData.poDate || '',
@@ -5127,7 +5155,7 @@ return {
       ? `${currentLineInitiationData.companyName}${currentLineInitiationData.unitName ? ' (' + currentLineInitiationData.unitName + ')' : ''}${currentLineInitiationData.unitAddress ? ' - ' + currentLineInitiationData.unitAddress : ''}`
       : (currentLineInitiationData.placeOfInspection || '')
   } : (fetchedPoData ? {
-    po_no: formatPoNoWithSerial(fetchedPoData.po_no, fetchedPoData.po_serial_no || fetchedPoData.poSerialNo),
+    po_no: formatPoNoWithSerial(fetchedPoData.po_no, fetchedPoData.po_serial_no || fetchedPoData.poSerialNo || currentProductionLine.poSerialNo, fetchedPoData.rlyShortName || fetchedPoData.rlyCd),
     sub_po_no: fetchedPoData.po_no || '',
     po_date: fetchedPoData.po_date || '',
     sub_po_date: fetchedPoData.po_date || '',
@@ -5135,7 +5163,7 @@ return {
     manufacturer: fetchedPoData.contractor || fetchedPoData.vendor_name || fetchedPoData.manufacturer || '',
     place_of_inspection: fetchedPoData.place_of_inspection || ''
   } : (currentCallData ? {
-    po_no: formatPoNoWithSerial(currentCallData.po_no, currentCallData.po_serial_no || currentCallData.poSerialNo),
+    po_no: formatPoNoWithSerial(currentCallData.po_no || currentCallData.poNo, currentCallData.po_serial_no || currentCallData.poSerialNo || currentProductionLine.poSerialNo, currentCallData.rlyShortName || currentCallData.rlyCd),
     sub_po_no: currentCallData.sub_po_no || currentProductionLine.rawMaterialICs || '',
     po_date: currentCallData.po_date || '',
     sub_po_date: currentCallData.sub_po_date || currentCallData.po_date || '',
@@ -5299,10 +5327,10 @@ return {
                           <input
                             type="text"
                             className="form-input"
-                            value={line.poNumber || ''}
+                            value={formatPoNoWithSerial(line.poNumber, line.poSerialNo, line.rlyShortName) || ''}
                             readOnly
                             disabled
-                            style={{ minWidth: '120px', backgroundColor: '#f3f4f6' }}
+                            style={{ minWidth: '300px', backgroundColor: '#f3f4f6' }}
                           />
                         </td>
                         <td data-label="Raw Material IC">
@@ -5636,6 +5664,16 @@ return {
                         fontSize: '13px',
                         textTransform: 'uppercase',
                         letterSpacing: '0.5px',
+                        minWidth: '180px'
+                      }}>Sealing Details</th>
+                      <th style={{
+                        padding: '12px 16px',
+                        textAlign: 'left',
+                        fontWeight: 600,
+                        color: '#15803d',
+                        fontSize: '13px',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
                         minWidth: '140px'
                       }}>Max No. of ERC Can Be Mfg</th>
                       <th style={{
@@ -5726,6 +5764,27 @@ return {
                             color: '#64748b',
                             fontWeight: 500
                           }}>{weightAcceptedMt > 0 ? weightAcceptedMt : '-'}</td>
+                          <td data-label="Sealing Details" style={{
+                            padding: '12px 16px',
+                            color: '#64748b',
+                            fontSize: '12px',
+                            fontWeight: 400
+                          }}>
+                            {apiData?.sealingType ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                <div style={{ fontWeight: 600, color: '#1f2937' }}>
+                                  {apiData.sealingType === 'RITES_STEEL_PUNCH' ? 'Steel Punch' : 'Hologram'}
+                                </div>
+                                {apiData.sealingType === 'RITES_STEEL_PUNCH' ? (
+                                  <div style={{ fontSize: '11px' }}>Stamp: {apiData.steelStampNumber || '-'}</div>
+                                ) : (
+                                  <div style={{ maxWidth: '250px', whiteSpace: 'normal', fontSize: '10px', lineHeight: '1.2' }}>
+                                    {apiData.hologramDetails || '-'}
+                                  </div>
+                                )}
+                              </div>
+                            ) : '-'}
+                          </td>
                           <td data-label="Max ERC Can be Mfg" style={{
                             padding: '12px 16px',
                             color: '#3b82f6',
@@ -6700,7 +6759,7 @@ return {
                 <div>
                   <span style={{ color: '#64748b' }}>Scheduled Date: </span>
                   <span style={{ fontWeight: '500' }}>
-                    {previousSchedule.scheduleDate ? new Date(previousSchedule.scheduleDate).toLocaleDateString('en-IN') : '-'}
+                    {previousSchedule.scheduleDate ? formatDate(previousSchedule.scheduleDate) : '-'}
                   </span>
                 </div>
                 <div>
@@ -6731,7 +6790,7 @@ return {
             />
             {selectedCallForSchedule?.desired_inspection_date && (
               <small style={{ color: '#64748b' }}>
-                Minimum Date: {new Date(selectedCallForSchedule.desired_inspection_date).toLocaleDateString('en-IN')} (Desired Inspection Date)
+                Minimum Date: {formatDate(selectedCallForSchedule.desired_inspection_date)} (Desired Inspection Date)
               </small>
             )}
           </div>
@@ -6802,7 +6861,8 @@ return {
                 actionBy: userId,
                 pincode: resumeCallData.pincode || '560001',
                 materialAvailable: 'YES',
-                shiftCode: (shift || 'A').charAt(0).toUpperCase()
+                shiftCode: (shift || 'A').charAt(0).toUpperCase(),
+                dateOfInspection: sessionStorage.getItem('inspectionDate') || new Date().toISOString().split('T')[0]
               };
 
               await performTransitionAction(workflowActionData);

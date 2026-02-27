@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { formatDate } from '../utils/helpers';
 import InspectionInitiationFormContent from '../components/InspectionInitiationFormContent';
 import { saveInspectionInitiation } from '../services/vendorInspectionService';
 import { getStoredUser } from '../services/authService';
@@ -44,7 +45,7 @@ const MultiTabInspectionInitiationPage = ({ calls, onProceed, onBack }) => {
   }, [calls]);
 
   const latestDesiredDateStr = latestDesiredDate ? latestDesiredDate.toISOString().split('T')[0] : '';
-  const latestDesiredDateFormatted = latestDesiredDate ? latestDesiredDate.toLocaleDateString('en-GB') : '-';
+  const latestDesiredDateFormatted = latestDesiredDate ? formatDate(latestDesiredDate.toISOString()) : '-';
 
   const [activeCallIndex, setActiveCallIndex] = useState(0);
   const [formDataByCall, setFormDataByCall] = useState(() => {

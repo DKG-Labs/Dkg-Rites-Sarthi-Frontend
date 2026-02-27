@@ -30,9 +30,9 @@ const useReportData = (fetchFn, dependency = null) => {
                         totalPages: result.totalPages || 0
                     });
                 } else {
-                    setData(Array.isArray(result) ? result : []);
+                    setData(result);
                     setPagination({
-                        totalElements: Array.isArray(result) ? result.length : 0,
+                        totalElements: Array.isArray(result) ? result.length : (result ? 1 : 0),
                         totalPages: 1
                     });
                 }

@@ -136,6 +136,7 @@ export const FinalHardnessWrapper = () => {
  */
 export const FinalInclusionWrapper = () => {
   const navigate = useNavigate();
+  const { selectedCall } = useInspection();
 
   const handleBack = () => navigate(ROUTES.FINAL_PRODUCT);
   const handleNavigateSubmodule = (subModule) => {
@@ -146,6 +147,7 @@ export const FinalInclusionWrapper = () => {
   return (
     <FinalInclusionRatingPage
       onBack={handleBack}
+      productModel={selectedCall?.ercType || 'MK-III'}
       onNavigateSubmodule={handleNavigateSubmodule}
     />
   );

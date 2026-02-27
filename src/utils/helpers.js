@@ -136,26 +136,27 @@ export const getHourLabels = (shift) => {
 };
 
 /**
- * Standardize PO Number and Serial display format: "PO Number / Serial"
+ * Standardize PO Number and Serial display format: "RlyShortName / PO Number / Serial"
  * Handles cases where serial already contains the PO Number as a prefix.
  * @param {string} poNo - The base PO Number
  * @param {string} serial - The serial number or full PO/serial string
- * @returns {string} Formatted string "PO Number / Serial"
+ * @param {string} [rlyShortName] - Optional railway short name to prepend (e.g. "SCR")
+ * @returns {string} Formatted string e.g. "SCR / 60256836107122 / 004"
  */
-export const formatPoNoWithSerial = (poNo, serial) => {
-  if (!serial) return poNo || 'N/A';
-  if (!poNo) return serial;
+export const formatPoNoWithSerial = (poNo, serial, rlyShortName) => {
+  if (!serial && !poNo) return 'N/A';
 
   // Clean strings
-  const p = String(poNo).trim();
-  const s = String(serial).trim();
+  const p = poNo ? String(poNo).trim() : '';
+  const s = serial ? String(serial).trim() : '';
+  const rly = rlyShortName ? String(rlyShortName).trim() : '';
 
-  // If serial repeats the PO number (e.g. "60256836107122/004")
-  if (s.includes(p)) {
+  // Extract the clean serial suffix
+  let cleanSerial = s;
+  if (s && p && s.includes(p)) {
     const parts = s.split('/');
-    const cleanSerial = parts[parts.length - 1]; // Extract the last part (the actual serial)
-    return `${p} / ${cleanSerial}`;
+    cleanSerial = parts[parts.length - 1]; // e.g. "60256836107122/004" -> "004"
   }
 
-  return `${p} / ${s}`;
+  return [rly, p, cleanSerial].filter(Boolean).join(' / ');
 };

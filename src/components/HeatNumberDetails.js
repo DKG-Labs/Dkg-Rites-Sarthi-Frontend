@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { formatDate } from '../utils/helpers';
 
 // Responsive styles for Heat Number Details
 const heatResponsiveStyles = `
@@ -271,7 +272,7 @@ const HeatNumberDetails = ({ heats: propHeats, onHeatsChange }) => {
             </div>
             <div className="heat-form-group">
               <label className="heat-form-label">TC Date</label>
-              <input type="text" className="heat-form-input" value={heat.tcDate} disabled />
+              <input type="text" className="heat-form-input" value={formatDate(heat.tcDate)} disabled />
             </div>
             <div className="heat-form-group">
               <label className="heat-form-label">Manufacturer Name</label>
@@ -285,7 +286,7 @@ const HeatNumberDetails = ({ heats: propHeats, onHeatsChange }) => {
             </div>
             <div className="heat-form-group">
               <label className="heat-form-label">Invoice Date</label>
-              <input type="text" className="heat-form-input" value={heat.invoiceDate} disabled />
+              <input type="text" className="heat-form-input" value={formatDate(heat.invoiceDate)} disabled />
             </div>
             <div className="heat-form-group">
               <label className="heat-form-label">Sub PO Number</label>
@@ -293,7 +294,7 @@ const HeatNumberDetails = ({ heats: propHeats, onHeatsChange }) => {
             </div>
             <div className="heat-form-group">
               <label className="heat-form-label">Sub PO Date</label>
-              <input type="text" className="heat-form-input" value={heat.subPoDate} disabled />
+              <input type="text" className="heat-form-input" value={formatDate(heat.subPoDate)} disabled />
             </div>
 
             {/* Row 3: Sub PO Qty, Total Value, TC Qty, Offered Qty */}
@@ -301,10 +302,10 @@ const HeatNumberDetails = ({ heats: propHeats, onHeatsChange }) => {
               <label className="heat-form-label">Sub PO Qty (MT)</label>
               <input type="text" className="heat-form-input" value={heat.subPoQty} disabled />
             </div>
-            <div className="heat-form-group">
+            {/* <div className="heat-form-group">
               <label className="heat-form-label">Total Value of PO</label>
               <input type="text" className="heat-form-input" value={heat.totalValueOfPo} disabled />
-            </div>
+            </div> */}
             <div className="heat-form-group">
               <label className="heat-form-label">TC Quantity (MT)</label>
               <input type="text" className="heat-form-input" value={heat.tcQuantity} disabled />

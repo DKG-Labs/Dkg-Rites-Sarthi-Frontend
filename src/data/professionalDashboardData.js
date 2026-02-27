@@ -140,8 +140,8 @@ export const REPORTS_DATA = {
         poNumbers: ['PO-145', 'PO-182'],
         lots: ['Lot-01', 'Lot-02'],
         table: [
-            { date: '11-02-2026', shift: 'A', accepted: '1,250', rejected: '45', shearing: 5, turning: 10, mpi: 8, forging: 7, quenching: 6, tempering: 5, testing: 4 },
-            { date: '11-02-2026', shift: 'B', accepted: '1,180', rejected: '52', shearing: 6, turning: 12, mpi: 9, forging: 8, quenching: 7, tempering: 5, testing: 5 },
+            { date: '11/02/2026', shift: 'A', accepted: '1,250', rejected: '45', shearing: 5, turning: 10, mpi: 8, forging: 7, quenching: 6, tempering: 5, testing: 4 },
+            { date: '11/02/2026', shift: 'B', accepted: '1,180', rejected: '52', shearing: 6, turning: 12, mpi: 9, forging: 8, quenching: 7, tempering: 5, testing: 5 },
         ],
         pareto: [
             { name: 'Turning', value: 22 },

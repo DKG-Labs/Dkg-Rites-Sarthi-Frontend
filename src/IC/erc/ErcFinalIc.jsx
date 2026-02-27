@@ -63,7 +63,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, onFieldChange = () => { } })
         <div className="grid grid-cols-[1fr_2fr_1.5fr_1.5fr] border-b border-black font-semibold min-h-[50px]">
           <div className="border-r border-black py-1" />
           <div className="border-r border-black flex flex-col justify-center py-1 text-center">
-            <div className="text-[10px]">प्रमाणपत्र सं. / Certificate No.</div>
+            <div className="text-[10px]">प्रमाण पत्र सं. / Certificate No.</div>
             <div className="font-normal text-xs break-all leading-tight">
               <EditableField value={displayCertificateNo} fieldName="certificateNo" />
             </div>
@@ -80,7 +80,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, onFieldChange = () => { } })
               <span>{offeredInstNo}</span>
             </div>
             <div className="font-normal mt-1 pt-1 border-t border-dotted border-gray-400">
-              <span className="font-semibold block leading-tight">परित किस्त सं. / Passed Instt No.</span>{" "}
+              <span className="font-semibold block leading-tight">पारित किस्त सं. / Passed Instt No.</span>{" "}
               <span>{passedInstNo}</span>
             </div>
           </div>
@@ -161,7 +161,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, onFieldChange = () => { } })
             <div className="border-r border-black p-2 text-left break-words flex flex-col items-start font-bold">
               <span className="uppercase">{description}</span>
             </div>
-            
+
             {/* Units and Values for cols 3-9 */}
             {[
               { val: qtyOnOrder, field: "qtyOnOrder" },
@@ -181,11 +181,11 @@ const ErcFinalIc = ({ data = {}, isEditing = false, onFieldChange = () => { } })
 
           {/* Quantity in Words Row */}
           <div className="p-2 text-[10px] bg-white border-b border-black min-h-[40px]">
-            <EditableField 
-              value={quantityNowPassedText} 
-              fieldName="quantityNowPassedText" 
-              placeholder="QUANTITY NOW PASSED: (In words and details...)" 
-              className="font-bold text-red-600 block leading-normal uppercase italic" 
+            <EditableField
+              value={quantityNowPassedText}
+              fieldName="quantityNowPassedText"
+              placeholder="QUANTITY NOW PASSED: (In words and details...)"
+              className="font-bold text-red-600 block leading-normal uppercase italic"
             />
           </div>
         </div>

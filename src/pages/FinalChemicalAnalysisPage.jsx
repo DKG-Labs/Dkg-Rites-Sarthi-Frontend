@@ -248,22 +248,20 @@ const FinalChemicalAnalysisPage = ({ onBack, onNavigateSubmodule }) => {
     const range = elementRanges[element];
     const tolerance = tolerances[element];
 
-    // Special rule for Sulphur and Phosphorus: only upper bound check against ladle
+    // Rule: Must be within absolute spec AND within tolerance from ladle
+    const withinSpec = pVal >= (range.min - 0.0001) && pVal <= (range.max + 0.0001);
+
+    // Special rule for Sulphur and Phosphorus
     if (element === "s" || element === "p") {
-      // anything which is less than equal to Ladle Sulphur/Phosphorus + 0.005 will be acceptable
-      return pVal <= (lVal + tolerance) ? "pass" : "fail";
+      // Must be within absolute spec AND not cross (Ladle + 0.005)
+      return (withinSpec && pVal <= (lVal + tolerance)) ? "pass" : "fail";
     }
 
     // Standard rule for Carbon, Silicon, Manganese (± tolerance)
     const diff = Math.abs(pVal - lVal);
     const withinTolerance = diff <= (tolerance + 0.0001);
 
-    // Ensure it's within "Permissible Variation" limits
-    const expandedMin = range.min - tolerance;
-    const expandedMax = range.max + tolerance;
-    const withinExpandedRange = pVal >= (expandedMin - 0.0001) && pVal <= (expandedMax + 0.0001);
-
-    return (withinTolerance && withinExpandedRange) ? "pass" : "fail";
+    return (withinTolerance && withinSpec) ? "pass" : "fail";
   };
 
   return (

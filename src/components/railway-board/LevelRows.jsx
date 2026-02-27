@@ -3,6 +3,7 @@ import { StatusBadge, ExpandIcon } from './SharedComponents';
 import reportService from '../../services/reportService';
 import Pagination from '../Pagination';
 import useReportData from '../../hooks/useReportData';
+import { formatDate } from '../../utils/helpers';
 
 // --- Level 3 & 4 Components ---
 
@@ -93,7 +94,7 @@ function Level4Table({ callNo, parentSerial, railway }) {
                             const rowClass = (index % 2 === 0) ? 'row-odd' : 'row-even';
                             return (
                                 <tr key={index} className={rowClass}>
-                                    <td>{shift.basicDetails?.date ? new Date(shift.basicDetails.date).toLocaleDateString() : 'Invalid Date'}</td>
+                                    <td>{shift.basicDetails?.date ? formatDate(shift.basicDetails.date) : 'Invalid Date'}</td>
                                     <td>{shift.basicDetails?.shift || '-'}</td>
                                     <td>{index + 1}</td>
                                     <td>{shift.basicDetails?.poSrNo || callNo}</td>
@@ -177,9 +178,9 @@ function Level3Row({ call, expandedCall, toggleCall, parentSerial, index, railwa
                 <td className="font-medium text-teal" style={{ whiteSpace: 'nowrap' }}>{parentSerial}</td>
                 <td className="font-medium text-teal">{call.inspectionCallNumber}</td>
                 <td><StatusBadge status={call.stageOfInspection} /></td>
-                <td>{call.desiredDateOfInspection ? new Date(call.desiredDateOfInspection).toLocaleDateString() : '-'}</td>
-                <td>{call.inspectionStartDate ? new Date(call.inspectionStartDate).toLocaleDateString() : '-'}</td>
-                <td>{call.inspectionCompletionDate ? new Date(call.inspectionCompletionDate).toLocaleDateString() : '-'}</td>
+                <td>{call.desiredDateOfInspection ? formatDate(call.desiredDateOfInspection) : '-'}</td>
+                <td>{call.inspectionStartDate ? formatDate(call.inspectionStartDate) : '-'}</td>
+                <td>{call.inspectionCompletionDate ? formatDate(call.inspectionCompletionDate) : '-'}</td>
                 <td className="text-center">{call.noOfVisitsOrMandays}</td>
                 <td className="text-right">{call.offeredOrManufacturedQty?.toLocaleString()}</td>
                 <td className="text-right">{call.acceptedQuantity?.toLocaleString()}</td>
@@ -284,8 +285,8 @@ function Level2Row({ row, index, expandedSerial, toggleSerial, expandedCall, tog
                 <td>{index + 1}</td>
                 <td className="font-medium text-teal">{row.rlyPoSrNo}</td>
                 <td title={row.consignee}>{row.consignee}</td>
-                <td>{new Date(row.originalDpDate).toLocaleDateString()}</td>
-                <td>{row.extendedDpDate ? new Date(row.extendedDpDate).toLocaleDateString() : '-'}</td>
+                <td>{formatDate(row.originalDpDate)}</td>
+                <td>{row.extendedDpDate ? formatDate(row.extendedDpDate) : '-'}</td>
                 <td className="text-right">{row.poSrNoQty?.toLocaleString()}</td>
                 <td className="text-right">{row.balancePoQty?.toLocaleString()}</td>
                 <td className="text-center">{row.noOfIcIssued}</td>
@@ -412,7 +413,7 @@ export const Level1Row = React.memo(({
                 <td>{index + 1}</td>
                 <td><span className="badge-railway">{po?.railway}</span></td>
                 <td className="font-medium text-teal">{po?.poNo}</td>
-                <td>{po?.poDate ? new Date(po.poDate).toLocaleDateString() : '-'}</td>
+                <td>{po?.poDate ? formatDate(po.poDate) : '-'}</td>
                 <td className="col-vendor" title={po?.vendor}>{po?.vendor}</td>
                 <td>{po?.inspectionRegion || '-'}</td>
                 <td className="text-right">{po?.poQty?.toLocaleString() || '0'}</td>

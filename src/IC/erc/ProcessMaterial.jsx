@@ -1,6 +1,7 @@
 // src/IC/erc/ProcessMaterialCertificate.jsx
 
 import { useRef } from "react";
+import { formatDate } from "../../utils/helpers";
 import ErcProcessIc from "./ErcProcessIc";
 import { exportToPdf } from "../../utils/exportUtils";
 
@@ -20,12 +21,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
     if (!c || Object.keys(c).length === 0) return {};
 
     // Format today's date for certificate date
-    const today = new Date();
-    const certificateDate = today.toLocaleDateString('en-IN', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
+    const certificateDate = formatDate(new Date().toISOString());
 
     // Format contract reference in the expected format
     const formatContractRef = (contractRef) => {

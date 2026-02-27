@@ -1660,7 +1660,7 @@ export const getFreedomFromDefectsTestByCall = async (callNo) => {
  */
 export const getLadleValuesByCall = async (callNo) => {
   try {
-    const url = `${API_BASE_URL}/api/final-inspection/submodules/ladle-values/${callNo}`;
+    const url = `${API_BASE_URL}/api/final-inspection/submodules/ladle-values/${encodeURIComponent(callNo)}`;
     const response = await fetch(url, {
       method: 'GET',
       headers: getAuthHeaders()

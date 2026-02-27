@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatDate } from '../../utils/helpers';
 
 export const MasterForm = ({ master, onSubmit, onCancel }) => {
     const masterTypes = ['Vendor', 'BPO', 'Consignee', 'Item', 'Plant', 'Instrument'];
@@ -10,7 +11,7 @@ export const MasterForm = ({ master, onSubmit, onCancel }) => {
         masterCode: '',
         vendor: '',
         status: 'Active',
-        createdDate: new Date().toLocaleDateString('en-GB'),
+        createdDate: formatDate(new Date().toISOString()),
         createdBy: 'Admin'
     });
 

@@ -54,6 +54,13 @@ const reportService = {
         });
         return handleResponse(response);
     },
+
+    getDashboardSummary: async () => {
+        const response = await fetch(`${API_ENDPOINTS.REPORTS}/dashboardSummary`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
 };
 
 export default reportService;

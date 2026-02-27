@@ -1,4 +1,5 @@
 import React from "react";
+import { formatDate } from "../utils/helpers";
 import "./FinalReportsPage.css";
 
 export default function FinalReportsPage({ onBack }) {
@@ -154,7 +155,7 @@ export default function FinalReportsPage({ onBack }) {
           </div>
           <div className="rep-field">
             <label>Date</label>
-            <input disabled value={new Date().toLocaleDateString()} />
+            <input disabled value={formatDate(new Date().toISOString())} />
           </div>
         </div>
       </div>

@@ -8,14 +8,22 @@ import {
   getFreedomFromDefectsTestByCall
 } from '../services/finalInspectionSubmoduleService';
 import { getHardnessToeLoadAQL } from '../utils/is2500Calculations';
+import { normalizeErcType } from '../utils/ercUtils';
 
-/*
-  Lots Data - Auto-fetched from Final Product Dashboard
-  barDia (d) comes from Pre-Inspection Data Entry where user enters Bar Diameter for each lot
-  hardnessSampleSize comes from Hardness Test sample size (calculated via IS 2500)
-*/
+const FinalInclusionRatingPage = ({ onBack, productModel: propProductModel, onNavigateSubmodule }) => {
+  // Collapse/expand state for each section
+  const [collapsed, setCollapsed] = useState({
+    decarb: false,
+    inclusion: true,
+    microstructure: true,
+    defects: true,
+    summary: true
+  });
 
-const FinalInclusionRatingPage = ({ onBack, onNavigateSubmodule }) => {
+  const toggleCollapse = (key) => {
+    setCollapsed((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
   // State for lot selection toggle
   const [activeLotTab, setActiveLotTab] = useState(0);
 
@@ -31,6 +39,15 @@ const FinalInclusionRatingPage = ({ onBack, onNavigateSubmodule }) => {
 
   // Get cached dashboard data with fallback to sessionStorage
   const cachedData = getFpCachedData(callNo);
+
+  // Derive product model from cache or props, same as Toe Load logic
+  const productModel = useMemo(() => {
+    return normalizeErcType(cachedData?.dashboardData?.inspectionCall?.ercType) ||
+      normalizeErcType(cachedData?.inspectionCall?.ercType) ||
+      normalizeErcType(selectedCall?.ercType) ||
+      normalizeErcType(propProductModel) ||
+      'MK-III';
+  }, [cachedData, selectedCall, propProductModel]);
 
   // Memoize lotsFromVendor to ensure stable reference for useMemo dependency
   const lotsFromVendor = useMemo(() => {
@@ -81,11 +98,13 @@ const FinalInclusionRatingPage = ({ onBack, onNavigateSubmodule }) => {
         quantity: lotSize,
         generalSampleSize: calculatedGeneralSampleSize,
         inclusionSampleSize: finalInclusionSampleSize,
-        // Max Decarb limit: Depth of decarburization shall not exceed 0.25mm or (d/100)mm, whichever is less.
-        maxDecarb: lot.barDia ? Math.min(0.25, parseFloat(lot.barDia) / 100) : 0.25
+        // Dynamic Decarb limit based on Product Model
+        // MK-III: Max 0.2064 mm
+        // MK-V: Max 0.23 mm
+        maxDecarb: productModel?.toString().toUpperCase().includes('MK-V') ? 0.23 : 0.2064
       };
     });
-  }, [lotsFromVendor]);
+  }, [lotsFromVendor, productModel]);
 
   /* Initialize state for each lot */
   const [lotData, setLotData] = useState(() => {
@@ -598,6 +617,7 @@ const FinalInclusionRatingPage = ({ onBack, onNavigateSubmodule }) => {
     if (!value || value === '') return '';
     const num = parseFloat(value);
     if (isNaN(num)) return '';
+    // Strict upper-bound check (no rounding buffer)
     return num <= maxDecarb ? 'pass' : 'fail';
   };
 
@@ -1120,18 +1140,6 @@ const FinalInclusionRatingPage = ({ onBack, onNavigateSubmodule }) => {
     }
   `;
 
-  // Collapse/expand state for each section
-  const [collapsed, setCollapsed] = useState({
-    decarb: false,
-    inclusion: true,
-    microstructure: true,
-    defects: true,
-    summary: true
-  });
-
-  const toggleCollapse = (key) => {
-    setCollapsed((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
 
   return (
     <div>
@@ -1203,7 +1211,7 @@ const FinalInclusionRatingPage = ({ onBack, onNavigateSubmodule }) => {
         {!collapsed.decarb && (
           <>
             <div className="ir-acceptance-condition">
-              <strong>Acceptance Condition (IS 3195):</strong> Depth of decarburization shall not exceed 0.25mm or (d/100)mm, whichever is less. Where d = Bar Diameter.
+              <strong>Acceptance Condition (IS 3195) for {productModel?.toString().toUpperCase().includes('MK-V') ? 'MK-V' : 'MK-III'}:</strong> Depth of decarburization shall not exceed {productModel?.toString().toUpperCase().includes('MK-V') ? '0.23' : '0.2064'}mm.
             </div>
             {lotsWithSampleSize.map((lot, idx) => {
               if (activeLotTab !== idx) return null;

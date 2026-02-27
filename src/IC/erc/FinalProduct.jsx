@@ -1,6 +1,7 @@
 // src/IC/erc/FinalProductCertificate.jsx
 
 import { useRef, useState } from "react";
+import { formatDate } from "../../utils/helpers";
 import ErcFinalIc from "./ErcFinalIc";
 import { exportToPdf } from "../../utils/exportUtils";
 
@@ -23,7 +24,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
     if (!c || Object.keys(c).length === 0) {
       return {
         certificateNo: call.icNo || "",
-        certificateDate: new Date().toLocaleDateString('en-GB'),
+        certificateDate: formatDate(new Date().toISOString()),
         offeredInstNo: "",
         passedInstNo: "",
         contractor: "",
@@ -57,7 +58,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
 
     return {
       certificateNo: c.certificateNo || c.icNo || "",
-      certificateDate: c.certificateDate || new Date().toLocaleDateString('en-GB'),
+      certificateDate: c.certificateDate || formatDate(new Date().toISOString()),
       offeredInstNo: c.offeredInstNo || "",
       passedInstNo: c.passedInstNo || "",
 

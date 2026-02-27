@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatDate } from '../utils/helpers';
 
 const LayoutHeader = React.memo(({ userEmail, onSidebarToggle }) => (
   <header className="app-header">
@@ -16,7 +17,7 @@ const LayoutHeader = React.memo(({ userEmail, onSidebarToggle }) => (
         ☰
       </button>
       <div className="header-date">
-        {new Date('2025-11-14T17:00:00').toLocaleString()}
+        {formatDate('2025-11-14T17:00:00')}
       </div>
       <div className="user-info">
         <div className="user-avatar">IE</div>

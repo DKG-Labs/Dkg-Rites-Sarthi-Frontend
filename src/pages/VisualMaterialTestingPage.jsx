@@ -486,6 +486,19 @@ const VisualMaterialTestingPage = ({ onBack, heats = [], productModel = 'ERC-12'
     ]
   })));
 
+  // Keep materialData in sync when heats change
+  useEffect(() => {
+    setMaterialData(prev => {
+      const next = heats.map((_, idx) => prev[idx] || {
+        samples: [
+          { c: '', si: '', mn: '', p: '', s: '', grainSize: '', inclTypeA: '', inclA: '', inclTypeB: '', inclB: '', inclTypeC: '', inclC: '', inclTypeD: '', inclD: '', hardness: '', decarb: '', remarks: '' },
+          { c: '', si: '', mn: '', p: '', s: '', grainSize: '', inclTypeA: '', inclA: '', inclTypeB: '', inclB: '', inclTypeC: '', inclC: '', inclTypeD: '', inclD: '', hardness: '', decarb: '', remarks: '' }
+        ]
+      });
+      return next;
+    });
+  }, [heats]);
+
   const updateMaterialField = (heatIndex, sampleIndex, field, value) => {
     setMaterialData(prev => {
       const next = [...prev];
@@ -699,163 +712,170 @@ const VisualMaterialTestingPage = ({ onBack, heats = [], productModel = 'ERC-12'
           </div>
 
           {heats.map((heat, heatIndex) => (
-              <div key={heatIndex} style={{ marginBottom: '24px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <h4>Heat: {heat.heatNo || `#${heatIndex + 1}`} — Material Testing (2 samples)</h4>
-                </div>
+            <div key={heatIndex} style={{ marginBottom: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <h4>Heat: {heat.heatNo || `#${heatIndex + 1}`} — Material Testing (2 samples)</h4>
+              </div>
 
-                {/* Chemical Composition & Mechanical Properties Table */}
-                <div className="material-testing-table-wrapper" style={{ marginBottom: '24px' }}>
-                  <table className="material-testing-table">
-                    <thead>
-                      <tr>
-                        <th>Sample</th>
-                        <th>%C</th>
-                        <th>%Si</th>
-                        <th>%Mn</th>
-                        <th>%P</th>
-                        <th>%S</th>
-                        <th>Grain Size</th>
-                        <th>Hardness (HRC)</th>
-                        <th>Decarb (mm)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[0, 1].map(sampleIndex => {
-                        const sample = materialData[heatIndex]?.samples[sampleIndex] || {};
-                        return (
-                          <tr key={sampleIndex}>
-                            <td data-label="Sample"><strong>Sample {sampleIndex + 1}</strong></td>
-                            <td data-label="%C (Carbon)">
-                              <input type="number" step="0.01" className="form-control" required
-                                value={sample.c} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'c', e.target.value)} />
-                            </td>
-                            <td data-label="%Si (Silicon)">
-                              <input type="number" step="0.01" className="form-control" required
-                                value={sample.si} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'si', e.target.value)} />
-                            </td>
-                            <td data-label="%Mn (Manganese)">
-                              <input type="number" step="0.01" className="form-control" required
-                                value={sample.mn} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'mn', e.target.value)} />
-                            </td>
-                            <td data-label="%P (Phosphorus)">
-                              <input type="number" step="0.01" className="form-control" required
-                                value={sample.p} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'p', e.target.value)} />
-                            </td>
-                            <td data-label="%S (Sulphur)">
-                              <input type="number" step="0.01" className="form-control" required
-                                value={sample.s} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 's', e.target.value)} />
-                            </td>
-                            <td data-label="Grain Size (≥6)">
-                              <input type="number" step="1" className="form-control" required min="6"
-                                value={sample.grainSize} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'grainSize', e.target.value)}
-                                placeholder="≥6" />
-                            </td>
-                            <td data-label="Hardness (HRC)">
-                              <input type="number" step="1" className="form-control" required
-                                value={sample.hardness} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'hardness', e.target.value)} />
-                            </td>
-                            <td data-label="Decarb (≤0.25mm)">
-                              <input type="number" step="0.01" className="form-control" required max="0.25"
-                                value={sample.decarb} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'decarb', e.target.value)}
-                                placeholder="≤0.25" />
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+              {/* Chemical Composition & Mechanical Properties Table */}
+              <div className="material-testing-table-wrapper" style={{ marginBottom: '24px' }}>
+                <table className="material-testing-table">
+                  <thead>
+                    <tr>
+                      <th>Sample</th>
+                      <th>%C</th>
+                      <th>%Si</th>
+                      <th>%Mn</th>
+                      <th>%P</th>
+                      <th>%S</th>
+                      <th>Grain Size</th>
+                      <th>Hardness (HRC)</th>
+                      <th>Decarb (mm)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[0, 1].map(sampleIndex => {
+                      const sample = materialData[heatIndex]?.samples[sampleIndex] || {};
+                      return (
+                        <tr key={sampleIndex}>
+                          <td data-label="Sample"><strong>Sample {sampleIndex + 1}</strong></td>
+                          <td data-label="%C (Carbon)">
+                            <input type="number" step="0.01" className="form-control" required
+                              value={sample.c} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'c', e.target.value)} />
+                          </td>
+                          <td data-label="%Si (Silicon)">
+                            <input type="number" step="0.01" className="form-control" required
+                              value={sample.si} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'si', e.target.value)} />
+                          </td>
+                          <td data-label="%Mn (Manganese)">
+                            <input type="number" step="0.01" className="form-control" required
+                              value={sample.mn} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'mn', e.target.value)} />
+                          </td>
+                          <td data-label="%P (Phosphorus)">
+                            <input type="number" step="0.01" className="form-control" required
+                              value={sample.p} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'p', e.target.value)} />
+                          </td>
+                          <td data-label="%S (Sulphur)">
+                            <input type="number" step="0.01" className="form-control" required
+                              value={sample.s} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 's', e.target.value)} />
+                          </td>
+                          <td data-label="Grain Size (≥6)">
+                            <input type="number" step="1" className="form-control" required min="6"
+                              value={sample.grainSize} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'grainSize', e.target.value)}
+                              placeholder="≥6" />
+                          </td>
+                          <td data-label="Hardness (HRC)">
+                            <input type="number" step="1" className="form-control" required
+                              value={sample.hardness} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'hardness', e.target.value)} />
+                          </td>
+                          <td data-label={`Decarb (≤${productModel.includes('MK-V') ? '0.23' : '0.2064'}mm)`}>
+                            <input
+                              type="number"
+                              step="0.0001"
+                              className="form-control"
+                              required
+                              max={productModel.includes('MK-V') ? 0.23 : 0.2064}
+                              value={sample.decarb}
+                              onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'decarb', e.target.value)}
+                              placeholder={`≤${productModel.includes('MK-V') ? '0.23' : '0.2064'}`}
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
 
-                {/* Inclusion Rating (Type) - Separate Section */}
-                <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                  <h5 style={{ marginBottom: '16px', color: '#334155' }}>Inclusion Rating (Type)</h5>
+              {/* Inclusion Rating (Type) - Separate Section */}
+              <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <h5 style={{ marginBottom: '16px', color: '#334155' }}>Inclusion Rating (Type)</h5>
 
-                  {[0, 1].map(sampleIndex => {
-                    const sample = materialData[heatIndex]?.samples[sampleIndex] || {};
-                    return (
-                      <div key={sampleIndex} style={{ marginBottom: sampleIndex === 0 ? '16px' : '0', padding: '12px', background: '#fff', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
-                        <div style={{ fontWeight: '600', marginBottom: '12px', color: '#475569' }}>Sample {sampleIndex + 1}</div>
-                        <div className="inclusion-rating-grid">
-                          {/* Inclusion A */}
-                          <div className="inclusion-rating-item">
-                            <label className="inclusion-rating-label">
-                              Inclusion Rating (A) <span style={{ color: '#ef4444' }}>*</span>
-                            </label>
-                            <div className="inclusion-rating-inputs">
-                              <select className="form-control" required
-                                value={sample.inclTypeA} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'inclTypeA', e.target.value)}>
-                                <option value="">Type</option>
-                                <option value="Thick">Thick</option>
-                                <option value="Thin">Thin</option>
-                              </select>
-                              <input type="number" step="0.1" className="form-control" required max="2.0"
-                                value={sample.inclA} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'inclA', e.target.value)}
-                                placeholder="≤2.0" />
-                            </div>
+                {[0, 1].map(sampleIndex => {
+                  const sample = materialData[heatIndex]?.samples[sampleIndex] || {};
+                  return (
+                    <div key={sampleIndex} style={{ marginBottom: sampleIndex === 0 ? '16px' : '0', padding: '12px', background: '#fff', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
+                      <div style={{ fontWeight: '600', marginBottom: '12px', color: '#475569' }}>Sample {sampleIndex + 1}</div>
+                      <div className="inclusion-rating-grid">
+                        {/* Inclusion A */}
+                        <div className="inclusion-rating-item">
+                          <label className="inclusion-rating-label">
+                            Inclusion Rating (A) <span style={{ color: '#ef4444' }}>*</span>
+                          </label>
+                          <div className="inclusion-rating-inputs">
+                            <select className="form-control" required
+                              value={sample.inclTypeA} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'inclTypeA', e.target.value)}>
+                              <option value="">Type</option>
+                              <option value="Thick">Thick</option>
+                              <option value="Thin">Thin</option>
+                            </select>
+                            <input type="number" step="0.1" className="form-control" required max="2.0"
+                              value={sample.inclA} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'inclA', e.target.value)}
+                              placeholder="≤2.0" />
                           </div>
+                        </div>
 
-                          {/* Inclusion B */}
-                          <div className="inclusion-rating-item">
-                            <label className="inclusion-rating-label">
-                              Inclusion Rating (B) <span style={{ color: '#ef4444' }}>*</span>
-                            </label>
-                            <div className="inclusion-rating-inputs">
-                              <select className="form-control" required
-                                value={sample.inclTypeB} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'inclTypeB', e.target.value)}>
-                                <option value="">Type</option>
-                                <option value="Thick">Thick</option>
-                                <option value="Thin">Thin</option>
-                              </select>
-                              <input type="number" step="0.1" className="form-control" required max="2.0"
-                                value={sample.inclB} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'inclB', e.target.value)}
-                                placeholder="≤2.0" />
-                            </div>
+                        {/* Inclusion B */}
+                        <div className="inclusion-rating-item">
+                          <label className="inclusion-rating-label">
+                            Inclusion Rating (B) <span style={{ color: '#ef4444' }}>*</span>
+                          </label>
+                          <div className="inclusion-rating-inputs">
+                            <select className="form-control" required
+                              value={sample.inclTypeB} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'inclTypeB', e.target.value)}>
+                              <option value="">Type</option>
+                              <option value="Thick">Thick</option>
+                              <option value="Thin">Thin</option>
+                            </select>
+                            <input type="number" step="0.1" className="form-control" required max="2.0"
+                              value={sample.inclB} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'inclB', e.target.value)}
+                              placeholder="≤2.0" />
                           </div>
+                        </div>
 
-                          {/* Inclusion C */}
-                          <div className="inclusion-rating-item">
-                            <label className="inclusion-rating-label">
-                              Inclusion Rating (C) <span style={{ color: '#ef4444' }}>*</span>
-                            </label>
-                            <div className="inclusion-rating-inputs">
-                              <select className="form-control" required
-                                value={sample.inclTypeC} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'inclTypeC', e.target.value)}>
-                                <option value="">Type</option>
-                                <option value="Thick">Thick</option>
-                                <option value="Thin">Thin</option>
-                              </select>
-                              <input type="number" step="0.1" className="form-control" required max="2.0"
-                                value={sample.inclC} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'inclC', e.target.value)}
-                                placeholder="≤2.0" />
-                            </div>
+                        {/* Inclusion C */}
+                        <div className="inclusion-rating-item">
+                          <label className="inclusion-rating-label">
+                            Inclusion Rating (C) <span style={{ color: '#ef4444' }}>*</span>
+                          </label>
+                          <div className="inclusion-rating-inputs">
+                            <select className="form-control" required
+                              value={sample.inclTypeC} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'inclTypeC', e.target.value)}>
+                              <option value="">Type</option>
+                              <option value="Thick">Thick</option>
+                              <option value="Thin">Thin</option>
+                            </select>
+                            <input type="number" step="0.1" className="form-control" required max="2.0"
+                              value={sample.inclC} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'inclC', e.target.value)}
+                              placeholder="≤2.0" />
                           </div>
+                        </div>
 
-                          {/* Inclusion D */}
-                          <div className="inclusion-rating-item">
-                            <label className="inclusion-rating-label">
-                              Inclusion Rating (D) <span style={{ color: '#ef4444' }}>*</span>
-                            </label>
-                            <div className="inclusion-rating-inputs">
-                              <select className="form-control" required
-                                value={sample.inclTypeD} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'inclTypeD', e.target.value)}>
-                                <option value="">Type</option>
-                                <option value="Thick">Thick</option>
-                                <option value="Thin">Thin</option>
-                              </select>
-                              <input type="number" step="0.1" className="form-control" required max="2.0"
-                                value={sample.inclD} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'inclD', e.target.value)}
-                                placeholder="≤2.0" />
-                            </div>
+                        {/* Inclusion D */}
+                        <div className="inclusion-rating-item">
+                          <label className="inclusion-rating-label">
+                            Inclusion Rating (D) <span style={{ color: '#ef4444' }}>*</span>
+                          </label>
+                          <div className="inclusion-rating-inputs">
+                            <select className="form-control" required
+                              value={sample.inclTypeD} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'inclTypeD', e.target.value)}>
+                              <option value="">Type</option>
+                              <option value="Thick">Thick</option>
+                              <option value="Thin">Thin</option>
+                            </select>
+                            <input type="number" step="0.1" className="form-control" required max="2.0"
+                              value={sample.inclD} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'inclD', e.target.value)}
+                              placeholder="≤2.0" />
                           </div>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-
+                    </div>
+                  );
+                })}
               </div>
-            ))}
+
+            </div>
+          ))}
         </div>
       )}
 

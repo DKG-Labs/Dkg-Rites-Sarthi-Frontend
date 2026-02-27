@@ -44,6 +44,9 @@ export const ProcessDashboardWrapper = () => {
     place_of_inspection: call.place_of_inspection,
     rawMaterialICs: call.rm_heat_tc_mapping?.map(m => m.subPoNumber).filter(Boolean).join(', ') || '',
     productType: call.product_type || 'ERC Process',
+    // Additional fields for PO formatting
+    poSerialNo: call.po_serial_no || call.serial_no || '',
+    rlyShortName: call.rly_short_name || call.rly_cd || '',
     // Additional fields for Inspection Details
     contractor: call.contractor || call.vendor_name || '',
     manufacturer: call.manufacturer || call.vendor_name || '',

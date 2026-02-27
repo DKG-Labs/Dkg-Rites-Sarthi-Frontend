@@ -10,6 +10,7 @@ import VerifiedOpenCallsTab from './VerifiedOpenCallsTab';
 import DisposedCallsTab from './DisposedCallsTab';
 import useCallDeskData from '../hooks/useCallDeskData';
 import useCallActions from '../hooks/useCallActions';
+import { formatDate } from '../../../utils/helpers';
 import '../styles/CallDeskDashboard.css';
 
 const CallDeskDashboard = () => {
@@ -40,12 +41,12 @@ const CallDeskDashboard = () => {
   } = useCallDeskData();
 
   const {
-  verifyAndAccept,
-  returnForRectification,
-  rerouteToRIO,
-  viewCallHistory,          
-  loading: actionLoading
-} = useCallActions();
+    verifyAndAccept,
+    returnForRectification,
+    rerouteToRIO,
+    viewCallHistory,
+    loading: actionLoading
+  } = useCallActions();
 
 
 
@@ -71,21 +72,21 @@ const CallDeskDashboard = () => {
   ];
 
   // Action handlers
-const handleViewHistory = async (call) => {
-  setSelectedCall(call);
-  setShowHistoryModal(true);
-  setHistoryLoading(true);
+  const handleViewHistory = async (call) => {
+    setSelectedCall(call);
+    setShowHistoryModal(true);
+    setHistoryLoading(true);
 
-  try {
-    const data = await viewCallHistory(call.callNumber); //  API CALL
-    setHistoryData(data);
-    console.log("history data", data);
-  } catch (err) {
-    alert(err.message || 'Failed to load history');
-  } finally {
-    setHistoryLoading(false);
-  }
-};
+    try {
+      const data = await viewCallHistory(call.callNumber); //  API CALL
+      setHistoryData(data);
+      console.log("history data", data);
+    } catch (err) {
+      alert(err.message || 'Failed to load history');
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
 
 
   const handleViewDetails = (call) => {
@@ -116,7 +117,7 @@ const handleViewHistory = async (call) => {
   // Submit actions
   const submitVerify = async () => {
     if (!selectedCall) return;
-    
+
     const result = await verifyAndAccept(selectedCall.id, selectedCall, actionRemarks);
     if (result.success) {
       alert('Call verified and registered successfully!');
@@ -132,8 +133,8 @@ const handleViewHistory = async (call) => {
       alert('Remarks are mandatory for returning a call');
       return;
     }
-    
-    const result = await returnForRectification(selectedCall.id,selectedCall, actionRemarks, flaggedFields);
+
+    const result = await returnForRectification(selectedCall.id, selectedCall, actionRemarks, flaggedFields);
     if (result.success) {
       alert('Call returned for rectification successfully!');
       setShowReturnModal(false);
@@ -142,33 +143,33 @@ const handleViewHistory = async (call) => {
       alert(result.message);
     }
   };
-const submitReroute = async () => {
-  if (!selectedCall || !selectedRIO || !actionRemarks.trim()) {
-    alert('Target RIO and remarks are mandatory for re-routing');
-    return;
-  }
+  const submitReroute = async () => {
+    if (!selectedCall || !selectedRIO || !actionRemarks.trim()) {
+      alert('Target RIO and remarks are mandatory for re-routing');
+      return;
+    }
 
-  const result = await rerouteToRIO(
-    selectedCall.id,
-    selectedCall,
-    selectedRIO,
-    actionRemarks
-  );
+    const result = await rerouteToRIO(
+      selectedCall.id,
+      selectedCall,
+      selectedRIO,
+      actionRemarks
+    );
 
-  if (result.success) {
-    alert(`Call re-routed to ${selectedRIO} successfully!`);
-    setShowRerouteModal(false);
-    refreshData();
-  } else {
-    alert(result.message);
-  }
-};
+    if (result.success) {
+      alert(`Call re-routed to ${selectedRIO} successfully!`);
+      setShowRerouteModal(false);
+      refreshData();
+    } else {
+      alert(result.message);
+    }
+  };
 
 
   // Toggle flagged field
   const toggleFlaggedField = (field) => {
-    setFlaggedFields(prev => 
-      prev.includes(field) 
+    setFlaggedFields(prev =>
+      prev.includes(field)
         ? prev.filter(f => f !== field)
         : [...prev, field]
     );
@@ -248,62 +249,62 @@ const submitReroute = async () => {
               <h2>Call History - {selectedCall.callNumber}</h2>
               <button className="modal-close" onClick={() => setShowHistoryModal(false)}>×</button>
             </div>
-           <div className="modal-body">
-  {historyLoading ? (
-    <div className="history-empty">Loading history...</div>
-  ) : historyData.length === 0 ? (
-    <div className="history-empty">No history found</div>
-  ) : (
-    <table className="history-table">
-      <thead>
-        <tr>
-          <th>Action</th>
-          <th>Status</th>
-          <th>Created By</th>
-          <th>Modified By</th>
-          <th>Date & Time</th>
-        </tr>
-      </thead>
+            <div className="modal-body">
+              {historyLoading ? (
+                <div className="history-empty">Loading history...</div>
+              ) : historyData.length === 0 ? (
+                <div className="history-empty">No history found</div>
+              ) : (
+                <table className="history-table">
+                  <thead>
+                    <tr>
+                      <th>Action</th>
+                      <th>Status</th>
+                      <th>Created By</th>
+                      <th>Modified By</th>
+                      <th>Date & Time</th>
+                    </tr>
+                  </thead>
 
-      <tbody>
-  {historyData.map((row, index) => (
-    <tr key={index}>
-      {/* Action */}
-      <td className="action-cell">
-        {row.action || '-'}
-      </td>
+                  <tbody>
+                    {historyData.map((row, index) => (
+                      <tr key={index}>
+                        {/* Action */}
+                        <td className="action-cell">
+                          {row.action || '-'}
+                        </td>
 
-      {/* Status */}
-      <td>
-        {row.status || '-'}
-      </td>
+                        {/* Status */}
+                        <td>
+                          {row.status || '-'}
+                        </td>
 
-      {/* Created By */}
-      <td>
-        {row.createdBy ?? '-'}
-      </td>
+                        {/* Created By */}
+                        <td>
+                          {row.createdBy ?? '-'}
+                        </td>
 
-      {/* Modified By */}
-      <td>
-        {row.updatedBy ?? '-'}
-      </td>
+                        {/* Modified By */}
+                        <td>
+                          {row.updatedBy ?? '-'}
+                        </td>
 
-      {/* Date & Time */}
-      <td>
-        {row.createdDate
-          ? new Date(row.createdDate).toLocaleString()
-          : '-'}
-      </td>
-    </tr>
-  ))}
-</tbody>
+                        {/* Date & Time */}
+                        <td>
+                          {row.createdDate
+                            ? formatDate(row.createdDate)
+                            : '-'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
 
-    </table>
-  )}
-</div>
+                </table>
+              )}
+            </div>
 
 
-          
+
             <div className="modal-footer">
               <button className="btn btn-secondary" onClick={() => setShowHistoryModal(false)}>
                 Close
@@ -345,7 +346,7 @@ const submitReroute = async () => {
                 </div>
                 <div className="detail-item">
                   <label>Desired Inspection Date:</label>
-                  <span>{new Date(selectedCall.desiredInspectionDate).toLocaleDateString()}</span>
+                  <span>{formatDate(selectedCall.desiredInspectionDate)}</span>
                 </div>
                 <div className="detail-item">
                   <label>Place of Inspection:</label>
@@ -489,20 +490,20 @@ const submitReroute = async () => {
               <div className="form-group">
                 <label>Target RIO: <span className="text-danger">*</span></label>
                 <select
-  className="form-control"
-  value={selectedRIO}
-  onChange={(e) => setSelectedRIO(e.target.value)}
-  required
->
-  <option value="">Select RIO...</option>
-  {['NRIO', 'CRIO', 'WRIO', 'SRIO']
-    .filter(rio => rio !== selectedCall.rio)
-    .map(rio => (
-      <option key={rio} value={rio}>
-        {rio}
-      </option>
-    ))}
-</select>
+                  className="form-control"
+                  value={selectedRIO}
+                  onChange={(e) => setSelectedRIO(e.target.value)}
+                  required
+                >
+                  <option value="">Select RIO...</option>
+                  {['NRIO', 'CRIO', 'WRIO', 'SRIO']
+                    .filter(rio => rio !== selectedCall.rio)
+                    .map(rio => (
+                      <option key={rio} value={rio}>
+                        {rio}
+                      </option>
+                    ))}
+                </select>
 
               </div>
               <div className="form-group">

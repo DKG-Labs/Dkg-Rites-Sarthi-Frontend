@@ -1113,6 +1113,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
         totalSampleSize: totalSampleSize,
         bagsForSampling: bagsForSampling,
         bagsOffered: bagsOffered,
+        dateOfInspection: sessionStorage.getItem('inspectionDate') || new Date().toISOString().split('T')[0],
         // Audit fields - backend will use createdBy/createdAt for new records, updatedBy/updatedAt for updates
         createdBy: currentUser,
         createdAt: now,
@@ -1207,7 +1208,8 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
         action: 'INSPECTION_COMPLETE_CONFIRM',
         remarks: `Final Product Inspection completed with status: ${overallInspectionStatus}`,
         actionBy: userId,
-        pincode: selectedCall?.pincode || '560001'
+        pincode: selectedCall?.pincode || '560001',
+        dateOfInspection: sessionStorage.getItem('inspectionDate') || new Date().toISOString().split('T')[0]
       };
 
       console.log('Workflow Action Data:', workflowActionData);
@@ -1301,6 +1303,7 @@ Workflow Status: ✅ Transitioned to COMPLETED
         totalSampleSize: totalSampleSize,
         bagsForSampling: bagsForSampling,
         bagsOffered: bagsOffered,
+        dateOfInspection: sessionStorage.getItem('inspectionDate') || new Date().toISOString().split('T')[0],
         createdBy: currentUser,
         createdAt: now,
         updatedBy: currentUser,
@@ -1377,7 +1380,8 @@ Workflow Status: ✅ Transitioned to COMPLETED
         action: 'PAUSE_INSPECTION_RESUME_NEXT_DAY',
         remarks: 'Final Product Inspection paused - will resume next day',
         actionBy: userId,
-        pincode: selectedCall?.pincode || '560001'
+        pincode: selectedCall?.pincode || '560001',
+        dateOfInspection: sessionStorage.getItem('inspectionDate') || new Date().toISOString().split('T')[0]
       };
 
       console.log('Workflow Action Data:', workflowActionData);

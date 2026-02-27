@@ -4670,7 +4670,8 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
             remarks: `Shift completed for lot ${lotNo}, heat ${heatNo}. Current shift - Manufactured: ${currentShiftManufacturedQty}, Rejected: ${currentShiftRejectedQty}, Accepted: ${currentShiftAcceptedQty}. Cumulative - Manufactured: ${cumulativeManufacturedQty}, Rejected: ${cumulativeRejectedQty}, Accepted: ${cumulativeAcceptedQty}`,
             actionBy: userId,
             pincode: pincode,
-            shiftCode: lotData.shiftCode
+            shiftCode: lotData.shiftCode,
+            dateOfInspection: sessionStorage.getItem('inspectionDate') || new Date().toISOString().split('T')[0]
           };
 
           console.log(`🔄 [Shift Completed] Sending API call for ${key} (CURRENT SHIFT DATA ONLY):`, actionData);
@@ -5091,7 +5092,8 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
             remarks: `Inspection ${action === 'INSPECTION_COMPLETE_CONFIRM' ? 'completed' : 'paused'} for lot ${lotNo}, heat ${heatNo}. Current shift - Manufactured: ${currentShiftManufacturedQty}, Rejected: ${currentShiftRejectedQty}, Accepted: ${currentShiftAcceptedQty}. Cumulative - Manufactured: ${cumulativeManufacturedQty}, Rejected: ${cumulativeRejectedQty}, Accepted: ${cumulativeAcceptedQty}`,
             actionBy: userId,
             pincode: pincode,
-            shiftCode: lotData.shiftCode
+            shiftCode: lotData.shiftCode,
+            dateOfInspection: sessionStorage.getItem('inspectionDate') || new Date().toISOString().split('T')[0]
           };
 
           console.log(`🔄 [Finish] Sending API call for ${key} with action ${action}:`, actionData);
@@ -5662,6 +5664,16 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
                         fontSize: '13px',
                         textTransform: 'uppercase',
                         letterSpacing: '0.5px',
+                        minWidth: '180px'
+                      }}>Sealing Details</th>
+                      <th style={{
+                        padding: '12px 16px',
+                        textAlign: 'left',
+                        fontWeight: 600,
+                        color: '#15803d',
+                        fontSize: '13px',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
                         minWidth: '140px'
                       }}>Max No. of ERC Can Be Mfg</th>
                       <th style={{
@@ -5752,6 +5764,27 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
                             color: '#64748b',
                             fontWeight: 500
                           }}>{weightAcceptedMt > 0 ? weightAcceptedMt : '-'}</td>
+                          <td data-label="Sealing Details" style={{
+                            padding: '12px 16px',
+                            color: '#64748b',
+                            fontSize: '12px',
+                            fontWeight: 400
+                          }}>
+                            {apiData?.sealingType ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                <div style={{ fontWeight: 600, color: '#1f2937' }}>
+                                  {apiData.sealingType === 'RITES_STEEL_PUNCH' ? 'Steel Punch' : 'Hologram'}
+                                </div>
+                                {apiData.sealingType === 'RITES_STEEL_PUNCH' ? (
+                                  <div style={{ fontSize: '11px' }}>Stamp: {apiData.steelStampNumber || '-'}</div>
+                                ) : (
+                                  <div style={{ maxWidth: '250px', whiteSpace: 'normal', fontSize: '10px', lineHeight: '1.2' }}>
+                                    {apiData.hologramDetails || '-'}
+                                  </div>
+                                )}
+                              </div>
+                            ) : '-'}
+                          </td>
                           <td data-label="Max ERC Can be Mfg" style={{
                             padding: '12px 16px',
                             color: '#3b82f6',
@@ -6828,7 +6861,8 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
                 actionBy: userId,
                 pincode: resumeCallData.pincode || '560001',
                 materialAvailable: 'YES',
-                shiftCode: (shift || 'A').charAt(0).toUpperCase()
+                shiftCode: (shift || 'A').charAt(0).toUpperCase(),
+                dateOfInspection: sessionStorage.getItem('inspectionDate') || new Date().toISOString().split('T')[0]
               };
 
               await performTransitionAction(workflowActionData);

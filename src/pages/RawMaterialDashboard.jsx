@@ -78,6 +78,36 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       return saved ? (JSON.parse(saved).heatRemarks || {}) : {};
     } catch { return {}; }
   });
+
+  // Per-heat sealing type: { heatNo: 'RITES_STEEL_PUNCH' | 'RITES_HOLOGRAM', ... }
+  const [heatSealingType, setHeatSealingType] = useState(() => {
+    try {
+      const callNo = call?.call_no;
+      if (!callNo) return {};
+      const saved = localStorage.getItem(`${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}`);
+      return saved ? (JSON.parse(saved).heatSealingType || {}) : {};
+    } catch { return {}; }
+  });
+
+  // Per-heat steel stamp number: { heatNo: 'stamp text', ... }
+  const [heatSteelStampNumber, setHeatSteelStampNumber] = useState(() => {
+    try {
+      const callNo = call?.call_no;
+      if (!callNo) return {};
+      const saved = localStorage.getItem(`${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}`);
+      return saved ? (JSON.parse(saved).heatSteelStampNumber || {}) : {};
+    } catch { return {}; }
+  });
+
+  // Per-heat hologram entries: { heatNo: [{type, from, to, value}, ...], ... }
+  const [heatHologramEntries, setHeatHologramEntries] = useState(() => {
+    try {
+      const callNo = call?.call_no;
+      if (!callNo) return {};
+      const saved = localStorage.getItem(`${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}`);
+      return saved ? (JSON.parse(saved).heatHologramEntries || {}) : {};
+    } catch { return {}; }
+  });
   // Collapsible state for Pre-Inspection Data Entry card
   const [isPreInspectionExpanded, setIsPreInspectionExpanded] = useState(true);
 
@@ -291,13 +321,16 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
             setFetchedHeatData(heatsData);
             updateRmHeatDataCache(callNo, heatsData); // Cache it!
 
-            // Also restore numberOfBundles, sourceOfRawMaterial, and heatRemarks from localStorage
+            // Also restore numberOfBundles, sourceOfRawMaterial, heatRemarks, and sealing/hologram data from localStorage
             if (savedData) {
               try {
                 const parsed = JSON.parse(savedData);
                 if (parsed.numberOfBundles) setNumberOfBundles(parsed.numberOfBundles);
                 if (parsed.sourceOfRawMaterial) setSourceOfRawMaterial(parsed.sourceOfRawMaterial);
                 if (parsed.heatRemarks) setHeatRemarks(parsed.heatRemarks);
+                if (parsed.heatSealingType) setHeatSealingType(parsed.heatSealingType);
+                if (parsed.heatSteelStampNumber) setHeatSteelStampNumber(parsed.heatSteelStampNumber);
+                if (parsed.heatHologramEntries) setHeatHologramEntries(parsed.heatHologramEntries);
               } catch (e) {
                 console.error('Error restoring main inspection data:', e);
               }
@@ -540,24 +573,58 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
             console.log('✅ Restored pre-inspection data (prioritizing local edits)');
           }
 
-          // Restore heat final results (remarks)
+          // Helper to parse hologram string back to entries
+          const parseHologramString = (str) => {
+            if (!str) return [];
+            return str.split(', ').map(entry => {
+              if (entry.startsWith('Range: ')) {
+                const parts = entry.replace('Range: ', '').split(' to ');
+                return { type: 'range', from: parts[0] || '', to: parts[1] || '' };
+              } else if (entry.startsWith('Single: ')) {
+                return { type: 'single', value: entry.replace('Single: ', '') };
+              }
+              return null;
+            }).filter(Boolean);
+          };
+
+          // Restore heat final results (remarks, sealing, holograms)
           if (pausedData.heatFinalResults && pausedData.heatFinalResults.length > 0) {
             const mainKey = `${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}`;
             const mainData = localStorage.getItem(mainKey);
             const existingData = mainData ? JSON.parse(mainData) : {};
-            const localRemarks = existingData.heatRemarks || {};
 
-            const remarksMap = { ...localRemarks }; // Start with local remarks
+            const localRemarks = existingData.heatRemarks || {};
+            const localSealingType = existingData.heatSealingType || {};
+            const localSteelStamp = existingData.heatSteelStampNumber || {};
+            const localHolograms = existingData.heatHologramEntries || {};
+
+            const remarksMap = { ...localRemarks };
+            const sealingTypeMap = { ...localSealingType };
+            const steelStampMap = { ...localSteelStamp };
+            const hologramsMap = { ...localHolograms };
 
             pausedData.heatFinalResults.forEach(result => {
-              // Only take from backend if no local remark exists for this heat
-              if (result.remarks && !remarksMap[result.heatNo]) {
-                remarksMap[result.heatNo] = result.remarks;
+              const hNo = result.heatNo;
+              // Only take from backend if no local data exists for this heat
+              if (result.remarks && !remarksMap[hNo]) {
+                remarksMap[hNo] = result.remarks;
+              }
+              if (result.sealingType && !sealingTypeMap[hNo]) {
+                sealingTypeMap[hNo] = result.sealingType;
+              }
+              if (result.steelStampNumber && !steelStampMap[hNo]) {
+                steelStampMap[hNo] = result.steelStampNumber;
+              }
+              if (result.hologramDetails && (!hologramsMap[hNo] || hologramsMap[hNo].length === 0)) {
+                hologramsMap[hNo] = parseHologramString(result.hologramDetails);
               }
             });
 
             setHeatRemarks(remarksMap);
-            console.log('✅ Restored heat remarks (merged with local edits)');
+            setHeatSealingType(sealingTypeMap);
+            setHeatSteelStampNumber(steelStampMap);
+            setHeatHologramEntries(hologramsMap);
+            console.log('✅ Restored heat remarks and sealing details (merged with local edits)');
           }
 
           console.log('✅ All paused inspection data restored successfully');
@@ -1413,6 +1480,13 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           }
         }
 
+        // Prepare hologram string for backend
+        const hologramEntries = heatHologramEntries[heatNo] || [];
+        const hologramString = hologramEntries.map(h => {
+          if (h.type === 'range') return `Range: ${h.from} to ${h.to}`;
+          return `Single: ${h.value}`;
+        }).join(', ');
+
         return {
           inspectionCallNo,
           heatNo,
@@ -1435,6 +1509,11 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           status: overallStatus,
           overallStatus: overallStatus,
 
+          // Sealing Details
+          sealingType: heatSealingType[heatNo] || null,
+          steelStampNumber: heatSteelStampNumber[heatNo] || null,
+          hologramDetails: hologramString || null,
+
           // Cumulative Summary
           totalHeatsOffered: consolidatedHeats.length,
           totalQtyOfferedMt: consolidatedHeats.reduce((sum, h) => sum + h.weight, 0),
@@ -1446,7 +1525,8 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
           // Audit Fields
           createdBy: userId,
-          shift: shiftOfInspection
+          shift: shiftOfInspection,
+          dateOfInspection: sessionStorage.getItem('inspectionDate') || new Date().toISOString().split('T')[0]
         };
       });
 
@@ -1577,7 +1657,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     } finally {
       setIsSaving(false);
     }
-  }, [call?.call_no, call?.id, call?.pincode, call?.workflowTransitionId, activeHeats, onBack, numberOfBundles, numberOfERC, sourceOfRawMaterial, poData, productModel, heatSubmoduleStatuses, heatRemarks, calculateVisualRejectedWeight, consolidatedHeats, canFinishInspection, updateRmCallDataCache, updateRmHeatDataCache, updateRmPoDataCache]);
+  }, [call?.call_no, call?.id, call?.pincode, call?.workflowTransitionId, activeHeats, onBack, numberOfBundles, numberOfERC, sourceOfRawMaterial, poData, productModel, heatSubmoduleStatuses, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, calculateVisualRejectedWeight, consolidatedHeats, canFinishInspection, updateRmCallDataCache, updateRmHeatDataCache, updateRmPoDataCache]);
 
   // Withheld modal handlers
   const handleOpenWithheldModal = () => {
@@ -1712,6 +1792,11 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
     setIsSaving(true);
     try {
+      // Get current user for audit fields
+      const currentUser = getStoredUser();
+      const userId = currentUser?.userId || currentUser?.username || 'IE_USER';
+      const shiftOfInspection = sessionStorage.getItem('inspectionShift') || null;
+
       // Helper to safely parse decimal values
       const parseDecimal = (val) => {
         if (val === null || val === undefined || val === '') return null;
@@ -1846,7 +1931,8 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                 identificationTagBundle: heatData.identificationTagBundle || null,
                 metalTagInformation: heatData.metalTagInformation || null,
                 remarks: heatData.remarks || null,
-                shift: shiftOfInspection
+                shift: shiftOfInspection,
+                dateOfInspection: sessionStorage.getItem('inspectionDate') || new Date().toISOString().split('T')[0]
               });
             }
           });
@@ -1897,10 +1983,6 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         sourceOfRawMaterial: sourceOfRawMaterial || null
       };
 
-      // Get current user for audit fields
-      const currentUser = getStoredUser();
-      const userId = currentUser?.userId || currentUser?.username || 'IE_USER';
-      const shiftOfInspection = sessionStorage.getItem('inspectionShift') || null;
 
       // Collect heat final results using consolidatedHeats to group duplicate heat numbers
       const heatFinalResults = consolidatedHeats.map((heat) => {
@@ -1958,6 +2040,13 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           overallStatus = 'PENDING';
         }
 
+        // Prepare hologram string for backend
+        const hologramEntries = heatHologramEntries[heatNo] || [];
+        const hologramString = hologramEntries.map(h => {
+          if (h.type === 'range') return `Range: ${h.from} to ${h.to}`;
+          return `Single: ${h.value}`;
+        }).join(', ');
+
         return {
           inspectionCallNo,
           heatNo,
@@ -1978,9 +2067,15 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           noOfErcFinished: numberOfERC ? parseInt(numberOfERC) : 0,
           remarks: heatRemarks[heatNo] || null,
 
+          // Sealing Details
+          sealingType: heatSealingType[heatNo] || null,
+          steelStampNumber: heatSteelStampNumber[heatNo] || null,
+          hologramDetails: hologramString || null,
+
           // Audit Fields
           createdBy: userId,
-          shift: shiftOfInspection
+          shift: shiftOfInspection,
+          dateOfInspection: sessionStorage.getItem('inspectionDate') || new Date().toISOString().split('T')[0]
         };
       });
 
@@ -2097,7 +2192,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       setIsSaving(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [call, onBack, activeHeats, numberOfBundles, numberOfERC, sourceOfRawMaterial, poData, productModel, heatSubmoduleStatuses, heatRemarks, updateRmCallDataCache, updateRmHeatDataCache, updateRmPoDataCache]);
+  }, [call, onBack, activeHeats, numberOfBundles, numberOfERC, sourceOfRawMaterial, poData, productModel, heatSubmoduleStatuses, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, updateRmCallDataCache, updateRmHeatDataCache, updateRmPoDataCache]);
 
   // Save Draft handler
   const handleSaveDraft = useCallback(() => {
@@ -2122,6 +2217,9 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         numberOfBundles: numberOfBundles,
         sourceOfRawMaterial: sourceOfRawMaterial,
         heatRemarks: heatRemarks,
+        heatSealingType: heatSealingType,
+        heatSteelStampNumber: heatSteelStampNumber,
+        heatHologramEntries: heatHologramEntries,
         // Save heat color codes
         heatColorCodes: fetchedHeatData.reduce((acc, heat) => {
           if (heat.heatNo && heat.colorCode) {
@@ -2160,7 +2258,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     } finally {
       setIsSavingDraft(false);
     }
-  }, [call?.call_no, numberOfBundles, sourceOfRawMaterial, heatRemarks, fetchedHeatData]);
+  }, [call?.call_no, numberOfBundles, sourceOfRawMaterial, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, fetchedHeatData]);
 
   // Load draft data from localStorage on mount (after heat data is loaded)
   useEffect(() => {
@@ -2182,6 +2280,9 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         if (draftData.numberOfBundles) setNumberOfBundles(draftData.numberOfBundles);
         if (draftData.sourceOfRawMaterial) setSourceOfRawMaterial(draftData.sourceOfRawMaterial);
         if (draftData.heatRemarks) setHeatRemarks(draftData.heatRemarks);
+        if (draftData.heatSealingType) setHeatSealingType(draftData.heatSealingType);
+        if (draftData.heatSteelStampNumber) setHeatSteelStampNumber(draftData.heatSteelStampNumber);
+        if (draftData.heatHologramEntries) setHeatHologramEntries(draftData.heatHologramEntries);
 
         // Restore color codes to heat data
         if (draftData.heatColorCodes && Object.keys(draftData.heatColorCodes).length > 0) {
@@ -2202,6 +2303,40 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       console.error('Error loading draft data:', error);
     }
   }, [call?.call_no, fetchedHeatData]);
+
+  // Auto-save dashboard fields to localStorage whenever they change
+  useEffect(() => {
+    const inspectionCallNo = call?.call_no;
+    if (!inspectionCallNo) return;
+
+    try {
+      const draftData = {
+        savedAt: new Date().toISOString(),
+        numberOfBundles,
+        sourceOfRawMaterial,
+        heatRemarks,
+        heatSealingType,
+        heatSteelStampNumber,
+        heatHologramEntries,
+        // Keep color codes in sync if available
+        heatColorCodes: fetchedHeatData.reduce((acc, heat) => {
+          if (heat.heatNo && heat.colorCode) {
+            acc[heat.heatNo] = heat.colorCode;
+          }
+          return acc;
+        }, {})
+      };
+
+      const storageKey = `${DASHBOARD_DRAFT_KEY}${inspectionCallNo}`;
+      const mainKey = `${STORAGE_KEYS.MAIN_INSPECTION}_${inspectionCallNo}`;
+
+      const serializedData = JSON.stringify(draftData);
+      localStorage.setItem(storageKey, serializedData);
+      localStorage.setItem(mainKey, serializedData);
+    } catch (error) {
+      console.error('Error in auto-save:', error);
+    }
+  }, [call?.call_no, numberOfBundles, sourceOfRawMaterial, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, fetchedHeatData]);
 
   // Show loading indicator while fetching data
   if (isLoading) {
@@ -2862,6 +2997,309 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                         style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', fontSize: '13px', height: '32px' }}
                       />
                     </div>
+
+                    {/* Are you sealing with section - Refined UX with Segmented Control */}
+                    <div style={{
+                      gridColumn: 'span 7',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '24px',
+                      marginTop: '8px',
+                      padding: '16px',
+                      background: '#fffbeb',
+                      borderRadius: '10px',
+                      border: '1px solid #fde68a',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                    }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: '700', color: '#854d0e', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          Are you sealing with:
+                        </span>
+                      </div>
+
+                      {/* Segmented Control UI */}
+                      <div style={{
+                        display: 'flex',
+                        background: '#fef3c7',
+                        padding: '4px',
+                        borderRadius: '8px',
+                        border: '1px solid #fbbf24'
+                      }}>
+                        <button
+                          onClick={() => setHeatSealingType(prev => ({ ...prev, [heat.heatNo]: 'RITES_STEEL_PUNCH' }))}
+                          style={{
+                            padding: '8px 20px',
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            transition: 'all 0.2s',
+                            border: 'none',
+                            background: heatSealingType[heat.heatNo] === 'RITES_STEEL_PUNCH' ? '#fff' : 'transparent',
+                            color: heatSealingType[heat.heatNo] === 'RITES_STEEL_PUNCH' ? '#b45309' : '#d97706',
+                            boxShadow: heatSealingType[heat.heatNo] === 'RITES_STEEL_PUNCH' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
+                          }}
+                        >
+                          <span style={{
+                            width: '12px',
+                            height: '12px',
+                            borderRadius: '50%',
+                            border: '2px solid',
+                            background: heatSealingType[heat.heatNo] === 'RITES_STEEL_PUNCH' ? '#b45309' : 'transparent',
+                            display: 'inline-block'
+                          }}></span>
+                          RITES Steel Punch
+                        </button>
+                        <button
+                          onClick={() => setHeatSealingType(prev => ({ ...prev, [heat.heatNo]: 'RITES_HOLOGRAM' }))}
+                          style={{
+                            padding: '8px 20px',
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            transition: 'all 0.2s',
+                            border: 'none',
+                            background: heatSealingType[heat.heatNo] === 'RITES_HOLOGRAM' ? '#fff' : 'transparent',
+                            color: heatSealingType[heat.heatNo] === 'RITES_HOLOGRAM' ? '#b45309' : '#d97706',
+                            boxShadow: heatSealingType[heat.heatNo] === 'RITES_HOLOGRAM' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
+                          }}
+                        >
+                          <span style={{
+                            width: '12px',
+                            height: '12px',
+                            borderRadius: '50%',
+                            border: '2px solid',
+                            background: heatSealingType[heat.heatNo] === 'RITES_HOLOGRAM' ? '#b45309' : 'transparent',
+                            display: 'inline-block'
+                          }}></span>
+                          RITES Hologram
+                        </button>
+                      </div>
+
+                      {/* IE Steel Stamp Number Inline - Enhanced Prominence */}
+                      {heatSealingType[heat.heatNo] === 'RITES_STEEL_PUNCH' && (
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          marginLeft: 'auto',
+                          background: '#fff',
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          border: '2px solid #fbbf24'
+                        }}>
+                          <span style={{ fontSize: '13px', fontWeight: '700', color: '#b45309' }}>IE Steel Stamp No:</span>
+                          <input
+                            type="text"
+                            className="rm-form-input"
+                            placeholder="Type here..."
+                            value={heatSteelStampNumber[heat.heatNo] || ''}
+                            onChange={(e) => setHeatSteelStampNumber(prev => ({ ...prev, [heat.heatNo]: e.target.value }))}
+                            style={{
+                              width: '180px',
+                              padding: '6px 12px',
+                              borderRadius: '6px',
+                              fontSize: '15px',
+                              fontWeight: '600',
+                              height: '36px',
+                              border: '1px solid #d1d5db',
+                              outlineColor: '#fbbf24'
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Hologram Details Refined Section - High Discoverability */}
+                    {heatSealingType[heat.heatNo] === 'RITES_HOLOGRAM' && (
+                      <div style={{
+                        gridColumn: 'span 7',
+                        background: '#f0fdf4',
+                        padding: '20px',
+                        borderRadius: '10px',
+                        border: '1px solid #bbf7d0',
+                        marginTop: '4px',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ width: '8px', height: '24px', background: '#166534', borderRadius: '4px' }}></div>
+                            <span style={{ fontSize: '16px', fontWeight: '700', color: '#166534' }}>Hologram Entries</span>
+                          </div>
+                          <div style={{ display: 'flex', gap: '12px' }}>
+                            <button
+                              className="btn"
+                              onClick={() => {
+                                setHeatHologramEntries(prev => {
+                                  const current = prev[heat.heatNo] || [];
+                                  return { ...prev, [heat.heatNo]: [...current, { type: 'range', from: '', to: '' }] };
+                                });
+                              }}
+                              style={{
+                                padding: '8px 18px',
+                                fontSize: '13px',
+                                background: '#0284c7',
+                                color: 'white',
+                                borderRadius: '6px',
+                                border: 'none',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                boxShadow: '0 2px 4px rgba(2, 132, 199, 0.2)',
+                                transition: 'all 0.2s'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = '#0369a1'}
+                              onMouseLeave={(e) => e.currentTarget.style.background = '#0284c7'}
+                            >
+                              <span style={{ fontSize: '18px' }}>+</span> Add Range
+                            </button>
+                            <button
+                              className="btn"
+                              onClick={() => {
+                                setHeatHologramEntries(prev => {
+                                  const current = prev[heat.heatNo] || [];
+                                  return { ...prev, [heat.heatNo]: [...current, { type: 'single', value: '' }] };
+                                });
+                              }}
+                              style={{
+                                padding: '8px 18px',
+                                fontSize: '13px',
+                                background: '#0284c7',
+                                color: 'white',
+                                borderRadius: '6px',
+                                border: 'none',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                boxShadow: '0 2px 4px rgba(2, 132, 199, 0.2)',
+                                transition: 'all 0.2s'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = '#0369a1'}
+                              onMouseLeave={(e) => e.currentTarget.style.background = '#0284c7'}
+                            >
+                              <span style={{ fontSize: '18px' }}>+</span> Add Single
+                            </button>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                          {(heatHologramEntries[heat.heatNo] || []).length === 0 && (
+                            <div style={{ textAlign: 'center', padding: '20px', border: '2px dashed #bbf7d0', borderRadius: '8px', color: '#166534', fontSize: '14px', fontStyle: 'italic' }}>
+                              No holograms added. Click the buttons above to add entries.
+                            </div>
+                          )}
+                          {(heatHologramEntries[heat.heatNo] || []).map((holo, idx) => (
+                            <div key={idx} style={{
+                              display: 'flex',
+                              gap: '16px',
+                              alignItems: 'center',
+                              background: '#fff',
+                              padding: '12px 16px',
+                              borderRadius: '8px',
+                              border: '1px solid #bbf7d0',
+                              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                            }}>
+                              <span style={{ fontSize: '14px', color: '#166534', minWidth: '70px', fontWeight: '700' }}>
+                                {holo.type === 'range' ? 'RANGE' : 'SINGLE'}
+                              </span>
+                              {holo.type === 'range' ? (
+                                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                    <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>FROM</span>
+                                    <input
+                                      className="rm-form-input"
+                                      placeholder="Start No."
+                                      value={holo.from || ''}
+                                      onChange={(e) => {
+                                        setHeatHologramEntries(prev => {
+                                          const current = [...(prev[heat.heatNo] || [])];
+                                          current[idx] = { ...current[idx], from: e.target.value };
+                                          return { ...prev, [heat.heatNo]: current };
+                                        });
+                                      }}
+                                      style={{ width: '140px', padding: '8px 12px', fontSize: '14px', height: '38px', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                                    />
+                                  </div>
+                                  <span style={{ fontSize: '14px', color: '#64748b', marginTop: '14px' }}>to</span>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                    <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>TO</span>
+                                    <input
+                                      className="rm-form-input"
+                                      placeholder="End No."
+                                      value={holo.to || ''}
+                                      onChange={(e) => {
+                                        setHeatHologramEntries(prev => {
+                                          const current = [...(prev[heat.heatNo] || [])];
+                                          current[idx] = { ...current[idx], to: e.target.value };
+                                          return { ...prev, [heat.heatNo]: current };
+                                        });
+                                      }}
+                                      style={{ width: '140px', padding: '8px 12px', fontSize: '14px', height: '38px', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                                    />
+                                  </div>
+                                </div>
+                              ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                  <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>HOLOGRAM NUMBER</span>
+                                  <input
+                                    className="rm-form-input"
+                                    placeholder="Enter number..."
+                                    value={holo.value || ''}
+                                    onChange={(e) => {
+                                      setHeatHologramEntries(prev => {
+                                        const current = [...(prev[heat.heatNo] || [])];
+                                        current[idx] = { ...current[idx], value: e.target.value };
+                                        return { ...prev, [heat.heatNo]: current };
+                                      });
+                                    }}
+                                    style={{ width: '320px', padding: '8px 12px', fontSize: '14px', height: '38px', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                                  />
+                                </div>
+                              )}
+                              <button
+                                onClick={() => {
+                                  setHeatHologramEntries(prev => {
+                                    const current = [...(prev[heat.heatNo] || [])];
+                                    current.splice(idx, 1);
+                                    return { ...prev, [heat.heatNo]: current };
+                                  });
+                                }}
+                                title="Remove Entry"
+                                style={{
+                                  background: '#fee2e2',
+                                  border: '1px solid #fca5a5',
+                                  color: '#dc2626',
+                                  cursor: 'pointer',
+                                  fontSize: '20px',
+                                  width: '36px',
+                                  height: '36px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  borderRadius: '8px',
+                                  marginLeft: 'auto',
+                                  transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.background = '#fef2f2'}
+                                onMouseLeave={(e) => e.currentTarget.style.background = '#fee2e2'}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               );

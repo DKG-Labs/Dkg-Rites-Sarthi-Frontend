@@ -139,6 +139,10 @@ const CallsFilterSection = ({
   handleMultiSelectToggle,
   summaryLabel = 'results'
 }) => {
+  const categories = ['Product Type', 'Vendor', 'Stage', 'Call Number', 'PO Number'];
+  if (filters?.statuses) categories.push('Status');
+  categories.push('Date Range');
+
   const effectiveCalls = Array.isArray(allCalls) ? allCalls : [];
 
   const safeSetFilter = (key, value) => {
@@ -206,6 +210,19 @@ const CallsFilterSection = ({
       value: callNo,
       color: '#8b5cf6',
       onRemove: () => safeToggleMulti('callNumbers', callNo)
+    });
+  });
+
+  (filters?.statuses || []).forEach(statusKey => {
+    // Attempt to find label from effectiveCalls
+    const sampleCall = effectiveCalls.find(c => c.status === statusKey);
+    const label = sampleCall?.status_label || statusKey;
+    activeFilters.push({
+      key: `status-${statusKey}`,
+      label: 'Status',
+      value: label,
+      color: '#14b8a6', // Teal
+      onRemove: () => safeToggleMulti('statuses', statusKey)
     });
   });
 
@@ -464,7 +481,7 @@ const CallsFilterSection = ({
                 overflowY: 'auto',
                 backgroundColor: '#f9fafb'
               }}>
-                {['Product Type', 'Vendor', 'Stage', 'Call Number', 'PO Number', 'Date Range'].map(cat => (
+                {categories.map(cat => (
                   <div
                     key={cat}
                     onClick={() => setSelectedCategory(cat)}
@@ -561,15 +578,15 @@ const CallsFilterSection = ({
                       if (!filterSearch) return true;
                       return pt.toLowerCase().includes(filterSearch.toLowerCase());
                     }).length === 0 && (
-                      <div style={{
-                        padding: '40px 20px',
-                        textAlign: 'center',
-                        color: '#9ca3af',
-                        fontSize: '14px'
-                      }}>
-                        No results found for "{filterSearch}"
-                      </div>
-                    )}
+                        <div style={{
+                          padding: '40px 20px',
+                          textAlign: 'center',
+                          color: '#9ca3af',
+                          fontSize: '14px'
+                        }}>
+                          No results found for "{filterSearch}"
+                        </div>
+                      )}
                   </div>
                 )}
 
@@ -632,15 +649,15 @@ const CallsFilterSection = ({
                       if (!filterSearch) return true;
                       return vendor.toLowerCase().includes(filterSearch.toLowerCase());
                     }).length === 0 && (
-                      <div style={{
-                        padding: '40px 20px',
-                        textAlign: 'center',
-                        color: '#9ca3af',
-                        fontSize: '14px'
-                      }}>
-                        {filterSearch ? `No results found for "${filterSearch}"` : 'No vendors available'}
-                      </div>
-                    )}
+                        <div style={{
+                          padding: '40px 20px',
+                          textAlign: 'center',
+                          color: '#9ca3af',
+                          fontSize: '14px'
+                        }}>
+                          {filterSearch ? `No results found for "${filterSearch}"` : 'No vendors available'}
+                        </div>
+                      )}
                   </div>
                 )}
 
@@ -748,6 +765,66 @@ const CallsFilterSection = ({
                               type="checkbox"
                               checked={checked}
                               onChange={() => safeToggleMulti('callNumbers', callNo)}
+                              style={{
+                                width: '20px',
+                                height: '20px',
+                                cursor: 'pointer',
+                                accentColor: '#16a34a'
+                              }}
+                            />
+                          </label>
+                        );
+                      })}
+                  </div>
+                )}
+
+                {selectedCategory === 'Status' && (
+                  <div>
+                    {[...new Set(effectiveCalls.map(c => JSON.stringify({ key: c.status, label: c.status_label })).filter(Boolean))]
+                      .map(s => JSON.parse(s))
+                      .sort((a, b) => a.label.localeCompare(b.label))
+                      .filter(s => {
+                        if (!filterSearch) return true;
+                        return s.label.toLowerCase().includes(filterSearch.toLowerCase());
+                      })
+                      .map(statusObj => {
+                        const checked = (filters?.statuses || []).includes(statusObj.key);
+                        return (
+                          <label
+                            key={statusObj.key}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              padding: '12px 0',
+                              borderBottom: '1px solid #f3f4f6',
+                              cursor: 'pointer',
+                              transition: 'background-color 0.2s'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                          >
+                            <div style={{
+                              width: '40px',
+                              height: '40px',
+                              marginRight: '12px',
+                              backgroundColor: '#f3f4f6',
+                              borderRadius: '8px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '18px'
+                            }}>🚦</div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{
+                                fontSize: '14px',
+                                fontWeight: '500',
+                                color: '#1f2937'
+                              }}>{statusObj.label}</div>
+                            </div>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => safeToggleMulti('statuses', statusObj.key)}
                               style={{
                                 width: '20px',
                                 height: '20px',

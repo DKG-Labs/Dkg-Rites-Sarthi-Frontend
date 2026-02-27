@@ -8,6 +8,8 @@ import Tabs from '../../../components/Tabs';
 import PendingVerificationTab from './PendingVerificationTab';
 import VerifiedOpenCallsTab from './VerifiedOpenCallsTab';
 import DisposedCallsTab from './DisposedCallsTab';
+import CallDetailsModal from './CallDetailsModal';
+import { RETURN_CALL_FLAGS } from '../utils/constants';
 import useCallDeskData from '../hooks/useCallDeskData';
 import useCallActions from '../hooks/useCallActions';
 import { formatDate } from '../../../utils/helpers';
@@ -134,7 +136,17 @@ const CallDeskDashboard = () => {
       return;
     }
 
-    const result = await returnForRectification(selectedCall.id, selectedCall, actionRemarks, flaggedFields);
+    // Format flags for remarks if any are selected
+    let finalRemarks = actionRemarks;
+    if (flaggedFields.length > 0) {
+      const flagLabels = RETURN_CALL_FLAGS
+        .filter(f => flaggedFields.includes(f.key))
+        .map(f => f.label)
+        .join(', ');
+      finalRemarks = `Correction required in: ${flagLabels}.\nDetails: ${actionRemarks}`;
+    }
+
+    const result = await returnForRectification(selectedCall.id, selectedCall, finalRemarks, flaggedFields);
     if (result.success) {
       alert('Call returned for rectification successfully!');
       setShowReturnModal(false);
@@ -231,6 +243,7 @@ const CallDeskDashboard = () => {
         <VerifiedOpenCallsTab
           calls={verifiedCalls}
           kpis={dashboardKPIs?.verifiedOpen || {}}
+          onViewHistory={handleViewHistory}
         />
       )}
 
@@ -238,6 +251,7 @@ const CallDeskDashboard = () => {
         <DisposedCallsTab
           calls={disposedCalls}
           kpis={dashboardKPIs?.disposed || {}}
+          onViewHistory={handleViewHistory}
         />
       )}
 
@@ -315,77 +329,12 @@ const CallDeskDashboard = () => {
       )}
 
       {/* Call Details Modal */}
-      {showDetailsModal && selectedCall && (
-        <div className="modal-overlay" onClick={() => setShowDetailsModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Call Details - {selectedCall.callNumber}</h2>
-              <button className="modal-close" onClick={() => setShowDetailsModal(false)}>×</button>
-            </div>
-            <div className="modal-body">
-              <div className="details-grid">
-                <div className="detail-item">
-                  <label>Call Number:</label>
-                  <span>{selectedCall.callNumber}</span>
-                </div>
-                <div className="detail-item">
-                  <label>Vendor:</label>
-                  <span>{selectedCall.vendor?.name}</span>
-                </div>
-                <div className="detail-item">
-                  <label>PO Number:</label>
-                  <span>{selectedCall.poNumber}</span>
-                </div>
-                <div className="detail-item">
-                  <label>Product - Stage:</label>
-                  <span>{selectedCall.productStage}</span>
-                </div>
-                <div className="detail-item">
-                  <label>Quantity:</label>
-                  <span>{selectedCall.quantity} units</span>
-                </div>
-                <div className="detail-item">
-                  <label>Desired Inspection Date:</label>
-                  <span>{formatDate(selectedCall.desiredInspectionDate)}</span>
-                </div>
-                <div className="detail-item">
-                  <label>Place of Inspection:</label>
-                  <span>{selectedCall.placeOfInspection}</span>
-                </div>
-                <div className="detail-item">
-                  <label>RIO:</label>
-                  <span>{selectedCall.rio}</span>
-                </div>
-                <div className="detail-item">
-                  <label>Submission Count:</label>
-                  <span>{selectedCall.submissionCount}</span>
-                </div>
-                {selectedCall.returnReason && (
-                  <div className="detail-item full-width">
-                    <label>Return Reason:</label>
-                    <span className="text-warning">{selectedCall.returnReason}</span>
-                  </div>
-                )}
-                {selectedCall.documents && (
-                  <div className="detail-item full-width">
-                    <label>Documents:</label>
-                    <div className="document-list">
-                      {selectedCall.documents.map((doc, idx) => (
-                        <span key={idx} className="document-badge">📄 {doc}</span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowDetailsModal(false)}>
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <CallDetailsModal
+        isOpen={showDetailsModal}
+        onClose={() => setShowDetailsModal(false)}
+        call={selectedCall}
+        onVerifyAccept={handleVerifyAccept}
+      />
 
       {/* Verify & Accept Modal */}
       {showVerifyModal && selectedCall && (
@@ -449,14 +398,14 @@ const CallDeskDashboard = () => {
               <div className="form-group">
                 <label>Flag Fields for Correction:</label>
                 <div className="checkbox-group">
-                  {['poNumber', 'quantity', 'desiredInspectionDate', 'placeOfInspection', 'documents'].map(field => (
-                    <label key={field} className="checkbox-label">
+                  {RETURN_CALL_FLAGS.map(field => (
+                    <label key={field.key} className="checkbox-label">
                       <input
                         type="checkbox"
-                        checked={flaggedFields.includes(field)}
-                        onChange={() => toggleFlaggedField(field)}
+                        checked={flaggedFields.includes(field.key)}
+                        onChange={() => toggleFlaggedField(field.key)}
                       />
-                      <span>{field.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</span>
+                      <span>{field.label}</span>
                     </label>
                   ))}
                 </div>

@@ -33,8 +33,8 @@ const CallDetailsModal = ({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div 
-        className="modal-content" 
+      <div
+        className="modal-content"
         onClick={(e) => e.stopPropagation()}
         style={{ maxWidth: '900px' }}
       >
@@ -46,7 +46,7 @@ const CallDetailsModal = ({
 
         {/* Modal Body */}
         <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-          
+
           {/* Section 1: PO Details */}
           <div className="details-section">
             <h3 className="section-title">
@@ -59,11 +59,11 @@ const CallDetailsModal = ({
                 <span>{displayValue(call.poNumber)}</span>
               </div>
               <div className="detail-item">
-                <label>PO Date</label>
+                <label>Date</label>
                 <span>{displayValue(call.poDate ? formatDate(call.poDate) : null)}</span>
               </div>
               <div className="detail-item">
-                <label>PO Quantity</label>
+                <label>PO Qty</label>
                 <span>{displayValue(call.poQuantity)}</span>
               </div>
               <div className="detail-item">
@@ -71,7 +71,7 @@ const CallDetailsModal = ({
                 <span>{displayValue(call.vendor?.name)}</span>
               </div>
               <div className="detail-item">
-                <label>MA Number</label>
+                <label>MA No.</label>
                 <span>{displayValue(call.maNumber)}</span>
               </div>
               <div className="detail-item">
@@ -97,7 +97,7 @@ const CallDetailsModal = ({
             </h3>
             <div className="details-grid">
               <div className="detail-item">
-                <label>PO + Serial Number</label>
+                <label>PO+ Sr.No.</label>
                 <span>{displayValue(call.poSerialNumber)}</span>
               </div>
               <div className="detail-item">
@@ -109,7 +109,7 @@ const CallDetailsModal = ({
                 <span>{displayValue(call.desiredInspectionDate ? formatDate(call.desiredInspectionDate) : null)}</span>
               </div>
               <div className="detail-item">
-                <label>Item Description</label>
+                <label>Item Desc</label>
                 <span>{displayValue(call.itemDescription)}</span>
               </div>
               <div className="detail-item">
@@ -121,11 +121,11 @@ const CallDetailsModal = ({
                 <span>{displayValue(call.extendedDeliveryDate ? formatDate(call.extendedDeliveryDate) : null)}</span>
               </div>
               <div className="detail-item">
-                <label>Original DP Start</label>
+                <label>Original DP_Start</label>
                 <span>{displayValue(call.originalDPStart ? formatDate(call.originalDPStart) : null)}</span>
               </div>
               <div className="detail-item">
-                <label>Call Quantity</label>
+                <label>Call Qty</label>
                 <span>{displayValue(call.quantity)}</span>
               </div>
               <div className="detail-item full-width">
@@ -143,15 +143,15 @@ const CallDetailsModal = ({
             </h3>
             <div className="details-grid">
               <div className="detail-item">
-                <label>Sub PO Number</label>
+                <label>Sub PO No.</label>
                 <span>{displayValue(call.subPoNumber)}</span>
               </div>
               <div className="detail-item">
-                <label>Sub PO Date</label>
+                <label>Sub PO Dates</label>
                 <span>{displayValue(call.subPoDate ? formatDate(call.subPoDate) : null)}</span>
               </div>
               <div className="detail-item">
-                <label>TC Number</label>
+                <label>TC No.</label>
                 <span>{displayValue(call.tcNumber)}</span>
               </div>
               <div className="detail-item">
@@ -163,7 +163,7 @@ const CallDetailsModal = ({
                 <span>{displayValue(call.manufacturerOfMaterial)}</span>
               </div>
               <div className="detail-item">
-                <label>Sub PO Quantity</label>
+                <label>Sub PO Qty</label>
                 <span>{displayValue(call.subPoQuantity)}</span>
               </div>
               <div className="detail-item">

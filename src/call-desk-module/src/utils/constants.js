@@ -10,7 +10,7 @@ export const CALL_STATUS = {
   FRESH_SUBMISSION: 'fresh_submission',
   RESUBMISSION: 'resubmission',
   RETURNED: 'returned',
-  
+
   // Verified & Open Section
   VERIFIED_REGISTERED: 'verified_registered',
   IE_ASSIGNMENT_PENDING: 'ie_assignment_pending',
@@ -21,7 +21,7 @@ export const CALL_STATUS = {
   IC_PENDING: 'ic_pending',
   BILLING_PENDING: 'billing_pending',
   PAYMENT_PENDING: 'payment_pending',
-  
+
   // Disposed Section
   COMPLETED: 'completed',
   WITHDRAWN: 'withdrawn',
@@ -39,19 +39,19 @@ export const CALL_STATUS_CONFIG = {
     borderColor: 'rgba(245, 158, 11, 0.25)'
   },
   [CALL_STATUS.FRESH_SUBMISSION]: {
-    label: 'Fresh Submission',
+    label: 'Fresh Call',
     color: '#3b82f6',
     bgColor: 'rgba(59, 130, 246, 0.15)',
     borderColor: 'rgba(59, 130, 246, 0.25)'
   },
   [CALL_STATUS.RESUBMISSION]: {
-    label: 'Resubmission',
+    label: 'Resubmitted Call',
     color: '#8b5cf6',
     bgColor: 'rgba(139, 92, 246, 0.15)',
     borderColor: 'rgba(139, 92, 246, 0.25)'
   },
   [CALL_STATUS.RETURNED]: {
-    label: 'Returned',
+    label: 'Returned Call',
     color: '#ef4444',
     bgColor: 'rgba(239, 68, 68, 0.15)',
     borderColor: 'rgba(239, 68, 68, 0.25)'
@@ -111,31 +111,31 @@ export const CALL_STATUS_CONFIG = {
     borderColor: 'rgba(107, 114, 128, 0.25)'
   },
   [CALL_STATUS.COMPLETED]: {
-    label: 'Completed',
+    label: 'Accepted IC issued',
     color: '#22c55e',
     bgColor: 'rgba(34, 197, 94, 0.15)',
     borderColor: 'rgba(34, 197, 94, 0.25)'
   },
   [CALL_STATUS.WITHDRAWN]: {
-    label: 'Withdrawn by Vendor',
+    label: 'With held',
     color: '#6b7280',
     bgColor: 'rgba(107, 114, 128, 0.15)',
     borderColor: 'rgba(107, 114, 128, 0.25)'
   },
   [CALL_STATUS.CANCELLED_CHARGEABLE]: {
-    label: 'Cancelled (Chargeable)',
+    label: 'Call Cancelled',
     color: '#ef4444',
     bgColor: 'rgba(239, 68, 68, 0.15)',
     borderColor: 'rgba(239, 68, 68, 0.25)'
   },
   [CALL_STATUS.CANCELLED_NON_CHARGEABLE]: {
-    label: 'Cancelled (Non-chargeable)',
+    label: 'Call Cancelled',
     color: '#f59e0b',
     bgColor: 'rgba(245, 158, 11, 0.15)',
     borderColor: 'rgba(245, 158, 11, 0.25)'
   },
   [CALL_STATUS.REJECTED_CLOSED]: {
-    label: 'Rejected & Closed',
+    label: 'Rejection IC Issued',
     color: '#dc2626',
     bgColor: 'rgba(220, 38, 38, 0.15)',
     borderColor: 'rgba(220, 38, 38, 0.25)'
@@ -174,4 +174,14 @@ export const STORAGE_KEYS = {
   CALL_DESK_FILTERS: 'call_desk_module_filters',
   CALL_DESK_PREFERENCES: 'call_desk_module_preferences'
 };
+
+// Return Call Flags
+export const RETURN_CALL_FLAGS = [
+  { key: 'poDetails', label: 'PO Details' },
+  { key: 'deliveryPeriod', label: 'Delivery Period' },
+  { key: 'maDetails', label: 'MA Details' },
+  { key: 'quantity', label: 'Quantity' },
+  { key: 'placeOfInspection', label: 'Place of Inspection' },
+  { key: 'subPODetails', label: 'Sub PO Details' }
+];
 

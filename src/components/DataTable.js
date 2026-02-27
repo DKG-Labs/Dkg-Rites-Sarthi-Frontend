@@ -2,11 +2,11 @@ import React, { useState, useMemo } from 'react';
 
 // Helper function to check if a string is a date-like value
 const isDateLike = (str) => {
-  if (!str) return false;
-  // Check for common date formats: DD/MM/YYYY, YYYY-MM-DD, MM/DD/YYYY, etc.
-  return /^\d{1,4}[-/]\d{1,2}[-/]\d{1,4}$/.test(str) ||
-    /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(str) ||
-    /^\d{4}-\d{1,2}-\d{1,2}$/.test(str);
+  if (!str || typeof str !== 'string') return false;
+  // Check for common date formats: YYYY-MM-DD, DD/MM/YYYY, etc. with optional time
+  return /^\d{1,4}[-/]\d{1,2}[-/]\d{1,4}(\s\d{1,2}:\d{1,2}(:\d{1,2})?)?$/.test(str) ||
+    /^\d{4}-\d{1,2}-\d{1,2}/.test(str) ||
+    !isNaN(Date.parse(str));
 };
 
 // Helper function to normalize date for comparison
@@ -70,10 +70,40 @@ const deepSearch = (obj, searchText) => {
   return Object.values(obj).some(val => deepSearch(val, searchText));
 };
 
-const DataTable = ({ columns, data, onRowClick, actions, selectable, selectedRows, onSelectionChange, hideSearch = false, hidePageSize = false, initialPageSize = 5, emptyMessage = 'No data available' }) => {
+// Helper function to robustly parse dates including DD/MM/YYYY
+const parseRobustDate = (val) => {
+  if (!val) return new Date(0);
+  if (val instanceof Date) return val;
+
+  // If it's a number, assume timestamp
+  if (typeof val === 'number') return new Date(val);
+
+  const str = String(val).trim();
+
+  // Try standard parsing first
+  let d = new Date(str);
+  if (!isNaN(d.getTime())) return d;
+
+  // Try DD/MM/YYYY HH:mm:ss
+  const regex = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})(\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?$/;
+  const match = str.match(regex);
+  if (match) {
+    const day = parseInt(match[1], 10);
+    const month = parseInt(match[2], 10) - 1;
+    const year = parseInt(match[3], 10);
+    const hour = match[5] ? parseInt(match[5], 10) : 0;
+    const minute = match[6] ? parseInt(match[6], 10) : 0;
+    const second = match[7] ? parseInt(match[7], 10) : 0;
+    return new Date(year, month, day, hour, minute, second);
+  }
+
+  return new Date(0);
+};
+
+const DataTable = ({ columns, data, onRowClick, actions, selectable, selectedRows, onSelectionChange, hideSearch = false, hidePageSize = false, initialPageSize = 5, emptyMessage = 'No data available', initialSortColumn = null, initialSortDirection = 'asc' }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortColumn, setSortColumn] = useState(null);
-  const [sortDirection, setSortDirection] = useState('asc');
+  const [sortColumn, setSortColumn] = useState(initialSortColumn);
+  const [sortDirection, setSortDirection] = useState(initialSortDirection);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(initialPageSize);
 
@@ -124,8 +154,21 @@ const DataTable = ({ columns, data, onRowClick, actions, selectable, selectedRow
 
     if (sortColumn) {
       result.sort((a, b) => {
-        const aVal = a[sortColumn];
-        const bVal = b[sortColumn];
+        let aVal = a[sortColumn];
+        let bVal = b[sortColumn];
+
+        // Improve date sorting - if it looks like a date, compare as dates
+        if (isDateLike(aVal) && isDateLike(bVal)) {
+          const dateA = parseRobustDate(aVal);
+          const dateB = parseRobustDate(bVal);
+
+          if (!isNaN(dateA.getTime()) && !isNaN(dateB.getTime())) {
+            return sortDirection === 'asc'
+              ? dateA.getTime() - dateB.getTime()
+              : dateB.getTime() - dateA.getTime();
+          }
+        }
+
         if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
         if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
         return 0;

@@ -110,7 +110,7 @@ const PendingVerificationTab = ({
       render: (value) => {
         const config = CALL_STATUS_CONFIG[value];
         return config ? (
-          <StatusBadge 
+          <StatusBadge
             label={config.label}
             color={config.color}
             bgColor={config.bgColor}
@@ -301,6 +301,8 @@ const PendingVerificationTab = ({
         columns={columns}
         data={filteredCalls}
         emptyMessage="No pending verification calls found"
+        initialSortColumn="submissionDateTime"
+        initialSortDirection="desc"
       />
     </div>
   );

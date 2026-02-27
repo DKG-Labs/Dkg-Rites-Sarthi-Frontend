@@ -24,15 +24,16 @@ const VerifiedOpenCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
     dateTo: '',
     poNumbers: [],
     stage: '',
-    callNumbers: []
+    callNumbers: [],
+    statuses: []
   });
 
 
   // KPI tiles data
   const kpiTiles = [
     {
-      label: 'Total Verified',
-      value: kpis.total || 0,
+      label: 'Verified & Registered',
+      value: kpis.verifiedRegistered || 0,
       color: '#22c55e',
       icon: '✅'
     },
@@ -49,16 +50,40 @@ const VerifiedOpenCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
       icon: '👤'
     },
     {
+      label: 'Scheduled',
+      value: kpis.scheduled || 0,
+      color: '#eab308',
+      icon: '📅'
+    },
+    {
       label: 'Under Inspection',
       value: kpis.underInspection || 0,
       color: '#f97316',
       icon: '🔍'
     },
     {
+      label: 'Under Lab Testing',
+      value: kpis.underLabTesting || 0,
+      color: '#a855f7',
+      icon: '🧪'
+    },
+    {
       label: 'IC Pending',
       value: kpis.icPending || 0,
       color: '#ef4444',
       icon: '📄'
+    },
+    {
+      label: 'Billing Pending',
+      value: kpis.billingPending || 0,
+      color: '#a855f7',
+      icon: '💰'
+    },
+    {
+      label: 'Payment Pending',
+      value: kpis.paymentPending || 0,
+      color: '#6b7280',
+      icon: '💳'
     }
   ];
 
@@ -93,6 +118,21 @@ const VerifiedOpenCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
       sortable: true
     },
     {
+      key: 'status',
+      label: 'Status',
+      render: (value) => {
+        const config = CALL_STATUS_CONFIG[value];
+        return config ? (
+          <StatusBadge
+            label={config.label}
+            color={config.color}
+            bgColor={config.bgColor}
+            borderColor={config.borderColor}
+          />
+        ) : value || '-';
+      }
+    },
+    {
       key: 'desiredInspectionDate',
       label: 'Desired Inspection Date',
       sortable: true,
@@ -102,21 +142,6 @@ const VerifiedOpenCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
       key: 'placeOfInspection',
       label: 'Place of Inspection',
       sortable: true
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      render: (value) => {
-        const config = CALL_STATUS_CONFIG[value];
-        return config ? (
-          <StatusBadge 
-            label={config.label}
-            color={config.color}
-            bgColor={config.bgColor}
-            borderColor={config.borderColor}
-          />
-        ) : null;
-      }
     },
     {
       key: 'assignedIE',
@@ -133,7 +158,7 @@ const VerifiedOpenCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
             onClick={() => onViewHistory(row)}
             title="View Call History"
           >
-            📜 History
+            📜 View History
           </button>
         </div>
       )
@@ -177,6 +202,11 @@ const VerifiedOpenCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
       result = result.filter(call => filters.callNumbers.includes(call.callNumber));
     }
 
+    // Status filter
+    if (filters.statuses.length > 0) {
+      result = result.filter(call => filters.statuses.includes(call.status));
+    }
+
     // Search term filter
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
@@ -214,8 +244,29 @@ const VerifiedOpenCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
       dateTo: '',
       poNumbers: [],
       stage: '',
-      callNumbers: []
+      callNumbers: [],
+      statuses: []
     });
+  };
+
+  // Status mapping for KPI tiles to facilitate filtering
+  const statusKeyMap = {
+    'Verified & Registered': 'verified_registered',
+    'IE Assignment Pending': 'ie_assignment_pending',
+    'Assigned to IE': 'assigned_to_ie',
+    'Scheduled': 'scheduled',
+    'Under Inspection': 'under_inspection',
+    'Under Lab Testing': 'under_lab_testing',
+    'IC Pending': 'ic_pending',
+    'Billing Pending': 'billing_pending',
+    'Payment Pending': 'payment_pending'
+  };
+
+  const handleKpiClick = (label) => {
+    const statusKey = statusKeyMap[label];
+    if (statusKey) {
+      handleMultiSelectToggle('statuses', statusKey);
+    }
   };
 
   // Prepare data for CallsFilterSection - map Call Desk data structure to expected format
@@ -225,7 +276,9 @@ const VerifiedOpenCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
     po_no: call.poNumber,
     call_no: call.callNumber,
     requested_date: call.submissionDateTime,
-    stage: call.stage
+    stage: call.stage,
+    status: call.status,
+    status_label: CALL_STATUS_CONFIG[call.status]?.label || call.status
   })), [calls]);
 
   // Map filtered calls for CallsFilterSection
@@ -235,26 +288,41 @@ const VerifiedOpenCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
     po_no: call.poNumber,
     call_no: call.callNumber,
     requested_date: call.submissionDateTime,
-    stage: call.stage
+    stage: call.stage,
+    status: call.status,
+    status_label: CALL_STATUS_CONFIG[call.status]?.label || call.status
   })), [filteredCalls]);
 
   return (
     <div className="tab-content">
       {/* KPI Tiles */}
       <div className="kpi-grid">
-        {kpiTiles.map((kpi, index) => (
-          <div key={index} className="stat-card">
-            <div className="stat-icon" style={{ color: kpi.color }}>
-              {kpi.icon}
-            </div>
-            <div className="stat-content">
-              <div className="stat-label">{kpi.label}</div>
-              <div className="stat-value" style={{ color: kpi.color }}>
-                {kpi.value}
+        {kpiTiles.map((kpi, index) => {
+          const statusKey = statusKeyMap[kpi.label];
+          const isActive = filters.statuses.includes(statusKey);
+
+          return (
+            <div
+              key={index}
+              className={`stat-card ${isActive ? 'active' : ''}`}
+              onClick={() => handleKpiClick(kpi.label)}
+              style={{ cursor: 'pointer' }}
+            >
+              <div className="stat-icon" style={{ color: kpi.color }}>
+                {kpi.icon}
               </div>
+              <div className="stat-content">
+                <div className="stat-label">{kpi.label}</div>
+                <div className="stat-value" style={{ color: kpi.color }}>
+                  {kpi.value}
+                </div>
+              </div>
+              {isActive && (
+                <div className="active-indicator" style={{ backgroundColor: kpi.color }}></div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Filter Section */}
@@ -286,6 +354,8 @@ const VerifiedOpenCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
         columns={columns}
         data={filteredCalls}
         emptyMessage="No verified and open calls found"
+        initialSortColumn="submissionDateTime"
+        initialSortDirection="desc"
       />
     </div>
   );

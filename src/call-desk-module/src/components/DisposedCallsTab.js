@@ -36,25 +36,25 @@ const DisposedCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
       icon: '📦'
     },
     {
-      label: 'Completed',
+      label: 'Accepted IC issued',
       value: kpis.completed || 0,
       color: '#22c55e',
       icon: '✅'
     },
     {
-      label: 'Withdrawn',
+      label: 'With held',
       value: kpis.withdrawn || 0,
       color: '#6b7280',
       icon: '🔙'
     },
     {
-      label: 'Cancelled',
+      label: 'Call Cancelled',
       value: kpis.cancelled || 0,
       color: '#f59e0b',
       icon: '❌'
     },
     {
-      label: 'Rejected',
+      label: 'Rejection IC Issued',
       value: kpis.rejected || 0,
       color: '#ef4444',
       icon: '🚫'
@@ -108,13 +108,15 @@ const DisposedCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
       render: (value) => {
         const config = CALL_STATUS_CONFIG[value];
         return config ? (
-          <StatusBadge 
+          <StatusBadge
             label={config.label}
             color={config.color}
             bgColor={config.bgColor}
             borderColor={config.borderColor}
           />
-        ) : null;
+        ) : (
+          <span className="text-sm font-medium">{value || '-'}</span>
+        );
       }
     },
     {
@@ -136,7 +138,7 @@ const DisposedCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
             onClick={() => onViewHistory(row)}
             title="View Call History"
           >
-            📜 History
+            📜 View History
           </button>
         </div>
       )
@@ -289,6 +291,8 @@ const DisposedCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
         columns={columns}
         data={filteredCalls}
         emptyMessage="No disposed calls found"
+        initialSortColumn="submissionDateTime"
+        initialSortDirection="desc"
       />
     </div>
   );

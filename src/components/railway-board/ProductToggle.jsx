@@ -29,17 +29,17 @@ const ProductToggle = ({ selectedProduct, setSelectedProduct }) => {
 
     return (
         <div className="product-toggle-container">
-            <button
+            {/* <button
                 className={`product-toggle-btn ${selectedProduct === 'all' ? 'active' : ''}`}
                 onClick={() => setSelectedProduct('all')}
             >
                 All Products
-            </button>
+            </button> */}
             {displayProducts.map(prod => (
                 <button
                     key={prod.id}
                     className={`product-toggle-btn ${selectedProduct === prod.id ? 'active' : ''}`}
-                    onClick={() => setSelectedProduct(prod.id)}
+                // onClick={() => setSelectedProduct(prod.id)} // Disabled as per request
                 >
                     {prod.label}
                 </button>

@@ -19,8 +19,9 @@ const useReportData = (fetchFn, dependency = null) => {
             setError(null);
             const response = await fetchFn(dependency);
 
-            if (response.responseStatus.statusCode === 0) {
-                const result = response.responseData;
+            if (response && (response.responseStatus?.statusCode === 0 || Array.isArray(response) || typeof response === 'object')) {
+                // Determine if the response is wrapped and extract data
+                const result = response.responseStatus ? response.responseData : response;
 
                 // Handle Spring Data Page object or direct array
                 if (result && result.content && Array.isArray(result.content)) {
@@ -37,7 +38,7 @@ const useReportData = (fetchFn, dependency = null) => {
                     });
                 }
             } else {
-                setError(response.responseStatus.message || 'Failed to fetch data');
+                setError(response?.responseStatus?.message || 'Failed to fetch data');
             }
         } catch (err) {
             console.error('API Error:', err);

@@ -5145,7 +5145,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     || '';
 
   const linePoData = currentLineInitiationData ? {
-    po_no: formatPoNoWithSerial(currentLineInitiationData.poNo, currentLineInitiationData.poSerialNo || currentLineInitiationData.po_serial_no || currentProductionLine.poSerialNo, currentLineInitiationData.rlyShortName || currentLineInitiationData.rlyCd),
+    po_no: currentLineInitiationData.rlyPoNo || formatPoNoWithSerial(currentLineInitiationData.poNo, currentLineInitiationData.poSerialNo || currentLineInitiationData.po_serial_no || currentProductionLine.poSerialNo, currentLineInitiationData.rlyShortName || currentLineInitiationData.rlyCd),
     sub_po_no: currentProductionLine.rawMaterialICs || '',
     po_date: currentLineInitiationData.poDate || '',
     sub_po_date: currentLineInitiationData.poDate || '',
@@ -5155,7 +5155,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       ? `${currentLineInitiationData.companyName}${currentLineInitiationData.unitName ? ' (' + currentLineInitiationData.unitName + ')' : ''}${currentLineInitiationData.unitAddress ? ' - ' + currentLineInitiationData.unitAddress : ''}`
       : (currentLineInitiationData.placeOfInspection || '')
   } : (fetchedPoData ? {
-    po_no: formatPoNoWithSerial(fetchedPoData.po_no, fetchedPoData.po_serial_no || fetchedPoData.poSerialNo || currentProductionLine.poSerialNo, fetchedPoData.rlyShortName || fetchedPoData.rlyCd),
+    po_no: fetchedPoData.rlyPoNo || formatPoNoWithSerial(fetchedPoData.po_no, fetchedPoData.po_serial_no || fetchedPoData.poSerialNo || currentProductionLine.poSerialNo, fetchedPoData.rlyShortName || fetchedPoData.rlyCd),
     sub_po_no: fetchedPoData.po_no || '',
     po_date: fetchedPoData.po_date || '',
     sub_po_date: fetchedPoData.po_date || '',
@@ -5163,7 +5163,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     manufacturer: fetchedPoData.contractor || fetchedPoData.vendor_name || fetchedPoData.manufacturer || '',
     place_of_inspection: fetchedPoData.place_of_inspection || ''
   } : (currentCallData ? {
-    po_no: formatPoNoWithSerial(currentCallData.po_no || currentCallData.poNo, currentCallData.po_serial_no || currentCallData.poSerialNo || currentProductionLine.poSerialNo, currentCallData.rlyShortName || currentCallData.rlyCd),
+    po_no: currentCallData.rlyPoNo || formatPoNoWithSerial(currentCallData.po_no || currentCallData.poNo, currentCallData.po_serial_no || currentCallData.poSerialNo || currentProductionLine.poSerialNo, currentCallData.rlyShortName || currentCallData.rlyCd),
     sub_po_no: currentCallData.sub_po_no || currentProductionLine.rawMaterialICs || '',
     po_date: currentCallData.po_date || '',
     sub_po_date: currentCallData.sub_po_date || currentCallData.po_date || '',
@@ -5327,7 +5327,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
                           <input
                             type="text"
                             className="form-input"
-                            value={formatPoNoWithSerial(line.poNumber, line.poSerialNo, line.rlyShortName) || ''}
+                            value={callInitiationDataCache[line.icNumber]?.rlyPoNoSerial || formatPoNoWithSerial(line.poNumber, line.poSerialNo, line.rlyShortName) || ''}
                             readOnly
                             disabled
                             style={{ minWidth: '300px', backgroundColor: '#f3f4f6' }}

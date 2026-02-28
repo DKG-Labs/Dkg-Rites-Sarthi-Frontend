@@ -257,6 +257,8 @@ const InspectionInitiationFormContent = ({ call, formData, onFormDataChange, sho
                 po_cond_sr_no: poDataFromDb.poCondSrNo,
                 erc_type: poDataFromDb.ercType || ic.ercType,
                 total_offered_qty_mt: poDataFromDb.totalOfferedQtyMt,
+                poSrQty: poDataFromDb.poSrQty,
+                po_sr_qty: poDataFromDb.poSrQty,
 
                 // Section B fields from inspection call
                 call_no: ic.icNumber || ic.ic_number || call.call_no,
@@ -291,6 +293,8 @@ const InspectionInitiationFormContent = ({ call, formData, onFormDataChange, sho
                 po_qty: fd?.totalOfferedQty || ic.poQty || call.po_qty,
                 unit: fd?.unitName || 'Nos',
                 place_of_inspection: ic.unitAddress || fd?.unitAddress || call.place_of_inspection,
+                poSrQty: fd?.poSrQty || ic.poSrQty || call.po_sr_qty,
+                po_sr_qty: fd?.poSrQty || ic.poSrQty || call.po_sr_qty,
 
                 // Section B fields
                 call_no: ic.icNumber || ic.ic_number || call.call_no,
@@ -1101,7 +1105,7 @@ const InspectionInitiationFormContent = ({ call, formData, onFormDataChange, sho
               </div>
               <div className="form-group">
                 <label className="form-label">PO_SR_QTY + UNIT</label>
-                <input type="text" className="form-input" value={`${poData.po_sr_qty || poData.po_qty} ${poData.unit || 'Nos'}`} disabled />
+                <input type="text" className="form-input" value={`${poData.poSrQty ?? poData.po_sr_qty ?? poData.poQty ?? poData.po_qty ?? 0} ${poData.unit || 'Nos.'}`} disabled />
               </div>
               <div className="form-group">
                 <label className="form-label">CONSIGNEE_RLY + CONSIGNEE</label>

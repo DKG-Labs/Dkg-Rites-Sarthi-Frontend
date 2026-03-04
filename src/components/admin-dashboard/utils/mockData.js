@@ -23,11 +23,11 @@ export const USER_ROLES = [
 
 // Regions/RIOs
 export const REGIONS = [
-    'Northern Region',
-    'Southern Region',
-    'Eastern Region',
-    'Western Region',
-    'Central Region'
+    'NRIO',
+    'WRIO',
+    'SRIO',
+    'ERIO',
+    'CRIO'
 ];
 
 // Mock Users Data

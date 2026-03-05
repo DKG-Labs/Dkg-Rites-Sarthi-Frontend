@@ -128,8 +128,9 @@ function Level4Table({ callNo, parentSerial, railway }) {
                                     <td>{shift.forgingDefects?.forgingMarksNotches ?? 0}</td>
 
                                     <td>{shift.testingDefects?.temperingHardness ?? 0}</td>
-                                    <td>{shift.temperingDefects?.temperingTemperatureRejected ?? 0}</td>
-                                    <td>{shift.temperingDefects?.temperingDurationRejected ?? 0}</td>
+                                    <td>{shift.temperingDefects?.temperingTemp ?? 0}</td>
+                                    <td>{shift.temperingDefects?.temperingDuration ?? 0}</td>
+
 
                                     <td>{shift.dimensionalDefects?.boxGauge ?? 0}</td>
                                     <td>{shift.dimensionalDefects?.flatBearingArea ?? 0}</td>

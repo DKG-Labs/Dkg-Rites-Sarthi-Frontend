@@ -993,11 +993,10 @@ tr.row-even td {
 /* Green */
 /* Violet */
 .tempering-col {
-    background: #fef3e2 !important;
-    color: #92400e !important;
+    background: #f5f3ff !important;
+    color: #5b21b6 !important;
 }
 
-/* Brown */
 
 
 /* Parent Group Header Accents & Faded Backgrounds */
@@ -1031,9 +1030,10 @@ tr.row-even td {
 }
 
 .process-header.tempering {
-    border-top-color: #d97706 !important;
-    background: #fef3e2 !important;
+    border-top-color: #8b5cf6 !important;
+    background: #ede9fe !important;
 }
+
 
 
 /* Rejection Details Sections */

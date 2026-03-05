@@ -31,6 +31,7 @@ export default function ProcessDefectSummaryPage() {
     const [icNumbers, setIcNumbers] = useState([]);
     const [fetchingIcNumbers, setFetchingIcNumbers] = useState(false);
     const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [searchIc, setSearchIc] = useState('');
 
     // Fetch IC numbers list for the logged-in user
     const fetchIcNumbersList = async () => {
@@ -82,6 +83,12 @@ export default function ProcessDefectSummaryPage() {
         return () => window.removeEventListener('click', handleClick);
     }, []);
 
+    // Also clear search when dropdown closes
+    useEffect(() => {
+        if (!dropdownOpen) setSearchIc('');
+    }, [dropdownOpen]);
+
+
     const handleClear = () => { setCallNoInput(''); setSubmittedCallNo(''); setData([]); setError(''); };
 
     const totalAccepted = data.reduce((s, r) => s + (r.basicDetails?.totalAcceptedQty ?? 0), 0);
@@ -113,7 +120,7 @@ export default function ProcessDefectSummaryPage() {
         procSub: { ...thC, background: '#fff', fontWeight: 600, fontSize: '10px', padding: '5px 8px', textTransform: 'none', letterSpacing: '0.02em' },
         rej: { ...thC, background: '#f3f4f6' },
         rejSub: { ...thC, background: '#fff', fontWeight: 600, fontSize: '10px', padding: '5px 8px', textTransform: 'none', letterSpacing: '0.02em' },
-        tempering: { ...thC, background: '#fef3e2', color: '#92400e', borderColor: '#f59e0b' },
+        tempering: { ...thC, background: '#f5f3ff', color: '#5b21b6' },
         leaf: { ...thC, background: '#fff', fontWeight: 500, fontSize: '10px', padding: '5px 8px', textTransform: 'none', letterSpacing: '0.01em', color: '#374151' },
     };
 
@@ -259,27 +266,45 @@ export default function ProcessDefectSummaryPage() {
 
                             {/* Dropdown Menu */}
                             {dropdownOpen && (
-                                <div style={{
-                                    position: 'absolute',
-                                    top: 'calc(100% + 8px)',
-                                    left: 0,
-                                    right: 0,
-                                    background: '#fff',
-                                    borderRadius: '12px',
-                                    border: '1px solid #e2e8f0',
-                                    boxShadow: '0 12px 30px -8px rgba(0,0,0,0.15)',
-                                    zIndex: 1000,
-                                    maxHeight: '260px',
-                                    overflowY: 'auto',
-                                    padding: '6px',
-                                    animation: 'pds-scale-in 0.2s ease-out forwards',
-                                }}>
-                                    {icNumbers.length === 0 ? (
+                                <div
+                                    onClick={(e) => e.stopPropagation()}
+                                    style={{
+                                        position: 'absolute',
+                                        top: 'calc(100% + 8px)',
+                                        left: 0,
+                                        right: 0,
+                                        background: '#fff',
+                                        borderRadius: '12px',
+                                        border: '1px solid #e2e8f0',
+                                        boxShadow: '0 12px 30px -8px rgba(0,0,0,0.15)',
+                                        zIndex: 1000,
+                                        maxHeight: '260px',
+                                        overflowY: 'auto',
+                                        padding: '6px',
+                                        animation: 'pds-scale-in 0.2s ease-out forwards',
+                                    }}>
+                                    <div style={{ padding: '4px 6px', marginBottom: '4px' }}>
+                                        <input
+                                            type="text"
+                                            placeholder="Search Call No..."
+                                            value={searchIc}
+                                            onChange={(e) => setSearchIc(e.target.value)}
+                                            style={{
+                                                width: '100%',
+                                                padding: '8px 12px',
+                                                borderRadius: '6px',
+                                                border: '1px solid #cbd5e1',
+                                                fontSize: '13px',
+                                                outline: 'none'
+                                            }}
+                                        />
+                                    </div>
+                                    {icNumbers.filter(ic => ic.toLowerCase().includes(searchIc.toLowerCase())).length === 0 ? (
                                         <div style={{ padding: '12px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
                                             No call numbers found
                                         </div>
                                     ) : (
-                                        icNumbers.map(ic => (
+                                        icNumbers.filter(ic => ic.toLowerCase().includes(searchIc.toLowerCase())).map(ic => (
                                             <div
                                                 key={ic}
                                                 className="pds-custom-select-option"
@@ -298,6 +323,7 @@ export default function ProcessDefectSummaryPage() {
                                                 }}
                                             >
                                                 <span>{ic}</span>
+
                                                 {callNoInput === ic && (
                                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                                                         <path d="M20 6L9 17l-5-5" />
@@ -568,8 +594,9 @@ export default function ProcessDefectSummaryPage() {
                                                 <td>{shift.forgingDefects?.improperForging ?? 0}</td>
                                                 <td>{shift.forgingDefects?.forgingMarksNotches ?? 0}</td>
                                                 <td>{shift.testingDefects?.temperingHardness ?? 0}</td>
-                                                <td>{shift.temperingDefects?.temperingTemperatureRejected ?? 0}</td>
-                                                <td>{shift.temperingDefects?.temperingDurationRejected ?? 0}</td>
+                                                <td>{shift.temperingDefects?.temperingTemp ?? 0}</td>
+                                                <td>{shift.temperingDefects?.temperingDuration ?? 0}</td>
+
                                                 <td>{shift.dimensionalDefects?.boxGauge ?? 0}</td>
                                                 <td>{shift.dimensionalDefects?.flatBearingArea ?? 0}</td>
                                                 <td>{shift.dimensionalDefects?.fallingGauge ?? 0}</td>

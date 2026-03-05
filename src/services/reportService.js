@@ -62,6 +62,13 @@ const reportService = {
         return handleResponse(response);
     },
 
+    getAvgProductionPerDay: async () => {
+        const response = await fetch(`${API_ENDPOINTS.REPORTS}/avgProductionPerDay`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
     /**
      * Get Performance Matrix Data
      * Hits: /api/SummaryReports/dashboard

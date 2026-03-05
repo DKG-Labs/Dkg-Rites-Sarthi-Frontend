@@ -9,7 +9,7 @@ import { IEMapping } from './IEMapping';
 import { IEFieldsForm } from './IEFieldsForm';
 import { Modal } from './Modal';
 import { API_BASE_URL } from '../../services/apiConfig';
-import { getAuthHeaders, getStoredUser } from '../../services/authService';
+import { getStoredUser } from '../../services/authService';
 import './admin.css';
 
 export const AdminDashboard = () => {

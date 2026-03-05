@@ -32,7 +32,7 @@ export const UserForm = ({ user, roles = [], onSubmit, onCancel }) => {
                 userId: user.id || user.userId || undefined
             });
         }
-    }, [user]);
+    }, [user, formData]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;

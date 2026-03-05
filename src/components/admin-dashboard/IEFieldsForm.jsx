@@ -34,7 +34,7 @@ const SearchableSelect = ({ options, value, onChange, placeholder, disabled, dis
     const getDisplayText = (val) => {
         if (!val) return placeholder;
         if (displayKey && valueKey) {
-            const found = options.find(o => o[valueKey] == val);
+            const found = options.find(o => String(o[valueKey]) === String(val));
             return found ? found[displayKey] : placeholder;
         }
         return val;
@@ -70,7 +70,7 @@ const SearchableSelect = ({ options, value, onChange, placeholder, disabled, dis
                                 return (
                                     <div
                                         key={idx}
-                                        className={`searchable-select-item ${optionValue == value ? 'selected' : ''}`}
+                                        className={`searchable-select-item ${String(optionValue) === String(value) ? 'selected' : ''}`}
                                         onClick={() => handleSelect(opt)}
                                     >
                                         {optionDisplay}
@@ -139,12 +139,12 @@ export const IEFieldsForm = ({ onSubmit, onCancel, getUsersByRole, getCompanies,
             }
         };
         fetchInitialData();
-    }, [selectedRole]);
+    }, [selectedRole, getUsersByRole, getCompanies]);
 
     const handleMainInputChange = (e) => {
         const { name, value } = e.target;
         if (name === 'userId') {
-            const selectedUser = users.find(u => u.userId == value);
+            const selectedUser = users.find(u => String(u.userId) === String(value));
             setFormData(prev => ({
                 ...prev,
                 userId: value,

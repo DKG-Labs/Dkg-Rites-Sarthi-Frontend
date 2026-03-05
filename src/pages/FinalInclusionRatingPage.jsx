@@ -422,13 +422,21 @@ const FinalInclusionRatingPage = ({ onBack, productModel: propProductModel, onNa
       };
 
       // 1. Calculate R1 for each section
-      const microstructureRej1st = data.microstructure1st.filter((v) => v === 'Not Tempered Martensite').length;
-      const decarbRej1st = data.decarb1st.filter((v) => v !== '' && parseFloat(v) > lot.maxDecarb).length;
+      const micro1st = data.microstructure1st || [];
+      const decarb1st = data.decarb1st || [];
+      const defects1st = data.defects1st || [];
+      const micro2nd = data.microstructure2nd || [];
+      const decarb2nd = data.decarb2nd || [];
+      const defects2nd = data.defects2nd || [];
+
+      const microstructureRej1st = micro1st.filter((v) => v === 'Not Tempered Martensite').length;
+      const decarbRej1st = decarb1st.filter((v) => v !== '' && parseFloat(v) > lot.maxDecarb).length;
       const dInclusion = data.inclusion1st || [];
       const inclusionRej1st = dInclusion.filter((sample) => {
+        if (!sample || typeof sample !== 'object') return false;
         return ['A', 'B', 'C', 'D'].some((field) => sample[field] !== '' && parseFloat(sample[field]) > 2.0);
       }).length;
-      const defectsRej1st = data.defects1st.filter((v) => v === 'NOT OK').length;
+      const defectsRej1st = defects1st.filter((v) => v === 'NOT OK').length;
 
       // 2. Determine if 2nd sampling is required based on R1 (Ac1=0, Re1=2)
       const required = {
@@ -439,11 +447,12 @@ const FinalInclusionRatingPage = ({ onBack, productModel: propProductModel, onNa
       };
 
       // 3. Check for data in 2nd sampling sections
+      const dInclusion2nd = data.inclusion2nd || [];
       const has2ndData = {
-        microstructure: data.microstructure2nd.some(v => v !== ''),
-        decarb: data.decarb2nd.some(v => v !== ''),
-        inclusion: data.inclusion2nd.some(s => ['A', 'B', 'C', 'D'].some(k => s[k] !== '')),
-        defects: data.defects2nd.some(v => v !== '')
+        microstructure: micro2nd.some(v => v !== ''),
+        decarb: decarb2nd.some(v => v !== ''),
+        inclusion: dInclusion2nd.some(s => s && typeof s === 'object' && ['A', 'B', 'C', 'D'].some(k => s[k] !== '')),
+        defects: defects2nd.some(v => v !== '')
       };
 
       // 4. Handle visibility changes
@@ -639,34 +648,42 @@ const FinalInclusionRatingPage = ({ onBack, productModel: propProductModel, onNa
     if (!data) return {};
 
     /* Microstructure */
-    const microstructureRej1st = data.microstructure1st.filter((v) => v === 'Not Tempered Martensite').length;
-    const microstructureRej2nd = data.microstructure2nd ? data.microstructure2nd.filter((v) => v === 'Not Tempered Martensite').length : 0;
-    const isMicroFull1 = data.microstructure1st.every(v => v !== '');
-    const isMicroFull2 = data.microstructure2nd.every(v => v !== '');
+    const micro1st = data.microstructure1st || [];
+    const micro2nd = data.microstructure2nd || [];
+    const microstructureRej1st = micro1st.filter((v) => v === 'Not Tempered Martensite').length;
+    const microstructureRej2nd = micro2nd.filter((v) => v === 'Not Tempered Martensite').length;
+    const isMicroFull1 = micro1st.length > 0 && micro1st.every(v => v !== '');
+    const isMicroFull2 = micro2nd.length > 0 && micro2nd.every(v => v !== '');
 
     /* Decarb */
-    const decarbRej1st = data.decarb1st.filter((v) => v !== '' && parseFloat(v) > lot.maxDecarb).length;
-    const decarbRej2nd = data.decarb2nd.filter((v) => v !== '' && parseFloat(v) > lot.maxDecarb).length;
-    const isDecarbFull1 = data.decarb1st.every(v => v !== '');
-    const isDecarbFull2 = data.decarb2nd.every(v => v !== '');
+    const decarb1st = data.decarb1st || [];
+    const decarb2nd = data.decarb2nd || [];
+    const decarbRej1st = decarb1st.filter((v) => v !== '' && parseFloat(v) > lot.maxDecarb).length;
+    const decarbRej2nd = decarb2nd.filter((v) => v !== '' && parseFloat(v) > lot.maxDecarb).length;
+    const isDecarbFull1 = decarb1st.length > 0 && decarb1st.every(v => v !== '');
+    const isDecarbFull2 = decarb2nd.length > 0 && decarb2nd.every(v => v !== '');
 
     /* Inclusion */
     const dInclusion1 = data.inclusion1st || [];
     const inclusionRej1st = dInclusion1.filter((sample) => {
+      if (!sample || typeof sample !== 'object') return false;
       return ['A', 'B', 'C', 'D'].some((field) => sample[field] !== '' && parseFloat(sample[field]) > 2.0);
     }).length;
     const dInclusion2 = data.inclusion2nd || [];
     const inclusionRej2nd = dInclusion2.filter((sample) => {
+      if (!sample || typeof sample !== 'object') return false;
       return ['A', 'B', 'C', 'D'].some((field) => sample[field] !== '' && parseFloat(sample[field]) > 2.0);
     }).length;
-    const isInclusionFull1 = dInclusion1.every(s => ['A', 'B', 'C', 'D'].some(k => s[k] !== ''));
-    const isInclusionFull2 = dInclusion2.every(s => ['A', 'B', 'C', 'D'].some(k => s[k] !== ''));
+    const isInclusionFull1 = dInclusion1.length > 0 && dInclusion1.every(s => s && typeof s === 'object' && ['A', 'B', 'C', 'D'].some(k => s[k] !== ''));
+    const isInclusionFull2 = dInclusion2.length > 0 && dInclusion2.every(s => s && typeof s === 'object' && ['A', 'B', 'C', 'D'].some(k => s[k] !== ''));
 
     /* Defects */
-    const defectsRej1st = data.defects1st.filter((v) => v === 'NOT OK').length;
-    const defectsRej2nd = data.defects2nd.filter((v) => v === 'NOT OK').length;
-    const isDefectsFull1 = data.defects1st.every(v => v !== '');
-    const isDefectsFull2 = data.defects2nd.every(v => v !== '');
+    const defects1st = data.defects1st || [];
+    const defects2nd = data.defects2nd || [];
+    const defectsRej1st = defects1st.filter((v) => v === 'NOT OK').length;
+    const defectsRej2nd = defects2nd.filter((v) => v === 'NOT OK').length;
+    const isDefectsFull1 = defects1st.length > 0 && defects1st.every(v => v !== '');
+    const isDefectsFull2 = defects2nd.length > 0 && defects2nd.every(v => v !== '');
 
     const getStatus = (r1, r2, full1, full2) => {
       if (r1 > 1 || (r1 + r2) > 1) return 'REJECTED';

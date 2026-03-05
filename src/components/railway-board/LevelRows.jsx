@@ -42,7 +42,7 @@ function Level4Table({ callNo, parentSerial, railway }) {
                             <th colSpan="2" className="process-header tempering">Tempering</th>
 
                             {/* Rejection Classification Headers (Yellow) - Updated colSpan to 24 */}
-                            <th colSpan="24" className="rejection-class-header">Rejection Classification</th>
+                            <th colSpan="26" className="rejection-class-header">Rejection Classification</th>
                         </tr>
 
                         {/* Row 2: Sub Headers */}
@@ -61,6 +61,7 @@ function Level4Table({ callNo, parentSerial, railway }) {
                             <th className="mpi-col">MPI Defects</th>
                             <th colSpan="4" className="forging-col">Forging Defects</th>
                             <th className="quenching-col">Quenching Defects</th>
+                            <th colSpan={2} className="tempering-col">Tempering Defects</th>
                             <th colSpan="3" className="dim-col">Dimensional Rejection</th>
                             <th colSpan="3" className="visual-col">Visual Defects</th>
                             <th colSpan="3" className="testing-col">Testing Defects</th>
@@ -79,6 +80,8 @@ function Level4Table({ callNo, parentSerial, railway }) {
                             <th className="forging-col">FORGE TEMP</th><th className="forging-col">STABILISE</th><th className="forging-col">IMPROPER</th><th className="forging-col">FORGE DEFECT</th>
                             {/* Quenching */}
                             <th className="quenching-col">HARDNESS</th>
+                            <th className="tempering-col">TEMP.</th>
+                            <th className="tempering-col">DURATION</th>
                             {/* Dimensional */}
                             <th className="dim-col">BOX GAUGE</th><th className="dim-col">BEARING AREA</th><th className="dim-col">FALLING</th>
                             {/* Visual */}
@@ -125,6 +128,8 @@ function Level4Table({ callNo, parentSerial, railway }) {
                                     <td>{shift.forgingDefects?.forgingMarksNotches ?? 0}</td>
 
                                     <td>{shift.testingDefects?.temperingHardness ?? 0}</td>
+                                    <td>{shift.temperingDefects?.temperingTemperatureRejected ?? 0}</td>
+                                    <td>{shift.temperingDefects?.temperingDurationRejected ?? 0}</td>
 
                                     <td>{shift.dimensionalDefects?.boxGauge ?? 0}</td>
                                     <td>{shift.dimensionalDefects?.flatBearingArea ?? 0}</td>

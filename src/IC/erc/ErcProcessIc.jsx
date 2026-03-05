@@ -1,6 +1,31 @@
 import React from "react";
 
-const ErcProcessIC = ({ data = {} }) => {
+const EditableField = ({ isEditing, value, onChange, className = "", type = "text" }) => {
+  if (!isEditing) {
+    return type === "inline" ? <span className={className}>{value}</span> : <div className={className}>{value}</div>;
+  }
+  if (type === "textarea") {
+    return (
+      <textarea
+        className={`${className} w-full p-1 border border-blue-400 bg-blue-50 text-sm`}
+        value={value || ""}
+        onChange={(e) => onChange(e.target.value)}
+        rows={3}
+      />
+    );
+  }
+  return (
+    <input
+      type="text"
+      className={`${className} w-full p-1 border border-blue-400 bg-blue-50 text-sm`}
+      value={value || ""}
+      onChange={(e) => onChange(e.target.value)}
+      style={type === "inline" ? { display: "inline-block", width: "80px" } : {}}
+    />
+  );
+};
+
+const ErcProcessIC = ({ data = {}, isEditing = false, onChange = () => { }, onArrayChange = () => { } }) => {
   const {
     certificateNo = "",
     certificateDate = "",
@@ -58,13 +83,13 @@ const ErcProcessIC = ({ data = {} }) => {
               <span className="font-semibold">
                 प्रस्तावित किस्त सं. / Offered Instt No.
               </span>{" "}
-              <span>{offeredInstNo}</span>
+              <EditableField isEditing={isEditing} type="inline" value={offeredInstNo} onChange={(val) => onChange("offeredInstNo", val)} />
             </div>
             <div className="font-normal">
               <span className="font-semibold">
                 पारित किस्त सं. / Passed Instt No.
               </span>{" "}
-              <span>{passedInstNo}</span>
+              <EditableField isEditing={isEditing} type="inline" value={passedInstNo} onChange={(val) => onChange("passedInstNo", val)} />
             </div>
           </div>
         </div>
@@ -73,11 +98,11 @@ const ErcProcessIC = ({ data = {} }) => {
         <div className="grid grid-cols-2 border-b border-black">
           <div className="border-r border-black p-2">
             <div className="font-semibold">ठेकेदार / Contractor</div>
-            <div className="break-words dynamic-text">{contractor}</div>
+            <EditableField isEditing={isEditing} type="textarea" value={contractor} onChange={(val) => onChange("contractor", val)} className="break-words dynamic-text" />
           </div>
           <div className="p-2">
             <div className="font-semibold">उत्पादक / Manufacturer</div>
-            <div className="break-words dynamic-text">{manufacturer}</div>
+            <EditableField isEditing={isEditing} type="textarea" value={manufacturer} onChange={(val) => onChange("manufacturer", val)} className="break-words dynamic-text" />
           </div>
         </div>
 
@@ -87,17 +112,17 @@ const ErcProcessIC = ({ data = {} }) => {
             <div className="font-semibold">
               संविदा संदर्भ एवं दिनांक (रेलवे) / Contract Ref. & Date (Rly.)
             </div>
-            <div className="dynamic-text">{contractRef}</div>
+            <EditableField isEditing={isEditing} type="textarea" value={contractRef} onChange={(val) => onChange("contractRef", val)} className="dynamic-text" />
             <div className="mt-1 font-semibold">
               खरीद आदेश सं. एवं दिनांक (ठेकेदार) / PO No. & Date (Contractor)
             </div>
-            <div className="dynamic-text">{poDetails}</div>
+            <EditableField isEditing={isEditing} type="textarea" value={poDetails} onChange={(val) => onChange("poDetails", val)} className="dynamic-text" />
           </div>
           <div className="p-2">
             <div className="font-semibold">
               बिल अदायगी अधिकारी / Bill Paying Officer
             </div>
-            <div className="dynamic-text">{billPayingOfficer}</div>
+            <EditableField isEditing={isEditing} type="textarea" value={billPayingOfficer} onChange={(val) => onChange("billPayingOfficer", val)} className="dynamic-text" />
           </div>
         </div>
 
@@ -107,17 +132,17 @@ const ErcProcessIC = ({ data = {} }) => {
             <div className="font-semibold">
               प्रेषिती (रेलवे) / Consignee (Railway)
             </div>
-            <div className="break-words dynamic-text">{consigneeRailway}</div>
+            <EditableField isEditing={isEditing} type="textarea" value={consigneeRailway} onChange={(val) => onChange("consigneeRailway", val)} className="break-words dynamic-text" />
             <div className="mt-1 font-semibold">
               प्रेषिती (निर्मित उत्पाद निर्माता) / Consignee (Manufacturer of Finished Product)
             </div>
-            <div className="break-words dynamic-text">{consigneeManufacturer}</div>
+            <EditableField isEditing={isEditing} type="textarea" value={consigneeManufacturer} onChange={(val) => onChange("consigneeManufacturer", val)} className="break-words dynamic-text" />
           </div>
           <div className="p-2">
             <div className="font-semibold">
               क्रय प्राधिकारी (रेलवे) / Purchasing Authority (Railway)
             </div>
-            <div className="break-words dynamic-text">{purchasingAuthority}</div>
+            <EditableField isEditing={isEditing} type="textarea" value={purchasingAuthority} onChange={(val) => onChange("purchasingAuthority", val)} className="break-words dynamic-text" />
           </div>
         </div>
 
@@ -127,23 +152,23 @@ const ErcProcessIC = ({ data = {} }) => {
             <div className="font-semibold">
               विवरण / Description (PO Sr. No. 001)
             </div>
-            <div className="break-words dynamic-text">{description}</div>
+            <EditableField isEditing={isEditing} type="textarea" value={description} onChange={(val) => onChange("description", val)} className="break-words dynamic-text" />
           </div>
           <div className="border-r border-black p-2">
             <div>
               <span className="font-semibold">ड्रॉइंग सं. / Drg. No. </span>
-              <span>{drgNo}</span>
+              <EditableField isEditing={isEditing} value={drgNo} onChange={(val) => onChange("drgNo", val)} className="" />
             </div>
             <div className="mt-1">
               <span className="font-semibold">विनिर्देश सं. / Specn. No. </span>
-              <span>{specNo}</span>
+              <EditableField isEditing={isEditing} value={specNo} onChange={(val) => onChange("specNo", val)} className="" />
             </div>
           </div>
           <div className="p-2">
             <div className="font-semibold">
               गुणवत्ता आश्वासन योजना सं. / QAP No.
             </div>
-            <div className="dynamic-text">{qapNo}</div>
+            <EditableField isEditing={isEditing} type="textarea" value={qapNo} onChange={(val) => onChange("qapNo", val)} className="dynamic-text" />
           </div>
         </div>
 
@@ -152,7 +177,7 @@ const ErcProcessIC = ({ data = {} }) => {
           <div className="font-semibold">
             किए गए निरीक्षण/परीक्षण विवरण / Type of inspection/tests conducted:
           </div>
-          <div className="break-words dynamic-text">{inspectionType}</div>
+          <EditableField isEditing={isEditing} type="textarea" value={inspectionType} onChange={(val) => onChange("inspectionType", val)} className="break-words dynamic-text" />
         </div>
 
         {/* Table header */}
@@ -194,15 +219,9 @@ const ErcProcessIC = ({ data = {} }) => {
         <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] font-semibold border-b border-black">
           <div className="border-r border-black py-1 px-2 text-center">TOTAL</div>
           <div className="border-r border-black py-1 px-2 text-center"></div>
-          <div className="border-r border-black py-1 px-2 text-center">
-            {totalProcessed}
-          </div>
-          <div className="border-r border-black py-1 px-2 text-center">
-            {totalAccepted}
-          </div>
-          <div className="py-1 px-2 text-center">
-            {totalRejected}
-          </div>
+          <EditableField isEditing={isEditing} value={totalProcessed} onChange={(val) => onChange("totalProcessed", val)} className="border-r border-black py-1 px-2 text-center" />
+          <EditableField isEditing={isEditing} value={totalAccepted} onChange={(val) => onChange("totalAccepted", val)} className="border-r border-black py-1 px-2 text-center" />
+          <EditableField isEditing={isEditing} value={totalRejected} onChange={(val) => onChange("totalRejected", val)} className="py-1 px-2 text-center" />
         </div>
 
         {/* Reference row */}
@@ -217,19 +236,19 @@ const ErcProcessIC = ({ data = {} }) => {
             <span className="font-semibold">
               कॉल दिनांक / Date of call:{" "}
             </span>
-            <div>{callDate}</div>
+            <EditableField isEditing={isEditing} value={callDate} onChange={(val) => onChange("callDate", val)} className="" />
           </div>
           <div className="border-r border-black p-2">
             <span className="font-semibold">
               निरीक्षण की तिथि / Date of inspection:{" "}
             </span>
-            <div>{inspectionDate}</div>
+            <EditableField isEditing={isEditing} value={inspectionDate} onChange={(val) => onChange("inspectionDate", val)} className="" />
           </div>
           <div className="p-2">
             <span className="font-semibold">
               कार्यरत मानव-दिनों की कुल संख्या / Total No. of Man-days engaged:{" "}
             </span>
-            <div>{manDays}</div>
+            <EditableField isEditing={isEditing} value={manDays} onChange={(val) => onChange("manDays", val)} className="" />
           </div>
         </div>
 
@@ -239,11 +258,11 @@ const ErcProcessIC = ({ data = {} }) => {
             <div className="font-semibold">
               सील/स्टैंपिंग तथा पहचान की विधि / Pattern of sealing/stamping or identification
             </div>
-            <div className="dynamic-text">{sealingPattern}</div>
+            <EditableField isEditing={isEditing} type="textarea" value={sealingPattern} onChange={(val) => onChange("sealingPattern", val)} className="dynamic-text" />
           </div>
           <div className="p-2 flex flex-col justify-between">
             <div className="font-semibold">Inspecting Engineer</div>
-            <div className="mt-4 text-right">{inspectingEngineer}</div>
+            <EditableField isEditing={isEditing} value={inspectingEngineer} onChange={(val) => onChange("inspectingEngineer", val)} className="mt-4 text-right" />
           </div>
         </div>
 

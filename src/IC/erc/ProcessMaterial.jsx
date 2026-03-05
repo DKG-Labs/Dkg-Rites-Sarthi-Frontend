@@ -1,6 +1,6 @@
 // src/IC/erc/ProcessMaterialCertificate.jsx
 
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import { formatDate } from "../../utils/helpers";
 import ErcProcessIc from "./ErcProcessIc";
 import { exportToPdf } from "../../utils/exportUtils";
@@ -16,6 +16,8 @@ import { exportToPdf } from "../../utils/exportUtils";
  */
 export default function ProcessMaterialCertificate({ call = {}, onBack }) {
   const printAreaRef = useRef();
+  const [isEditing, setIsEditing] = useState(false);
+  const [editableData, setEditableData] = useState(null);
 
   const transformCallToIC = (c) => {
     if (!c || Object.keys(c).length === 0) return {};
@@ -116,14 +118,33 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
     };
   };
 
-  // FINAL DATA: empty layout OR API populated
-  const data = transformCallToIC(call);
+  // Initialize editable data whenever the underlying API data changes
+  useEffect(() => {
+    if (call && Object.keys(call).length > 0) {
+      setEditableData(transformCallToIC(call));
+    }
+  }, [call]);
+
+  const handleDataChange = (field, value) => {
+    setEditableData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleArrayDataChange = (arrayField, index, field, value) => {
+    setEditableData((prev) => {
+      const newArray = [...(prev[arrayField] || [])];
+      newArray[index] = { ...newArray[index], [field]: value };
+      return { ...prev, [arrayField]: newArray };
+    });
+  };
+
+  // FINAL DATA: use locally edited data if available, else fallback to API
+  const dataToPass = editableData || transformCallToIC(call);
 
   const handleExport = async () => {
     if (!printAreaRef.current) return;
 
     // Use certificate number as filename, fallback to default if not available
-    const certificateNo = data.certificateNo || "ProcessMaterialIC";
+    const certificateNo = dataToPass.certificateNo || "ProcessMaterialIC";
     // Sanitize filename: remove special characters that are invalid in filenames
     const sanitizedFilename = certificateNo.replace(/[/\\?%*:|"<>]/g, '-');
 
@@ -137,6 +158,12 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
         <button onClick={onBack} className="btn btn-outline">← Back</button>
 
         <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={() => setIsEditing(!isEditing)}
+            className={`btn ${isEditing ? "btn-success" : "btn-outline"}`}
+          >
+            {isEditing ? "Save Changes" : "Edit Certificate"}
+          </button>
           <button onClick={() => window.print()} className="btn btn-outline">Print</button>
           <button onClick={handleExport} className="btn btn-primary">Export PDF</button>
         </div>
@@ -145,7 +172,12 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
       {/* Printable content - Wrapped for proper print isolation */}
       <div className="certificate-print-wrapper" ref={printAreaRef}>
         <div className="certificate-page">
-          <ErcProcessIc data={data} />
+          <ErcProcessIc
+            data={dataToPass}
+            isEditing={isEditing}
+            onChange={handleDataChange}
+            onArrayChange={handleArrayDataChange}
+          />
         </div>
       </div>
     </div>

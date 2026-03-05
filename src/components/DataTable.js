@@ -196,10 +196,19 @@ const DataTable = ({ columns, data, onRowClick, actions, selectable, selectedRow
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {
-      const allIds = paginatedData.map(row => row.id);
-      onSelectionChange(allIds);
+      // Create a set of currently selected rows to avoid duplicates
+      const currentSelectedSet = new Set(selectedRows);
+
+      // Add all visible row IDs to the selection
+      paginatedData.forEach(row => currentSelectedSet.add(row.id));
+
+      onSelectionChange(Array.from(currentSelectedSet));
     } else {
-      onSelectionChange([]);
+      // Only remove the currently visible rows from the selection
+      const visibleIds = new Set(paginatedData.map(row => row.id));
+      const newSelection = selectedRows.filter(id => !visibleIds.has(id));
+
+      onSelectionChange(newSelection);
     }
   };
 

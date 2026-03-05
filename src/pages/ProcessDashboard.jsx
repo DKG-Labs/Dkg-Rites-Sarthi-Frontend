@@ -2908,36 +2908,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     };
   }, [manufacturedQtyByLine, selectedLine, selectedLotForDisplay, getSelectedLotForCurrentLine]);
 
-  // Helper function to validate manufactured quantity against rejected quantity (on blur)
-  const handleManufacturedBlur = (field, value, rejectedValue) => {
-    const numValue = parseInt(value) || 0;
-    const numRejected = rejectedValue || 0;
-    const lotNo = selectedLotForDisplay || getSelectedLotForCurrentLine();
 
-    // If user enters a value less than rejected, show alert and clear the field
-    if (value !== '' && numValue < numRejected) {
-      showNotification('error', `Manufactured quantity(${numValue}) cannot be less than rejected quantity(${numRejected})`);
-      setManufacturedQtyByLine(prev => ({
-        ...prev,
-        [selectedLine]: {
-          ...prev[selectedLine],
-          [lotNo]: { ...(prev[selectedLine]?.[lotNo] || {}), [field]: '' }
-        }
-      }));
-      // Persist cleared value
-      try { persistLineFinalResult(field, ''); } catch (e) { console.warn('Persist clear failed', e); }
-      return;
-    }
-
-    // Persist the entered manufactured quantity so lot-wise table updates immediately
-    try {
-      persistLineFinalResult(field, value);
-      // Force re-render ensures the Lot Wise Table reads the newly saved value from localStorage
-      setManufacturedQtyByLine(prev => ({ ...prev }));
-    } catch (e) {
-      console.warn('Persist manufactured failed', e);
-    }
-  };
 
   // Persist lineFinalResult is declared later to ensure `rejectedQty` and `acceptedQty` are initialized
 
@@ -3664,6 +3635,115 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       lotsByHeat: heatToLots
     };
   }, [currentLineInitiationData]);
+
+  // Helper function to validate manufactured quantity against both offered and rejected quantity (on blur)
+  const handleManufacturedBlur = (field, value, rejectedValue) => {
+    const numValue = parseInt(value) || 0;
+    const numRejected = rejectedValue || 0;
+    const lotNo = selectedLotForDisplay || getSelectedLotForCurrentLine();
+
+    // Get offered quantity for this lot from the memoized map
+    const offeredQty = lotOfferedQtyMap[lotNo] || rawMaterialAccepted || 0;
+
+    // Get previous shift data for this specific lot to calculate cumulative manufactured
+    const previousShiftManufactured = previousShiftData[lotNo]?.manufacturedQty || 0;
+    const cumulativeManufactured = numValue + previousShiftManufactured;
+
+    // 1. Validation: Cumulative Manufactured cannot exceed Offered quantity
+    if (value !== '' && cumulativeManufactured > offeredQty) {
+      const remainingAllowed = Math.max(0, offeredQty - previousShiftManufactured);
+      showNotification('error', `Cumulative manufactured quantity (${cumulativeManufactured}) cannot exceed offered quantity (${offeredQty}) for Lot ${lotNo}. Maximum allowed in this shift: ${remainingAllowed}`);
+      setManufacturedQtyByLine(prev => ({
+        ...prev,
+        [selectedLine]: {
+          ...prev[selectedLine],
+          [lotNo]: {
+            ...(prev[selectedLine]?.[lotNo] || {}),
+            [field]: ''
+          }
+        }
+      }));
+      // Persist cleared value
+      try {
+        persistLineFinalResult(field, '');
+      } catch (e) {
+        console.warn('Persist clear failed', e);
+      }
+      return;
+    }
+
+    // 2. Validation: Manufactured cannot be less than Rejected quantity
+    if (value !== '' && numValue < numRejected) {
+      showNotification('error', `Manufactured quantity(${numValue}) cannot be less than rejected quantity(${numRejected})`);
+      setManufacturedQtyByLine(prev => ({
+        ...prev,
+        [selectedLine]: {
+          ...prev[selectedLine],
+          [lotNo]: {
+            ...(prev[selectedLine]?.[lotNo] || {}),
+            [field]: ''
+          }
+        }
+      }));
+      // Persist cleared value
+      try {
+        persistLineFinalResult(field, '');
+      } catch (e) {
+        console.warn('Persist clear failed', e);
+      }
+      return;
+    }
+
+    // Persist the entered manufactured quantity so lot-wise table updates immediately
+    try {
+      persistLineFinalResult(field, value);
+      // Force re-render ensures the Lot Wise Table reads the newly saved value from localStorage
+      setManufacturedQtyByLine(prev => ({
+        ...prev
+      }));
+    } catch (e) {
+      console.warn('Persist manufactured failed', e);
+    }
+  };
+
+  // Helper function for REAL-TIME validation of manufactured quantity (on change)
+  const handleManufacturedChange = (field, value) => {
+    // Basic numeric check - only allow digits
+    if (value !== '' && !/^\d+$/.test(value)) return;
+
+    const numValue = parseInt(value) || 0;
+    const lotNo = selectedLotForDisplay || getSelectedLotForCurrentLine();
+
+    // Get offered quantity for this lot from the memoized map
+    const offeredQty = lotOfferedQtyMap[lotNo] || rawMaterialAccepted || 0;
+
+    // Get previous shift data for this specific lot to calculate cumulative manufactured
+    const previousShiftManufactured = previousShiftData[lotNo]?.manufacturedQty || 0;
+    const cumulativeManufactured = numValue + previousShiftManufactured;
+
+    // VALIDATION: Cumulative Manufactured cannot exceed Offered quantity
+    if (value !== '' && cumulativeManufactured > offeredQty) {
+      const remainingAllowed = Math.max(0, offeredQty - previousShiftManufactured);
+      showNotification('error', `Cumulative manufactured quantity (${cumulativeManufactured}) cannot exceed offered quantity (${offeredQty}) for Lot ${lotNo}. Maximum allowed in this shift: ${remainingAllowed}`);
+
+      // DO NOT update state with the invalid value
+      return;
+    }
+
+    // If validation passes, update state
+    setManufacturedQtyByLine(prev => ({
+      ...prev,
+      [selectedLine]: {
+        ...prev[selectedLine],
+        [lotNo]: {
+          ...(prev[selectedLine]?.[lotNo] || {}),
+          [field]: value
+        }
+      }
+    }));
+  };
+
+
 
   // Save lineFinalResult to localStorage whenever stage-wise quantities change
   useEffect(() => {
@@ -6055,16 +6135,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
                   <input
                     type="text"
                     value={manufacturedQty.shearing}
-                    onChange={(e) => {
-                      const lotNo = selectedLotForDisplay || getSelectedLotForCurrentLine();
-                      setManufacturedQtyByLine(prev => ({
-                        ...prev,
-                        [selectedLine]: {
-                          ...prev[selectedLine],
-                          [lotNo]: { ...(prev[selectedLine]?.[lotNo] || {}), shearing: e.target.value }
-                        }
-                      }));
-                    }}
+                    onChange={(e) => handleManufacturedChange('shearing', e.target.value)}
                     onBlur={(e) => handleManufacturedBlur('shearing', e.target.value, rejectedQty.shearing)}
                     style={{ width: '100%', padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px' }}
                   />
@@ -6085,16 +6156,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
                   <input
                     type="text"
                     value={manufacturedQty.turning}
-                    onChange={(e) => {
-                      const lotNo = selectedLotForDisplay || getSelectedLotForCurrentLine();
-                      setManufacturedQtyByLine(prev => ({
-                        ...prev,
-                        [selectedLine]: {
-                          ...prev[selectedLine],
-                          [lotNo]: { ...(prev[selectedLine]?.[lotNo] || {}), turning: e.target.value }
-                        }
-                      }));
-                    }}
+                    onChange={(e) => handleManufacturedChange('turning', e.target.value)}
                     onBlur={(e) => handleManufacturedBlur('turning', e.target.value, rejectedQty.turning)}
                     style={{ width: '100%', padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px' }}
                   />
@@ -6115,16 +6177,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
                   <input
                     type="text"
                     value={manufacturedQty.mpiTesting}
-                    onChange={(e) => {
-                      const lotNo = selectedLotForDisplay || getSelectedLotForCurrentLine();
-                      setManufacturedQtyByLine(prev => ({
-                        ...prev,
-                        [selectedLine]: {
-                          ...prev[selectedLine],
-                          [lotNo]: { ...(prev[selectedLine]?.[lotNo] || {}), mpiTesting: e.target.value }
-                        }
-                      }));
-                    }}
+                    onChange={(e) => handleManufacturedChange('mpiTesting', e.target.value)}
                     onBlur={(e) => handleManufacturedBlur('mpiTesting', e.target.value, rejectedQty.mpiTesting)}
                     style={{ width: '100%', padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px' }}
                   />
@@ -6145,16 +6198,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
                   <input
                     type="text"
                     value={manufacturedQty.forging}
-                    onChange={(e) => {
-                      const lotNo = selectedLotForDisplay || getSelectedLotForCurrentLine();
-                      setManufacturedQtyByLine(prev => ({
-                        ...prev,
-                        [selectedLine]: {
-                          ...prev[selectedLine],
-                          [lotNo]: { ...(prev[selectedLine]?.[lotNo] || {}), forging: e.target.value }
-                        }
-                      }));
-                    }}
+                    onChange={(e) => handleManufacturedChange('forging', e.target.value)}
                     onBlur={(e) => handleManufacturedBlur('forging', e.target.value, rejectedQty.forging)}
                     style={{ width: '100%', padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px' }}
                   />
@@ -6175,16 +6219,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
                   <input
                     type="text"
                     value={manufacturedQty.quenching}
-                    onChange={(e) => {
-                      const lotNo = selectedLotForDisplay || getSelectedLotForCurrentLine();
-                      setManufacturedQtyByLine(prev => ({
-                        ...prev,
-                        [selectedLine]: {
-                          ...prev[selectedLine],
-                          [lotNo]: { ...(prev[selectedLine]?.[lotNo] || {}), quenching: e.target.value }
-                        }
-                      }));
-                    }}
+                    onChange={(e) => handleManufacturedChange('quenching', e.target.value)}
                     onBlur={(e) => handleManufacturedBlur('quenching', e.target.value, rejectedQty.quenching)}
                     style={{ width: '100%', padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px' }}
                   />
@@ -6205,16 +6240,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
                   <input
                     type="text"
                     value={manufacturedQty.tempering}
-                    onChange={(e) => {
-                      const lotNo = selectedLotForDisplay || getSelectedLotForCurrentLine();
-                      setManufacturedQtyByLine(prev => ({
-                        ...prev,
-                        [selectedLine]: {
-                          ...prev[selectedLine],
-                          [lotNo]: { ...(prev[selectedLine]?.[lotNo] || {}), tempering: e.target.value }
-                        }
-                      }));
-                    }}
+                    onChange={(e) => handleManufacturedChange('tempering', e.target.value)}
                     onBlur={(e) => handleManufacturedBlur('tempering', e.target.value, rejectedQty.tempering)}
                     style={{ width: '100%', padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px' }}
                   />

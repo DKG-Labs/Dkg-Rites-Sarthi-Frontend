@@ -6,7 +6,7 @@ export const stageReverseMapping = {
 };
 
 /**
- * Validates that all selected calls have the same stage
+ * Validates that all selected calls have the same stage and respects multiple selection rules
  * @param {Array} selectedCalls - Array of call objects with stage property
  * @returns {Object} - { isValid: boolean, errorMessage: string }
  */
@@ -15,18 +15,36 @@ export const validateStageSelection = (selectedCalls) => {
     return { isValid: true, errorMessage: '' };
   }
 
+  // Helper to get normalized stage from either property
+  const getStageOrType = (call) => {
+    const val = call.stage || call.product_type || '';
+    if (val.toUpperCase().includes('RAW MATERIAL')) return 'RM';
+    if (val.toUpperCase().includes('PROCESS')) return 'Process Inspection';
+    if (val.toUpperCase().includes('FINAL')) return 'Final';
+    return val;
+  };
+
   // Check if all selected calls have the same stage
-  const firstStage = selectedCalls[0].stage;
-  const hasDifferentStages = selectedCalls.some(call => call.stage !== firstStage);
+  const firstStage = getStageOrType(selectedCalls[0]);
+  const hasDifferentStages = selectedCalls.some(call => getStageOrType(call) !== firstStage);
 
   if (hasDifferentStages) {
     // Find the different stages for error message
-    const stages = [...new Set(selectedCalls.map(call => call.stage))];
+    const stages = [...new Set(selectedCalls.map(call => getStageOrType(call)))];
     const stageNames = stages.map(stage => stageReverseMapping[stage] || stage);
-    
+
     return {
       isValid: false,
       errorMessage: `Cannot select different stages: ${stageNames.join(', ')}. Select only one stage at a time.`
+    };
+  }
+
+  // Prevent multiple selection for Raw Material and Final Material calls
+  if (selectedCalls.length > 1 && (firstStage === 'RM' || firstStage === 'Final')) {
+    const stageName = stageReverseMapping[firstStage] || firstStage;
+    return {
+      isValid: false,
+      errorMessage: `Multiple selection is not allowed for ${stageName} calls.`
     };
   }
 
@@ -57,28 +75,30 @@ export const createStageValidationHandler = (
 
     // Get all calls that will be selected
     const allSelectedCalls = filteredCalls.filter(call => newSelectedRows.includes(call.id));
-    
+
     // If no calls selected, allow it and clear errors
     if (allSelectedCalls.length === 0) {
       setSelectedRows(newSelectedRows);
       setSelectionError('');
       return;
     }
-    
+
     // Validate stage consistency - check if all selected calls have the same stage
     const validation = validateStageSelection(allSelectedCalls);
-    
+
     if (!validation.isValid) {
       // Show error notification for different stages
       setSelectionError(validation.errorMessage);
       // Clear error after 5 seconds
       setTimeout(() => setSelectionError(''), 5000);
-      // IMPORTANT: Don't update selection - keep the previous valid selection
-      // This ensures the UI checkbox state (controlled by selectedRows) matches reality
-      // The checkbox will remain unchecked because selectedRows doesn't include the invalid selection
+
+      // Special case: if this is a "Select All" operation that failed,
+      // and we had NO prior selection, we reject the whole selection.
+      // If we HAD a prior selection (e.g., they checked 1 RM, then hit Select All), 
+      // we just reject the Select All and keep the 1 RM selected.
       return;
     }
-    
+
     // Validation passed - all selected calls have the same stage
     // Update selection and clear any previous errors immediately
     // This works correctly even after a previous error, as long as the new selection is valid

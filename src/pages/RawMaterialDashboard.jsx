@@ -1193,16 +1193,45 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       }
     }
 
-    // Check if remarks are entered for all heats
+    // Check if remarks and sealing details are entered for all heats
     for (const heat of consolidatedHeats) {
       const heatNo = heat.heatNo || heat.heat_no || 'Unknown';
       if (!heatRemarks[heatNo] || heatRemarks[heatNo].trim() === '') {
         return { canFinish: false, reason: `Heat ${heatNo}: Remarks are required` };
       }
+
+      // Check Sealing Type details
+      const sealingType = heatSealingType[heatNo];
+      if (!sealingType) {
+        return { canFinish: false, reason: `Heat ${heatNo}: Sealing type (Steel Punch or Hologram) must be selected` };
+      }
+
+      if (sealingType === 'RITES_STEEL_PUNCH') {
+        const stampStr = heatSteelStampNumber[heatNo];
+        if (!stampStr || stampStr.trim() === '') {
+          return { canFinish: false, reason: `Heat ${heatNo}: IE Steel Stamp No is required when using Steel Punch` };
+        }
+      } else if (sealingType === 'RITES_HOLOGRAM') {
+        const holoEntries = heatHologramEntries[heatNo] || [];
+        if (holoEntries.length === 0) {
+          return { canFinish: false, reason: `Heat ${heatNo}: At least one hologram entry must be added when using Holograms` };
+        }
+
+        // Ensure all added hologram entries are fully filled out
+        const hasEmptyHoloData = holoEntries.some(holo => {
+          if (holo.type === 'range') return !holo.from?.trim() || !holo.to?.trim();
+          if (holo.type === 'single') return !holo.value?.trim();
+          return true;
+        });
+
+        if (hasEmptyHoloData) {
+          return { canFinish: false, reason: `Heat ${heatNo}: Please fill out all added hologram numbers completely` };
+        }
+      }
     }
 
     return { canFinish: true, reason: '' };
-  }, [consolidatedHeats, heatSubmoduleStatuses, heatRemarks, numberOfBundles, call?.call_no, calculateVisualRejectedWeight]);
+  }, [consolidatedHeats, heatSubmoduleStatuses, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, numberOfBundles, call?.call_no, calculateVisualRejectedWeight]);
 
   // Update canFinishInspectionState whenever dependencies change
   useEffect(() => {

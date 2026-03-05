@@ -16,6 +16,7 @@ import { fetchUserPendingCalls, performTransitionAction, clearWorkflowCache, fet
 import { markAsScheduled, isCallInitiated, getCallStatusData } from '../services/callStatusService';
 import { fetchCompletedCallsForIC, getCurrentUserId } from '../services/workflowApiService';
 // import { fetchRawMaterialCallsByStatus } from '../services/rawMaterial/rawMaterialApiService';
+import ProcessDefectSummaryCard from '../components/ProcessDefectSummaryCard';
 
 const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelectedCall, setContextSelectedCalls, setCurrentPage, initialTab = 'pending', setInspectionShift, setInspectionDate, setProcessShift }) => {
   // Restore active tab from sessionStorage on page load, fallback to initialTab
@@ -156,12 +157,19 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
     call.billing_status !== BILLING_STATUS.PAYMENT_DONE
   ).length;
 
+  // Check if logged-in user is a Process IE
+  const isProcessIE = (() => {
+    const storedRoleName = localStorage.getItem('roleName');
+    return storedRoleName ? storedRoleName.toLowerCase().includes('process') : false;
+  })();
+
   const tabs = [
     { id: 'pending', label: 'List of Calls Pending', description: `${pendingCount} pending` },
     { id: 'certificates', label: 'Issuance of IC', description: `${completedCount} ready for IC` },
     { id: 'billing', label: 'Billing Stage', description: `${billingCount} in billing` },
     { id: 'completed', label: 'Calls Completed', description: `${completedCount} completed` },
     { id: 'performance', label: 'Performance', description: 'KPI overview' },
+    ...(isProcessIE ? [{ id: 'defect-summary', label: 'Process Defect Summary', description: 'Call-wise defect data' }] : []),
   ];
 
   // Handle schedule button click (first time scheduling)
@@ -887,7 +895,7 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
 
       <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
-      {/* 1. List of Calls Pending - Combined: Real RM calls + Mock Process/Final calls */}
+      {/* 1. List of Calls Pending */}
       {activeTab === 'pending' && (
         <PendingCallsTab
           calls={combinedPendingCalls}
@@ -900,6 +908,11 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
           isLoading={isLoading}
           selectionResetKey={selectionResetKey}
         />
+      )}
+
+      {/* Process Defect Summary Tab - only for Process IE */}
+      {activeTab === 'defect-summary' && isProcessIE && (
+        <ProcessDefectSummaryCard />
       )}
 
       {/* 2. Issuance of IC - Second */}

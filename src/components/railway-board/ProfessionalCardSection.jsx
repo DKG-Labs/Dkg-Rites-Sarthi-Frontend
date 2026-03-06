@@ -6,7 +6,7 @@ import {
     Cell, PieChart, Pie, Legend, LineChart, Line, ComposedChart,
     Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis
 } from 'recharts';
-import { formatDate, formatDecimal } from '../../utils/helpers';
+import { formatDecimal } from '../../utils/helpers';
 import './ProfessionalCardSection.css';
 import './InspectionStackedCharts.css';
 import './PerformanceMatrixTheme.css';
@@ -65,24 +65,6 @@ const ProfessionalCardSection = ({
 
     const summarySubTab = getSummaryKey(selectedProduct);
     const [activeReport, setActiveReport] = useState('mpr');
-    const [perfSearch, setPerfSearch] = useState('');
-    const [perfFilters, setPerfFilters] = useState({ vendors: [], inspectors: [], rios: [], stages: [] });
-    const [openDropdown, setOpenDropdown] = useState(null);
-
-    const togglePerfFilter = (type, value) => {
-        setPerfFilters(prev => {
-            const current = [...prev[type]];
-            const index = current.indexOf(value);
-            if (index > -1) current.splice(index, 1);
-            else current.push(value);
-            return { ...prev, [type]: current };
-        });
-    };
-
-    const clearPerfFilters = () => {
-        setPerfFilters({ vendors: [], inspectors: [], rios: [], stages: [] });
-        setPerfSearch('');
-    };
 
     // Filtered records logic was removed to fix ESLint warnings as it was not being utilized in the current table implementation.
 

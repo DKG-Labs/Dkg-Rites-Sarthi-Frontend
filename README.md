@@ -1,5 +1,12 @@
 # SARTHI React App — Vercel Deployment
 
+GIT BRANCHES :-
+MAIN DOMAIN - PROD-SARTHI
+
+UAT -VERCEL - FIXEDCODE
+
+FOR MERGING TO UAT - MERGE-ERC-UAT-MAIN
+
 This repository is a frontend-only React application (Create React App) prepared for deployment to Vercel.
 
 ## Quick Local Build & Preview

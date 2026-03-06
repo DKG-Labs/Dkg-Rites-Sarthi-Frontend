@@ -160,3 +160,23 @@ export const formatPoNoWithSerial = (poNo, serial, rlyShortName) => {
 
   return [rly, p, cleanSerial].filter(Boolean).join(' / ');
 };
+
+/**
+ * Format a number to a fixed number of decimal places.
+ * If the value is not a number, returns the original value or '0' if it's null/undefined.
+ * @param {number|string} value - The value to format
+ * @param {number} [decimals=2] - Number of decimal places
+ * @returns {string} Formatted number string
+ */
+export const formatDecimal = (value, decimals = 2) => {
+  if (value === undefined || value === null || value === '' || value === '-') return value || '0';
+  const num = Number(value);
+  if (isNaN(num)) return value;
+
+  // Using Intl.NumberFormat for better localization support if needed, 
+  // but toFixed(2) is requested for capping.
+  return num.toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: decimals
+  });
+};

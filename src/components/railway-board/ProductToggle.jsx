@@ -39,7 +39,7 @@ const ProductToggle = ({ selectedProduct, setSelectedProduct }) => {
                 <button
                     key={prod.id}
                     className={`product-toggle-btn ${selectedProduct === prod.id ? 'active' : ''}`}
-                // onClick={() => setSelectedProduct(prod.id)} // Disabled as per request
+                    onClick={() => setSelectedProduct(prod.id)}
                 >
                     {prod.label}
                 </button>

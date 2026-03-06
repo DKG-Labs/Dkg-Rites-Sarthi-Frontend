@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from 'react'; // Re-adding useState
 import Pagination from '../Pagination';
 import { PROFESSIONAL_MAIN_CARDS, SUMMARY_DATA, QUALITY_DATA, REPORTS_DATA, PERFORMANCE_DATA } from '../../data/professionalDashboardData';
 import {
@@ -6,6 +6,7 @@ import {
     Cell, PieChart, Pie, Legend, LineChart, Line, ComposedChart,
     Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis
 } from 'recharts';
+import { formatDate, formatDecimal } from '../../utils/helpers';
 import './ProfessionalCardSection.css';
 import './InspectionStackedCharts.css';
 import './PerformanceMatrixTheme.css';
@@ -138,6 +139,21 @@ const ProfessionalCardSection = ({
 
 
     const renderSubContent = () => {
+        if (selectedProduct && selectedProduct !== 'ERC') {
+            return (
+                <div className="under-development-container">
+                    <div className="under-development-card">
+                        <div className="under-development-icon">🛠️</div>
+                        <h2 className="under-development-title">Under Development</h2>
+                        <p className="under-development-text">
+                            The dashboard for <strong>{selectedProduct}</strong> is currently being developed.
+                            Please check back later for updates.
+                        </p>
+                    </div>
+                </div>
+            );
+        }
+
         switch (activeMainCard) {
             case 'summary':
                 const baseSummary = SUMMARY_DATA[summarySubTab];
@@ -171,15 +187,15 @@ const ProfessionalCardSection = ({
                     }
                     if (p.label === 'Process Rejection %') {
                         const val = summaryData.processRejectionPercentage || 0;
-                        return { ...p, value: `${val.toFixed(1)}%`, progress: Math.min(Math.round(val * 10), 100) };
+                        return { ...p, value: `${formatDecimal(val)}%`, progress: Math.min(Math.round(val * 10), 100) };
                     }
                     if (p.label === 'Final Rejection %') {
                         const val = summaryData.finalRejectionPercentage || 0;
-                        return { ...p, value: `${val.toFixed(1)}%`, progress: Math.min(Math.round(val * 10), 100) };
+                        return { ...p, value: `${formatDecimal(val)}%`, progress: Math.min(Math.round(val * 10), 100) };
                     }
                     if (p.label === 'Raw Material Rejection %') {
                         const val = summaryData.rmRejectionPercentage || 0;
-                        return { ...p, value: `${val.toFixed(1)}%`, progress: Math.min(Math.round(val * 10), 100) };
+                        return { ...p, value: `${formatDecimal(val)}%`, progress: Math.min(Math.round(val * 10), 100) };
                     }
                     return p;
                 });
@@ -464,18 +480,6 @@ const ProfessionalCardSection = ({
                                 </ResponsiveContainer>
                             </div>
                         </div>
-
-                        {/* Integrated Footer Info */}
-                        <div className="quality-footer-info mt-8">
-                            <div className="flex justify-between items-center text-xs text-gray-500">
-                                <span>Last updated: 11 Feb 2026 14:52 IST</span>
-                                <div className="flex gap-4">
-                                    <span>Export PDF</span>
-                                    <span>Share Dashboard</span>
-                                    <span>Help</span>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 );
 
@@ -503,109 +507,9 @@ const ProfessionalCardSection = ({
                                 </p>
                             </div>
                             <div className="banner-actions">
-                                <div className="search-pill">
-                                    <span className="search-icon">🔍</span>
-                                    <input
-                                        type="text"
-                                        placeholder="Search vendor..."
-                                        value={perfSearch}
-                                        onChange={(e) => setPerfSearch(e.target.value)}
-                                    />
-                                </div>
                                 <button className="banner-btn-export">
                                     <span className="btn-icon">📥</span> Export
                                 </button>
-                            </div>
-                        </div>
-
-                        {/* Interactive Filter Bar */}
-                        <div className="perf-filter-bar-wrapper">
-                            <div className="perf-filter-bar">
-                                <span className="filter-label">FILTERS:</span>
-
-                                <div className="filter-dropdown-container">
-                                    <button
-                                        className={`filter-dropdown-btn ${perfFilters.vendors.length > 0 ? 'active' : ''}`}
-                                        onClick={() => setOpenDropdown(openDropdown === 'vendor' ? null : 'vendor')}
-                                    >
-                                        <span className="btn-icon">🏭</span> Vendor
-                                        {perfFilters.vendors.length > 0 && <span className="filter-count">{perfFilters.vendors.length}</span>}
-                                        <span className="arrow">{openDropdown === 'vendor' ? '▲' : '▼'}</span>
-                                    </button>
-                                    {openDropdown === 'vendor' && (
-                                        <div className="dropdown-panel">
-                                            {PERFORMANCE_DATA.filters.vendors.map(v => (
-                                                <div key={v} className="dropdown-item" onClick={() => togglePerfFilter('vendors', v)}>
-                                                    <input type="checkbox" checked={perfFilters.vendors.includes(v)} readOnly /> {v}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="filter-dropdown-container">
-                                    <button
-                                        className={`filter-dropdown-btn ${perfFilters.rios.length > 0 ? 'active' : ''}`}
-                                        onClick={() => setOpenDropdown(openDropdown === 'rio' ? null : 'rio')}
-                                    >
-                                        <span className="btn-icon">🌐</span> RITES RIO
-                                        {perfFilters.rios.length > 0 && <span className="filter-count">{perfFilters.rios.length}</span>}
-                                        <span className="arrow">{openDropdown === 'rio' ? '▲' : '▼'}</span>
-                                    </button>
-                                    {openDropdown === 'rio' && (
-                                        <div className="dropdown-panel">
-                                            {PERFORMANCE_DATA.filters.rios.map(r => (
-                                                <div key={r} className="dropdown-item" onClick={() => togglePerfFilter('rios', r)}>
-                                                    <input type="checkbox" checked={perfFilters.rios.includes(r)} readOnly /> {r}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="filter-dropdown-container">
-                                    <button
-                                        className={`filter-dropdown-btn ${perfFilters.inspectors.length > 0 ? 'active' : ''}`}
-                                        onClick={() => setOpenDropdown(openDropdown === 'inspector' ? null : 'inspector')}
-                                    >
-                                        <span className="btn-icon">👤</span> IE
-                                        {perfFilters.inspectors.length > 0 && <span className="filter-count">{perfFilters.inspectors.length}</span>}
-                                        <span className="arrow">{openDropdown === 'inspector' ? '▲' : '▼'}</span>
-                                    </button>
-                                    {openDropdown === 'inspector' && (
-                                        <div className="dropdown-panel">
-                                            {PERFORMANCE_DATA.filters.inspectors.map(i => (
-                                                <div key={i} className="dropdown-item" onClick={() => togglePerfFilter('inspectors', i)}>
-                                                    <input type="checkbox" checked={perfFilters.inspectors.includes(i)} readOnly /> {i}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="filter-dropdown-container">
-                                    <button
-                                        className={`filter-dropdown-btn ${perfFilters.stages.length > 0 ? 'active' : ''}`}
-                                        onClick={() => setOpenDropdown(openDropdown === 'stage' ? null : 'stage')}
-                                    >
-                                        <span className="btn-icon">📊</span> Stage
-                                        {perfFilters.stages.length > 0 && <span className="filter-count">{perfFilters.stages.length}</span>}
-                                        <span className="arrow">{openDropdown === 'stage' ? '▲' : '▼'}</span>
-                                    </button>
-                                    {openDropdown === 'stage' && (
-                                        <div className="dropdown-panel">
-                                            {PERFORMANCE_DATA.filters.stages.map(s => (
-                                                <div key={s} className="dropdown-item" onClick={() => togglePerfFilter('stages', s)}>
-                                                    <input type="checkbox" checked={perfFilters.stages.includes(s)} readOnly /> {s}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-
-                                {(perfFilters.vendors.length > 0 || perfFilters.inspectors.length > 0 || perfFilters.rios.length > 0 || perfFilters.stages.length > 0) && (
-                                    <button className="btn-clear-all" onClick={clearPerfFilters}>✕ Clear All</button>
-                                )}
                             </div>
                         </div>
 
@@ -664,7 +568,7 @@ const ProfessionalCardSection = ({
                                                         <td className="text-right font-bold text-emerald">{record.acceptedQty?.toLocaleString()}</td>
                                                         <td className="text-right font-bold text-red">{record.rejectedQty?.toLocaleString()}</td>
                                                         <td className="text-right">
-                                                            <span className="rejection-badge">{record.rejectionPercentage}%</span>
+                                                            <span className="rejection-badge">{formatDecimal(record.rejectionPercentage)}%</span>
                                                         </td>
                                                         {/* <td className="reason-cell">N/A</td> */}
                                                     </tr>
@@ -844,10 +748,10 @@ const ProfessionalCardSection = ({
                                                                         <td className="font-bold">{row.manufacturer}</td>
                                                                         <td className="text-right">{row.manufactured?.toLocaleString()}</td>
                                                                         <td className="text-right">{row.inspected?.toLocaleString()}</td>
-                                                                        <td className="text-right text-red font-bold">{row.rejected?.toLocaleString()}</td>
-                                                                        <td className="text-right">{row.rmRejPercent?.toFixed(2)}%</td>
-                                                                        <td className="text-right text-red font-bold">{row.processRejPercent?.toFixed(2)}%</td>
-                                                                        <td className="text-right">{row.finalRejPercent?.toFixed(2)}%</td>
+                                                                        <td className="text-right font-bold">{row.rejected?.toLocaleString()}</td>
+                                                                        <td className="text-right">{formatDecimal(row.rmRejPercent)}%</td>
+                                                                        <td className="text-right text-red font-bold">{formatDecimal(row.processRejPercent)}%</td>
+                                                                        <td className="text-right">{formatDecimal(row.finalRejPercent)}%</td>
                                                                     </tr>
                                                                 );
                                                             })}
@@ -1047,18 +951,6 @@ const ProfessionalCardSection = ({
                                     </div>
                                 </div>
                             )}
-                        </div>
-
-                        {/* Professional Footer */}
-                        <div className="quality-footer-info mt-8">
-                            <div className="flex justify-between items-center text-xs text-slate-500">
-                                <span className="font-medium">Confidential Report • Generated: 13 Feb 2026</span>
-                                <div className="flex gap-6">
-                                    <span className="hover:text-blue-600 cursor-pointer">Export PDF</span>
-                                    <span className="hover:text-blue-600 cursor-pointer">Share Dashboard</span>
-                                    <span className="hover:text-blue-600 cursor-pointer">Help Center</span>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 );

@@ -3,7 +3,7 @@ import { StatusBadge, ExpandIcon } from './SharedComponents';
 import reportService from '../../services/reportService';
 import Pagination from '../Pagination';
 import useReportData from '../../hooks/useReportData';
-import { formatDate } from '../../utils/helpers';
+import { formatDate, formatDecimal } from '../../utils/helpers';
 
 // --- Level 3 & 4 Components ---
 
@@ -111,38 +111,38 @@ function Level4Table({ callNo, parentSerial, railway }) {
                                     <td>{shift.processQty?.forgingProductionQty ?? 0}</td><td>{shift.processQty?.forgingRejectionQty ?? 0}</td>
                                     <td>{shift.processQty?.quenchingProductionQty ?? 0}</td><td>{shift.processQty?.quenchingRejectionQty ?? 0}</td>
                                     <td>{shift.processQty?.temperingProductionQty ?? 0}</td><td>{shift.processQty?.temperingRejectionQty ?? 0}</td>
-                                    <td>{shift.shearingDefects?.lengthOfCutBar ?? 0}</td>
-                                    <td>{shift.shearingDefects?.ovalityImproperDiaAtEnd ?? 0}</td>
-                                    <td>{shift.shearingDefects?.sharpEdges ?? 0}</td>
-                                    <td>{shift.shearingDefects?.crackedEdges ?? 0}</td>
+                                    <td>{formatDecimal(shift.shearingDefects?.lengthOfCutBar ?? 0)}</td>
+                                    <td>{formatDecimal(shift.shearingDefects?.ovalityImproperDiaAtEnd ?? 0)}</td>
+                                    <td>{formatDecimal(shift.shearingDefects?.sharpEdges ?? 0)}</td>
+                                    <td>{formatDecimal(shift.shearingDefects?.crackedEdges ?? 0)}</td>
 
-                                    <td>{shift.turningDefects?.parallelLength ?? 0}</td>
-                                    <td>{shift.turningDefects?.fullTurningLength ?? 0}</td>
-                                    <td>{shift.turningDefects?.turningDia ?? 0}</td>
+                                    <td>{formatDecimal(shift.turningDefects?.parallelLength ?? 0)}</td>
+                                    <td>{formatDecimal(shift.turningDefects?.fullTurningLength ?? 0)}</td>
+                                    <td>{formatDecimal(shift.turningDefects?.turningDia ?? 0)}</td>
 
                                     <td>{shift.processQty?.mpiRejectionQty ?? 0}</td>
 
-                                    <td>{shift.forgingDefects?.forgingTemperature ?? 0}</td>
-                                    <td>{shift.forgingDefects?.forgingStabilisationRejection ?? 0}</td>
-                                    <td>{shift.forgingDefects?.improperForging ?? 0}</td>
-                                    <td>{shift.forgingDefects?.forgingMarksNotches ?? 0}</td>
+                                    <td>{formatDecimal(shift.forgingDefects?.forgingTemperature ?? 0)}</td>
+                                    <td>{formatDecimal(shift.forgingDefects?.forgingStabilisationRejection ?? 0)}</td>
+                                    <td>{formatDecimal(shift.forgingDefects?.improperForging ?? 0)}</td>
+                                    <td>{formatDecimal(shift.forgingDefects?.forgingMarksNotches ?? 0)}</td>
 
-                                    <td>{shift.testingDefects?.temperingHardness ?? 0}</td>
-                                    <td>{shift.temperingDefects?.temperingTemp ?? 0}</td>
-                                    <td>{shift.temperingDefects?.temperingDuration ?? 0}</td>
+                                    <td>{formatDecimal(shift.quenchingDefects?.quenchingHardness ?? 0)}</td>
+                                    <td>{formatDecimal(shift.temperingDefects?.temperingTemp ?? 0)}</td>
+                                    <td>{formatDecimal(shift.temperingDefects?.temperingDuration ?? 0)}</td>
 
 
-                                    <td>{shift.dimensionalDefects?.boxGauge ?? 0}</td>
-                                    <td>{shift.dimensionalDefects?.flatBearingArea ?? 0}</td>
-                                    <td>{shift.dimensionalDefects?.fallingGauge ?? 0}</td>
+                                    <td>{formatDecimal(shift.dimensionalDefects?.boxGauge ?? 0)}</td>
+                                    <td>{formatDecimal(shift.dimensionalDefects?.flatBearingArea ?? 0)}</td>
+                                    <td>{formatDecimal(shift.dimensionalDefects?.fallingGauge ?? 0)}</td>
 
-                                    <td>{shift.visualDefects?.surfaceDefect ?? 0}</td>
-                                    <td>{shift.visualDefects?.embossingDefect ?? 0}</td>
-                                    <td>{shift.visualDefects?.marking ?? 0}</td>
+                                    <td>{formatDecimal(shift.visualDefects?.surfaceDefect ?? 0)}</td>
+                                    <td>{formatDecimal(shift.visualDefects?.embossingDefect ?? 0)}</td>
+                                    <td>{formatDecimal(shift.visualDefects?.marking ?? 0)}</td>
 
-                                    <td>0</td>
-                                    <td>{shift.testingDefects?.toeLoad ?? 0}</td><td>{shift.testingDefects?.weight ?? 0}</td>
-                                    <td>{shift.finishingDefects?.paintIdentification ?? 0}</td><td>{shift.finishingDefects?.ercCoating ?? 0}</td>
+                                    <td>{formatDecimal(shift.testingDefects?.temperingHardness ?? 0)}</td>
+                                    <td>{formatDecimal(shift.testingDefects?.toeLoad ?? 0)}</td><td>{formatDecimal(shift.testingDefects?.weight ?? 0)}</td>
+                                    <td>{formatDecimal(shift.finishingDefects?.paintIdentification ?? 0)}</td><td>{formatDecimal(shift.finishingDefects?.ercCoating ?? 0)}</td>
                                 </tr>
                             );
                         })}
@@ -191,7 +191,7 @@ function Level3Row({ call, expandedCall, toggleCall, parentSerial, index, railwa
                 <td className="text-right">{call.offeredOrManufacturedQty?.toLocaleString()}</td>
                 <td className="text-right">{call.acceptedQuantity?.toLocaleString()}</td>
                 <td className="text-right">{call.balanceQty?.toLocaleString()}</td>
-                <td className={call.rejectionPercentage > 5 ? 'text-red' : ''}>{call.rejectionPercentage || 0}%</td>
+                <td className={call.rejectionPercentage > 5 ? 'text-red' : ''}>{formatDecimal(call.rejectionPercentage || 0)}%</td>
                 <td className="col-reason" title={call.mainReasonForRejection}>{call.mainReasonForRejection || '-'}</td>
                 <td>{call.icNumber}</td>
             </tr>
@@ -297,12 +297,12 @@ function Level2Row({ row, index, expandedSerial, toggleSerial, expandedCall, tog
                 <td className="text-right">{row.balancePoQty?.toLocaleString()}</td>
                 <td className="text-center">{row.noOfIcIssued}</td>
                 <td>-</td>
-                <td className="text-right">{row.rawMaterialAcceptedMt}</td>
-                <td className={row.rawMaterialRejectionPercentage > 2 ? 'text-red' : ''}>{row.rawMaterialRejectionPercentage || 0}%</td>
+                <td className="text-right">{formatDecimal(row.rawMaterialAcceptedMt)}</td>
+                <td className={row.rawMaterialRejectionPercentage > 2 ? 'text-red' : ''}>{formatDecimal(row.rawMaterialRejectionPercentage || 0)}%</td>
                 <td className="text-right">{row.processInspectionMaterialAcceptedNos?.toLocaleString()}</td>
-                <td className={row.processInspectionMaterialRejectionPercentage > 3 ? 'text-red' : ''}>{row.processInspectionMaterialRejectionPercentage || 0}%</td>
+                <td className={row.processInspectionMaterialRejectionPercentage > 3 ? 'text-red' : ''}>{formatDecimal(row.processInspectionMaterialRejectionPercentage || 0)}%</td>
                 <td className="text-right">{row.finalInspectionMaterialAcceptedNos?.toLocaleString()}</td>
-                <td className={row.finalInspectionMaterialRejectionPercentage > 1 ? 'text-red' : ''}>{row.finalInspectionMaterialRejectionPercentage || 0}%</td>
+                <td className={row.finalInspectionMaterialRejectionPercentage > 1 ? 'text-red' : ''}>{formatDecimal(row.finalInspectionMaterialRejectionPercentage || 0)}%</td>
             </tr>
             {isExpanded && (
                 <tr className="detail-row level-3-container">
@@ -425,9 +425,9 @@ export const Level1Row = React.memo(({
                 <td className="text-right">{po?.poQty?.toLocaleString() || '0'}</td>
                 <td className="text-right">{po?.finalQuantityAcceptedByRites?.toLocaleString() || '0'}</td>
                 <td className="text-right">{po?.balancePoQty?.toLocaleString() || '0'}</td>
-                <td className={po?.rawMaterialRejectionPercentage > 2 ? 'text-red' : ''}>{po?.rawMaterialRejectionPercentage || 0}%</td>
-                <td className={po?.processInspectionRejectionPercentage > 3 ? 'text-red' : ''}>{po?.processInspectionRejectionPercentage || 0}%</td>
-                <td>{po?.finalInspectionRejectionPercentage || 0}%</td>
+                <td className={po?.rawMaterialRejectionPercentage > 2 ? 'text-red' : ''}>{formatDecimal(po?.rawMaterialRejectionPercentage || 0)}%</td>
+                <td className={po?.processInspectionRejectionPercentage > 3 ? 'text-red' : ''}>{formatDecimal(po?.processInspectionRejectionPercentage || 0)}%</td>
+                <td>{formatDecimal(po?.finalInspectionRejectionPercentage || 0)}%</td>
                 <td><StatusBadge status={po?.poStatus} /></td>
             </tr>
             {isExpanded && (

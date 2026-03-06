@@ -8,39 +8,39 @@
    1. BANNER  –  Rich geometric hero with glassmorphism overlay
    ───────────────────────────────────────────────────────────── */
 .performance-tab-content .performance-banner {
-    background: linear-gradient(135deg, #065f46 0%, #0d9488 45%, #10b981 100%);
-    box-shadow: 0 20px 50px -12px rgba(13, 148, 136, 0.4);
-    border-radius: 28px;
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    box-shadow: 0 12px 35px -10px rgba(16, 185, 129, 0.15), 0 0 0 1px rgba(16, 185, 129, 0.1);
+    border-radius: 24px;
     position: relative;
     overflow: hidden;
-    padding: 3rem 2.5rem;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 3rem 3rem;
+    margin-bottom: 2rem;
 }
 
-/* Large decorative circle – top-right */
+/* Eye-catchy soft vibrant orb top right */
 .performance-tab-content .performance-banner::before {
     content: '';
     position: absolute;
-    top: -60px;
-    right: -60px;
-    width: 260px;
-    height: 260px;
+    top: -100px;
+    right: -100px;
+    width: 450px;
+    height: 450px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.1);
+    background: radial-gradient(circle, rgba(16, 185, 129, 0.1) 0%, rgba(20, 184, 166, 0.05) 40%, transparent 70%);
     pointer-events: none;
+    z-index: 0;
 }
 
-/* Small decorative circle – bottom-left */
+/* Accent border line on the left */
 .performance-tab-content .performance-banner::after {
     content: '';
     position: absolute;
-    bottom: -40px;
-    left: 180px;
-    width: 140px;
-    height: 140px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.08);
-    pointer-events: none;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 6px;
+    background: linear-gradient(to bottom, #10b981, #0d9488);
+    border-radius: 24px 0 0 24px;
 }
 
 .performance-tab-content .banner-content {
@@ -49,21 +49,22 @@
 }
 
 .performance-tab-content .banner-title {
-    color: #ffffff;
+    color: #0f172a;
     font-size: 2.25rem;
-    font-weight: 900;
-    letter-spacing: -0.02em;
+    font-weight: 800;
+    letter-spacing: -0.03em;
     margin: 0 0 0.5rem 0;
-    text-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    position: relative;
+    z-index: 2;
 }
 
 .performance-tab-content .banner-subtitle {
-    color: #e2fef5;
+    color: #475569;
     font-size: 1rem;
-    opacity: 0.95;
     font-weight: 500;
-    margin: 0;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.01em;
+    position: relative;
+    z-index: 2;
 }
 
 /* Live indicator dot inside subtitle */
@@ -100,59 +101,58 @@
     align-items: center;
 }
 
-/* Glassmorphic search pill */
+/* Light-theme search pill */
 .performance-tab-content .search-pill {
-    background: rgba(255, 255, 255, 0.22);
-    border: 1px solid rgba(255, 255, 255, 0.45);
-    backdrop-filter: blur(12px);
-    border-radius: 14px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
     padding: 0.625rem 1.125rem;
     gap: 0.625rem;
-    transition: background 0.2s;
+    transition: all 0.2s;
 }
 
 .performance-tab-content .search-pill:hover {
-    background: rgba(255, 255, 255, 0.26);
+    background: #ffffff;
+    border-color: #cbd5e1;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .performance-tab-content .search-pill input {
-    color: #ffffff;
+    color: #1e293b;
     font-size: 0.875rem;
     font-weight: 500;
     width: 190px;
 }
 
 .performance-tab-content .search-pill input::placeholder {
-    color: rgba(255, 255, 255, 0.65);
+    color: #94a3b8;
 }
 
 .performance-tab-content .search-pill .search-icon {
-    filter: brightness(0) invert(1);
-    opacity: 0.75;
+    filter: none;
+    opacity: 0.5;
 }
 
-/* Export button */
+/* Eye-catchy Export Button */
 .performance-tab-content .banner-btn-export {
-    background: rgba(255, 255, 255, 0.95);
-    color: #059669;
+    background: linear-gradient(135deg, #10b981 0%, #0d9488 100%);
+    color: #ffffff;
     border: none;
-    padding: 0.7rem 1.5rem;
-    border-radius: 14px;
-    font-weight: 800;
+    padding: 0.75rem 1.5rem;
+    border-radius: 10px;
+    font-weight: 700;
     font-size: 0.875rem;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.625rem;
     cursor: pointer;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
 }
 
 .performance-tab-content .banner-btn-export:hover {
-    background: #ffffff;
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
-    color: #065f46;
+    box-shadow: 0 8px 20px rgba(13, 148, 136, 0.3);
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -182,7 +182,7 @@
     border-radius: 12px;
     font-size: 0.8125rem;
     font-weight: 600;
-    color: #065f46;
+    color: #10b981;
     padding: 0.5rem 1rem;
     transition: all 0.2s ease;
 }
@@ -196,12 +196,12 @@
 .performance-tab-content .filter-dropdown-btn.active {
     border-color: #10b981;
     background: #ecfdf5;
-    color: #059669;
+    color: #10b981;
     box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
 }
 
 .performance-tab-content .filter-count {
-    background: #059669;
+    background: #10b981;
     font-size: 0.65rem;
     font-weight: 800;
 }
@@ -214,7 +214,7 @@
 }
 
 .performance-tab-content .btn-clear-all:hover {
-    color: #059669;
+    color: #10b981;
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -275,7 +275,7 @@
 
 /* Green (replaced purple) – Avg Rejection % */
 .performance-tab-content .border-l-purple {
-    border-left-color: #059669;
+    border-left-color: #10b981;
     background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
 }
 
@@ -300,10 +300,11 @@
    4. TABLE  –  Crisp, hoverable, with better tag styles
    ───────────────────────────────────────────────────────────── */
 .performance-tab-content .perf-table-outer {
-    border-radius: 24px;
-    border: 1px solid #d1fae5;
+    background: #ffffff;
+    border-radius: 20px;
+    border: 1px solid #e2e8f0;
     overflow: hidden;
-    box-shadow: 0 8px 24px -6px rgba(5, 150, 105, 0.1);
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.08);
 }
 
 .performance-tab-content .perf-data-table-new {
@@ -312,14 +313,22 @@
 }
 
 /* Header row */
+/* Eye-Catchy Clear Table Header */
 .performance-tab-content .perf-data-table-new th {
-    background: linear-gradient(90deg, #065f46 0%, #0d9488 100%);
-    color: #ffffff;
-    border-bottom: none;
-    font-size: 0.6875rem;
-    letter-spacing: 0.08em;
-    padding: 1rem 1.25rem;
+    background: #f8fafc;
+    color: #334155;
+    border-bottom: 2px solid #e2e8f0;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    padding: 1.125rem 1rem;
     font-weight: 800;
+    text-transform: uppercase;
+    transition: background-color 0.2s;
+}
+
+.performance-tab-content .perf-data-table-new th:hover {
+    background: #f1f5f9;
+    color: #0d9488;
 }
 
 /* Alternate rows */
@@ -337,8 +346,8 @@
 }
 
 .performance-tab-content .perf-data-table-new tbody tr:hover {
-    background-color: #dcfce7 !important;
-    box-shadow: inset 3px 0 0 #10b981;
+    background-color: #f0fdfa !important;
+    box-shadow: inset 4px 0 0 #0d9488;
 }
 
 .performance-tab-content .perf-data-table-new td {
@@ -358,14 +367,14 @@
 /* Vendor name */
 .performance-tab-content .vendor-name {
     font-weight: 700;
-    color: #065f46;
+    color: #0d9488;
 }
 
 /* Inspector tag */
 .performance-tab-content .ie-tag {
     background: #f0fdf4;
     border: 1px solid #bbf7d0;
-    color: #065f46;
+    color: #10b981;
     font-weight: 600;
     font-size: 0.75rem;
     padding: 0.3rem 0.75rem;
@@ -398,19 +407,20 @@
 
 .performance-tab-content .stage-tag.stage-final {
     background: #d1fae5;
-    color: #065f46;
+    color: #10b981;
     border: 1px solid #6ee7b7;
 }
 
-/* Rejection badge */
+/* Rejection badge – Sophisticated pill */
 .performance-tab-content .rejection-badge {
-    background: #fef2f2;
-    color: #b91c1c;
-    border: 1px solid #fecaca;
-    padding: 0.25rem 0.625rem;
-    border-radius: 8px;
-    font-weight: 800;
-    font-size: 0.8125rem;
+    background: #fff1f2;
+    color: #e11d48;
+    border: 1px solid rgba(225, 29, 72, 0.1);
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 0.75rem;
+    box-shadow: 0 2px 4px rgba(225, 29, 72, 0.05);
 }
 
 /* Reason cell */
@@ -428,13 +438,13 @@
     background: linear-gradient(90deg, #f0fdf9 0%, #ecfdf5 100%);
     padding: 1rem 1.5rem;
     font-size: 0.8125rem;
-    color: #065f46;
+    color: #10b981;
     font-weight: 500;
     border-top: 1px solid #d1fae5;
 }
 
 .performance-tab-content .footer-stats strong {
-    color: #059669;
+    color: #14b8a6;
     font-weight: 800;
 }
 
@@ -454,7 +464,7 @@
 
 .performance-tab-content .dropdown-item:hover {
     background: #ecfdf5;
-    color: #065f46;
+    color: #10b981;
 }
 
 .performance-tab-content .dropdown-item input[type="checkbox"] {

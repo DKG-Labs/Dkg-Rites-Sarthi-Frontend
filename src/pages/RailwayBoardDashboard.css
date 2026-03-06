@@ -270,21 +270,23 @@
 /* KPI Grid */
 .kpi-grid {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
     margin-bottom: 32px;
 }
 
 .kpi-card {
     background: white;
     border-radius: 16px;
-    padding: 1.5rem;
+    padding: 1rem;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
     border: 1px solid #e2e8f0;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
     position: relative;
     overflow: hidden;
+    min-width: 0;
+    /* Allow card to shrink if needed */
 }
 
 .kpi-card:hover {
@@ -319,11 +321,13 @@
 }
 
 .kpi-value {
-    font-size: 24px;
-    font-weight: 700;
+    font-size: 20px;
+    font-weight: 800;
     color: #0f172a;
     margin-bottom: 8px;
-    line-height: 1;
+    line-height: 1.1;
+    word-break: break-word;
+    /* Allow numbers to wrap if extremely long */
 }
 
 .kpi-footer {
@@ -819,20 +823,48 @@ tr.row-even td {
     color: white;
 }
 
+.integrated-table-container {
+    width: 100%;
+    overflow-x: auto;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
 /* --- Level 4 Scroll Isolation --- */
 .level-4-scroll-container {
     overflow-x: auto;
     width: 100%;
-    max-width: calc(100vw - 120px);
+    /* Use max-width 100% to fit parent, min-width on table will force scroll */
+    max-width: 100%;
     display: block;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
     margin-bottom: 8px;
+    /* Custom scrollbar for better visibility */
+    scrollbar-width: thin;
+    scrollbar-color: #94a3b8 #f1f5f9;
+}
+
+.level-4-scroll-container::-webkit-scrollbar {
+    height: 8px;
+}
+
+.level-4-scroll-container::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+.level-4-scroll-container::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
 }
 
 .nested-table.level-4-table {
     width: max-content;
-    min-width: 100%;
+    min-width: 1800px;
+    /* Force minimum width to prevent column squishing */
+    table-layout: auto;
 }
 
 .nested-table.level-4-table th {
@@ -843,7 +875,9 @@ tr.row-even td {
 /* Force Level 1, 2, and 3 to fit and NOT scroll horizontally */
 .table-responsive,
 .nested-table-wrapper {
-    overflow-x: hidden !important;
+    overflow-x: auto;
+    /* Changed to auto to allow child elements to define scroll behavior */
+    max-width: 100%;
 }
 
 /* Re-allow scrolling only for Level 4 specifically */
@@ -1201,7 +1235,7 @@ tr.row-even td {
     }
 
     .level-4-scroll-container {
-        max-width: calc(100vw - 40px);
+        max-width: 100%;
     }
 }
 
@@ -1231,4 +1265,12 @@ tr.row-even td {
     .search-filter-box {
         flex-direction: column;
     }
+}
+
+/* ========================================================
+   Global Table Alignment Override for Railway Dashboard 
+   ======================================================== */
+.railway-dashboard-container table th,
+.railway-dashboard-container table td {
+    text-align: center !important;
 }

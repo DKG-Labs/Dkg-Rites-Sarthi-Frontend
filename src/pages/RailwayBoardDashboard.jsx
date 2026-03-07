@@ -267,7 +267,7 @@ const RailwayBoardDashboard = () => {
                             <th>RM %</th>
                             <th>Proc %</th>
                             <th>Final %</th>
-                            <th>Status</th>
+                            {/* <th>Status</th> */}
                         </tr>
                     </thead>
                     <tbody>

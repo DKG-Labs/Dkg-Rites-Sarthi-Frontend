@@ -7,14 +7,7 @@ export const KPICard = ({ data, isActive, onClick }) => (
     >
         <div className="kpi-label">{data.label}</div>
         <div className="kpi-value">{data.value}</div>
-        <div className="kpi-footer">
-            <span className="kpi-subtext">{data.subtext}</span>
-            {data.trend && (
-                <span className={`kpi-trend ${data.trend.startsWith('+') ? 'positive' : 'negative'}`}>
-                    {data.trend}
-                </span>
-            )}
-        </div>
+
     </div>
 );
 

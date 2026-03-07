@@ -428,7 +428,7 @@ export const Level1Row = React.memo(({
                 <td className={po?.rawMaterialRejectionPercentage > 2 ? 'text-red' : ''}>{formatDecimal(po?.rawMaterialRejectionPercentage || 0)}%</td>
                 <td className={po?.processInspectionRejectionPercentage > 3 ? 'text-red' : ''}>{formatDecimal(po?.processInspectionRejectionPercentage || 0)}%</td>
                 <td>{formatDecimal(po?.finalInspectionRejectionPercentage || 0)}%</td>
-                <td><StatusBadge status={po?.poStatus} /></td>
+                {/* <td><StatusBadge status={po?.poStatus} /></td> */}
             </tr>
             {isExpanded && (
                 <tr className="detail-row level-2-container">

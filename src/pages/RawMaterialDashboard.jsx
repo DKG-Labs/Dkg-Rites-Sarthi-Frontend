@@ -172,7 +172,8 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
   useEffect(() => {
     const fetchInspectionData = async () => {
       // Get PO number and call number
-      const poNo = call?.po_no;
+      // Use rawPoNo if available (from pending list DTO), fallback to po_no
+      const poNo = call?.rawPoNo || call?.po_no;
       const callNo = call?.call_no;
 
       if (!poNo || !callNo) {

@@ -384,28 +384,21 @@ const FinalHardnessTestPage = ({ onBack, onNavigateSubmodule }) => {
         onNavigate={onNavigateSubmodule}
       />
 
-      {/* Lot Selector */}
-      {availableLots.length > 0 && (
-        <>
-          {availableLots.length === 1 ? (
-            <div className="lot-single">
-              <span>📦 {availableLots[0].lotNo} | Heat {availableLots[0].heatNo}</span>
-            </div>
-          ) : (
-            <div className="lot-selector">
-              {availableLots.map((lot, idx) => (
-                <button
-                  key={lot.lotNo}
-                  className={`lot-btn ${activeLotTab === idx ? 'active' : ''}`}
-                  onClick={() => setActiveLotTab(idx)}
-                >
-                  Lot {lot.lotNo}
-                </button>
-              ))}
-            </div>
-          )}
-        </>
+      {/* Lot Selector – shown only when multiple lots */}
+      {availableLots.length > 1 && (
+        <div className="lot-selector">
+          {availableLots.map((lot, idx) => (
+            <button
+              key={lot.lotNo}
+              className={`lot-btn ${activeLotTab === idx ? 'active' : ''}`}
+              onClick={() => setActiveLotTab(idx)}
+            >
+              Lot {lot.lotNo}
+            </button>
+          ))}
+        </div>
       )}
+
 
       {/* LOT LOOP */}
       {availableLots.map((lot, idx) => {
@@ -479,13 +472,11 @@ const FinalHardnessTestPage = ({ onBack, onNavigateSubmodule }) => {
 
         return (
           <div key={lot.lotNo} className="lot-section">
-            <div className="lot-header">
-              📦 {lot.lotNo} | Heat {lot.heatNo} | Qty {lot.quantity}
-            </div>
-
-            <div className="limit-box">
-              Ac1: <b>{lot.accpNo}</b> | Re1: <b>{lot.rejNo}</b> | Cumm:{" "}
-              <b>{lot.cummRejNo}</b>
+            <div className="lot-header" style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
+              <span>📦 {lot.lotNo} | Heat {lot.heatNo} | Qty {lot.quantity}</span>
+              <span style={{ fontSize: '0.9em', fontWeight: 'normal', paddingLeft: '15px', borderLeft: '1px solid currentColor' }}>
+                Ac1: <b>{lot.accpNo}</b> | Re1: <b>{lot.rejNo}</b> | Cumm: <b>{lot.cummRejNo}</b>
+              </span>
             </div>
 
             {/* FIRST SAMPLING */}
@@ -527,9 +518,6 @@ const FinalHardnessTestPage = ({ onBack, onNavigateSubmodule }) => {
             <div className="compact-row">
               <div className="summary-item">
                 Rejected (R1): <strong className="r1-value">{R1}</strong>
-              </div>
-              <div className="summary-item">
-                Accp No.: <strong>{lot.accpNo}</strong> | Rej No.: <strong>{lot.rejNo}</strong> | Cumm. Rej: <strong>{lot.cummRejNo}</strong>
               </div>
               <div className="result-box small" style={{ borderColor: color, color: color }}>{result}</div>
               <Pagination

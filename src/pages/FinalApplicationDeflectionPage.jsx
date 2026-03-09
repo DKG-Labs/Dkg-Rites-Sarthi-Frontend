@@ -443,28 +443,21 @@ const FinalApplicationDeflectionPage = ({ onBack, onNavigateSubmodule }) => {
       {/* Submodule Navigation */}
       <FinalSubmoduleNav currentSubmodule="final-application-deflection" onNavigate={onNavigateSubmodule} />
 
-      {/* Lot Selector */}
-      {lotsData.length > 0 && (
-        <>
-          {lotsData.length === 1 ? (
-            <div className="lot-single">
-              <span>📦 {lotsData[0].lotNo} | Heat {lotsData[0].heatNo}</span>
-            </div>
-          ) : (
-            <div className="lot-selector">
-              {lotsData.map((lot, idx) => (
-                <button
-                  key={lot.lotNo}
-                  className={`lot-btn ${activeLotTab === idx ? 'active' : ''}`}
-                  onClick={() => setActiveLotTab(idx)}
-                >
-                  Lot {lot.lotNo}
-                </button>
-              ))}
-            </div>
-          )}
-        </>
+      {/* Lot Selector – shown only when multiple lots */}
+      {lotsData.length > 1 && (
+        <div className="lot-selector">
+          {lotsData.map((lot, idx) => (
+            <button
+              key={lot.lotNo}
+              className={`lot-btn ${activeLotTab === idx ? 'active' : ''}`}
+              onClick={() => setActiveLotTab(idx)}
+            >
+              Lot {lot.lotNo}
+            </button>
+          ))}
+        </div>
       )}
+
 
       {/* TABS */}
       <div className="ad-tabs">
@@ -495,13 +488,13 @@ const FinalApplicationDeflectionPage = ({ onBack, onNavigateSubmodule }) => {
                 {/* Lot Header */}
                 <div className="ad-lot-header">
                   <div className="ad-lot-info">
-                    <span className="ad-lot-badge">📦 Lot: <strong>{lot.lotNo}</strong></span>
+                    <span className="ad-lot-badge">📦 Lot: {lot.lotNo}</span>
                     <span className="ad-lot-meta">Heat: {lot.heatNo}</span>
                     <span className="ad-lot-meta">Qty: {lot.quantity}</span>
-                    <span className="ad-lot-meta">Sample: <strong>{lot.sampleSize}</strong></span>
-                    <span className="ad-lot-meta">Ac: <strong>{lot.accpNo}</strong></span>
-                    <span className="ad-lot-meta">Re: <strong>{lot.rejNo}</strong></span>
-                    <span className="ad-lot-meta">Cumm: <strong>{lot.cummRejNo}</strong></span>
+                    <span className="ad-lot-meta">Sample: {lot.sampleSize}</span>
+                    <span className="ad-lot-meta">Ac: {lot.accpNo}</span>
+                    <span className="ad-lot-meta">Re: {lot.rejNo}</span>
+                    <span className="ad-lot-meta">Cumm: {lot.cummRejNo}</span>
                   </div>
                 </div>
 
@@ -634,34 +627,13 @@ const FinalApplicationDeflectionPage = ({ onBack, onNavigateSubmodule }) => {
                 {/* Lot Header */}
                 <div className="ad-lot-header">
                   <div className="ad-lot-info">
-                    <span className="ad-lot-badge">📦 Lot: <strong>{lot.lotNo}</strong></span>
+                    <span className="ad-lot-badge">📦 Lot: {lot.lotNo}</span>
                     <span className="ad-lot-meta">Heat: {lot.heatNo}</span>
                     <span className="ad-lot-meta">Qty: {lot.quantity}</span>
-                    <span className="ad-lot-meta">Sample: <strong>{lot.sampleSize}</strong></span>
-                  </div>
-                </div>
-
-                {/* Test Info Row */}
-                <div className="ad-test-info">
-                  <div className="ad-info-item">
-                    <span className="ad-info-label">Sample Size (1st)</span>
-                    <span className="ad-info-value">{lot.sampleSize}</span>
-                  </div>
-                  <div className="ad-info-item">
-                    <span className="ad-info-label">Sample Size (2nd)</span>
-                    <span className="ad-info-value">{lot.sampleSize2nd}</span>
-                  </div>
-                  <div className="ad-info-item">
-                    <span className="ad-info-label">Accp No.</span>
-                    <span className="ad-info-value">{lot.accpNo}</span>
-                  </div>
-                  <div className="ad-info-item">
-                    <span className="ad-info-label">Rej No.</span>
-                    <span className="ad-info-value">{lot.rejNo}</span>
-                  </div>
-                  <div className="ad-info-item">
-                    <span className="ad-info-label">Cumm. Rej No.</span>
-                    <span className="ad-info-value">{lot.cummRejNo}</span>
+                    <span className="ad-lot-meta">Sample: {lot.sampleSize}</span>
+                    <span className="ad-lot-meta">Ac: {lot.accpNo}</span>
+                    <span className="ad-lot-meta">Re: {lot.rejNo}</span>
+                    <span className="ad-lot-meta">Cumm: {lot.cummRejNo}</span>
                   </div>
                 </div>
 

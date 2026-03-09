@@ -84,13 +84,18 @@ const PendingVerificationTab = ({
       render: (value) => formatDateTime(value)
     },
     {
-      key: 'poNumber',
-      label: 'PO Number',
-      sortable: true
+      key: 'rlyPoSr',
+      label: 'Rly / PO / Sr. No.',
+      sortable: true,
+      render: (value, row) => (
+        <a href="#" onClick={(e) => { e.preventDefault(); console.log('Download PO for', row.poNumber); }} className="text-blue-600 hover:underline">
+          {value}
+        </a>
+      )
     },
     {
       key: 'productStage',
-      label: 'Product Type - Stage',
+      label: 'Stage of Inspection',
       sortable: true
     },
     {
@@ -98,6 +103,11 @@ const PendingVerificationTab = ({
       label: 'Desired Inspection Date',
       sortable: true,
       render: (value) => formatDateTime(value).split(' ')[0]
+    },
+    {
+      key: 'dpDates',
+      label: 'DP & Ext. DP Date',
+      sortable: true
     },
     {
       key: 'placeOfInspection',
@@ -132,32 +142,11 @@ const PendingVerificationTab = ({
             📜 History
           </button>
           <button
-            className="btn btn-sm btn-secondary"
-            onClick={() => onViewDetails(row)}
-            title="View Full Details"
-          >
-            👁️ Details
-          </button>
-          <button
-            className="btn btn-sm btn-success"
-            onClick={() => onVerifyAccept(row)}
-            title="Verify & Accept"
-          >
-            ✅ Verify
-          </button>
-          <button
-            className="btn btn-sm btn-warning"
-            onClick={() => onReturn(row)}
-            title="Return for Rectification"
-          >
-            ↩️ Return
-          </button>
-          <button
             className="btn btn-sm btn-primary"
-            onClick={() => onReroute(row)}
-            title="Re-route to Another RIO"
+            onClick={() => onViewDetails(row)}
+            title="View Details & Take Action"
           >
-            🔀 Re-route
+            👁️ View Details
           </button>
         </div>
       )

@@ -1,200 +1,212 @@
-/**
- * Call Details Modal Component
- * Displays comprehensive call information in three sections:
- * 1. PO Details
- * 2. Inspection Call Details
- * 3. Sub PO Details
- *
- * Updated: 2025-01-01 - Added verification action buttons
- */
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { formatDateTime, formatDate } from '../utils/helpers';
 
 const CallDetailsModal = ({
   isOpen,
   onClose,
   call,
-  onVerifyAccept
+  allIEs = [],
+  onVerifyAccept,
+  onReturn,
+  onReroute,
+  onDownloadLetter
 }) => {
+  const [changeIE, setChangeIE] = useState(false);
+  const [selectedIE, setSelectedIE] = useState('');
+  const [remarks, setRemarks] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setChangeIE(false);
+      setSelectedIE('');
+      setRemarks('');
+    }
+  }, [isOpen]);
+
   if (!isOpen || !call) return null;
 
-  // Handle action button clicks
-  const handleVerifyAccept = () => {
-    if (onVerifyAccept) {
-      onVerifyAccept(call);
-    }
-  };
-
-  // Helper to display value or fallback
-  const displayValue = (value, fallback = '-') => {
-    return value || fallback;
-  };
+  const displayValue = (value, fallback = '-') => value || fallback;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div
         className="modal-content"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: '900px' }}
+        style={{ maxWidth: '1000px', width: '95%' }}
       >
-        {/* Modal Header */}
         <div className="modal-header">
-          <h2 className="modal-title">Call Details - {call.callNumber}</h2>
+          <h2 className="modal-title">Inspection Call Details - {call.callNumber}</h2>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
-        {/* Modal Body */}
-        <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+        <div className="modal-body" style={{ maxHeight: '80vh', overflowY: 'auto', padding: '20px' }}>
 
-          {/* Section 1: PO Details */}
-          <div className="details-section">
-            <h3 className="section-title">
-              <span className="section-icon">📄</span>
-              PO Details
-            </h3>
-            <div className="details-grid">
-              <div className="detail-item">
-                <label>PO Number</label>
-                <span>{displayValue(call.poNumber)}</span>
+          {/* Top Summary Section */}
+          <div className="summary-banner mb-6" style={{ background: '#f8fafc', padding: '15px', borderRadius: '8px', borderLeft: '4px solid #3b82f6' }}>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="text-xs text-gray-500 uppercase font-bold">Call Number</label>
+                <div className="font-bold text-lg">{call.callNumber}</div>
               </div>
-              <div className="detail-item">
-                <label>Date</label>
-                <span>{displayValue(call.poDate ? formatDate(call.poDate) : null)}</span>
+              <div>
+                <label className="text-xs text-gray-500 uppercase font-bold">Vendor Name</label>
+                <div className="font-semibold">{call.vendor?.name}</div>
               </div>
-              <div className="detail-item">
-                <label>PO Qty</label>
-                <span>{displayValue(call.poQuantity)}</span>
-              </div>
-              <div className="detail-item">
-                <label>Vendor Name</label>
-                <span>{displayValue(call.vendor?.name)}</span>
-              </div>
-              <div className="detail-item">
-                <label>MA No.</label>
-                <span>{displayValue(call.maNumber)}</span>
-              </div>
-              <div className="detail-item">
-                <label>MA Date</label>
-                <span>{displayValue(call.maDate ? formatDate(call.maDate) : null)}</span>
-              </div>
-              <div className="detail-item">
-                <label>Purchasing Authority</label>
-                <span>{displayValue(call.purchasingAuthority)}</span>
-              </div>
-              <div className="detail-item">
-                <label>Bill Paying Officer</label>
-                <span>{displayValue(call.billPayingOfficer)}</span>
+              <div>
+                <label className="text-xs text-gray-500 uppercase font-bold">Place of Inspection</label>
+                <div className="font-semibold">{call.placeOfInspection}</div>
               </div>
             </div>
           </div>
 
-          {/* Section 2: Inspection Call Details */}
-          <div className="details-section">
-            <h3 className="section-title">
-              <span className="section-icon">🔍</span>
-              Inspection Call Details
+          {/* IE Assignment Section */}
+          <div className="ie-assignment-section mb-8 p-4 bg-blue-50 rounded-lg border border-blue-100">
+            <h3 className="text-blue-800 font-bold mb-3 flex items-center">
+              <span className="mr-2">👷</span> IE Assignment
             </h3>
-            <div className="details-grid">
-              <div className="detail-item">
-                <label>PO+ Sr.No.</label>
-                <span>{displayValue(call.poSerialNumber)}</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Name of IE mapped in System</label>
+                <div className="font-semibold p-2 bg-white rounded border border-blue-200">
+                  {call.assignedIeName || 'System Assigned'}
+                </div>
               </div>
-              <div className="detail-item">
-                <label>Call Date</label>
-                <span>{displayValue(call.submissionDateTime ? formatDateTime(call.submissionDateTime) : null)}</span>
-              </div>
-              <div className="detail-item">
-                <label>Desired Date of Inspection</label>
-                <span>{displayValue(call.desiredInspectionDate ? formatDate(call.desiredInspectionDate) : null)}</span>
-              </div>
-              <div className="detail-item">
-                <label>Item Desc</label>
-                <span>{displayValue(call.itemDescription)}</span>
-              </div>
-              <div className="detail-item">
-                <label>Original Delivery Date</label>
-                <span>{displayValue(call.originalDeliveryDate ? formatDate(call.originalDeliveryDate) : null)}</span>
-              </div>
-              <div className="detail-item">
-                <label>Extended Delivery Date</label>
-                <span>{displayValue(call.extendedDeliveryDate ? formatDate(call.extendedDeliveryDate) : null)}</span>
-              </div>
-              <div className="detail-item">
-                <label>Original DP_Start</label>
-                <span>{displayValue(call.originalDPStart ? formatDate(call.originalDPStart) : null)}</span>
-              </div>
-              <div className="detail-item">
-                <label>Call Qty</label>
-                <span>{displayValue(call.quantity)}</span>
-              </div>
-              <div className="detail-item full-width">
-                <label>Place of Inspection</label>
-                <span>{displayValue(call.placeOfInspection)}</span>
+              <div className="flex flex-col gap-3">
+                <label className="flex items-center cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    className="mr-2 h-4 w-4"
+                    checked={changeIE}
+                    onChange={(e) => setChangeIE(e.target.checked)}
+                  />
+                  <span className="text-sm font-medium text-gray-700">Do you want to change the IE for this call?</span>
+                </label>
+
+                {changeIE && (
+                  <div className="animate-fade-in">
+                    <label className="block text-xs text-gray-500 mb-1 uppercase font-bold">Select New IE</label>
+                    <select
+                      className="form-control w-full p-2 rounded border border-blue-300"
+                      value={selectedIE}
+                      onChange={(e) => setSelectedIE(e.target.value)}
+                    >
+                      <option value="">-- Select IE --</option>
+                      {allIEs.map(ie => (
+                        <option key={ie.id} value={ie.id}>{ie.name} ({ie.shortName})</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Section 3: Sub PO Details */}
-          <div className="details-section">
-            <h3 className="section-title">
-              <span className="section-icon">📋</span>
-              Sub PO Details
-            </h3>
-            <div className="details-grid">
-              <div className="detail-item">
-                <label>Sub PO No.</label>
-                <span>{displayValue(call.subPoNumber)}</span>
+          {/* Details Tabs/Sections */}
+          <div className="details-container grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* PO Details */}
+            <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+              <h4 className="font-bold border-b pb-2 mb-3 text-gray-700 uppercase text-sm">📄 PO Information</h4>
+              <div className="space-y-2">
+                <div className="flex justify-between border-b border-gray-50 py-1">
+                  <label className="text-gray-500 text-sm">PO Number:</label>
+                  <span className="font-medium">{displayValue(call.poNumber)}</span>
+                </div>
+                <div className="flex justify-between border-b border-gray-50 py-1">
+                  <label className="text-gray-500 text-sm">Railway:</label>
+                  <span className="font-medium">{displayValue(call.rlyShortName)}</span>
+                </div>
+                <div className="flex justify-between border-b border-gray-50 py-1">
+                  <label className="text-gray-500 text-sm">Serial No:</label>
+                  <span className="font-medium">{displayValue(call.poSerialNo)}</span>
+                </div>
+                <div className="flex justify-between border-b border-gray-50 py-1">
+                  <label className="text-gray-500 text-sm">Item Type:</label>
+                  <span className="font-medium">{displayValue(call.product)}</span>
+                </div>
               </div>
-              <div className="detail-item">
-                <label>Sub PO Dates</label>
-                <span>{displayValue(call.subPoDate ? formatDate(call.subPoDate) : null)}</span>
-              </div>
-              <div className="detail-item">
-                <label>TC No.</label>
-                <span>{displayValue(call.tcNumber)}</span>
-              </div>
-              <div className="detail-item">
-                <label>TC Date</label>
-                <span>{displayValue(call.tcDate ? formatDate(call.tcDate) : null)}</span>
-              </div>
-              <div className="detail-item">
-                <label>Manufacturer of Material</label>
-                <span>{displayValue(call.manufacturerOfMaterial)}</span>
-              </div>
-              <div className="detail-item">
-                <label>Sub PO Qty</label>
-                <span>{displayValue(call.subPoQuantity)}</span>
-              </div>
-              <div className="detail-item">
-                <label>Invoice Number</label>
-                <span>{displayValue(call.invoiceNumber)}</span>
-              </div>
-              <div className="detail-item">
-                <label>Invoice Date</label>
-                <span>{displayValue(call.invoiceDate ? formatDate(call.invoiceDate) : null)}</span>
-              </div>
-              <div className="detail-item full-width">
-                <label>Place of Inspection</label>
-                <span>{displayValue(call.subPoPlaceOfInspection || call.placeOfInspection)}</span>
+            </div>
+
+            {/* Inspection Details */}
+            <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+              <h4 className="font-bold border-b pb-2 mb-3 text-gray-700 uppercase text-sm">🔍 Call Details</h4>
+              <div className="space-y-2">
+                <div className="flex justify-between border-b border-gray-50 py-1">
+                  <label className="text-gray-500 text-sm">Desired Date:</label>
+                  <span className="font-medium">{displayValue(call.desiredInspectionDate)}</span>
+                </div>
+                <div className="flex justify-between border-b border-gray-50 py-1">
+                  <label className="text-gray-500 text-sm">Original DP:</label>
+                  <span className="font-medium">{displayValue(call.dpDate)}</span>
+                </div>
+                <div className="flex justify-between border-b border-gray-50 py-1">
+                  <label className="text-gray-500 text-sm">Extended DP:</label>
+                  <span className="font-medium">{displayValue(call.extDpDate)}</span>
+                </div>
+                <div className="flex justify-between border-b border-gray-50 py-1">
+                  <label className="text-gray-500 text-sm">Submission:</label>
+                  <span className="font-medium">{formatDateTime(call.submissionDateTime)}</span>
+                </div>
               </div>
             </div>
           </div>
 
+          {/* Remarks Section */}
+          <div className="mt-8">
+            <label className="block text-sm font-bold text-gray-700 mb-2">Remarks / Observations</label>
+            <textarea
+              className="form-control w-full p-3 rounded border border-gray-300 focus:border-blue-500"
+              rows="3"
+              placeholder="Enter remarks for the selected action..."
+              value={remarks}
+              onChange={(e) => setRemarks(e.target.value)}
+            />
+          </div>
         </div>
 
-        {/* Modal Footer */}
-        <div className="modal-footer">
-          <button className="btn btn-secondary" onClick={onClose}>
-            Close
-          </button>
-          <button
-            className="btn btn-success"
-            onClick={handleVerifyAccept}
-            title="Verify and Accept Call"
-          >
-            ✅ Verify & Accept
-          </button>
+        <div className="modal-footer flex flex-wrap gap-2 justify-between">
+          <div className="footer-left">
+            <button
+              className="btn btn-secondary border-gray-300 hover:bg-gray-50"
+              onClick={() => onDownloadLetter(call)}
+            >
+              📥 Download Call Letter
+            </button>
+          </div>
+
+          <div className="footer-right flex gap-2">
+            <button
+              className="btn bg-gray-600 text-white hover:bg-gray-700"
+              onClick={onClose}
+            >
+              Cancel
+            </button>
+            <button
+              className="btn bg-orange-500 text-white hover:bg-orange-600"
+              onClick={() => onReroute(call, remarks)}
+            >
+              🔀 Reroute
+            </button>
+            <button
+              className="btn bg-red-600 text-white hover:bg-red-700"
+              onClick={() => onReturn(call, remarks)}
+            >
+              ↩️ Return
+            </button>
+            <button
+              className="btn bg-blue-600 text-white hover:bg-blue-700"
+              onClick={() => onVerifyAccept(call, remarks, changeIE ? selectedIE : null)}
+            >
+              ✅ Verify
+            </button>
+            {call.isVerified && (
+              <button
+                className="btn bg-indigo-600 text-white hover:bg-indigo-700"
+                onClick={() => console.log('Modify Mapping')}
+              >
+                ✏️ Modify Mapping
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -23,7 +23,7 @@ export const useCallActions = () => {
   /**
  * Verify and accept a call (REAL API)
  */
-  const verifyAndAccept = async (workflowTransitionId, selectedCall, remarks) => {
+  const verifyAndAccept = async (workflowTransitionId, selectedCall, remarks, newIeId) => {
     try {
       setLoading(true);
       setError(null);
@@ -38,6 +38,7 @@ export const useCallActions = () => {
         remarks: remarks || null,
         actionBy: Number(user.userId),
         pincode: null,
+        assignUserId: newIeId ? Number(newIeId) : null
       };
 
 
@@ -247,6 +248,36 @@ export const useCallActions = () => {
   };
 
 
+  /**
+   * Fetch all IEs (REAL API)
+   */
+  const fetchAllIEs = async () => {
+    try {
+      const response = await axios.get(
+        `${API_BASE_URL}/auth/api/users/by-role`,
+        {
+          params: { roleName: 'IE' },
+          headers: {
+            ...getAuthHeaders(),
+          },
+        }
+      );
+
+      if (response.data?.responseStatus?.statusCode !== 0) {
+        throw new Error('Failed to fetch IEs');
+      }
+
+      return response.data.responseData.map(user => ({
+        id: user.userId,
+        name: user.fullName || user.userName,
+        shortName: user.shortName
+      }));
+    } catch (err) {
+      console.error('Error fetching IEs:', err);
+      return [];
+    }
+  };
+
   return {
     // State
     loading,
@@ -257,7 +288,8 @@ export const useCallActions = () => {
     returnForRectification,
     rerouteToRIO,
     viewCallDetails,
-    viewCallHistory
+    viewCallHistory,
+    fetchAllIEs
   };
 };
 

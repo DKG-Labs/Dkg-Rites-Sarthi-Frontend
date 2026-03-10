@@ -5736,7 +5736,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
                         letterSpacing: '0.5px',
                         minWidth: '140px'
                       }}>Accepted RM (MT)</th>
-                      <th style={{
+                      {/* <th style={{
                         padding: '12px 16px',
                         textAlign: 'left',
                         fontWeight: 600,
@@ -5745,7 +5745,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
                         textTransform: 'uppercase',
                         letterSpacing: '0.5px',
                         minWidth: '180px'
-                      }}>Sealing Details</th>
+                      }}>Sealing Details</th> */}
                       <th style={{
                         padding: '12px 16px',
                         textAlign: 'left',
@@ -5765,7 +5765,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
                         textTransform: 'uppercase',
                         letterSpacing: '0.5px',
                         minWidth: '140px'
-                      }}>Mfg ERC In Process</th>
+                      }}>Mfg ERC In Process(No's)</th>
                       <th style={{
                         padding: '12px 16px',
                         textAlign: 'left',
@@ -5775,7 +5775,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
                         textTransform: 'uppercase',
                         letterSpacing: '0.5px',
                         minWidth: '140px'
-                      }}>Rejected ERC In Process</th>
+                      }}>Rejected ERC In Process(No's)</th>
                       <th style={{
                         padding: '12px 16px',
                         textAlign: 'left',
@@ -5785,7 +5785,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
                         textTransform: 'uppercase',
                         letterSpacing: '0.5px',
                         minWidth: '140px'
-                      }}>Accepted ERC In Process</th>
+                      }}>Accepted ERC In Process(No's)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -5844,7 +5844,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
                             color: '#64748b',
                             fontWeight: 500
                           }}>{weightAcceptedMt > 0 ? weightAcceptedMt : '-'}</td>
-                          <td data-label="Sealing Details" style={{
+                          {/* <td data-label="Sealing Details" style={{
                             padding: '12px 16px',
                             color: '#64748b',
                             fontSize: '12px',
@@ -5864,13 +5864,13 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
                                 )}
                               </div>
                             ) : '-'}
-                          </td>
+                          </td> */}
                           <td data-label="Max ERC Can be Mfg" style={{
                             padding: '12px 16px',
                             color: '#3b82f6',
                             fontWeight: 500
                           }}>{maxErcCanBeMfg > 0 ? maxErcCanBeMfg : '-'}</td>
-                          <td data-label="Mfg ERC In Process" style={{
+                          <td data-label="Mfg ERC In Process (No's)" style={{
                             padding: '12px 16px',
                             color: apiData ? '#059669' : '#3b82f6',
                             fontWeight: 500
@@ -5938,10 +5938,10 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
                     <thead>
                       <tr>
                         <th style={{ width: '150px' }}>Lot No.</th>
-                        <th style={{ width: '150px' }}>Offered Qty</th>
-                        <th style={{ width: '150px' }}>Manufactured Qty</th>
-                        <th style={{ width: '150px' }}>Rejected Qty</th>
-                        <th style={{ width: '150px' }}>Accepted Qty</th>
+                        <th style={{ width: '150px' }}>Offered Qty(No's)</th>
+                        <th style={{ width: '150px' }}>Manufactured Qty(No's)</th>
+                        <th style={{ width: '150px' }}>Rejected Qty(No's)</th>
+                        <th style={{ width: '150px' }}>Accepted Qty(No's)</th>
                       </tr>
                     </thead>
                     <tbody>

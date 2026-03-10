@@ -85,15 +85,21 @@ export const useCallDeskData = () => {
         vendor: { name: item.vendorName || '-' },
         submissionDateTime: item.createdDate,
         poNumber: item.poNo,
+        poSerialNo: item.poSerialNo,
+        rlyShortName: item.rlyShortName,
+        rlyPoSr: `${item.rlyShortName || ''} / ${item.poNo || ''} / ${item.poSerialNo || ''}`,
         product: item.productType,
         productStage: item.productType,
         desiredInspectionDate: item.desiredInspectionDate,
-        placeOfInspection: '-',
+        placeOfInspection: item.placeOfInspection || '-',
+        dpDate: item.dpDate,
+        extDpDate: item.extDpDate,
+        dpDates: `${item.dpDate || '-'} / ${item.extDpDate || '-'}`,
         status: internalStatus, // Use mapped internal status
         rio: item.rio,
         // Include additional fields for details view if available
         submissionCount: item.workflowSequence || 1,
-        returnReason: internalStatus === CALL_STATUS.RETURNED ? item.remarks : null
+        returnReason: internalStatus === CALL_STATUS.RETURN_TO_VENDOR ? item.remarks : null
       };
     });
   }, []);

@@ -13,6 +13,16 @@ import { getStoredUser } from '../services/authService';
 import { normalizeErcType } from '../utils/ercUtils';
 import './RawMaterialDashboard.css';
 
+// Helper to get divisor for ERC type weight calculation
+const getErcDivisor = (modelName) => {
+  if (!modelName) return 1.133; // Default
+  const normalizedModel = String(modelName).toUpperCase().replace(/\s+/g, '');
+  if (normalizedModel.includes('MK-III') || normalizedModel.includes('MKIII')) return 0.928426;
+  if (normalizedModel.includes('MK-V') || normalizedModel.includes('MKV')) return 1.133;
+  if (normalizedModel.includes('J-TYPE') || normalizedModel.includes('JTYPE') || normalizedModel === 'J') return 1.1;
+  return 1.133; // Default fallback
+};
+
 // Reason options for withheld inspection
 const WITHHELD_REASONS = [
   { value: '', label: 'Select Reason *' },
@@ -1513,7 +1523,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           } else {
             // All modules are complete
             acceptedQtyMt = weight - totalRejectedWeight;
-            wtAcceptedNumbers = (acceptedQtyMt * 1000) / 1.133;
+            wtAcceptedNumbers = (acceptedQtyMt * 1000) / getErcDivisor(productModel);
 
             // Determine Heat Status based on weights and submodule results
             if (acceptedQtyMt === weight) {
@@ -2069,8 +2079,8 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         // Calculate accepted qty: Offered Qty - Rejected Weight (in Tons)
         const acceptedQtyMt = weight - totalRejectedWeight;
 
-        // Calculate Wt. Accepted (Numbers) = Accepted Qty (Tons) * 1000 / 1.133
-        const wtAcceptedNumbers = (acceptedQtyMt * 1000) / 1.133;
+        // Calculate Wt. Accepted (Numbers) depending on productModel
+        const wtAcceptedNumbers = (acceptedQtyMt * 1000) / getErcDivisor(productModel);
 
         let overallStatus = 'PENDING';
         if (acceptedQtyMt === weight) {
@@ -2978,8 +2988,8 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                           const offeredTons = parseFloat(heat.weight) || 0;
                           const acceptedQtyTons = offeredTons - totalRejectedWeight;
 
-                          // Calculate: Wt. Accepted (Numbers) = Accepted Qty (Tons) * 1000 / 1.133
-                          const wtAcceptedNumbers = (acceptedQtyTons * 1000) / 1.133;
+                          // Calculate: Wt. Accepted (Numbers) depending on productModel
+                          const wtAcceptedNumbers = (acceptedQtyTons * 1000) / getErcDivisor(productModel);
 
                           // Return without decimals
                           return Math.floor(wtAcceptedNumbers);

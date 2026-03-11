@@ -593,7 +593,7 @@ export default function ProcessDefectSummaryPage() {
                                                 <td>{shift.forgingDefects?.forgingStabilisationRejection ?? 0}</td>
                                                 <td>{shift.forgingDefects?.improperForging ?? 0}</td>
                                                 <td>{shift.forgingDefects?.forgingMarksNotches ?? 0}</td>
-                                                <td>{shift.testingDefects?.temperingHardness ?? 0}</td>
+                                                <td>{shift.quenchingDefects?.quenchingHardness ?? 0}</td>
                                                 <td>{shift.temperingDefects?.temperingTemp ?? 0}</td>
                                                 <td>{shift.temperingDefects?.temperingDuration ?? 0}</td>
 
@@ -603,7 +603,7 @@ export default function ProcessDefectSummaryPage() {
                                                 <td>{shift.visualDefects?.surfaceDefect ?? 0}</td>
                                                 <td>{shift.visualDefects?.embossingDefect ?? 0}</td>
                                                 <td>{shift.visualDefects?.marking ?? 0}</td>
-                                                <td>0</td>
+                                                <td>{shift.testingDefects?.temperingHardness ?? 0}</td>
                                                 <td>{shift.testingDefects?.toeLoad ?? 0}</td>
                                                 <td>{shift.testingDefects?.weight ?? 0}</td>
                                                 <td>{shift.finishingDefects?.paintIdentification ?? 0}</td>

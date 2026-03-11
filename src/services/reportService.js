@@ -75,13 +75,16 @@ const reportService = {
      * @param {Object} params - { page, size, startDate, endDate }
      */
     getPerformanceMatrix: async (params) => {
-        const { page = 0, size = 10, startDate, endDate } = params || {};
+        const { page = 0, size = 10, startDate, endDate, rio, zone, vendor } = params || {};
         const url = new URL(`${API_BASE_URL}/api/SummaryReports/dashboard`);
 
         url.searchParams.append('page', page);
         url.searchParams.append('size', size);
         if (startDate) url.searchParams.append('startDate', startDate);
         if (endDate) url.searchParams.append('endDate', endDate);
+        if (rio) url.searchParams.append('rio', rio);
+        if (zone) url.searchParams.append('zone', zone);
+        if (vendor) url.searchParams.append('vendor', vendor);
 
         const response = await fetch(url.toString(), {
             headers: getAuthHeaders(),
@@ -95,13 +98,16 @@ const reportService = {
      * @param {Object} params - { page, size, startDate, endDate }
      */
     getMonthlyProgressReport: async (params) => {
-        const { page = 0, size = 10, startDate, endDate } = params || {};
+        const { page = 0, size = 10, startDate, endDate, rio, zone, vendor } = params || {};
         const url = new URL(`${API_BASE_URL}/api/SummaryReports/monthly-progress`);
 
         url.searchParams.append('page', page);
         url.searchParams.append('size', size);
         if (startDate) url.searchParams.append('startDate', startDate);
         if (endDate) url.searchParams.append('endDate', endDate);
+        if (rio) url.searchParams.append('rio', rio);
+        if (zone) url.searchParams.append('zone', zone);
+        if (vendor) url.searchParams.append('vendor', vendor);
 
         const response = await fetch(url.toString(), {
             headers: getAuthHeaders(),
@@ -115,13 +121,16 @@ const reportService = {
      * @param {Object} params - { page, size, startDate, endDate }
      */
     getMonthlyAnalysisOfUnits: async (params) => {
-        const { page = 0, size = 10, startDate, endDate } = params || {};
+        const { page = 0, size = 10, startDate, endDate, rio, zone, vendor } = params || {};
         const url = new URL(`${API_BASE_URL}/api/SummaryReports/Manufature_wise_analysis`);
 
         url.searchParams.append('page', page);
         url.searchParams.append('size', size);
         if (startDate) url.searchParams.append('startDate', startDate);
         if (endDate) url.searchParams.append('endDate', endDate);
+        if (rio) url.searchParams.append('rio', rio);
+        if (zone) url.searchParams.append('zone', zone);
+        if (vendor) url.searchParams.append('vendor', vendor);
 
         const response = await fetch(url.toString(), {
             headers: getAuthHeaders(),

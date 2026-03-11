@@ -52,7 +52,7 @@ export const QUALITY_DATA = {
     summary: [
         { label: 'Overall Rejection %', value: '1.34%', color: 'red' },
         { label: 'Top Defect', value: 'Turning Length', color: 'blue' },
-        { label: 'Worst Performing Plant', value: 'Adinath Industries', color: 'orange' },
+        { label: 'Worst Performing Plant', value: 'XYZ Industries', color: 'orange' },
         { label: 'Total Defects Recorded', value: '380', color: 'gray' }
     ],
     stageRejection: [

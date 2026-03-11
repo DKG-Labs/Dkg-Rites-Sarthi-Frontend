@@ -1,6 +1,6 @@
 import React, { useState } from 'react'; // Re-adding useState
 import Pagination from '../Pagination';
-import { PROFESSIONAL_MAIN_CARDS, SUMMARY_DATA, QUALITY_DATA, REPORTS_DATA, PERFORMANCE_DATA } from '../../data/professionalDashboardData';
+import { PROFESSIONAL_MAIN_CARDS, SUMMARY_DATA, QUALITY_DATA, REPORTS_DATA } from '../../data/professionalDashboardData';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     Cell, PieChart, Pie, Legend, LineChart, Line, ComposedChart,

@@ -31,7 +31,7 @@ const RailwayBoardDashboard = () => {
     const [activeMainCard, setActiveMainCard] = useState('summary');
 
     // Level 1 Data Fetching - Only fetch when "PO Lifecycle" tab is active
-    const { data: reportData = [], loading, error } = useReportData(reportService.getLevel1Report, activeMainCard === 'lifecycle' ? null : undefined);
+    const { data: reportData = [] } = useReportData(reportService.getLevel1Report, activeMainCard === 'lifecycle' ? null : undefined);
 
     // Summary Data Fetching - Default tab, fetch when active
     const { data: summaryData } = useReportData(reportService.getDashboardSummary, activeMainCard === 'summary' ? null : undefined);

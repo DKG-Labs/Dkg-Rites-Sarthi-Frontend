@@ -88,7 +88,7 @@ const PendingVerificationTab = ({
       label: 'Rly / PO / Sr. No.',
       sortable: true,
       render: (value, row) => (
-        <a href="#" onClick={(e) => { e.preventDefault(); console.log('Download PO for', row.poNumber); }} className="text-blue-600 hover:underline">
+        <a href="#!" onClick={(e) => { e.preventDefault(); console.log('Download PO for', row.poNumber); }} className="text-blue-600 hover:underline">
           {value}
         </a>
       )

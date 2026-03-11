@@ -59,7 +59,7 @@ const CallDeskDashboard = () => {
       setAllIEs(ies);
     };
     loadIEs();
-  }, []);
+  }, [fetchAllIEs]);
 
 
 

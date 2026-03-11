@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { formatDateTime, formatDate } from '../utils/helpers';
+import { formatDateTime } from '../utils/helpers';
 
 const CallDetailsModal = ({
   isOpen,

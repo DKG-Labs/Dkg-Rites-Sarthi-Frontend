@@ -344,3 +344,36 @@ export const pauseProcessInspection = async (payload) => {
   return handleResponse(response);
 };
 
+// ==================== Final Results Validation ====================
+
+/**
+ * Get final inspection results for all production lines for a given inspection call.
+ * Used for manufactured quantity validation across stages.
+ * @param {string} inspectionCallNo - Inspection call number (e.g., "EP-01170008")
+ * @returns {Promise<Array>} List of ProcessLineFinalResultDto
+ */
+export const getFinalResultsByCallNo = async (inspectionCallNo) => {
+  const response = await fetch(
+    `${API_BASE_URL}/final-results/${inspectionCallNo}`,
+    { method: 'GET', headers: getAuthHeaders() }
+  );
+  const data = await handleResponse(response);
+  return data.responseData || data;
+};
+
+/**
+ * Get sum of accepted and manufactured quantities for all stages by call number and lot number.
+ * Used for real-time validation across shifts.
+ * @param {string} callNo - Inspection call number
+ * @param {string} lotNo - Lot number
+ * @returns {Promise<Object>} Object containing stage-wise totals
+ */
+export const getAcceptedQuantitySum = async (callNo, lotNo) => {
+  const response = await fetch(
+    `${API_BASE_URL}/accepted-quantities?callNo=${encodeURIComponent(callNo)}&lotNo=${encodeURIComponent(lotNo)}`,
+    { method: 'GET', headers: getAuthHeaders() }
+  );
+  const data = await handleResponse(response);
+  return data.responseData || data;
+};
+

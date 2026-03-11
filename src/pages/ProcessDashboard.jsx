@@ -1,4 +1,4 @@
-﻿/* eslint-disable unicode-bom */
+/* eslint-disable unicode-bom */
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { formatDate, getHourLabels, formatPoNoWithSerial } from '../utils/helpers';
 import { getAllProcessData, saveToLocalStorage, loadFromLocalStorage, loadGridDataForLine } from '../services/processLocalStorageService';
@@ -8,7 +8,7 @@ import { fetchPendingWorkflowTransitions, performTransitionAction, fetchLatestWo
 import { getStoredUser } from '../services/authService';
 import { cleanVendorName } from '../services/poDataService';
 import { processVendorName } from '../utils/vendorMapper';
-import { getQuantitySummary, getPoSerialNumberByCallId, getManufacturedQtyOfPo, finishProcessInspection, pauseProcessInspection } from '../services/processMaterialService';
+import { getQuantitySummary, getPoSerialNumberByCallId, getManufacturedQtyOfPo, finishProcessInspection, pauseProcessInspection, getAcceptedQuantitySum } from '../services/processMaterialService';
 import InspectionInitiationFormContent from '../components/InspectionInitiationFormContent';
 import Notification from '../components/Notification';
 import { resetSessionControl } from '../utils/inspectionSessionControl';
@@ -702,6 +702,11 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
   const [fetchedCallData, setFetchedCallData] = useState(null);
   const [fetchedPoData, setFetchedPoData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+
+
+
+  // State for historical totals across all shifts for the selected lot
+  const [lotHistoricalTotals, setLotHistoricalTotals] = useState(null);
 
   // State for additional initiated calls (added through "Add New Call Number" modal)
   // Persisted in sessionStorage - scoped to call number
@@ -2246,6 +2251,32 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     };
   }, [selectedLine]);
 
+  // Fetch historical totals for the selected lot whenever lot changes
+  useEffect(() => {
+    const fetchLotHistoricalTotals = async () => {
+      const activeCallNo = call?.call_no;
+      const lotNo = selectedLotForDisplay; // Use selectedLotForDisplay directly
+
+      if (!activeCallNo || !lotNo || lotNo === 'None') {
+        setLotHistoricalTotals(null);
+        return;
+      }
+
+      try {
+        console.log(`📊 [Process Dashboard] Fetching historical totals for Call: ${activeCallNo}, Lot: ${lotNo}`);
+        const totals = await getAcceptedQuantitySum(activeCallNo, lotNo);
+        if (totals) {
+          console.log('✅ [Process Dashboard] Historical totals fetched:', totals);
+          setLotHistoricalTotals(totals);
+        }
+      } catch (err) {
+        console.error('❌ [Process Dashboard] Error fetching historical totals:', err);
+      }
+    };
+
+    fetchLotHistoricalTotals();
+  }, [call?.call_no, selectedLotForDisplay, localProductionLines, shift]);
+
   // Auto-select first lot for current line if no lot is selected and lots are available
   useEffect(() => {
     // Only run if production lines are initialized
@@ -3721,14 +3752,117 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     const previousShiftManufactured = previousShiftData[lotNo]?.manufacturedQty || 0;
     const cumulativeManufactured = numValue + previousShiftManufactured;
 
-    // VALIDATION: Cumulative Manufactured cannot exceed Offered quantity
-    if (value !== '' && cumulativeManufactured > offeredQty) {
+    // VALIDATION 1: Cumulative Manufactured cannot exceed Offered quantity (ONLY for Shearing stage)
+    if (value !== '' && field === 'shearing' && cumulativeManufactured > offeredQty) {
       const remainingAllowed = Math.max(0, offeredQty - previousShiftManufactured);
       showNotification('error', `Cumulative manufactured quantity (${cumulativeManufactured}) cannot exceed offered quantity (${offeredQty}) for Lot ${lotNo}. Maximum allowed in this shift: ${remainingAllowed}`);
 
       // DO NOT update state with the invalid value
       return;
     }
+
+    // VALIDATION 2: Cascade Validation against Previous Stages' Accepted Quantities (Across All Shifts)
+    if (value !== '' && lotHistoricalTotals) {
+      // Helper function to calculate current shift's total accepted for a stage (Across All Lines for current IC/Lot)
+      const getCurrentShiftStageAcceptedTotal = (stageField) => {
+        const moduleMap = {
+          'shearing': 'shearingData',
+          'turning': 'turningData',
+          'mpiTesting': 'mpiData',
+          'forging': 'forgingData',
+          'quenching': 'quenchingData',
+          'tempering': 'temperingData'
+        };
+        const moduleName = moduleMap[stageField];
+        const targetLineIc = currentProductionLine?.icNumber;
+        let totalAccepted = 0;
+
+        localProductionLines.forEach((line, index) => {
+          const lineKey = `Line-${index + 1}`;
+          // Match by IC Number and Lot Number
+          if (line.icNumber === targetLineIc && selectedLotByLine[lineKey] === lotNo) {
+            const mfg = parseInt(manufacturedQtyByLine[lineKey]?.[lotNo]?.[stageField]) || 0;
+            const rej = getModuleTotalRejected(moduleName, lotNo, lineKey);
+            totalAccepted += Math.max(0, mfg - rej);
+          }
+        });
+        return totalAccepted;
+      };
+
+      // Helper function to calculate current shift's total manufactured for a stage (Across Other Lines for current IC/Lot)
+      const getCurrentShiftStageManufacturedTotal = (stageField, excludeCurrentLine = false) => {
+        const targetLineIc = currentProductionLine?.icNumber;
+        let totalMfg = 0;
+        localProductionLines.forEach((line, index) => {
+          const lineKey = `Line-${index + 1}`;
+          if (excludeCurrentLine && lineKey === selectedLine) return;
+          if (line.icNumber === targetLineIc && selectedLotByLine[lineKey] === lotNo) {
+            totalMfg += parseInt(manufacturedQtyByLine[lineKey]?.[lotNo]?.[stageField]) || 0;
+          }
+        });
+        return totalMfg;
+      };
+
+      let maxAllowedAllShifts = Infinity;
+      let prevStageName = '';
+      let historicalProducedOthers = 0;
+      let currentShiftProducedOthers = 0;
+
+      // Map frontend fields to lotHistoricalTotals properties
+      switch (field) {
+        case 'shearing':
+          maxAllowedAllShifts = offeredQty; 
+          prevStageName = 'Offered Quantity';
+          historicalProducedOthers = 0;
+          currentShiftProducedOthers = 0;
+          break;
+        case 'turning':
+          maxAllowedAllShifts = (lotHistoricalTotals.totalShearingAccepted || 0) + getCurrentShiftStageAcceptedTotal('shearing');
+          prevStageName = 'Shearing Accepted (Total)';
+          historicalProducedOthers = lotHistoricalTotals.totalTurningManufactured || 0;
+          currentShiftProducedOthers = getCurrentShiftStageManufacturedTotal('turning', true);
+          break;
+        case 'mpiTesting':
+          maxAllowedAllShifts = (lotHistoricalTotals.totalTurningAccepted || 0) + getCurrentShiftStageAcceptedTotal('turning');
+          prevStageName = 'Turning Accepted (Total)';
+          historicalProducedOthers = lotHistoricalTotals.totalMpiManufactured || 0;
+          currentShiftProducedOthers = getCurrentShiftStageManufacturedTotal('mpiTesting', true);
+          break;
+        case 'forging':
+          maxAllowedAllShifts = (lotHistoricalTotals.totalMpiAccepted || 0) + getCurrentShiftStageAcceptedTotal('mpiTesting');
+          prevStageName = 'MPI Accepted (Total)';
+          historicalProducedOthers = lotHistoricalTotals.totalForgingManufactured || 0;
+          currentShiftProducedOthers = getCurrentShiftStageManufacturedTotal('forging', true);
+          break;
+        case 'quenching':
+          maxAllowedAllShifts = (lotHistoricalTotals.totalForgingAccepted || 0) + getCurrentShiftStageAcceptedTotal('forging');
+          prevStageName = 'Forging Accepted (Total)';
+          historicalProducedOthers = lotHistoricalTotals.totalQuenchingManufactured || 0;
+          currentShiftProducedOthers = getCurrentShiftStageManufacturedTotal('quenching', true);
+          break;
+        case 'tempering':
+          maxAllowedAllShifts = (lotHistoricalTotals.totalQuenchingAccepted || 0) + getCurrentShiftStageAcceptedTotal('quenching');
+          prevStageName = 'Quenching Accepted (Total)';
+          historicalProducedOthers = lotHistoricalTotals.totalTemperingManufactured || 0;
+          currentShiftProducedOthers = getCurrentShiftStageManufacturedTotal('tempering', true);
+          break;
+        default:
+          break;
+      }
+
+      const totalProducedPredicted = numValue + historicalProducedOthers + currentShiftProducedOthers;
+
+      if (maxAllowedAllShifts !== Infinity && totalProducedPredicted > maxAllowedAllShifts) {
+         const remainingAllowed = Math.max(0, maxAllowedAllShifts - (historicalProducedOthers + currentShiftProducedOthers));
+         showNotification(
+           'error', 
+           `Total ${field} produced across all shifts and lines (${totalProducedPredicted}) cannot exceed ${prevStageName} (${maxAllowedAllShifts}) for Lot ${lotNo}. Maximum allowed in this line/shift: ${remainingAllowed}`
+         );
+         return;
+      }
+    }
+
+
 
     // If validation passes, update state
     setManufacturedQtyByLine(prev => ({

@@ -1274,3 +1274,106 @@ tr.row-even td {
 .railway-dashboard-container table td {
     text-align: center !important;
 }
+
+/* ========================================================
+   Space Efficient & Professional UI Overrides
+   (Added as requested to reduce space and improve aesthetics)
+   ======================================================== */
+
+.railway-dashboard-container {
+    padding: 1.25rem 2.5rem !important;
+}
+
+.dashboard-header {
+    margin-bottom: 0.5rem !important;
+    display: none !important;
+    /* Hide empty header to save space */
+}
+
+/* Product Toggle Bar */
+.product-toggle-container {
+    margin-bottom: 1rem !important;
+    padding: 4px 6px !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04) !important;
+}
+
+.product-toggle-btn {
+    padding: 6px 18px !important;
+    font-size: 13px !important;
+}
+
+/* Filter Bar */
+.filter-bar {
+    margin-bottom: 1.25rem !important;
+    padding: 1rem 1.75rem !important;
+    gap: 1.5rem !important;
+    border-radius: 16px !important;
+    box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.05) !important;
+}
+
+.filter-group {
+    gap: 4px !important;
+}
+
+.filter-label {
+    font-size: 10px !important;
+    margin-bottom: 2px !important;
+    letter-spacing: 0.05em !important;
+}
+
+.dashboard-select,
+.date-picker-card {
+    height: 36px !important;
+    padding: 6px 12px !important;
+    font-size: 13px !important;
+    border-radius: 8px !important;
+}
+
+.date-picker-card {
+    padding: 2px 6px !important;
+}
+
+.premium-date-input {
+    font-size: 12px !important;
+}
+
+/* Menu Toggle Bar (Professional Card Section Navigation) */
+.professional-dashboard-section {
+    padding-top: 0 !important;
+}
+
+.nav-wrapper {
+    margin-bottom: 1.25rem !important;
+}
+
+.main-cards-container {
+    padding: 6px !important;
+    gap: 4px !important;
+    border-radius: 50px !important;
+    box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.05) !important;
+}
+
+.main-card {
+    padding: 8px 18px !important;
+    gap: 8px !important;
+}
+
+.main-card-icon-wrapper {
+    width: 26px !important;
+    height: 26px !important;
+}
+
+.main-card-icon {
+    font-size: 13px !important;
+}
+
+.main-card-title {
+    font-size: 12px !important;
+}
+
+/* Content Area */
+.sub-content-area {
+    padding: 1.75rem 2.25rem !important;
+    border-radius: 20px !important;
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.06) !important;
+}

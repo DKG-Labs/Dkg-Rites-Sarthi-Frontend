@@ -17,6 +17,8 @@ const ProfessionalCardSection = ({
     kpiGrid,
     selectedProduct,
     summaryData,
+    activeMainCard,
+    setActiveMainCard,
     // New Performance Matrix Props from API
     perfData = [],
     perfLoading = false,
@@ -51,8 +53,6 @@ const ProfessionalCardSection = ({
     lwclRequestIds = [],
     lwclLotNumbers = []
 }) => {
-    const [activeMainCard, setActiveMainCard] = useState('summary');
-
     // Map selectedProduct to summary data keys
     const getSummaryKey = (prod) => {
         if (!prod || prod === 'all') return 'erc';
@@ -65,6 +65,39 @@ const ProfessionalCardSection = ({
 
     const summarySubTab = getSummaryKey(selectedProduct);
     const [activeReport, setActiveReport] = useState('mpr');
+
+    // Sorting State for Performance Matrix
+    const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
+    const handleSort = (key) => {
+        let direction = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const getSortedData = (data) => {
+        if (!sortConfig.key) return data;
+        return [...data].sort((a, b) => {
+            let aValue = a[sortConfig.key];
+            let bValue = b[sortConfig.key];
+
+            // Handle numeric values
+            const numA = parseFloat(aValue);
+            const numB = parseFloat(bValue);
+            if (!isNaN(numA) && !isNaN(numB)) {
+                return sortConfig.direction === 'asc' ? numA - numB : numB - numA;
+            }
+
+            // Handle strings
+            aValue = (aValue || '').toString().toLowerCase();
+            bValue = (bValue || '').toString().toLowerCase();
+            if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+    };
 
     // Filtered records logic was removed to fix ESLint warnings as it was not being utilized in the current table implementation.
 
@@ -340,8 +373,8 @@ const ProfessionalCardSection = ({
                 return (
                     <div className="quality-tab-content fade-in">
                         <div className="quality-header-main text-center">
-                            <h1 className="quality-title-lg">Railway Quality Surveillance</h1>
-                            <p className="quality-subtitle-lg">ERC Defect Analysis & Rejection Monitoring</p>
+                            {/* <h1 className="quality-title-lg">Railway Quality Surveillance</h1>
+                            <p className="quality-subtitle-lg">ERC Defect Analysis & Rejection Monitoring</p> */}
                         </div>
 
                         {/* Top Summary Cards */}
@@ -462,6 +495,43 @@ const ProfessionalCardSection = ({
                                 </ResponsiveContainer>
                             </div>
                         </div>
+
+                        {/* Top & Worst Performing Companies Charts */}
+                        <div className="quality-charts-row mt-6">
+                            <div className="q-chart-card wide-50">
+                                <h3>Top 5 Performing Companies (Process Rejection %)</h3>
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <BarChart data={QUALITY_DATA.topPerformingCompanies} layout="vertical">
+                                        <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
+                                        <XAxis type="number" hide />
+                                        <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={100} />
+                                        <Tooltip formatter={(value) => `${value}%`} cursor={{ fill: '#f8fafc' }} />
+                                        <Bar dataKey="value" barSize={20} radius={[0, 4, 4, 0]}>
+                                            {QUALITY_DATA.topPerformingCompanies.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.color} />
+                                            ))}
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+
+                            <div className="q-chart-card wide-50">
+                                <h3>Worst 5 Performing Companies (Process Rejection %)</h3>
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <BarChart data={QUALITY_DATA.worstPerformingCompanies} layout="vertical">
+                                        <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
+                                        <XAxis type="number" hide />
+                                        <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={100} />
+                                        <Tooltip formatter={(value) => `${value}%`} cursor={{ fill: '#f8fafc' }} />
+                                        <Bar dataKey="value" barSize={20} radius={[0, 4, 4, 0]}>
+                                            {QUALITY_DATA.worstPerformingCompanies.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.color} />
+                                            ))}
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
                     </div>
                 );
 
@@ -480,7 +550,7 @@ const ProfessionalCardSection = ({
                 return (
                     <div className="performance-tab-content fade-in">
                         {/* Premium Header Banner */}
-                        <div className="performance-banner">
+                        {/* <div className="performance-banner">
                             <div className="banner-content">
                                 <h1 className="banner-title">Vendor Performance Matrix</h1>
                                 <p className="banner-subtitle">
@@ -493,12 +563,37 @@ const ProfessionalCardSection = ({
                                     <span className="btn-icon">📥</span> Export
                                 </button>
                             </div>
-                        </div>
+                        </div> */}
 
                         {/* Summary Cards */}
                         <div className="perf-summary-grid">
-                            {PERFORMANCE_DATA.summary.map((kpi, idx) => (
-                                <div key={idx} className={`perf-summary-card shadow-sm border-l-4 border-l-${kpi.color}`}>
+                            {[
+                                {
+                                    label: 'TOTAL INSPECTED',
+                                    value: perfData.reduce((acc, curr) => acc + (curr.inspectedQty || 0), 0).toLocaleString(),
+                                    color: 'blue'
+                                },
+                                {
+                                    label: 'ACCEPTED',
+                                    value: perfData.reduce((acc, curr) => acc + (curr.acceptedQty || 0), 0).toLocaleString(),
+                                    color: 'emerald'
+                                },
+                                {
+                                    label: 'REJECTED',
+                                    value: perfData.reduce((acc, curr) => acc + (curr.rejectedQty || 0), 0).toLocaleString(),
+                                    color: 'red'
+                                },
+                                {
+                                    label: 'AVG REJECTION %',
+                                    value: (() => {
+                                        const totalInspected = perfData.reduce((acc, curr) => acc + (curr.inspectedQty || 0), 0);
+                                        const totalRejected = perfData.reduce((acc, curr) => acc + (curr.rejectedQty || 0), 0);
+                                        return totalInspected > 0 ? ((totalRejected * 100) / totalInspected).toFixed(2) + '%' : '0.00%';
+                                    })(),
+                                    color: 'purple'
+                                }
+                            ].map((kpi, idx) => (
+                                <div key={idx} className={`perf-summary-card border-l-${kpi.color}`}>
                                     <span className="card-label">{kpi.label}</span>
                                     <h2 className="card-value">{kpi.value}</h2>
                                 </div>
@@ -516,20 +611,20 @@ const ProfessionalCardSection = ({
                                     <table className="perf-data-table-new">
                                         <thead>
                                             <tr>
-                                                <th>#</th>
-                                                <th>MANUFACTURER</th>
-                                                <th>RITES RIO</th>
-                                                <th>IE</th>
-                                                <th>STAGE</th>
-                                                <th className="text-right">INSPECTED</th>
-                                                <th className="text-right">ACCEPTED</th>
-                                                <th className="text-right">REJECTED</th>
-                                                <th className="text-right">REJECTION %</th>
+                                                <th className="sortable-header" onClick={() => handleSort('id')}># {sortConfig.key === 'id' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
+                                                <th className="sortable-header" onClick={() => handleSort('manufacturerName')}>MANUFACTURER {sortConfig.key === 'manufacturerName' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
+                                                <th className="sortable-header" onClick={() => handleSort('rio')}>RITES RIO {sortConfig.key === 'rio' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
+                                                <th className="sortable-header" onClick={() => handleSort('username')}>IE {sortConfig.key === 'username' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
+                                                <th className="sortable-header" onClick={() => handleSort('stage')}>STAGE {sortConfig.key === 'stage' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
+                                                <th className="text-right sortable-header" onClick={() => handleSort('inspectedQty')}>INSPECTED {sortConfig.key === 'inspectedQty' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
+                                                <th className="text-right sortable-header" onClick={() => handleSort('acceptedQty')}>ACCEPTED {sortConfig.key === 'acceptedQty' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
+                                                <th className="text-right sortable-header" onClick={() => handleSort('rejectedQty')}>REJECTED {sortConfig.key === 'rejectedQty' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
+                                                <th className="text-right sortable-header" onClick={() => handleSort('rejectionPercentage')}>REJECTION % {sortConfig.key === 'rejectionPercentage' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
                                                 {/* <th>REASON</th> */}
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {perfData.map((record, idx) => {
+                                            {getSortedData(perfData).map((record, idx) => {
                                                 const rowClass = (idx % 2 === 0) ? 'row-odd' : 'row-even';
                                                 return (
                                                     <tr key={idx} className={rowClass}>

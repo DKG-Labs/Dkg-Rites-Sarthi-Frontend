@@ -196,6 +196,7 @@ const LoginPage = () => {
                 key={index}
                 className={`hero-slide ${index === currentSlide ? 'is-active' : ''}`}
                 aria-hidden={index !== currentSlide}
+                style={{ zIndex: index === currentSlide ? 2 : 1 }}
               >
                 <img
                   src={slide.image}
@@ -224,17 +225,18 @@ const LoginPage = () => {
                 </p>
               </article>
 
-              <aside className="dashboard-panel is-revealed reveal-up" id="dashboardPanel">
-                <button type="button" className="dashboard-login-chip js-ripple">
-                  LOGIN
-                </button>
-                <div className="dashboard-header">
-                  <div className="dashboard-logo-wrap">
-                    <span className="dashboard-logo-glow" aria-hidden="true"></span>
-                    <img className="dashboard-rites-mark" src="/logo-sarthi.png" alt="SARTHI logo" />
+              <aside className="dashboard-panel is-revealed" id="dashboardPanel">
+                {/* Branding Section */}
+                <header className="branding-section">
+                  <div className="branding-logo-box">
+                    <img className="branding-logo-img" src="/logo-sarthi.png" alt="SARTHI logo" />
                   </div>
-                  <h2 id="dashboardTitle">SARTHI</h2>
-                  <p className="dashboard-fullform">System for Automated Review Tracking &amp; Holistic Inspection</p>
+                  <h2 className="branding-title">SARTHI</h2>
+                  <p className="branding-tagline">System for Automated Review Tracking &amp; Holistic Inspection</p>
+                </header>
+
+                <div className="dashboard-login-chip">
+                  LOGIN
                 </div>
 
                 <form className="dashboard-form" id="loginForm" onSubmit={handleSubmit}>

@@ -1513,7 +1513,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           } else {
             // All modules are complete
             acceptedQtyMt = weight - totalRejectedWeight;
-            wtAcceptedNumbers = (acceptedQtyMt * 1000) / 1.15;
+            wtAcceptedNumbers = (acceptedQtyMt * 1000) / 1.133;
 
             // Determine Heat Status based on weights and submodule results
             if (acceptedQtyMt === weight) {
@@ -2069,8 +2069,8 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         // Calculate accepted qty: Offered Qty - Rejected Weight (in Tons)
         const acceptedQtyMt = weight - totalRejectedWeight;
 
-        // Calculate Wt. Accepted (Numbers) = Accepted Qty (Tons) * 1000 / 1.15
-        const wtAcceptedNumbers = (acceptedQtyMt * 1000) / 1.15;
+        // Calculate Wt. Accepted (Numbers) = Accepted Qty (Tons) * 1000 / 1.133
+        const wtAcceptedNumbers = (acceptedQtyMt * 1000) / 1.133;
 
         let overallStatus = 'PENDING';
         if (acceptedQtyMt === weight) {
@@ -2978,8 +2978,8 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                           const offeredTons = parseFloat(heat.weight) || 0;
                           const acceptedQtyTons = offeredTons - totalRejectedWeight;
 
-                          // Calculate: Wt. Accepted (Numbers) = Accepted Qty (Tons) * 1000 / 1.15
-                          const wtAcceptedNumbers = (acceptedQtyTons * 1000) / 1.15;
+                          // Calculate: Wt. Accepted (Numbers) = Accepted Qty (Tons) * 1000 / 1.133
+                          const wtAcceptedNumbers = (acceptedQtyTons * 1000) / 1.133;
 
                           // Return without decimals
                           return Math.floor(wtAcceptedNumbers);

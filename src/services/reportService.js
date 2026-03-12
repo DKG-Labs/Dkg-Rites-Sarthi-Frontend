@@ -183,6 +183,41 @@ const reportService = {
         });
         return handleResponse(response);
     },
+
+    getQualityRejection: async () => {
+        const response = await fetch(`${API_ENDPOINTS.REPORTS}/qualityRejection`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getManufacturerRejection: async () => {
+        const response = await fetch(`${API_ENDPOINTS.REPORTS}/manufacturerRejection`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getProcessPerformance: async () => {
+        const response = await fetch(`${API_ENDPOINTS.REPORTS}/processPerformance`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getDailyRejectionTrend: async (params) => {
+        const { startDate, endDate } = params || {};
+        let url = `${API_ENDPOINTS.REPORTS}/dailyRejectionTrend`;
+        const queryParams = new URLSearchParams();
+        if (startDate) queryParams.append('startDate', startDate);
+        if (endDate) queryParams.append('endDate', endDate);
+        if (queryParams.toString()) url += `?${queryParams.toString()}`;
+
+        const response = await fetch(url, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
 };
 
 export default reportService;

@@ -36,6 +36,13 @@ const RailwayBoardDashboard = () => {
     // Summary Data Fetching - Default tab, fetch when active
     const { data: summaryData } = useReportData(reportService.getDashboardSummary, activeMainCard === 'summary' ? null : undefined);
 
+    // Quality Rejection Data Fetching
+    const { data: qualityRejectionData } = useReportData(reportService.getQualityRejection, activeMainCard === 'quality' ? null : undefined);
+
+    const { data: manufacturerRejectionData } = useReportData(reportService.getManufacturerRejection, activeMainCard === 'quality' ? null : undefined);
+
+    const { data: processPerformanceData } = useReportData(reportService.getProcessPerformance, activeMainCard === 'quality' ? null : undefined);
+
     // Filter State with Persistence (Normalized 'all' for internal state)
     const [selectedProduct, setSelectedProduct] = useState(() => {
         const val = localStorage.getItem('dash_selectedProduct');
@@ -63,6 +70,17 @@ const RailwayBoardDashboard = () => {
         const d = new Date();
         return d.toISOString().split('T')[0];
     });
+
+    const trendParams = React.useMemo(() => ({
+        startDate: fromDate,
+        endDate: toDate
+    }), [fromDate, toDate]);
+
+    const { data: dailyRejectionTrendData } = useReportData(
+        reportService.getDailyRejectionTrend,
+        activeMainCard === 'quality' ? trendParams : undefined
+    );
+
 
     // Save Filters
     React.useEffect(() => { localStorage.setItem('dash_selectedProduct', selectedProduct); }, [selectedProduct]);
@@ -342,6 +360,11 @@ const RailwayBoardDashboard = () => {
                 summaryData={summaryData}
                 activeMainCard={activeMainCard}
                 setActiveMainCard={setActiveMainCard}
+                // Quality Rejection Prop
+                qualityRejectionData={qualityRejectionData}
+                manufacturerRejectionData={manufacturerRejectionData}
+                processPerformanceData={processPerformanceData}
+                dailyRejectionTrendData={dailyRejectionTrendData}
                 // Performance Matrix Props
                 perfData={perfData}
                 perfLoading={perfLoading}

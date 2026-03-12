@@ -19,6 +19,10 @@ const ProfessionalCardSection = ({
     summaryData,
     activeMainCard,
     setActiveMainCard,
+    qualityRejectionData = [],
+    manufacturerRejectionData = [],
+    processPerformanceData = { topPerforming: [], worstPerforming: [] },
+    dailyRejectionTrendData = [],
     // New Performance Matrix Props from API
     perfData = [],
     perfLoading = false,
@@ -407,13 +411,13 @@ const ProfessionalCardSection = ({
                             <div className="q-chart-card wide-40">
                                 <h3>Stage-wise Rejection %</h3>
                                 <ResponsiveContainer width="100%" height={300}>
-                                    <BarChart data={QUALITY_DATA.stageRejection}>
+                                    <BarChart data={qualityRejectionData && qualityRejectionData.length > 0 ? qualityRejectionData : QUALITY_DATA.stageRejection}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                         <XAxis dataKey="name" axisLine={false} tickLine={false} />
                                         <YAxis tickFormatter={(val) => `${val}%`} axisLine={false} tickLine={false} />
                                         <Tooltip cursor={{ fill: '#f8fafc' }} />
                                         <Bar dataKey="value" barSize={50} radius={[6, 6, 0, 0]}>
-                                            {QUALITY_DATA.stageRejection.map((entry, index) => (
+                                            {(qualityRejectionData && qualityRejectionData.length > 0 ? qualityRejectionData : QUALITY_DATA.stageRejection).map((entry, index) => (
                                                 <Cell key={`cell-${index}`} fill={entry.color} />
                                             ))}
                                         </Bar>
@@ -449,13 +453,23 @@ const ProfessionalCardSection = ({
                             <div className="q-chart-card wide-50">
                                 <h3>Rejection % by Raw Material Manufacturer</h3>
                                 <ResponsiveContainer width="100%" height={350}>
-                                    <BarChart data={QUALITY_DATA.rmManufacturerRejection}>
+                                    <BarChart data={manufacturerRejectionData && manufacturerRejectionData.length > 0 ? manufacturerRejectionData : QUALITY_DATA.rmManufacturerRejection}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                        <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                                        <XAxis
+                                            dataKey="name"
+                                            axisLine={false}
+                                            tickLine={false}
+                                            tickFormatter={(name) => name.length > 12 ? `${name.substring(0, 10)}...` : name}
+                                            fontSize={11}
+                                        />
                                         <YAxis tickFormatter={(val) => `${val}%`} axisLine={false} tickLine={false} />
-                                        <Tooltip />
+                                        <Tooltip
+                                            cursor={{ fill: '#f8fafc' }}
+                                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                            formatter={(value) => [`${value}%`, "Rejection %"]}
+                                        />
                                         <Bar dataKey="value" barSize={40} radius={[4, 4, 0, 0]}>
-                                            {QUALITY_DATA.rmManufacturerRejection.map((entry, index) => (
+                                            {(manufacturerRejectionData && manufacturerRejectionData.length > 0 ? manufacturerRejectionData : QUALITY_DATA.rmManufacturerRejection).map((entry, index) => (
                                                 <Cell key={`cell-${index}`} fill={entry.color} />
                                             ))}
                                         </Bar>
@@ -467,13 +481,16 @@ const ProfessionalCardSection = ({
                         {/* Third Row of Charts */}
                         <div className="quality-charts-row mt-6">
                             <div className="q-chart-card wide-50">
-                                <h3>Monthly Rejection Trend</h3>
+                                <h3>Daily Rejection Trend</h3>
                                 <ResponsiveContainer width="100%" height={300}>
-                                    <LineChart data={QUALITY_DATA.monthlyTrend}>
+                                    <LineChart data={dailyRejectionTrendData && dailyRejectionTrendData.length > 0 ? dailyRejectionTrendData : QUALITY_DATA.monthlyTrend}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                        <XAxis dataKey="month" axisLine={false} tickLine={false} />
+                                        <XAxis dataKey="name" axisLine={false} tickLine={false} />
                                         <YAxis axisLine={false} tickLine={false} tickFormatter={(val) => `${val}%`} />
-                                        <Tooltip />
+                                        <Tooltip
+                                            formatter={(value) => [`${value}%`, "Rejection %"]}
+                                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                        />
                                         <Line type="monotone" dataKey="value" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 6, fill: '#fff', stroke: '#8b5cf6', strokeWidth: 2 }} />
                                     </LineChart>
                                 </ResponsiveContainer>
@@ -501,13 +518,29 @@ const ProfessionalCardSection = ({
                             <div className="q-chart-card wide-50">
                                 <h3>Top 5 Performing Companies (Process Rejection %)</h3>
                                 <ResponsiveContainer width="100%" height={300}>
-                                    <BarChart data={QUALITY_DATA.topPerformingCompanies} layout="vertical">
+                                    <BarChart
+                                        data={processPerformanceData?.topPerforming?.length > 0 ? processPerformanceData.topPerforming : QUALITY_DATA.topPerformingCompanies}
+                                        layout="vertical"
+                                        margin={{ left: 20, right: 30, top: 10, bottom: 10 }}
+                                    >
                                         <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
                                         <XAxis type="number" hide />
-                                        <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={100} />
-                                        <Tooltip formatter={(value) => `${value}%`} cursor={{ fill: '#f8fafc' }} />
+                                        <YAxis
+                                            dataKey="name"
+                                            type="category"
+                                            axisLine={false}
+                                            tickLine={false}
+                                            width={100}
+                                            fontSize={10}
+                                            tickFormatter={(name) => name.length > 15 ? `${name.substring(0, 13)}...` : name}
+                                        />
+                                        <Tooltip
+                                            formatter={(value) => `${value}%`}
+                                            cursor={{ fill: '#f8fafc' }}
+                                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                        />
                                         <Bar dataKey="value" barSize={20} radius={[0, 4, 4, 0]}>
-                                            {QUALITY_DATA.topPerformingCompanies.map((entry, index) => (
+                                            {(processPerformanceData?.topPerforming?.length > 0 ? processPerformanceData.topPerforming : QUALITY_DATA.topPerformingCompanies).map((entry, index) => (
                                                 <Cell key={`cell-${index}`} fill={entry.color} />
                                             ))}
                                         </Bar>
@@ -518,13 +551,29 @@ const ProfessionalCardSection = ({
                             <div className="q-chart-card wide-50">
                                 <h3>Worst 5 Performing Companies (Process Rejection %)</h3>
                                 <ResponsiveContainer width="100%" height={300}>
-                                    <BarChart data={QUALITY_DATA.worstPerformingCompanies} layout="vertical">
+                                    <BarChart
+                                        data={processPerformanceData?.worstPerforming?.length > 0 ? processPerformanceData.worstPerforming : QUALITY_DATA.worstPerformingCompanies}
+                                        layout="vertical"
+                                        margin={{ left: 20, right: 30, top: 10, bottom: 10 }}
+                                    >
                                         <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
                                         <XAxis type="number" hide />
-                                        <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={100} />
-                                        <Tooltip formatter={(value) => `${value}%`} cursor={{ fill: '#f8fafc' }} />
+                                        <YAxis
+                                            dataKey="name"
+                                            type="category"
+                                            axisLine={false}
+                                            tickLine={false}
+                                            width={100}
+                                            fontSize={10}
+                                            tickFormatter={(name) => name.length > 15 ? `${name.substring(0, 13)}...` : name}
+                                        />
+                                        <Tooltip
+                                            formatter={(value) => `${value}%`}
+                                            cursor={{ fill: '#f8fafc' }}
+                                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                        />
                                         <Bar dataKey="value" barSize={20} radius={[0, 4, 4, 0]}>
-                                            {QUALITY_DATA.worstPerformingCompanies.map((entry, index) => (
+                                            {(processPerformanceData?.worstPerforming?.length > 0 ? processPerformanceData.worstPerforming : QUALITY_DATA.worstPerformingCompanies).map((entry, index) => (
                                                 <Cell key={`cell-${index}`} fill={entry.color} />
                                             ))}
                                         </Bar>

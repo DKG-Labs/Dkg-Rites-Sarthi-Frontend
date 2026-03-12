@@ -29,6 +29,7 @@ const CallDeskDashboard = () => {
 
   const [historyData, setHistoryData] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [allIEs, setAllIEs] = useState([]);
 
 
   // Hooks
@@ -47,8 +48,18 @@ const CallDeskDashboard = () => {
     returnForRectification,
     rerouteToRIO,
     viewCallHistory,
+    fetchAllIEs,
     loading: actionLoading
   } = useCallActions();
+
+  // Load IEs on mount
+  React.useEffect(() => {
+    const loadIEs = async () => {
+      const ies = await fetchAllIEs();
+      setAllIEs(ies);
+    };
+    loadIEs();
+  }, [fetchAllIEs]);
 
 
 
@@ -96,24 +107,45 @@ const CallDeskDashboard = () => {
     setShowDetailsModal(true);
   };
 
-  const handleVerifyAccept = (call) => {
+  const handleVerifyAccept = async (call, remarks, newIeId) => {
     setSelectedCall(call);
-    setActionRemarks('');
-    setShowVerifyModal(true);
+    const result = await verifyAndAccept(call.id, call, remarks, newIeId);
+    if (result.success) {
+      alert('Call verified and registered successfully!');
+      setShowDetailsModal(false);
+      refreshData();
+    } else {
+      alert(result.message);
+    }
   };
 
-  const handleReturn = (call) => {
+  const handleReturn = async (call, remarks) => {
+    if (!remarks || !remarks.trim()) {
+      alert('Remarks are mandatory for returning a call');
+      return;
+    }
     setSelectedCall(call);
-    setActionRemarks('');
-    setFlaggedFields([]);
-    setShowReturnModal(true);
+    const result = await returnForRectification(call.id, call, remarks);
+    if (result.success) {
+      alert('Call returned for rectification successfully!');
+      setShowDetailsModal(false);
+      refreshData();
+    } else {
+      alert(result.message);
+    }
   };
 
-  const handleReroute = (call) => {
+  const handleReroute = async (call, remarks) => {
+    // For now reroute might still need the RIO selection modal 
     setSelectedCall(call);
-    setActionRemarks('');
+    setActionRemarks(remarks || '');
     setSelectedRIO('');
     setShowRerouteModal(true);
+  };
+
+  const handleDownloadLetter = (call) => {
+    alert(`Downloading Inspection Call Letter for ${call.callNumber}...`);
+    // Logic to trigger download
   };
 
   // Submit actions
@@ -333,7 +365,11 @@ const CallDeskDashboard = () => {
         isOpen={showDetailsModal}
         onClose={() => setShowDetailsModal(false)}
         call={selectedCall}
+        allIEs={allIEs}
         onVerifyAccept={handleVerifyAccept}
+        onReturn={handleReturn}
+        onReroute={handleReroute}
+        onDownloadLetter={handleDownloadLetter}
       />
 
       {/* Verify & Accept Modal */}

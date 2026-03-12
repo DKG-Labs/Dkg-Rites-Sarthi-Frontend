@@ -69,10 +69,13 @@ const FinalToeLoadTestPage = ({ onBack, onNavigateSubmodule }) => {
           quantity,
           // Use fresh ERC type from dashboard data if available
           // Check multiple paths: dashboardData.inspectionCall, spreading on cachedData, or selectedCall
-          springType: normalizeErcType(cachedData?.dashboardData?.inspectionCall?.ercType) ||
-            normalizeErcType(cachedData?.inspectionCall?.ercType) ||
-            normalizeErcType(selectedCall?.ercType) ||
-            'MK-III',
+          springType: normalizeErcType(
+            cachedData?.dashboardData?.inspectionCall?.ercType ||
+            cachedData?.inspectionCall?.ercType ||
+            selectedCall?.ercType ||
+            lot.springType ||
+            'MK-III'
+          ),
           sampleSize: aql.n1,
           sampleSize2nd: aql.n2,
           accpNo: aql.ac1,
@@ -102,15 +105,8 @@ const FinalToeLoadTestPage = ({ onBack, onNavigateSubmodule }) => {
           const parsed = JSON.parse(persistedData);
           console.log('✅ Loaded persisted data from localStorage on page load');
 
-          // FORCE UPDATE: Ensure springType is always fresh
-          // Prioritize cached dashboard data (fresh API response) over context
-          const freshErcType = cachedData?.dashboardData?.inspectionCall?.ercType || selectedCall?.ercType;
-          const currentSpringType = normalizeErcType(freshErcType);
-
           Object.keys(parsed).forEach(lotNo => {
-            if (parsed[lotNo]) {
-              parsed[lotNo].springType = currentSpringType || parsed[lotNo].springType || 'MK-III';
-            }
+            // Remove springType handling from cached lotData entirely
           });
 
           return parsed;
@@ -140,16 +136,12 @@ const FinalToeLoadTestPage = ({ onBack, onNavigateSubmodule }) => {
         const lotNo = lot.lotNo || lot.lotNumber;
         const aql = getHardnessToeLoadAQL(lot.lotSize || lot.offeredQty || 0);
 
-        // Use fresh ERC type from dashboard data if available
-        const freshErcType = cachedData?.dashboardData?.inspectionCall?.ercType || selectedCall?.ercType;
-
         return {
           ...acc,
           [lotNo]: {
             toe1st: Array(aql.n1).fill(''),
             toe2nd: Array(aql.n2).fill(''),
-            remarks: '',
-            springType: normalizeErcType(freshErcType) || normalizeErcType(lot.springType) || 'MK-III'
+            remarks: ''
           }
         };
       },
@@ -167,8 +159,7 @@ const FinalToeLoadTestPage = ({ onBack, onNavigateSubmodule }) => {
           [lot.lotNo]: {
             toe1st: Array(lot.sampleSize).fill(''),
             toe2nd: Array(lot.sampleSize2nd).fill(''),
-            remarks: '',
-            springType: normalizeErcType(selectedCall?.ercType) || normalizeErcType(lot.springType) || 'MK-III' // Default to MK-III
+            remarks: ''
           }
         }),
         {}
@@ -210,8 +201,7 @@ const FinalToeLoadTestPage = ({ onBack, onNavigateSubmodule }) => {
               [lot.lotNo]: {
                 toe1st: Array(lot.sampleSize).fill(''),
                 toe2nd: Array(lot.sampleSize2nd).fill(''),
-                remarks: '',
-                springType: lot.springType || 'MK-III'
+                remarks: ''
               }
             }), {})
           };
@@ -309,8 +299,8 @@ const FinalToeLoadTestPage = ({ onBack, onNavigateSubmodule }) => {
     const v = parseFloat(String(raw).replace(',', '.'));
     if (Number.isNaN(v)) return false;
 
-    // Use spring type from lotData state, fallback to lot prop
-    const currentSpringType = lotData[lot.lotNo]?.springType || lot.springType || 'MK-III';
+    // Use spring type directly from the lot prop
+    const currentSpringType = lot.springType || 'MK-III';
     const tol = TOLERANCES[currentSpringType] || { min: 0, max: Infinity };
 
     if (currentSpringType === 'ERC-J') {
@@ -319,7 +309,7 @@ const FinalToeLoadTestPage = ({ onBack, onNavigateSubmodule }) => {
     }
     /* Other types: value must be within min-max band */
     return v < tol.min || v > tol.max;
-  }, [lotData]);
+  }, []);
 
   /* 2nd Sampling auto-show/hide logic with popup */
   useEffect(() => {
@@ -500,28 +490,21 @@ const FinalToeLoadTestPage = ({ onBack, onNavigateSubmodule }) => {
         onNavigate={onNavigateSubmodule}
       />
 
-      {/* Lot Selector */}
-      {lotsWithSampleSize.length > 0 && (
-        <>
-          {lotsWithSampleSize.length === 1 ? (
-            <div className="lot-single">
-              <span>📦 {lotsWithSampleSize[0].lotNo} | Heat {lotsWithSampleSize[0].heatNo}</span>
-            </div>
-          ) : (
-            <div className="lot-selector">
-              {lotsWithSampleSize.map((lot, idx) => (
-                <button
-                  key={lot.lotNo}
-                  className={`lot-btn ${activeLotTab === idx ? 'active' : ''}`}
-                  onClick={() => setActiveLotTab(idx)}
-                >
-                  Lot {lot.lotNo}
-                </button>
-              ))}
-            </div>
-          )}
-        </>
+      {/* Lot Selector – shown only when multiple lots */}
+      {lotsWithSampleSize.length > 1 && (
+        <div className="lot-selector">
+          {lotsWithSampleSize.map((lot, idx) => (
+            <button
+              key={lot.lotNo}
+              className={`lot-btn ${activeLotTab === idx ? 'active' : ''}`}
+              onClick={() => setActiveLotTab(idx)}
+            >
+              Lot {lot.lotNo}
+            </button>
+          ))}
+        </div>
       )}
+
 
       {/* One section per lot */}
       {lotsWithSampleSize.map((lot, idx) => {
@@ -530,8 +513,7 @@ const FinalToeLoadTestPage = ({ onBack, onNavigateSubmodule }) => {
         const state = lotData[lot.lotNo] || {
           toe1st: Array(lot.sampleSize).fill(''),
           toe2nd: Array(lot.sampleSize2nd).fill(''),
-          remarks: '',
-          springType: lot.springType || 'MK-III'
+          remarks: ''
         };
 
         /* Pagination values for 1st sampling */
@@ -553,34 +535,33 @@ const FinalToeLoadTestPage = ({ onBack, onNavigateSubmodule }) => {
         return (
           <div key={lot.lotNo} className="tlp-card">
             {/* Lot header */}
-            <div className="tlp-lot-header">
-              <div>
-                <strong>📦 Lot: {lot.lotNo}</strong> &nbsp; | &nbsp; Heat: {lot.heatNo} &nbsp; | &nbsp;
-                Qty: {lot.quantity}
+            <div className="tlp-lot-header" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)', alignItems: 'center', gap: '10px' }}>
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', fontWeight: 'bold' }}>
+                <span>📦 Lot: {lot.lotNo}</span>
+                <span>Heat: {lot.heatNo}</span>
+                <span>Qty: {lot.quantity}</span>
+                <span>Sample: {lot.sampleSize}</span>
               </div>
-              <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                <div className="tlp-lot-meta">
-                  Sample Size (IS 2500): <strong>{lot.sampleSize}</strong>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 600 }}>Model:</label>
-                  <div
-                    className="tlp-input"
-                    style={{
-                      padding: '4px 12px',
-                      width: 'auto',
-                      backgroundColor: '#f1f5f9',
-                      color: '#475569',
-                      fontWeight: 600,
-                      border: '1px solid #e2e8f0',
-                      cursor: 'default'
-                    }}
-                  >
-                    {state.springType === 'MK-III' ? 'MK-III (850-1100)' :
-                      state.springType === 'MK-V' ? 'MK-V (1200-1500)' :
-                        state.springType === 'ERC-J' ? 'ERC-J (> 650)' :
-                          state.springType}
-                  </div>
+              <div style={{ textAlign: 'center', whiteSpace: 'nowrap', fontWeight: 'bold', fontSize: '13px' }}>
+                Ac: {lot.accpNo} | Re: {lot.rejNo} | Cumm: {lot.cummRejNo}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px' }}>
+                <div
+                  className="tlp-input"
+                  style={{
+                    padding: '4px 12px',
+                    width: 'auto',
+                    backgroundColor: '#f1f5f9',
+                    color: '#475569',
+                    fontWeight: 600,
+                    border: '1px solid #e2e8f0',
+                    cursor: 'default'
+                  }}
+                >
+                  {lot.springType === 'MK-III' ? 'MK-III (850-1100)' :
+                    lot.springType === 'MK-V' ? 'MK-V (1200-1500)' :
+                      lot.springType === 'ERC-J' ? 'ERC-J (> 650)' :
+                        lot.springType}
                 </div>
               </div>
             </div>
@@ -621,9 +602,7 @@ const FinalToeLoadTestPage = ({ onBack, onNavigateSubmodule }) => {
                 <div className="tlp-summary-item">
                   Rejected (R1): <strong className="tlp-r1">{summary.r1}</strong>
                 </div>
-                <div className="tlp-summary-item">
-                  Accp No.: <strong>{lot.accpNo}</strong> | Rej No.: <strong>{lot.rejNo}</strong> | Cumm. Rej: <strong>{lot.cummRejNo}</strong>
-                </div>
+
                 <div className="tlp-result-box small" style={{ borderColor: summary.color, color: summary.color }}>{summary.result}</div>
                 <Pagination
                   currentPage={page}
@@ -639,59 +618,61 @@ const FinalToeLoadTestPage = ({ onBack, onNavigateSubmodule }) => {
             </div>
 
             {/* 2nd Sampling - only if triggered */}
-            {summary.showSecond && (
-              <div className="tlp-sampling-block tlp-sampling-second">
-                <div className="tlp-sampling-header">
-                  <div className="tlp-sampling-title">2nd Sampling – Toe Load Value (Kgf) (n2: {lot.sampleSize2nd})</div>
-                  <ExcelImport
-                    templateName={`${lot.lotNo}_ToeLoad_2nd`}
-                    sampleSize={lot.sampleSize2nd}
-                    valueLabel="Toe Load (Kgf)"
-                    onImport={(values) => handleExcelImport(lot.lotNo, values, true)}
-                  />
-                </div>
-
-                <div className="tlp-input-grid">
-                  {paginated2.map((val, idx) => {
-                    const actualIndex = start2 + idx;
-                    const status = getValueStatus(lot, val);
-                    return (
-                      <div key={actualIndex} className="tlp-input-wrapper">
-                        <label className="tlp-input-label">#{actualIndex + 1}</label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          className={`tlp-input ${status}`}
-                          value={val}
-                          onChange={(e) => handleToeChange(lot.lotNo, actualIndex, e.target.value, true)}
-                          placeholder=""
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="tlp-compact-row">
-                  <div className="tlp-summary-item">
-                    Rejected (R2): <strong className="tlp-r2">{summary.r2}</strong>
+            {
+              summary.showSecond && (
+                <div className="tlp-sampling-block tlp-sampling-second">
+                  <div className="tlp-sampling-header">
+                    <div className="tlp-sampling-title">2nd Sampling – Toe Load Value (Kgf) (n2: {lot.sampleSize2nd})</div>
+                    <ExcelImport
+                      templateName={`${lot.lotNo}_ToeLoad_2nd`}
+                      sampleSize={lot.sampleSize2nd}
+                      valueLabel="Toe Load (Kgf)"
+                      onImport={(values) => handleExcelImport(lot.lotNo, values, true)}
+                    />
                   </div>
-                  <div className="tlp-summary-item">
-                    Total (R1 + R2): <strong className={summary.total >= lot.cummRejNo ? 'tlp-fail' : 'tlp-ok'}>{summary.total}</strong>
+
+                  <div className="tlp-input-grid">
+                    {paginated2.map((val, idx) => {
+                      const actualIndex = start2 + idx;
+                      const status = getValueStatus(lot, val);
+                      return (
+                        <div key={actualIndex} className="tlp-input-wrapper">
+                          <label className="tlp-input-label">#{actualIndex + 1}</label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            className={`tlp-input ${status}`}
+                            value={val}
+                            onChange={(e) => handleToeChange(lot.lotNo, actualIndex, e.target.value, true)}
+                            placeholder=""
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div className="tlp-result-box small" style={{ borderColor: summary.color, color: summary.color }}>{summary.result}</div>
-                  <Pagination
-                    currentPage={page2}
-                    totalPages={totalPages2}
-                    start={start2}
-                    end={end2}
-                    totalCount={lot.sampleSize2nd}
-                    rows={rows2}
-                    onRowsChange={(newRows) => setRowsAndResetPage(lot.lotNo, newRows, true)}
-                    onPageChange={(p) => setPageMap2(prev => ({ ...prev, [lot.lotNo]: p }))}
-                  />
+
+                  <div className="tlp-compact-row">
+                    <div className="tlp-summary-item">
+                      Rejected (R2): <strong className="tlp-r2">{summary.r2}</strong>
+                    </div>
+                    <div className="tlp-summary-item">
+                      Total (R1 + R2): <strong className={summary.total >= lot.cummRejNo ? 'tlp-fail' : 'tlp-ok'}>{summary.total}</strong>
+                    </div>
+                    <div className="tlp-result-box small" style={{ borderColor: summary.color, color: summary.color }}>{summary.result}</div>
+                    <Pagination
+                      currentPage={page2}
+                      totalPages={totalPages2}
+                      start={start2}
+                      end={end2}
+                      totalCount={lot.sampleSize2nd}
+                      rows={rows2}
+                      onRowsChange={(newRows) => setRowsAndResetPage(lot.lotNo, newRows, true)}
+                      onPageChange={(p) => setPageMap2(prev => ({ ...prev, [lot.lotNo]: p }))}
+                    />
+                  </div>
                 </div>
-              </div>
-            )}
+              )
+            }
 
             {/* Remarks */}
             <div className="tlp-final-row">
@@ -710,7 +691,7 @@ const FinalToeLoadTestPage = ({ onBack, onNavigateSubmodule }) => {
         );
       })}
 
-    </div>
+    </div >
   );
 };
 

@@ -41,7 +41,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, onFieldChange = () => { } })
     .trim();
 
   // Editable field component
-  const EditableField = ({ value, fieldName, placeholder = "", className = "", type="text" }) => {
+  const EditableField = ({ value, fieldName, placeholder = "", className = "", type = "text" }) => {
     if (isEditing) {
       if (type === "textarea") {
         return (
@@ -142,35 +142,35 @@ const ErcFinalIc = ({ data = {}, isEditing = false, onFieldChange = () => { } })
         {/* Store Details Table Section */}
         <div className="flex flex-col border-b border-black flex-grow">
           {/* Table Header Row 1 */}
-          <div className="grid grid-cols-[0.5fr_2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr] border-b border-black bg-gray-50 font-bold text-center text-[9px] leading-tight items-stretch">
-            <div className="border-r border-black p-1 flex flex-col justify-center"><span>मद सं</span><span>Item No.</span></div>
-            <div className="border-r border-black p-1 flex flex-col justify-center"><span>भंडार का विवरण</span><span>Description of Stores</span></div>
-            <div className="border-r border-black p-1 flex flex-col justify-center"><span>आदेशित मात्रा</span><span>Quantity on order</span></div>
-            <div className="border-r border-black p-1 flex flex-col justify-center"><span>पहले प्रस्तुत संचयी मात्रा</span><span>Cumulative qty. offered previously</span></div>
-            <div className="border-r border-black p-1 flex flex-col justify-center"><span>पहले स्वीकृत मात्रा</span><span>Quantity previously passed</span></div>
-            <div className="border-r border-black p-1 flex flex-col justify-center"><span>अब प्रस्तुत मात्रा</span><span>Qty now offered</span></div>
-            <div className="border-r border-black p-1 flex flex-col justify-center"><span>अब स्वीकृत मात्रा</span><span>Qty now passed</span></div>
-            <div className="border-r border-black p-1 flex flex-col justify-center"><span>अब अस्वीकृत मात्रा</span><span>Qty now rejected</span></div>
-            <div className="p-1 flex flex-col justify-center"><span>बकाया मात्रा</span><span>Qty still due</span></div>
+          <div className="grid grid-cols-[0.5fr_2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr] border-b border-black bg-gray-50 font-bold text-center text-[9px] leading-[1.1] items-stretch min-h-[65px] text-black">
+            <div className="border-r border-black p-1.5 flex flex-col justify-center"><span>मद सं</span><span>Item No.</span></div>
+            <div className="border-r border-black p-1.5 flex flex-col justify-center"><span>भंडार का विवरण</span><span>Description of Stores</span></div>
+            <div className="border-r border-black p-1.5 flex flex-col justify-center"><span>आदेशित मात्रा</span><span>Quantity on order</span></div>
+            <div className="border-r border-black p-1.5 flex flex-col justify-center"><span>पहले प्रस्तुत संचयी मात्रा</span><span>Cumulative qty. offered previously</span></div>
+            <div className="border-r border-black p-1.5 flex flex-col justify-center"><span>पहले स्वीकृत मात्रा</span><span>Quantity previously passed</span></div>
+            <div className="border-r border-black p-1.5 flex flex-col justify-center"><span>अब प्रस्तुत मात्रा</span><span>Qty now offered</span></div>
+            <div className="border-r border-black p-1.5 flex flex-col justify-center"><span>अब स्वीकृत मात्रा</span><span>Qty now passed</span></div>
+            <div className="border-r border-black p-1.5 flex flex-col justify-center"><span>अब अस्वीकृत मात्रा</span><span>Qty now rejected</span></div>
+            <div className="p-1.5 flex flex-col justify-center"><span>बकाया मात्रा</span><span>Qty still due</span></div>
           </div>
 
           {/* Table Header Row 2 (Column Numbers) */}
-          <div className="grid grid-cols-[0.5fr_2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr] border-b border-black text-center text-[9px] font-bold bg-white">
-            <div className="border-r border-black">1</div>
-            <div className="border-r border-black">2</div>
-            <div className="border-r border-black">3</div>
-            <div className="border-r border-black">4</div>
-            <div className="border-r border-black">5</div>
-            <div className="border-r border-black">6</div>
-            <div className="border-r border-black">7</div>
-            <div className="border-r border-black">8</div>
-            <div className="">9</div>
+          <div className="grid grid-cols-[0.5fr_2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr] border-b border-black text-center text-[9px] font-bold bg-white items-stretch min-h-[25px] text-black">
+            <div className="border-r border-black py-1 flex items-center justify-center">1</div>
+            <div className="border-r border-black py-1 flex items-center justify-center">2</div>
+            <div className="border-r border-black py-1 flex items-center justify-center">3</div>
+            <div className="border-r border-black py-1 flex items-center justify-center">4</div>
+            <div className="border-r border-black py-1 flex items-center justify-center">5</div>
+            <div className="border-r border-black py-1 flex items-center justify-center">6</div>
+            <div className="border-r border-black py-1 flex items-center justify-center">7</div>
+            <div className="border-r border-black py-1 flex items-center justify-center">8</div>
+            <div className="py-1 flex items-center justify-center">9</div>
           </div>
 
           {/* Table Data Row */}
           <div className="grid grid-cols-[0.5fr_2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr] text-center text-[10px] items-stretch border-b border-black flex-grow min-h-[100px]">
-            <EditableField value={itemNo} fieldName="itemNo" className="border-r border-black p-1 flex items-start justify-center pt-2 font-bold" />
-            <div className="border-r border-black p-2 text-left break-words flex flex-col items-start font-bold">
+            <EditableField value={itemNo} fieldName="itemNo" className="border-r border-black p-1 flex items-center justify-center font-bold" />
+            <div className="border-r border-black p-2 text-left break-words flex flex-col justify-center font-bold">
               <EditableField value={description} fieldName="description" type="textarea" className="uppercase" />
             </div>
 
@@ -184,7 +184,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, onFieldChange = () => { } })
               { val: qtyNowRejected, field: "qtyNowRejected" },
               { val: qtyStillDue, field: "qtyStillDue" }
             ].map((col, idx) => (
-              <div key={idx} className={`${idx === 6 ? "" : "border-r"} border-black p-1 flex flex-col items-center pt-2`}>
+              <div key={idx} className={`${idx === 6 ? "" : "border-r"} border-black p-1 flex flex-col items-center justify-center`}>
                 <span className="mb-1 font-semibold text-[9px]"></span>
                 <EditableField value={col.val} fieldName={col.field} className="font-bold text-sm" />
               </div>
@@ -197,32 +197,40 @@ const ErcFinalIc = ({ data = {}, isEditing = false, onFieldChange = () => { } })
               value={quantityNowPassedText}
               fieldName="quantityNowPassedText"
               placeholder="QUANTITY NOW PASSED: (In words and details...)"
-              className="font-bold text-red-600 block leading-normal uppercase italic"
+              className="font-bold text-black block leading-normal uppercase italic"
             />
           </div>
         </div>
 
         {/* Inspection Details Section (5-column grid) */}
         <div className="grid grid-cols-5 border-b border-black text-[9px] flex-grow min-h-[60px]">
-          <div className="border-r border-black p-1 flex flex-col justify-between">
+          <div className="border-r border-black p-1 flex flex-col">
             <div className="font-bold leading-tight">जाँची गई इकाइयों की संख्या<br />No. of items checked</div>
-            <EditableField value={noOfItemsChecked} fieldName="noOfItemsChecked" className="text-black font-bold uppercase" />
+            <div className="mt-2 text-left">
+              <EditableField value={noOfItemsChecked} fieldName="noOfItemsChecked" className="text-black font-bold uppercase" />
+            </div>
           </div>
-          <div className="border-r border-black p-1 flex flex-col justify-between">
+          <div className="border-r border-black p-1 flex flex-col">
             <div className="font-bold leading-tight">बुलावे की तिथि<br />Date of call</div>
-            <EditableField value={dateOfCall} fieldName="dateOfCall" className="text-black font-bold" />
+            <div className="mt-2 text-left">
+              <EditableField value={dateOfCall} fieldName="dateOfCall" className="text-black font-bold" />
+            </div>
           </div>
-          <div className="border-r border-black p-1 flex flex-col justify-between text-center">
+          <div className="border-r border-black p-1 flex flex-col">
             <div className="font-bold leading-tight">दौरों की संख्या<br />No. of visits</div>
-            <EditableField value={noOfVisits} fieldName="noOfVisits" className="text-black font-bold uppercase" />
+            <div className="mt-2 text-left">
+              <EditableField value={noOfVisits} fieldName="noOfVisits" className="text-black font-bold uppercase" />
+            </div>
           </div>
-          <div className="border-r border-black p-1 flex flex-col justify-between">
+          <div className="border-r border-black p-1 flex flex-col">
             <div className="font-bold leading-tight">निरीक्षण की तिथि (तिथियाँ) /<br />Date(s) of inspection</div>
-            <EditableField value={datesOfInspection} fieldName="datesOfInspection" className="text-red-500 font-bold text-[8px] leading-tight" />
+            <div className="mt-2 text-left">
+              <EditableField value={datesOfInspection} fieldName="datesOfInspection" className="text-black font-bold text-[9px] leading-tight" />
+            </div>
           </div>
-          <div className="p-1 flex flex-col justify-between">
+          <div className="p-1 flex flex-col">
             <div className="font-bold leading-tight">TR Rec. Dt.</div>
-            <div className="text-black font-bold italic">
+            <div className="mt-2 text-left text-black font-bold italic">
               <EditableField value={trRecDate} fieldName="trRecDate" placeholder="TR Date" />
             </div>
           </div>
@@ -232,7 +240,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, onFieldChange = () => { } })
         <div className="grid grid-cols-3 border-b border-black text-[9px] flex-grow min-h-[80px]">
           <div className="border-r border-black p-2 col-span-1 flex flex-col">
             <div className="font-bold leading-tight mb-1">सील / स्टैम्पिंग तथा स्थान / Pattern of sealing/stamping and location of seal/stamp/sticker</div>
-            <EditableField value={sealingPattern} fieldName="sealingPattern" type="textarea" className="text-red-500 break-words italic text-[8px] leading-snug flex-grow" />
+            <EditableField value={sealingPattern} fieldName="sealingPattern" type="textarea" className="text-black font-bold break-words italic text-[9px] leading-snug flex-grow" />
           </div>
           <div className="border-r border-black p-2 col-span-1 flex flex-col">
             <div className="font-bold leading-tight mb-1">मुहर / स्टैम्प की प्रतिकृति / Facsimile of seal/stamp/sticker</div>

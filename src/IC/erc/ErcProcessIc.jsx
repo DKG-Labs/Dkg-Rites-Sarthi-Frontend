@@ -60,9 +60,9 @@ const ErcProcessIC = ({ data = {}, isEditing = false, onChange = () => { }, onAr
     .replace(/[\r\n]+/g, ' ')
     .trim();
 
-  const totalProcessed = lots.reduce((s, l) => s + (l.totalProcessed || 0), 0);
-  const totalAccepted = lots.reduce((s, l) => s + (l.acceptedQty || 0), 0);
-  const totalRejected = lots.reduce((s, l) => s + (l.rejectedQty || 0), 0);
+  const totalProcessed = lots.reduce((s, l) => s + (l.totalProcessed || 0), 0).toFixed(3);
+  const totalAccepted = lots.reduce((s, l) => s + (l.acceptedQty || 0), 0).toFixed(3);
+  const totalRejected = lots.reduce((s, l) => s + (l.rejectedQty || 0), 0).toFixed(3);
 
   return (
     <div className="a4-page">

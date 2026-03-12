@@ -6,10 +6,15 @@ import ExcelImport from '../components/ExcelImport';
 import Pagination from '../components/Pagination';
 import { getDimensionWeightAQL } from '../utils/is2500Calculations';
 import { getWeightTestsByCall } from '../services/finalInspectionSubmoduleService';
+import { normalizeErcType } from '../utils/ercUtils';
 import "./FinalWeightTestPage.css";
 
 /* Weight Tolerance Table from Excel */
-const TOLERANCE = { "MK-III": 904, "MK-V": 1068, "ERC-J": 904 };
+const TOLERANCE = {
+  "MK-III": { min: 904, max: 937 },
+  "MK-V": { min: 1068, max: 1108 },
+  "ERC-J": { min: 904, max: 937 }
+};
 
 export default function FinalWeightTestPage({ onBack, onNavigateSubmodule }) {
   // State for lot selection toggle
@@ -50,20 +55,29 @@ export default function FinalWeightTestPage({ onBack, onNavigateSubmodule }) {
     const quantity = lot.lotSize || lot.offeredQty || 0;
 
     const aql = getDimensionWeightAQL(quantity);
+    const springType = normalizeErcType(
+      cachedData?.dashboardData?.inspectionCall?.ercType ||
+      cachedData?.inspectionCall?.ercType ||
+      selectedCall?.ercType ||
+      lot.springType
+    );
+    const toleranceRange = TOLERANCE[springType] || TOLERANCE["MK-III"];
     return {
       lotNo,
       heatNo,
       quantity,
-      springType: lot.springType || "MK-III",
+      springType,
       sampleSize: aql.n1,
       sampleSize2nd: aql.n2,
       accpNo: aql.ac1,
       rejNo: aql.re1,
       cummRejNo: aql.cummRej,
       useSingleSampling: aql.useSingleSampling,
-      minWeight: TOLERANCE[lot.springType] || 904
+      minWeight: toleranceRange.min,
+      maxWeight: toleranceRange.max,
+      weightRange: `${toleranceRange.min}–${toleranceRange.max}`
     };
-  }), [lotsFromVendor]);
+  }), [lotsFromVendor, cachedData?.dashboardData?.inspectionCall?.ercType, cachedData?.inspectionCall?.ercType, selectedCall?.ercType]);
 
   /* State for all lots */
   const [lotStates, setLotStates] = useState(() => {
@@ -264,7 +278,7 @@ export default function FinalWeightTestPage({ onBack, onNavigateSubmodule }) {
 
       const r1 = state.weight1st.filter(v => {
         const num = parseFloat(v);
-        return !isNaN(num) && num < lot.minWeight;
+        return !isNaN(num) && (num < lot.minWeight || num > lot.maxWeight);
       }).length;
 
       const secondRequired = r1 > lot.accpNo && r1 < lot.rejNo;
@@ -348,17 +362,15 @@ export default function FinalWeightTestPage({ onBack, onNavigateSubmodule }) {
   /* Calculate summary for a lot */
   const getSummary = (lot) => {
     const state = lotStates[lot.lotNo];
-    const r1 = state.weight1st.filter(v => {
+    const isOutOfRange = (v) => {
       const num = parseFloat(v);
-      return !isNaN(num) && num < lot.minWeight;
-    }).length;
+      return !isNaN(num) && (num < lot.minWeight || num > lot.maxWeight);
+    };
+    const r1 = state.weight1st.filter(isOutOfRange).length;
 
     const showSecond = !!show2ndSamplingMap[lot.lotNo];
 
-    const r2 = showSecond ? state.weight2nd.filter(v => {
-      const num = parseFloat(v);
-      return !isNaN(num) && num < lot.minWeight;
-    }).length : 0;
+    const r2 = showSecond ? state.weight2nd.filter(isOutOfRange).length : 0;
 
     const total = r1 + r2;
 
@@ -391,10 +403,11 @@ export default function FinalWeightTestPage({ onBack, onNavigateSubmodule }) {
   };
 
   /* Get value status for color coding */
-  const getValueStatus = (v, minWeight) => {
+  const getValueStatus = (v, minWeight, maxWeight) => {
     if (!v) return '';
     const num = parseFloat(v);
-    return !isNaN(num) && num >= minWeight ? 'pass' : 'fail';
+    if (isNaN(num)) return '';
+    return (num >= minWeight && num <= maxWeight) ? 'pass' : 'fail';
   };
 
   return (
@@ -432,28 +445,21 @@ export default function FinalWeightTestPage({ onBack, onNavigateSubmodule }) {
       {/* Submodule Navigation */}
       <FinalSubmoduleNav currentSubmodule="final-weight-test" onNavigate={onNavigateSubmodule} />
 
-      {/* Lot Selector */}
-      {lotsData.length > 0 && (
-        <>
-          {lotsData.length === 1 ? (
-            <div className="lot-single">
-              <span>📦 {lotsData[0].lotNo} | Heat {lotsData[0].heatNo}</span>
-            </div>
-          ) : (
-            <div className="lot-selector">
-              {lotsData.map((lot, idx) => (
-                <button
-                  key={lot.lotNo}
-                  className={`lot-btn ${activeLotTab === idx ? 'active' : ''}`}
-                  onClick={() => setActiveLotTab(idx)}
-                >
-                  Lot {lot.lotNo}
-                </button>
-              ))}
-            </div>
-          )}
-        </>
+      {/* Lot Selector – shown only when multiple lots */}
+      {lotsData.length > 1 && (
+        <div className="lot-selector">
+          {lotsData.map((lot, idx) => (
+            <button
+              key={lot.lotNo}
+              className={`lot-btn ${activeLotTab === idx ? 'active' : ''}`}
+              onClick={() => setActiveLotTab(idx)}
+            >
+              Lot {lot.lotNo}
+            </button>
+          ))}
+        </div>
       )}
+
 
       {/* ALL LOTS */}
       {lotsData.map((lot, idx) => {
@@ -485,15 +491,18 @@ export default function FinalWeightTestPage({ onBack, onNavigateSubmodule }) {
         return (
           <div key={lot.lotNo} className="wt-card">
             {/* Lot Header */}
-            <div className="wt-lot-header">
-              <div className="wt-lot-info">
-                <span className="wt-lot-badge">📦 Lot: <strong>{lot.lotNo}</strong></span>
+            <div className="wt-lot-header" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)', alignItems: 'center', gap: '10px' }}>
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', fontWeight: 'bold' }}>
+                <span className="wt-lot-badge">📦 Lot: {lot.lotNo}</span>
                 <span className="wt-lot-meta">Heat: {lot.heatNo}</span>
                 <span className="wt-lot-meta">Qty: {lot.quantity}</span>
-                <span className="wt-lot-meta">Type: {lot.springType}</span>
+                <span className="wt-lot-meta">Sample: {lot.sampleSize}</span>
               </div>
-              <div className="wt-lot-sample">
-                Sample Size (IS 2500): <strong>{lot.sampleSize}</strong> | Min Weight: <strong>{lot.minWeight}g</strong>
+              <div style={{ textAlign: 'center', whiteSpace: 'nowrap', fontWeight: 'bold', fontSize: '13px' }}>
+                Ac: {lot.accpNo} | Re: {lot.rejNo} | Cumm: {lot.cummRejNo}
+              </div>
+              <div style={{ textAlign: 'right', whiteSpace: 'nowrap', fontWeight: 'bold', fontSize: '13px' }}>
+                {lot.springType} ({lot.weightRange}g)
               </div>
             </div>
 
@@ -511,7 +520,7 @@ export default function FinalWeightTestPage({ onBack, onNavigateSubmodule }) {
               <div className="wt-input-grid">
                 {paginated1.map((val, idx) => {
                   const actualIdx = start + idx;
-                  const status = getValueStatus(val, lot.minWeight);
+                  const status = getValueStatus(val, lot.minWeight, lot.maxWeight);
                   return (
                     <div key={actualIdx} className="wt-input-wrapper">
                       <label className="wt-input-label">{actualIdx + 1}</label>
@@ -529,7 +538,6 @@ export default function FinalWeightTestPage({ onBack, onNavigateSubmodule }) {
               </div>
               <div className="wt-compact-row">
                 <div className="wt-summary-item">Rejected (R1): <strong className="wt-r1">{summary.r1}</strong></div>
-                <div className="wt-summary-item">Accp No.: <strong>{lot.accpNo}</strong> | Rej No.: <strong>{lot.rejNo}</strong> | Cumm. Rej: <strong>{lot.cummRejNo}</strong></div>
                 <div className="wt-result-box small" style={{ borderColor: summary.color, color: summary.color }}>{summary.result}</div>
                 <Pagination
                   currentPage={page}
@@ -559,7 +567,7 @@ export default function FinalWeightTestPage({ onBack, onNavigateSubmodule }) {
                 <div className="wt-input-grid">
                   {paginated2.map((val, idx) => {
                     const actualIdx = start2 + idx;
-                    const status = getValueStatus(val, lot.minWeight);
+                    const status = getValueStatus(val, lot.minWeight, lot.maxWeight);
                     return (
                       <div key={actualIdx} className="wt-input-wrapper">
                         <label className="wt-input-label">#{actualIdx + 1}</label>

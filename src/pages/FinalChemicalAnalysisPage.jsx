@@ -282,28 +282,21 @@ const FinalChemicalAnalysisPage = ({ onBack, onNavigateSubmodule }) => {
         onNavigate={onNavigateSubmodule}
       />
 
-      {/* Lot Selector */}
-      {availableLots.length > 0 && (
-        <>
-          {availableLots.length === 1 ? (
-            <div className="lot-single">
-              <span>📦 {availableLots[0].lotNo} | Heat {availableLots[0].heatNo}</span>
-            </div>
-          ) : (
-            <div className="lot-selector">
-              {availableLots.map((lot, idx) => (
-                <button
-                  key={lot.lotNo}
-                  className={`lot-btn ${activeLotTab === idx ? 'active' : ''}`}
-                  onClick={() => setActiveLotTab(idx)}
-                >
-                  Lot {lot.lotNo}
-                </button>
-              ))}
-            </div>
-          )}
-        </>
+      {/* Lot Selector – shown only when multiple lots */}
+      {availableLots.length > 1 && (
+        <div className="lot-selector">
+          {availableLots.map((lot, idx) => (
+            <button
+              key={lot.lotNo}
+              className={`lot-btn ${activeLotTab === idx ? 'active' : ''}`}
+              onClick={() => setActiveLotTab(idx)}
+            >
+              Lot {lot.lotNo}
+            </button>
+          ))}
+        </div>
       )}
+
 
       {/* DESKTOP/TABLET VIEW */}
       <div className="desktop-fields">

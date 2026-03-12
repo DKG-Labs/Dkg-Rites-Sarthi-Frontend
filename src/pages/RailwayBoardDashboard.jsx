@@ -24,15 +24,17 @@ const RailwayBoardDashboard = () => {
     React.useEffect(() => { localStorage.setItem('dash_expandedSerial', JSON.stringify(expandedSerial)); }, [expandedSerial]);
     React.useEffect(() => { localStorage.setItem('dash_expandedCall', JSON.stringify(expandedCall)); }, [expandedCall]);
 
-    // Pagination State (Level 1)
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(5);
 
-    // Level 1 Data Fetching using custom hook
-    const { data: reportData, loading, error } = useReportData(reportService.getLevel1Report, null);
+    // Track active tab to defer non-essential API calls
+    const [activeMainCard, setActiveMainCard] = useState('summary');
 
-    // Summary Data Fetching
-    const { data: summaryData } = useReportData(reportService.getDashboardSummary, null);
+    // Level 1 Data Fetching - Only fetch when "PO Lifecycle" tab is active
+    const { data: reportData = [] } = useReportData(reportService.getLevel1Report, activeMainCard === 'lifecycle' ? null : undefined);
+
+    // Summary Data Fetching - Default tab, fetch when active
+    const { data: summaryData } = useReportData(reportService.getDashboardSummary, activeMainCard === 'summary' ? null : undefined);
 
     // Filter State with Persistence (Normalized 'all' for internal state)
     const [selectedProduct, setSelectedProduct] = useState(() => {
@@ -79,10 +81,16 @@ const RailwayBoardDashboard = () => {
         page: perfPage,
         size: perfRowsPerPage,
         startDate: fromDate,
-        endDate: toDate
-    }), [perfPage, perfRowsPerPage, fromDate, toDate]);
+        endDate: toDate,
+        rio: selectedRio !== 'all' ? selectedRio : undefined,
+        zone: selectedZone !== 'all' ? selectedZone : undefined,
+        vendor: selectedVendor !== 'all' ? selectedVendor : undefined
+    }), [perfPage, perfRowsPerPage, fromDate, toDate, selectedRio, selectedZone, selectedVendor]);
 
-    const { data: perfData, pagination: perfPagination, loading: perfLoading } = useReportData(reportService.getPerformanceMatrix, perfParams);
+    const { data: perfData, pagination: perfPagination, loading: perfLoading } = useReportData(
+        reportService.getPerformanceMatrix,
+        activeMainCard === 'performance' ? perfParams : undefined
+    );
 
     // Monthly Progress Report (MPR) State
     const [mprPage, setMprPage] = useState(0);
@@ -93,10 +101,16 @@ const RailwayBoardDashboard = () => {
         page: mprPage,
         size: mprRowsPerPage,
         startDate: fromDate,
-        endDate: toDate
-    }), [mprPage, mprRowsPerPage, fromDate, toDate]);
+        endDate: toDate,
+        rio: selectedRio !== 'all' ? selectedRio : undefined,
+        zone: selectedZone !== 'all' ? selectedZone : undefined,
+        vendor: selectedVendor !== 'all' ? selectedVendor : undefined
+    }), [mprPage, mprRowsPerPage, fromDate, toDate, selectedRio, selectedZone, selectedVendor]);
 
-    const { data: mprData, pagination: mprPagination, loading: mprLoading } = useReportData(reportService.getMonthlyProgressReport, mprParams);
+    const { data: mprData, pagination: mprPagination, loading: mprLoading } = useReportData(
+        reportService.getMonthlyProgressReport,
+        activeMainCard === 'reports' ? mprParams : undefined
+    );
 
     // Monthly Analysis of Units (MAU) State
     const [mauPage, setMauPage] = useState(0);
@@ -107,10 +121,16 @@ const RailwayBoardDashboard = () => {
         page: mauPage,
         size: mauRowsPerPage,
         startDate: fromDate,
-        endDate: toDate
-    }), [mauPage, mauRowsPerPage, fromDate, toDate]);
+        endDate: toDate,
+        rio: selectedRio !== 'all' ? selectedRio : undefined,
+        zone: selectedZone !== 'all' ? selectedZone : undefined,
+        vendor: selectedVendor !== 'all' ? selectedVendor : undefined
+    }), [mauPage, mauRowsPerPage, fromDate, toDate, selectedRio, selectedZone, selectedVendor]);
 
-    const { data: mauData, pagination: mauPagination, loading: mauLoading } = useReportData(reportService.getMonthlyAnalysisOfUnits, mauParams);
+    const { data: mauData, pagination: mauPagination, loading: mauLoading } = useReportData(
+        reportService.getMonthlyAnalysisOfUnits,
+        activeMainCard === 'reports' ? mauParams : undefined
+    );
 
     // Lot Wise Closed Loop (LWCL) State
     const [lwclCallNo, setLwclCallNo] = useState('');
@@ -216,36 +236,12 @@ const RailwayBoardDashboard = () => {
     };
 
     // Advanced Filtering Logic
-    const filteredData = reportData;
-
+    const filteredData = reportData || [];
     const count = filteredData.length;
     const paginatedData = filteredData.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
 
-    if (loading && page === 0 && reportData.length === 0) {
-        return (
-            <div className="railway-dashboard-container">
-                <DashboardHeader />
-                <div className="content-card">
-                    <div className="loading-state p-8 text-center text-teal font-medium">
-                        Loading PO Report Data...
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    if (error && reportData.length === 0) {
-        return (
-            <div className="railway-dashboard-container">
-                <DashboardHeader />
-                <div className="content-card">
-                    <div className="error-state p-8 text-center text-red font-medium">
-                        Error: {error}
-                    </div>
-                </div>
-            </div>
-        );
-    }
+    // REMOVED: Early return loading/error blocks to allow dashboard shell to render immediately.
+    // Data-specific loading states are now handled within their respective sections.
 
     // Capture the existing PO table as a prop
     const poTable = (
@@ -337,13 +333,15 @@ const RailwayBoardDashboard = () => {
                 setToDate={setToDate}
             />
 
-            {/* Integration of ProfessionalCardSection without losing functionality */}
+            {/* Integration of ProfessionalCardSection with deferred tab loading */}
             <ProfessionalCardSection
                 poTable={poTable}
                 poGraph={poGraph}
                 kpiGrid={kpiGrid}
                 selectedProduct={selectedProduct}
                 summaryData={summaryData}
+                activeMainCard={activeMainCard}
+                setActiveMainCard={setActiveMainCard}
                 // Performance Matrix Props
                 perfData={perfData}
                 perfLoading={perfLoading}

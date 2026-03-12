@@ -162,6 +162,34 @@ export const formatPoNoWithSerial = (poNo, serial, rlyShortName) => {
 };
 
 /**
+ * Extracts only the numeric PO number from a formatted PO string.
+ * Example: "SCR / 60256836107122 / 004" -> "60256836107122"
+ * Example: "60256836107122" -> "60256836107122"
+ * @param {string} formattedPoNo - The formatted PO string
+ * @returns {string} The numeric PO number
+ */
+export const extractNumericPoNo = (formattedPoNo) => {
+  if (!formattedPoNo) return '';
+  const str = String(formattedPoNo);
+
+  // If it's already just numbers, return as is
+  if (/^\d+$/.test(str.trim())) return str.trim();
+
+  // Split by common separators
+  const parts = str.split('/').map(p => p.trim());
+
+  // Look for the longest numeric part (usually the PO number)
+  let numericPart = '';
+  parts.forEach(part => {
+    if (/^\d+$/.test(part) && part.length > numericPart.length) {
+      numericPart = part;
+    }
+  });
+
+  return numericPart || str;
+};
+
+/**
  * Format a number to a fixed number of decimal places.
  * If the value is not a number, returns the original value or '0' if it's null/undefined.
  * @param {number|string} value - The value to format

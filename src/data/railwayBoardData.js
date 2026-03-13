@@ -10,7 +10,6 @@ export const KPI_METRICS = [
     { id: 'rm_rej', label: 'RM Rejection', value: '1.8%', subtext: 'Target: <2%', trend: '-0.2%', status: 'success' },
     { id: 'proc_rej', label: 'Process Rej', value: '4.2%', subtext: 'Target: <3.5%', trend: '+0.7%', status: 'warning' },
     { id: 'final_rej', label: 'Final Rej', value: '0.5%', subtext: 'Target: <1%', trend: '0%', status: 'success' },
-    { id: 'pending', label: 'Pending Calls', value: '12', subtext: 'Critical: 3', trend: '', status: 'warning' },
 ];
 
 // Level 1: PO Wise List

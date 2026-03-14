@@ -3680,8 +3680,8 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     const previousShiftManufactured = previousShiftData[lotNo]?.manufacturedQty || 0;
     const cumulativeManufactured = numValue + previousShiftManufactured;
 
-    // 1. Validation: Cumulative Manufactured cannot exceed Offered quantity
-    if (value !== '' && cumulativeManufactured > offeredQty) {
+    // 1. Validation: Cumulative Manufactured cannot exceed Offered quantity (ONLY for Shearing stage)
+    if (value !== '' && field === 'shearing' && cumulativeManufactured > offeredQty) {
       const remainingAllowed = Math.max(0, offeredQty - previousShiftManufactured);
       showNotification('error', `Cumulative manufactured quantity (${cumulativeManufactured}) cannot exceed offered quantity (${offeredQty}) for Lot ${lotNo}. Maximum allowed in this shift: ${remainingAllowed}`);
       setManufacturedQtyByLine(prev => ({

@@ -78,7 +78,6 @@ export const QUALITY_DATA = {
         { name: 'Forging', value: 20, color: '#ef4444' },
         { name: 'Quenching', value: 12, color: '#10b981' },
         { name: 'Tempering', value: 10, color: '#06b6d4' },
-        { name: 'Final Testing', value: 8, color: '#3b82f6' },
     ],
     rmManufacturerRejection: [
         { name: 'JSPL', value: 0.9, color: '#10b981' },

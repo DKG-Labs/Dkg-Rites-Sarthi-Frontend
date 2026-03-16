@@ -17,11 +17,15 @@ const ProfessionalCardSection = ({
     kpiGrid,
     selectedProduct,
     summaryData,
+    inspectionCallStatusData = [],
+    inspectionDetailsData = [],
     activeMainCard,
     setActiveMainCard,
     qualityRejectionData = [],
     manufacturerRejectionData = [],
+    stepWiseRejectionData = [],
     processPerformanceData = { topPerforming: [], worstPerforming: [] },
+    paretoAnalysisData = [],
     dailyRejectionTrendData = [],
     // New Performance Matrix Props from API
     perfData = [],
@@ -109,7 +113,7 @@ const ProfessionalCardSection = ({
 
     // --- 4-column stacked bar chart data ---
     // Inspection Calls Status: 4 groups × 2 stacks (Under Inspection + Pending)
-    const inspectionCallsData = [
+    const staticInspectionCallsData = [
         { name: 'Total', under: 90, pending: 12 },
         { name: 'RM', under: 38, pending: 5 },
         { name: 'Process', under: 30, pending: 4 },
@@ -117,12 +121,20 @@ const ProfessionalCardSection = ({
     ];
 
     // Inspection Details: 4 groups × 2 stacks (Accepted + Rejected)
-    const inspectionDetailsData = [
+    const staticInspectionDetailsData = [
         { name: 'Total', accepted: 8957, rejected: 406 },
         { name: 'RM', accepted: 3200, rejected: 145 },
         { name: 'Process', accepted: 3100, rejected: 160 },
         { name: 'Final', accepted: 2657, rejected: 101 },
     ];
+
+    const displayInspectionCallsData = (inspectionCallStatusData && inspectionCallStatusData.length > 0)
+        ? inspectionCallStatusData
+        : staticInspectionCallsData;
+
+    const displayInspectionDetailsData = (inspectionDetailsData && inspectionDetailsData.length > 0)
+        ? inspectionDetailsData
+        : staticInspectionDetailsData;
 
     // Custom tooltip for Inspection Calls Status chart
     const CallsTooltip = ({ active, payload, label }) => {
@@ -269,12 +281,12 @@ const ProfessionalCardSection = ({
                             <div className="isc-chart-card">
                                 <h3 className="isc-chart-title">Inspection Calls Status</h3>
                                 <p className="isc-chart-subtitle">
-                                    Total Calls: {inspectionCallsData[0].under + inspectionCallsData[0].pending}
+                                    Total Calls: {((displayInspectionCallsData[0]?.under || 0) + (displayInspectionCallsData[0]?.pending || 0)).toLocaleString()}
                                 </p>
                                 <div className="isc-chart-area">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <BarChart
-                                            data={inspectionCallsData}
+                                            data={displayInspectionCallsData}
                                             margin={{ top: 10, right: 16, left: -10, bottom: 0 }}
                                             barCategoryGap="30%"
                                             barGap={2}
@@ -312,12 +324,12 @@ const ProfessionalCardSection = ({
                             <div className="isc-chart-card">
                                 <h3 className="isc-chart-title">Inspection Details</h3>
                                 <p className="isc-chart-subtitle">
-                                    Total Inspections: {(inspectionDetailsData[0].accepted + inspectionDetailsData[0].rejected).toLocaleString()}
+                                    Total Inspections: {Math.round((displayInspectionDetailsData[0]?.accepted || 0) + (displayInspectionDetailsData[0]?.rejected || 0)).toLocaleString()}
                                 </p>
                                 <div className="isc-chart-area">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <BarChart
-                                            data={inspectionDetailsData}
+                                            data={displayInspectionDetailsData}
                                             margin={{ top: 10, right: 16, left: -10, bottom: 0 }}
                                             barCategoryGap="30%"
                                             barGap={2}
@@ -334,7 +346,7 @@ const ProfessionalCardSection = ({
                                                 tickLine={false}
                                                 tick={{ fill: '#94a3b8', fontSize: 11 }}
                                                 width={45}
-                                                tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}
+                                                tickFormatter={(v) => v >= 1000000 ? `${(v / 1000000).toFixed(1)}M` : v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}
                                             />
                                             <Tooltip content={<DetailsTooltip />} cursor={{ fill: 'rgba(241,245,249,0.7)' }} />
                                             <Bar dataKey="accepted" name="Accepted" stackId="s" fill="#22c55e" radius={[0, 0, 0, 0]} />
@@ -344,7 +356,7 @@ const ProfessionalCardSection = ({
                                 </div>
                                 <div className="isc-legend-row">
                                     <div className="isc-legend-item">
-                                        <span className="isc-dot isc-dot--emerald"></span> Accepted
+                                        <span className="isc-dot" style={{ backgroundColor: '#22c55e' }}></span> Accepted
                                     </div>
                                     <div className="isc-legend-item">
                                         <span className="isc-dot isc-dot--red"></span> Rejected
@@ -396,13 +408,39 @@ const ProfessionalCardSection = ({
                             <div className="q-chart-card wide-60">
                                 <h3>Pareto Analysis</h3>
                                 <ResponsiveContainer width="100%" height={300}>
-                                    <ComposedChart data={QUALITY_DATA.pareto}>
+                                    <ComposedChart
+                                        data={
+                                            paretoAnalysisData && paretoAnalysisData.length > 0
+                                                ? paretoAnalysisData.map(d => ({ name: d.name, count: d.value, color: d.color, cumulative: d.cumulative }))
+                                                : QUALITY_DATA.pareto
+                                        }
+                                        margin={{ top: 10, right: 30, left: 0, bottom: 40 }}
+                                    >
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                        <XAxis dataKey="name" axisLine={false} tickLine={false} hide={false} fontSize={10} angle={-15} textAnchor="end" interval={0} />
+                                        <XAxis
+                                            dataKey="name"
+                                            axisLine={false}
+                                            tickLine={false}
+                                            hide={false}
+                                            fontSize={10}
+                                            angle={-20}
+                                            textAnchor="end"
+                                            interval={0}
+                                        />
                                         <YAxis yAxisId="left" axisLine={false} tickLine={false} />
-                                        <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tickFormatter={(val) => `${val}%`} />
-                                        <Tooltip />
-                                        <Bar yAxisId="left" dataKey="count" fill="#2563eb" barSize={30} radius={[4, 4, 0, 0]} />
+                                        <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tickFormatter={(val) => `${val}%`} domain={[0, 100]} />
+                                        <Tooltip
+                                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                            formatter={(value, name) => name === 'cumulative' ? [`${value}%`, 'Cumulative %'] : [value, 'Rejections']}
+                                        />
+                                        <Bar yAxisId="left" dataKey="count" barSize={30} radius={[4, 4, 0, 0]}>
+                                            {(paretoAnalysisData && paretoAnalysisData.length > 0
+                                                ? paretoAnalysisData
+                                                : QUALITY_DATA.pareto
+                                            ).map((entry, index) => (
+                                                <Cell key={`pareto-cell-${index}`} fill={entry.color || '#2563eb'} />
+                                            ))}
+                                        </Bar>
                                         <Line yAxisId="right" type="monotone" dataKey="cumulative" stroke="#ef4444" strokeWidth={2} dot={{ r: 4, fill: '#ef4444' }} />
                                     </ComposedChart>
                                 </ResponsiveContainer>
@@ -433,14 +471,14 @@ const ProfessionalCardSection = ({
                                 <ResponsiveContainer width="100%" height={350}>
                                     <PieChart>
                                         <Pie
-                                            data={QUALITY_DATA.defectDistribution}
+                                            data={stepWiseRejectionData && stepWiseRejectionData.length > 0 ? stepWiseRejectionData : QUALITY_DATA.defectDistribution}
                                             innerRadius={80}
                                             outerRadius={110}
                                             paddingAngle={5}
                                             dataKey="value"
                                             stroke="none"
                                         >
-                                            {QUALITY_DATA.defectDistribution.map((entry, index) => (
+                                            {(stepWiseRejectionData && stepWiseRejectionData.length > 0 ? stepWiseRejectionData : QUALITY_DATA.defectDistribution).map((entry, index) => (
                                                 <Cell key={`cell-${index}`} fill={entry.color} />
                                             ))}
                                         </Pie>
@@ -910,6 +948,7 @@ const ProfessionalCardSection = ({
                                         </div>
                                     </div>
 
+                                    {/* 
                                     <div className="reports-charts-grid">
                                         <div className="report-chart-card">
                                             <h4>ERC Manufactured (Monthly)</h4>
@@ -935,6 +974,7 @@ const ProfessionalCardSection = ({
                                             </ResponsiveContainer>
                                         </div>
                                     </div>
+                                    */}
                                 </div>
                             )}
 

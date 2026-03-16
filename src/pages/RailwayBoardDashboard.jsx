@@ -36,12 +36,20 @@ const RailwayBoardDashboard = () => {
     // Summary Data Fetching - Default tab, fetch when active
     const { data: summaryData } = useReportData(reportService.getDashboardSummary, activeMainCard === 'summary' ? null : undefined);
 
+    const { data: inspectionCallStatusData } = useReportData(reportService.getInspectionCallStatus, activeMainCard === 'summary' ? null : undefined);
+
+    const { data: inspectionDetailsData } = useReportData(reportService.getInspectionDetails, activeMainCard === 'summary' ? null : undefined);
+
     // Quality Rejection Data Fetching
     const { data: qualityRejectionData } = useReportData(reportService.getQualityRejection, activeMainCard === 'quality' ? null : undefined);
 
     const { data: manufacturerRejectionData } = useReportData(reportService.getManufacturerRejection, activeMainCard === 'quality' ? null : undefined);
 
+    const { data: stepWiseRejectionData } = useReportData(reportService.getManufacturingStepWiseRejection, activeMainCard === 'quality' ? null : undefined);
+
     const { data: processPerformanceData } = useReportData(reportService.getProcessPerformance, activeMainCard === 'quality' ? null : undefined);
+
+    const { data: paretoAnalysisData } = useReportData(reportService.getParetoAnalysis, activeMainCard === 'quality' ? null : undefined);
 
     // Filter State with Persistence (Normalized 'all' for internal state)
     const [selectedProduct, setSelectedProduct] = useState(() => {
@@ -358,12 +366,16 @@ const RailwayBoardDashboard = () => {
                 kpiGrid={kpiGrid}
                 selectedProduct={selectedProduct}
                 summaryData={summaryData}
+                inspectionCallStatusData={inspectionCallStatusData}
+                inspectionDetailsData={inspectionDetailsData}
                 activeMainCard={activeMainCard}
                 setActiveMainCard={setActiveMainCard}
                 // Quality Rejection Prop
                 qualityRejectionData={qualityRejectionData}
                 manufacturerRejectionData={manufacturerRejectionData}
+                stepWiseRejectionData={stepWiseRejectionData}
                 processPerformanceData={processPerformanceData}
+                paretoAnalysisData={paretoAnalysisData}
                 dailyRejectionTrendData={dailyRejectionTrendData}
                 // Performance Matrix Props
                 perfData={perfData}

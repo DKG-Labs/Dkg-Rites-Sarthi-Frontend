@@ -50,7 +50,7 @@ export const SUMMARY_DATA = {
 
 export const QUALITY_DATA = {
     summary: [
-        { label: 'Overall Rejection %', value: '1.34%', color: 'red' },
+        { label: 'Overall Rejection % in Process', value: '1.34%', color: 'red' },
         { label: 'Top Defect', value: 'Turning Length', color: 'blue' },
         { label: 'Worst Performing Plant', value: 'XYZ Industries', color: 'orange' },
         { label: 'Total Defects Recorded', value: '380', color: 'gray' }

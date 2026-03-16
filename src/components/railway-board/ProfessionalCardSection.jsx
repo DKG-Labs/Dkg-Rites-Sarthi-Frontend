@@ -3,8 +3,7 @@ import Pagination from '../Pagination';
 import { PROFESSIONAL_MAIN_CARDS, SUMMARY_DATA, QUALITY_DATA, REPORTS_DATA } from '../../data/professionalDashboardData';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-    Cell, PieChart, Pie, Legend, LineChart, Line, ComposedChart,
-    Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis
+    Cell, PieChart, Pie, Legend, LineChart, Line, ComposedChart
 } from 'recharts';
 import { formatDecimal } from '../../utils/helpers';
 import './ProfessionalCardSection.css';

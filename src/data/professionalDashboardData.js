@@ -50,10 +50,10 @@ export const SUMMARY_DATA = {
 
 export const QUALITY_DATA = {
     summary: [
-        { label: 'Overall Rejection % in Process', value: '1.34%', color: 'red' },
-        { label: 'Top Defect', value: 'Turning Length', color: 'blue' },
-        { label: 'Worst Performing Plant', value: 'XYZ Industries', color: 'orange' },
-        { label: 'Total Defects Recorded', value: '380', color: 'gray' }
+        { id: 'q-process-rej', label: 'Overall Rejection % in Process', value: '1.34%', color: 'red', icon: '📉' },
+        { id: 'q-top-defect', label: 'Top Defect', value: 'Turning Length', color: 'blue', icon: '⚠️' },
+        { id: 'q-worst-plant', label: 'Worst Performing Plant', value: 'XYZ Industries', color: 'orange', icon: '🏭' },
+        // { label: 'Total Defects Recorded', value: '380', color: 'gray' }
     ],
     stageRejection: [
         { name: 'Raw Material', value: 0.8, color: '#2563eb' },

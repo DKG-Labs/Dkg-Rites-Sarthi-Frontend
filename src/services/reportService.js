@@ -218,6 +218,34 @@ const reportService = {
         });
         return handleResponse(response);
     },
+
+    getManufacturingStepWiseRejection: async () => {
+        const response = await fetch(`${API_ENDPOINTS.REPORTS}/manufacturingStepWiseRejection`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getInspectionCallStatus: async () => {
+        const response = await fetch(`${API_ENDPOINTS.REPORTS}/inspectionCallStatus`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getParetoAnalysis: async () => {
+        const response = await fetch(`${API_ENDPOINTS.REPORTS}/paretoAnalysis`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getInspectionDetails: async () => {
+        const response = await fetch(`${API_ENDPOINTS.REPORTS}/inspectionDetails`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
 };
 
 export default reportService;

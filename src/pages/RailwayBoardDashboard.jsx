@@ -115,7 +115,7 @@ const RailwayBoardDashboard = () => {
 
     const { data: perfData, pagination: perfPagination, loading: perfLoading } = useReportData(
         reportService.getPerformanceMatrix,
-        activeMainCard === 'performance' ? perfParams : undefined
+        (activeMainCard === 'performance' || activeMainCard === 'summary') ? perfParams : undefined
     );
 
     // Monthly Progress Report (MPR) State

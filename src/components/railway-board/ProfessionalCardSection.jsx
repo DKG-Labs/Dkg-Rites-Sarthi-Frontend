@@ -10,6 +10,21 @@ import './ProfessionalCardSection.css';
 import './InspectionStackedCharts.css';
 import './PerformanceMatrixTheme.css';
 
+// --- Static Data moved outside component to fix ESLint re-render warnings ---
+const staticInspectionCallsData = [
+    { name: 'Total', under: 90, pending: 12 },
+    { name: 'RM', under: 38, pending: 5 },
+    { name: 'Process', under: 30, pending: 4 },
+    { name: 'Final', under: 22, pending: 3 },
+];
+
+const staticInspectionDetailsData = [
+    { name: 'Total', accepted: 8957, rejected: 406 },
+    { name: 'RM', accepted: 3200, rejected: 145 },
+    { name: 'Process', accepted: 3100, rejected: 160 },
+    { name: 'Final', accepted: 2657, rejected: 101 },
+];
+
 const ProfessionalCardSection = ({
     poTable,
     poGraph,
@@ -114,23 +129,7 @@ const ProfessionalCardSection = ({
 
     // ... (rest of the logic remains same until renderSubContent)
 
-    // --- 4-column stacked bar chart data ---
-    // Inspection Calls Status: 4 groups × 2 stacks (Under Inspection + Pending)
-    const staticInspectionCallsData = [
-        { name: 'Total', under: 90, pending: 12 },
-        { name: 'RM', under: 38, pending: 5 },
-        { name: 'Process', under: 30, pending: 4 },
-        { name: 'Final', under: 22, pending: 3 },
-    ];
-
-    // Inspection Details: 4 groups × 2 stacks (Accepted + Rejected)
-    const staticInspectionDetailsData = [
-        { name: 'Total', accepted: 8957, rejected: 406 },
-        { name: 'RM', accepted: 3200, rejected: 145 },
-        { name: 'Process', accepted: 3100, rejected: 160 },
-        { name: 'Final', accepted: 2657, rejected: 101 },
-    ];
-
+    // Moving logic inside component
     const displayInspectionCallsData = (inspectionCallStatusData && inspectionCallStatusData.length > 0)
         ? inspectionCallStatusData
         : staticInspectionCallsData;
@@ -146,7 +145,7 @@ const ProfessionalCardSection = ({
     // New Logic: Using the performance matrix calculation logic
     const displayInspectionDetailsData = React.useMemo(() =>
         computeInspectionDetailsFromPerformance(perfData, inspectionDetailsData, staticInspectionDetailsData),
-        [perfData, inspectionDetailsData, staticInspectionDetailsData]
+        [perfData, inspectionDetailsData]
     );
 
     // Custom tooltip for Inspection Calls Status chart

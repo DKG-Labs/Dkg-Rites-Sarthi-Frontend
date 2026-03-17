@@ -699,6 +699,7 @@ const ProfessionalCardSection = ({
                 return (
                     <div className="performance-tab-content fade-in">
                         {/* Summary Cards (Note: These now reflect filtered data if filters are active) */}
+                        {/* 
                         <div className="perf-summary-grid">
                             {[
                                 {
@@ -732,42 +733,57 @@ const ProfessionalCardSection = ({
                                 </div>
                             ))}
                         </div>
+                        */}
 
                         {/* Client-side Filters */}
-                        <div className="perf-table-filters animate-up">
-                            <div className="filter-group">
-                                <label className="filter-label">Filter by IE:</label>
-                                <select
-                                    className="filter-select-premium"
-                                    value={perfFilterIe}
-                                    onChange={(e) => setPerfFilterIe(e.target.value)}
-                                >
-                                    <option value="all">All Inspecting Engineers</option>
-                                    {uniqueIes.map(ie => <option key={ie} value={ie}>👤 {ie}</option>)}
-                                </select>
+                        <div className="perf-filters-container animate-up">
+                            <div className="perf-filters-header">
+                                <div className="filter-icon-badge">
+                                    <span className="filter-icon">🔍</span>
+                                    <h3>Advanced Data Filters</h3>
+                                </div>
+                                <div className="filter-status">
+                                    {filteredPerfRecords.length !== perfData.length && (
+                                        <button
+                                            className="btn-clear-filters-new"
+                                            onClick={() => { setPerfFilterIe('all'); setPerfFilterStage('all'); }}
+                                        >
+                                            Reset Filters ↺
+                                        </button>
+                                    )}
+                                </div>
                             </div>
 
-                            <div className="filter-group">
-                                <label className="filter-label">Filter by Stage:</label>
-                                <select
-                                    className="filter-select-premium"
-                                    value={perfFilterStage}
-                                    onChange={(e) => setPerfFilterStage(e.target.value)}
-                                >
-                                    <option value="all">All Manufacturing Stages</option>
-                                    {uniqueStages.map(stage => <option key={stage} value={stage}>⚙️ {stage}</option>)}
-                                </select>
-                            </div>
-
-                            <div className="filter-status">
-                                {filteredPerfRecords.length !== perfData.length && (
-                                    <button
-                                        className="btn-clear-filters"
-                                        onClick={() => { setPerfFilterIe('all'); setPerfFilterStage('all'); }}
+                            <div className="perf-filters-flex">
+                                <div className="filter-group-new">
+                                    <label className="filter-label-new">
+                                        <span className="label-icon">💼</span> Inspecting Engineer (IE)
+                                    </label>
+                                    <select
+                                        className="filter-select-modern"
+                                        value={perfFilterIe}
+                                        onChange={(e) => setPerfFilterIe(e.target.value)}
                                     >
-                                        Clear Filters ✕
-                                    </button>
-                                )}
+                                        <option value="all">View All Engineers</option>
+                                        {uniqueIes.map(ie => <option key={ie} value={ie}>👤 {ie}</option>)}
+                                    </select>
+                                </div>
+
+                                <div className="filter-group-new">
+                                    <label className="filter-label-new">
+                                        <span className="label-icon">⛓️</span> Manufacturing Stage
+                                    </label>
+                                    <select
+                                        className="filter-select-modern"
+                                        value={perfFilterStage}
+                                        onChange={(e) => setPerfFilterStage(e.target.value)}
+                                    >
+                                        <option value="all">All Production Stages</option>
+                                        {uniqueStages.map(stage => <option key={stage} value={stage}>⚙️ {stage}</option>)}
+                                    </select>
+                                </div>
+
+
                             </div>
                         </div>
 

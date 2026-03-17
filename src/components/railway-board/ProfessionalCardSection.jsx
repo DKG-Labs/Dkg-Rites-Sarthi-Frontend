@@ -76,6 +76,10 @@ const ProfessionalCardSection = ({
     // Sorting State for Performance Matrix
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
+    // Filter State for Performance Matrix (Client-side)
+    const [perfFilterIe, setPerfFilterIe] = useState('all');
+    const [perfFilterStage, setPerfFilterStage] = useState('all');
+
     const handleSort = (key) => {
         let direction = 'asc';
         if (sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -131,9 +135,19 @@ const ProfessionalCardSection = ({
         ? inspectionCallStatusData
         : staticInspectionCallsData;
 
+    // ── Inspection Details Data Logic (Synchronized with Performance Matrix) ──
+    // Existing logic commented out as per user request
+    /*
     const displayInspectionDetailsData = (inspectionDetailsData && inspectionDetailsData.length > 0)
         ? inspectionDetailsData
         : staticInspectionDetailsData;
+    */
+
+    // New Logic: Using the performance matrix calculation logic
+    const displayInspectionDetailsData = React.useMemo(() =>
+        computeInspectionDetailsFromPerformance(perfData, inspectionDetailsData, staticInspectionDetailsData),
+        [perfData, inspectionDetailsData, staticInspectionDetailsData]
+    );
 
     // Custom tooltip for Inspection Calls Status chart
     const CallsTooltip = ({ active, payload, label }) => {
@@ -392,14 +406,54 @@ const ProfessionalCardSection = ({
                             <p className="quality-subtitle-lg">ERC Defect Analysis & Rejection Monitoring</p> */}
                         </div>
 
-                        {/* Top Summary Cards */}
+                        {/* Top Summary Cards - Enhanced Layout */}
                         <div className="quality-summary-grid">
-                            {QUALITY_DATA.summary.map((item, idx) => (
-                                <div key={idx} className="quality-summary-card">
-                                    <span className="q-label">{item.label}</span>
-                                    <h2 className={`q-value ${item.color === 'red' ? 'text-red-600' : ''}`}>{item.value}</h2>
-                                </div>
-                            ))}
+                            {QUALITY_DATA.summary.map((item, idx) => {
+                                // Dynamically override values from live data
+                                let displayValue = item.value;
+
+                                // 1. Overall Rejection % logic
+                                if (item.id === 'q-process-rej' && summaryData && !Array.isArray(summaryData)) {
+                                    displayValue = `${formatDecimal(summaryData.processRejectionPercentage || 0)}%`;
+                                }
+
+                                // 2. Top Defect from Pareto Analysis logic
+                                if (item.id === 'q-top-defect') {
+                                    const pData = (paretoAnalysisData && paretoAnalysisData.length > 0)
+                                        ? paretoAnalysisData
+                                        : QUALITY_DATA.pareto;
+
+                                    if (pData && pData.length > 0) {
+                                        // Find the item with the highest value (usually the first in a Pareto list)
+                                        const topItem = [...pData].sort((a, b) => (b.value || b.count || 0) - (a.value || a.count || 0))[0];
+                                        displayValue = topItem.name || topItem.label || item.value;
+                                    }
+                                }
+
+                                // 3. Worst Performing Plant from Performance Matrix logic
+                                if (item.id === 'q-worst-plant') {
+                                    if (processPerformanceData && processPerformanceData.worstPerforming && processPerformanceData.worstPerforming.length > 0) {
+                                        // Take the first one from the worst list
+                                        const worstPlant = processPerformanceData.worstPerforming[0];
+                                        displayValue = worstPlant.companyName || worstPlant.vendorName || worstPlant.name || item.value;
+                                    }
+                                }
+
+                                return (
+                                    <div key={idx} className={`quality-summary-card card-glow-${item.color}`}>
+                                        <div className="q-card-inner">
+                                            <div className="q-info-side">
+                                                <span className="q-label">{item.label}</span>
+                                                <h2 className={`q-value color-${item.color}`}>{displayValue}</h2>
+                                            </div>
+                                            <div className="q-icon-side">
+                                                <span className="q-icon-pill">{item.icon}</span>
+                                            </div>
+                                        </div>
+                                        <div className="q-status-bar" />
+                                    </div>
+                                );
+                            })}
                         </div>
 
                         {/* First Row of Charts - Interchanged Position and Size */}
@@ -624,56 +678,50 @@ const ProfessionalCardSection = ({
             case 'lifecycle':
                 return (
                     <div className="lifecycle-content fade-in">
-                        <div className="lifecycle-kpi-wrapper">
+                        {/* <div className="lifecycle-kpi-wrapper">
                             {kpiGrid}
-                        </div>
+                        </div> */}
                         <div className="integrated-table-container">
                             {poTable}
                         </div>
                     </div>
                 );
             case 'performance':
+                // Client-side filtering logic
+                const uniqueIes = [...new Set(perfData.map(d => d.username))].filter(Boolean).sort();
+                const uniqueStages = [...new Set(perfData.map(d => d.stage))].filter(Boolean).sort();
+
+                const filteredPerfRecords = perfData.filter(d => {
+                    const matchIe = perfFilterIe === 'all' || d.username === perfFilterIe;
+                    const matchStage = perfFilterStage === 'all' || d.stage === perfFilterStage;
+                    return matchIe && matchStage;
+                });
+
                 return (
                     <div className="performance-tab-content fade-in">
-                        {/* Premium Header Banner */}
-                        {/* <div className="performance-banner">
-                            <div className="banner-content">
-                                <h1 className="banner-title">Vendor Performance Matrix</h1>
-                                <p className="banner-subtitle">
-                                    <span className="banner-live-dot"></span>
-                                    Real-time quality surveillance and inspection analytics
-                                </p>
-                            </div>
-                            <div className="banner-actions">
-                                <button className="banner-btn-export">
-                                    <span className="btn-icon">📥</span> Export
-                                </button>
-                            </div>
-                        </div> */}
-
-                        {/* Summary Cards */}
+                        {/* Summary Cards (Note: These now reflect filtered data if filters are active) */}
                         <div className="perf-summary-grid">
                             {[
                                 {
                                     label: 'TOTAL INSPECTED',
-                                    value: perfData.reduce((acc, curr) => acc + (curr.inspectedQty || 0), 0).toLocaleString(),
+                                    value: filteredPerfRecords.reduce((acc, curr) => acc + (curr.inspectedQty || 0), 0).toLocaleString(),
                                     color: 'blue'
                                 },
                                 {
                                     label: 'ACCEPTED',
-                                    value: perfData.reduce((acc, curr) => acc + (curr.acceptedQty || 0), 0).toLocaleString(),
+                                    value: filteredPerfRecords.reduce((acc, curr) => acc + (curr.acceptedQty || 0), 0).toLocaleString(),
                                     color: 'emerald'
                                 },
                                 {
                                     label: 'REJECTED',
-                                    value: perfData.reduce((acc, curr) => acc + (curr.rejectedQty || 0), 0).toLocaleString(),
+                                    value: filteredPerfRecords.reduce((acc, curr) => acc + (curr.rejectedQty || 0), 0).toLocaleString(),
                                     color: 'red'
                                 },
                                 {
                                     label: 'AVG REJECTION %',
                                     value: (() => {
-                                        const totalInspected = perfData.reduce((acc, curr) => acc + (curr.inspectedQty || 0), 0);
-                                        const totalRejected = perfData.reduce((acc, curr) => acc + (curr.rejectedQty || 0), 0);
+                                        const totalInspected = filteredPerfRecords.reduce((acc, curr) => acc + (curr.inspectedQty || 0), 0);
+                                        const totalRejected = filteredPerfRecords.reduce((acc, curr) => acc + (curr.rejectedQty || 0), 0);
                                         return totalInspected > 0 ? ((totalRejected * 100) / totalInspected).toFixed(2) + '%' : '0.00%';
                                     })(),
                                     color: 'purple'
@@ -684,6 +732,44 @@ const ProfessionalCardSection = ({
                                     <h2 className="card-value">{kpi.value}</h2>
                                 </div>
                             ))}
+                        </div>
+
+                        {/* Client-side Filters */}
+                        <div className="perf-table-filters animate-up">
+                            <div className="filter-group">
+                                <label className="filter-label">Filter by IE:</label>
+                                <select
+                                    className="filter-select-premium"
+                                    value={perfFilterIe}
+                                    onChange={(e) => setPerfFilterIe(e.target.value)}
+                                >
+                                    <option value="all">All Inspecting Engineers</option>
+                                    {uniqueIes.map(ie => <option key={ie} value={ie}>👤 {ie}</option>)}
+                                </select>
+                            </div>
+
+                            <div className="filter-group">
+                                <label className="filter-label">Filter by Stage:</label>
+                                <select
+                                    className="filter-select-premium"
+                                    value={perfFilterStage}
+                                    onChange={(e) => setPerfFilterStage(e.target.value)}
+                                >
+                                    <option value="all">All Manufacturing Stages</option>
+                                    {uniqueStages.map(stage => <option key={stage} value={stage}>⚙️ {stage}</option>)}
+                                </select>
+                            </div>
+
+                            <div className="filter-status">
+                                {filteredPerfRecords.length !== perfData.length && (
+                                    <button
+                                        className="btn-clear-filters"
+                                        onClick={() => { setPerfFilterIe('all'); setPerfFilterStage('all'); }}
+                                    >
+                                        Clear Filters ✕
+                                    </button>
+                                )}
+                            </div>
                         </div>
 
                         {/* Record Table */}
@@ -710,7 +796,7 @@ const ProfessionalCardSection = ({
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {getSortedData(perfData).map((record, idx) => {
+                                            {getSortedData(filteredPerfRecords).map((record, idx) => {
                                                 const rowClass = (idx % 2 === 0) ? 'row-odd' : 'row-even';
                                                 return (
                                                     <tr key={idx} className={rowClass}>
@@ -737,10 +823,10 @@ const ProfessionalCardSection = ({
                                                     </tr>
                                                 );
                                             })}
-                                            {perfData.length === 0 && (
+                                            {filteredPerfRecords.length === 0 && (
                                                 <tr>
                                                     <td colSpan="9" className="text-center p-8 text-slate-400">
-                                                        No performance records found for the selected criteria.
+                                                        No performance records found for the selected IE/Stage filters.
                                                     </td>
                                                 </tr>
                                             )}
@@ -1161,3 +1247,47 @@ const ProfessionalCardSection = ({
 };
 
 export default ProfessionalCardSection;
+
+/**
+ * ────────────────────────────────────────────────────────────────────────────────
+ * NEW CODE ADDED AT BOTTOM FOR BETTER UNDERSTANDABILITY
+ * ────────────────────────────────────────────────────────────────────────────────
+ * Helper function to calculate Inspection Details using the Performance Matrix 
+ * aggregation logic. This ensures that the Summary tab and Performance Matrix 
+ * always show consistent values.
+ */
+function computeInspectionDetailsFromPerformance(perfData, fallbackData, staticData) {
+    if (!perfData || perfData.length === 0) {
+        return (fallbackData && fallbackData.length > 0) ? fallbackData : staticData;
+    }
+
+    const rmRows = perfData.filter(d => (d.stage || '').toUpperCase().includes('RAW'));
+    const procRows = perfData.filter(d => (d.stage || '').toUpperCase().includes('PROCESS'));
+    const finalRows = perfData.filter(d => (d.stage || '').toUpperCase().includes('FINAL'));
+
+    const sumAccepted = (rows) => rows.reduce((acc, curr) => acc + (Number(curr.acceptedQty) || 0), 0);
+    const sumRejected = (rows) => rows.reduce((acc, curr) => acc + (Number(curr.rejectedQty) || 0), 0);
+
+    return [
+        {
+            name: 'Total',
+            accepted: sumAccepted(perfData),
+            rejected: sumRejected(perfData)
+        },
+        {
+            name: 'RM',
+            accepted: sumAccepted(rmRows),
+            rejected: sumRejected(rmRows)
+        },
+        {
+            name: 'Process',
+            accepted: sumAccepted(procRows),
+            rejected: sumRejected(procRows)
+        },
+        {
+            name: 'Final',
+            accepted: sumAccepted(finalRows),
+            rejected: sumRejected(finalRows)
+        }
+    ];
+}

@@ -84,6 +84,7 @@ export const transformLineDataForBackend = (frontendLineData, manualQuantities =
         heatNumber: metaData.heatNumbers || '',
         offeredQty: metaData.totalOfferedQty || 0,
         shift: metaData.shift || '',
+        dateOfInspection: metaData.dateOfInspection || sessionStorage.getItem('inspectionDate') || '',
         // Map consolidated manual manufactured quantities
         shearingManufactured: manualQuantities.shearing || 0,
         shearingAccepted: Math.max(0, (manualQuantities.shearing || 0) - shearingRejected),

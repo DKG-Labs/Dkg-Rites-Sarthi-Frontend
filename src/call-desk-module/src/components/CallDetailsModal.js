@@ -14,7 +14,6 @@ const CallDetailsModal = ({
   onReroute,
   onDownloadLetter
 }) => {
-  const [changeIE, setChangeIE] = useState(false);
   const [selectedIE, setSelectedIE] = useState('');
   const [remarks, setRemarks] = useState('');
   
@@ -23,7 +22,6 @@ const CallDetailsModal = ({
 
   useEffect(() => {
     if (isOpen) {
-      setChangeIE(false);
       setSelectedIE('');
       setRemarks('');
       setMappedIEs([]);

@@ -240,8 +240,15 @@ const reportService = {
         return handleResponse(response);
     },
 
-    getInspectionDetails: async () => {
-        const response = await fetch(`${API_ENDPOINTS.REPORTS}/inspectionDetails`, {
+    getInspectionDetails: async (params) => {
+        const { startDate, endDate } = params || {};
+        let url = `${API_ENDPOINTS.REPORTS}/inspectionDetails`;
+        const queryParams = new URLSearchParams();
+        if (startDate) queryParams.append('startDate', startDate);
+        if (endDate) queryParams.append('endDate', endDate);
+        if (queryParams.toString()) url += `?${queryParams.toString()}`;
+
+        const response = await fetch(url, {
             headers: getAuthHeaders(),
         });
         return handleResponse(response);

@@ -30,6 +30,21 @@ const RailwayBoardDashboard = () => {
     // Track active tab to defer non-essential API calls
     const [activeMainCard, setActiveMainCard] = useState('summary');
 
+    // Initialize dates with current month range to avoid backend HTTP 500 errors for required parameters
+    const [fromDate, setFromDate] = useState(() => {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+    });
+    const [toDate, setToDate] = useState(() => {
+        const d = new Date();
+        return d.toISOString().split('T')[0];
+    });
+
+    const trendParams = React.useMemo(() => ({
+        startDate: fromDate,
+        endDate: toDate
+    }), [fromDate, toDate]);
+
     // Level 1 Data Fetching - Only fetch when "PO Lifecycle" tab is active
     const { data: reportData = [] } = useReportData(reportService.getLevel1Report, activeMainCard === 'lifecycle' ? null : undefined);
 
@@ -38,7 +53,7 @@ const RailwayBoardDashboard = () => {
 
     const { data: inspectionCallStatusData } = useReportData(reportService.getInspectionCallStatus, activeMainCard === 'summary' ? null : undefined);
 
-    const { data: inspectionDetailsData } = useReportData(reportService.getInspectionDetails, activeMainCard === 'summary' ? null : undefined);
+    const { data: inspectionDetailsData } = useReportData(reportService.getInspectionDetails, activeMainCard === 'summary' ? trendParams : undefined);
 
     // Quality Rejection Data Fetching
     const { data: qualityRejectionData } = useReportData(reportService.getQualityRejection, activeMainCard === 'quality' ? null : undefined);
@@ -69,20 +84,6 @@ const RailwayBoardDashboard = () => {
         return (val === 'All' || val === 'All RIOs' || !val) ? 'all' : val;
     });
 
-    // Initialize dates with current month range to avoid backend HTTP 500 errors for required parameters
-    const [fromDate, setFromDate] = useState(() => {
-        const d = new Date();
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
-    });
-    const [toDate, setToDate] = useState(() => {
-        const d = new Date();
-        return d.toISOString().split('T')[0];
-    });
-
-    const trendParams = React.useMemo(() => ({
-        startDate: fromDate,
-        endDate: toDate
-    }), [fromDate, toDate]);
 
     const { data: dailyRejectionTrendData } = useReportData(
         reportService.getDailyRejectionTrend,
@@ -220,6 +221,38 @@ const RailwayBoardDashboard = () => {
 
     // LWCL Data Fetching using memoized function and params
     const { data: lwclData, loading: lwclLoading } = useReportData(fetchLwclData, lwclParams);
+
+    // --- NEW: 4th Level Report (Process Defect Summary) State & Fetching ---
+    const [level4Data, setLevel4Data] = useState([]);
+    const [level4Loading, setLevel4Loading] = useState(false);
+
+    useEffect(() => {
+        const fetchLevel4Report = async () => {
+            if (!lwclCallNo) {
+                setLevel4Data([]);
+                return;
+            }
+            try {
+                setLevel4Loading(true);
+                const response = await reportService.getLevel4Report(lwclCallNo);
+                const data = response.responseData || response;
+                if (data && Array.isArray(data)) {
+                    setLevel4Data(data);
+                } else {
+                    setLevel4Data([]);
+                }
+            } catch (error) {
+                console.error("Error fetching 4th Level Report:", error);
+                setLevel4Data([]);
+            } finally {
+                setLevel4Loading(false);
+            }
+        };
+
+        if (activeMainCard === 'reports') {
+            fetchLevel4Report();
+        }
+    }, [lwclCallNo, activeMainCard]);
 
     // Toggle Handlers
     const togglePo = (poNo) => {
@@ -410,6 +443,9 @@ const RailwayBoardDashboard = () => {
                 setLwclLotNo={setLwclLotNo}
                 lwclRequestIds={lwclRequestIds}
                 lwclLotNumbers={lwclLotNumbers}
+                // NEW: Level 4 Report Props
+                level4Data={level4Data}
+                level4Loading={level4Loading}
             />
         </div>
     );

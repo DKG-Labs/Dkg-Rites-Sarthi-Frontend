@@ -73,7 +73,10 @@ const ProfessionalCardSection = ({
     lwclLotNo = '',
     setLwclLotNo = () => { },
     lwclRequestIds = [],
-    lwclLotNumbers = []
+    lwclLotNumbers = [],
+    // NEW: Level 4 Report Props
+    level4Data = [],
+    level4Loading = false
 }) => {
     // Map selectedProduct to summary data keys
     const getSummaryKey = (prod) => {
@@ -134,19 +137,10 @@ const ProfessionalCardSection = ({
         ? inspectionCallStatusData
         : staticInspectionCallsData;
 
-    // ── Inspection Details Data Logic (Synchronized with Performance Matrix) ──
-    // Existing logic commented out as per user request
-    /*
+    // ── Inspection Details Data Logic ──
     const displayInspectionDetailsData = (inspectionDetailsData && inspectionDetailsData.length > 0)
         ? inspectionDetailsData
         : staticInspectionDetailsData;
-    */
-
-    // New Logic: Using the performance matrix calculation logic
-    const displayInspectionDetailsData = React.useMemo(() =>
-        computeInspectionDetailsFromPerformance(perfData, inspectionDetailsData, staticInspectionDetailsData),
-        [perfData, inspectionDetailsData]
-    );
 
     // Custom tooltip for Inspection Calls Status chart
     const CallsTooltip = ({ active, payload, label }) => {
@@ -1080,11 +1074,11 @@ const ProfessionalCardSection = ({
 
                             {activeReport === 'lwcl' && (
                                 <div className="lwcl-report-container animate-up">
-                                    <div className="report-card mb-6">
+                                    <div className="report-card mb-6 overflow-hidden">
                                         <div className="report-card-header">
                                             <h3>Lot Wise Closed Loop</h3>
                                             <div className="selection-group">
-                                                {/* Call No Dropdown (Requested UI addition) */}
+                                                {/* Call No Dropdown */}
                                                 <select
                                                     className="report-select"
                                                     value={lwclCallNo}
@@ -1094,7 +1088,8 @@ const ProfessionalCardSection = ({
                                                     {lwclRequestIds.map(id => <option key={id} value={id}>{id}</option>)}
                                                 </select>
 
-                                                {/* Lot No Dropdown */}
+                                                {/* Lot No Dropdown - HIDDEN/COMMENTED as per request */}
+                                                {/* 
                                                 <select
                                                     className="report-select"
                                                     value={lwclLotNo}
@@ -1104,77 +1099,32 @@ const ProfessionalCardSection = ({
                                                     <option value="">Select Lot No.</option>
                                                     {lwclLotNumbers.map(lot => <option key={lot} value={lot}>{lot}</option>)}
                                                 </select>
+                                                */}
 
                                                 <div className="header-actions" style={{ marginLeft: '1rem' }}>
+                                                    <span className="badge-count teal-light">
+                                                        {level4Data.length} Records
+                                                    </span>
                                                     <button className="btn-icon" title="Print">⎙</button>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        {lwclLoading ? (
-                                            <div className="loading-state p-12 text-center text-indigo-500 font-medium">
-                                                Loading Closed Loop Data...
-                                            </div>
-                                        ) : lwclCallNo && lwclLotNo ? (
-                                            <>
-                                                <div className="report-table-wrapper mini-table mb-6">
-                                                    <table className="report-data-table ">
-                                                        <thead>
-                                                            <tr>
-                                                                <th>Tracking Step</th>
-                                                                <th className="text-right">Quantity</th>
-                                                                <th>Status</th>
-                                                                <th>Remarks</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {/* 
-                                                                Backend response for lot-closed-loop might be a single object or a list.
-                                                                We normalize it to an array here to avoid mapping errors.
-                                                            */}
-                                                            {(() => {
-                                                                const normalizedData = Array.isArray(lwclData)
-                                                                    ? lwclData
-                                                                    : (lwclData && typeof lwclData === 'object' && Object.keys(lwclData).length > 0 ? [lwclData] : []);
-
-                                                                if (normalizedData.length === 0) {
-                                                                    return (
-                                                                        <tr>
-                                                                            <td colSpan="4" className="text-center p-8 text-slate-400">
-                                                                                No closed-loop tracking data available for this lot.
-                                                                            </td>
-                                                                        </tr>
-                                                                    );
-                                                                }
-
-                                                                return normalizedData.map((row, idx) => {
-                                                                    const rowClass = (idx % 2 === 0) ? 'row-odd' : 'row-even';
-                                                                    return (
-                                                                        <tr key={idx} className={rowClass}>
-                                                                            <td className="font-bold">{row.step || row.trackingStep || 'N/A'}</td>
-                                                                            <td className="text-right font-bold text-indigo-600">
-                                                                                {row.quantity?.toLocaleString() || row.qty?.toLocaleString() || 0}
-                                                                            </td>
-                                                                            <td>
-                                                                                <span className={`status-pill ${row.status?.toLowerCase() || 'pending'}`}>
-                                                                                    {row.status || 'N/A'}
-                                                                                </span>
-                                                                            </td>
-                                                                            <td>{row.remarks || 'N/A'}</td>
-                                                                        </tr>
-                                                                    );
-                                                                });
-                                                            })()}
-                                                        </tbody>
-                                                    </table>
+                                        <div className="report-body">
+                                            {level4Loading ? (
+                                                <div className="loading-state p-12 text-center text-indigo-500 font-medium">
+                                                    <div className="spinner-border mb-4"></div>
+                                                    Fetching Process Defect Summary...
                                                 </div>
-                                            </>
-                                        ) : (
-                                            <div className="p-12 text-center text-slate-400 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
-                                                <div className="mb-2">📋</div>
-                                                Please select Call Number and Lot Number to view the closed-loop tracking report.
-                                            </div>
-                                        )}
+                                            ) : lwclCallNo ? (
+                                                <Level4ReportTable data={level4Data} />
+                                            ) : (
+                                                <div className="p-12 text-center text-slate-400 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+                                                    <div className="mb-2 text-3xl">📋</div>
+                                                    Please select a **Call Number** to view the process defect breakdown report.
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -1267,42 +1217,109 @@ export default ProfessionalCardSection;
  * ────────────────────────────────────────────────────────────────────────────────
  * NEW CODE ADDED AT BOTTOM FOR BETTER UNDERSTANDABILITY
  * ────────────────────────────────────────────────────────────────────────────────
- * Helper function to calculate Inspection Details using the Performance Matrix 
- * aggregation logic. This ensures that the Summary tab and Performance Matrix 
- * always show consistent values.
+ * Component to render the 4th Level Report (Process Defect Summary)
+ * This table is very wide and includes details for All Production Stages.
  */
-function computeInspectionDetailsFromPerformance(perfData, fallbackData, staticData) {
-    if (!perfData || perfData.length === 0) {
-        return (fallbackData && fallbackData.length > 0) ? fallbackData : staticData;
+const Level4ReportTable = ({ data }) => {
+    if (!data || data.length === 0) {
+        return (
+            <div className="p-8 text-center text-slate-400">
+                No process defect records found for this call number.
+            </div>
+        );
     }
 
-    const rmRows = perfData.filter(d => (d.stage || '').toUpperCase().includes('RAW'));
-    const procRows = perfData.filter(d => (d.stage || '').toUpperCase().includes('PROCESS'));
-    const finalRows = perfData.filter(d => (d.stage || '').toUpperCase().includes('FINAL'));
+    return (
+        <div className="report-table-wrapper sticky-header level-4-enhanced">
+            <table className="report-data-table level-4-table">
+                <thead>
+                    {/* Multi-level Headers */}
+                    <tr>
+                        <th rowSpan="2">DATE</th>
+                        <th rowSpan="2">SHIFT</th>
+                        <th rowSpan="2">SL</th>
+                        <th rowSpan="2">PO_SR. NO.</th>
+                        <th rowSpan="2">LOT NO.</th>
+                        <th rowSpan="2" className="bg-emerald-50 text-emerald-700">ACCEPTED QTY</th>
+                        <th rowSpan="2" className="bg-red-50 text-red-700">REJECTED QTY</th>
 
-    const sumAccepted = (rows) => rows.reduce((acc, curr) => acc + (Number(curr.acceptedQty) || 0), 0);
-    const sumRejected = (rows) => rows.reduce((acc, curr) => acc + (Number(curr.rejectedQty) || 0), 0);
+                        <th colSpan="2" className="stage-header shearing">SHEARING</th>
+                        <th colSpan="2" className="stage-header turning">TURNING</th>
+                        <th colSpan="2" className="stage-header mpi">MPI</th>
+                        <th colSpan="2" className="stage-header forging">FORGING</th>
+                        <th colSpan="2" className="stage-header quenching">QUENCHING</th>
+                        <th colSpan="2" className="stage-header tempering">TEMPERING</th>
 
-    return [
-        {
-            name: 'Total',
-            accepted: sumAccepted(perfData),
-            rejected: sumRejected(perfData)
-        },
-        {
-            name: 'RM',
-            accepted: sumAccepted(rmRows),
-            rejected: sumRejected(rmRows)
-        },
-        {
-            name: 'Process',
-            accepted: sumAccepted(procRows),
-            rejected: sumRejected(procRows)
-        },
-        {
-            name: 'Final',
-            accepted: sumAccepted(finalRows),
-            rejected: sumRejected(finalRows)
-        }
-    ];
-}
+                        <th colSpan="4" className="defect-header shearing">Shearing Defects</th>
+                        <th colSpan="3" className="defect-header turning">Turning Defects</th>
+                        <th colSpan="1" className="defect-header mpi">MPI</th>
+                        <th colSpan="4" className="defect-header forging">Forging Defects</th>
+                        <th colSpan="1" className="defect-header quenching">Quenching</th>
+                        <th colSpan="2" className="defect-header tempering">TEMPERING DEFECTS</th>
+                        <th colSpan="2" className="defect-header dimensional">Dimensional</th>
+                    </tr>
+                    <tr className="sub-header">
+                        {/* Stage Details */}
+                        <th>Prod</th><th>Rej</th>
+                        <th>Prod</th><th>Rej</th>
+                        <th>Prod</th><th>Rej</th>
+                        <th>Prod</th><th>Rej</th>
+                        <th>Prod</th><th>Rej</th>
+                        <th>Prod</th><th>Rej</th>
+
+                        {/* Defect Specifics */}
+                        <th>Cut Len</th><th>Ovality</th><th>Sharp Edges</th><th>Cracks</th>
+                        <th>Pass Len</th><th>Full Turn</th><th>Turn Dia</th>
+                        <th>MPI Rej</th>
+                        <th>Forge Temp</th><th>Stabilise</th><th>Improper</th><th>Defect</th>
+                        <th>Hardness</th>
+                        <th>Temp.</th><th>Dist.</th>
+                        <th>Box Gauge</th><th>Bearing Area</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {data.map((row, idx) => {
+                        const basic = row.basicDetails || {};
+                        const qty = row.processQty || {};
+                        const sDef = row.shearingDefects || {};
+                        const tDef = row.turningDefects || {};
+                        const fDef = row.forgingDefects || {};
+                        const qDef = row.quenchingDefects || {};
+                        const tempDef = row.temperingDefects || {};
+                        const dDef = row.dimensionalDefects || {};
+
+                        return (
+                            <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
+                                <td>{basic.date ? new Date(basic.date).toLocaleDateString() : 'N/A'}</td>
+                                <td className="text-center"><span className="shift-badge">{basic.shift || '-'}</span></td>
+                                <td className="text-center font-medium text-slate-400">{idx + 1}</td>
+                                <td className="font-mono text-xs">{basic.poSrNo || '-'}</td>
+                                <td className="font-bold">{basic.lotNumber || '-'}</td>
+                                <td className="text-right font-bold text-emerald-600 bg-emerald-50/30">{basic.totalAcceptedQty?.toLocaleString() || 0}</td>
+                                <td className="text-right font-bold text-red-600 bg-red-50/30">{basic.totalRejectionQty?.toLocaleString() || 0}</td>
+
+                                {/* Stage Data */}
+                                <td className="text-right">{qty.shearingProductionQty || 0}</td><td className="text-right text-red-400">{qty.shearingRejectionQty || 0}</td>
+                                <td className="text-right">{qty.turningProductionQty || 0}</td><td className="text-right text-red-400">{qty.turningRejectionQty || 0}</td>
+                                <td className="text-right">{qty.mpiProductionQty || 0}</td><td className="text-right text-red-400">{qty.mpiRejectionQty || 0}</td>
+                                <td className="text-right">{qty.forgingProductionQty || 0}</td><td className="text-right text-red-400">{qty.forgingRejectionQty || 0}</td>
+                                <td className="text-right">{qty.quenchingProductionQty || 0}</td><td className="text-right text-red-400">{qty.quenchingRejectionQty || 0}</td>
+                                <td className="text-right">{qty.temperingProductionQty || 0}</td><td className="text-right text-red-400">{qty.temperingRejectionQty || 0}</td>
+
+                                {/* Defect Details */}
+                                <td className="text-right">{sDef.lengthOfCutBar || 0}</td><td className="text-right">{sDef.ovalityImproperDiaAtEnd || 0}</td><td className="text-right">{sDef.sharpEdges || 0}</td><td className="text-right">{sDef.crackedEdges || 0}</td>
+                                <td className="text-right">{tDef.parallelLength || 0}</td><td className="text-right">{tDef.fullTurningLength || 0}</td><td className="text-right">{tDef.turningDia || 0}</td>
+                                <td className="text-right">{qty.mpiRejectionQty || 0}</td>
+                                <td className="text-right">{fDef.forgingTemperature || 0}</td><td className="text-right">{fDef.forgingStabilisationRejection || 0}</td><td className="text-right">{fDef.improperForging || 0}</td><td className="text-right">{fDef.forgingMarksNotches || 0}</td>
+                                <td className="text-right">{qDef.quenchingHardness || 0}</td>
+                                <td className="text-right">{tempDef.temperingTemp || 0}</td><td className="text-right">{tempDef.temperingDuration || 0}</td>
+                                <td className="text-right">{dDef.boxGauge || 0}</td><td className="text-right">{dDef.flatBearingArea || 0}</td>
+                            </tr>
+                        );
+                    })}
+                </tbody>
+            </table>
+        </div>
+    );
+};
+

@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { getAuthHeaders } from '../../../services/authService';
+import { API_BASE_URL } from '../../../services/apiConfig';
 import { formatDateTime } from '../utils/helpers';
 
 const CallDetailsModal = ({
@@ -11,17 +14,42 @@ const CallDetailsModal = ({
   onReroute,
   onDownloadLetter
 }) => {
-  const [changeIE, setChangeIE] = useState(false);
   const [selectedIE, setSelectedIE] = useState('');
   const [remarks, setRemarks] = useState('');
+  
+  const [mappedIEs, setMappedIEs] = useState([]);
+  const [isLoadingIEs, setIsLoadingIEs] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      setChangeIE(false);
       setSelectedIE('');
       setRemarks('');
+      setMappedIEs([]);
+      
+      const fetchMappedIEs = async () => {
+        if (!call?.callNumber) return;
+        try {
+          setIsLoadingIEs(true);
+          const response = await axios.get(`${API_BASE_URL}/api/auth/employee-codes/${call.callNumber}`, {
+            headers: getAuthHeaders()
+          });
+          if (response.data && response.data.responseData) {
+            const ieList = response.data.responseData;
+            setMappedIEs(ieList);
+            if (ieList.length === 1) {
+              setSelectedIE(ieList[0]);
+            }
+          }
+        } catch (error) {
+          console.error("Failed to fetch Mapped IEs", error);
+        } finally {
+          setIsLoadingIEs(false);
+        }
+      };
+      
+      fetchMappedIEs();
     }
-  }, [isOpen]);
+  }, [isOpen, call]);
 
   if (!isOpen || !call) return null;
 
@@ -67,11 +95,33 @@ const CallDetailsModal = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Name of IE mapped in System</label>
-                <div className="font-semibold p-2 bg-white rounded border border-blue-200">
-                  {call.assignedIeName || 'System Assigned'}
-                </div>
+                {isLoadingIEs ? (
+                  <div className="font-semibold p-2 bg-white rounded border border-blue-200">
+                    Loading...
+                  </div>
+                ) : mappedIEs.length === 1 ? (
+                  <div className="font-semibold p-2 bg-white rounded border border-blue-200">
+                    {mappedIEs[0]}
+                  </div>
+                ) : mappedIEs.length > 1 ? (
+                  <select
+                    className="form-control w-full p-2 rounded border border-blue-200 bg-white"
+                    value={selectedIE}
+                    onChange={(e) => setSelectedIE(e.target.value)}
+                  >
+                    <option value="">-- Select IE --</option>
+                    {mappedIEs.map((ie, index) => (
+                      <option key={index} value={ie}>{ie}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="font-semibold p-2 bg-white rounded border border-blue-200">
+                    {call.assignedIeName || 'System Assigned'}
+                  </div>
+                )}
               </div>
               <div className="flex flex-col gap-3">
+                {/* 
                 <label className="flex items-center cursor-pointer select-none">
                   <input
                     type="checkbox"
@@ -97,6 +147,7 @@ const CallDetailsModal = ({
                     </select>
                   </div>
                 )}
+                */}
               </div>
             </div>
           </div>
@@ -194,7 +245,14 @@ const CallDetailsModal = ({
             </button>
             <button
               className="btn bg-blue-600 text-white hover:bg-blue-700"
-              onClick={() => onVerifyAccept(call, remarks, changeIE ? selectedIE : null)}
+              onClick={() => {
+                let ieId = null;
+                if (selectedIE) {
+                  const match = String(selectedIE).match(/^(\d+)/);
+                  ieId = match ? match[1] : null;
+                }
+                onVerifyAccept(call, remarks, ieId);
+              }}
             >
               ✅ Verify
             </button>

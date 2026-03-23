@@ -40,7 +40,7 @@ const ProfessionalCardSection = ({
     stepWiseRejectionData = [],
     processPerformanceData = { topPerforming: [], worstPerforming: [] },
     paretoAnalysisData = [],
-    dailyRejectionTrendData = [],
+    monthlyRejectionTrendData = [],
     // New Performance Matrix Props from API
     perfData = [],
     perfLoading = false,
@@ -97,6 +97,42 @@ const ProfessionalCardSection = ({
     // Filter State for Performance Matrix (Client-side)
     const [perfFilterIe, setPerfFilterIe] = useState('all');
     const [perfFilterStage, setPerfFilterStage] = useState('all');
+
+    // Calculate Stage vs Defect Contribution dynamic data (Top 3 defects for Process stage)
+    const stageVsDefectTop3 = React.useMemo(() => {
+        if (!paretoAnalysisData || paretoAnalysisData.length === 0) {
+            // Visual fallback if no data
+            return [
+                { name: 'Raw Material' },
+                { name: 'Process', 'Turning Dia': 35, 'MPI': 28, 'Full Turning Length': 22 },
+                { name: 'Final' }
+            ];
+        }
+
+        const sorted = [...paretoAnalysisData].sort((a, b) => (b.count || b.value) - (a.count || a.value));
+        const top3 = sorted.slice(0, 3);
+
+        const processStage = { name: 'Process' };
+        top3.forEach(d => {
+            processStage[d.name] = d.count || d.value;
+        });
+
+        return [
+            { name: 'Raw Material' },
+            processStage,
+            { name: 'Final' }
+        ];
+    }, [paretoAnalysisData]);
+
+    const top3DefectNames = React.useMemo(() => {
+        if (!paretoAnalysisData || paretoAnalysisData.length === 0) {
+            return ['Turning Dia', 'MPI', 'Full Turning Length'];
+        }
+        return [...paretoAnalysisData]
+            .sort((a, b) => (b.count || b.value) - (a.count || a.value))
+            .slice(0, 3)
+            .map(d => d.name);
+    }, [paretoAnalysisData]);
 
     const handleSort = (key) => {
         let direction = 'asc';
@@ -565,9 +601,9 @@ const ProfessionalCardSection = ({
                         {/* Third Row of Charts */}
                         <div className="quality-charts-row mt-6">
                             <div className="q-chart-card wide-50">
-                                <h3>Daily Rejection Trend</h3>
+                                <h3>Monthly Rejection Trend</h3>
                                 <ResponsiveContainer width="100%" height={300}>
-                                    <LineChart data={dailyRejectionTrendData && dailyRejectionTrendData.length > 0 ? dailyRejectionTrendData : QUALITY_DATA.monthlyTrend}>
+                                    <LineChart data={monthlyRejectionTrendData && monthlyRejectionTrendData.length > 0 ? monthlyRejectionTrendData : QUALITY_DATA.monthlyTrend}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                         <XAxis dataKey="name" axisLine={false} tickLine={false} />
                                         <YAxis axisLine={false} tickLine={false} tickFormatter={(val) => `${val}%`} />
@@ -583,15 +619,20 @@ const ProfessionalCardSection = ({
                             <div className="q-chart-card wide-50">
                                 <h3>Stage vs Defect Contribution</h3>
                                 <ResponsiveContainer width="100%" height={300}>
-                                    <BarChart data={QUALITY_DATA.stageVsDefect}>
+                                    <BarChart data={stageVsDefectTop3}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                         <XAxis dataKey="name" axisLine={false} tickLine={false} />
                                         <YAxis axisLine={false} tickLine={false} />
                                         <Tooltip />
                                         <Legend />
-                                        <Bar dataKey="turning" fill="#2563eb" radius={[4, 4, 0, 0]} />
-                                        <Bar dataKey="dimensional" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                                        <Bar dataKey="visual" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                                        {top3DefectNames.map((name, idx) => (
+                                            <Bar
+                                                key={name}
+                                                dataKey={name}
+                                                fill={['#3b82f6', '#f59e0b', '#ef4444'][idx % 3]}
+                                                radius={[4, 4, 0, 0]}
+                                            />
+                                        ))}
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
@@ -1129,6 +1170,7 @@ const ProfessionalCardSection = ({
                                 </div>
                             )}
 
+                            {/*
                             {activeReport === 'qmr' && (
                                 <div className="qmr-report-container animate-up">
                                     <div className="report-card">
@@ -1167,6 +1209,7 @@ const ProfessionalCardSection = ({
                                     </div>
                                 </div>
                             )}
+                            */}
                         </div>
                     </div>
                 );

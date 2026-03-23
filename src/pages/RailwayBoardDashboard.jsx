@@ -33,6 +33,7 @@ const RailwayBoardDashboard = () => {
     // Initialize dates with current month range to avoid backend HTTP 500 errors for required parameters
     const [fromDate, setFromDate] = useState(() => {
         const d = new Date();
+        d.setMonth(d.getMonth() - 6);
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
     });
     const [toDate, setToDate] = useState(() => {
@@ -85,8 +86,8 @@ const RailwayBoardDashboard = () => {
     });
 
 
-    const { data: dailyRejectionTrendData } = useReportData(
-        reportService.getDailyRejectionTrend,
+    const { data: monthlyRejectionTrendData } = useReportData(
+        reportService.getMonthlyRejectionTrend,
         activeMainCard === 'quality' ? trendParams : undefined
     );
 
@@ -409,7 +410,7 @@ const RailwayBoardDashboard = () => {
                 stepWiseRejectionData={stepWiseRejectionData}
                 processPerformanceData={processPerformanceData}
                 paretoAnalysisData={paretoAnalysisData}
-                dailyRejectionTrendData={dailyRejectionTrendData}
+                monthlyRejectionTrendData={monthlyRejectionTrendData}
                 // Performance Matrix Props
                 perfData={perfData}
                 perfLoading={perfLoading}

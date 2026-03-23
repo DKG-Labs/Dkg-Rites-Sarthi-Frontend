@@ -121,7 +121,7 @@ export const REPORTS_DATA = {
         { id: 'mpr', label: 'Monthly Progress Report' },
         { id: 'mau', label: 'Monthly Analysis of Units' },
         { id: 'lwcl', label: 'Lot Wise Closed Loop' },
-        { id: 'qmr', label: 'Quality Monitoring Report' }
+        // { id: 'qmr', label: 'Quality Monitoring Report' }
     ],
     mpr: [
         { rly: 'NR', poNo: 'NR/2025/ERC/0145', manufacturer: 'JSPL', poQty: '120,000', monthlyRM: '8,500', monthlyProcess: '7,900', monthlyFinal: '7,850', totalInspected: '65,200', poBalance: '54,800' },

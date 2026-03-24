@@ -1724,3 +1724,74 @@ tr.row-even td {
 .bg-red-50 {
     background-color: #fef2f2 !important;
 }
+/* Reports Search & Sort Styles */
+.report-search-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 0 1rem;
+    margin-right: 1.5rem;
+    transition: all 0.3s ease;
+    width: 280px;
+}
+
+.report-search-container:focus-within {
+    border-color: #10b981;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+    background: white;
+}
+
+.report-search-input {
+    border: none;
+    background: transparent;
+    padding: 0.625rem 0;
+    padding-left: 0.5rem;
+    font-size: 0.875rem;
+    color: #1e293b;
+    width: 100%;
+    outline: none;
+}
+
+.report-search-container .search-icon {
+    font-size: 0.875rem;
+    color: #94a3b8;
+    order: -1;
+}
+
+.sortable-report-th {
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+    position: relative;
+}
+
+.sortable-report-th:hover {
+    background: #f1f5f9;
+}
+
+.sort-icon-placeholder {
+    opacity: 0.2;
+    margin-left: 4px;
+    font-size: 0.75rem;
+}
+
+.sort-icon-active {
+    color: #10b981;
+    margin-left: 4px;
+    font-weight: bold;
+}
+
+.report-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+}

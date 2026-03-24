@@ -98,6 +98,80 @@ const ProfessionalCardSection = ({
     const [perfFilterIe, setPerfFilterIe] = useState('all');
     const [perfFilterStage, setPerfFilterStage] = useState('all');
 
+    // States for Reports Searching & Sorting
+    const [mprSearch, setMprSearch] = useState('');
+    const [mprSort, setMprSort] = useState({ key: null, direction: 'asc' });
+    const [mauSearch, setMauSearch] = useState('');
+    const [mauSort, setMauSort] = useState({ key: null, direction: 'asc' });
+
+    // Filtered & Sorted MPR Data
+    const displayMprData = React.useMemo(() => {
+        let result = [...mprData];
+        if (mprSearch) {
+            const query = mprSearch.toLowerCase();
+            result = result.filter(item =>
+                (item.rly || '').toLowerCase().includes(query) ||
+                (item.poNumber || '').toLowerCase().includes(query) ||
+                (item.manufacturer || '').toLowerCase().includes(query)
+            );
+        }
+        if (mprSort.key) {
+            result.sort((a, b) => {
+                const aVal = a[mprSort.key];
+                const bVal = b[mprSort.key];
+                if (typeof aVal === 'number' && typeof bVal === 'number') {
+                    return mprSort.direction === 'asc' ? aVal - bVal : bVal - aVal;
+                }
+                const aStr = (aVal || '').toString().toLowerCase();
+                const bStr = (bVal || '').toString().toLowerCase();
+                if (aStr < bStr) return mprSort.direction === 'asc' ? -1 : 1;
+                if (aStr > bStr) return mprSort.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+        return result;
+    }, [mprData, mprSearch, mprSort]);
+
+    // Filtered & Sorted MAU Data
+    const displayMauData = React.useMemo(() => {
+        let result = [...mauData];
+        if (mauSearch) {
+            const query = mauSearch.toLowerCase();
+            result = result.filter(item =>
+                (item.manufacturer || '').toLowerCase().includes(query)
+            );
+        }
+        if (mauSort.key) {
+            result.sort((a, b) => {
+                const aVal = a[mauSort.key];
+                const bVal = b[mauSort.key];
+                if (typeof aVal === 'number' && typeof bVal === 'number') {
+                    return mauSort.direction === 'asc' ? aVal - bVal : bVal - aVal;
+                }
+                const aStr = (aVal || '').toString().toLowerCase();
+                const bStr = (bVal || '').toString().toLowerCase();
+                if (aStr < bStr) return mauSort.direction === 'asc' ? -1 : 1;
+                if (aStr > bStr) return mauSort.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+        return result;
+    }, [mauData, mauSearch, mauSort]);
+
+    const handleMprSort = (key) => {
+        setMprSort(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+        }));
+    };
+
+    const handleMauSort = (key) => {
+        setMauSort(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+        }));
+    };
+
     // Calculate Stage vs Defect Contribution dynamic data (Top 3 defects for Process stage)
     const stageVsDefectTop3 = React.useMemo(() => {
         if (!paretoAnalysisData || paretoAnalysisData.length === 0) {
@@ -496,18 +570,16 @@ const ProfessionalCardSection = ({
                                                 ? paretoAnalysisData.map(d => ({ name: d.name, count: d.value, color: d.color, cumulative: d.cumulative }))
                                                 : QUALITY_DATA.pareto
                                         }
-                                        margin={{ top: 10, right: 30, left: 0, bottom: 40 }}
+                                        margin={{ top: 10, right: 30, left: 0, bottom: 50 }}
                                     >
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                         <XAxis
                                             dataKey="name"
                                             axisLine={false}
                                             tickLine={false}
-                                            hide={false}
-                                            fontSize={10}
-                                            angle={-20}
-                                            textAnchor="end"
+                                            tick={<ParetoXAxisTick />}
                                             interval={0}
+                                            height={80}
                                         />
                                         <YAxis yAxisId="left" axisLine={false} tickLine={false} />
                                         <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tickFormatter={(val) => `${val}%`} domain={[0, 100]} />
@@ -579,8 +651,9 @@ const ProfessionalCardSection = ({
                                             dataKey="name"
                                             axisLine={false}
                                             tickLine={false}
-                                            tickFormatter={(name) => name.length > 12 ? `${name.substring(0, 10)}...` : name}
-                                            fontSize={11}
+                                            tick={<ParetoXAxisTick />}
+                                            interval={0}
+                                            height={70}
                                         />
                                         <YAxis tickFormatter={(val) => `${val}%`} axisLine={false} tickLine={false} />
                                         <Tooltip
@@ -937,6 +1010,16 @@ const ProfessionalCardSection = ({
                                     <div className="report-card-header">
                                         <h3>Monthly Progress Report</h3>
                                         <div className="header-actions">
+                                            <div className="report-search-container">
+                                                <input
+                                                    type="text"
+                                                    className="report-search-input"
+                                                    placeholder="Search MPR..."
+                                                    value={mprSearch}
+                                                    onChange={(e) => setMprSearch(e.target.value)}
+                                                />
+                                                <span className="search-icon">🔍</span>
+                                            </div>
                                             <button className="btn-icon" title="Download Excel">📥</button>
                                             <button className="btn-icon" title="Print Report">⎙</button>
                                             <button className="btn-icon" title="Share">🔗</button>
@@ -952,19 +1035,19 @@ const ProfessionalCardSection = ({
                                                 <table className="report-data-table">
                                                     <thead>
                                                         <tr>
-                                                            <th>Rly</th>
-                                                            <th>PO Number</th>
-                                                            <th>Manufacturer</th>
-                                                            <th className="text-right">PO Qty</th>
-                                                            <th className="text-right">Monthly RM</th>
-                                                            <th className="text-right">Monthly Process</th>
-                                                            <th className="text-right">Monthly Final</th>
-                                                            <th className="text-right">Total Final Inspected</th>
-                                                            <th className="text-right">PO Balance</th>
+                                                            <th className="sortable-report-th" onClick={() => handleMprSort('rly')}>Rly <SortIcon field="rly" config={mprSort} /></th>
+                                                            <th className="sortable-report-th" onClick={() => handleMprSort('poNumber')}>PO Number <SortIcon field="poNumber" config={mprSort} /></th>
+                                                            <th className="sortable-report-th" onClick={() => handleMprSort('manufacturer')}>Manufacturer <SortIcon field="manufacturer" config={mprSort} /></th>
+                                                            <th className="text-right sortable-report-th" onClick={() => handleMprSort('poQty')}>PO Qty <SortIcon field="poQty" config={mprSort} /></th>
+                                                            <th className="text-right sortable-report-th" onClick={() => handleMprSort('monthlyRm')}>Monthly RM <SortIcon field="monthlyRm" config={mprSort} /></th>
+                                                            <th className="text-right sortable-report-th" onClick={() => handleMprSort('monthlyProcess')}>Monthly Process <SortIcon field="monthlyProcess" config={mprSort} /></th>
+                                                            <th className="text-right sortable-report-th" onClick={() => handleMprSort('monthlyFinal')}>Monthly Final <SortIcon field="monthlyFinal" config={mprSort} /></th>
+                                                            <th className="text-right sortable-report-th" onClick={() => handleMprSort('totalFinalInspected')}>Total Final Inspected <SortIcon field="totalFinalInspected" config={mprSort} /></th>
+                                                            <th className="text-right sortable-report-th" onClick={() => handleMprSort('poBalance')}>PO Balance <SortIcon field="poBalance" config={mprSort} /></th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        {mprData.map((row, idx) => {
+                                                        {displayMprData.map((row, idx) => {
                                                             const rowClass = (idx % 2 === 0) ? 'row-odd' : 'row-even';
                                                             return (
                                                                 <tr key={idx} className={rowClass}>
@@ -980,10 +1063,10 @@ const ProfessionalCardSection = ({
                                                                 </tr>
                                                             );
                                                         })}
-                                                        {mprData.length === 0 && (
+                                                        {displayMprData.length === 0 && (
                                                             <tr>
                                                                 <td colSpan="9" className="text-center p-8 text-slate-400">
-                                                                    No progress records found for the selected period.
+                                                                    {mprSearch ? "No matching records found for your search." : "No progress records found for the selected period."}
                                                                 </td>
                                                             </tr>
                                                         )}
@@ -1016,6 +1099,16 @@ const ProfessionalCardSection = ({
                                         <div className="report-card-header">
                                             <h3>Monthly Analysis of Units</h3>
                                             <div className="header-actions">
+                                                <div className="report-search-container">
+                                                    <input
+                                                        type="text"
+                                                        className="report-search-input"
+                                                        placeholder="Search MAU..."
+                                                        value={mauSearch}
+                                                        onChange={(e) => setMauSearch(e.target.value)}
+                                                    />
+                                                    <span className="search-icon">🔍</span>
+                                                </div>
                                                 <button className="btn-icon" title="Download Excel">📥</button>
                                                 <button className="btn-icon" title="Print Report">⎙</button>
                                             </div>
@@ -1030,17 +1123,17 @@ const ProfessionalCardSection = ({
                                                     <table className="report-data-table">
                                                         <thead>
                                                             <tr>
-                                                                <th>Manufacturer</th>
-                                                                <th className="text-right">Manufactured</th>
-                                                                <th className="text-right">Inspected</th>
-                                                                <th className="text-right">Rejected</th>
-                                                                <th className="text-right">RM Rej %</th>
-                                                                <th className="text-right">Process Rej %</th>
-                                                                <th className="text-right">Final Rej %</th>
+                                                                <th className="sortable-report-th" onClick={() => handleMauSort('manufacturer')}>Manufacturer <SortIcon field="manufacturer" config={mauSort} /></th>
+                                                                <th className="text-right sortable-report-th" onClick={() => handleMauSort('manufactured')}>Manufactured <SortIcon field="manufactured" config={mauSort} /></th>
+                                                                <th className="text-right sortable-report-th" onClick={() => handleMauSort('inspected')}>Inspected <SortIcon field="inspected" config={mauSort} /></th>
+                                                                <th className="text-right sortable-report-th" onClick={() => handleMauSort('rejected')}>Rejected <SortIcon field="rejected" config={mauSort} /></th>
+                                                                <th className="text-right sortable-report-th" onClick={() => handleMauSort('rmRejPercent')}>RM Rej % <SortIcon field="rmRejPercent" config={mauSort} /></th>
+                                                                <th className="text-right sortable-report-th" onClick={() => handleMauSort('processRejPercent')}>Process Rej % <SortIcon field="processRejPercent" config={mauSort} /></th>
+                                                                <th className="text-right sortable-report-th" onClick={() => handleMauSort('finalRejPercent')}>Final Rej % <SortIcon field="finalRejPercent" config={mauSort} /></th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
-                                                            {mauData.map((row, idx) => {
+                                                            {displayMauData.map((row, idx) => {
                                                                 const rowClass = (idx % 2 === 0) ? 'row-odd' : 'row-even';
                                                                 return (
                                                                     <tr key={idx} className={rowClass}>
@@ -1054,10 +1147,10 @@ const ProfessionalCardSection = ({
                                                                     </tr>
                                                                 );
                                                             })}
-                                                            {mauData.length === 0 && (
+                                                            {displayMauData.length === 0 && (
                                                                 <tr>
                                                                     <td colSpan="7" className="text-center p-8 text-slate-400">
-                                                                        No analysis records found for the selected period.
+                                                                        {mauSearch ? "No matching records found for your search." : "No analysis records found for the selected period."}
                                                                     </td>
                                                                 </tr>
                                                             )}
@@ -1366,3 +1459,40 @@ const Level4ReportTable = ({ data }) => {
     );
 };
 
+/**
+ * ────────────────────────────────────────────────────────────────────────────────
+ * CUSTOM CHART COMPONENTS
+ * ────────────────────────────────────────────────────────────────────────────────
+ * Custom X-Axis Tick for Pareto Analysis Chart
+ * Improves readability by rotating labels and aligning them properly with columns.
+ */
+const ParetoXAxisTick = (props) => {
+    const { x, y, payload } = props;
+    return (
+        <g transform={`translate(${x},${y})`}>
+            <text
+                x={0}
+                y={0}
+                dy={14}
+                textAnchor="end"
+                fill="#64748b"
+                transform="rotate(-40)"
+                style={{
+                    fontSize: '10.5px',
+                    fontWeight: '600',
+                    fontFamily: 'Inter, system-ui, sans-serif'
+                }}
+            >
+                {payload.value}
+            </text>
+        </g>
+    );
+};
+
+/**
+ * Helper component to render sort icons in table headers
+ */
+const SortIcon = ({ field, config }) => {
+    if (config.key !== field) return <span className="sort-icon-placeholder">↕</span>;
+    return <span className="sort-icon-active">{config.direction === 'asc' ? '↑' : '↓'}</span>;
+};

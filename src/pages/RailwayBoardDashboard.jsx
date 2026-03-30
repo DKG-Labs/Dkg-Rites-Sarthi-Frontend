@@ -288,19 +288,24 @@ const RailwayBoardDashboard = () => {
                                 <div className={`report-link ${activeReport === 'mpr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpr')}>Monthly Progress Report</div>
                                 <div className={`report-link ${activeReport === 'mau' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mau')}>Monthly Analysis of Units</div>
                                 <div className={`report-link ${activeReport === 'lwcl' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('lwcl')}>Lot Wise Closed Loop</div>
-                                <div className={`report-link ${activeReport === 'qmr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('qmr')}>Quality Monitoring Report</div>
+
                             </div>
                         )}
-                        <div className="nav-label" style={{ marginTop: '20px' }}>Info</div>
-                        <div className="nav-item" style={{ cursor: 'default', opacity: 0.8 }}><i className="fa-solid fa-location-dot"></i> {!isSidebarCollapsed && <span>RO – Delhi</span>}</div>
-                        <div className="nav-item" style={{ cursor: 'default', opacity: 0.8 }}><i className="fa-solid fa-calendar"></i> {!isSidebarCollapsed && <span>{new Date().toLocaleString('default', { month: 'short', year: 'numeric' })}</span>}</div>
+
                     </div>
                 </nav>
 
                 {/* MAIN */}
-                <div id="prof-main">
+                <div id="prof-main" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {/* GLOBAL PRODUCT SELECTION - Above everything */}
+                    <div className="sub-tabs" style={{ padding: '0 24px', marginTop: '24px', marginBottom: '4px' }}>
+                        <button className={`sub-tab-btn ${selectedProduct === 'ERC' ? 'active' : ''}`} onClick={() => setSelectedProduct('ERC')}>ERC</button>
+                        <button className={`sub-tab-btn ${selectedProduct === 'Sleeper' ? 'active' : ''}`} onClick={() => setSelectedProduct('Sleeper')}>Sleeper</button>
+                        <button className={`sub-tab-btn ${selectedProduct === 'Rail Pad' ? 'active' : ''}`} onClick={() => setSelectedProduct('Rail Pad')}>Rail Pad</button>
+                    </div>
+
                     {/* TOPBAR / FILTERS - Hidden on Dashboard (summary) tab as requested */}
-                    {activeMainCard !== 'summary' && (
+                    {activeMainCard !== 'summary' && activeMainCard !== 'lifecycle' && (
                         <div id="prof-topbar">
                             <label>From</label>
                             <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />

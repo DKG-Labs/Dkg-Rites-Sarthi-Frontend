@@ -251,7 +251,7 @@ const AppLayout = () => {
           <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)} aria-hidden="true" />
         )}
 
-        <main className="main-content">
+        <main className={`main-content ${isRailwayBoardRoute ? 'full-width-main' : ''}`}>
           <Outlet />
         </main>
       </div>

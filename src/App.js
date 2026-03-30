@@ -51,6 +51,8 @@ import { CallDeskDashboardWrapper } from './pages/wrappers/CallDeskWrapper';
 import { FinanceDashboardWrapper } from './pages/wrappers/FinanceWrapper';
 import { RailwayBoardDashboardWrapper } from './pages/wrappers/RailwayBoardWrapper';
 import { AdminDashboardWrapper } from './pages/wrappers/AdminDashboardWrapper';
+import AnnexurePage from './pages/AnnexurePage';
+import { useNavigate } from 'react-router-dom';
 
 /**
  * Role-based redirect component
@@ -115,6 +117,12 @@ const LandingPageGuard = () => {
   }
 
   return <LandingPageWrapper />;
+};
+
+// Wrapper for AnnexurePage to provide onBack logic
+const AnnexureRouteWrapper = () => {
+  const navigate = useNavigate();
+  return <AnnexurePage onBack={() => navigate(ROUTES.LANDING)} />;
 };
 
 /**
@@ -192,6 +200,9 @@ const App = () => {
 
             {/* Admin Dashboard Route */}
             <Route path={ROUTES.ADMIN_DASHBOARD} element={<AdminDashboardWrapper />} />
+
+            {/* Annexures Route */}
+            <Route path={ROUTES.ANNEXURES} element={<AnnexureRouteWrapper />} />
           </Route>
 
           {/* Catch-all redirect - role-based */}

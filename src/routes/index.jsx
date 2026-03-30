@@ -66,6 +66,9 @@ export const ROUTES = {
 
   // Admin Route
   ADMIN_DASHBOARD: '/admin',
+
+  // Annexures Route
+  ANNEXURES: '/annexures',
 };
 
 /**
@@ -102,6 +105,7 @@ export const PAGE_TO_ROUTE_MAP = {
   'ic-rawmaterial': ROUTES.IC_RAW_MATERIAL,
   'ic-processmaterial': ROUTES.IC_PROCESS,
   'ic-finalproduct': ROUTES.IC_FINAL_PRODUCT,
+  'annexure': ROUTES.ANNEXURES,
 };
 
 /**

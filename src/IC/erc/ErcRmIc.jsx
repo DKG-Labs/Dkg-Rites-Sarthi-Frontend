@@ -58,6 +58,8 @@ const ErcRmIC = ({ data = {}, isEditing = false, onChange = () => {} }) => {
     sealingPattern = "",
     sealFacsimile = "",
     inspectingEngineer = "",
+    bookNo = "",
+    setNo = "",
   } = data;
 
   const displayCertificateNo = (certificateNo || '')
@@ -68,115 +70,135 @@ const ErcRmIC = ({ data = {}, isEditing = false, onChange = () => {} }) => {
   return (
     <div className="a4-page">
       <div className="certificate-container border border-black">
-        {/* Header row: empty, certificate, date, offered/passed */}
-        <div className="grid grid-cols-[1fr_2fr_1.5fr_1.5fr] border-b border-black font-semibold">
-          <div className="border-r border-black py-1" />
-          <div className="border-r border-black flex flex-col justify-center py-1 text-center">
-            <div>प्रमाण पत्र सं. / Certificate No.</div>
-            <div className="font-normal text-sm break-words"><EditableField isEditing={isEditing} value={displayCertificateNo} onChange={(val) => onChange("certificateNo", val)} className="font-normal text-sm break-words" /></div>
+        {/* Header Row: 5-Column Single Row Layout as per requested image */}
+        <div className="grid grid-cols-[1fr_1fr_2fr_1.2fr_2fr] border-b border-black text-[11px]">
+          {/* Col 1: Book No */}
+          <div className="border-r border-black flex flex-col justify-between">
+            <div className="border-b border-black p-1 font-semibold text-center flex-grow flex items-center justify-center">
+              बुक सं. /Book No.
+            </div>
+            <div className="p-1 flex items-center justify-center min-h-[25px]">
+              <EditableField isEditing={isEditing} value={bookNo} onChange={(val) => onChange("bookNo", val)} className="text-center" />
+            </div>
           </div>
-          <div className="border-r border-black flex flex-col justify-center py-1 text-center">
-            <div>दिनांक / Date</div>
-            <EditableField isEditing={isEditing} value={certificateDate} onChange={(val) => onChange("certificateDate", val)} className="font-normal text-sm" />
+
+          {/* Col 2: Set No */}
+          <div className="border-r border-black flex flex-col justify-between">
+            <div className="border-b border-black p-1 font-semibold text-center flex-grow flex items-center justify-center">
+              सेट सं. /Set No.
+            </div>
+            <div className="p-1 flex items-center justify-center min-h-[25px]">
+              <EditableField isEditing={isEditing} value={setNo} onChange={(val) => onChange("setNo", val)} className="text-center" />
+            </div>
           </div>
-          <div className="flex flex-col justify-center py-1 px-2 text-sm">
-            <div className="font-normal">
-              <span className="font-semibold">
-                प्रस्तावित किस्त सं. / Offered Instt No.
-              </span>{" "}
+
+          {/* Col 3: Certificate No */}
+          <div className="border-r border-black p-1 flex flex-col items-center justify-center text-center">
+            <div className="font-semibold">प्रमाण पत्र सं. / Certificate No.</div>
+            <div className="break-words">{displayCertificateNo}</div>
+          </div>
+
+          {/* Col 4: Date */}
+          <div className="border-r border-black p-1 flex flex-col items-center justify-center text-center">
+            <div className="font-semibold">दिनांक / Date</div>
+            <div>{certificateDate}</div>
+          </div>
+
+          {/* Col 5: Offered/Passed Instt No */}
+          <div className="p-2 flex flex-col justify-center text-left leading-tight">
+            <div>
+              <span className="font-semibold">प्रस्तावित किस्त सं. / Offered Instt No.</span>{" "}
               <EditableField isEditing={isEditing} type="inline" value={offeredInstNo} onChange={(val) => onChange("offeredInstNo", val)} />
             </div>
-            <div className="font-normal">
-              <span className="font-semibold">
-                पारित किस्त सं. / Passed Instt No.
-              </span>{" "}
+            <div className="mt-1">
+              <span className="font-semibold">पारित किस्त सं. / Passed Instt No.</span>{" "}
               <EditableField isEditing={isEditing} type="inline" value={passedInstNo} onChange={(val) => onChange("passedInstNo", val)} />
             </div>
           </div>
         </div>
 
         {/* Contractor / Manufacturer + Place of inspection */}
-        <div className="grid grid-cols-2 border-b border-black">
-          <div className="border-r border-black p-2">
-            <div className="font-semibold">ठेकेदार / Contractor</div>
-            <EditableField isEditing={isEditing} type="textarea" value={contractor} onChange={(val) => onChange("contractor", val)} className="break-words dynamic-text" />
+        <div className="grid grid-cols-2 border-b border-black md:min-h-[40px]">
+          <div className="border-r border-black p-1">
+            <div className="font-semibold text-[10px]">ठेकेदार / Contractor</div>
+            <EditableField isEditing={isEditing} type="textarea" value={contractor} onChange={(val) => onChange("contractor", val)} className="break-words dynamic-text leading-tight" />
           </div>
-          <div className="p-2">
-            <div className="font-semibold">उत्पादक / Manufacturer</div>
-            <EditableField isEditing={isEditing} type="textarea" value={manufacturer} onChange={(val) => onChange("manufacturer", val)} className="break-words dynamic-text" />
-            <div className="mt-1 font-semibold">
+          <div className="p-1">
+            <div className="font-semibold text-[10px]">उत्पादक / Manufacturer</div>
+            <EditableField isEditing={isEditing} type="textarea" value={manufacturer} onChange={(val) => onChange("manufacturer", val)} className="break-words dynamic-text leading-tight" />
+            <div className="mt-0.5 font-semibold text-[10px]">
               निरीक्षण का स्थान / Place of Inspection
             </div>
-            <EditableField isEditing={isEditing} type="textarea" value={placeOfInspection} onChange={(val) => onChange("placeOfInspection", val)} className="break-words dynamic-text" />
+            <EditableField isEditing={isEditing} type="textarea" value={placeOfInspection} onChange={(val) => onChange("placeOfInspection", val)} className="break-words dynamic-text leading-tight" />
           </div>
         </div>
 
         {/* Contract ref / Bill officer */}
-        <div className="grid grid-cols-2 border-b border-black">
-          <div className="border-r border-black p-2">
-            <div className="font-semibold">
+        <div className="grid grid-cols-2 border-b border-black md:min-h-[40px]">
+          <div className="border-r border-black p-1">
+            <div className="font-semibold text-[10px]">
               संविदा संदर्भ एवं दिनांक (रेलवे) / Contract Ref. & Date (Rly.)
             </div>
-            <EditableField isEditing={isEditing} type="textarea" value={contractRef} onChange={(val) => onChange("contractRef", val)} className="dynamic-text" />
-            <div className="mt-1 font-semibold">
+            <EditableField isEditing={isEditing} type="textarea" value={contractRef} onChange={(val) => onChange("contractRef", val)} className="dynamic-text leading-tight" />
+            <div className="mt-0.5 font-semibold text-[10px]">
               खरीद आदेश सं. एवं दिनांक (ठेकेदार) / PO No. & Date (Contractor)
             </div>
-            <EditableField isEditing={isEditing} type="textarea" value={contractorPo} onChange={(val) => onChange("contractorPo", val)} className="dynamic-text" />
+            <EditableField isEditing={isEditing} type="textarea" value={contractorPo} onChange={(val) => onChange("contractorPo", val)} className="dynamic-text leading-tight" />
           </div>
-          <div className="p-2">
-            <div className="font-semibold">
+          <div className="p-1">
+            <div className="font-semibold text-[10px]">
               बिल अदायगी अधिकारी / Bill Paying officer
             </div>
-            <EditableField isEditing={isEditing} value={billPayingOfficer} onChange={(val) => onChange("billPayingOfficer", val)} className="break-words dynamic-text" />
+            <EditableField isEditing={isEditing} value={billPayingOfficer} onChange={(val) => onChange("billPayingOfficer", val)} className="break-words dynamic-text leading-tight" />
           </div>
         </div>
 
         {/* Consignee / Purchasing authority */}
-        <div className="grid grid-cols-2 border-b border-black">
-          <div className="border-r border-black p-2">
-            <div className="font-semibold">
+        <div className="grid grid-cols-2 border-b border-black md:min-h-[40px]">
+          <div className="border-r border-black p-1">
+            <div className="font-semibold text-[10px]">
               प्रेषिती (रेलवे) / Consignee (Railway) Non Railway
             </div>
-            <EditableField isEditing={isEditing} type="textarea" value={consigneeRailway} onChange={(val) => onChange("consigneeRailway", val)} className="break-words dynamic-text" />
-            <div className="mt-1 font-semibold">
+            <EditableField isEditing={isEditing} type="textarea" value={consigneeRailway} onChange={(val) => onChange("consigneeRailway", val)} className="break-words dynamic-text leading-tight" />
+            <div className="mt-0.5 font-semibold text-[10px]">
               प्रेषिती (निर्मित उत्पाद निर्माता) / Consignee (Manufacturer of Finished Product)
             </div>
-            <EditableField isEditing={isEditing} type="textarea" value={consigneeManufacturer} onChange={(val) => onChange("consigneeManufacturer", val)} className="break-words dynamic-text" />
+            <EditableField isEditing={isEditing} type="textarea" value={consigneeManufacturer} onChange={(val) => onChange("consigneeManufacturer", val)} className="break-words dynamic-text leading-tight" />
           </div>
-          <div className="p-2">
-            <div className="font-semibold">
+          <div className="p-1">
+            <div className="font-semibold text-[10px]">
               क्रय प्राधिकारी (रेलवे) / Purchasing Authority (Railway) Non Railway
             </div>
-            <EditableField isEditing={isEditing} type="textarea" value={purchasingAuthority} onChange={(val) => onChange("purchasingAuthority", val)} className="break-words dynamic-text" />
+            <EditableField isEditing={isEditing} type="textarea" value={purchasingAuthority} onChange={(val) => onChange("purchasingAuthority", val)} className="break-words dynamic-text leading-tight" />
           </div>
         </div>
 
         {/* Description / Drg / Spec / QAP */}
-        <div className="grid grid-cols-3 border-b border-black">
-          <div className="border-r border-black p-2">
-            <div className="font-semibold">विवरण / Description</div>
-            <EditableField isEditing={isEditing} type="textarea" value={description} onChange={(val) => onChange("description", val)} className="break-words dynamic-text" />
+        <div className="grid grid-cols-3 border-b border-black md:min-h-[40px]">
+          <div className="border-r border-black p-1">
+            <div className="font-semibold text-[10px]">विवरण / Description</div>
+            <EditableField isEditing={isEditing} type="textarea" value={description} onChange={(val) => onChange("description", val)} className="break-words dynamic-text leading-tight" />
           </div>
-          <div className="border-r border-black p-2">
-            <div className="font-semibold">ड्रॉइंग सं. / Drg. No.</div>
-            <EditableField isEditing={isEditing} value={drgNo} onChange={(val) => onChange("drgNo", val)} className="" />
-            <div className="mt-1 font-semibold">विनिर्देश सं. / Specn. No.</div>
-            <EditableField isEditing={isEditing} value={specNo} onChange={(val) => onChange("specNo", val)} className="" />
+          <div className="border-r border-black p-1">
+            <div className="font-semibold text-[10px]">ड्रॉइंग सं. / Drg. No.</div>
+            <EditableField isEditing={isEditing} value={drgNo} onChange={(val) => onChange("drgNo", val)} className="leading-tight" />
+            <div className="mt-0.5 font-semibold text-[10px]">विनिर्देश सं. / Specn. No.</div>
+            <EditableField isEditing={isEditing} value={specNo} onChange={(val) => onChange("specNo", val)} className="leading-tight" />
           </div>
-          <div className="p-2">
-            <div className="font-semibold">
+          <div className="p-1">
+            <div className="font-semibold text-[10px]">
               गुणवत्ता आश्वासन योजना सं / QAP No.
             </div>
-            <EditableField isEditing={isEditing} type="textarea" value={qapNo} onChange={(val) => onChange("qapNo", val)} className="dynamic-text" />
+            <EditableField isEditing={isEditing} type="textarea" value={qapNo} onChange={(val) => onChange("qapNo", val)} className="dynamic-text leading-tight text-[10px]" />
           </div>
         </div>
 
         {/* Type of inspection/tests conducted */}
-        <div className="border-b border-black p-2">
-          <div className="font-semibold">
+        <div className="border-b border-black p-1 md:min-h-[30px]">
+          <div className="font-semibold text-[10px]">
             किए गए निरीक्षण/परीक्षण विवरण / Type of inspection/tests conducted:
           </div>
-          <EditableField isEditing={isEditing} type="textarea" value={inspectionType} onChange={(val) => onChange("inspectionType", val)} className="break-words dynamic-text" />
+          <EditableField isEditing={isEditing} type="textarea" value={inspectionType} onChange={(val) => onChange("inspectionType", val)} className="break-words dynamic-text leading-tight" />
         </div>
 
         {/* CHP table */}
@@ -241,23 +263,23 @@ const ErcRmIC = ({ data = {}, isEditing = false, onChange = () => {} }) => {
         </div>
 
         {/* Sealing / facsimile / engineer */}
-        <div className="grid grid-cols-3 border-b border-black">
-          <div className="border-r border-black p-2">
-            <div className="font-semibold">
+        <div className="grid grid-cols-3 border-b border-black md:min-h-[40px]">
+          <div className="border-r border-black p-1">
+            <div className="font-semibold text-[10px]">
               सील/स्टैंपिंग तथा पहचान की विधि / Pattern of sealing/stamping or
               identification
             </div>
-            <EditableField isEditing={isEditing} type="textarea" value={sealingPattern} onChange={(val) => onChange("sealingPattern", val)} className="break-words dynamic-text" />
+            <EditableField isEditing={isEditing} type="textarea" value={sealingPattern} onChange={(val) => onChange("sealingPattern", val)} className="break-words dynamic-text leading-tight text-[10px]" />
           </div>
-          <div className="border-r border-black p-2">
-            <div className="font-semibold">
+          <div className="border-r border-black p-1">
+            <div className="font-semibold text-[10px]">
               सील/स्टैम्प की प्रतिकृति / Facsimile of seal/stamp
             </div>
-            <EditableField isEditing={isEditing} type="textarea" value={sealFacsimile} onChange={(val) => onChange("sealFacsimile", val)} className="break-words" />
+            <EditableField isEditing={isEditing} type="textarea" value={sealFacsimile} onChange={(val) => onChange("sealFacsimile", val)} className="break-words leading-tight text-[10px]" />
           </div>
-          <div className="p-2">
-            <div className="font-semibold">निरीक्षण अभियंता / Inspecting Engineer</div>
-            <EditableField isEditing={isEditing} value={inspectingEngineer} onChange={(val) => onChange("inspectingEngineer", val)} className="mt-4 text-right" />
+          <div className="p-1 flex flex-col justify-between">
+            <div className="font-semibold text-[10px]">निरीक्षण अभियंता / Inspecting Engineer</div>
+            <EditableField isEditing={isEditing} value={inspectingEngineer} onChange={(val) => onChange("inspectingEngineer", val)} className="mt-2 text-right font-semibold" />
           </div>
         </div>
 

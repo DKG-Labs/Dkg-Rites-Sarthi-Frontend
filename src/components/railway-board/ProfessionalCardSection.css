@@ -37,6 +37,46 @@
     animation: slideUp 0.4s ease-out;
 }
 
+.sortable-header th,
+thead th {
+    cursor: pointer !important;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.sortable-header th:hover,
+thead th:hover {
+    color: #10b981 !important;
+}
+
+/* Enhanced Search Bar */
+.prof-search {
+    padding: 8px 16px;
+    padding-left: 36px !important;
+    border: 1px solid #e2e8f0;
+    border-radius: 50px;
+    font-size: 13px;
+    color: #1e293b;
+    background: #f8fafc url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2310b981' stroke-width='2.5'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'%3E%3C/path%3E%3C/svg%3E") no-repeat 12px center !important;
+    background-size: 16px !important;
+    width: 220px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.03);
+}
+
+.prof-search:focus {
+    outline: none;
+    border-color: #10b981;
+    background-color: #fff !important;
+    width: 300px;
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1), 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+}
+
+.prof-search::placeholder {
+    color: #94a3b8;
+    font-weight: 500;
+}
+
 /* Main Navigation Tabs - Modern Pill Style */
 .nav-wrapper {
     display: flex;

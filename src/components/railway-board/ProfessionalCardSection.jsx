@@ -8,6 +8,7 @@ import { formatDecimal } from '../../utils/helpers';
 import './ProfessionalCardSection.css';
 import './InspectionStackedCharts.css';
 import './PerformanceMatrixTheme.css';
+import FeedbackSection from './FeedbackSection';
 
 // --- Static Data moved outside component to fix ESLint re-render warnings ---
 const staticInspectionCallsData = [
@@ -101,9 +102,9 @@ const ProfessionalCardSection = ({
 
     // States for Reports Searching & Sorting
     const [mprSearch, setMprSearch] = useState('');
-    const [mprSort] = useState({ key: null, direction: 'asc' });
-    const [mauSearch] = useState('');
-    const [mauSort] = useState({ key: null, direction: 'asc' });
+    const [mprSort, setMprSort] = useState({ key: null, direction: 'asc' });
+    const [mauSearch, setMauSearch] = useState('');
+    const [mauSort, setMauSort] = useState({ key: null, direction: 'asc' });
 
     // States for Performance Matrix Filtering & Sorting
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
@@ -210,6 +211,22 @@ const ProfessionalCardSection = ({
         setSortConfig({ key, direction });
     };
 
+    const handleMprSort = (key) => {
+        let direction = 'asc';
+        if (mprSort.key === key && mprSort.direction === 'asc') {
+            direction = 'desc';
+        }
+        setMprSort({ key, direction });
+    };
+
+    const handleMauSort = (key) => {
+        let direction = 'asc';
+        if (mauSort.key === key && mauSort.direction === 'asc') {
+            direction = 'desc';
+        }
+        setMauSort({ key, direction });
+    };
+
     const getSortedData = (data) => {
         if (!sortConfig.key || !data) return data;
         return [...(data || [])].sort((a, b) => {
@@ -233,7 +250,66 @@ const ProfessionalCardSection = ({
     };
 
 
+    const renderSortIcon = (key, config) => {
+        if (config.key !== key) return <span style={{ opacity: 0.3, marginLeft: '5px', fontSize: '10px' }}>↕</span>;
+        return <span style={{ marginLeft: '5px', color: '#10b981', fontSize: '10px' }}>{config.direction === 'asc' ? '▲' : '▼'}</span>;
+    };
+
+
     const renderSubContent = () => {
+        // Under Development Placeholder for non-ERC products
+        const product = selectedProduct?.toLowerCase() || '';
+        const isErc = product.includes('erc') || product === 'all' || !product;
+
+        if (!isErc) {
+            return (
+                <div className="under-dev-container fade-in" style={{ padding: '2rem 0' }}>
+                    <div className="prof-card" style={{
+                        height: '450px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: 'rgba(255, 255, 255, 0.8)',
+                        backdropFilter: 'blur(10px)',
+                        border: '2px dashed #10b981',
+                        borderRadius: '24px',
+                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.05)',
+                        textAlign: 'center'
+                    }}>
+                        <div style={{
+                            fontSize: '6rem',
+                            marginBottom: '1rem',
+                            filter: 'drop-shadow(0 10px 15px rgba(0,0,0,0.1))',
+                            animation: 'bounce 2s infinite'
+                        }}>🏗️</div>
+                        <h2 style={{ fontSize: '32px', color: '#065f46', marginBottom: '10px' }}>
+                            {selectedProduct?.toUpperCase()}
+                        </h2>
+                        <h3 style={{ fontSize: '20px', color: '#059669', marginBottom: '20px', fontWeight: '600' }}>
+                            Section Under Development
+                        </h3>
+                        <p style={{ color: '#475569', maxWidth: '450px', lineHeight: '1.6', fontSize: '15px' }}>
+                            We are currently integrating data for this product line.
+                            Stay tuned for a complete performance overview of {selectedProduct} soon!
+                        </p>
+                        <div style={{
+                            marginTop: '2rem',
+                            padding: '10px 20px',
+                            background: '#10b981',
+                            color: 'white',
+                            borderRadius: '30px',
+                            fontWeight: '600',
+                            fontSize: '14px',
+                            boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.4)'
+                        }}>
+                            Coming Soon
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
         // Client-side filtering logic for Performance Matrix
         const uniqueIes = [...new Set((perfData || []).map(d => d.username))].filter(Boolean).sort();
         const uniqueStages = [...new Set((perfData || []).map(d => d.stage))].filter(Boolean).sort();
@@ -427,7 +503,30 @@ const ProfessionalCardSection = ({
                                                             ))}
                                                         </Pie>
                                                         <Tooltip formatter={(v) => `${v}%`} />
-                                                        <Legend iconType="circle" wrapperStyle={{ fontSize: '9px', paddingTop: '10px' }} />
+                                                        <Legend
+                                                            layout="vertical"
+                                                            align="right"
+                                                            verticalAlign="middle"
+                                                            iconType="circle"
+                                                            formatter={(value, entry) => (
+                                                                <span style={{
+                                                                    color: entry.color,
+                                                                    fontWeight: '700',
+                                                                    display: 'inline-flex',
+                                                                    justifyContent: 'space-between',
+                                                                    width: '160px',
+                                                                    verticalAlign: 'middle'
+                                                                }}>
+                                                                    <span>{value}</span>
+                                                                    <span>{entry.payload.value}%</span>
+                                                                </span>
+                                                            )}
+                                                            wrapperStyle={{
+                                                                fontSize: '13px',
+                                                                paddingLeft: '20px',
+                                                                lineHeight: '28px'
+                                                            }}
+                                                        />
                                                     </PieChart>
                                                 </ResponsiveContainer>
                                             </div>
@@ -665,11 +764,11 @@ const ProfessionalCardSection = ({
                                             <table className="prof-table">
                                                 <thead>
                                                     <tr>
-                                                        <th onClick={() => handleSort('id')}>#</th>
-                                                        <th onClick={() => handleSort('manufacturerName')}>MANUFACTURER</th>
-                                                        <th onClick={() => handleSort('rio')}>RIO</th>
-                                                        <th onClick={() => handleSort('username')}>IE</th>
-                                                        <th onClick={() => handleSort('stage')}>STAGE</th>
+                                                        <th onClick={() => handleSort('id')}># {renderSortIcon('id', sortConfig)}</th>
+                                                        <th onClick={() => handleSort('manufacturerName')}>MANUFACTURER {renderSortIcon('manufacturerName', sortConfig)}</th>
+                                                        <th onClick={() => handleSort('rio')}>RIO {renderSortIcon('rio', sortConfig)}</th>
+                                                        <th onClick={() => handleSort('username')}>IE {renderSortIcon('username', sortConfig)}</th>
+                                                        <th onClick={() => handleSort('stage')}>STAGE {renderSortIcon('stage', sortConfig)}</th>
                                                         <th className="text-right">INSPECTED</th>
                                                         <th className="text-right">ACCEPTED</th>
                                                         <th className="text-right">REJECTED</th>
@@ -729,16 +828,16 @@ const ProfessionalCardSection = ({
                                                 <div className="table-responsive">
                                                     <table className="prof-table">
                                                         <thead>
-                                                            <tr>
-                                                                <th>Rly</th>
-                                                                <th>PO Number</th>
-                                                                <th>Manufacturer</th>
-                                                                <th className="text-right">PO Qty</th>
-                                                                <th className="text-right">RM</th>
-                                                                <th className="text-right">Process</th>
-                                                                <th className="text-right">Final</th>
-                                                                <th className="text-right">Total Final Inspected</th>
-                                                                <th className="text-right">Balance</th>
+                                                            <tr className="sortable-header">
+                                                                <th onClick={() => handleMprSort('rly')}>Rly {renderSortIcon('rly', mprSort)}</th>
+                                                                <th onClick={() => handleMprSort('poNumber')}>PO Number {renderSortIcon('poNumber', mprSort)}</th>
+                                                                <th onClick={() => handleMprSort('manufacturer')}>Manufacturer {renderSortIcon('manufacturer', mprSort)}</th>
+                                                                <th className="text-right" onClick={() => handleMprSort('poQty')}>PO Qty {renderSortIcon('poQty', mprSort)}</th>
+                                                                <th className="text-right" onClick={() => handleMprSort('monthlyRm')}>RM {renderSortIcon('monthlyRm', mprSort)}</th>
+                                                                <th className="text-right" onClick={() => handleMprSort('monthlyProcess')}>Process {renderSortIcon('monthlyProcess', mprSort)}</th>
+                                                                <th className="text-right" onClick={() => handleMprSort('monthlyFinal')}>Final {renderSortIcon('monthlyFinal', mprSort)}</th>
+                                                                <th className="text-right" onClick={() => handleMprSort('totalFinalInspected')}>Total Final Inspected {renderSortIcon('totalFinalInspected', mprSort)}</th>
+                                                                <th className="text-right" onClick={() => handleMprSort('poBalance')}>Balance {renderSortIcon('poBalance', mprSort)}</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
@@ -771,18 +870,21 @@ const ProfessionalCardSection = ({
 
                                         {activeReport === 'mau' && (
                                             <div className="prof-card animate-up">
-                                                <div className="sec-title">Monthly Analysis of Units</div>
+                                                <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    <span>Monthly Analysis of Units</span>
+                                                    <input type="text" placeholder="Search..." className="prof-search" value={mauSearch} onChange={(e) => setMauSearch(e.target.value)} />
+                                                </div>
                                                 <div className="table-responsive">
                                                     <table className="prof-table">
                                                         <thead>
-                                                            <tr>
-                                                                <th>Manufacturer</th>
-                                                                <th className="text-right">Manufactured</th>
-                                                                <th className="text-right">Inspected</th>
-                                                                <th className="text-right">Rejected</th>
-                                                                <th className="text-right">RM %</th>
-                                                                <th className="text-right">Process %</th>
-                                                                <th className="text-right">Final %</th>
+                                                            <tr className="sortable-header">
+                                                                <th onClick={() => handleMauSort('manufacturer')}>Manufacturer {renderSortIcon('manufacturer', mauSort)}</th>
+                                                                <th className="text-right" onClick={() => handleMauSort('manufactured')}>Manufactured {renderSortIcon('manufactured', mauSort)}</th>
+                                                                <th className="text-right" onClick={() => handleMauSort('inspected')}>Inspected {renderSortIcon('inspected', mauSort)}</th>
+                                                                <th className="text-right" onClick={() => handleMauSort('rejected')}>Rejected {renderSortIcon('rejected', mauSort)}</th>
+                                                                <th className="text-right" onClick={() => handleMauSort('rmRejPercent')}>RM % {renderSortIcon('rmRejPercent', mauSort)}</th>
+                                                                <th className="text-right" onClick={() => handleMauSort('processRejPercent')}>Process % {renderSortIcon('processRejPercent', mauSort)}</th>
+                                                                <th className="text-right" onClick={() => handleMauSort('finalRejPercent')}>Final % {renderSortIcon('finalRejPercent', mauSort)}</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
@@ -836,6 +938,8 @@ const ProfessionalCardSection = ({
                                     </div>
                                 </div>
                             );
+                        case 'feedback':
+                            return <FeedbackSection />;
                         default:
                             return null;
                     }

@@ -288,9 +288,11 @@ const RailwayBoardDashboard = () => {
                                 <div className={`report-link ${activeReport === 'mpr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpr')}>Monthly Progress Report</div>
                                 <div className={`report-link ${activeReport === 'mau' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mau')}>Monthly Analysis of Units</div>
                                 <div className={`report-link ${activeReport === 'lwcl' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('lwcl')}>Lot Wise Closed Loop</div>
-
                             </div>
                         )}
+                        <div className={`nav-item ${activeMainCard === 'feedback' ? 'active' : ''}`} onClick={() => handleSwitchTab('feedback')}>
+                            <i className="fa-solid fa-comment-dots"></i> {!isSidebarCollapsed && <span>Feedback</span>}
+                        </div>
 
                     </div>
                 </nav>
@@ -304,8 +306,8 @@ const RailwayBoardDashboard = () => {
                         <button className={`sub-tab-btn ${selectedProduct === 'Rail Pad' ? 'active' : ''}`} onClick={() => setSelectedProduct('Rail Pad')}>Rail Pad</button>
                     </div>
 
-                    {/* TOPBAR / FILTERS - Hidden on Dashboard (summary) tab as requested */}
-                    {activeMainCard !== 'summary' && activeMainCard !== 'lifecycle' && (
+                    {/* TOPBAR / FILTERS - Hidden on Dashboard (summary), Lifecycle, and Feedback tabs */}
+                    {activeMainCard !== 'summary' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && (
                         <div id="prof-topbar">
                             <label>From</label>
                             <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />

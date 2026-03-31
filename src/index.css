@@ -47,13 +47,13 @@
   display: flex;
   flex-direction: column;
   font-size: 10px;
-  line-height: 1.2;
+  line-height: 1.4;
 }
 
-/* Make all direct children flexible to distribute space evenly */
+/* Make all direct children flexible to distribute space evenly but prevent shrinking below content */
 .certificate-container>div {
-  flex-shrink: 1;
-  min-height: 0;
+  flex-shrink: 0;
+  min-height: fit-content;
 }
 
 /* Dynamic text sizing based on content */
@@ -124,13 +124,24 @@
   }
 
   .certificate-container {
-    width: 100%;
+    width: 210mm !important; /* Force exact print width */
     height: 100%;
-    overflow: hidden;
+    margin: 0 auto !important;
+    overflow: visible;
     display: flex;
     flex-direction: column;
     font-size: 9.5px;
-    line-height: 1.15;
+    line-height: 1.4;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Force flush boxed layout in print */
+  .certificate-container > div {
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
   }
 
   /* Remove all box shadows */

@@ -69,35 +69,50 @@ const ErcProcessIC = ({ data = {}, isEditing = false, onChange = () => { }, onAr
   return (
     <div className="a4-page">
       <div className="certificate-container flex flex-col flex-grow">
-        {/* Row 1: Centered Book No & Set No Box - FLOATING */}
-        <div className="flex justify-center pt-2 pb-1">
-          <div className="grid grid-cols-2 border border-black w-[180px]">
-            <div className="border-r border-black flex flex-col">
-              <div className="border-b border-black p-0.5 font-bold text-center text-[9px] leading-tight">बुक सं. Book No.</div>
-              <div className="p-0.5 flex items-center justify-center min-h-[20px]">
-                <EditableField isEditing={isEditing} value={bookNo} onChange={(val) => onChange("bookNo", val)} className="text-center font-bold text-[11px]" />
+        {/* Row 1 & 2: RE-CENTERED HEADER UNIT (Red-Marked Design) */}
+        <div className="flex flex-col items-center pt-2 w-full">
+          {/* Centered Box */}
+          <div className="grid grid-cols-2 border-2 border-black w-[180px] bg-white">
+            <div className="border-r-2 border-black flex flex-col">
+              <div className="border-b-2 border-black p-1 font-bold text-center text-[9px] leading-tight">
+                <div className="h-[2px]" />
+                बुक सं. Book No.
+                <div className="h-[2px]" />
+              </div>
+              <div className="p-1 flex items-center justify-center min-h-[22px]">
+                <EditableField isEditing={isEditing} value={bookNo} onChange={(val) => onChange("bookNo", val)} className="text-center font-bold text-[12px]" />
               </div>
             </div>
             <div className="flex flex-col">
-              <div className="border-b border-black p-0.5 font-bold text-center text-[9px] leading-tight">सेट सं. Set No.</div>
-              <div className="p-0.5 flex items-center justify-center min-h-[20px]">
-                <EditableField isEditing={isEditing} value={setNo} onChange={(val) => onChange("setNo", val)} className="text-center font-bold text-[11px]" />
+              <div className="border-b-2 border-black p-1 font-bold text-center text-[9px] leading-tight">
+                <div className="h-[2px]" />
+                सेट सं. Set No.
+                <div className="h-[2px]" />
               </div>
+              <div className="p-1 flex items-center justify-center min-h-[22px]">
+                <EditableField isEditing={isEditing} value={setNo} onChange={(val) => onChange("setNo", val)} className="text-center font-bold text-[12px]" />
+              </div>
+            </div>
+          </div>
+
+          {/* Height-Aware Branding Row (3-column grid for perfect centering) */}
+          <div className="w-full grid grid-cols-[1fr_auto_1fr] items-end mt-1 px-4">
+            <div className="empty-col"></div>
+            <div className="text-center font-bold text-[13px] uppercase">
+              RITES LTD, NORTHERN REGION, DELHI
+            </div>
+            <div className="text-right leading-tight">
+              <div className="text-[9.5px] font-bold">निरंतरता पत्रक शामिल</div>
+              <div className="text-[8.5px] font-bold">Contains 0 Continuation Sheets</div>
             </div>
           </div>
         </div>
 
-        {/* Row 2: Regional Branding + Continuation Sheets - FLOATING */}
-        <div className="relative py-1 flex justify-center items-center min-h-[30px]">
-          <div className="font-bold text-[12px] uppercase">RITES LTD, NORTHERN REGION, DELHI</div>
-          <div className="absolute right-0 bottom-0 text-right pr-4 leading-tight">
-            <div className="text-[10px] font-bold">निरंतरता पत्रक शामिल</div>
-            <div className="text-[9px] font-bold">Contains 0 Continuation Sheets</div>
-          </div>
-        </div>
+        {/* Physical Spacer to prevent Row 3 overlap in PDF */}
+        <div className="h-2" />
 
-        {/* Row 3: Certificate No, Date, Instances - FLOATING / RIGHT-ALIGNED */}
-        <div className="flex justify-end pb-1">
+        {/* Row 3: Certificate No, Date, Instances - STABILIZED */}
+        <div className="flex justify-end">
           <div className="grid grid-cols-[1.8fr_1fr_2.7fr] border border-black text-[10px] items-stretch w-[75%]">
             {/* Col 1: Certificate No */}
             <div className="border-r border-black p-1 flex flex-col items-center justify-center text-center">
@@ -121,40 +136,44 @@ const ErcProcessIC = ({ data = {}, isEditing = false, onChange = () => { }, onAr
                 <div className="text-[11px] pr-8"><EditableField isEditing={isEditing} value={offeredInstNo} onChange={(val) => onChange("offeredInstNo", val)} type="inline" /></div>
               </div>
               <div className="mt-1 pt-1 border-t border-dotted border-gray-400 flex justify-between items-center">
-                <div>
+                <div className="pb-1">
                   <div>किस्त स. पारित Passed Instt. No.</div>
                 </div>
-                <div className="text-[11px] pr-8"><EditableField isEditing={isEditing} value={passedInstNo} onChange={(val) => onChange("passedInstNo", val)} type="inline" /></div>
+                <div className="text-[11px] pr-8 pb-1"><EditableField isEditing={isEditing} value={passedInstNo} onChange={(val) => onChange("passedInstNo", val)} type="inline" /></div>
               </div>
             </div>
           </div>
         </div>
 
         {/* Contractor / Manufacturer - START FULL-WIDTH BOX */}
-        <div className="grid grid-cols-2 border border-black md:min-h-[40px]">
-          <div className="border-r border-black p-1">
+        <div className="grid grid-cols-2 border border-black min-h-[40px]">
+          <div className="border-r border-black p-2">
+            <div className="h-1.5" />
             <div className="font-semibold text-[10px]">ठेकेदार / Contractor</div>
             <EditableField isEditing={isEditing} type="textarea" value={contractor} onChange={(val) => onChange("contractor", val)} className="break-words dynamic-text leading-tight" />
           </div>
-          <div className="p-1">
+          <div className="p-2">
+            <div className="h-1.5" />
             <div className="font-semibold text-[10px]">उत्पादक / Manufacturer</div>
             <EditableField isEditing={isEditing} type="textarea" value={manufacturer} onChange={(val) => onChange("manufacturer", val)} className="break-words dynamic-text leading-tight" />
           </div>
         </div>
 
         {/* Contract ref / PO / Bill officer */}
-        <div className="grid grid-cols-2 border-x border-b border-black md:min-h-[40px]">
-          <div className="border-r border-black p-1">
+        <div className="grid grid-cols-2 border-x border-b border-black min-h-[40px]">
+          <div className="border-r border-black p-2">
+            <div className="h-1.5" />
             <div className="font-semibold text-[10px]">
               संविदा संदर्भ एवं दिनांक (रेलवे) / Contract Ref. & Date (Rly.)
             </div>
             <EditableField isEditing={isEditing} type="textarea" value={contractRef} onChange={(val) => onChange("contractRef", val)} className="dynamic-text leading-tight" />
-            <div className="mt-0.5 font-semibold text-[10px]">
+            <div className="mt-1 font-semibold text-[10px] pt-1">
               खरीद आदेश सं. एवं दिनांक (ठेकेदार) / PO No. & Date (Contractor)
             </div>
             <EditableField isEditing={isEditing} type="textarea" value={poDetails} onChange={(val) => onChange("poDetails", val)} className="dynamic-text leading-tight" />
           </div>
-          <div className="p-1">
+          <div className="p-2">
+            <div className="h-1.5" />
             <div className="font-semibold text-[10px]">
               बिल अदायगी अधिकारी / Bill Paying Officer
             </div>
@@ -163,19 +182,19 @@ const ErcProcessIC = ({ data = {}, isEditing = false, onChange = () => { }, onAr
         </div>
 
         {/* Consignee / Purchasing authority */}
-        <div className="grid grid-cols-2 border-x border-b border-black md:min-h-[40px]">
-          <div className="border-r border-black p-1">
-            <div className="font-semibold text-[10px]">
+        <div className="grid grid-cols-2 border-x border-b border-black min-h-[40px]">
+          <div className="border-r border-black p-2">
+            <div className="font-semibold text-[10px] pt-1.5">
               प्रेषिती (रेलवे) / Consignee (Railway)
             </div>
             <EditableField isEditing={isEditing} type="textarea" value={consigneeRailway} onChange={(val) => onChange("consigneeRailway", val)} className="break-words dynamic-text leading-tight" />
-            <div className="mt-0.5 font-semibold text-[10px]">
+            <div className="mt-1 font-semibold text-[10px] pt-1">
               प्रेषिती (निर्मित उत्पाद निर्माता) / Consignee (Manufacturer of Finished Product)
             </div>
             <EditableField isEditing={isEditing} type="textarea" value={consigneeManufacturer} onChange={(val) => onChange("consigneeManufacturer", val)} className="break-words dynamic-text leading-tight" />
           </div>
-          <div className="p-1">
-            <div className="font-semibold text-[10px]">
+          <div className="p-2">
+            <div className="font-semibold text-[10px] pt-1.5">
               क्रय प्राधिकारी (रेलवे) / Purchasing Authority (Railway)
             </div>
             <EditableField isEditing={isEditing} type="textarea" value={purchasingAuthority} onChange={(val) => onChange("purchasingAuthority", val)} className="break-words dynamic-text leading-tight" />
@@ -183,7 +202,7 @@ const ErcProcessIC = ({ data = {}, isEditing = false, onChange = () => { }, onAr
         </div>
 
         {/* Description / Drg / Spec / QAP */}
-        <div className="grid grid-cols-3 border-x border-b border-black md:min-h-[40px]">
+        <div className="grid grid-cols-3 border-x border-b border-black min-h-[40px]">
           <div className="border-r border-black p-1">
             <div className="font-semibold text-[10px]">
               विवरण / Description (PO Sr. No. 001)
@@ -209,7 +228,7 @@ const ErcProcessIC = ({ data = {}, isEditing = false, onChange = () => { }, onAr
         </div>
 
         {/* Type of inspection */}
-        <div className="border-b border-black p-1 md:min-h-[30px]">
+        <div className="border-x border-b border-black p-1 min-h-[30px]">
           <div className="font-semibold text-[10px]">
             किए गए निरीक्षण/परीक्षण विवरण / Type of inspection/tests conducted:
           </div>
@@ -217,7 +236,7 @@ const ErcProcessIC = ({ data = {}, isEditing = false, onChange = () => { }, onAr
         </div>
 
         {/* Table header */}
-        <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] border-b border-black bg-gray-100 font-semibold text-center text-[9px] leading-tight">
+        <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] border-x border-b border-black bg-gray-100 font-semibold text-center text-[9px] leading-tight">
           <div className="border-r border-black p-1">
             सी.एच.पी. क्लॉज सं.<br />CHP CL. NO. OF QAP
           </div>
@@ -239,7 +258,7 @@ const ErcProcessIC = ({ data = {}, isEditing = false, onChange = () => { }, onAr
         {lots.map((lot, idx) => (
           <div
             key={idx}
-            className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] text-center border-b border-black last:border-b-0"
+            className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] text-center border-x border-b border-black"
           >
             <div className="border-r border-black py-1 px-2 text-sm">
               {chpClause || (idx === 0 ? "PROCESS INSPECTION OF ELASTIC RAIL CLIP MK-V" : "")}
@@ -267,7 +286,7 @@ const ErcProcessIC = ({ data = {}, isEditing = false, onChange = () => { }, onAr
         </div>
 
         {/* Call date / inspection date / man-days */}
-        <div className="grid grid-cols-3 border-x border-b border-black md:min-h-[30px]">
+        <div className="grid grid-cols-3 border-x border-b border-black min-h-[30px]">
           <div className="border-r border-black p-1">
             <span className="font-semibold text-[10px]">
               कॉल दिनांक / Date of call:{" "}
@@ -289,7 +308,7 @@ const ErcProcessIC = ({ data = {}, isEditing = false, onChange = () => { }, onAr
         </div>
 
         {/* Sealing pattern / Inspecting engineer */}
-        <div className="grid grid-cols-2 border-x border-b border-black md:min-h-[40px]">
+        <div className="grid grid-cols-2 border-x border-b border-black min-h-[40px]">
           <div className="border-r border-black p-1">
             <div className="font-semibold text-[10px]">
               सील/स्टैंपिंग तथा पहचान की विधि / Pattern of sealing/stamping or identification
@@ -303,15 +322,17 @@ const ErcProcessIC = ({ data = {}, isEditing = false, onChange = () => { }, onAr
         </div>
 
         {/* Footer certification */}
-        <div className="border-t border-black p-2 text-center">
-          <div className="font-semibold">
+        <div className="border-x border-b border-black p-1 text-center">
+          <div className="font-semibold text-[10px] italic">
             It is certified that Process Inspection of ERCs carried out satisfactorily
             and Material cleared for Product Inspection.
           </div>
-          <div className="mt-1 text-sm">
-            Distribution: Manufacturer office copy, Purchaser (Railway), RITES Bill
+          <div className="mt-1 text-[9px] leading-tight text-gray-700">
+            <span className="font-bold">Distribution: </span>
+            Manufacturer office copy, Purchaser (Railway), RITES Bill
             Copy, RITES for final IC incorporate
           </div>
+          <div className="h-1" />
         </div>
       </div>
     </div>

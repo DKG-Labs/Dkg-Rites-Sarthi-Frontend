@@ -70,35 +70,50 @@ const ErcRmIC = ({ data = {}, isEditing = false, onChange = () => {} }) => {
   return (
     <div className="a4-page">
       <div className="certificate-container flex flex-col flex-grow">
-        {/* Row 1: Centered Book No & Set No Box - FLOATING */}
-        <div className="flex justify-center pt-2 pb-1">
-          <div className="grid grid-cols-2 border border-black w-[180px]">
-            <div className="border-r border-black flex flex-col">
-              <div className="border-b border-black p-0.5 font-bold text-center text-[9px] leading-tight">बुक सं. Book No.</div>
-              <div className="p-0.5 flex items-center justify-center min-h-[20px]">
-                <EditableField isEditing={isEditing} value={bookNo} onChange={(val) => onChange("bookNo", val)} className="text-center font-bold text-[11px]" />
+        {/* Row 1 & 2: RE-CENTERED HEADER UNIT (Red-Marked Design) */}
+        <div className="flex flex-col items-center pt-2 w-full">
+          {/* Centered Box */}
+          <div className="grid grid-cols-2 border-2 border-black w-[180px] bg-white">
+            <div className="border-r-2 border-black flex flex-col">
+              <div className="border-b-2 border-black p-1 font-bold text-center text-[9px] leading-tight">
+                <div className="h-[2px]" />
+                बुक सं. Book No.
+                <div className="h-[2px]" />
+              </div>
+              <div className="p-1 flex items-center justify-center min-h-[22px]">
+                <EditableField isEditing={isEditing} value={bookNo} onChange={(val) => onChange("bookNo", val)} className="text-center font-bold text-[12px]" />
               </div>
             </div>
             <div className="flex flex-col">
-              <div className="border-b border-black p-0.5 font-bold text-center text-[9px] leading-tight">सेट सं. Set No.</div>
-              <div className="p-0.5 flex items-center justify-center min-h-[20px]">
-                <EditableField isEditing={isEditing} value={setNo} onChange={(val) => onChange("setNo", val)} className="text-center font-bold text-[11px]" />
+              <div className="border-b-2 border-black p-1 font-bold text-center text-[9px] leading-tight">
+                <div className="h-[2px]" />
+                सेट सं. Set No.
+                <div className="h-[2px]" />
               </div>
+              <div className="p-1 flex items-center justify-center min-h-[22px]">
+                <EditableField isEditing={isEditing} value={setNo} onChange={(val) => onChange("setNo", val)} className="text-center font-bold text-[12px]" />
+              </div>
+            </div>
+          </div>
+
+          {/* Height-Aware Branding Row (3-column grid for perfect centering) */}
+          <div className="w-full grid grid-cols-[1fr_auto_1fr] items-end mt-1 px-4">
+            <div className="empty-col"></div>
+            <div className="text-center font-bold text-[13px] uppercase">
+              RITES LTD, NORTHERN REGION, DELHI
+            </div>
+            <div className="text-right leading-tight">
+              <div className="text-[9.5px] font-bold">निरंतरता पत्रक शामिल</div>
+              <div className="text-[8.5px] font-bold">Contains 0 Continuation Sheets</div>
             </div>
           </div>
         </div>
 
-        {/* Row 2: Regional Branding + Continuation Sheets - FLOATING */}
-        <div className="relative py-1 flex justify-center items-center min-h-[30px]">
-          <div className="font-bold text-[12px] uppercase">RITES LTD, NORTHERN REGION, DELHI</div>
-          <div className="absolute right-0 bottom-0 text-right pr-4 leading-tight">
-            <div className="text-[10px] font-bold">निरंतरता पत्रक शामिल</div>
-            <div className="text-[9px] font-bold">Contains 0 Continuation Sheets</div>
-          </div>
-        </div>
+        {/* Physical Spacer to prevent Row 3 overlap in PDF */}
+        <div className="h-2" />
 
-        {/* Row 3: Certificate No, Date, Instances - FLOATING / RIGHT-ALIGNED */}
-        <div className="flex justify-end pb-1">
+        {/* Row 3: Certificate No, Date, Instances - STABILIZED */}
+        <div className="flex justify-end">
           <div className="grid grid-cols-[1.8fr_1fr_2.7fr] border border-black text-[10px] items-stretch w-[75%]">
             {/* Col 1: Certificate No */}
             <div className="border-r border-black p-1 flex flex-col items-center justify-center text-center">
@@ -122,25 +137,27 @@ const ErcRmIC = ({ data = {}, isEditing = false, onChange = () => {} }) => {
                 <div className="text-[11px] pr-8"><EditableField isEditing={isEditing} value={offeredInstNo} onChange={(val) => onChange("offeredInstNo", val)} type="inline" /></div>
               </div>
               <div className="mt-1 pt-1 border-t border-dotted border-gray-400 flex justify-between items-center">
-                <div>
+                <div className="pb-1">
                   <div>किस्त स. पारित Passed Instt. No.</div>
                 </div>
-                <div className="text-[11px] pr-8"><EditableField isEditing={isEditing} value={passedInstNo} onChange={(val) => onChange("passedInstNo", val)} type="inline" /></div>
+                <div className="text-[11px] pr-8 pb-1"><EditableField isEditing={isEditing} value={passedInstNo} onChange={(val) => onChange("passedInstNo", val)} type="inline" /></div>
               </div>
             </div>
           </div>
         </div>
 
         {/* Contractor / Manufacturer + Place of inspection - START FULL-WIDTH BOX */}
-        <div className="grid grid-cols-2 border border-black md:min-h-[40px]">
-          <div className="border-r border-black p-1">
+        <div className="grid grid-cols-2 border border-black min-h-[40px]">
+          <div className="border-r border-black p-2">
+            <div className="h-1.5" />
             <div className="font-semibold text-[10px]">ठेकेदार / Contractor</div>
             <EditableField isEditing={isEditing} type="textarea" value={contractor} onChange={(val) => onChange("contractor", val)} className="break-words dynamic-text leading-tight" />
           </div>
-          <div className="p-1">
+          <div className="p-2">
+            <div className="h-1.5" />
             <div className="font-semibold text-[10px]">उत्पादक / Manufacturer</div>
             <EditableField isEditing={isEditing} type="textarea" value={manufacturer} onChange={(val) => onChange("manufacturer", val)} className="break-words dynamic-text leading-tight" />
-            <div className="mt-0.5 font-semibold text-[10px]">
+            <div className="mt-1 font-semibold text-[10px] pt-1">
               निरीक्षण का स्थान / Place of Inspection
             </div>
             <EditableField isEditing={isEditing} type="textarea" value={placeOfInspection} onChange={(val) => onChange("placeOfInspection", val)} className="break-words dynamic-text leading-tight" />
@@ -148,39 +165,42 @@ const ErcRmIC = ({ data = {}, isEditing = false, onChange = () => {} }) => {
         </div>
 
         {/* Contract ref / Bill officer */}
-        <div className="grid grid-cols-2 border-x border-b border-black md:min-h-[40px]">
-          <div className="border-r border-black p-1">
+        <div className="grid grid-cols-2 border-x border-b border-black min-h-[40px]">
+          <div className="border-r border-black p-2">
+            <div className="h-1.5" />
             <div className="font-semibold text-[10px]">
               संविदा संदर्भ एवं दिनांक (रेलवे) / Contract Ref. & Date (Rly.)
             </div>
             <EditableField isEditing={isEditing} type="textarea" value={contractRef} onChange={(val) => onChange("contractRef", val)} className="dynamic-text leading-tight" />
-            <div className="mt-0.5 font-semibold text-[10px]">
+            <div className="mt-1 font-semibold text-[10px] pt-1">
               खरीद आदेश सं. एवं दिनांक (ठेकेदार) / PO No. & Date (Contractor)
             </div>
             <EditableField isEditing={isEditing} type="textarea" value={contractorPo} onChange={(val) => onChange("contractorPo", val)} className="dynamic-text leading-tight" />
           </div>
-          <div className="p-1">
-            <div className="font-semibold text-[10px]">
+          <div className="p-2 text-[10px]">
+            <div className="h-1" />
+            <div className="font-semibold">
               बिल अदायगी अधिकारी / Bill Paying officer
             </div>
             <EditableField isEditing={isEditing} value={billPayingOfficer} onChange={(val) => onChange("billPayingOfficer", val)} className="break-words dynamic-text leading-tight" />
           </div>
         </div>
+        
 
         {/* Consignee / Purchasing authority */}
-        <div className="grid grid-cols-2 border-x border-b border-black md:min-h-[40px]">
-          <div className="border-r border-black p-1">
-            <div className="font-semibold text-[10px]">
+        <div className="grid grid-cols-2 border-x border-b border-black min-h-[40px]">
+          <div className="border-r border-black p-2">
+            <div className="font-semibold text-[10px] pt-1.5">
               प्रेषिती (रेलवे) / Consignee (Railway) Non Railway
             </div>
             <EditableField isEditing={isEditing} type="textarea" value={consigneeRailway} onChange={(val) => onChange("consigneeRailway", val)} className="break-words dynamic-text leading-tight" />
-            <div className="mt-0.5 font-semibold text-[10px]">
+            <div className="mt-1 font-semibold text-[10px] pt-1">
               प्रेषिती (निर्मित उत्पाद निर्माता) / Consignee (Manufacturer of Finished Product)
             </div>
             <EditableField isEditing={isEditing} type="textarea" value={consigneeManufacturer} onChange={(val) => onChange("consigneeManufacturer", val)} className="break-words dynamic-text leading-tight" />
           </div>
-          <div className="p-1">
-            <div className="font-semibold text-[10px]">
+          <div className="p-2 text-[10px]">
+            <div className="font-semibold pt-1.5">
               क्रय प्राधिकारी (रेलवे) / Purchasing Authority (Railway) Non Railway
             </div>
             <EditableField isEditing={isEditing} type="textarea" value={purchasingAuthority} onChange={(val) => onChange("purchasingAuthority", val)} className="break-words dynamic-text leading-tight" />
@@ -188,19 +208,19 @@ const ErcRmIC = ({ data = {}, isEditing = false, onChange = () => {} }) => {
         </div>
 
         {/* Description / Drg / Spec / QAP */}
-        <div className="grid grid-cols-3 border-x border-b border-black md:min-h-[40px]">
-          <div className="border-r border-black p-1">
-            <div className="font-semibold text-[10px]">विवरण / Description</div>
+        <div className="grid grid-cols-3 border-x border-b border-black min-h-[40px]">
+          <div className="border-r border-black p-2">
+            <div className="font-semibold text-[10px] pt-1.5">विवरण / Description (PO Sr. No. 001)</div>
             <EditableField isEditing={isEditing} type="textarea" value={description} onChange={(val) => onChange("description", val)} className="break-words dynamic-text leading-tight" />
           </div>
-          <div className="border-r border-black p-1">
-            <div className="font-semibold text-[10px]">ड्रॉइंग सं. / Drg. No.</div>
+          <div className="border-r border-black p-2">
+            <div className="font-semibold text-[10px] pt-1.5">ड्रॉइंग सं. / Drg. No.</div>
             <EditableField isEditing={isEditing} value={drgNo} onChange={(val) => onChange("drgNo", val)} className="leading-tight" />
-            <div className="mt-0.5 font-semibold text-[10px]">विनिर्देश सं. / Specn. No.</div>
+            <div className="mt-1 font-semibold text-[10px] pt-1">विनिर्देश सं. / Specn. No.</div>
             <EditableField isEditing={isEditing} value={specNo} onChange={(val) => onChange("specNo", val)} className="leading-tight" />
           </div>
-          <div className="p-1">
-            <div className="font-semibold text-[10px]">
+          <div className="p-2">
+            <div className="font-semibold text-[10px] pt-1.5">
               गुणवत्ता आश्वासन योजना सं / QAP No.
             </div>
             <EditableField isEditing={isEditing} type="textarea" value={qapNo} onChange={(val) => onChange("qapNo", val)} className="dynamic-text leading-tight text-[10px]" />
@@ -208,8 +228,8 @@ const ErcRmIC = ({ data = {}, isEditing = false, onChange = () => {} }) => {
         </div>
 
         {/* Type of inspection/tests conducted */}
-        <div className="border-x border-b border-black p-1 md:min-h-[30px]">
-          <div className="font-semibold text-[10px]">
+        <div className="border-x border-b border-black p-2 min-h-[30px]">
+          <div className="font-semibold text-[10px] pt-1">
             किए गए निरीक्षण/परीक्षण विवरण / Type of inspection/tests conducted:
           </div>
           <EditableField isEditing={isEditing} type="textarea" value={inspectionType} onChange={(val) => onChange("inspectionType", val)} className="break-words dynamic-text leading-tight" />
@@ -277,7 +297,7 @@ const ErcRmIC = ({ data = {}, isEditing = false, onChange = () => {} }) => {
         </div>
 
         {/* Sealing / facsimile / engineer */}
-        <div className="grid grid-cols-3 border-x border-b border-black md:min-h-[40px]">
+        <div className="grid grid-cols-3 border-x border-b border-black min-h-[40px]">
           <div className="border-r border-black p-1">
             <div className="font-semibold text-[10px]">
               सील/स्टैंपिंग तथा पहचान की विधि / Pattern of sealing/stamping or
@@ -298,16 +318,18 @@ const ErcRmIC = ({ data = {}, isEditing = false, onChange = () => {} }) => {
         </div>
 
         {/* Footer */}
-        <div className="border-x border-b border-black p-2 text-center">
-          <div className="font-semibold">
+        <div className="border-x border-b border-black p-1 text-center">
+          <div className="font-semibold text-[10px] italic">
             It is certified that material is cleared for the next stage.
           </div>
-          <div className="mt-1 text-sm break-words">
-            Distribution: Manufacturer Office copy with case, RITES Bill Copy,
+          <div className="mt-1 text-[9px] leading-tight text-gray-700">
+            <span className="font-bold">Distribution: </span>
+            Manufacturer Office copy with case, RITES Bill Copy,
             Contractor, Purchaser (Railway), Consignee (Railway), Consignee
             (Manufacturer of finished product), RITES Office copy, RITES for
             final IC
           </div>
+          <div className="h-1" />
         </div>
       </div>
     </div>

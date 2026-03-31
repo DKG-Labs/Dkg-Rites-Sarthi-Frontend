@@ -73,35 +73,50 @@ const ErcFinalIc = ({ data = {}, isEditing = false, onFieldChange = () => { } })
   return (
     <div className="a4-page">
       <div className="certificate-container flex flex-col flex-grow">
-        {/* Row 1: Centered Book No & Set No Box - FLOATING */}
-        <div className="flex justify-center pt-2 pb-1">
-          <div className="grid grid-cols-2 border border-black w-[180px]">
-            <div className="border-r border-black flex flex-col">
-              <div className="border-b border-black p-0.5 font-bold text-center text-[9px] leading-tight">बुक सं. Book No.</div>
-              <div className="p-0.5 flex items-center justify-center min-h-[20px]">
-                <EditableField value={bookNo} fieldName="bookNo" className="text-center font-bold text-[11px]" />
+        {/* Row 1 & 2: RE-CENTERED HEADER UNIT (Red-Marked Design) */}
+        <div className="flex flex-col items-center pt-2 w-full">
+          {/* Centered Box */}
+          <div className="grid grid-cols-2 border-2 border-black w-[180px] bg-white">
+            <div className="border-r-2 border-black flex flex-col">
+              <div className="border-b-2 border-black p-1 font-bold text-center text-[9px] leading-tight">
+                <div className="h-[2px]" />
+                बुक सं. Book No.
+                <div className="h-[2px]" />
+              </div>
+              <div className="p-1 flex items-center justify-center min-h-[22px]">
+                <EditableField value={bookNo} fieldName="bookNo" className="text-center font-bold text-[12px]" />
               </div>
             </div>
             <div className="flex flex-col">
-              <div className="border-b border-black p-0.5 font-bold text-center text-[9px] leading-tight">सेट सं. Set No.</div>
-              <div className="p-0.5 flex items-center justify-center min-h-[20px]">
-                <EditableField value={setNo} fieldName="setNo" className="text-center font-bold text-[11px]" />
+              <div className="border-b-2 border-black p-1 font-bold text-center text-[9px] leading-tight">
+                <div className="h-[2px]" />
+                सेट सं. Set No.
+                <div className="h-[2px]" />
               </div>
+              <div className="p-1 flex items-center justify-center min-h-[22px]">
+                <EditableField value={setNo} fieldName="setNo" className="text-center font-bold text-[12px]" />
+              </div>
+            </div>
+          </div>
+
+          {/* Height-Aware Branding Row (3-column grid for perfect centering) */}
+          <div className="w-full grid grid-cols-[1fr_auto_1fr] items-end mt-1 px-4">
+            <div className="empty-col"></div>
+            <div className="text-center font-bold text-[13px] uppercase">
+              RITES LTD, NORTHERN REGION, DELHI
+            </div>
+            <div className="text-right leading-tight">
+              <div className="text-[9.5px] font-bold">निरंतरता पत्रक शामिल</div>
+              <div className="text-[8.5px] font-bold">Contains 0 Continuation Sheets</div>
             </div>
           </div>
         </div>
 
-        {/* Row 2: Regional Branding + Continuation Sheets - FLOATING */}
-        <div className="relative py-1 flex justify-center items-center min-h-[30px]">
-          <div className="font-bold text-[12px] uppercase">RITES LTD, NORTHERN REGION, DELHI</div>
-          <div className="absolute right-0 bottom-0 text-right pr-4 leading-tight">
-            <div className="text-[10px] font-bold">निरंतरता पत्रक शामिल</div>
-            <div className="text-[9px] font-bold">Contains 0 Continuation Sheets</div>
-          </div>
-        </div>
+        {/* Physical Spacer to prevent Row 3 overlap in PDF */}
+        <div className="h-2" />
 
-        {/* Row 3: Certificate No, Date, Instances - FLOATING / RIGHT-ALIGNED */}
-        <div className="flex justify-end pb-1">
+        {/* Row 3: Certificate No, Date, Instances - STABILIZED */}
+        <div className="flex justify-end">
           <div className="grid grid-cols-[1.8fr_1fr_2.7fr] border border-black text-[10px] items-stretch w-[75%]">
             {/* Col 1: Certificate No */}
             <div className="border-r border-black p-1 flex flex-col items-center justify-center text-center">
@@ -125,57 +140,61 @@ const ErcFinalIc = ({ data = {}, isEditing = false, onFieldChange = () => { } })
                 <div className="text-[11px] pr-8"><EditableField value={offeredInstNo} fieldName="offeredInstNo" type="inline" /></div>
               </div>
               <div className="mt-1 pt-1 border-t border-dotted border-gray-400 flex justify-between items-center">
-                <div>
+                <div className="pb-1">
                   <div>किस्त स. पारित Passed Instt. No.</div>
                 </div>
-                <div className="text-[11px] pr-8"><EditableField value={passedInstNo} fieldName="passedInstNo" type="inline" /></div>
+                <div className="text-[11px] pr-8 pb-1"><EditableField value={passedInstNo} fieldName="passedInstNo" type="inline" /></div>
               </div>
             </div>
           </div>
         </div>
 
         {/* Contractor & Place of Inspection Row - START FULL-WIDTH BOX */}
-        <div className="grid grid-cols-2 border border-black flex-grow md:min-h-[35px]">
-          <div className="border-r border-black p-1 flex flex-col items-start text-[10px]">
+        <div className="grid grid-cols-2 border border-black min-h-[35px]">
+          <div className="border-r border-black p-2 flex flex-col items-start text-[10px]">
+            <div className="h-1.5" />
             <div className="font-semibold text-[9px]">ठेकेदार / Contractor</div>
             <EditableField value={contractor} fieldName="contractor" type="textarea" className="break-words dynamic-text text-black uppercase font-bold leading-tight" />
           </div>
-          <div className="p-1 flex flex-col items-start text-[10px]">
+          <div className="p-2 flex flex-col items-start text-[10px]">
+            <div className="h-1.5" />
             <div className="font-semibold text-[9px]">निरीक्षण का स्थान / Place of Inspection</div>
             <EditableField value={placeOfInspection} fieldName="placeOfInspection" type="textarea" className="break-words dynamic-text text-black uppercase font-bold leading-tight" />
           </div>
         </div>
 
         {/* Contract Ref & Bill Paying Officer Row */}
-        <div className="grid grid-cols-2 border-x border-b border-black flex-grow md:min-h-[35px]">
-          <div className="border-r border-black p-1 flex flex-col items-start text-[10px]">
+        <div className="grid grid-cols-2 border-x border-b border-black min-h-[35px]">
+          <div className="border-r border-black p-2 flex flex-col items-start text-[10px]">
+            <div className="h-1.5" />
             <div className="font-semibold text-[9px]">संविदा संदर्भ एवं Contract Reference</div>
             <EditableField value={contractRef} fieldName="contractRef" type="textarea" className="dynamic-text text-black font-bold leading-tight" />
-            <div className="font-semibold mt-0.5 text-[9px]">दिनांक Date</div>
+            <div className="font-semibold mt-1 text-[9px] pt-0.5">दिनांक Date</div>
             <div className="dynamic-text text-black italic font-bold leading-tight">
               <EditableField value={contractRefDate} fieldName="contractRefDate" placeholder="PO Date" />
             </div>
           </div>
-          <div className="p-1 flex flex-col items-start text-[10px]">
+          <div className="p-2 flex flex-col items-start text-[10px]">
+            <div className="h-1.5" />
             <div className="font-semibold text-[9px]">बिल अदायगी अधिकारी Bill Paying Officer</div>
             <EditableField value={billPayingOfficer} fieldName="billPayingOfficer" type="textarea" className="break-words dynamic-text text-black font-bold leading-tight" />
           </div>
         </div>
 
         {/* Consignee & Purchasing Authority Row */}
-        <div className="grid grid-cols-2 border-x border-b border-black flex-grow md:min-h-[35px]">
-          <div className="border-r border-black p-1 flex flex-col items-start text-[10px]">
-            <div className="font-semibold text-[9px]">प्रेषिती / Consignee</div>
+        <div className="grid grid-cols-2 border-x border-b border-black min-h-[35px]">
+          <div className="border-r border-black p-2 flex flex-col items-start text-[10px]">
+            <div className="font-semibold text-[9px] pt-1">प्रेषिती / Consignee</div>
             <EditableField value={consignee} fieldName="consignee" type="textarea" className="break-words dynamic-text text-black font-bold uppercase leading-tight" />
           </div>
-          <div className="p-1 flex flex-col items-start text-[10px]">
-            <div className="font-semibold text-[9px]">क्रय प्राधिकारी / Purchasing Authority</div>
+          <div className="p-2 flex flex-col items-start text-[10px]">
+            <div className="font-semibold text-[9px] pt-1">क्रय प्राधिकारी / Purchasing Authority</div>
             <EditableField value={purchasingAuthority} fieldName="purchasingAuthority" type="textarea" className="break-words dynamic-text text-black font-bold uppercase leading-tight" />
           </div>
         </div>
 
         {/* Store Details Table Section */}
-        <div className="flex flex-col border-x border-b border-black flex-grow">
+        <div className="flex flex-col border-x border-b border-black">
           {/* Table Header Row 1 */}
           <div className="grid grid-cols-[0.5fr_2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr] border-b border-black bg-gray-50 font-bold text-center text-[9px] leading-[1.1] items-stretch min-h-[45px] text-black">
             <div className="border-r border-black p-1.5 flex flex-col justify-center"><span>मद सं</span><span>Item No.</span></div>
@@ -203,7 +222,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, onFieldChange = () => { } })
           </div>
 
           {/* Table Data Row */}
-          <div className="grid grid-cols-[0.5fr_2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr] text-center text-[10px] items-stretch border-b border-black flex-grow min-h-[100px]">
+          <div className="grid grid-cols-[0.5fr_2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr] text-center text-[10px] items-stretch border-b border-black min-h-[100px]">
             <EditableField value={itemNo} fieldName="itemNo" className="border-r border-black p-1 flex items-center justify-center font-bold" />
             <div className="border-r border-black p-2 text-left break-words flex flex-col justify-center font-bold">
               <EditableField value={description} fieldName="description" type="textarea" className="uppercase" />
@@ -238,7 +257,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, onFieldChange = () => { } })
         </div>
 
         {/* Inspection Details Section (5-column grid) */}
-        <div className="grid grid-cols-5 border-x border-b border-black text-[9px] flex-grow md:min-h-[40px]">
+        <div className="grid grid-cols-5 border-x border-b border-black text-[9px] min-h-[40px]">
           <div className="border-r border-black p-1 flex flex-col">
             <div className="font-bold leading-tight">जाँची गई इकाइयों की संख्या / No. of checked</div>
             <div className="mt-1">
@@ -272,7 +291,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, onFieldChange = () => { } })
         </div>
 
         {/* Sealing & Facsimile Section Row */}
-        <div className="grid grid-cols-3 border-x border-b border-black text-[9px] flex-grow md:min-h-[40px]">
+        <div className="grid grid-cols-3 border-x border-b border-black text-[9px] min-h-[40px]">
           <div className="border-r border-black p-1 flex flex-col">
             <div className="font-bold leading-tight">Seal/Stamping Pattern</div>
             <EditableField value={sealingPattern} fieldName="sealingPattern" type="textarea" className="text-black font-bold italic text-[9px] leading-tight flex-grow" />
@@ -288,20 +307,21 @@ const ErcFinalIc = ({ data = {}, isEditing = false, onFieldChange = () => { } })
         </div>
 
         {/* Reasons for Rejection row */}
-        <div className="border-b border-black p-1 text-[10px] md:min-h-[30px]">
+        <div className="border-x border-b border-black p-1 text-[10px] min-h-[30px]">
           <div className="font-semibold">अस्वीकृति का कारण / Reasons for rejection:</div>
           <EditableField value={reasonsForRejection} fieldName="reasonsForRejection" type="textarea" className="italic leading-tight" />
         </div>
 
         {/* Sub-Footer row */}
-        <div className="border-b border-black p-1 text-center font-bold text-[10px] italic">
+        <div className="border-x border-b border-black p-1 text-center font-bold text-[10px] italic">
           It is certified that material is cleared for the next stage.
         </div>
 
         {/* Bottom Footer row */}
-        <div className="p-1 text-center text-[8px] text-gray-700 leading-tight">
-          <div className="font-semibold">Distribution:</div>
-          <div>Manufacturer Office copy with case, RITES Bill Copy, Contractor, Purchaser (Railway), Consignee (Railway), Consignee (Manufacturer of finished product), RITES Office copy, RITES for final IC</div>
+        <div className="border-x border-b border-black p-1 text-center text-[9px] text-gray-700 leading-tight">
+          <span className="font-bold">Distribution: </span>
+          Manufacturer Office copy with case, RITES Bill Copy, Contractor, Purchaser (Railway), Consignee (Railway), Consignee (Manufacturer of finished product), RITES Office copy, RITES for final IC
+          <div className="h-1" />
         </div>
       </div>
     </div>

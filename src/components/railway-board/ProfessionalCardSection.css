@@ -1,9 +1,28 @@
 /* Professional Dashboard Section - Premium Design */
-.professional-dashboard-section {
+.dashboard-content-integrated {
     padding: 1.5rem 0;
     max-width: 1400px;
     margin: 0 auto;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Universal Table Typographic Standardization */
+.dashboard-content-integrated table,
+.dashboard-content-integrated th,
+.dashboard-content-integrated td {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+    font-size: 13.5px !important;
+    letter-spacing: -0.01em !important;
+}
+
+.dashboard-content-integrated td {
+    font-weight: 500 !important;
+    color: #1e293b !important;
+}
+
+.dashboard-content-integrated th {
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
 }
 
 /* Global Animations */

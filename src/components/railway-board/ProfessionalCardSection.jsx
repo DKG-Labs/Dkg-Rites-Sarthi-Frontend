@@ -477,7 +477,7 @@ const ProfessionalCardSection = ({
                                     <div className="g2 mb">
                                         <div className="prof-card">
                                             <div className="sec-title">Defect Distribution</div>
-                                            <div className="chart-wrap" style={{ height: '170px' }}>
+                                            <div className="chart-wrap" style={{ height: '210px' }}>
                                                 <ResponsiveContainer width="100%" height="100%">
                                                     <PieChart>
                                                         <Pie
@@ -489,9 +489,9 @@ const ProfessionalCardSection = ({
                                                                 { name: 'Quenching', value: 14, color: '#10b981' },
                                                                 { name: 'Tempering', value: 9, color: '#06b6d4' }
                                                             ]}
-                                                            innerRadius={45}
-                                                            outerRadius={65}
-                                                            paddingAngle={2}
+                                                            innerRadius={60}
+                                                            outerRadius={90}
+                                                            paddingAngle={3}
                                                             dataKey="value"
                                                         >
                                                             {(stepWiseRejectionData?.length ? stepWiseRejectionData : [
@@ -640,17 +640,20 @@ const ProfessionalCardSection = ({
                                             <div className="sec-title">Stage vs Defect Contribution</div>
                                             <div className="chart-wrap" style={{ height: '170px' }}>
                                                 <ResponsiveContainer width="100%" height="100%">
-                                                    <BarChart data={stageVsDefectTop3}>
+                                                    <BarChart data={stageVsDefectTop3} margin={{ bottom: 5 }}>
                                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0fdf4" />
                                                         <XAxis dataKey="name" axisLine={false} tickLine={false} style={{ fontSize: '10px' }} />
                                                         <YAxis axisLine={false} tickLine={false} style={{ fontSize: '10px' }} />
                                                         <Tooltip />
+                                                        <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
                                                         {top3DefectNames.map((name, i) => (
-                                                            <Bar key={name} dataKey={name} stackId="a" fill={
-                                                                name.toLowerCase().includes('raw') ? ['#166534', '#15803d', '#16a34a'][i % 3] :
-                                                                    name.toLowerCase().includes('process') || i === 1 ? ['#f59e0b', '#fbbf24', '#fde68a'][i % 3] :
-                                                                        ['#ef4444', '#f87171', '#fca5a5'][i % 3]
-                                                            } />
+                                                            <Bar
+                                                                key={name}
+                                                                dataKey={name}
+                                                                fill={i === 0 ? '#3b82f6' : i === 1 ? '#f59e0b' : '#ef4444'}
+                                                                radius={[4, 4, 0, 0]}
+                                                                barSize={20}
+                                                            />
                                                         ))}
                                                     </BarChart>
                                                 </ResponsiveContainer>
@@ -769,23 +772,23 @@ const ProfessionalCardSection = ({
                                                         <th onClick={() => handleSort('rio')}>RIO {renderSortIcon('rio', sortConfig)}</th>
                                                         <th onClick={() => handleSort('username')}>IE {renderSortIcon('username', sortConfig)}</th>
                                                         <th onClick={() => handleSort('stage')}>STAGE {renderSortIcon('stage', sortConfig)}</th>
-                                                        <th className="text-right">INSPECTED</th>
-                                                        <th className="text-right">ACCEPTED</th>
-                                                        <th className="text-right">REJECTED</th>
-                                                        <th className="text-right">REJ %</th>
+                                                        <th className="text-right" onClick={() => handleSort('inspectedQty')} style={{ cursor: 'pointer' }}>INSPECTED {renderSortIcon('inspectedQty', sortConfig)}</th>
+                                                        <th className="text-right" onClick={() => handleSort('acceptedQty')} style={{ cursor: 'pointer' }}>ACCEPTED {renderSortIcon('acceptedQty', sortConfig)}</th>
+                                                        <th className="text-right" onClick={() => handleSort('rejectedQty')} style={{ cursor: 'pointer' }}>REJECTED {renderSortIcon('rejectedQty', sortConfig)}</th>
+                                                        <th className="text-right" onClick={() => handleSort('rejectionPercentage')} style={{ cursor: 'pointer' }}>REJ % {renderSortIcon('rejectionPercentage', sortConfig)}</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     {getSortedData(filteredPerfRecords).map((record, idx) => (
                                                         <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
                                                             <td>{(perfPage * perfRowsPerPage) + idx + 1}</td>
-                                                            <td style={{ fontWeight: '600' }}>{record.manufacturerName}</td>
+                                                            <td>{record.manufacturerName}</td>
                                                             <td><span className="prof-badge" style={{ background: '#f0fdf4', color: '#166534' }}>{record.rio}</span></td>
                                                             <td>👤 {record.username}</td>
                                                             <td><span className="prof-badge" style={{ background: '#f0f9ff', color: '#075985' }}>{record.stage}</span></td>
-                                                            <td className="text-right font-semibold">{record.inspectedQty?.toLocaleString()}</td>
-                                                            <td className="text-right font-bold" style={{ color: '#16a34a' }}>{record.acceptedQty?.toLocaleString()}</td>
-                                                            <td className="text-right font-bold" style={{ color: '#dc2626' }}>{record.rejectedQty?.toLocaleString()}</td>
+                                                            <td className="text-right">{record.inspectedQty?.toLocaleString()}</td>
+                                                            <td className="text-right" style={{ color: '#16a34a' }}>{record.acceptedQty?.toLocaleString()}</td>
+                                                            <td className="text-right" style={{ color: '#dc2626' }}>{record.rejectedQty?.toLocaleString()}</td>
                                                             <td className="text-right"><span className="prof-badge" style={{ background: '#fff7ed', color: '#9a3412' }}>{formatDecimal(record.rejectionPercentage)}%</span></td>
                                                         </tr>
                                                     ))}
@@ -844,7 +847,7 @@ const ProfessionalCardSection = ({
                                                             {displayMprData.map((row, idx) => (
                                                                 <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
                                                                     <td>{row.rly}</td>
-                                                                    <td className="font-mono text-xs">{row.poNumber}</td>
+                                                                    <td>{row.poNumber}</td>
                                                                     <td>{row.manufacturer}</td>
                                                                     <td className="text-right">{row.poQty?.toLocaleString()}</td>
                                                                     <td className="text-right">{row.monthlyRm?.toLocaleString()}</td>
@@ -890,12 +893,12 @@ const ProfessionalCardSection = ({
                                                         <tbody>
                                                             {displayMauData.map((row, idx) => (
                                                                 <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
-                                                                    <td style={{ fontWeight: '600' }}>{row.manufacturer}</td>
+                                                                    <td>{row.manufacturer}</td>
                                                                     <td className="text-right">{row.manufactured?.toLocaleString()}</td>
                                                                     <td className="text-right">{row.inspected?.toLocaleString()}</td>
-                                                                    <td className="text-right font-bold" style={{ color: '#dc2626' }}>{row.rejected?.toLocaleString()}</td>
+                                                                    <td className="text-right" style={{ color: '#dc2626' }}>{row.rejected?.toLocaleString()}</td>
                                                                     <td className="text-right">{formatDecimal(row.rmRejPercent)}%</td>
-                                                                    <td className="text-right text-red-600 font-bold">{formatDecimal(row.processRejPercent)}%</td>
+                                                                    <td className="text-right text-red-600">{formatDecimal(row.processRejPercent)}%</td>
                                                                     <td className="text-right">{formatDecimal(row.finalRejPercent)}%</td>
                                                                 </tr>
                                                             ))}
@@ -1037,10 +1040,10 @@ const Level4ReportTable = ({ data }) => {
                                 <td>{basic.date ? new Date(basic.date).toLocaleDateString() : 'N/A'}</td>
                                 <td className="text-center"><span className="shift-badge">{basic.shift || '-'}</span></td>
                                 <td className="text-center font-medium text-slate-400">{idx + 1}</td>
-                                <td className="font-mono text-xs">{basic.poSrNo || '-'}</td>
-                                <td className="font-bold">{basic.lotNumber || '-'}</td>
-                                <td className="text-right font-bold text-emerald-600 bg-emerald-50/30">{basic.totalAcceptedQty?.toLocaleString() || 0}</td>
-                                <td className="text-right font-bold text-red-600 bg-red-50/30">{basic.totalRejectionQty?.toLocaleString() || 0}</td>
+                                <td>{basic.poSrNo || '-'}</td>
+                                <td>{basic.lotNumber || '-'}</td>
+                                <td className="text-right text-emerald-600 bg-emerald-50/30">{basic.totalAcceptedQty?.toLocaleString() || 0}</td>
+                                <td className="text-right text-red-600 bg-red-50/30">{basic.totalRejectionQty?.toLocaleString() || 0}</td>
 
                                 {/* Stage Data */}
                                 <td className="text-right">{qty.shearingProductionQty || 0}</td><td className="text-right text-red-400">{qty.shearingRejectionQty || 0}</td>

@@ -19,7 +19,8 @@
   margin: 0 auto;
   background: white;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  padding: 45mm 10mm 15mm 10mm; /* Match print margins for on-screen consistency */
+  padding: 45mm 10mm 15mm 10mm;
+  /* Match print margins for on-screen consistency */
   box-sizing: border-box;
   overflow: visible;
   /* Ensure content is not clipped */
@@ -103,7 +104,8 @@
     max-width: 100%;
     min-height: auto;
     margin: 0;
-    padding: 0; /* Let @page handle the margins */
+    padding: 0;
+    /* Let @page handle the margins */
     box-sizing: border-box;
     background: white !important;
     overflow: visible;
@@ -124,7 +126,8 @@
   }
 
   .certificate-container {
-    width: 210mm !important; /* Force exact print width */
+    width: 210mm !important;
+    /* Force exact print width */
     height: 100%;
     margin: 0 auto !important;
     overflow: visible;
@@ -137,7 +140,7 @@
   }
 
   /* Force flush boxed layout in print */
-  .certificate-container > div {
+  .certificate-container>div {
     margin-bottom: 0 !important;
     padding-bottom: 0 !important;
     margin-top: 0 !important;
@@ -1115,7 +1118,8 @@ body {
 .app-header {
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
-  padding: var(--space-16) var(--space-24);
+  padding: 11px var(--space-24);
+  /* Adjusted vertical padding to keep total height same with larger logo */
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1149,7 +1153,8 @@ body {
 }
 
 .brand-logo {
-  height: 52px;
+  height: 62px;
+  /* Increased from 52px */
 }
 
 .header-right {

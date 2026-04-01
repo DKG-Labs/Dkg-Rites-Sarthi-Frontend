@@ -33,21 +33,21 @@ const LoginPage = () => {
       title: 'Build quality at source.',
       highlight: 'Deliver safety on track.',
       description: 'Smart checks from material approval to final dispatch with complete digital traceability.',
-      image: '/login-assets/WhatsApp Image 2026-02-18 at 5.29.08 PM.jpeg'
+      image: '/login-assets/slide1.jpg'
     },
     {
       kicker: 'Inspection Intelligence',
       title: 'Catch issues early',
       highlight: 'with real-time inspection.',
       description: 'Drive compliance decisions faster with live alerts, clear records, and accountable workflows.',
-      image: '/login-assets/WhatsApp Image 2026-02-18 at 5.29.08 PM (1).jpeg'
+      image: '/login-assets/slide2.jpg'
     },
     {
       kicker: 'Safety Visibility',
       title: 'One platform for rails',
       highlight: 'clips, sleepers, and pads.',
       description: 'Role-based access and auditable logs keep every quality checkpoint secure and transparent.',
-      image: '/login-assets/WhatsApp Image 2026-02-18 at 5.29.08 PM.jpeg'
+      image: '/login-assets/slide1.jpg'
     }
   ];
 
@@ -55,7 +55,15 @@ const LoginPage = () => {
   useEffect(() => {
     if (isAuthenticated()) {
       const currentUser = getStoredUser();
-      let redirectPath = ROLE_LANDING_ROUTE[currentUser?.roleName] || location.state?.from?.pathname || ROUTES.LANDING;
+
+      // Special redirection for Sleeper Process IE (robust check for string or array)
+      const roleName = currentUser?.roleName;
+      if (roleName === 'Sleeper Process IE' || (typeof roleName === 'string' && roleName.includes('Sleeper Process IE'))) {
+        window.location.href = '/sleeper/';
+        return;
+      }
+
+      let redirectPath = ROLE_LANDING_ROUTE[roleName] || location.state?.from?.pathname || ROUTES.LANDING;
       navigate(redirectPath, { replace: true });
     }
   }, [navigate, location]);
@@ -97,7 +105,15 @@ const LoginPage = () => {
    */
   const handleRoleRedirection = (userData) => {
     storeAuthData(userData);
-    const redirectPath = ROLE_LANDING_ROUTE[userData.roleName] || location.state?.from?.pathname || ROUTES.LANDING;
+
+    // Special redirection for Sleeper Process IE
+    const roleName = userData.roleName;
+    if (roleName === 'Sleeper Process IE' || (typeof roleName === 'string' && roleName.includes('Sleeper Process IE'))) {
+      window.location.href = '/sleeper/';
+      return;
+    }
+
+    const redirectPath = ROLE_LANDING_ROUTE[roleName] || location.state?.from?.pathname || ROUTES.LANDING;
     navigate(redirectPath, { replace: true });
   };
 
@@ -157,6 +173,18 @@ const LoginPage = () => {
           roleToStore: 'RIO Help Desk'
         });
         seenConsolidated.add('RIO Help Desk');
+      }
+
+      // Handle Sleeper Process IE
+      if (roles.includes('Sleeper Process IE')) {
+        options.push({
+          id: 'sleeper_option',
+          label: 'Sleeper Dashboard',
+          description: 'Access Sleeper Process modules',
+          icon: '🚄',
+          roleToStore: 'Sleeper Process IE'
+        });
+        seenConsolidated.add('Sleeper Process IE');
       }
 
       // Handle any other roles that aren't part of the specific consolidation requirement

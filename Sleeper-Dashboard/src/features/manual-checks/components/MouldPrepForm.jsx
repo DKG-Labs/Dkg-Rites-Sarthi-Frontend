@@ -1,0 +1,342 @@
+import React, { useState, useEffect } from 'react';
+import '../../../components/common/Checkbox.css';
+import { useShift } from '../../../context/ShiftContext';
+
+const MouldPrepForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initialData, activeContainer, sharedBatchNo, sharedBenchNo, onShiftFieldChange }) => {
+    const { allWitnessedRecords } = useShift();
+    const getLocalISOString = () => {
+        const now = new Date();
+        const offset = now.getTimezoneOffset() * 60000;
+        return (new Date(now - offset)).toISOString().slice(0, 16);
+    };
+
+    const [formData, setFormData] = useState({
+        location: activeContainer?.name || 'N/A',
+        dateTime: getLocalISOString(),
+        batchNo: '',
+        benchNo: '',
+        sleeperType: 'RT-8746',
+        mouldCleaned: '',
+        oilApplied: '',
+        remarks: ''
+    });
+
+    const [validationErrors, setValidationErrors] = useState([]);
+
+    const formatFromBackendDatePart = (dateStr) => {
+        if (!dateStr) return '';
+        if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) return dateStr.substring(0, 10);
+        if (/^\d{2}\/\d{2}\/\d{4}/.test(dateStr)) {
+            const [d, m, y] = dateStr.split('/');
+            return `${y}-${m}-${d}`;
+        }
+        return dateStr;
+    };
+
+    const formatForInput = (dt, time) => {
+        if (!dt) return getLocalISOString();
+        if (dt.includes('T')) return dt.substring(0, 16);
+        const datePart = formatFromBackendDatePart(dt);
+        const timePart = time || '00:00';
+        return `${datePart}T${timePart.substring(0, 5)}`;
+    };
+
+    useEffect(() => {
+        if (initialData) {
+            const convertToYesNo = (value) => {
+                if (value === 1 || value === true || value === 'Yes') return 'Yes';
+                if (value === 0 || value === false || value === 'No') return 'No';
+                return '';
+            };
+
+            setFormData({
+                ...initialData,
+                location: initialData.lineShedNo || initialData.location || activeContainer?.name || 'N/A',
+                dateTime: formatForInput(initialData.dateTime || initialData.preparationDate || initialData.date || initialData.createdDate, initialData.preparationTime || initialData.time),
+                batchNo: initialData.batchNo || initialData.batch || '',
+                benchNo: initialData.benchNo || initialData.benchGangNo || '',
+                mouldCleaned: convertToYesNo(initialData.mouldCleaned !== undefined ? initialData.mouldCleaned : initialData.lumpsFree),
+                oilApplied: convertToYesNo(initialData.oilApplied)
+            });
+        }
+    }, [initialData, activeContainer]);
+
+
+    // Auto-fetch Location based on Batch Number
+    useEffect(() => {
+        if (formData.batchNo && !initialData) {
+            let foundLocation = '';
+            Object.values(allWitnessedRecords || {}).forEach(records => {
+                const match = records.find(r => String(r.batchNo) === String(formData.batchNo));
+                if (match && match.location) foundLocation = match.location;
+            });
+            if (foundLocation && formData.location !== foundLocation) {
+                setFormData(prev => ({ ...prev, location: foundLocation }));
+            }
+        }
+    }, [formData.batchNo, initialData, allWitnessedRecords]);
+
+    const handleChange = (field, value) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
+        if (field === 'batchNo' || field === 'benchNo') {
+            onShiftFieldChange(field, value);
+        }
+    };
+
+    const formatToBackendDate = (dateStr) => {
+        if (!dateStr) return null;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+            const [year, month, day] = dateStr.split("-");
+            return `${day}/${month}/${year}`;
+        }
+        return dateStr;
+    };
+
+    const handleSave = () => {
+        const errors = [];
+        if (!formData.batchNo) errors.push('Batch No.');
+        if (!formData.benchNo) errors.push(`${fieldLabel} No.`);
+        if (!formData.mouldCleaned) errors.push('Mould Cleaning Status');
+        if (!formData.oilApplied) errors.push('Oil Application Status');
+
+        if (errors.length > 0) {
+            setValidationErrors(errors);
+            return;
+        }
+
+        setValidationErrors([]);
+
+        if (!initialData) {
+            const isDuplicate = (existingEntries || []).some(entry => 
+                String(entry.batchNo || entry.batch) === String(formData.batchNo) && 
+                String(entry.benchNo || entry.benchGangNo) === String(formData.benchNo)
+            );
+            
+            if (isDuplicate) {
+                alert(`Record already exists: Batch ${formData.batchNo} with ${fieldLabel} ${formData.benchNo} has already been recorded.`);
+                return;
+            }
+        }
+
+        const payload = {
+            lineShedNo: formData.location || activeContainer?.name || 'N/A',
+            preparationDate: formatToBackendDate(formData.dateTime.split('T')[0]),
+            preparationTime: formData.dateTime.split('T')[1],
+            batchNo: parseInt(formData.batchNo) || 0,
+            benchNo: parseInt(formData.benchNo) || 0,
+            mouldCleaned: formData.mouldCleaned === 'Yes',
+            oilApplied: formData.oilApplied === 'Yes',
+            remarks: formData.remarks || '',
+            createdBy: parseInt(localStorage.getItem('userId') || '1', 10),
+            updateBy: 0
+        };
+
+        onSave(payload);
+
+        setFormData(prev => ({
+            ...prev,
+            mouldCleaned: '',
+            oilApplied: '',
+            remarks: ''
+        }));
+    };
+
+    const fieldLabel = (formData.location || '').toLowerCase().includes('line') ? 'Gang' : 'Bench';
+
+    return (
+        <div className="form-container" style={{ padding: '20px' }}>
+            <div className="form-grid-standard">
+                <div className="form-field">
+                    <label style={{ fontSize: '11px', color: '#64748b', fontWeight: '700' }}>Location</label>
+                    <select
+                        className="form-input-standard"
+                        value={formData.location}
+                        onChange={e => handleChange('location', e.target.value)}
+                        style={{ width: '100%', boxSizing: 'border-box' }}
+                    >
+                        <option value="N/A">-- Select --</option>
+                        <option value="Long Line">Long Line</option>
+                        <option value="Line 1">Line 1</option>
+                        <option value="Line 2">Line 2</option>
+                        <option value="Line 3">Line 3</option>
+                        <option value="Shed 1">Shed 1</option>
+                        <option value="Shed 2">Shed 2</option>
+                        <option value="Shed 3">Shed 3</option>
+                    </select>
+                </div>
+
+                <div className="form-field">
+                    <label htmlFor="prep-datetime" style={{ fontSize: '11px', fontWeight: '700' }}>Date & Time <span className="required">*</span></label>
+                    <input
+                        id="prep-datetime"
+                        type="datetime-local"
+                        className="form-input-standard"
+                        value={formData.dateTime}
+                        onChange={e => handleChange('dateTime', e.target.value)}
+                    />
+                </div>
+
+                <div className="form-field">
+                    <label htmlFor="batchNo" style={{ fontSize: '11px', fontWeight: '700' }}>Batch No. <span className="required">*</span></label>
+                    <input
+                        id="batchNo"
+                        type="number"
+                        placeholder="Batch No"
+                        className="form-input-standard"
+                        value={formData.batchNo}
+                        onChange={e => handleChange('batchNo', e.target.value)}
+                    />
+                </div>
+
+                <div className="form-field">
+                    <label htmlFor="benchNo" style={{ fontSize: '11px', fontWeight: '700' }}>{fieldLabel} No. <span className="required">*</span></label>
+                    <input
+                        id="benchNo"
+                        type="number"
+                        placeholder={`${fieldLabel} No`}
+                        className="form-input-standard"
+                        value={formData.benchNo}
+                        onChange={e => handleChange('benchNo', e.target.value)}
+                    />
+                </div>
+
+                <div className="form-field">
+                    <label htmlFor="sleeperType" style={{ fontSize: '11px', fontWeight: '700' }}>Sleeper Type <span className="required">*</span></label>
+                    <select
+                        id="sleeperType"
+                        className="form-input-standard"
+                        value={formData.sleeperType}
+                        onChange={e => handleChange('sleeperType', e.target.value)}
+                    >
+                        <option value="RT-8746">RT-8746</option>
+                    </select>
+                </div>
+
+                <div className="form-field">
+                    <label style={{ fontSize: '11px', fontWeight: '700' }}>Mould Cleaned? <span className="required">*</span></label>
+                    <select
+                        className="form-input-standard"
+                        value={formData.mouldCleaned}
+                        onChange={e => handleChange('mouldCleaned', e.target.value)}
+                    >
+                        <option value="">-- Select --</option>
+                        <option value="Yes">Yes (Lumps Free)</option>
+                        <option value="No">No (Has Lumps)</option>
+                    </select>
+                </div>
+
+                <div className="form-field">
+                    <label style={{ fontSize: '11px', fontWeight: '700' }}>Oil Applied? <span className="required">*</span></label>
+                    <select
+                        className="form-input-standard"
+                        value={formData.oilApplied}
+                        onChange={e => handleChange('oilApplied', e.target.value)}
+                    >
+                        <option value="">-- Select --</option>
+                        <option value="Yes">Yes</option>
+                        <option value="No">No</option>
+                    </select>
+                </div>
+
+                <div className="form-field form-field-full">
+                    <label htmlFor="remarks" style={{ fontSize: '11px', fontWeight: '700' }}>Remarks</label>
+                    <input
+                        id="remarks"
+                        type="text"
+                        placeholder="Additional remarks"
+                        className="form-input-standard"
+                        value={formData.remarks}
+                        onChange={e => handleChange('remarks', e.target.value)}
+                    />
+                </div>
+            </div>
+
+            <div className="form-actions-row">
+                <button className="toggle-btn" onClick={handleSave}>
+                    {initialData ? 'Update Record' : 'Save Record'}
+                </button>
+                {initialData && <button className="toggle-btn secondary" onClick={onCancel}>Cancel</button>}
+            </div>
+
+            {/* Validation Errors Modal */}
+            {validationErrors.length > 0 && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(15, 23, 42, 0.45)',
+                    zIndex: 99999,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backdropFilter: 'blur(4px)',
+                    padding: '24px'
+                }}>
+                    <div className="fade-in" style={{
+                        maxWidth: '400px',
+                        width: '100%',
+                        background: '#fff',
+                        borderRadius: '24px',
+                        padding: '2rem',
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15)',
+                        border: '1px solid #e2e8f0',
+                        textAlign: 'center'
+                    }}>
+                        <div style={{
+                            width: '48px',
+                            height: '48px',
+                            background: '#fee2e2',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            margin: '0 auto 1.5rem auto',
+                            color: '#ef4444',
+                            fontSize: '20px'
+                        }}>!</div>
+                        <h3 style={{ margin: '0 0 8px 0', fontSize: '1.25rem', fontWeight: '800', color: '#1e293b' }}>Missing Information</h3>
+                        <p style={{ margin: '0 0 1.5rem 0', fontSize: '0.9rem', color: '#64748b', lineHeight: '1.5' }}>
+                            Please provide the following required details:
+                        </p>
+                        
+                        <div style={{ 
+                            background: '#f8fafc', 
+                            borderRadius: '12px', 
+                            padding: '16px', 
+                            marginBottom: '2rem',
+                            textAlign: 'left',
+                            border: '1px solid #f1f5f9'
+                        }}>
+                            <ul style={{ margin: 0, padding: '0 0 0 20px', color: '#dc2626', fontSize: '0.875rem', fontWeight: '700', lineHeight: '1.8' }}>
+                                {validationErrors.map((err, idx) => (
+                                    <li key={idx}>{err}</li>
+                                ))}
+                            </ul>
+                        </div>
+
+                        <button
+                            onClick={() => setValidationErrors([])}
+                            style={{
+                                width: '100%',
+                                padding: '14px',
+                                borderRadius: '14px',
+                                border: 'none',
+                                background: '#1e293b',
+                                color: '#fff',
+                                fontWeight: '800',
+                                fontSize: '0.9rem',
+                                cursor: 'pointer',
+                                boxShadow: '0 4px 6px -1px rgba(30, 41, 59, 0.2)',
+                                transition: 'all 0.2s'
+                            }}
+                        >Confirm & Edit</button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default MouldPrepForm;

@@ -1,0 +1,502 @@
+import React, { useState, useEffect } from 'react';
+import '../../../components/common/Checkbox.css';
+import { useShift } from '../../../context/ShiftContext';
+
+const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initialData, activeContainer, sharedBatchNo, sharedBenchNo, onShiftFieldChange }) => {
+    const { allWitnessedRecords } = useShift();
+    // 1. dateTime, noOfWires, and arrangement Stored in form state
+    const getLocalISOString = () => {
+        const now = new Date();
+        const offset = now.getTimezoneOffset() * 60000;
+        return (new Date(now - offset)).toISOString().slice(0, 16);
+    };
+
+    const [formData, setFormData] = useState({
+        location: activeContainer?.name || 'N/A',
+        dateTime: getLocalISOString(),
+        batch: '',
+        gangNo: '',
+        sleeperType: 'RT-8746',
+        noOfWires: '16',
+        wireDia: '',
+        layLength: '',
+        observedWeight: '',
+        arrangement: '',
+        remarks: ''
+    });
+
+    const [validationErrors, setValidationErrors] = useState([]);
+
+    const formatFromBackendDate = (dateStr) => {
+        if (!dateStr) return '';
+        if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) return dateStr.substring(0, 10);
+        if (/^\d{2}\/\d{2}\/\d{4}/.test(dateStr)) {
+            const [d, m, y] = dateStr.split('/');
+            return `${y}-${m}-${d}`;
+        }
+        return dateStr;
+    };
+
+    const formatForInput = (dt, time) => {
+        if (!dt) return getLocalISOString();
+        if (dt.includes('T')) return dt.substring(0, 16);
+        const datePart = formatFromBackendDate(dt);
+        const timePart = time || '00:00';
+        return `${datePart}T${timePart.substring(0, 5)}`;
+    };
+
+    useEffect(() => {
+        if (initialData) {
+            setFormData({
+                ...initialData,
+                location: initialData.lineShedNo || initialData.location || activeContainer?.name || 'N/A',
+                dateTime: formatForInput(initialData.placementDate || initialData.dateTime || initialData.inspectionDate || initialData.date || initialData.createdDate, initialData.placementTime || initialData.time),
+                batch: initialData.batch || initialData.batchNo || '',
+                gangNo: initialData.gangNo || initialData.benchNo || '',
+                noOfWires: initialData.noOfWires || initialData.noOfWiresUsed || initialData.wiresUsed || '',
+                wireDia: initialData.wireDia || initialData.htsWireDiaMm || '',
+                layLength: initialData.layLength || initialData.layLengthMm || '',
+                observedWeight: initialData.observedWeight || initialData.observedWeightKgM || '',
+                arrangement: initialData.arrangement || (initialData.arrangementOk !== undefined ? (initialData.arrangementOk ? 'OK' : 'Not OK') : (initialData.htsArrangementCheck || '')),
+                status: initialData.status || initialData.overallStatus || '--',
+                remarks: initialData.remarks || ''
+            });
+            console.log('📋 HTSWireForm - Prefilled from:', initialData);
+        }
+    }, [initialData, activeContainer]);
+
+    const SLEEPER_RULES = {
+        'RT-2496': { wires: 18, diaMin: 2.97, diaMax: 3.03, nominalWeight: 0.166 },
+        'RT-8746': { wires: 16, diaMin: 2.97, diaMax: 3.03, nominalWeight: 0.166 },
+        'RT-1234': { wires: 18, diaMin: 2.97, diaMax: 3.03, nominalWeight: 0.166 },
+        'RT-5678': { wires: 20, diaMin: 2.97, diaMax: 3.03, nominalWeight: 0.166 },
+        'RT-9012': { wires: 24, diaMin: 2.97, diaMax: 3.03, nominalWeight: 0.166 },
+        'G-101': { wires: 18, diaMin: 2.97, diaMax: 3.03, nominalWeight: 0.166 }
+    };
+
+
+    // Auto-fetch Location based on Batch Number
+    useEffect(() => {
+        if (formData.batch && !initialData) {
+            let foundLocation = '';
+            Object.values(allWitnessedRecords || {}).forEach(records => {
+                const match = records.find(r => String(r.batchNo) === String(formData.batch));
+                if (match && match.location) foundLocation = match.location;
+            });
+            if (foundLocation && formData.location !== foundLocation) {
+                setFormData(prev => ({ ...prev, location: foundLocation }));
+            }
+        }
+    }, [formData.batch, initialData, allWitnessedRecords]);
+
+    // Auto Overall Status calculation
+    useEffect(() => {
+        const rules = SLEEPER_RULES[formData.sleeperType] || { wires: 18, diaMin: 2.97, diaMax: 3.03 };
+        
+        const { noOfWires, wireDia, layLength, observedWeight, arrangement } = formData;
+
+        // If mandatory measurement fields and arrangement are empty, keep status as '--'
+        if (!noOfWires && !wireDia && !layLength && !observedWeight && !arrangement) {
+            if (formData.status !== '--') {
+                setFormData(prev => ({ ...prev, status: '--' }));
+            }
+            return;
+        }
+
+        const wiresNum = parseInt(noOfWires);
+        const diaNum = parseFloat(wireDia);
+        const layLenNum = parseFloat(layLength);
+
+        // Validation checks (only if value is present)
+        const isWiresOk = !noOfWires || wiresNum === rules.wires;
+        const isDiaOk = !wireDia || (!isNaN(diaNum) && diaNum >= rules.diaMin && diaNum <= rules.diaMax);
+        const isLayLenOk = !layLength || (!isNaN(layLenNum) && layLenNum >= 72 && layLenNum <= 108);
+        const isArrangementChecked = arrangement === 'OK';
+        const isArrangementFailed = arrangement === 'Not OK';
+
+        // Overall Status Logic:
+        // 1. 'Not OK' if any filled field is incorrect OR arrangement is 'Not OK'
+        // 2. 'OK' if arrangement is 'OK' (assuming dimensions are either correct or not yet filled)
+        // 3. '--' otherwise (blank initial state)
+        
+        let calculatedStatus = '--';
+        if (!isWiresOk || !isDiaOk || !isLayLenOk || isArrangementFailed) {
+            calculatedStatus = 'Not OK';
+        } else if (isArrangementChecked) {
+            calculatedStatus = 'OK';
+        } else {
+            calculatedStatus = '--';
+        }
+
+        if (formData.status !== calculatedStatus) {
+            setFormData(prev => ({ 
+                ...prev, 
+                status: calculatedStatus
+            }));
+        }
+    }, [formData.wireDia, formData.sleeperType, formData.noOfWires, formData.layLength, formData.observedWeight, formData.arrangement]);
+
+    const handleChange = (field, value) => {
+        setFormData(prev => {
+            const newState = { ...prev, [field]: value };
+            
+            // Auto fill number of wires when sleeper type changes
+            if (field === 'sleeperType' && SLEEPER_RULES[value]) {
+                newState.noOfWires = SLEEPER_RULES[value].wires.toString();
+            }
+            
+            return newState;
+        });
+    };
+
+    const formatToBackendDate = (dateStr) => {
+        if (!dateStr) return null;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+            const [year, month, day] = dateStr.split("-");
+            return `${day}/${month}/${year}`;
+        }
+        return dateStr;
+    };
+
+    const handleSave = () => {
+        const mandatoryErrors = [];
+        if (!formData.batch) mandatoryErrors.push('Batch No.');
+        if (!formData.gangNo) mandatoryErrors.push(`${fieldLabel} No.`);
+        if (!formData.noOfWires) mandatoryErrors.push('No. of Wires Used');
+        if (!formData.wireDia) mandatoryErrors.push('HTS Wire Dia');
+        if (!formData.layLength) mandatoryErrors.push('Lay Length (mm)');
+        if (!formData.observedWeight) mandatoryErrors.push('Observed Weight');
+        if (!formData.arrangement) mandatoryErrors.push('Arrangement Status');
+
+        if (mandatoryErrors.length > 0) {
+            setValidationErrors(mandatoryErrors);
+            return;
+        }
+
+        setValidationErrors([]);
+
+        const rules = SLEEPER_RULES[formData.sleeperType] || { wires: 18, diaMin: 2.97, diaMax: 3.03, nominalWeight: 0.166 };
+        const layLenNum = parseFloat(formData.layLength);
+        const diaNum = parseFloat(formData.wireDia);
+        const wiresNum = parseInt(formData.noOfWires);
+
+        // Hard validation — block save if any value is out of range
+        const errors = [];
+        const requiredWires = rules.wires;
+
+        if (wiresNum !== requiredWires) {
+            errors.push(`• No. of Wires: ${wiresNum} (Required: ${requiredWires})`);
+        }
+        if (diaNum < rules.diaMin || diaNum > rules.diaMax) {
+            errors.push(`• Wire Dia: ${diaNum.toFixed(2)}mm (Allowed: ${rules.diaMin}–${rules.diaMax}mm)`);
+        }
+        if (layLenNum < 72 || layLenNum > 108) {
+            errors.push(`• Lay Length: ${layLenNum.toFixed(1)}mm (Allowed: 72–108mm)`);
+        }
+
+        if (errors.length > 0) {
+            const confirmed = window.confirm(`⚠️ ATTENTION: OUT OF TOLERANCE\n\nOne or more parameters are outside the standard QC range:\n\n${errors.join('\n')}\n\nDo you want to proceed with saving this deviation?`);
+            if (!confirmed) return;
+        }
+
+        // Payload matching hts-wire-placement-controller schema exactly
+        const payload = {
+            lineShedNo: formData.location || activeContainer?.name || 'N/A',
+            placementDate: formatToBackendDate(formData.dateTime.split('T')[0]),
+            placementTime: formData.dateTime.split('T')[1],
+            batchNo: parseInt(formData.batch) || 0,
+            benchNo: parseInt(formData.gangNo) || 0,
+            sleeperType: formData.sleeperType || 'RT-1234',
+            noOfWiresUsed: wiresNum || 0,
+            htsWireDiaMm: diaNum || 0,
+            layLengthMm: layLenNum,
+            observedWeightKgM: parseFloat(formData.observedWeight) || 0,
+            arrangementOk: formData.arrangement === 'OK',
+            overallStatus: formData.status,
+            remarks: formData.remarks || '',
+            createdBy: parseInt(localStorage.getItem('userId') || '0', 10),
+            updatedBy: parseInt(localStorage.getItem('userId') || '0', 10)
+        };
+
+        onSave(payload);
+
+        // Reset fields after save (keeping location and dateTime and shared fields)
+        setFormData(prev => ({
+            ...prev,
+            noOfWires: '',
+            wireDia: '',
+            layLength: '',
+            arrangement: '',
+            status: '--',
+            remarks: ''
+        }));
+    };
+
+    const fieldLabel = (formData.location || '').toLowerCase().includes('line') ? 'Gang' : 'Bench';
+    const currentRules = SLEEPER_RULES[formData.sleeperType] || { wires: '18/20/24', diaMin: 2.97, diaMax: 3.03, nominalWeight: 0.166 };
+
+    return (
+        <div className="form-container" style={{ padding: '20px' }}>
+            <div className="form-grid-standard">
+                <div className="form-field">
+                    <label style={{ fontSize: '11px', color: '#64748b', fontWeight: '700' }}>Location</label>
+                    <select
+                        className="form-input-standard"
+                        value={formData.location}
+                        onChange={e => handleChange('location', e.target.value)}
+                        style={{ width: '100%', boxSizing: 'border-box' }}
+                    >
+                        <option value="N/A">-- Select --</option>
+                        <option value="Long Line">Long Line</option>
+                        <option value="Line 1">Line 1</option>
+                        <option value="Line 2">Line 2</option>
+                        <option value="Shed 1">Shed 1</option>
+                        <option value="Shed 2">Shed 2</option>
+                    </select>
+                </div>
+
+                <div className="form-field">
+                    <label htmlFor="hts-datetime" style={{ fontSize: '11px', fontWeight: '700' }}>Date & Time <span className="required">*</span></label>
+                    {/* 2. Bound using value and onChange */}
+                    <input
+                        id="hts-datetime"
+                        type="datetime-local"
+                        className="form-input-standard"
+                        value={formData.dateTime}
+                        onChange={e => handleChange('dateTime', e.target.value)}
+                    />
+                </div>
+
+                <div className="form-field">
+                    <label htmlFor="batch" style={{ fontSize: '11px', fontWeight: '700' }}>Batch <span className="required">*</span></label>
+                    <input
+                        id="batch"
+                        type="number"
+                        placeholder="Batch No"
+                        className="form-input-standard"
+                        value={formData.batch}
+                        onChange={e => handleChange('batch', e.target.value)}
+                    />
+                </div>
+
+                <div className="form-field">
+                    <label htmlFor="gangNo" style={{ fontSize: '11px', fontWeight: '700' }}>{fieldLabel} No. <span className="required">*</span></label>
+                    <input
+                        id="gangNo"
+                        type="number"
+                        min="0"
+                        placeholder={`${fieldLabel} No`}
+                        className="form-input-standard"
+                        value={formData.gangNo}
+                        onChange={e => handleChange('gangNo', e.target.value)}
+                    />
+                </div>
+
+                <div className="form-field">
+                    <label htmlFor="sleeperType" style={{ fontSize: '11px', fontWeight: '700' }}>Sleeper Type <span className="required">*</span></label>
+                    <select
+                        id="sleeperType"
+                        className="form-input-standard"
+                        value={formData.sleeperType}
+                        onChange={e => handleChange('sleeperType', e.target.value)}
+                    >
+                        <option value="RT-8746">RT-8746</option>
+                    </select>
+                </div>
+
+                <div className="form-field">
+                    <label htmlFor="noOfWires" style={{ fontSize: '11px', fontWeight: '700' }}>No. of Wires Used <span className="required">*</span></label>
+                    <input
+                        id="noOfWires"
+                        type="number"
+                        min="0"
+                        placeholder="Integer"
+                        className={`form-input-standard ${formData.noOfWires && (parseInt(formData.noOfWires) !== currentRules.wires) ? 'form-input-error' : ''}`}
+                        value={formData.noOfWires}
+                        onChange={e => handleChange('noOfWires', e.target.value)}
+                    />
+                    <div style={{ fontSize: '11px', marginTop: '4px', color: formData.noOfWires && (parseInt(formData.noOfWires) !== currentRules.wires) ? '#ef4444' : '#64748b' }}>
+                        Required: {currentRules.wires} wires
+                    </div>
+                </div>
+
+                <div className="form-field">
+                    <label htmlFor="wireDia" style={{ fontSize: '11px', fontWeight: '700' }}>HTS Wire Dia (Nominal: 3.00mm) <span className="required">*</span></label>
+                    <input
+                        id="wireDia"
+                        type="number"
+                        step="0.01"
+                        placeholder="3.00"
+                        className={`form-input-standard ${formData.wireDia && (parseFloat(formData.wireDia) < currentRules.diaMin || parseFloat(formData.wireDia) > currentRules.diaMax) ? 'form-input-error' : ''}`}
+                        value={formData.wireDia}
+                        onChange={e => handleChange('wireDia', e.target.value)}
+                    />
+                    <div style={{ fontSize: '11px', marginTop: '4px', color: formData.wireDia && (parseFloat(formData.wireDia) < currentRules.diaMin || parseFloat(formData.wireDia) > currentRules.diaMax) ? '#ef4444' : '#64748b' }}>
+                        Required: {currentRules.diaMin}-{currentRules.diaMax} mm
+                    </div>
+                </div>
+
+                <div className="form-field">
+                    <label htmlFor="layLength" style={{ fontSize: '11px', fontWeight: '700' }}>Lay Length (mm) <span className="required">*</span></label>
+                    <input
+                        id="layLength"
+                        type="number"
+                        step="0.1"
+                        placeholder="e.g. 100.0"
+                        className={`form-input-standard ${formData.layLength && (parseFloat(formData.layLength) < 72 || parseFloat(formData.layLength) > 108) ? 'form-input-error' : ''}`}
+                        value={formData.layLength}
+                        onChange={e => handleChange('layLength', e.target.value)}
+                    />
+                    <div style={{ fontSize: '11px', marginTop: '4px', color: formData.layLength && (parseFloat(formData.layLength) < 72 || parseFloat(formData.layLength) > 108) ? '#ef4444' : '#64748b' }}>
+                        Required: 72-108 mm
+                    </div>
+                </div>
+
+                <div className="form-field">
+                    <label htmlFor="observedWeight" style={{ fontSize: '11px', fontWeight: '700' }}>Observed Weight (kg/m) <span className="required">*</span></label>
+                    <input
+                        id="observedWeight"
+                        type="number"
+                        step="0.001"
+                        placeholder="0.166"
+                        className="form-input-standard"
+                        value={formData.observedWeight}
+                        onChange={e => handleChange('observedWeight', e.target.value)}
+                    />
+                    <div style={{ fontSize: '11px', marginTop: '4px', color: '#64748b' }}>
+                        Nominal: {currentRules.nominalWeight.toFixed(3)} kg/m
+                    </div>
+                </div>
+
+                <div className="form-field">
+                    <label style={{ fontSize: '11px', fontWeight: '700' }}>Arrangement OK? <span className="required">*</span></label>
+                    <select
+                        value={formData.arrangement}
+                        className="form-input-standard"
+                        onChange={e => handleChange('arrangement', e.target.value)}
+                    >
+                        <option value="">-- Select --</option>
+                        <option value="OK">OK</option>
+                        <option value="Not OK">Not OK</option>
+                    </select>
+                </div>
+
+                <div className="form-field">
+                    <label style={{ fontSize: '11px', color: '#64748b', fontWeight: '700' }}>Status</label>
+                    <div style={{
+                        padding: '10px',
+                        background: formData.status === 'OK' ? '#ecfdf5' : formData.status === 'Not OK' ? '#fef2f2' : '#f8fafc',
+                        borderRadius: '6px',
+                        fontWeight: '800',
+                        color: formData.status === 'OK' ? '#059669' : formData.status === 'Not OK' ? '#dc2626' : '#64748b',
+                        fontSize: '13px',
+                        border: '1px solid',
+                        borderColor: formData.status === 'OK' ? '#10b981' : formData.status === 'Not OK' ? '#ef4444' : '#e2e8f0',
+                        textAlign: 'center'
+                    }}>
+                        {formData.status}
+                    </div>
+                </div>
+
+                <div className="form-field form-field-full">
+                    <label htmlFor="remarks" style={{ fontSize: '11px', fontWeight: '700' }}>Remarks</label>
+                    <input
+                        id="remarks"
+                        type="text"
+                        placeholder="Observations"
+                        className="form-input-standard"
+                        value={formData.remarks}
+                        onChange={e => handleChange('remarks', e.target.value)}
+                    />
+                </div>
+            </div>
+
+            <div className="form-actions-row">
+                <button className="toggle-btn" onClick={handleSave}>
+                    {initialData ? 'Update Record' : 'Save Record'}
+                </button>
+                {initialData && <button className="toggle-btn secondary" onClick={onCancel}>Cancel</button>}
+            </div>
+
+            {/* Validation Errors Modal */}
+            {validationErrors.length > 0 && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(15, 23, 42, 0.45)',
+                    zIndex: 99999,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backdropFilter: 'blur(4px)',
+                    padding: '24px'
+                }}>
+                    <div className="fade-in" style={{
+                        maxWidth: '400px',
+                        width: '100%',
+                        background: '#fff',
+                        borderRadius: '24px',
+                        padding: '2rem',
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15)',
+                        border: '1px solid #e2e8f0',
+                        textAlign: 'center'
+                    }}>
+                        <div style={{
+                            width: '48px',
+                            height: '48px',
+                            background: '#fee2e2',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            margin: '0 auto 1.5rem auto',
+                            color: '#ef4444',
+                            fontSize: '20px'
+                        }}>!</div>
+                        <h3 style={{ margin: '0 0 8px 0', fontSize: '1.25rem', fontWeight: '800', color: '#1e293b' }}>Required Fields</h3>
+                        <p style={{ margin: '0 0 1.5rem 0', fontSize: '0.9rem', color: '#64748b', lineHeight: '1.5' }}>
+                            The following parameters must be entered before saving:
+                        </p>
+                        
+                        <div style={{ 
+                            background: '#f8fafc', 
+                            borderRadius: '12px', 
+                            padding: '16px', 
+                            marginBottom: '2rem',
+                            textAlign: 'left',
+                            border: '1px solid #f1f5f9'
+                        }}>
+                            <ul style={{ margin: 0, padding: '0 0 0 20px', color: '#dc2626', fontSize: '0.875rem', fontWeight: '700', lineHeight: '1.8' }}>
+                                {validationErrors.map((err, idx) => (
+                                    <li key={idx}>{err}</li>
+                                ))}
+                            </ul>
+                        </div>
+
+                        <button
+                            onClick={() => setValidationErrors([])}
+                            style={{
+                                width: '100%',
+                                padding: '14px',
+                                borderRadius: '14px',
+                                border: 'none',
+                                background: '#1e293b',
+                                color: '#fff',
+                                fontWeight: '800',
+                                fontSize: '0.9rem',
+                                cursor: 'pointer',
+                                boxShadow: '0 4px 6px -1px rgba(30, 41, 59, 0.2)',
+                                transition: 'all 0.2s'
+                            }}
+                        >Confirm & Edit</button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default HTSWireForm;

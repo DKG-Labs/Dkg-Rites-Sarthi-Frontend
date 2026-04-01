@@ -76,9 +76,15 @@ import { useNavigate } from 'react-router-dom';
 
 const RoleBasedRedirect = () => {
   const user = getStoredUser();
-  const target =
-    ROLE_LANDING_ROUTE[user?.roleName] || ROUTES.LOGIN;
+  const roleName = user?.roleName;
 
+  // Handle external redirection for Sleeper Process IE
+  if (roleName === 'Sleeper Process IE' || (typeof roleName === 'string' && roleName.includes('Sleeper Process IE'))) {
+    window.location.href = '/sleeper/';
+    return null;
+  }
+
+  const target = ROLE_LANDING_ROUTE[roleName] || ROUTES.LOGIN;
   return <Navigate to={target} replace />;
 };
 
@@ -104,16 +110,19 @@ const RoleBasedRedirect = () => {
 
 const LandingPageGuard = () => {
   const user = getStoredUser();
+  const roleName = user?.roleName;
+
+  // Handle external redirection for Sleeper Process IE
+  if (roleName === 'Sleeper Process IE' || (typeof roleName === 'string' && roleName.includes('Sleeper Process IE'))) {
+    window.location.href = '/sleeper/';
+    return null;
+  }
 
   // Allow IE and Process IE users to access landing page
   const ieRoles = ['IE', 'Process IE'];
-  if (!ieRoles.includes(user?.roleName)) {
-    return (
-      <Navigate
-        to={ROLE_LANDING_ROUTE[user?.roleName]}
-        replace
-      />
-    );
+  if (!ieRoles.includes(roleName)) {
+    const target = ROLE_LANDING_ROUTE[roleName] || ROUTES.LOGIN;
+    return <Navigate to={target} replace />;
   }
 
   return <LandingPageWrapper />;
@@ -187,55 +196,55 @@ const App = () => {
               <Route path={ROUTES.IC_RAW_MATERIAL} element={<RawMaterialCertificateWrapper />} />
               <Route path={ROUTES.IC_PROCESS} element={<ProcessMaterialCertificateWrapper />} />
               <Route path={ROUTES.IC_FINAL_PRODUCT} element={<FinalProductCertificateWrapper />} />
-              
+
               {/* Annexures Route */}
               <Route path={ROUTES.ANNEXURES} element={<AnnexureRouteWrapper />} />
             </Route>
 
             {/* Role-Specific Dashboards */}
-            <Route 
-              path={ROUTES.CM_DASHBOARD} 
+            <Route
+              path={ROUTES.CM_DASHBOARD}
               element={
                 <ProtectedRoute allowedRoles={['CM']}>
                   <CMDashboardWrapper />
                 </ProtectedRoute>
-              } 
+              }
             />
 
-            <Route 
-              path={ROUTES.CALL_DESK} 
+            <Route
+              path={ROUTES.CALL_DESK}
               element={
                 <ProtectedRoute allowedRoles={['CALL_DESK', 'RIO Help Desk']}>
                   <CallDeskDashboardWrapper />
                 </ProtectedRoute>
-              } 
+              }
             />
 
-            <Route 
-              path={ROUTES.FINANCE} 
+            <Route
+              path={ROUTES.FINANCE}
               element={
                 <ProtectedRoute allowedRoles={['Finance']}>
                   <FinanceDashboardWrapper />
                 </ProtectedRoute>
-              } 
+              }
             />
 
-            <Route 
-              path={ROUTES.RAILWAY_BOARD_DASHBOARD} 
+            <Route
+              path={ROUTES.RAILWAY_BOARD_DASHBOARD}
               element={
                 <ProtectedRoute allowedRoles={['RAILWAY_BOARD']}>
                   <RailwayBoardDashboardWrapper />
                 </ProtectedRoute>
-              } 
+              }
             />
 
-            <Route 
-              path={ROUTES.ADMIN_DASHBOARD} 
+            <Route
+              path={ROUTES.ADMIN_DASHBOARD}
               element={
                 <ProtectedRoute allowedRoles={['ADMIN']}>
                   <AdminDashboardWrapper />
                 </ProtectedRoute>
-              } 
+              }
             />
           </Route>
 

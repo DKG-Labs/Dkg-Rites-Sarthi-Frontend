@@ -151,6 +151,7 @@ export const FINAL_PRODUCT_SUBMODULE_ROUTES = {
 export const ROLE_LANDING_ROUTE = {
   IE: ROUTES.LANDING,
   'Process IE': ROUTES.LANDING,
+  'Sleeper Process IE': '/sleeper/',
   CM: ROUTES.CM_DASHBOARD,
   CALL_DESK: ROUTES.CALL_DESK,
   'RIO Help Desk': ROUTES.CALL_DESK,

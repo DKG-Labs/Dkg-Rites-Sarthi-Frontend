@@ -1,4 +1,4 @@
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, useLocation, Outlet } from 'react-router-dom';
 import { isAuthenticated, getStoredUser } from '../services/authService';
 import { ROUTES, ROLE_LANDING_ROUTE } from '../routes';
 
@@ -27,7 +27,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     }
   }
 
-  return children;
+  return children ? children : <Outlet />;
 };
 
 export default ProtectedRoute;

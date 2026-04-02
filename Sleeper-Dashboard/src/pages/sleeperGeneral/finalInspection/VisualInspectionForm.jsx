@@ -209,7 +209,7 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
         try {
             setSaving(true);
             const payload = {
-                batchId: batch.id,
+                batchId: batch.batchId,
                 moduleId: 1,
                 shift: shift || 'General',
                 createdBy: parseInt(localStorage.getItem('userId') || '118', 10),

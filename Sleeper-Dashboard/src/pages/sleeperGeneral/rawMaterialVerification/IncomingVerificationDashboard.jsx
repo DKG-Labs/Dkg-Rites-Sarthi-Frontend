@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiService } from '../../../services/api';
 import VerificationDetailModal from './VerificationDetailModal';
+import { useShift } from '../../../context/ShiftContext';
 
 // ─────────────────────────────────────────────
 //  Constants – must match sleeper_module table
 // ─────────────────────────────────────────────
-const LOGGED_IN_USER_ID = parseInt(localStorage.getItem('userId') || '119', 10);
+// No hardcoded IDs used here anymore.
+
 
 /**
  * sleeper_module table mapping:
@@ -307,12 +309,10 @@ const getStatusDisplay = (status) => {
 // ─────────────────────────────────────────────
 
 const IncomingVerificationDashboard = ({ initialGroup = null }) => {
+    const { userId } = useShift();
+    const effectiveUserId = userId || localStorage.getItem('userId');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-
-    // All records (pending or verified)
-    const [allRecords, setAllRecords] = useState([]);
-    const [showHistory, setShowHistory] = useState(false);
 
     // Records enriched with detail data per module
     const [enrichedByModule, setEnrichedByModule] = useState({}); // { moduleId: [{...transition, detail, moduleLabel}] }
@@ -330,9 +330,7 @@ const IncomingVerificationDashboard = ({ initialGroup = null }) => {
         setLoading(true);
         setError(null);
         try {
-            const res = showHistory
-                ? await apiService.getAllWorkflowTransitions('IE')
-                : await apiService.getAllPendingWorkflowTransitions('IE');
+            const res = await apiService.getAllPendingWorkflowTransitions('IE', effectiveUserId);
 
             const rawList = Array.isArray(res)
                 ? res
@@ -342,7 +340,6 @@ const IncomingVerificationDashboard = ({ initialGroup = null }) => {
             const filteredModuleIds = filteredModules.map(m => m.moduleId);
             const myFilteredRecords = rawList.filter(r => filteredModuleIds.includes(r.moduleId));
 
-            setAllRecords(myFilteredRecords);
 
             // Group by moduleId
             const grouped = {};
@@ -384,7 +381,7 @@ const IncomingVerificationDashboard = ({ initialGroup = null }) => {
         } finally {
             setLoading(false);
         }
-    }, [showHistory, initialGroup]); // eslint-disable-line
+    }, [initialGroup, effectiveUserId]); // eslint-disable-line
 
     useEffect(() => {
         loadData();
@@ -393,8 +390,7 @@ const IncomingVerificationDashboard = ({ initialGroup = null }) => {
     // Action is now handled inside VerificationDetailModal — kept only for API compatibility
     // loadData is passed to modal's onDone prop
 
-    const countLabel = showHistory ? 'total records' : 'pending records';
-    const totalCount = allRecords.length;
+    const totalCount = Object.values(enrichedByModule).reduce((acc, curr) => acc + curr.length, 0);
     const currentRecords = enrichedByModule[selectedModuleId] || [];
 
     // ─────────────────────────────────────────────
@@ -410,23 +406,10 @@ const IncomingVerificationDashboard = ({ initialGroup = null }) => {
                         IE {initialGroup || 'Verification'} Dashboard
                     </h2>
                     <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '12px' }}>
-                        Records assigned to User ID: {LOGGED_IN_USER_ID}
+                        Records assigned to User ID: {effectiveUserId || 'Unknown'}
                     </p>
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
-                    <button
-                        onClick={() => setShowHistory(!showHistory)}
-                        style={{
-                            padding: '8px 16px', borderRadius: '8px', border: '1px solid #e2e8f0',
-                            background: showHistory ? '#f1f5f9' : '#fff', color: '#334155', fontSize: '12px', fontWeight: '600',
-                            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px'
-                        }}
-                    >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        {showHistory ? 'Show Pending' : 'Historical Logs'}
-                    </button>
                     <button
                         onClick={loadData}
                         disabled={loading}
@@ -448,20 +431,18 @@ const IncomingVerificationDashboard = ({ initialGroup = null }) => {
 
             {/* Summary banner */}
             <div style={{
-                background: (totalCount > 0 && !showHistory) ? '#fff7ed' : '#f0fdf4',
-                border: `1px solid ${(totalCount > 0 && !showHistory) ? '#fed7aa' : '#bbf7d0'}`,
+                background: totalCount > 0 ? '#fff7ed' : '#f0fdf4',
+                border: `1px solid ${totalCount > 0 ? '#fed7aa' : '#bbf7d0'}`,
                 borderRadius: '12px', padding: '14px 20px',
                 display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px'
             }}>
-                <span style={{ fontSize: '22px' }}>{(totalCount > 0 && !showHistory) ? '🔔' : '✅'}</span>
+                <span style={{ fontSize: '22px' }}>{totalCount > 0 ? '🔔' : '✅'}</span>
                 <div>
                     <strong style={{ fontSize: '14px', color: '#1e293b' }}>
-                        {showHistory
-                            ? `Showing ${totalCount} historical record(s) for ${initialGroup || 'all modules'}`
-                            : (totalCount > 0 ? `${totalCount} record(s) pending your verification` : 'All records verified — no pending items')}
+                        {totalCount > 0 ? `${totalCount} record(s) pending your verification` : 'All records verified — no pending items'}
                     </strong>
                     <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
-                        Source: GET /sleeper-workflow/{showHistory ? 'allWorkflowTransition' : 'allPendingWorkflowTransition'}?roleName=IE
+                        Source: GET /sleeper-workflow/allPendingWorkflowTransition?roleName=IE
                     </div>
                 </div>
             </div>
@@ -515,12 +496,12 @@ const IncomingVerificationDashboard = ({ initialGroup = null }) => {
                                         {count > 0 ? (
                                             <span style={{
                                                 fontSize: '10px', fontWeight: '700',
-                                                background: showHistory ? '#f1f5f9' : '#fff7ed',
-                                                color: showHistory ? '#475569' : '#c2410c',
+                                                background: '#fff7ed',
+                                                color: '#c2410c',
                                                 padding: '2px 8px', borderRadius: '10px',
-                                                border: `1px solid ${showHistory ? '#e2e8f0' : '#fed7aa'}`
+                                                border: '1px solid #fed7aa'
                                             }}>
-                                                {count} {showHistory ? 'Total' : 'Pending'}
+                                                {count} Pending
                                             </span>
                                         ) : (
                                             <span style={{ fontSize: '10px', color: '#94a3b8' }}>None found</span>
@@ -543,7 +524,7 @@ const IncomingVerificationDashboard = ({ initialGroup = null }) => {
                                 display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                             }}>
                                 <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#1e293b' }}>
-                                    {MODULE_CONFIG.find(m => m.moduleId === selectedModuleId)?.label} — {showHistory ? 'Historical Logs' : 'Pending Records'}
+                                    {MODULE_CONFIG.find(m => m.moduleId === selectedModuleId)?.label} — Pending Records
                                 </h3>
                                 <span style={{ fontSize: '11px', color: '#94a3b8' }}>
                                     moduleId = {selectedModuleId}
@@ -570,18 +551,6 @@ const IncomingVerificationDashboard = ({ initialGroup = null }) => {
                                     </thead>
                                     <tbody>
                                         {currentRecords.map((row, idx) => {
-                                            // Pick a meaningful summary field from the detail
-                                            const summary =
-                                                row.detail?.plantNameLocation ||
-                                                row.detail?.plantName ||
-                                                row.detail?.vendorName ||
-                                                row.detail?.invoiceNo ||
-                                                row.detail?.materialType ||
-                                                row.detail?.designId ||
-                                                row.detail?.benchNo ||
-                                                row.detail?.supplierName ||
-                                                '—';
-
                                             return (
                                                 <tr key={row.workflowTransitionId || idx}
                                                     style={{ borderBottom: '1px solid #f1f5f9' }}
@@ -590,16 +559,31 @@ const IncomingVerificationDashboard = ({ initialGroup = null }) => {
                                                 >
                                                     <td style={tdStyle}>{idx + 1}</td>
                                                      {MODULE_TABLE_FIELDS[selectedModuleId]?.map(col => {
-                                                         const val = row.detail?.[col.key];
-                                                         const isIsoDate = typeof val === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(val);
-                                                         const formattedVal = isIsoDate ? new Date(val).toLocaleDateString('en-GB') : (val ?? '-');
-                                                         
-                                                         return (
-                                                             <td key={col.key} style={tdStyle}>
-                                                                 {formattedVal}
-                                                             </td>
-                                                         );
-                                                     })}
+                                                          const detail = row.detail || {};
+                                                          let rawVal = detail[col.key];
+
+                                                          // Strategic fallbacks for 'Vendor' / 'Manufacturer' / 'Source'
+                                                          if (col.key === 'manufacturer' || col.label === 'Vendor') {
+                                                              rawVal = detail.manufacturer || detail.brand || detail.source || detail.supplierName || '—';
+                                                          }
+                                                          // Strategic fallbacks for 'Invoice' / 'Consignment' / 'Challan'
+                                                          if (col.key === 'invoiceNo' || col.key === 'invoiceNumber' || col.label === 'Invoice' || col.label === 'Consignment') {
+                                                              rawVal = detail.invoiceNo || detail.invoiceNumber || detail.challanNumber || detail.consignmentNo || detail.mtcNo || '—';
+                                                          }
+                                                          // Strategic fallbacks for 'Date'
+                                                          if (col.key === 'dateOfReceipt' || col.label === 'Date' || col.label === 'Arrival Date' || col.label === 'Casting Date') {
+                                                              rawVal = detail.dateOfReceipt || detail.receivedDate || detail.arrivalDate || detail.castingDate || detail.createdDate || detail.createdAt || '—';
+                                                          }
+
+                                                          const isDateValue = typeof rawVal === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(rawVal);
+                                                          const formattedVal = isDateValue ? new Date(rawVal).toLocaleDateString('en-GB') : (rawVal ?? '—');
+                                                          
+                                                          return (
+                                                              <td key={col.key} style={tdStyle}>
+                                                                  {formattedVal}
+                                                              </td>
+                                                          );
+                                                      })}
 
                                                     <td style={tdStyle}>
                                                         {(() => {
@@ -662,7 +646,7 @@ const IncomingVerificationDashboard = ({ initialGroup = null }) => {
                 <VerificationDetailModal
                     row={detailModal}
                     moduleLabel={MODULE_CONFIG.find(m => m.moduleId === detailModal.moduleId)?.label || `Module ${detailModal.moduleId}`}
-                    actionBy={LOGGED_IN_USER_ID}
+                    actionBy={effectiveUserId}
                     onClose={() => setDetailModal(null)}
                     onDone={loadData}
                 />

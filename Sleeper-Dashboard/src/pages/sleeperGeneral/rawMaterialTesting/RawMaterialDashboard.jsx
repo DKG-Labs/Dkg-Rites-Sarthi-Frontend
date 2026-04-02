@@ -6,20 +6,21 @@ import SgciInsertTesting from './sgci/SgciInsertTesting';
 import WaterTesting from './water/WaterTesting';
 import AdmixtureTesting from './admixture/AdmixtureTesting';
 import { getAllCompletedCalls } from '../../../services/workflowService';
-import { getStoredUser } from '../../../services/authService';
+import { useShift } from '../../../context/ShiftContext';
 
 const RawMaterialDashboard = () => {
+    const { userId } = useShift();
+    const effectiveUserId = userId || localStorage.getItem('userId');
     const [selectedMaterial, setSelectedMaterial] = useState('cement');
     const [completedCalls, setCompletedCalls] = useState([]);
     const [enrichedData, setEnrichedData] = useState({}); // { requestId: details }
     const [loading, setLoading] = useState(true);
-    const user = getStoredUser();
 
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
             try {
-                const calls = await getAllCompletedCalls();
+                const calls = await getAllCompletedCalls(effectiveUserId);
                 const callsList = Array.isArray(calls) ? calls : [];
                 setCompletedCalls(callsList);
 
@@ -57,13 +58,11 @@ const RawMaterialDashboard = () => {
 
     // Filter logic based on user requirements:
     // 1. Module ID must match (Cement: 6, Aggregates: 8, HTS: 5, SGCI: 9, Water: 10)
-    // 2. Current user ID must be in accessibleUserIds
+    // 2. We no longer restrict by accessibleUserIds to ensure IE can verify all vendor submissions
     const filterCalls = (moduleId) => {
-        if (!user || !user.userId) return [];
-        const currentId = parseInt(user.userId);
+        if (!effectiveUserId) return [];
         return completedCalls.filter(call => 
-            call.moduleId === moduleId && 
-            call.accessibleUserIds?.includes(currentId)
+            call.moduleId === moduleId
         ).map(call => {
             const details = enrichedData[call.requestId] || {};
             return {
@@ -83,6 +82,7 @@ const RawMaterialDashboard = () => {
         { id: 'aggregates', title: 'Aggregate Testing', subtitle: 'Periodic & New Batch', moduleId: 8 },
         { id: 'hts-wire', title: 'HTS Wire Testing', subtitle: 'Daily mandatory', moduleId: 5 },
         { id: 'sgci', title: 'SGCI Insert Testing', subtitle: 'Weekly summary', moduleId: 9 },
+        { id: 'admixture', title: 'Admixture Testing', subtitle: 'Batch verification', moduleId: 7 },
         { id: 'water', title: 'Water Testing', subtitle: 'PH & TDS monthly', moduleId: 10 }
     ];
 

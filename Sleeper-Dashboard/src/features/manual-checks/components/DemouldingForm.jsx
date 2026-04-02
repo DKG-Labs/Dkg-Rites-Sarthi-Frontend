@@ -127,11 +127,11 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                     let locList = [];
                     const data = sheds?.responseData || sheds;
                     if (typeof data === 'object' && data !== null) {
-                        Object.entries(data).forEach(([type, ids]) => {
+                        Object.values(data).forEach((ids) => {
                             if (Array.isArray(ids)) {
                                 ids.forEach(id => {
-                                    const roman = id === 1 ? 'I' : id === 2 ? 'II' : id === 3 ? 'III' : id === 4 ? 'IV' : id;
-                                    locList.push(`${type} ${roman}`);
+                                    // Use the ID directly (e.g., "Line 1", "Shed 1") as per the new DTO
+                                    locList.push(id);
                                 });
                             }
                         });
@@ -157,18 +157,18 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
         return dateStr;
     };
 
-    // Fetch batches when casting date changes
+    // Fetch batches when casting date or location changes
     useEffect(() => {
-        if (formData.casting && !initialData) {
+        if (formData.casting && formData.location && formData.location !== 'N/A' && !initialData) {
             const fetchBatches = async () => {
                 try {
                     const formattedDate = formatToBackendDate(formData.casting);
-                    // Pass selected plant id (dutyUnit) and location (dutyLocation) as requested
+                    // Pass selected plant id (dutyUnit) and location (from form)
                     const response = await apiService.getAllProductionBatches(
                         vendorId, 
                         formattedDate, 
                         dutyUnit, 
-                        dutyLocation
+                        formData.location
                     );
                     if (response?.responseData) {
                         setBatches(response.responseData);
@@ -182,7 +182,7 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
             };
             fetchBatches();
         }
-    }, [formData.casting, vendorId, initialData, dutyUnit, dutyLocation]);
+    }, [formData.casting, formData.location, vendorId, initialData, dutyUnit]);
 
     // Fetch benches when batch changes
     useEffect(() => {

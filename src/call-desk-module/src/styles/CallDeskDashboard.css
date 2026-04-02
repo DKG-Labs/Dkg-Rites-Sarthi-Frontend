@@ -25,7 +25,7 @@
 }
 
 /* KPI Grid - inherits from global styles */
-.kpi-grid {
+.calldesk-kpi-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: var(--space-md);
@@ -65,7 +65,7 @@
 }
 
 /* Tab Content */
-.tab-content {
+.calldesk-tab-content {
   margin-top: var(--space-lg);
 }
 

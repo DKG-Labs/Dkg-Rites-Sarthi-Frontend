@@ -1,4 +1,5 @@
-import React, { useState } from 'react'; // Re-adding useState
+import React, { useState, useEffect, useRef } from 'react'; // Re-adding hooks
+import reportService from '../../services/reportService';
 import Pagination from '../Pagination';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -78,7 +79,15 @@ const ProfessionalCardSection = ({
     level4Data = [],
     level4Loading = false,
     activeReportFromParent = 'mpr',
-    setSelectedProduct = () => { }
+    setSelectedProduct = () => { },
+    // New Manufacture Process Inspection Analysis Props from API
+    mpiaData = [],
+    mpiaLoading = false,
+    mpiaPagination = { totalElements: 0, totalPages: 0 },
+    mpiaPage = 0,
+    setMpiaPage = () => { },
+    mpiaRowsPerPage = 10,
+    setMpiaRowsPerPage = () => { }
 }) => {
     // Map selectedProduct to summary data keys
     const getSummaryKey = (prod) => {
@@ -92,11 +101,42 @@ const ProfessionalCardSection = ({
 
     getSummaryKey(selectedProduct);
     const [activeReport, setActiveReport] = useState(activeReportFromParent || 'mpr');
+    const [drilldownManufacturer, setDrilldownManufacturer] = useState(null);
+    const [drilldownData, setDrilldownData] = useState([]);
+    const [isDrilldownLoading, setIsDrilldownLoading] = useState(false);
+
+    // Fetch Drill-down data when manufacturer is selected
+    useEffect(() => {
+        if (drilldownManufacturer) {
+            const fetchDrilldown = async () => {
+                setIsDrilldownLoading(true);
+                const end = new Date().toISOString().split('T')[0];
+                const start = new Date(new Date().setFullYear(new Date().getFullYear() - 1)).toISOString().split('T')[0];
+                try {
+                    const res = await reportService.getCompanyMonthWiseData({
+                        companyName: drilldownManufacturer,
+                        startDate: start,
+                        endDate: end,
+                        page: 0,
+                        size: 30
+                    });
+                    const data = res.responseData?.content || res.content || res || [];
+                    setDrilldownData(Array.isArray(data) ? data : []);
+                } catch (e) {
+                    console.error("Failed to fetch drilldown data:", e);
+                    setDrilldownData([]);
+                }
+                setIsDrilldownLoading(false);
+            };
+            fetchDrilldown();
+        }
+    }, [drilldownManufacturer]);
 
     // Sync activeReport with parent navigation
     React.useEffect(() => {
         if (activeReportFromParent) {
             setActiveReport(activeReportFromParent);
+            setDrilldownManufacturer(null); // Reset drilldown when tab changes
         }
     }, [activeReportFromParent]);
 
@@ -105,6 +145,8 @@ const ProfessionalCardSection = ({
     const [mprSort, setMprSort] = useState({ key: null, direction: 'asc' });
     const [mauSearch, setMauSearch] = useState('');
     const [mauSort, setMauSort] = useState({ key: null, direction: 'asc' });
+    const [mpiaSearch, setMpiaSearch] = useState('');
+    const [mpiaSort, setMpiaSort] = useState({ key: null, direction: 'asc' });
 
     // States for Performance Matrix Filtering & Sorting
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
@@ -165,6 +207,32 @@ const ProfessionalCardSection = ({
         return result;
     }, [mauData, mauSearch, mauSort]);
 
+    // Filtered & Sorted MPIA Data
+    const displayMpiaData = React.useMemo(() => {
+        let result = [...(mpiaData || [])];
+        if (mpiaSearch) {
+            const query = mpiaSearch.toLowerCase();
+            result = result.filter(item =>
+                (item.manufacture || '').toLowerCase().includes(query)
+            );
+        }
+        if (mpiaSort.key) {
+            result.sort((a, b) => {
+                const aVal = a[mpiaSort.key];
+                const bVal = b[mpiaSort.key];
+                if (typeof aVal === 'number' && typeof bVal === 'number') {
+                    return mpiaSort.direction === 'asc' ? aVal - bVal : bVal - aVal;
+                }
+                const aStr = (aVal || '').toString().toLowerCase();
+                const bStr = (bVal || '').toString().toLowerCase();
+                if (aStr < bStr) return mpiaSort.direction === 'asc' ? -1 : 1;
+                if (aStr > bStr) return mpiaSort.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+        return result;
+    }, [mpiaData, mpiaSearch, mpiaSort]);
+
     // Calculated data for charts
 
 
@@ -219,13 +287,8 @@ const ProfessionalCardSection = ({
         setMprSort({ key, direction });
     };
 
-    const handleMauSort = (key) => {
-        let direction = 'asc';
-        if (mauSort.key === key && mauSort.direction === 'asc') {
-            direction = 'desc';
-        }
-        setMauSort({ key, direction });
-    };
+    const handleMauSort = (key) => setMauSort({ key, direction: mauSort.key === key && mauSort.direction === 'asc' ? 'desc' : 'asc' });
+    const handleMpiaSort = (key) => setMpiaSort({ key, direction: mpiaSort.key === key && mpiaSort.direction === 'asc' ? 'desc' : 'asc' });
 
     const getSortedData = (data) => {
         if (!sortConfig.key || !data) return data;
@@ -819,6 +882,7 @@ const ProfessionalCardSection = ({
                                         <div className={`sub-tab-btn ${activeReport === 'mpr' ? 'active' : ''}`} onClick={() => setActiveReport('mpr')}>📋 MPR</div>
                                         <div className={`sub-tab-btn ${activeReport === 'mau' ? 'active' : ''}`} onClick={() => setActiveReport('mau')}>📈 MAU</div>
                                         <div className={`sub-tab-btn ${activeReport === 'lwcl' ? 'active' : ''}`} onClick={() => setActiveReport('lwcl')}>🔄 LWCL</div>
+                                        <div className={`sub-tab-btn ${activeReport === 'mpia' ? 'active' : ''}`} onClick={() => setActiveReport('mpia')}>⚙️ MPIA</div>
                                     </div>
 
                                     <div className="report-viewer-content">
@@ -933,6 +997,67 @@ const ProfessionalCardSection = ({
                                                     <div className="p-12 text-center text-slate-400">
                                                         Please select a <strong>Call Number</strong> from the dropdown above to view the report details.
                                                     </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {activeReport === 'mpia' && (
+                                            <div className="prof-card animate-up" style={{ padding: drilldownManufacturer ? '0' : '20px' }}>
+                                                {drilldownManufacturer ? (
+                                                    <MpiaDrillDown
+                                                        data={drilldownData}
+                                                        manufacturer={drilldownManufacturer}
+                                                        loading={isDrilldownLoading}
+                                                        onBack={() => setDrilldownManufacturer(null)}
+                                                    />
+                                                ) : (
+                                                    <>
+                                                        <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                            <span>Manufacture Process Inspection Analysis</span>
+                                                            <input type="text" placeholder="Search..." className="prof-search" value={mpiaSearch} onChange={(e) => setMpiaSearch(e.target.value)} />
+                                                        </div>
+                                                        <div className="table-responsive">
+                                                            <table className="prof-table">
+                                                                <thead>
+                                                                    <tr className="sortable-header">
+                                                                        <th onClick={() => handleMpiaSort('manufacture')}>Manufacture {renderSortIcon('manufacture', mpiaSort)}</th>
+                                                                        <th className="text-right" onClick={() => handleMpiaSort('totalInspected')}>Total Inspected {renderSortIcon('totalInspected', mpiaSort)}</th>
+                                                                        <th className="text-right" onClick={() => handleMpiaSort('totalAccepted')}>Total Accepted {renderSortIcon('totalAccepted', mpiaSort)}</th>
+                                                                        <th className="text-right" onClick={() => handleMpiaSort('totalRejected')}>Total Rejected {renderSortIcon('totalRejected', mpiaSort)}</th>
+                                                                        <th className="text-right" onClick={() => handleMpiaSort('rejectionPercent')}>Rejection % {renderSortIcon('rejectionPercent', mpiaSort)}</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {displayMpiaData.map((row, idx) => (
+                                                                        <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
+                                                                            <td
+                                                                                className="font-bold text-emerald-800 cursor-pointer hover:underline"
+                                                                                onClick={() => setDrilldownManufacturer(row.manufacture)}
+                                                                            >
+                                                                                {row.manufacture}
+                                                                            </td>
+                                                                            <td className="text-right">{row.totalInspected?.toLocaleString()}</td>
+                                                                            <td className="text-right" style={{ color: '#16a34a' }}>{row.totalAccepted?.toLocaleString()}</td>
+                                                                            <td className="text-right" style={{ color: '#dc2626' }}>{row.totalRejected?.toLocaleString()}</td>
+                                                                            <td className="text-right">
+                                                                                <span className="prof-badge" style={{ background: '#fff7ed', color: '#9a3412', fontWeight: 'bold' }}>
+                                                                                    {row.rejectionPercent?.toFixed(2)}%
+                                                                                </span>
+                                                                            </td>
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                        <div className="mt-4">
+                                                            <Pagination
+                                                                currentPage={mpiaPage} totalPages={mpiaPagination.totalPages}
+                                                                start={mpiaPage * mpiaRowsPerPage} end={Math.min((mpiaPage + 1) * mpiaRowsPerPage, mpiaPagination.totalElements)}
+                                                                totalCount={mpiaPagination.totalElements} onPageChange={setMpiaPage}
+                                                                rows={mpiaRowsPerPage} onRowsChange={setMpiaRowsPerPage}
+                                                            />
+                                                        </div>
+                                                    </>
                                                 )}
                                             </div>
                                         )}
@@ -1098,6 +1223,260 @@ const ParetoXAxisTick = (props) => {
                 {payload.value}
             </text>
         </g>
+    );
+};
+
+// ────────────────────────────────────────────────────────────────────────────────
+// NEW: MpiaDrillDown - Details for a specific manufacturer
+// ────────────────────────────────────────────────────────────────────────────────
+const MpiaDrillDown = ({ data = [], manufacturer, onBack, loading }) => {
+    const printRef = useRef();
+
+    const handleDownload = () => {
+        window.print();
+    };
+
+    if (loading) {
+        return (
+            <div className="flex flex-col items-center justify-center p-20 bg-white">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mb-4"></div>
+                <p className="text-slate-500 font-medium">Fetching Monthly Analysis for {manufacturer}...</p>
+            </div>
+        );
+    }
+
+    // Process Defects for Pie Chart (Aggregation)
+    const defectAgg = {
+        'Shearing': 0, 'Turning': 0, 'Forging': 0, 'Finishing': 0, 'Quenching': 0, 'Tempering': 0
+    };
+
+    data.forEach(m => {
+        defectAgg['Shearing'] += (m.shearingDefects?.lengthOfCutBar || 0) + (m.shearingDefects?.ovalityImproperDiaAtEnd || 0) + (m.shearingDefects?.sharpEdges || 0) + (m.shearingDefects?.crackedEdges || 0);
+        defectAgg['Turning'] += (m.turningDefects?.parallelLength || 0) + (m.turningDefects?.fullTurningLength || 0) + (m.turningDefects?.turningDia || 0);
+        defectAgg['Forging'] += (m.forgingDefects?.forgingTemperature || 0) + (m.forgingDefects?.forgingStabilisationRejection || 0) + (m.forgingDefects?.improperForging || 0) + (m.forgingDefects?.forgingMarksNotches || 0);
+        defectAgg['Finishing'] += (m.finishingDefects?.paintIdentification || 0) + (m.finishingDefects?.ercCoating || 0);
+        defectAgg['Quenching'] += (m.quenchingDefects?.quenchingTemperatureRejected || 0) + (m.quenchingDefects?.quenchingDurationRejected || 0) + (m.quenchingDefects?.quenchingHardnessRejected || 0) + (m.quenchingDefects?.boxGaugeRejected || 0) + (m.quenchingDefects?.flatBearingAreaRejected || 0);
+        defectAgg['Tempering'] += (m.temperingDefects?.temperingTemp || 0) + (m.temperingDefects?.temperingDuration || 0);
+    });
+
+    const pieData = Object.entries(defectAgg)
+        .map(([name, value]) => ({ name, value }))
+        .filter(d => d.value > 0);
+
+    const COLORS = ['#0f172a', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+
+    return (
+        <div className="bg-slate-50 p-6 min-h-screen">
+            <div className="max-w-6xl mx-auto mb-6 flex justify-between items-center no-print">
+                <button
+                    onClick={onBack}
+                    className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-all font-medium"
+                >
+                    <span className="text-xl">←</span> Back to Summary
+                </button>
+                <button
+                    onClick={handleDownload}
+                    className="flex items-center gap-2 px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all font-bold shadow-lg"
+                >
+                    <span>PDF</span> Download Report
+                </button>
+            </div>
+
+            {/* Print Container (White A4 sheet feel) */}
+            <div ref={printRef} className="bg-white p-12 shadow-2xl rounded-sm mx-auto print-container" style={{ minHeight: '297mm', width: '210mm' }}>
+                <div className="text-center mb-10">
+                    <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">{manufacturer}</h2>
+                    <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mt-1">Manufacturer Performance Analysis (Monthly)</p>
+                    <div className="h-1 w-20 bg-emerald-500 mx-auto mt-4 rounded-full"></div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-12 items-start">
+                    {/* Left side Pie Chart */}
+                    <div className="flex flex-col items-center">
+                        <h3 className="font-bold text-slate-700 mb-2 text-sm">
+                            PROCESS DEFECT DISTRIBUTION
+                        </h3>
+                        {pieData.length > 0 ? (
+                            <ResponsiveContainer width="110%" height={300}>
+                                <PieChart margin={{ top: 0, right: 40, bottom: 0, left: 40 }}>
+                                    <Pie
+                                        data={pieData}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={50}
+                                        outerRadius={75}
+                                        paddingAngle={5}
+                                        minAngle={15}
+                                        dataKey="value"
+                                        label={({ cx, cy, midAngle, outerRadius, name, percent }) => {
+                                            const RADIAN = Math.PI / 180;
+                                            const radius = outerRadius + 25;
+                                            const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                                            const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                                            return (
+                                                <text
+                                                    x={x} y={y}
+                                                    fill="#475569"
+                                                    textAnchor={x > cx ? 'start' : 'end'}
+                                                    dominantBaseline="central"
+                                                    fontSize="11"
+                                                    fontWeight="700"
+                                                >
+                                                    {`${name} ${(percent * 100).toFixed(0)}%`}
+                                                </text>
+                                            );
+                                        }}
+                                        labelLine={{ stroke: '#cbd5e1', strokeWidth: 1.5 }}
+                                    >
+                                        {pieData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip
+                                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                                    />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <div className="h-[300px] flex items-center justify-center border-2 border-dashed border-slate-100 rounded-2xl w-full">
+                                <p className="text-slate-400 italic text-sm">No process defects recorded.</p>
+                            </div>
+                        )}
+                        <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-2 w-full">
+                            {pieData.map((d, i) => (
+                                <div key={i} className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                                    <div className="w-2 h-2 rounded-full" style={{ background: COLORS[i % COLORS.length] }}></div>
+                                    <span>{d.name}: {d.value}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Right side Data Summary & Monthly Table */}
+                    <div>
+                        <h3 className="font-bold text-slate-700 mb-6 text-sm flex items-center gap-2">
+                            MONTHLY PERFORMANCE
+                        </h3>
+                        <div className="overflow-hidden border border-slate-100 rounded-xl">
+                            <table className="w-full text-xs">
+                                <thead className="bg-slate-800 text-white">
+                                    <tr>
+                                        <th className="p-3 text-left">MONTH</th>
+                                        <th className="p-3 text-right">INSPECTED</th>
+                                        <th className="p-3 text-right">REJECTED</th>
+                                        <th className="p-3 text-right">% REJ</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {data.map((m, i) => (
+                                        <tr key={i} className="hover:bg-slate-50 transition-colors">
+                                            <td className="p-3 font-bold text-slate-700 uppercase">{m.month}</td>
+                                            <td className="p-3 text-right font-medium text-slate-600">{m.inspected?.toLocaleString()}</td>
+                                            <td className="p-3 text-right font-bold text-red-600">{m.processRejected?.toLocaleString()}</td>
+                                            <td className="p-3 text-right">
+                                                <span className="bg-red-50 text-red-700 px-2 py-0.5 rounded font-bold">
+                                                    {m.processRejPercent?.toFixed(2)}%
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {data.length === 0 && (
+                                        <tr>
+                                            <td colSpan="4" className="p-10 text-center italic text-slate-400">No monthly data available for the period.</td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Totals Summary */}
+                        <div className="mt-8 grid grid-cols-3 gap-4">
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Cumulative Inspected</p>
+                                <p className="text-lg font-black text-slate-800">{data.reduce((acc, m) => acc + (m.inspected || 0), 0).toLocaleString()}</p>
+                            </div>
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Cumulative Rejected</p>
+                                <p className="text-lg font-black text-red-600">{data.reduce((acc, m) => acc + (m.processRejected || 0), 0).toLocaleString()}</p>
+                            </div>
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Avg Rejection %</p>
+                                <p className="text-lg font-black text-slate-800">
+                                    {data.length > 0 ? (data.reduce((acc, m) => acc + (m.processRejPercent || 0), 0) / data.length).toFixed(2) : 0}%
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <div className="mt-auto pt-20 border-t border-slate-100 text-[10px] text-slate-300 flex justify-between font-bold">
+                    <span>SARTHI RAILWAY DASHBOARD - CONFIDENTIAL</span>
+                    <span>GENERATED ON: {new Date().toLocaleDateString()}</span>
+                </div>
+            </div>
+
+            {/* Improved print CSS */}
+            <style>
+                {`
+                @media print {
+                    /* Reset visibility and overflow */
+                    html, body { 
+                        overflow: hidden !important; 
+                        height: 100% !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                    }
+                    body * { visibility: hidden !important; }
+                    
+                    /* Show and style the targeted report only */
+                    .print-container, 
+                    .print-container * { 
+                        visibility: visible !important; 
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    
+                    /* Rigid A4 Landscape single page container */
+                    .print-container { 
+                        display: block !important;
+                        position: fixed !important;
+                        left: 0 !important;
+                        top: 0 !important;
+                        width: 297mm !important; 
+                        height: 210mm !important; 
+                        overflow: hidden !important;
+                        margin: 0 !important;
+                        padding: 12mm !important;
+                        background-color: white !important;
+                        z-index: 999999 !important;
+                        border: none !important;
+                        page-break-after: avoid !important;
+                    }
+
+                    /* Fix chart scaling for print */
+                    .recharts-responsive-container {
+                        width: 100% !important;
+                        height: 280px !important; /* Slightly reduced to keep on one page */
+                    }
+
+                    /* Background color enforcements */
+                    .bg-slate-50 { background-color: #f8fafc !important; }
+                    .bg-slate-800 { background-color: #1e293b !important; }
+                    .bg-red-50 { background-color: #fef2f2 !important; }
+                    table { border-collapse: collapse !important; }
+                    th { background-color: #1e293b !important; color: white !important; -webkit-print-color-adjust: exact !important; }
+                    
+                    .no-print { display: none !important; }
+                    
+                    @page { 
+                        size: landscape; 
+                        margin: 0; 
+                    }
+                }
+                `}
+            </style>
+        </div>
     );
 };
 

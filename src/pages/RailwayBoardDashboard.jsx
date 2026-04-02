@@ -121,6 +121,16 @@ const RailwayBoardDashboard = () => {
         reportService.getMonthlyAnalysisOfUnits, activeMainCard === 'reports' ? mauParams : undefined
     );
 
+    const [mpiaPage, setMpiaPage] = useState(0);
+    const [mpiaRowsPerPage, setMpiaRowsPerPage] = useState(10);
+    const mpiaParams = React.useMemo(() => ({
+        page: mpiaPage, size: mpiaRowsPerPage, ...dashboardFilters
+    }), [mpiaPage, mpiaRowsPerPage, dashboardFilters]);
+
+    const { data: mpiaData, pagination: mpiaPagination, loading: mpiaLoading } = useReportData(
+        reportService.getManufactureProcessAnalysis, activeReport === 'mpia' && activeMainCard === 'reports' ? mpiaParams : undefined
+    );
+
     const [lwclCallNo, setLwclCallNo] = useState('');
     const [lwclLotNo, setLwclLotNo] = useState('');
     const [lwclRequestIds, setLwclRequestIds] = useState([]);
@@ -288,6 +298,7 @@ const RailwayBoardDashboard = () => {
                                 <div className={`report-link ${activeReport === 'mpr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpr')}>Monthly Progress Report</div>
                                 <div className={`report-link ${activeReport === 'mau' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mau')}>Monthly Analysis of Units</div>
                                 <div className={`report-link ${activeReport === 'lwcl' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('lwcl')}>Lot Wise Closed Loop</div>
+                                <div className={`report-link ${activeReport === 'mpia' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpia')}>Manufacture Process Inspection Analysis</div>
                             </div>
                         )}
                         <div className={`nav-item ${activeMainCard === 'feedback' ? 'active' : ''}`} onClick={() => handleSwitchTab('feedback')}>
@@ -363,6 +374,9 @@ const RailwayBoardDashboard = () => {
                             mauData={mauData} mauLoading={mauLoading} mauPagination={mauPagination}
                             mauPage={mauPage} setMauPage={setMauPage}
                             mauRowsPerPage={mauRowsPerPage} setMauRowsPerPage={setMauRowsPerPage}
+                            mpiaData={mpiaData} mpiaLoading={mpiaLoading} mpiaPagination={mpiaPagination}
+                            mpiaPage={mpiaPage} setMpiaPage={setMpiaPage}
+                            mpiaRowsPerPage={mpiaRowsPerPage} setMpiaRowsPerPage={setMpiaRowsPerPage}
                             lwclData={lwclData} lwclLoading={lwclLoading}
                             lwclCallNo={lwclCallNo} setLwclCallNo={setLwclCallNo}
                             lwclLotNo={lwclLotNo} setLwclLotNo={setLwclLotNo}

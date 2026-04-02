@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import './FeedbackSection.css';
 
 const FeedbackSection = () => {
-    const [view, setView] = useState('list'); // 'submit' or 'list'
+    const [view, setView] = useState('submit'); // Changed default from 'list' to 'submit'
     const [feedbackInput, setFeedbackInput] = useState({ subject: '', message: '', priority: 'Medium' });
     const [mockFeedbacks, setMockFeedbacks] = useState([
         {

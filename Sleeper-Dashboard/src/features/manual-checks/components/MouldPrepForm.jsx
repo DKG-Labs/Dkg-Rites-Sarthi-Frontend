@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { apiService } from '../../../services/api';
 import '../../../components/common/Checkbox.css';
 import { useShift } from '../../../context/ShiftContext';
 
 const MouldPrepForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initialData, activeContainer, sharedBatchNo, sharedBenchNo, onShiftFieldChange }) => {
-    const { allWitnessedRecords } = useShift();
+    const { allWitnessedRecords, dutyUnit, vendorId: contextVendorId } = useShift();
+    const [availableLocations, setAvailableLocations] = useState([]);
     const getLocalISOString = () => {
         const now = new Date();
         const offset = now.getTimezoneOffset() * 60000;
@@ -60,6 +62,36 @@ const MouldPrepForm = ({ onSave, onCancel, isLongLine, existingEntries = [], ini
             });
         }
     }, [initialData, activeContainer]);
+    
+    // Fetch Dynamic Locations for current Unit
+    useEffect(() => {
+        const fetchLocations = async () => {
+            const vId = contextVendorId || localStorage.getItem('vendorId');
+            if (dutyUnit && vId) {
+                try {
+                    const sheds = await apiService.getPlantSheds(vId, dutyUnit);
+                    let locList = [];
+                    const data = sheds?.responseData || sheds;
+                    if (typeof data === 'object' && data !== null) {
+                        Object.values(data).forEach((ids) => {
+                            if (Array.isArray(ids)) {
+                                ids.forEach(id => {
+                                    locList.push(id);
+                                });
+                            }
+                        });
+                    }
+                    setAvailableLocations(locList);
+                    if (locList.length > 0 && !formData.location) {
+                        setFormData(prev => ({ ...prev, location: locList[0] }));
+                    }
+                } catch (err) {
+                    console.error("Error fetching locations in form:", err);
+                }
+            }
+        };
+        fetchLocations();
+    }, [dutyUnit, contextVendorId]);
 
 
     // Auto-fetch Location based on Batch Number
@@ -155,13 +187,19 @@ const MouldPrepForm = ({ onSave, onCancel, isLongLine, existingEntries = [], ini
                         style={{ width: '100%', boxSizing: 'border-box' }}
                     >
                         <option value="N/A">-- Select --</option>
-                        <option value="Long Line">Long Line</option>
-                        <option value="Line 1">Line 1</option>
-                        <option value="Line 2">Line 2</option>
-                        <option value="Line 3">Line 3</option>
-                        <option value="Shed 1">Shed 1</option>
-                        <option value="Shed 2">Shed 2</option>
-                        <option value="Shed 3">Shed 3</option>
+                        {availableLocations.length > 0 ? (
+                            availableLocations.map(loc => (
+                                <option key={loc} value={loc}>{loc}</option>
+                            ))
+                        ) : (
+                            <>
+                                <option value="Long Line">Long Line</option>
+                                <option value="Line 1">Line 1</option>
+                                <option value="Line 2">Line 2</option>
+                                <option value="Shed 1">Shed 1</option>
+                                <option value="Shed 2">Shed 2</option>
+                            </>
+                        )}
                     </select>
                 </div>
 

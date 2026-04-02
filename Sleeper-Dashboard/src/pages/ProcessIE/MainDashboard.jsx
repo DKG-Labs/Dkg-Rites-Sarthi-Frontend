@@ -81,13 +81,11 @@ const MainDashboard = () => {
     const [availableUnitNames, setAvailableUnitNames] = useState([]);
     const [unitVendorMap, setUnitVendorMap] = useState({});
     const [companyUnitMap, setCompanyUnitMap] = useState({});
-    const [vendorSheds, setVendorSheds] = useState([]);
     const [formData, setFormData] = useState({
         date: new Date().toISOString().split('T')[0],
         shift: '',
         companyName: '',
         unit: '',
-        location: '',
     });
 
     useEffect(() => {
@@ -131,38 +129,7 @@ const MainDashboard = () => {
         fetchCompanyMapping();
     }, []);
 
-    // Effect to fetch sheds when unit changes
-    useEffect(() => {
-        const fetchSheds = async () => {
-            const currentVendorId = unitVendorMap[formData.unit] || vendorId || localStorage.getItem('vendorId');
-            if (formData.unit && currentVendorId) {
-                const sheds = await getShedsByVendorCode(currentVendorId, formData.unit);
-                if (sheds) {
-                    // responseData structure is like {"Stress Bench": [2], "Long Line": [1]}
-                    let shedList = [];
-                    if (typeof sheds === 'object' && sheds !== null) {
-                        Object.entries(sheds).forEach(([type, ids]) => {
-                            if (Array.isArray(ids)) {
-                                ids.forEach(id => {
-                                    const roman = id === 1 ? 'I' : id === 2 ? 'II' : id === 3 ? 'III' : id === 4 ? 'IV' : id === 5 ? 'V' : id;
-                                    shedList.push(`${type} ${roman}`);
-                                });
-                            }
-                        });
-                    } else if (Array.isArray(sheds)) {
-                        shedList = sheds.map(s => `Shed ${s}`);
-                    }
-                    
-                    setVendorSheds(shedList.sort());
-                } else {
-                    setVendorSheds([]);
-                }
-            } else {
-                setVendorSheds([]);
-            }
-        };
-        fetchSheds();
-    }, [formData.unit, unitVendorMap, vendorId]);
+    // Effect removed as per user request to remove production location api
 
     const hasActiveDuty = dutyStarted;
 
@@ -179,7 +146,6 @@ const MainDashboard = () => {
         setSelectedShift(formData.shift);
         setDutyDate(formData.date);
         setDutyUnit(formData.unit);
-        setDutyLocation(formData.location);
 
         // Save numeric vendorId for API calls
         const mappedVendorId = unitVendorMap[formData.unit];
@@ -188,13 +154,9 @@ const MainDashboard = () => {
             setVendorId(mappedVendorId);
         }
 
-        // Find or create container ID based on location
-        const matchedContainer = containers.find(c => c.name === formData.location);
-        if (matchedContainer) {
-            setActiveContainerId(matchedContainer.id);
-        } else {
-            setActiveContainerId(1); // Default to 1 if not matched
-        }
+        // Find or create container ID based on default
+        setActiveContainerId(1); 
+
 
         setShowDutyForm(false);
         redirectToDutyDashboard(formData.shift);
@@ -353,46 +315,7 @@ const MainDashboard = () => {
                                     </select>
                                 </label>
 
-                                <label>
-                                    Production Location
-                                    <select
-                                        name="location"
-                                        value={formData.location}
-                                        onChange={handleChange}
-                                        required
-                                        disabled={!formData.unit}
-                                    >
-                                        <option value="">Select Location</option>
-                                        {(() => {
-                                            const locations = [];
-                                            const selectedProfile = plantVerificationData?.profiles?.find(p => p.plantName === formData.unit);
-                                            
-                                            if (vendorSheds && vendorSheds.length > 0) {
-                                                vendorSheds.forEach(locStr => {
-                                                    locations.push(locStr);
-                                                });
-                                            } else if (selectedProfile && selectedProfile.status === 'Verified') {
-                                                // Fallback to old behavior if no vendor sheds are fetched
-                                                if (selectedProfile.sheds) {
-                                                    for (let i = 1; i <= selectedProfile.sheds; i++) {
-                                                        const roman = i === 1 ? 'I' : i === 2 ? 'II' : i === 3 ? 'III' : i === 4 ? 'IV' : i === 5 ? 'V' : i;
-                                                        locations.push(`Shed ${roman}`);
-                                                    }
-                                                }
-                                                if (selectedProfile.lines) {
-                                                    for (let i = 1; i <= selectedProfile.lines; i++) {
-                                                        const roman = i === 1 ? 'I' : i === 2 ? 'II' : i === 3 ? 'III' : i === 4 ? 'IV' : i === 5 ? 'V' : i;
-                                                        locations.push(`Line ${roman}`);
-                                                    }
-                                                }
-                                            }
-
-                                            return locations.map(loc => (
-                                                <option key={loc} value={loc}>{loc}</option>
-                                            ));
-                                        })()}
-                                    </select>
-                                </label>
+                                {/* Production Location removed as per request */}
 
                                 <div className="modal-actions">
                                     <button

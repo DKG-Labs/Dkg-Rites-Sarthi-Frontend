@@ -22,6 +22,7 @@ export const ShiftProvider = ({ children }) => {
     const [vendorCode, setVendorCode] = useState(() => localStorage.getItem('vendorCode') || '');
     const [companyName, setCompanyName] = useState(() => localStorage.getItem('companyName') || '');
     const [vendorId, setVendorId] = useState(() => localStorage.getItem('vendorId') || '');
+    const [userId, setUserId] = useState(() => localStorage.getItem('userId') || '');
 
     const [containers, setContainers] = useState([{ id: 1, type: 'Line', name: 'Line I' }]);
     const [activeContainerId, setActiveContainerId] = useState(() => parseInt(localStorage.getItem('activeContainerId')) || 1);
@@ -35,6 +36,7 @@ export const ShiftProvider = ({ children }) => {
         setVendorCode('');
         setCompanyName('');
         setVendorId('');
+        setUserId('');
         setActiveContainerId(1);
         setContainers([{ id: 1, type: 'Line', name: 'Line I' }]);
 
@@ -60,6 +62,7 @@ export const ShiftProvider = ({ children }) => {
         localStorage.removeItem('vendorCode');
         localStorage.removeItem('companyName');
         localStorage.removeItem('vendorId');
+        localStorage.removeItem('userId');
     };
 
     // Persist basic shift state
@@ -72,16 +75,18 @@ export const ShiftProvider = ({ children }) => {
         localStorage.setItem('vendorCode', vendorCode);
         localStorage.setItem('companyName', companyName);
         localStorage.setItem('vendorId', vendorId);
+        localStorage.setItem('userId', userId);
         localStorage.setItem('activeContainerId', activeContainerId);
-    }, [dutyStarted, selectedShift, dutyDate, dutyUnit, dutyLocation, activeContainerId, vendorCode, companyName, vendorId]);
+    }, [dutyStarted, selectedShift, dutyDate, dutyUnit, dutyLocation, activeContainerId, vendorCode, companyName, vendorId, userId]);
 
     // Silent mapping fetch for header info (if missing)
     useEffect(() => {
         if (!companyName && dutyStarted) {
             const fetchHeaderMapping = async () => {
-                const userId = localStorage.getItem('userId') || '134';
+                const currentUserId = userId || localStorage.getItem('userId');
+                if (!currentUserId) return;
                 try {
-                    const res = await apiService.getCompanyUnitsByUser(userId);
+                    const res = await apiService.getCompanyUnitsByUser(currentUserId);
                     const data = res?.responseData || {};
                     if (data.companyName) setCompanyName(data.companyName);
                     if (data.vendorCode) setVendorCode(data.vendorCode);
@@ -280,6 +285,8 @@ export const ShiftProvider = ({ children }) => {
         setCompanyName,
         vendorId,
         setVendorId,
+        userId,
+        setUserId,
         containers,
         setContainers,
         activeContainerId,

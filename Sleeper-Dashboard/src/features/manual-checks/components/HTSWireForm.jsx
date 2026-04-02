@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { apiService } from '../../../services/api';
 import '../../../components/common/Checkbox.css';
 import { useShift } from '../../../context/ShiftContext';
 
 const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initialData, activeContainer, sharedBatchNo, sharedBenchNo, onShiftFieldChange }) => {
-    const { allWitnessedRecords } = useShift();
+    const { allWitnessedRecords, dutyUnit, vendorId: contextVendorId } = useShift();
+    const [availableLocations, setAvailableLocations] = useState([]);
     // 1. dateTime, noOfWires, and arrangement Stored in form state
     const getLocalISOString = () => {
         const now = new Date();
@@ -64,6 +66,36 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
             console.log('📋 HTSWireForm - Prefilled from:', initialData);
         }
     }, [initialData, activeContainer]);
+
+    // Fetch Dynamic Locations for current Unit
+    useEffect(() => {
+        const fetchLocations = async () => {
+            const vId = contextVendorId || localStorage.getItem('vendorId');
+            if (dutyUnit && vId) {
+                try {
+                    const sheds = await apiService.getPlantSheds(vId, dutyUnit);
+                    let locList = [];
+                    const data = sheds?.responseData || sheds;
+                    if (typeof data === 'object' && data !== null) {
+                        Object.values(data).forEach((ids) => {
+                            if (Array.isArray(ids)) {
+                                ids.forEach(id => {
+                                    locList.push(id);
+                                });
+                            }
+                        });
+                    }
+                    setAvailableLocations(locList);
+                    if (locList.length > 0 && !formData.location) {
+                        setFormData(prev => ({ ...prev, location: locList[0] }));
+                    }
+                } catch (err) {
+                    console.error("Error fetching locations in form:", err);
+                }
+            }
+        };
+        fetchLocations();
+    }, [dutyUnit, contextVendorId]);
 
     const SLEEPER_RULES = {
         'RT-2496': { wires: 18, diaMin: 2.97, diaMax: 3.03, nominalWeight: 0.166 },
@@ -247,11 +279,19 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
                         style={{ width: '100%', boxSizing: 'border-box' }}
                     >
                         <option value="N/A">-- Select --</option>
-                        <option value="Long Line">Long Line</option>
-                        <option value="Line 1">Line 1</option>
-                        <option value="Line 2">Line 2</option>
-                        <option value="Shed 1">Shed 1</option>
-                        <option value="Shed 2">Shed 2</option>
+                        {availableLocations.length > 0 ? (
+                            availableLocations.map(loc => (
+                                <option key={loc} value={loc}>{loc}</option>
+                            ))
+                        ) : (
+                            <>
+                                <option value="Long Line">Long Line</option>
+                                <option value="Line 1">Line 1</option>
+                                <option value="Line 2">Line 2</option>
+                                <option value="Shed 1">Shed 1</option>
+                                <option value="Shed 2">Shed 2</option>
+                            </>
+                        )}
                     </select>
                 </div>
 

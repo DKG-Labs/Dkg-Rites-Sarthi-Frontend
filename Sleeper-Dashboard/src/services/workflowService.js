@@ -9,10 +9,11 @@ import { API_BASE_URL } from './api';
  * Fetch all completed workflow calls
  * @returns {Promise<Array>} List of completed workflow transitions
  */
-export const getAllCompletedCalls = async () => {
+export const getAllCompletedCalls = async (userId = '') => {
   try {
     const token = localStorage.getItem('authToken');
-    const response = await fetch(`${API_BASE_URL}/sleeper-workflow/allCompletedCalls`, {
+    const url = `${API_BASE_URL}/sleeper-workflow/allCompletedCalls${userId ? `?assignedTo=${userId}` : ''}`;
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

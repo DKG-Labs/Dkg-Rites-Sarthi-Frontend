@@ -59,10 +59,9 @@ const DutySetup = () => {
         if (!vendorId || !unitId) return;
         try {
             const res = await apiService.getPlantSheds(vendorId, unitId);
-            const data = res?.responseData || {};
-            // data format: {"Stress Bench": [2]}
-            const locationStr = Object.entries(data)
-                .map(([type, ids]) => `${type} ${ids.join(', ')}`)
+            // data format: {"Stress Bench": ["Shed 1"], "Longline": ["Line 1"]}
+            const locationStr = Object.values(data)
+                .flat()
                 .join(', ');
             if (locationStr) setDutyLocation(locationStr);
         } catch (err) {

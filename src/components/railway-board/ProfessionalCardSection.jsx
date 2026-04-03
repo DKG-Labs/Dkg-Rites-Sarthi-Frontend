@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'; // Re-adding hooks
+import React, { useState, useEffect } from 'react'; // Re-adding hooks
 import reportService from '../../services/reportService';
 import Pagination from '../Pagination';
 import {
@@ -132,6 +132,18 @@ const ProfessionalCardSection = ({
         }
     }, [drilldownManufacturer]);
 
+    // States for Reports Searching & Sorting
+    const [mprSearch, setMprSearch] = useState('');
+    const [mprSort, setMprSort] = useState({ key: null, direction: 'asc' });
+    const [mauSearch, setMauSearch] = useState('');
+    const [mauSort, setMauSort] = useState({ key: null, direction: 'asc' });
+    const [mpiaSearch, setMpiaSearch] = useState('');
+    const [mpiaSort, setMpiaSort] = useState({ key: null, direction: 'asc' });
+
+    const [isPreparingBatchPdf, setIsPreparingBatchPdf] = useState(false);
+    const [batchReportData, setBatchReportData] = useState(null);
+    const [batchProgress, setBatchProgress] = useState(0);
+
     // Sync activeReport with parent navigation
     React.useEffect(() => {
         if (activeReportFromParent) {
@@ -140,13 +152,21 @@ const ProfessionalCardSection = ({
         }
     }, [activeReportFromParent]);
 
-    // States for Reports Searching & Sorting
-    const [mprSearch, setMprSearch] = useState('');
-    const [mprSort, setMprSort] = useState({ key: null, direction: 'asc' });
-    const [mauSearch, setMauSearch] = useState('');
-    const [mauSort, setMauSort] = useState({ key: null, direction: 'asc' });
-    const [mpiaSearch, setMpiaSearch] = useState('');
-    const [mpiaSort, setMpiaSort] = useState({ key: null, direction: 'asc' });
+    // Handle Batch PDF Printing
+    React.useEffect(() => {
+        if (batchReportData && batchReportData.length > 0) {
+            // Give Recharts and React a full second to render all pages/charts off-screen
+            const timer = setTimeout(() => {
+                window.print();
+                // Add an extra delay before clearing to allow print engine to fully capture the DOM
+                setTimeout(() => {
+                    setBatchReportData(null);
+                    setIsPreparingBatchPdf(false);
+                }, 1000);
+            }, 2000);
+            return () => clearTimeout(timer);
+        }
+    }, [batchReportData]);
 
     // States for Performance Matrix Filtering & Sorting
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
@@ -815,7 +835,23 @@ const ProfessionalCardSection = ({
                                     <div className="prof-card">
                                         <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                             <span>Performance Monitoring Matrix</span>
-                                            <div style={{ display: 'flex', gap: '8px' }}>
+                                            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                                <ExportButton
+                                                    onClick={() => downloadExcel(
+                                                        getSortedData(filteredPerfRecords),
+                                                        [
+                                                            { label: 'MANUFACTURER', key: 'manufacturerName' },
+                                                            { label: 'RIO', key: 'rio' },
+                                                            { label: 'IE', key: 'username' },
+                                                            { label: 'STAGE', key: 'stage' },
+                                                            { label: 'INSPECTED', key: 'inspectedQty' },
+                                                            { label: 'ACCEPTED', key: 'acceptedQty' },
+                                                            { label: 'REJECTED', key: 'rejectedQty' },
+                                                            { label: 'REJECTION %', key: 'rejectionPercentage' }
+                                                        ],
+                                                        'Performance_Monitoring_Matrix'
+                                                    )}
+                                                />
                                                 <select className="prof-select" value={perfFilterIe} onChange={(e) => setPerfFilterIe(e.target.value)}>
                                                     <option value="all">All Engineers</option>
                                                     {uniqueIes.map(ie => <option key={ie} value={ie}>{ie}</option>)}
@@ -890,7 +926,26 @@ const ProfessionalCardSection = ({
                                             <div className="prof-card animate-up">
                                                 <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                     <span>Monthly Progress Report</span>
-                                                    <input type="text" placeholder="Search..." className="prof-search" value={mprSearch} onChange={(e) => setMprSearch(e.target.value)} />
+                                                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                                        <ExportButton
+                                                            onClick={() => downloadExcel(
+                                                                displayMprData,
+                                                                [
+                                                                    { label: 'Rly', key: 'rly' },
+                                                                    { label: 'PO Number', key: 'poNumber' },
+                                                                    { label: 'Manufacturer', key: 'manufacturer' },
+                                                                    { label: 'PO Qty', key: 'poQty' },
+                                                                    { label: 'RM', key: 'monthlyRm' },
+                                                                    { label: 'Process', key: 'monthlyProcess' },
+                                                                    { label: 'Final', key: 'monthlyFinal' },
+                                                                    { label: 'Total Final Inspected', key: 'totalFinalInspected' },
+                                                                    { label: 'Balance', key: 'poBalance' }
+                                                                ],
+                                                                'Monthly_Progress_Report'
+                                                            )}
+                                                        />
+                                                        <input type="text" placeholder="Search..." className="prof-search" value={mprSearch} onChange={(e) => setMprSearch(e.target.value)} />
+                                                    </div>
                                                 </div>
                                                 <div className="table-responsive">
                                                     <table className="prof-table">
@@ -939,7 +994,24 @@ const ProfessionalCardSection = ({
                                             <div className="prof-card animate-up">
                                                 <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                     <span>Monthly Analysis of Units</span>
-                                                    <input type="text" placeholder="Search..." className="prof-search" value={mauSearch} onChange={(e) => setMauSearch(e.target.value)} />
+                                                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                                        <ExportButton
+                                                            onClick={() => downloadExcel(
+                                                                displayMauData,
+                                                                [
+                                                                    { label: 'Manufacturer', key: 'manufacturer' },
+                                                                    { label: 'Manufactured', key: 'manufactured' },
+                                                                    { label: 'Inspected', key: 'inspected' },
+                                                                    { label: 'Rejected', key: 'rejected' },
+                                                                    { label: 'RM %', key: 'rmRejPercent' },
+                                                                    { label: 'Process %', key: 'processRejPercent' },
+                                                                    { label: 'Final %', key: 'finalRejPercent' }
+                                                                ],
+                                                                'Monthly_Analysis_of_Units'
+                                                            )}
+                                                        />
+                                                        <input type="text" placeholder="Search..." className="prof-search" value={mauSearch} onChange={(e) => setMauSearch(e.target.value)} />
+                                                    </div>
                                                 </div>
                                                 <div className="table-responsive">
                                                     <table className="prof-table">
@@ -1002,7 +1074,7 @@ const ProfessionalCardSection = ({
                                         )}
 
                                         {activeReport === 'mpia' && (
-                                            <div className="prof-card animate-up" style={{ padding: drilldownManufacturer ? '0' : '20px' }}>
+                                            <div className={`prof-card animate-up ${batchReportData ? 'no-print' : ''}`} style={{ padding: drilldownManufacturer ? '0' : '15px' }}>
                                                 {drilldownManufacturer ? (
                                                     <MpiaDrillDown
                                                         data={drilldownData}
@@ -1014,7 +1086,61 @@ const ProfessionalCardSection = ({
                                                     <>
                                                         <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                             <span>Manufacture Process Inspection Analysis</span>
-                                                            <input type="text" placeholder="Search..." className="prof-search" value={mpiaSearch} onChange={(e) => setMpiaSearch(e.target.value)} />
+                                                            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                                                <ExportButton
+                                                                    label="Download Summary"
+                                                                    onClick={() => downloadExcel(
+                                                                        displayMpiaData,
+                                                                        [
+                                                                            { label: 'Manufacture', key: 'manufacture' },
+                                                                            { label: 'Total Inspected', key: 'totalInspected' },
+                                                                            { label: 'Total Accepted', key: 'totalAccepted' },
+                                                                            { label: 'Total Rejected', key: 'totalRejected' },
+                                                                            { label: 'Rejection %', key: 'rejectionPercent' }
+                                                                        ],
+                                                                        'Manufacture_Process_Inspection_Analysis_Summary'
+                                                                    )}
+                                                                />
+                                                                <ExportButton
+                                                                    label={isPreparingBatchPdf ? `Preparing (${batchProgress}/${mpiaData.length})...` : "Batch PDF Report"}
+                                                                    disabled={isPreparingBatchPdf}
+                                                                    onClick={async () => {
+                                                                        if (!mpiaData || mpiaData.length === 0) {
+                                                                            alert("No manufacturers found to process.");
+                                                                            return;
+                                                                        }
+                                                                        try {
+                                                                            setBatchProgress(0);
+                                                                            setIsPreparingBatchPdf(true);
+                                                                            const end = new Date().toISOString().split('T')[0];
+                                                                            const start = new Date(new Date().setFullYear(new Date().getFullYear() - 1)).toISOString().split('T')[0];
+
+                                                                            const results = await Promise.all(mpiaData.map(async (m) => {
+                                                                                try {
+                                                                                    const res = await reportService.getCompanyMonthWiseData({
+                                                                                        companyName: m.manufacture,
+                                                                                        startDate: start,
+                                                                                        endDate: end,
+                                                                                        page: 0,
+                                                                                        size: 13
+                                                                                    });
+                                                                                    const data = res.responseData?.content || res.content || res || [];
+                                                                                    setBatchProgress(prev => prev + 1);
+                                                                                    return { manufacturer: m.manufacture, data: Array.isArray(data) ? data : [] };
+                                                                                } catch (e) {
+                                                                                    return { manufacturer: m.manufacture, data: [] };
+                                                                                }
+                                                                            }));
+
+                                                                            setBatchReportData(results);
+                                                                        } catch (err) {
+                                                                            setIsPreparingBatchPdf(false);
+                                                                            alert("Failed to prepare batch PDF data.");
+                                                                        }
+                                                                    }}
+                                                                />
+                                                                <input type="text" placeholder="Search..." className="prof-search" value={mpiaSearch} onChange={(e) => setMpiaSearch(e.target.value)} />
+                                                            </div>
                                                         </div>
                                                         <div className="table-responsive">
                                                             <table className="prof-table">
@@ -1079,6 +1205,13 @@ const ProfessionalCardSection = ({
     return (
         <div className="dashboard-content-integrated">
             {renderSubContent()}
+            {batchReportData && (
+                <div className="mpia-batch-print-viewport">
+                    {batchReportData.map((item, idx) => (
+                        <MpiaReportPage key={idx} manufacturer={item.manufacturer} data={item.data} />
+                    ))}
+                </div>
+            )}
         </div>
     );
 };
@@ -1230,11 +1363,7 @@ const ParetoXAxisTick = (props) => {
 // NEW: MpiaDrillDown - Details for a specific manufacturer
 // ────────────────────────────────────────────────────────────────────────────────
 const MpiaDrillDown = ({ data = [], manufacturer, onBack, loading }) => {
-    const printRef = useRef();
-
-    const handleDownload = () => {
-        window.print();
-    };
+    const [isPrinting, setIsPrinting] = useState(false);
 
     if (loading) {
         return (
@@ -1245,6 +1374,137 @@ const MpiaDrillDown = ({ data = [], manufacturer, onBack, loading }) => {
         );
     }
 
+    const handlePrint = () => {
+        setIsPrinting(true);
+        // Delay to allow Recharts to stabilize before browser capture
+        setTimeout(() => {
+            window.print();
+            setIsPrinting(false);
+        }, 1200);
+    };
+
+    return (
+        <div className="bg-slate-50 p-6 min-h-screen">
+            <div className="max-w-6xl mx-auto mb-6 flex justify-between items-center no-print">
+                <button
+                    onClick={onBack}
+                    className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-all font-medium"
+                >
+                    <span className="text-xl">←</span> Back to Summary
+                </button>
+                <button
+                    onClick={handlePrint}
+                    disabled={isPrinting}
+                    className="flex items-center gap-2 px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all font-bold shadow-lg no-print disabled:opacity-70"
+                >
+                    {isPrinting ? (
+                        <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white"></div>
+                            Preparing PDF...
+                        </>
+                    ) : (
+                        <>
+                            <span>PDF</span> Download Report
+                        </>
+                    )}
+                </button>
+            </div>
+
+            <MpiaReportPage manufacturer={manufacturer} data={data} />
+        </div>
+    );
+};
+
+
+/**
+ * ────────────────────────────────────────────────────────────────────────────────
+ * EXPORT UTILITIES & COMPONENTS
+ * ────────────────────────────────────────────────────────────────────────────────
+ */
+
+/**
+ * Professional Export Button Component with Icon, Loading & Disabled States
+ */
+const ExportButton = ({ onClick, label = "Export Excel", disabled = false }) => (
+    <button
+        className={`btn-export-excel ${disabled ? 'disabled' : ''}`}
+        onClick={disabled ? null : onClick}
+        disabled={disabled}
+        title={disabled ? "Processing..." : "Download Excel Report"}
+    >
+        {disabled ? (
+            <div className="spinner-small"></div>
+        ) : (
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 3V16M12 16L7 11M12 16L17 11M5 21H19" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+        )}
+        <span>{label}</span>
+    </button>
+);
+
+/**
+ * Professional Excel Export Utility (CSV-based with UTF-8 support)
+ * Handles data formatting, escaping, and triggers browser download.
+ */
+const downloadExcel = (data, headers, filename) => {
+    if (!data || data.length === 0) {
+        alert("No data available to export.");
+        return;
+    }
+
+    // Header Row
+    const headerRow = headers.map(h => h.label).join(',');
+
+    // Data Rows
+    const dataRows = data.map(row => {
+        return headers.map(header => {
+            let cellValue = row[header.key];
+
+            // Handle null/undefined
+            if (cellValue === null || cellValue === undefined) {
+                cellValue = '';
+            }
+
+            // Format numbers to strings if needed
+            const stringValue = String(cellValue);
+
+            // Force Excel to treat long numeric strings as text (fixes scientific notation & leading zeros)
+            if (/^\d+$/.test(stringValue) && (stringValue.length > 10 || stringValue.startsWith('0'))) {
+                return `="${stringValue}"`;
+            }
+
+            // Escape double quotes and surround with quotes if necessary
+            const escaped = stringValue.replace(/"/g, '""');
+            return escaped.includes(',') || escaped.includes('\n') || escaped.includes('"')
+                ? `"${escaped}"`
+                : escaped;
+        }).join(',');
+    });
+
+    // Combine with UTF-8 BOM to ensure Excel opens with correct encoding
+    const csvContent = '\uFEFF' + [headerRow, ...dataRows].join('\n');
+
+    // Create Blob and trigger download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${filename}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.display = 'none';
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+
+/**
+ * Component to render a full A4 page report for a single manufacturer
+ * Reusable for both individual drill-down and consolidated batch PDF.
+ */
+const MpiaReportPage = ({ manufacturer, data, showFooter = true }) => {
     // Process Defects for Pie Chart (Aggregation)
     const defectAgg = {
         'Shearing': 0, 'Turning': 0, 'Forging': 0, 'Finishing': 0, 'Quenching': 0, 'Tempering': 0
@@ -1266,218 +1526,137 @@ const MpiaDrillDown = ({ data = [], manufacturer, onBack, loading }) => {
     const COLORS = ['#0f172a', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
     return (
-        <div className="bg-slate-50 p-6 min-h-screen">
-            <div className="max-w-6xl mx-auto mb-6 flex justify-between items-center no-print">
-                <button
-                    onClick={onBack}
-                    className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-all font-medium"
-                >
-                    <span className="text-xl">←</span> Back to Summary
-                </button>
-                <button
-                    onClick={handleDownload}
-                    className="flex items-center gap-2 px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all font-bold shadow-lg"
-                >
-                    <span>PDF</span> Download Report
-                </button>
+        <div
+            className="bg-white px-6 pb-6 pt-2 shadow-none rounded-sm mx-auto print-container page-break full-report-page"
+            style={{
+                width: '280mm',
+                height: '190mm',
+                minHeight: '190mm',
+                maxHeight: '190mm',
+                boxSizing: 'border-box',
+                overflow: 'hidden',
+                position: 'relative',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                margin: '0 auto',
+                border: 'none',
+                background: 'white'
+            }}
+        >
+            {/* Header */}
+            <div className="text-center mb-2">
+                <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">{manufacturer}</h2>
+                <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mt-1">Manufacturer Performance Analysis (Monthly)</p>
+                <div className="h-1 w-20 bg-emerald-500 mx-auto mt-4 rounded-full"></div>
             </div>
 
-            {/* Print Container (White A4 sheet feel) */}
-            <div ref={printRef} className="bg-white p-12 shadow-2xl rounded-sm mx-auto print-container" style={{ minHeight: '297mm', width: '210mm' }}>
-                <div className="text-center mb-10">
-                    <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">{manufacturer}</h2>
-                    <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mt-1">Manufacturer Performance Analysis (Monthly)</p>
-                    <div className="h-1 w-20 bg-emerald-500 mx-auto mt-4 rounded-full"></div>
+            {/* Graphs & Table Row */}
+            <div className="grid grid-cols-2 gap-8 items-start">
+                {/* Left: Defect Pie Chart */}
+                <div className="flex flex-col items-center">
+                    <h3 className="font-bold text-slate-700 mb-2 text-sm uppercase">Process Defect Distribution</h3>
+                    {pieData.length > 0 ? (
+                        <PieChart
+                            width={340}
+                            height={280}
+                            margin={{ top: 0, right: 60, bottom: 0, left: 60 }}
+                        >
+                            <Pie
+                                data={pieData} cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={5} minAngle={15} dataKey="value"
+                                isAnimationActive={false}
+                                label={({ cx, cy, midAngle, outerRadius, name, percent }) => {
+                                    const RADIAN = Math.PI / 180;
+                                    const radius = outerRadius + 25;
+                                    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                                    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                                    return (
+                                        <text x={x} y={y} fill="#475569" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize="10" fontWeight="700">
+                                            {`${name} ${(percent * 100).toFixed(0)}%`}
+                                        </text>
+                                    );
+                                }}
+                                labelLine={{ stroke: '#cbd5e1', strokeWidth: 1.5 }}
+                            >
+                                {pieData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                ))}
+                            </Pie>
+                        </PieChart>
+                    ) : (
+                        <div className="h-[300px] flex items-center justify-center border-2 border-dashed border-slate-100 rounded-2xl w-full">
+                            <p className="text-slate-400 italic text-sm">No process defects recorded.</p>
+                        </div>
+                    )}
+                    <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-2 w-full">
+                        {pieData.map((d, i) => (
+                            <div key={i} className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                                <div className="w-2 h-2 rounded-full" style={{ background: COLORS[i % COLORS.length] }}></div>
+                                <span>{d.name}: {d.value}</span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-12 items-start">
-                    {/* Left side Pie Chart */}
-                    <div className="flex flex-col items-center">
-                        <h3 className="font-bold text-slate-700 mb-2 text-sm">
-                            PROCESS DEFECT DISTRIBUTION
-                        </h3>
-                        {pieData.length > 0 ? (
-                            <ResponsiveContainer width="110%" height={300}>
-                                <PieChart margin={{ top: 0, right: 40, bottom: 0, left: 40 }}>
-                                    <Pie
-                                        data={pieData}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={50}
-                                        outerRadius={75}
-                                        paddingAngle={5}
-                                        minAngle={15}
-                                        dataKey="value"
-                                        label={({ cx, cy, midAngle, outerRadius, name, percent }) => {
-                                            const RADIAN = Math.PI / 180;
-                                            const radius = outerRadius + 25;
-                                            const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                                            const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                                            return (
-                                                <text
-                                                    x={x} y={y}
-                                                    fill="#475569"
-                                                    textAnchor={x > cx ? 'start' : 'end'}
-                                                    dominantBaseline="central"
-                                                    fontSize="11"
-                                                    fontWeight="700"
-                                                >
-                                                    {`${name} ${(percent * 100).toFixed(0)}%`}
-                                                </text>
-                                            );
-                                        }}
-                                        labelLine={{ stroke: '#cbd5e1', strokeWidth: 1.5 }}
-                                    >
-                                        {pieData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip
-                                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                                    />
-                                </PieChart>
-                            </ResponsiveContainer>
-                        ) : (
-                            <div className="h-[300px] flex items-center justify-center border-2 border-dashed border-slate-100 rounded-2xl w-full">
-                                <p className="text-slate-400 italic text-sm">No process defects recorded.</p>
-                            </div>
-                        )}
-                        <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-2 w-full">
-                            {pieData.map((d, i) => (
-                                <div key={i} className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-                                    <div className="w-2 h-2 rounded-full" style={{ background: COLORS[i % COLORS.length] }}></div>
-                                    <span>{d.name}: {d.value}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Right side Data Summary & Monthly Table */}
-                    <div>
-                        <h3 className="font-bold text-slate-700 mb-6 text-sm flex items-center gap-2">
-                            MONTHLY PERFORMANCE
-                        </h3>
-                        <div className="overflow-hidden border border-slate-100 rounded-xl">
-                            <table className="w-full text-xs">
-                                <thead className="bg-slate-800 text-white">
-                                    <tr>
-                                        <th className="p-3 text-left">MONTH</th>
-                                        <th className="p-3 text-right">INSPECTED</th>
-                                        <th className="p-3 text-right">REJECTED</th>
-                                        <th className="p-3 text-right">% REJ</th>
+                {/* Right: Monthly Table */}
+                <div>
+                    <h3 className="font-bold text-slate-700 mb-6 text-sm flex items-center gap-2 uppercase">Monthly Performance</h3>
+                    <div className="overflow-hidden border border-slate-100 rounded-xl">
+                        <table className="w-full text-xs">
+                            <thead className="bg-slate-800 text-white" style={{ backgroundColor: '#1e293b', color: 'white', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+                                <tr>
+                                    <th className="p-3 text-left">MONTH</th>
+                                    <th className="p-3 text-right">INSPECTED</th>
+                                    <th className="p-3 text-right">REJECTED</th>
+                                    <th className="p-3 text-right">% REJ</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {data.map((m, i) => (
+                                    <tr key={i} className="hover:bg-slate-50 transition-colors">
+                                        <td className="p-3 font-bold text-slate-700 uppercase">{m.month}</td>
+                                        <td className="p-3 text-right font-medium text-slate-600">{m.inspected?.toLocaleString()}</td>
+                                        <td className="p-3 text-right font-bold text-red-600">{m.processRejected?.toLocaleString()}</td>
+                                        <td className="p-3 text-right">
+                                            <span className="bg-red-50 text-red-700 px-2 py-0.5 rounded font-bold">
+                                                {m.processRejPercent?.toFixed(2)}%
+                                            </span>
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100">
-                                    {data.map((m, i) => (
-                                        <tr key={i} className="hover:bg-slate-50 transition-colors">
-                                            <td className="p-3 font-bold text-slate-700 uppercase">{m.month}</td>
-                                            <td className="p-3 text-right font-medium text-slate-600">{m.inspected?.toLocaleString()}</td>
-                                            <td className="p-3 text-right font-bold text-red-600">{m.processRejected?.toLocaleString()}</td>
-                                            <td className="p-3 text-right">
-                                                <span className="bg-red-50 text-red-700 px-2 py-0.5 rounded font-bold">
-                                                    {m.processRejPercent?.toFixed(2)}%
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {data.length === 0 && (
-                                        <tr>
-                                            <td colSpan="4" className="p-10 text-center italic text-slate-400">No monthly data available for the period.</td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
+                                ))}
+                                {data.length === 0 && (
+                                    <tr><td colSpan="4" className="p-4 text-center italic text-slate-400">No data available.</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
 
-                        {/* Totals Summary */}
-                        <div className="mt-8 grid grid-cols-3 gap-4">
-                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Cumulative Inspected</p>
-                                <p className="text-lg font-black text-slate-800">{data.reduce((acc, m) => acc + (m.inspected || 0), 0).toLocaleString()}</p>
-                            </div>
-                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Cumulative Rejected</p>
-                                <p className="text-lg font-black text-red-600">{data.reduce((acc, m) => acc + (m.processRejected || 0), 0).toLocaleString()}</p>
-                            </div>
-                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Avg Rejection %</p>
-                                <p className="text-lg font-black text-slate-800">
-                                    {data.length > 0 ? (data.reduce((acc, m) => acc + (m.processRejPercent || 0), 0) / data.length).toFixed(2) : 0}%
-                                </p>
-                            </div>
+                    {/* KPI Widgets */}
+                    <div className="mt-8 grid grid-cols-3 gap-4">
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
+                            <p className="text-[9px] text-slate-400 font-bold mb-1">INSPECTED</p>
+                            <p className="text-sm font-black text-slate-800">{data.reduce((acc, m) => acc + (m.inspected || 0), 0).toLocaleString()}</p>
+                        </div>
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
+                            <p className="text-[9px] text-slate-400 font-bold mb-1">REJECTED</p>
+                            <p className="text-sm font-black text-red-600">{data.reduce((acc, m) => acc + (m.processRejected || 0), 0).toLocaleString()}</p>
+                        </div>
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
+                            <p className="text-[9px] text-slate-400 font-bold mb-1">AVG% REJ</p>
+                            <p className="text-sm font-black text-slate-800">
+                                {data.length > 0 ? (data.reduce((acc, m) => acc + (m.processRejPercent || 0), 0) / data.length).toFixed(2) : 0}%
+                            </p>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                {/* Footer */}
-                <div className="mt-auto pt-20 border-t border-slate-100 text-[10px] text-slate-300 flex justify-between font-bold">
+            {showFooter && (
+                <div className="mt-8 pt-4 border-t border-slate-100 text-[10px] text-slate-300 flex justify-between font-bold uppercase">
                     <span>SARTHI RAILWAY DASHBOARD - CONFIDENTIAL</span>
                     <span>GENERATED ON: {new Date().toLocaleDateString()}</span>
                 </div>
-            </div>
-
-            {/* Improved print CSS */}
-            <style>
-                {`
-                @media print {
-                    /* Reset visibility and overflow */
-                    html, body { 
-                        overflow: hidden !important; 
-                        height: 100% !important;
-                        margin: 0 !important;
-                        padding: 0 !important;
-                    }
-                    body * { visibility: hidden !important; }
-                    
-                    /* Show and style the targeted report only */
-                    .print-container, 
-                    .print-container * { 
-                        visibility: visible !important; 
-                        -webkit-print-color-adjust: exact !important;
-                        print-color-adjust: exact !important;
-                    }
-                    
-                    /* Rigid A4 Landscape single page container */
-                    .print-container { 
-                        display: block !important;
-                        position: fixed !important;
-                        left: 0 !important;
-                        top: 0 !important;
-                        width: 297mm !important; 
-                        height: 210mm !important; 
-                        overflow: hidden !important;
-                        margin: 0 !important;
-                        padding: 12mm !important;
-                        background-color: white !important;
-                        z-index: 999999 !important;
-                        border: none !important;
-                        page-break-after: avoid !important;
-                    }
-
-                    /* Fix chart scaling for print */
-                    .recharts-responsive-container {
-                        width: 100% !important;
-                        height: 280px !important; /* Slightly reduced to keep on one page */
-                    }
-
-                    /* Background color enforcements */
-                    .bg-slate-50 { background-color: #f8fafc !important; }
-                    .bg-slate-800 { background-color: #1e293b !important; }
-                    .bg-red-50 { background-color: #fef2f2 !important; }
-                    table { border-collapse: collapse !important; }
-                    th { background-color: #1e293b !important; color: white !important; -webkit-print-color-adjust: exact !important; }
-                    
-                    .no-print { display: none !important; }
-                    
-                    @page { 
-                        size: landscape; 
-                        margin: 0; 
-                    }
-                }
-                `}
-            </style>
+            )}
         </div>
     );
 };
-
-

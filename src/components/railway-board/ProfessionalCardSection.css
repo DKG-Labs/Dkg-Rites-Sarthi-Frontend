@@ -1903,3 +1903,272 @@ tr.row-even td {
     display: flex;
     align-items: center;
 }
+
+/* --- Added Export Button Styles --- */
+.btn-export-excel {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 18px;
+    background: #10b981;
+    color: white;
+    border: none;
+    border-radius: 50px;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.3);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    height: 36px;
+    white-space: nowrap;
+    margin-left: 12px;
+}
+
+.btn-export-excel:hover {
+    background: #059669;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.4);
+}
+
+.btn-export-excel:active {
+    transform: translateY(0);
+}
+
+.btn-export-excel svg {
+    width: 14px;
+    height: 14px;
+    stroke: currentColor;
+    stroke-width: 3;
+}
+
+/* Ensure report header flexes nicely with export buttons */
+.sec-title-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+/* Export Button - Professional States */
+.btn-export-excel.disabled {
+    background: #94a3b8 !important;
+    cursor: not-allowed !important;
+    box-shadow: none !important;
+    transform: none !important;
+    opacity: 0.8;
+}
+
+.spinner-small {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: white;
+    animation: spin-detail 0.8s linear infinite;
+    margin-right: 6px;
+}
+
+@keyframes spin-detail {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Batch PDF Print Styles */
+.mpia-batch-print-viewport {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 0;
+    overflow: hidden;
+    z-index: -100;
+    opacity: 0;
+    pointer-events: none;
+}
+
+@media print {
+
+    /* Hide everything by default */
+    body * {
+        visibility: hidden !important;
+    }
+
+    /* Show the main content wrapper and the specific print containers */
+    .prof-dashboard-wrapper,
+    .prof-layout-container,
+    #prof-main,
+    #prof-main *,
+    #prof-content-area,
+    #prof-content-area *,
+    .dashboard-content-integrated,
+    .dashboard-content-integrated *,
+    .mpia-batch-print-viewport,
+    .mpia-batch-print-viewport *,
+    .print-container,
+    .print-container * {
+        visibility: visible !important;
+    }
+
+    /* Reset ALL parent containers that might shift the layout */
+    .prof-dashboard-wrapper,
+    .prof-layout-container,
+    #prof-main,
+    #prof-content-area,
+    .dashboard-content-integrated,
+    .bg-slate-50 {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        left: 0 !important;
+        position: static !important;
+        display: block !important;
+        background: white !important;
+        min-height: auto !important;
+    }
+
+    /* Ensure specific Batch Report Viewport is also handled */
+    .mpia-batch-print-viewport {
+        display: block !important;
+        visibility: visible !important;
+        height: auto !important;
+        min-height: 100% !important;
+        width: 100% !important;
+        opacity: 1 !important;
+        z-index: 99999 !important;
+        position: static !important;
+        overflow: visible !important;
+    }
+
+    .mpia-batch-print-viewport * {
+        visibility: visible !important;
+    }
+
+    /* Surgical isolation: Hide non-print elements inside the visible containers */
+    .no-print,
+    .no-print *,
+    .sidebar-top-action,
+    #prof-sidebar,
+    #prof-topbar,
+    .sub-tabs,
+    .sec-title-flex,
+    .Pagination,
+    .prof-search,
+    .btn-export-excel,
+    .nav-wrapper {
+        display: none !important;
+        visibility: hidden !important;
+    }
+
+    /* Force Landscape orientation and remove browser default margins */
+    @page {
+        size: A4 landscape;
+        margin: 0 !important;
+    }
+
+    html,
+    body {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+        background: white !important;
+        overflow: visible !important;
+    }
+
+    /* Ensure the report page is pinned to the top and centered horizontally */
+    .print-container {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        margin: 0 auto !important;
+        page-break-after: avoid !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        border: none !important;
+        box-shadow: none !important;
+        /* Using slightly smaller than A4 to ensure it fits without scaling issues */
+        width: 280mm !important;
+        height: 190mm !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: flex-start !important;
+        align-items: center !important;
+        padding-top: 5mm !important;
+        background: white !important;
+        overflow: hidden !important;
+        z-index: 99999 !important;
+    }
+
+    /* ONLY for batch reports, add a break BETWEEN (but not after last) pages */
+    .mpia-batch-print-viewport .print-container {
+        position: relative !important;
+        top: auto !important;
+        margin-top: 0 !important;
+    }
+
+    .mpia-batch-print-viewport .print-container:not(:last-child) {
+        page-break-after: always !important;
+        break-after: page !important;
+    }
+
+    /* Special rule for the MpiaDrillDown specifically used in the screenshot */
+    .full-report-page {
+        margin: 0 auto !important;
+        width: 280mm !important;
+        height: 190mm !important;
+    }
+
+    /* Reset background and padding on drill-down wrapper during print */
+    .bg-slate-50.p-6.min-h-screen {
+        background: transparent !important;
+        padding: 0 !important;
+        min-height: auto !important;
+        display: block !important;
+    }
+
+    /* Fix for PieChart / Recharts visibility */
+    .recharts-responsive-container {
+        width: 100% !important;
+    }
+
+    .bg-slate-50 {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        background-color: #f8fafc !important;
+        box-shadow: inset 0 0 0 1000px #f8fafc !important;
+    }
+
+    .bg-emerald-500 {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        background-color: #10b981 !important;
+        box-shadow: inset 0 0 0 1000px #10b981 !important;
+    }
+
+    .bg-slate-800,
+    thead.bg-slate-800,
+    thead.bg-slate-800 th {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        background-color: #1e293b !important;
+        box-shadow: inset 0 0 0 1000px #1e293b !important;
+        color: white !important;
+    }
+
+    .text-white {
+        color: white !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* Remove backgrounds/colors normalization for printing */
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+}

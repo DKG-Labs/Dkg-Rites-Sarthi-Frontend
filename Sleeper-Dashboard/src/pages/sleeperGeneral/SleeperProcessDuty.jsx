@@ -107,8 +107,15 @@ const SleeperProcessDuty = () => {
         { id: 'Raw Material Inventory', title: 'Inventory Levels', description: 'Daily stock & consumption tracking' }
     ];
 
+    // If duty not started, redirect to main dashboard
+    useEffect(() => {
+        if (!dutyStarted) {
+            window.dispatchEvent(new CustomEvent('navigate', { detail: { target: 'Main Dashboard' } }));
+        }
+    }, [dutyStarted]);
+
     if (!dutyStarted) {
-        return <DutySetup />;
+        return null; // Return null instead of DutySetup as access is restricted
     }
 
     const confirmDeleteContainer = () => {

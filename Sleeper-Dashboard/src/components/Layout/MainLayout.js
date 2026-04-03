@@ -113,6 +113,7 @@ const MainLayout = ({ children, activeItem, onItemClick }) => {
 
             <Sidebar
                 activeItem={activeItem}
+                dutyStarted={dutyStarted}
                 onItemClick={(item) => {
                     onItemClick(item);
                     setIsMobileMenuOpen(false);

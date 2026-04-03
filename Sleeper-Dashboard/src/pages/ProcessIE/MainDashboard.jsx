@@ -203,21 +203,26 @@ const MainDashboard = () => {
             </header>
 
             <div className="ie-sub-nav-grid">
-                {DASHBOARD_CARDS.map(card => (
-                    <div
-                        key={card.id}
-                        className="ie-sub-nav-card"
-                        onClick={() => handleCardClick(card)}
-                    >
-                        <div className="card-icon-wrapper">
-                            <span className="card-icon-symbol-modern">{card.icon}</span>
+                {DASHBOARD_CARDS.map(card => {
+                    const isRestricted = !dutyStarted && card.id === 'production-verification';
+                    return (
+                        <div
+                            key={card.id}
+                            className={`ie-sub-nav-card ${isRestricted ? 'restricted' : ''}`}
+                            onClick={() => !isRestricted && handleCardClick(card)}
+                            title={isRestricted ? 'Please start duty first' : ''}
+                        >
+                            <div className="card-icon-wrapper">
+                                <span className="card-icon-symbol-modern">{card.icon}</span>
+                                {isRestricted && <span className="lock-badge">🔒</span>}
+                            </div>
+                            <div className="card-info">
+                                <h3 className="ie-sub-nav-card-title">{card.title(hasActiveDuty)}</h3>
+                                <p className="ie-sub-nav-card-desc">{card.desc(hasActiveDuty)}</p>
+                            </div>
                         </div>
-                        <div className="card-info">
-                            <h3 className="ie-sub-nav-card-title">{card.title(hasActiveDuty)}</h3>
-                            <p className="ie-sub-nav-card-desc">{card.desc(hasActiveDuty)}</p>
-                        </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
 
             {/* ── Start Duty Modal ── */}

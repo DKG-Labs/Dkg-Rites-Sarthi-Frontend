@@ -63,15 +63,24 @@ const SUB_COLUMNS = [
 
 
 const SleeperProcessIEGeneral = () => {
-    const { dutyDate, selectedShift, dutyLocation, plantVerificationData } = useShift();
+    const { dutyDate, selectedShift, dutyLocation, plantVerificationData, dutyStarted } = useShift();
     const [activeSubView, setActiveSubView] = useState(() => {
         return localStorage.getItem('activeSubView_General') || 'plant-declaration-verification';
     });
+
+    // If duty not started, redirect to main dashboard
+    useEffect(() => {
+        if (!dutyStarted) {
+            window.dispatchEvent(new CustomEvent('navigate', { detail: { target: 'Main Dashboard' } }));
+        }
+    }, [dutyStarted]);
 
     // Persist sub-view changes
     useEffect(() => {
         localStorage.setItem('activeSubView_General', activeSubView);
     }, [activeSubView]);
+
+    if (!dutyStarted) return null;
 
     const stats = getVerificationStats(plantVerificationData);
 

@@ -5,7 +5,7 @@ import { useShift } from '../../../context/ShiftContext';
 
 const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initialData, activeContainer, sharedBatchNo, sharedBenchNo, onShiftFieldChange }) => {
     const { allWitnessedRecords, dutyUnit, dutyLocation, vendorId: contextVendorId } = useShift();
-    
+
     // Exact State Mapping as requested by User
     // Helper for safe date/time (Forcing Asia/Kolkata to stop 12:54/UTC issues)
     const getSafeToday = () => {
@@ -165,9 +165,9 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                     const formattedDate = formatToBackendDate(formData.casting);
                     // Pass selected plant id (dutyUnit) and location (from form)
                     const response = await apiService.getAllProductionBatches(
-                        vendorId, 
-                        formattedDate, 
-                        dutyUnit, 
+                        vendorId,
+                        formattedDate,
+                        dutyUnit,
                         formData.location
                     );
                     if (response?.responseData) {
@@ -193,12 +193,12 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                     if (response?.responseData) {
                         const newBenches = response.responseData;
                         setBenches(newBenches);
-                        
+
                         // Autofetch: If there's a bench, select the first one (ALWAYS on batch change)
                         if (newBenches.length > 0) {
-                            setFormData(prev => ({ 
-                                ...prev, 
-                                gangNo: String(newBenches[0]) 
+                            setFormData(prev => ({
+                                ...prev,
+                                gangNo: String(newBenches[0])
                             }));
                         }
                     }
@@ -231,12 +231,12 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                     if (response?.responseData) {
                         const newTypes = response.responseData;
                         setSleeperTypes(newTypes);
-                        
+
                         // Autofetch: If there's a type, select the first one (ALWAYS on bench change)
                         if (newTypes.length > 0) {
-                            setFormData(prev => ({ 
-                                ...prev, 
-                                type: newTypes[0] 
+                            setFormData(prev => ({
+                                ...prev,
+                                type: newTypes[0]
                             }));
                         }
                     }
@@ -253,7 +253,7 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
     const handleChange = (field, value) => {
         setFormData(prev => {
             const newState = { ...prev, [field]: value };
-            
+
             // If selecting a new batch, reset sub-selections to allow fresh autofetch
             if (field === 'batch') {
                 newState.gangNo = '';
@@ -279,7 +279,7 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
             if (isAllRejectedVisual || isAllRejectedDim) {
                 const ALL_SEQS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
                 const currentDecls = [...newState.defectiveSleeperDetails];
-                
+
                 ALL_SEQS.forEach(seq => {
                     if (!currentDecls.find(d => d.sequence === seq)) {
                         currentDecls.push({
@@ -319,15 +319,15 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
             errors.push(`At least one ${fieldLabel} sleeper must be selected from the grid below`);
         }
 
-        // If checks are not OK, ensure reasons are filled
+        // If checks are not OK, ensure exactly one reason is filled per sleeper
         if (!bothAllOk && formData.defectiveSleeperDetails.length > 0) {
-            const hasUnfilledReasons = formData.defectiveSleeperDetails.some(d => {
-                const needsVisual = formData.visualCheck !== 'All OK';
-                const needsDim = formData.dimCheck !== 'All OK';
-                return (needsVisual && !d.visualReason) || (needsDim && !d.dimReason);
+            const hasInvalidReasons = formData.defectiveSleeperDetails.some(d => {
+                // Return true if zero reasons OR more than one reason (though UI prevents >1)
+                const reasonCount = (d.visualReason ? 1 : 0) + (d.dimReason ? 1 : 0);
+                return reasonCount !== 1;
             });
-            if (hasUnfilledReasons) {
-                errors.push('All selected defective sleepers must have a defect reason filled in');
+            if (hasInvalidReasons) {
+                errors.push('Each defective sleeper must have exactly one rejection reason (either Visual or Dimensional)');
             }
         }
 
@@ -400,12 +400,12 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
     const addDefectiveSleeper = () => {
         setFormData(prev => ({
             ...prev,
-            defectiveSleeperDetails: [...prev.defectiveSleeperDetails, { 
-                benchNo: prev.gangNo || '', 
-                sequence: '', 
-                sleeperNo: '', 
-                visualReason: '', 
-                dimReason: '' 
+            defectiveSleeperDetails: [...prev.defectiveSleeperDetails, {
+                benchNo: prev.gangNo || '',
+                sequence: '',
+                sleeperNo: '',
+                visualReason: '',
+                dimReason: ''
             }]
         }));
     };
@@ -594,21 +594,21 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                         </div>
                     </div>
 
-                {/* The Grid Tooltips/Chips */}
-                <div style={{ 
-                    display: 'flex', 
-                    flexWrap: 'wrap', 
-                    gap: '10px', 
-                    padding: '16px', 
-                    background: '#f8fafc', 
-                    borderRadius: '12px', 
-                    border: '1px dashed #cbd5e1',
-                    marginBottom: '20px'
-                }}>
+                    {/* The Grid Tooltips/Chips */}
+                    <div style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: '10px',
+                        padding: '16px',
+                        background: '#f8fafc',
+                        borderRadius: '12px',
+                        border: '1px dashed #cbd5e1',
+                        marginBottom: '20px'
+                    }}>
                         {['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map(seq => {
                             // Check if this sleeper is currently marked as defective
                             const isDefective = formData.defectiveSleeperDetails.some(d => d.sequence === seq);
-                            
+
                             // Check if rejection is forced by "All Rejected" status
                             const isAllRejectedVisual = formData.visualCheck === 'All Rejected';
                             const isAllRejectedDim = formData.dimCheck === 'All Rejected';
@@ -616,7 +616,7 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
 
                             const handleClick = () => {
                                 if (isForced) return; // Cannot toggle if forced by "All Rejected"
-                                
+
                                 setFormData(prev => {
                                     const exists = prev.defectiveSleeperDetails.some(d => d.sequence === seq);
                                     let updated;
@@ -689,14 +689,15 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                                             <td style={{ padding: '12px', fontWeight: '800', color: '#1e293b' }}>
                                                 {item.sleeperNo || `${item.benchNo}${item.sequence}`}
                                             </td>
-                                            
+
                                             {(formData.visualCheck !== 'All OK' && !(formData.visualCheck === 'Partially OK' && formData.dimCheck === 'All Rejected')) && (
                                                 <td style={{ padding: '8px 12px' }}>
                                                     <select
                                                         className="form-input-standard"
-                                                        style={{ width: '100%', fontSize: '11px', height: '32px' }}
+                                                        style={{ width: '100%', fontSize: '11px', height: '32px', opacity: item.dimReason ? 0.6 : 1, cursor: item.dimReason ? 'not-allowed' : 'pointer' }}
                                                         value={item.visualReason}
                                                         onChange={e => updateDefectiveSleeper(idx, 'visualReason', e.target.value)}
+                                                        disabled={!!item.dimReason}
                                                     >
                                                         <option value="">-- Select Visual Reason --</option>
                                                         <option value="Surface Cracks">Surface Cracks</option>
@@ -714,9 +715,10 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                                                 <td style={{ padding: '8px 12px' }}>
                                                     <select
                                                         className="form-input-standard"
-                                                        style={{ width: '100%', fontSize: '11px', height: '32px' }}
+                                                        style={{ width: '100%', fontSize: '11px', height: '32px', opacity: item.visualReason ? 0.6 : 1, cursor: item.visualReason ? 'not-allowed' : 'pointer' }}
                                                         value={item.dimReason}
                                                         onChange={e => updateDefectiveSleeper(idx, 'dimReason', e.target.value)}
+                                                        disabled={!!item.visualReason}
                                                     >
                                                         <option value="">-- Select Dim. Reason --</option>
                                                         <option value="Length Out of Tolerance">Length Out of Tolerance</option>
@@ -796,11 +798,11 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                         <p style={{ margin: '0 0 1.5rem 0', fontSize: '0.9rem', color: '#64748b', lineHeight: '1.5' }}>
                             The following mandatory fields are required before saving:
                         </p>
-                        
-                        <div style={{ 
-                            background: '#f8fafc', 
-                            borderRadius: '12px', 
-                            padding: '16px', 
+
+                        <div style={{
+                            background: '#f8fafc',
+                            borderRadius: '12px',
+                            padding: '16px',
                             marginBottom: '2rem',
                             textAlign: 'left',
                             border: '1px solid #f1f5f9'

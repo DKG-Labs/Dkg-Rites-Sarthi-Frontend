@@ -115,7 +115,6 @@ export default function SettingTimeForm({ onSave, onCancel, inventoryData = [], 
 
         let init = null;
         let fin = null;
-        let istIdx = -1;
 
         rows.forEach((r, idx) => {
             const mins = diffMinutes(header.waterAddTime, r.time);
@@ -124,23 +123,19 @@ export default function SettingTimeForm({ onSave, onCancel, inventoryData = [], 
             // IST: Needle reading 5 +/- 0.5 mm
             if (init === null && !isNaN(needleVal) && needleVal >= 4.5 && needleVal <= 5.5 && mins >= 0) {
                 init = mins;
-                istIdx = idx;
+            }
+
+            // FST: Time at which spot column is selected as "Yes"
+            if (fin === null && (r.spot === 'yes' || r.spot === 'YES') && r.time) {
+                fin = diffMinutes(header.waterAddTime, r.time);
             }
         });
-
-        // FST: Time at which only spot at top surface (Last row in recorded time)
-        // We take the last row that has a time entered
-        const rowsWithTime = rows.filter(r => r.time);
-        if (rowsWithTime.length > 0) {
-            const lastRow = rowsWithTime[rowsWithTime.length - 1];
-            fin = diffMinutes(header.waterAddTime, lastRow.time);
-        }
 
         setInitialTime(init);
         setFinalTime(fin);
 
         if (init !== null && fin !== null) {
-            // Standard: IST >= 60, FST <= 600 (as per previous code)
+            // Standard: IST >= 60, FST <= 600
             if (init >= 60 && fin <= 600) setResult("OK");
             else setResult("NOT OK");
         } else {
@@ -171,11 +166,11 @@ export default function SettingTimeForm({ onSave, onCancel, inventoryData = [], 
                 requestId: activeRequestId || null,
                 createdBy: user?.userId || 0,
                 observations: rows
-                    .filter(r => r.time) // Filter only rows with a time entered
+                    .filter(r => r.time) 
                     .map(r => ({
                         readingTime: `${r.time}:00`,
-                        needlePenetration: r.needle ? parseFloat(r.needle) : 0, // Handle empty needle
-                        finalSpot: r.spot || "" // Handle empty spot
+                        needlePenetration: r.needle ? parseFloat(r.needle) : 0, 
+                        finalSpot: r.spot || "" 
                     }))
             };
 
@@ -334,14 +329,14 @@ export default function SettingTimeForm({ onSave, onCancel, inventoryData = [], 
 
                         <tbody>
                             {(() => {
-                                let istFound = false;
+                                let istFoundGlobal = false;
                                 return rows.map((r, i) => {
                                     const needleVal = parseFloat(r.needle);
-                                    const isRowAfterIST = istFound;
+                                    const isRowAfterIST = istFoundGlobal;
                                     
-                                    // Check if this row is the IST row to hide subsequent ones
-                                    if (!istFound && !isNaN(needleVal) && needleVal >= 4.5 && needleVal <= 5.5) {
-                                        istFound = true;
+                                    // Check if this row is the IST row to hide subsequent ones for NEEDLE
+                                    if (!istFoundGlobal && !isNaN(needleVal) && needleVal >= 4.5 && needleVal <= 5.5) {
+                                        istFoundGlobal = true;
                                     }
 
                                     return (
@@ -392,22 +387,18 @@ export default function SettingTimeForm({ onSave, onCancel, inventoryData = [], 
                                                         onChange={(e) => updateRow(i, "needle", e.target.value)}
                                                     />
                                                 ) : (
-                                                    <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>-</span>
+                                                    <span style={{ color: '#94a3b8', fontSize: '10px', fontWeight: '700' }}>INITIAL SETTING REACHED</span>
                                                 )}
                                             </td>
                                             <td data-label="Final Spot?">
-                                                {!isRowAfterIST ? (
-                                                    <select
-                                                        value={r.spot}
-                                                        onChange={(e) => updateRow(i, "spot", e.target.value)}
-                                                    >
-                                                        <option value="">-- Select --</option>
-                                                        <option value="yes">Yes</option>
-                                                        <option value="no">No</option>
-                                                    </select>
-                                                ) : (
-                                                    <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>-</span>
-                                                )}
+                                                <select
+                                                    value={r.spot}
+                                                    onChange={(e) => updateRow(i, "spot", e.target.value)}
+                                                >
+                                                    <option value="">-- Select --</option>
+                                                    <option value="yes">Yes</option>
+                                                    <option value="no">No</option>
+                                                </select>
                                             </td>
                                         </tr>
                                     );

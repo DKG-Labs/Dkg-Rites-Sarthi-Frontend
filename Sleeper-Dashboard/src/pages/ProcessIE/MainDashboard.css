@@ -172,6 +172,42 @@
     height: 28px;
 }
 
+/* ── Restricted / Locked State ── */
+.ie-sub-nav-card.restricted {
+    opacity: 0.6;
+    cursor: default;
+    filter: grayscale(0.8);
+    background: #f8fafc;
+    border-style: dashed;
+}
+
+.ie-sub-nav-card.restricted:hover {
+    transform: none;
+    box-shadow: none;
+    border-color: #e2e8f0;
+}
+
+.ie-sub-nav-card.restricted .card-icon-wrapper {
+    background: #f1f5f9;
+    color: #94a3b8;
+}
+
+.lock-badge {
+    position: absolute;
+    bottom: -4px;
+    right: -4px;
+    background: white;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e2e8f0;
+}
+
 
 /* Modal overlay - matching index.css .modal-overlay */
 .modal-overlay {

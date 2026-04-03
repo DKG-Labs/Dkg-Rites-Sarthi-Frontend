@@ -101,6 +101,40 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
             return;
         }
 
+        // --- NEW VALIDATION: Allowed Error Check ---
+        const selectedBatch = batches.find(b => b.batchNo === formData.batchNo);
+        if (selectedBatch && selectedBatch.adjustedWeights) {
+            const adj = selectedBatch.adjustedWeights;
+            
+            const checks = [
+                { name: 'Cement', current: formData.cement, ref: adj.cement, limit: 0.02 },
+                { name: 'CA1', current: formData.ca1, ref: adj.ca1, limit: 0.03 },
+                { name: 'CA2', current: formData.ca2, ref: adj.ca2, limit: 0.03 },
+                { name: 'FA', current: formData.fa, ref: adj.fa, limit: 0.03 },
+                { name: 'Water', current: formData.water, ref: adj.water, limit: 0.03 },
+                { name: 'Admixture', current: formData.admixture, ref: adj.admixture, limit: 0.03 }
+            ];
+
+            const errors = [];
+            checks.forEach(check => {
+                const currentVal = parseFloat(check.current) || 0;
+                const refVal = parseFloat(check.ref) || 0;
+                
+                if (refVal > 0) {
+                    const dev = Math.abs(currentVal - refVal) / refVal;
+                    if (dev > check.limit) {
+                        errors.push(`${check.name}: Error ±${(dev * 100).toFixed(2)}% (Limit ±${check.limit * 100}%)`);
+                    }
+                }
+            });
+
+            if (errors.length > 0) {
+                alert(`Manual Result Validation Failed:\n\n${errors.join('\n')}\n\nPlease verify weights compared to adjusted values.`);
+                return;
+            }
+        }
+        // --- END VALIDATION ---
+
         setSaving(true);
         const record = {
             ...formData,
@@ -152,27 +186,27 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
                             </select>
                         </div>
                         <div className="form-field">
-                            <label htmlFor="manual-ca1" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>CA1 - Actual Wt. (Kg)</label>
+                            <label htmlFor="manual-ca1" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>CA1 (±3%) - Actual Wt. (Kg)</label>
                             <input id="manual-ca1" type="number" name="ca1" value={formData.ca1} onChange={handleChange} placeholder="Kgs" style={{ height: small ? '28px' : '32px', fontSize: small ? '0.75rem' : '0.8rem' }} />
                         </div>
                         <div className="form-field">
-                            <label htmlFor="manual-ca2" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>CA2 - Actual Wt. (Kg)</label>
+                            <label htmlFor="manual-ca2" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>CA2 (±3%) - Actual Wt. (Kg)</label>
                             <input id="manual-ca2" type="number" name="ca2" value={formData.ca2} onChange={handleChange} placeholder="Kgs" style={{ height: small ? '28px' : '32px', fontSize: small ? '0.75rem' : '0.8rem' }} />
                         </div>
                         <div className="form-field">
-                            <label htmlFor="manual-fa" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>FA - Actual Wt. (Kg)</label>
+                            <label htmlFor="manual-fa" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>FA (±3%) - Actual Wt. (Kg)</label>
                             <input id="manual-fa" type="number" name="fa" value={formData.fa} onChange={handleChange} placeholder="Sand Kgs" style={{ height: small ? '28px' : '32px', fontSize: small ? '0.75rem' : '0.8rem' }} />
                         </div>
                         <div className="form-field">
-                            <label htmlFor="manual-cement" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>Cement - Actual Wt. (Kg)</label>
+                            <label htmlFor="manual-cement" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>Cement (±2%) - Actual Wt. (Kg)</label>
                             <input id="manual-cement" type="number" name="cement" value={formData.cement} onChange={handleChange} placeholder="Kgs" style={{ height: small ? '28px' : '32px', fontSize: small ? '0.75rem' : '0.8rem' }} />
                         </div>
                         <div className="form-field">
-                            <label htmlFor="manual-water" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>Water (L) - Actual</label>
+                            <label htmlFor="manual-water" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>Water (±3%) - Actual (L)</label>
                             <input id="manual-water" type="number" name="water" value={formData.water} onChange={handleChange} placeholder="Ltrs" style={{ height: small ? '28px' : '32px', fontSize: small ? '0.75rem' : '0.8rem' }} />
                         </div>
                         <div className="form-field">
-                            <label htmlFor="manual-admix" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>Admix - Actual Wt. (Kg)</label>
+                            <label htmlFor="manual-admix" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>Admix (±3%) - Actual Wt. (Kg)</label>
                             <input id="manual-admix" type="number" name="admixture" value={formData.admixture} onChange={handleChange} placeholder="Kgs" style={{ height: small ? '28px' : '32px', fontSize: small ? '0.75rem' : '0.8rem' }} />
                         </div>
                     </div>

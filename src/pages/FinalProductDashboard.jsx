@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect } from "react";
 import FormField from "../components/FormField";
 import { formatDate, formatPoNoWithSerial } from "../utils/helpers";
@@ -14,7 +15,6 @@ import { normalizeErcType } from '../utils/ercUtils';
 import { finishInspection } from '../services/finalInspectionSubmoduleService';
 import { performTransitionAction } from '../services/workflowService';
 import { getStoredUser } from '../services/authService';
-import { normalizeErcType } from '../utils/ercUtils';
 import "./FinalProductDashboard.css";
 
 // Reason options for withheld inspection

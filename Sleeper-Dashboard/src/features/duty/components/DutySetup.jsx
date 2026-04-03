@@ -19,7 +19,8 @@ const DutySetup = () => {
         setVendorId,
         companyName,
         vendorId,
-        setDutyLocation
+        setDutyLocation,
+        setDutyUnit
     } = useShift();
 
     const [showContainerForm, setShowContainerForm] = useState(false);
@@ -232,8 +233,16 @@ const DutySetup = () => {
                         opacity: loadingUnits ? 0.7 : 1
                     }}
                     onClick={() => {
-                        if (!activeContainerId) alert("Please select a line or shed to continue.");
-                        else setDutyStarted(true);
+                        if (!activeContainerId) {
+                            alert("Please select a line or shed to continue.");
+                        } else {
+                            // If the selected container name looks like a plant ID (e.g. 41647/03),
+                            // set it as the dutyUnit for API filtering.
+                            if (activeContainer && activeContainer.name.includes('/')) {
+                                setDutyUnit(activeContainer.name);
+                            }
+                            setDutyStarted(true);
+                        }
                     }}
                     disabled={loadingUnits}
                 >

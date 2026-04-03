@@ -192,6 +192,15 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                 });
 
                 if (isRejected) return { ...sleeper, status: 'rejected' };
+                
+                // ROBUST UI RULE: If a sleeper was already rejected (in any module), 
+                // it must stay visually rejected. It can only be cleared by explicitly 
+                // resetting it to Pending via the confirmation toggle.
+                const originalSleeper = initialSleepers.find(s => s.id === sleeper.id);
+                if (originalSleeper?.status === 'rejected') {
+                    return { ...sleeper, status: 'rejected' };
+                }
+
                 return { ...sleeper, status: 'passed' };
             });
         });

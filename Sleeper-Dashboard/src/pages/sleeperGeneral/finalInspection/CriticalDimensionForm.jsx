@@ -179,18 +179,22 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
                 createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
                 sleepers: selectedSleepers.map(sid => {
                     const sleeper = allSleepersPool.find(s => s.id === sid);
-                    const isRejected = !!rejectionDetails[sid];
+                    
+                    // A sleeper is rejected if it's currently marked as rejected in the form UI,
+                    // OR if it was already rejected and has not been explicitly reset to Pending.
+                    let isRejected = !!rejectionDetails[sid] || (sleeper.isRejected);
+                    let rejectionMsg = isRejected ? (rejectionDetails[sid]?.mainReason ? `${rejectionDetails[sid].mainReason}: ${rejectionDetails[sid].subReason}` : (sleeper.rejectionReason || 'Previously Rejected')) : '';
 
                     const sleeperParams = parametersToCheck.map(p => ({
                         parameterId: p.id,
-                        result: isRejected && rejectionDetails[sid].mainReason === p.label ? 'REJECTED' : 'OK'
+                        result: isRejected && (rejectionDetails[sid]?.mainReason === p.label) ? 'REJECTED' : 'OK'
                     }));
 
                     return {
                         sleeperId: sid,
                         sleeperNo: sleeper.displayNo,
                         result: isRejected ? 'REJECTED' : 'OK',
-                        rejectionReason: isRejected ? `${rejectionDetails[sid].mainReason}: ${rejectionDetails[sid].subReason}` : '',
+                        rejectionReason: rejectionMsg,
                         parameters: sleeperParams
                     };
                 })

@@ -33,7 +33,8 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
             // check if it belongs to this specific module (2 for Critical)
             if (sleeper.isAlreadyPassed || sleeper.isRejected) {
                 if (sleeper.moduleId !== 2) {
-                    alert(`Cannot deselect: This sleeper was inspected in ${sleeper.moduleId === 1 ? 'Visual Check' : 'Non-Critical Dimensions'}. You can only deselect Critical Dimensions here.`);
+                    const moduleMap = { 1: 'Visual & Dimension', 3: 'Non-Critical Dimensions', 4: 'Demoulding' };
+                    alert(`Cannot deselect: This sleeper was inspected in ${moduleMap[sleeper.moduleId] || 'another module'}. You can only deselect Critical Dimensions here.`);
                     return;
                 }
 
@@ -237,9 +238,10 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
                             </div>
 
                             {[
-                                { id: 1, label: 'Visual Check' },
+                                { id: 1, label: 'Visual & Dimension' },
                                 { id: 2, label: 'Critical Dimensions' },
-                                { id: 3, label: 'Non-Critical Dimensions' }
+                                { id: 3, label: 'Non-Critical Dimensions' },
+                                { id: 4, label: 'Demoulding' }
                             ].map(group => {
                                 const groupSleepers = allSleepersPool.filter(s => s.isRejected && s.moduleId === group.id);
                                 if (groupSleepers.length === 0) return null;

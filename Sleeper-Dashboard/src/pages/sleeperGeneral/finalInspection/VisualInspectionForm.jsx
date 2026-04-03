@@ -35,7 +35,8 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
             // check if it belongs to this specific module (1 for Visual)
             if (sleeper.status !== 'pending') {
                 if (sleeper.moduleId !== 1) {
-                    alert(`Cannot deselect: This sleeper was inspected in ${sleeper.moduleId === 2 ? 'Critical Dimensions' : 'Non-Critical Dimensions'}. You can only deselect Visual Check sleepers here.`);
+                    const moduleMap = { 2: 'Critical Dimensions', 3: 'Non-Critical Dimensions', 4: 'Demoulding' };
+                    alert(`Cannot deselect: This sleeper was inspected in ${moduleMap[sleeper.moduleId] || 'another module'}. You can only deselect Visual & Dimension sleepers here.`);
                     return;
                 }
 
@@ -349,9 +350,10 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                             </div>
 
                             {[
-                                { id: 1, label: 'Visual Check' },
+                                { id: 1, label: 'Visual & Dimension' },
                                 { id: 2, label: 'Critical Dimensions' },
-                                { id: 3, label: 'Non-Critical Dimensions' }
+                                { id: 3, label: 'Non-Critical Dimensions' },
+                                { id: 4, label: 'Demoulding' }
                             ].map(group => {
                                 const groupSleepers = sleepers.filter(s => s.status === 'rejected' && s.moduleId === group.id);
                                 if (groupSleepers.length === 0) return null;

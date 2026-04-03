@@ -61,7 +61,7 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
 
       contractor: c.contractor || c.vendorName || c.vendor_name || "",
       manufacturer: c.manufacturer || "",
-      placeOfInspection: c.placeOfInspection || c.inspectionPlace || c.place_of_inspection || "",
+      placeOfInspection: (po?.placeOfInspection || po?.inspPlace) || c.placeOfInspection || c.inspectionPlace || c.place_of_inspection || c.unitAddress || c.unit_address || "",
       contractRef: updatedContractRef,
       contractorPo: c.contractorPo || c.poNo || c.po_no || "",
       billPayingOfficer: c.billPayingOfficer || c.billOfficer || "",

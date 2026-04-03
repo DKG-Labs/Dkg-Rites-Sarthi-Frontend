@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { getAuthHeaders, getStoredUser } from '../../../services/authService';
 import { API_BASE_URL } from '../../../services/apiConfig';
@@ -18,6 +18,7 @@ const CallDetailsModal = ({
 }) => {
   const [selectedIE, setSelectedIE] = useState('');
   const [remarks, setRemarks] = useState('');
+  const remarksRef = useRef(null);
   
   const [mappedIEs, setMappedIEs] = useState([]);
   const [isLoadingIEs, setIsLoadingIEs] = useState(false);
@@ -29,6 +30,10 @@ const CallDetailsModal = ({
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [withdrawRemarks, setWithdrawRemarks] = useState('');
   const [isWithdrawing, setIsWithdrawing] = useState(false);
+
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [validationError, setValidationError] = useState('');
 
   const filteredIEs = React.useMemo(() => {
     if (!call?.callNumber) return allIEs;
@@ -167,7 +172,7 @@ const CallDetailsModal = ({
         actionBy: Number(user?.userId || 0)
       };
 
-      await axios.post(`${API_BASE_URL}/workflow/withdraw`, payload, {
+      await axios.post(`${API_BASE_URL}/api/workflow/withdraw`, payload, {
         headers: getAuthHeaders()
       });
       
@@ -192,6 +197,7 @@ const CallDetailsModal = ({
       setMappedIEs([]);
       setChangeIE(false);
       setShowWithdrawModal(false);
+      setShowVerifyModal(false);
       setWithdrawRemarks('');
       
       fetchMappedIEs();
@@ -201,6 +207,23 @@ const CallDetailsModal = ({
   if (!isOpen || !call) return null;
 
   const displayValue = (value, fallback = '-') => value || fallback;
+
+  // Resolve Target IE for confirmation
+  let targetIEDisplay = 'System Assigned';
+  if (selectedIE) {
+    if (typeof selectedIE === 'string' && selectedIE.includes(' - ')) {
+      targetIEDisplay = selectedIE;
+    } else {
+      const match = filteredIEs.find(ie => String(ie.id) === String(selectedIE));
+      if (match) {
+        targetIEDisplay = match.employeeCode ? `${match.employeeCode} - ${match.name}` : match.name;
+      }
+    }
+  } else if (mappedIEs.length > 0) {
+    targetIEDisplay = mappedIEs[0];
+  } else if (call.assignedIeName) {
+    targetIEDisplay = call.assignedIeName;
+  }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -398,6 +421,59 @@ const CallDetailsModal = ({
                 </div>
               </div>
             )}
+
+            {/* Verify Confirmation Popup Module */}
+            {showVerifyModal && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm" onClick={(e) => { if(e.target === e.currentTarget) { setShowVerifyModal(false); } }}>
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-fade-in mx-4 transform transition-all">
+                  <div className="bg-gradient-to-r from-blue-50 to-white px-6 py-4 border-b border-blue-100 flex justify-between items-center">
+                    <h3 className="font-bold text-blue-900 text-lg flex items-center">
+                      <span className="mr-2">✅</span> Verify Inspection Call
+                    </h3>
+                    <button 
+                      className="text-gray-400 hover:text-red-600 focus:outline-none transition-colors"
+                      onClick={() => setShowVerifyModal(false)}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                  </div>
+                  
+                  <div className="p-8 text-center">
+                    <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                      ℹ️
+                    </div>
+                    <p className="text-gray-600 mb-2">The inspection call will be verified and assigned to:</p>
+                    <div className="text-xl font-bold text-gray-900 bg-gray-50 p-4 rounded-lg border border-gray-100">
+                      {targetIEDisplay}
+                    </div>
+                    <p className="text-xs text-gray-400 mt-4 uppercase tracking-widest font-semibold italic">Please confirm to proceed</p>
+                  </div>
+
+                  <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+                    <button 
+                      className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-bold py-2 px-6 rounded-md text-sm transition-colors shadow-sm"
+                      onClick={() => setShowVerifyModal(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-md text-sm transition-colors shadow-md transform hover:-translate-y-0.5 active:translate-y-0"
+                      onClick={() => {
+                        let ieId = null;
+                        if (selectedIE) {
+                          const match = String(selectedIE).match(/^(\d+)/);
+                          ieId = match ? match[1] : null;
+                        }
+                        onVerifyAccept(call, remarks, ieId);
+                        setShowVerifyModal(false);
+                      }}
+                    >
+                      Confirm Verification
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             </div>
 
           {/* Details Tabs/Sections */}
@@ -453,12 +529,29 @@ const CallDetailsModal = ({
           <div className="mt-8">
             <label className="block text-sm font-bold text-gray-700 mb-2">Remarks / Observations</label>
             <textarea
-              className="form-control w-full p-3 rounded border border-gray-300 focus:border-blue-500"
+              ref={remarksRef}
+              className="form-control w-full p-3 rounded border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all shadow-sm"
               rows="3"
               placeholder="Enter remarks for the selected action..."
               value={remarks}
-              onChange={(e) => setRemarks(e.target.value)}
+              onChange={(e) => {
+                setRemarks(e.target.value);
+                if (validationError) setValidationError('');
+              }}
             />
+            {validationError && (
+              <div className="mt-3 p-3 bg-red-50 border-l-4 border-red-500 rounded-r shadow-sm flex items-start gap-3 animate-slideDown">
+                <div className="mt-0.5 text-red-500">
+                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                   </svg>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-red-700 text-sm font-bold tracking-wide">Action Required</span>
+                  <p className="text-red-600 text-xs mt-0.5 leading-relaxed">{validationError}</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -493,23 +586,73 @@ const CallDetailsModal = ({
             </button>
             <button
               className="btn bg-red-600 text-white hover:bg-red-700"
-              onClick={() => onReturn(call, remarks)}
+              onClick={() => {
+                if (!remarks.trim()) {
+                  setValidationError('Remarks are mandatory for returning a call');
+                  // Auto-scroll to field & focus
+                  remarksRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  remarksRef.current?.focus();
+                } else {
+                  setShowReturnModal(true);
+                }
+              }}
             >
               ↩️ Return
             </button>
             <button
               className="btn bg-blue-600 text-white hover:bg-blue-700"
-              onClick={() => {
-                let ieId = null;
-                if (selectedIE) {
-                  const match = String(selectedIE).match(/^(\d+)/);
-                  ieId = match ? match[1] : null;
-                }
-                onVerifyAccept(call, remarks, ieId);
-              }}
+              onClick={() => setShowVerifyModal(true)}
             >
               ✅ Verify
             </button>
+
+            {/* Return Confirmation Modal */}
+            {showReturnModal && (
+              <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm animate-fadeIn">
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all animate-scaleIn">
+                  <div className="bg-red-50 px-6 py-4 border-b border-red-100 flex justify-between items-center">
+                    <h3 className="text-xl font-bold text-red-700 flex items-center gap-2">
+                       ↩️ Confirm Return
+                    </h3>
+                    <button 
+                      className="text-red-300 hover:text-red-600 focus:outline-none transition-colors"
+                      onClick={() => setShowReturnModal(false)}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                  </div>
+                  
+                  <div className="p-8 text-center">
+                    <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                      ⚠️
+                    </div>
+                    <p className="text-gray-600 mb-2">Are you sure you want to return this Inspection Call?</p>
+                    <div className="text-xl font-bold text-gray-900 bg-gray-50 p-4 rounded-lg border border-gray-100 mb-2">
+                      {call.callNumber}
+                    </div>
+                    <p className="text-sm text-gray-500 italic">"The call will be sent back to the vendor for rectification."</p>
+                  </div>
+
+                  <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+                    <button 
+                      className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-bold py-2 px-6 rounded-md text-sm transition-colors shadow-sm"
+                      onClick={() => setShowReturnModal(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-md text-sm transition-colors shadow-md transform hover:-translate-y-0.5 active:translate-y-0"
+                      onClick={() => {
+                        onReturn(call, remarks);
+                        setShowReturnModal(false);
+                      }}
+                    >
+                      Confirm Return
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             {call.isVerified && (
               <button
                 className="btn bg-indigo-600 text-white hover:bg-indigo-700"

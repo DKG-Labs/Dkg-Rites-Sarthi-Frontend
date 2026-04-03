@@ -27,6 +27,12 @@ const CallDeskDashboard = () => {
   const [actionRemarks, setActionRemarks] = useState('');
   const [selectedRIO, setSelectedRIO] = useState('');
   const [flaggedFields, setFlaggedFields] = useState([]);
+  const [notification, setNotification] = useState(null);
+
+  const showAppNotification = (message, type = 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 5000);
+  };
 
   const [historyData, setHistoryData] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -159,17 +165,16 @@ const CallDeskDashboard = () => {
 
     const result = await verifyAndAccept(selectedCall.id, selectedCall, actionRemarks);
     if (result.success) {
-      alert('Call verified and registered successfully!');
+      showAppNotification(`Call ${selectedCall.callNumber} verified and registered successfully!`);
       setShowVerifyModal(false);
       refreshData();
     } else {
-      alert(result.message);
+      showAppNotification(result.message, 'error');
     }
   };
 
   const submitReturn = async () => {
     if (!selectedCall || !actionRemarks.trim()) {
-      alert('Remarks are mandatory for returning a call');
       return;
     }
 
@@ -185,11 +190,11 @@ const CallDeskDashboard = () => {
 
     const result = await returnForRectification(selectedCall.id, selectedCall, finalRemarks, flaggedFields);
     if (result.success) {
-      alert('Call returned for rectification successfully!');
+      showAppNotification(`Call ${selectedCall.callNumber} returned for rectification successfully!`);
       setShowReturnModal(false);
       refreshData();
     } else {
-      alert(result.message);
+      showAppNotification(result.message, 'error');
     }
   };
   const submitReroute = async () => {
@@ -206,11 +211,11 @@ const CallDeskDashboard = () => {
     );
 
     if (result.success) {
-      alert(`Call re-routed to ${selectedRIO} successfully!`);
+      showAppNotification(`Call ${selectedCall.callNumber} re-routed to ${selectedRIO} successfully!`);
       setShowRerouteModal(false);
       refreshData();
     } else {
-      alert(result.message);
+      showAppNotification(result.message, 'error');
     }
   };
 
@@ -521,6 +526,36 @@ const CallDeskDashboard = () => {
                 {actionLoading ? 'Processing...' : '🔀 Re-route Call'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Application Notifications */}
+      {notification && (
+        <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-[3000] min-w-[320px] max-w-md animate-slideDown`}>
+          <div className={`flex items-center gap-3 p-4 rounded-xl shadow-2xl border ${
+            notification.type === 'success' 
+              ? 'bg-emerald-50 border-emerald-100 text-emerald-800' 
+              : 'bg-rose-50 border-rose-100 text-rose-800'
+          }`}>
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+              notification.type === 'success' ? 'bg-emerald-100' : 'bg-rose-100'
+            }`}>
+              {notification.type === 'success' ? '✅' : '❌'}
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold tracking-tight">
+                {notification.type === 'success' ? 'Task Completed' : 'Action Failed'}
+              </p>
+              <p className="text-xs opacity-90 leading-relaxed mt-0.5">{notification.message}</p>
+            </div>
+            <button 
+              onClick={() => setNotification(null)}
+              className="ml-2 text-gray-400 hover:text-gray-600 focus:outline-none"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
           </div>
         </div>
       )}

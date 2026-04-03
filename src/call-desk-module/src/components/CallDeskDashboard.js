@@ -14,6 +14,7 @@ import useCallDeskData from '../hooks/useCallDeskData';
 import useCallActions from '../hooks/useCallActions';
 import { formatDate } from '../../../utils/helpers';
 import '../styles/CallDeskDashboard.css';
+import { generateCallLetterPDF } from '../utils/generateCallLetterPDF';
 
 const CallDeskDashboard = () => {
   const [activeTab, setActiveTab] = useState('pending');
@@ -144,8 +145,12 @@ const CallDeskDashboard = () => {
   };
 
   const handleDownloadLetter = (call) => {
-    alert(`Downloading Inspection Call Letter for ${call.callNumber}...`);
-    // Logic to trigger download
+    try {
+      generateCallLetterPDF(call);
+    } catch (err) {
+      console.error('Failed to generate Call Letter PDF:', err);
+      alert('Failed to generate PDF. Please try again.');
+    }
   };
 
   // Submit actions

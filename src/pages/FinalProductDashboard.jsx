@@ -13,6 +13,7 @@ import { getHardnessToeLoadAQL, getDimensionWeightAQL } from '../utils/is2500Cal
 import { finishInspection } from '../services/finalInspectionSubmoduleService';
 import { performTransitionAction } from '../services/workflowService';
 import { getStoredUser } from '../services/authService';
+import { normalizeErcType } from '../utils/ercUtils';
 import "./FinalProductDashboard.css";
 
 // Reason options for withheld inspection
@@ -88,7 +89,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
         if (stored) {
           const data = JSON.parse(stored)[lot.lotNo];
           if (data) {
-            const springType = lot.springType || selectedCall?.ercType || 'MK-III';
+            const springType = normalizeErcType(data.springType) || normalizeErcType(lot.springType) || normalizeErcType(selectedCall?.ercType) || 'MK-III';
             const min = springType === 'MK-V' ? 1200 : (springType === 'ERC-J' ? 650 : 850);
             const max = springType === 'MK-V' ? 1500 : (springType === 'ERC-J' ? Infinity : 1100);
 
@@ -116,7 +117,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
         if (stored) {
           const data = JSON.parse(stored)[lot.lotNo];
           if (data) {
-            const springType = lot.springType || selectedCall?.ercType || 'MK-III';
+            const springType = normalizeErcType(data.springType) || normalizeErcType(lot.springType) || normalizeErcType(selectedCall?.ercType) || 'MK-III';
             const minWeight = springType === 'MK-V' ? 1068 : 904; // ERC-J and MK-III are 904
 
             const check = (v) => v && !isNaN(parseFloat(v)) && parseFloat(v) < minWeight;
@@ -442,7 +443,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     if (!lotData) return 'Pending';
 
     // Spring Type Logic
-    const springType = lot.springType || 'MK-III';
+    const springType = normalizeErcType(lotData.springType) || normalizeErcType(lot.springType) || normalizeErcType(selectedCall?.ercType) || 'MK-III';
     const min = springType === 'MK-V' ? 1200 : (springType === 'ERC-J' ? 650 : 850);
     const max = springType === 'MK-V' ? 1500 : (springType === 'ERC-J' ? Infinity : 1100);
 
@@ -473,7 +474,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
   const validateWeightData = useCallback((lotData, lot) => {
     if (!lotData) return 'Pending';
 
-    const springType = lot.springType || 'MK-III';
+    const springType = normalizeErcType(lotData.springType) || normalizeErcType(lot.springType) || normalizeErcType(selectedCall?.ercType) || 'MK-III';
     const minWeight = springType === 'MK-V' ? 1068 : 904;
 
     // Get AQL using central utility

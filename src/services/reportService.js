@@ -75,13 +75,16 @@ const reportService = {
      * @param {Object} params - { page, size, startDate, endDate }
      */
     getPerformanceMatrix: async (params) => {
-        const { page = 0, size = 10, startDate, endDate } = params || {};
+        const { page = 0, size = 10, startDate, endDate, rio, zone, vendor } = params || {};
         const url = new URL(`${API_BASE_URL}/api/SummaryReports/dashboard`);
 
         url.searchParams.append('page', page);
         url.searchParams.append('size', size);
         if (startDate) url.searchParams.append('startDate', startDate);
         if (endDate) url.searchParams.append('endDate', endDate);
+        if (rio) url.searchParams.append('rio', rio);
+        if (zone) url.searchParams.append('zone', zone);
+        if (vendor) url.searchParams.append('vendor', vendor);
 
         const response = await fetch(url.toString(), {
             headers: getAuthHeaders(),
@@ -95,13 +98,16 @@ const reportService = {
      * @param {Object} params - { page, size, startDate, endDate }
      */
     getMonthlyProgressReport: async (params) => {
-        const { page = 0, size = 10, startDate, endDate } = params || {};
+        const { page = 0, size = 10, startDate, endDate, rio, zone, vendor } = params || {};
         const url = new URL(`${API_BASE_URL}/api/SummaryReports/monthly-progress`);
 
         url.searchParams.append('page', page);
         url.searchParams.append('size', size);
         if (startDate) url.searchParams.append('startDate', startDate);
         if (endDate) url.searchParams.append('endDate', endDate);
+        if (rio) url.searchParams.append('rio', rio);
+        if (zone) url.searchParams.append('zone', zone);
+        if (vendor) url.searchParams.append('vendor', vendor);
 
         const response = await fetch(url.toString(), {
             headers: getAuthHeaders(),
@@ -115,13 +121,16 @@ const reportService = {
      * @param {Object} params - { page, size, startDate, endDate }
      */
     getMonthlyAnalysisOfUnits: async (params) => {
-        const { page = 0, size = 10, startDate, endDate } = params || {};
+        const { page = 0, size = 10, startDate, endDate, rio, zone, vendor } = params || {};
         const url = new URL(`${API_BASE_URL}/api/SummaryReports/Manufature_wise_analysis`);
 
         url.searchParams.append('page', page);
         url.searchParams.append('size', size);
         if (startDate) url.searchParams.append('startDate', startDate);
         if (endDate) url.searchParams.append('endDate', endDate);
+        if (rio) url.searchParams.append('rio', rio);
+        if (zone) url.searchParams.append('zone', zone);
+        if (vendor) url.searchParams.append('vendor', vendor);
 
         const response = await fetch(url.toString(), {
             headers: getAuthHeaders(),
@@ -168,6 +177,130 @@ const reportService = {
         const url = new URL(`${API_BASE_URL}/api/SummaryReports/lot-closed-loop`);
         if (callNo) url.searchParams.append('callNo', callNo);
         if (lotNo) url.searchParams.append('lotNo', lotNo);
+
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getQualityRejection: async () => {
+        const response = await fetch(`${API_ENDPOINTS.REPORTS}/qualityRejection`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getManufacturerRejection: async () => {
+        const response = await fetch(`${API_ENDPOINTS.REPORTS}/manufacturerRejection`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getProcessPerformance: async () => {
+        const response = await fetch(`${API_ENDPOINTS.REPORTS}/processPerformance`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getDailyRejectionTrend: async (params) => {
+        const { startDate, endDate } = params || {};
+        let url = `${API_ENDPOINTS.REPORTS}/dailyRejectionTrend`;
+        const queryParams = new URLSearchParams();
+        if (startDate) queryParams.append('startDate', startDate);
+        if (endDate) queryParams.append('endDate', endDate);
+        if (queryParams.toString()) url += `?${queryParams.toString()}`;
+
+        const response = await fetch(url, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getManufacturingStepWiseRejection: async () => {
+        const response = await fetch(`${API_ENDPOINTS.REPORTS}/manufacturingStepWiseRejection`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getInspectionCallStatus: async () => {
+        const response = await fetch(`${API_ENDPOINTS.REPORTS}/inspectionCallStatus`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getParetoAnalysis: async () => {
+        const response = await fetch(`${API_ENDPOINTS.REPORTS}/paretoAnalysis`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getInspectionDetails: async (params) => {
+        const { startDate, endDate } = params || {};
+        let url = `${API_ENDPOINTS.REPORTS}/inspectionDetails`;
+        const queryParams = new URLSearchParams();
+        if (startDate) queryParams.append('startDate', startDate);
+        if (endDate) queryParams.append('endDate', endDate);
+        if (queryParams.toString()) url += `?${queryParams.toString()}`;
+
+        const response = await fetch(url, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+    getMonthlyRejectionTrend: async (params) => {
+        const { startDate, endDate } = params || {};
+        let url = `${API_ENDPOINTS.REPORTS}/monthlyRejectionTrend`;
+        const queryParams = new URLSearchParams();
+        if (startDate) queryParams.append('startDate', startDate);
+        if (endDate) queryParams.append('endDate', endDate);
+        if (queryParams.toString()) url += `?${queryParams.toString()}`;
+
+        const response = await fetch(url, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    /**
+     * Get Manufacture Process Inspection Analysis Data
+     * Hits: /api/SummaryReports/manufacture-process-analysis
+     * @param {Object} params - { page, size, startDate, endDate }
+     */
+    getManufactureProcessAnalysis: async (params) => {
+        const { page = 0, size = 10, startDate, endDate } = params || {};
+        const url = new URL(`${API_BASE_URL}/api/SummaryReports/manufacture-process-analysis`);
+
+        url.searchParams.append('page', page);
+        url.searchParams.append('size', size);
+        if (startDate) url.searchParams.append('startDate', startDate);
+        if (endDate) url.searchParams.append('endDate', endDate);
+
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    /**
+     * Get Company Month Wise Data for Drill Down
+     * Hits: /api/SummaryReports/company-month-wise
+     * @param {Object} params - { page, size, startDate, endDate, companyName }
+     */
+    getCompanyMonthWiseData: async (params) => {
+        const { page = 0, size = 30, startDate, endDate, companyName } = params || {};
+        const url = new URL(`${API_BASE_URL}/api/SummaryReports/company-month-wise`);
+
+        url.searchParams.append('page', page);
+        url.searchParams.append('size', size);
+        if (startDate) url.searchParams.append('startDate', startDate);
+        if (endDate) url.searchParams.append('endDate', endDate);
+        if (companyName) url.searchParams.append('companyName', companyName);
 
         const response = await fetch(url.toString(), {
             headers: getAuthHeaders(),

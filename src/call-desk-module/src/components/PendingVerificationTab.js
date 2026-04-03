@@ -88,7 +88,7 @@ const PendingVerificationTab = ({
       label: 'Rly / PO / Sr. No.',
       sortable: true,
       render: (value, row) => (
-        <a href="#" onClick={(e) => { e.preventDefault(); console.log('Download PO for', row.poNumber); }} className="text-blue-600 hover:underline">
+        <a href="#!" onClick={(e) => { e.preventDefault(); console.log('Download PO for', row.poNumber); }} className="text-blue-600 hover:underline">
           {value}
         </a>
       )
@@ -242,9 +242,9 @@ const PendingVerificationTab = ({
 
   return (
 
-    <div className="tab-content">
+    <div className="calldesk-tab-content">
       {/* KPI Tiles */}
-      <div className="kpi-grid">
+      <div className="calldesk-kpi-grid">
         {kpiTiles.map((kpi, index) => (
           <div key={index} className="stat-card">
             <div className="stat-icon" style={{ color: kpi.color }}>

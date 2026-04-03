@@ -42,11 +42,12 @@ const FinalInclusionRatingPage = ({ onBack, productModel: propProductModel, onNa
 
   // Derive product model from cache or props, same as Toe Load logic
   const productModel = useMemo(() => {
-    return normalizeErcType(cachedData?.dashboardData?.inspectionCall?.ercType) ||
-      normalizeErcType(cachedData?.inspectionCall?.ercType) ||
-      normalizeErcType(selectedCall?.ercType) ||
-      normalizeErcType(propProductModel) ||
-      'MK-III';
+    return normalizeErcType(
+      cachedData?.dashboardData?.inspectionCall?.ercType ||
+      cachedData?.inspectionCall?.ercType ||
+      selectedCall?.ercType ||
+      propProductModel
+    );
   }, [cachedData, selectedCall, propProductModel]);
 
   // Memoize lotsFromVendor to ensure stable reference for useMemo dependency
@@ -1194,28 +1195,21 @@ const FinalInclusionRatingPage = ({ onBack, productModel: propProductModel, onNa
 
       <FinalSubmoduleNav currentSubmodule="final-inclusion-rating" onNavigate={onNavigateSubmodule} />
 
-      {/* Lot Selector */}
-      {lotsWithSampleSize.length > 0 && (
-        <>
-          {lotsWithSampleSize.length === 1 ? (
-            <div className="lot-single">
-              <span>📦 {lotsWithSampleSize[0].lotNo} | Heat {lotsWithSampleSize[0].heatNo}</span>
-            </div>
-          ) : (
-            <div className="lot-selector">
-              {lotsWithSampleSize.map((lot, idx) => (
-                <button
-                  key={lot.lotNo}
-                  className={`lot-btn ${activeLotTab === idx ? 'active' : ''}`}
-                  onClick={() => setActiveLotTab(idx)}
-                >
-                  Lot {lot.lotNo}
-                </button>
-              ))}
-            </div>
-          )}
-        </>
+      {/* Lot Selector – shown only when multiple lots */}
+      {lotsWithSampleSize.length > 1 && (
+        <div className="lot-selector">
+          {lotsWithSampleSize.map((lot, idx) => (
+            <button
+              key={lot.lotNo}
+              className={`lot-btn ${activeLotTab === idx ? 'active' : ''}`}
+              onClick={() => setActiveLotTab(idx)}
+            >
+              Lot {lot.lotNo}
+            </button>
+          ))}
+        </div>
       )}
+
 
       {/* ==================== SECTION 1: DEPTH OF DECARB ==================== */}
       <div className="ir-test-section">
@@ -1236,8 +1230,16 @@ const FinalInclusionRatingPage = ({ onBack, productModel: propProductModel, onNa
               const rej = getLotRejections(lot);
               return (
                 <div key={lot.lotNo} className="ir-lot-block">
-                  <div className="ir-lot-header">
-                    📦 {lot.lotNo} | Heat: {lot.heatNo} | Qty: {lot.lotSize} | Sample: {lot.generalSampleSize} | Ac1: 0 | Re1: 2 | Cumm: 2
+                  <div className="ir-lot-header" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 'bold' }}>
+                      📦 {lot.lotNo} | Heat: {lot.heatNo} | Qty: {lot.quantity || lot.lotSize} | Sample: {lot.generalSampleSize}
+                    </div>
+                    <div style={{ textAlign: 'center', whiteSpace: 'nowrap', fontWeight: 'bold' }}>
+                      Ac1: 0 | Re1: 2 | Cumm: 2
+                    </div>
+                    <div style={{ textAlign: 'right', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                      ERC Type: {productModel}
+                    </div>
                   </div>
                   {/* 1st Sampling */}
                   <div className="ir-sampling-label">1st Sampling (n1: {lot.generalSampleSize})</div>
@@ -1317,8 +1319,16 @@ const FinalInclusionRatingPage = ({ onBack, productModel: propProductModel, onNa
               const rej = getLotRejections(lot);
               return (
                 <div key={lot.lotNo} className="ir-lot-block">
-                  <div className="ir-lot-header">
-                    📦 {lot.lotNo} | Heat: {lot.heatNo} | Qty: {lot.lotSize} | Sample: {lot.inclusionSampleSize} | Ac1: 0 | Re1: 2 | Cumm: 2
+                  <div className="ir-lot-header" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 'bold' }}>
+                      📦 {lot.lotNo} | Heat: {lot.heatNo} | Qty: {lot.quantity || lot.lotSize} | Sample: {lot.inclusionSampleSize}
+                    </div>
+                    <div style={{ textAlign: 'center', whiteSpace: 'nowrap', fontWeight: 'bold' }}>
+                      Ac1: 0 | Re1: 2 | Cumm: 2
+                    </div>
+                    <div style={{ textAlign: 'right', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                      ERC Type: {productModel}
+                    </div>
                   </div>
                   {/* 1st Sampling Table */}
                   <div className="ir-sampling-label" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -1478,8 +1488,16 @@ const FinalInclusionRatingPage = ({ onBack, productModel: propProductModel, onNa
               const rej = getLotRejections(lot);
               return (
                 <div key={lot.lotNo} className="ir-lot-block">
-                  <div className="ir-lot-header">
-                    📦 {lot.lotNo} | Heat: {lot.heatNo} | Qty: {lot.lotSize} | Sample: {lot.generalSampleSize} | Ac1: 0 | Re1: 2 | Cumm: 2
+                  <div className="ir-lot-header" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 'bold' }}>
+                      📦 {lot.lotNo} | Heat: {lot.heatNo} | Qty: {lot.quantity || lot.lotSize} | Sample: {lot.generalSampleSize}
+                    </div>
+                    <div style={{ textAlign: 'center', whiteSpace: 'nowrap', fontWeight: 'bold' }}>
+                      Ac1: 0 | Re1: 2 | Cumm: 2
+                    </div>
+                    <div style={{ textAlign: 'right', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                      ERC Type: {productModel}
+                    </div>
                   </div>
                   <div className="ir-sampling-label" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <span>Samples (n: {lot.generalSampleSize})</span>
@@ -1581,8 +1599,16 @@ const FinalInclusionRatingPage = ({ onBack, productModel: propProductModel, onNa
               const rej = getLotRejections(lot);
               return (
                 <div key={lot.lotNo} className="ir-lot-block">
-                  <div className="ir-lot-header">
-                    📦 {lot.lotNo} | Heat: {lot.heatNo} | Qty: {lot.lotSize} | Sample: {lot.generalSampleSize} | Ac1: 0 | Re1: 2 | Cumm: 2
+                  <div className="ir-lot-header" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 'bold' }}>
+                      📦 {lot.lotNo} | Heat: {lot.heatNo} | Qty: {lot.quantity || lot.lotSize} | Sample: {lot.generalSampleSize}
+                    </div>
+                    <div style={{ textAlign: 'center', whiteSpace: 'nowrap', fontWeight: 'bold' }}>
+                      Ac1: 0 | Re1: 2 | Cumm: 2
+                    </div>
+                    <div style={{ textAlign: 'right', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                      ERC Type: {productModel}
+                    </div>
                   </div>
                   {/* 1st Sampling */}
                   <div className="ir-sampling-label" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

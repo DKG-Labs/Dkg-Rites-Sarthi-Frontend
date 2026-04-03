@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { loginUser, storeAuthData, isAuthenticated, getStoredUser } from '../services/authService';
-import { ROUTES } from '../routes';
+import { ROUTES, ROLE_LANDING_ROUTE } from '../routes';
 import './LoginPage.css';
 
 /**
@@ -21,6 +21,9 @@ const LoginPage = () => {
   const [pointerRatio, setPointerRatio] = useState({ x: 0, y: 0 });
   const [scrollY, setScrollY] = useState(0);
   const [isFilled, setIsFilled] = useState({ userId: false, password: false });
+  const [showRoleSelection, setShowRoleSelection] = useState(false);
+  const [roleOptions, setRoleOptions] = useState([]);
+  const [pendingUserData, setPendingUserData] = useState(null);
 
   const heroRef = useRef(null);
 
@@ -30,21 +33,21 @@ const LoginPage = () => {
       title: 'Build quality at source.',
       highlight: 'Deliver safety on track.',
       description: 'Smart checks from material approval to final dispatch with complete digital traceability.',
-      image: '/login-assets/WhatsApp Image 2026-02-18 at 5.29.08 PM.jpeg'
+      image: '/login-assets/slide1.jpg'
     },
     {
       kicker: 'Inspection Intelligence',
       title: 'Catch issues early',
       highlight: 'with real-time inspection.',
       description: 'Drive compliance decisions faster with live alerts, clear records, and accountable workflows.',
-      image: '/login-assets/WhatsApp Image 2026-02-18 at 5.29.08 PM (1).jpeg'
+      image: '/login-assets/slide2.jpg'
     },
     {
       kicker: 'Safety Visibility',
       title: 'One platform for rails',
       highlight: 'clips, sleepers, and pads.',
       description: 'Role-based access and auditable logs keep every quality checkpoint secure and transparent.',
-      image: '/login-assets/WhatsApp Image 2026-02-18 at 5.29.08 PM.jpeg'
+      image: '/login-assets/slide1.jpg'
     }
   ];
 
@@ -52,20 +55,15 @@ const LoginPage = () => {
   useEffect(() => {
     if (isAuthenticated()) {
       const currentUser = getStoredUser();
-      let redirectPath = ROUTES.LANDING;
 
-      if (currentUser?.roleName === 'CM') {
-        redirectPath = ROUTES.CM_DASHBOARD;
-      } else if (currentUser?.roleName === 'CALL_DESK') {
-        redirectPath = ROUTES.CALL_DESK;
-      } else if (currentUser?.roleName === 'Finance') {
-        redirectPath = ROUTES.FINANCE;
-      } else if (currentUser?.roleName === 'ADMIN') {
-        redirectPath = ROUTES.ADMIN_DASHBOARD;
-      } else {
-        redirectPath = location.state?.from?.pathname || ROUTES.LANDING;
+      // Special redirection for Sleeper Process IE (robust check for string or array)
+      const roleName = currentUser?.roleName;
+      if (roleName === 'Sleeper Process IE' || (typeof roleName === 'string' && roleName.includes('Sleeper Process IE'))) {
+        window.location.href = '/sleeper/';
+        return;
       }
 
+      let redirectPath = ROLE_LANDING_ROUTE[roleName] || location.state?.from?.pathname || ROUTES.LANDING;
       navigate(redirectPath, { replace: true });
     }
   }, [navigate, location]);
@@ -102,6 +100,32 @@ const LoginPage = () => {
     setPointerRatio({ x: 0, y: 0 });
   };
 
+  /**
+   * Unified redirection logic based on role
+   */
+  const handleRoleRedirection = (userData) => {
+    storeAuthData(userData);
+
+    // Special redirection for Sleeper Process IE
+    const roleName = userData.roleName;
+    if (roleName === 'Sleeper Process IE' || (typeof roleName === 'string' && roleName.includes('Sleeper Process IE'))) {
+      window.location.href = '/sleeper/';
+      return;
+    }
+
+    const redirectPath = ROLE_LANDING_ROUTE[roleName] || location.state?.from?.pathname || ROUTES.LANDING;
+    navigate(redirectPath, { replace: true });
+  };
+
+  /**
+   * Handle selection from multiple roles
+   */
+  const handleSelectRole = (selectedOption) => {
+    if (!pendingUserData) return;
+    const finalUserData = { ...pendingUserData, roleName: selectedOption.roleToStore };
+    handleRoleRedirection(finalUserData);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -119,22 +143,76 @@ const LoginPage = () => {
 
     try {
       const userData = await loginUser(userId, password);
-      storeAuthData(userData);
 
-      let redirectPath = ROUTES.LANDING;
-      if (userData.roleName === 'CM') {
-        redirectPath = ROUTES.CM_DASHBOARD;
-      } else if (userData.roleName === 'CALL_DESK') {
-        redirectPath = ROUTES.CALL_DESK;
-      } else if (userData.roleName === 'Finance') {
-        redirectPath = ROUTES.FINANCE;
-      } else if (userData.roleName === 'ADMIN') {
-        redirectPath = ROUTES.ADMIN_DASHBOARD;
-      } else {
-        redirectPath = location.state?.from?.pathname || ROUTES.LANDING;
+      // Handle the new list based roleName response
+      const roles = Array.isArray(userData.roleName) ? userData.roleName : [userData.roleName];
+
+      const options = [];
+      const seenConsolidated = new Set();
+
+      // Consolidate "IE" and "Process IE" into one "IE Dashboard" option
+      if (roles.some(r => r === 'IE' || r === 'Process IE')) {
+        options.push({
+          id: 'ie_option',
+          label: 'IE Dashboard',
+          description: 'Access IE and Process IE modules',
+          icon: '🛠️',
+          roleToStore: roles.find(r => r === 'IE' || r === 'Process IE') // Use the first matching role
+        });
+        seenConsolidated.add('IE');
+        seenConsolidated.add('Process IE');
       }
 
-      navigate(redirectPath, { replace: true });
+      // Consolidate "RIO Help Desk" into "Call Desk Dashboard"
+      if (roles.includes('RIO Help Desk')) {
+        options.push({
+          id: 'rio_option',
+          label: 'Call Desk Dashboard',
+          description: 'Access RIO Help Desk / Call Desk modules',
+          icon: '📞',
+          roleToStore: 'RIO Help Desk'
+        });
+        seenConsolidated.add('RIO Help Desk');
+      }
+
+      // Handle Sleeper Process IE
+      if (roles.includes('Sleeper Process IE')) {
+        options.push({
+          id: 'sleeper_option',
+          label: 'Sleeper Dashboard',
+          description: 'Access Sleeper Process modules',
+          icon: '🚄',
+          roleToStore: 'Sleeper Process IE'
+        });
+        seenConsolidated.add('Sleeper Process IE');
+      }
+
+      // Handle any other roles that aren't part of the specific consolidation requirement
+      roles.forEach(r => {
+        if (!seenConsolidated.has(r) && r) {
+          options.push({
+            id: r,
+            label: `${r} Dashboard`,
+            description: `Access ${r} platform`,
+            icon: '👤',
+            roleToStore: r
+          });
+        }
+      });
+
+      if (options.length > 1) {
+        // Multiple valid dashboard options found, show selection UI
+        setRoleOptions(options);
+        setPendingUserData(userData);
+        setShowRoleSelection(true);
+      } else if (options.length === 1) {
+        // Single option - route directly
+        userData.roleName = options[0].roleToStore;
+        handleRoleRedirection(userData);
+      } else {
+        // No roles found or fallback for existing behavior if list is empty
+        handleRoleRedirection(userData);
+      }
     } catch (err) {
       setError(err.message || 'Login failed. Please check your credentials.');
     } finally {
@@ -196,6 +274,7 @@ const LoginPage = () => {
                 key={index}
                 className={`hero-slide ${index === currentSlide ? 'is-active' : ''}`}
                 aria-hidden={index !== currentSlide}
+                style={{ zIndex: index === currentSlide ? 2 : 1 }}
               >
                 <img
                   src={slide.image}
@@ -224,92 +303,121 @@ const LoginPage = () => {
                 </p>
               </article>
 
-              <aside className="dashboard-panel is-revealed reveal-up" id="dashboardPanel">
-                <button type="button" className="dashboard-login-chip js-ripple">
-                  LOGIN
-                </button>
-                <div className="dashboard-header">
-                  <div className="dashboard-logo-wrap">
-                    <span className="dashboard-logo-glow" aria-hidden="true"></span>
-                    <img className="dashboard-rites-mark" src="/logo-sarthi.png" alt="SARTHI logo" />
+              <aside className="dashboard-panel is-revealed" id="dashboardPanel">
+                {/* Branding Section */}
+                <header className="branding-section">
+                  <div className="branding-logo-box">
+                    <img className="branding-logo-img" src="/logo-sarthi.png" alt="SARTHI logo" />
                   </div>
-                  <h2 id="dashboardTitle">SARTHI</h2>
-                  <p className="dashboard-fullform">System for Automated Review Tracking &amp; Holistic Inspection</p>
+                  <h2 className="branding-title">SARTHI</h2>
+                  <p className="branding-tagline">System for Automated Review Tracking &amp; Holistic Inspection</p>
+                </header>
+
+                <div className="dashboard-login-chip">
+                  {showRoleSelection ? 'SELECT ROLE' : 'LOGIN'}
                 </div>
 
-                <form className="dashboard-form" id="loginForm" onSubmit={handleSubmit}>
-                  {error && (
-                    <div className="login-error-toast">
-                      <span>⚠️ {error}</span>
+                {showRoleSelection ? (
+                  <div className="role-selection-container">
+                    <p className="role-selection-hint">More than one workspace is associated with your account. Please select a dashboard to continue.</p>
+                    <div className="role-options-grid">
+                      {roleOptions.map(option => (
+                        <button
+                          key={option.id}
+                          className="role-option-card"
+                          onClick={() => handleSelectRole(option)}
+                        >
+                          <div className="role-option-icon">{option.icon}</div>
+                          <div className="role-option-info">
+                            <span className="role-option-label">{option.label}</span>
+                            <span className="role-option-desc">{option.description}</span>
+                          </div>
+                          <div className="role-option-arrow">→</div>
+                        </button>
+                      ))}
                     </div>
-                  )}
+                    <button
+                      className="role-back-btn"
+                      onClick={() => setShowRoleSelection(false)}
+                    >
+                      ← Back to Login
+                    </button>
+                  </div>
+                ) : (
+                  <form className="dashboard-form" id="loginForm" onSubmit={handleSubmit}>
+                    {error && (
+                      <div className="login-error-toast">
+                        <span>⚠️ {error}</span>
+                      </div>
+                    )}
 
-                  <div className="form-group">
-                    <label htmlFor="username">Username or Email</label>
-                    <div className="input-field-shell">
-                      <span className="input-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-                          <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.1 0-8 2.1-8 5v1h16v-1c0-2.9-3.9-5-8-5Z"></path>
-                        </svg>
-                      </span>
-                      <input
-                        type="text"
-                        id="username"
-                        name="username"
-                        placeholder="Enter your username or email"
-                        className={isFilled.userId ? 'is-filled' : ''}
-                        value={userId}
-                        onChange={(e) => handleInputChange('userId', e.target.value)}
-                        required
-                      />
+                    <div className="form-group">
+                      <label htmlFor="username">Username or Email</label>
+                      <div className="input-field-shell">
+                        <span className="input-icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                            <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.1 0-8 2.1-8 5v1h16v-1c0-2.9-3.9-5-8-5Z"></path>
+                          </svg>
+                        </span>
+                        <input
+                          type="text"
+                          id="username"
+                          name="username"
+                          placeholder="Enter your username or email"
+                          className={isFilled.userId ? 'is-filled' : ''}
+                          value={userId}
+                          onChange={(e) => handleInputChange('userId', e.target.value)}
+                          required
+                        />
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="form-group">
-                    <label htmlFor="password">Password</label>
-                    <div className="input-field-shell">
-                      <span className="input-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-                          <path d="M17 9h-1V7a4 4 0 1 0-8 0v2H7a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2Zm-7-2a2 2 0 1 1 4 0v2h-4Zm2 10.75A1.75 1.75 0 1 1 13.75 16 1.75 1.75 0 0 1 12 17.75Z"></path>
-                        </svg>
-                      </span>
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        id="password"
-                        name="password"
-                        placeholder="Enter your password"
-                        className={isFilled.password ? 'is-filled' : ''}
-                        value={password}
-                        onChange={(e) => handleInputChange('password', e.target.value)}
-                        required
-                      />
-                      <button
-                        type="button"
-                        className="password-toggle-redesign"
-                        onClick={() => setShowPassword(!showPassword)}
-                      >
-                        {showPassword ? '🙈' : '👁️'}
-                      </button>
+                    <div className="form-group">
+                      <label htmlFor="password">Password</label>
+                      <div className="input-field-shell">
+                        <span className="input-icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                            <path d="M17 9h-1V7a4 4 0 1 0-8 0v2H7a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2Zm-7-2a2 2 0 1 1 4 0v2h-4Zm2 10.75A1.75 1.75 0 1 1 13.75 16 1.75 1.75 0 0 1 12 17.75Z"></path>
+                          </svg>
+                        </span>
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          id="password"
+                          name="password"
+                          placeholder="Enter your password"
+                          className={isFilled.password ? 'is-filled' : ''}
+                          value={password}
+                          onChange={(e) => handleInputChange('password', e.target.value)}
+                          required
+                        />
+                        <button
+                          type="button"
+                          className="password-toggle-redesign"
+                          onClick={() => setShowPassword(!showPassword)}
+                        >
+                          {showPassword ? '🙈' : '👁️'}
+                        </button>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="dashboard-options">
-                    <label className="remember-me" htmlFor="rememberMe">
-                      <input type="checkbox" id="rememberMe" name="rememberMe" />
-                      <span>Remember me</span>
-                    </label>
-                    <button type="button" className="forgot-link" onClick={(e) => e.preventDefault()}>Forgot password?</button>
-                  </div>
+                    <div className="dashboard-options">
+                      <label className="remember-me" htmlFor="rememberMe">
+                        <input type="checkbox" id="rememberMe" name="rememberMe" />
+                        <span>Remember me</span>
+                      </label>
+                      <button type="button" className="forgot-link" onClick={(e) => e.preventDefault()}>Forgot password?</button>
+                    </div>
 
-                  <button
-                    type="submit"
-                    className="submit-btn js-ripple"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? 'Signing In...' : 'Sign In'}
-                  </button>
-                  <p className="dashboard-footnote">Protected session with activity logging enabled</p>
-                </form>
+                    <button
+                      type="submit"
+                      className="submit-btn js-ripple"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? 'Signing In...' : 'Sign In'}
+                    </button>
+                    <p className="dashboard-footnote">Protected session with activity logging enabled</p>
+                  </form>
+                )}
               </aside>
             </div>
           </div>

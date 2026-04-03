@@ -291,22 +291,23 @@
 }
 
 .login-redesign-wrapper .dashboard-panel {
-  opacity: 0;
-  transform: translateY(15px);
+  opacity: 1 !important;
+  /* Force visibility */
+  transform: none !important;
   position: relative;
-  padding: 1rem 1.4rem 0.9rem;
-  /* Ultra compact padding */
-  border-radius: 18px;
+  padding: 2.2rem 1.6rem 1.2rem;
+  /* Increased top padding to clear the LOGIN chip */
+  border-radius: 22px;
   border: 1.2px solid var(--border-light);
-  background: rgba(255, 255, 255, 0.45);
-  box-shadow: 0 15px 45px rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(25px) saturate(145%);
-  -webkit-backdrop-filter: blur(25px) saturate(145%);
+  background: rgba(255, 255, 255, 0.48);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(28px) saturate(155%);
+  -webkit-backdrop-filter: blur(28px) saturate(155%);
   display: flex;
   flex-direction: column;
-  text-align: center;
   z-index: 20;
   width: 100%;
+  max-width: 480px;
 }
 
 .login-redesign-wrapper .dashboard-panel::after {
@@ -324,58 +325,83 @@
 
 .login-redesign-wrapper .dashboard-login-chip {
   position: absolute;
-  top: 1rem;
-  left: 1rem;
-  z-index: 2;
+  top: clamp(0.72rem, 1.3vw, 0.96rem);
+  left: clamp(0.72rem, 1.4vw, 1rem);
+  z-index: 10;
   border: 1px solid rgba(255, 255, 255, 0.78);
   border-radius: 999px;
-  padding: 0.4rem 1.2rem;
-  font-size: 0.7rem;
-  font-weight: 800;
+  padding: 0.56rem 1.14rem;
+  min-width: 124px;
+  justify-content: center;
+  font-size: 0.74rem;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: #fff;
+  color: #ffffff;
   background: linear-gradient(112deg, #c9782a 0%, #2f6f9d 52%, #1f8a4f 100%);
   background-size: 210% 100%;
+  background-position: 0 50%;
+  box-shadow: 0 10px 20px rgba(35, 95, 151, 0.3);
+  cursor: pointer;
 }
 
-.login-redesign-wrapper .dashboard-header {
+.login-redesign-wrapper .branding-section {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
   width: 100%;
-  margin-bottom: 0.8rem;
+  margin-bottom: 0.84rem;
+  padding-top: 0.5rem;
 }
 
-.login-redesign-wrapper .dashboard-rites-mark {
-  width: 105px;
-  /* Adjusted for square-ish proportions of the new logo */
-  margin: 0 auto 0.6rem;
-  display: block;
-  filter: drop-shadow(0 6px 12px rgba(48, 105, 187, 0.22));
+.login-redesign-wrapper .branding-logo-box {
+  position: relative;
+  width: fit-content;
+  margin: 0 auto 0.52rem;
 }
 
-.login-redesign-wrapper .dashboard-header h2 {
+.login-redesign-wrapper .branding-logo-img {
+  width: clamp(80px, 12vw, 100px);
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 10px 16px rgba(48, 105, 187, 0.34));
+  animation: logoLift 0.62s var(--ease-premium) 0.16s both;
+}
+
+.login-redesign-wrapper .branding-title {
+  margin: 0.16rem 0 0;
   font-family: var(--font-display);
-  font-size: 2.22rem;
-  /* Increased size back up for impact */
-  font-weight: 1000;
-  margin: 0;
+  font-size: clamp(1.34rem, 2.35vw, 2.22rem);
+  font-weight: 800;
+  line-height: 1.06;
+  letter-spacing: 0.028em;
   background: linear-gradient(104deg, #b76722 0%, #df872f 24%, #edf4fd 44%, #2f6f9d 58%, #1f8a4f 96%);
   background-size: 230% 100%;
+  background-position: 0 50%;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
   animation: dashboardTitleFlow 8.6s ease-in-out infinite;
 }
 
-.login-redesign-wrapper .dashboard-fullform {
-  font-size: 0.85rem;
-  /* Increased text size as requested */
-  font-weight: 800;
+.login-redesign-wrapper .branding-tagline {
+  margin: 0.28rem auto 0;
+  width: 100%;
+  font-size: clamp(0.78rem, 0.72rem + 0.2vw, 0.95rem);
+  line-height: 1.34;
+  letter-spacing: 0.012em;
+  font-weight: 700;
   color: #376290;
-  margin-top: 0.2rem;
-  line-height: 1.35;
+  background: linear-gradient(110deg, #b96d26 0%, #d9862f 22%, #ecf3fb 42%, #2f6f9d 56%, #2c7f98 72%, #1f8a4f 100%);
+  background-size: 240% 100%;
+  background-position: 0 50%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: dashboardFullformFlow 7.4s cubic-bezier(0.4, 0, 0.2, 1) 0.9s infinite,
+    dashboardFullformGlow 4.8s ease-in-out 1s infinite;
 }
 
 .login-redesign-wrapper .dashboard-form {
@@ -552,10 +578,40 @@
   0%,
   100% {
     background-position: 0% 50%;
+    filter: drop-shadow(0 0 0 rgba(223, 135, 47, 0));
   }
 
   50% {
     background-position: 100% 50%;
+    filter: drop-shadow(0 0 0.2rem rgba(223, 135, 47, 0.16)) drop-shadow(0 0 0.16rem rgba(31, 138, 79, 0.14));
+  }
+}
+
+@keyframes dashboardFullformFlow {
+
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+
+  45% {
+    background-position: 82% 50%;
+  }
+
+  55% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes dashboardFullformGlow {
+
+  0%,
+  100% {
+    filter: drop-shadow(0 0 0 rgba(223, 135, 47, 0));
+  }
+
+  50% {
+    filter: drop-shadow(0 0 0.16rem rgba(223, 135, 47, 0.14)) drop-shadow(0 0 0.14rem rgba(31, 138, 79, 0.13));
   }
 }
 
@@ -755,5 +811,169 @@
     flex-direction: row;
     font-size: 0.75rem;
     gap: 0.5rem;
+  }
+}
+
+/* ============================================
+   ROLE SELECTION SYSTEM - Added for Multi-Role Login Response
+   ============================================ */
+
+.login-redesign-wrapper .role-selection-container {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.6rem, 1.2vw, 0.9rem);
+  width: 100%;
+  animation: roleSelectionFadeIn 0.5s var(--ease-premium);
+  padding: 0.5rem 0.2rem;
+}
+
+.login-redesign-wrapper .role-selection-hint {
+  font-size: clamp(0.8rem, 0.9vw, 0.95rem);
+  color: #355c8f;
+  margin-bottom: 0.6rem;
+  line-height: 1.5;
+  text-align: center;
+  font-weight: 600;
+  opacity: 0.88;
+}
+
+.login-redesign-wrapper .role-options-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.login-redesign-wrapper .role-option-card {
+  display: flex;
+  align-items: center;
+  gap: 1.14rem;
+  padding: 1.05rem 1.34rem;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(246, 251, 255, 0.88));
+  border: 1px solid rgba(156, 189, 229, 0.75);
+  border-radius: 18px;
+  cursor: pointer;
+  transition: all 0.32s var(--ease-premium);
+  text-align: left;
+  width: 100%;
+  box-shadow: 0 5px 15px rgba(27, 71, 134, 0.06);
+  position: relative;
+  overflow: hidden;
+}
+
+.login-redesign-wrapper .role-option-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(112deg, var(--india-saffron-soft), transparent 40%, var(--india-green-soft));
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.login-redesign-wrapper .role-option-card:hover {
+  background: #ffffff;
+  border-color: rgba(74, 146, 244, 0.96);
+  transform: translateY(-3px) scale(1.018);
+  box-shadow: 0 12px 28px rgba(31, 111, 232, 0.18);
+}
+
+.login-redesign-wrapper .role-option-card:hover::before {
+  opacity: 0.45;
+}
+
+.login-redesign-wrapper .role-option-icon {
+  font-size: 1.48rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: linear-gradient(145deg, #f0f7ff, #e4efff);
+  border-radius: 13px;
+  box-shadow: inset 0 2px 5px rgba(255, 255, 255, 0.8);
+  flex-shrink: 0;
+  z-index: 2;
+}
+
+.login-redesign-wrapper .role-option-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.16rem;
+  z-index: 2;
+}
+
+.login-redesign-wrapper .role-option-label {
+  font-weight: 700;
+  color: #0f2246;
+  font-size: 1rem;
+  letter-spacing: -0.012em;
+}
+
+.login-redesign-wrapper .role-option-desc {
+  font-size: 0.78rem;
+  color: #4e6a91;
+  font-weight: 500;
+}
+
+.login-redesign-wrapper .role-option-arrow {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--brand-0);
+  opacity: 0.32;
+  transition: all 0.3s var(--ease-premium);
+  z-index: 2;
+}
+
+.login-redesign-wrapper .role-option-card:hover .role-option-arrow {
+  opacity: 1;
+  transform: translateX(4px);
+}
+
+.login-redesign-wrapper .role-back-btn {
+  margin-top: 1.2rem;
+  background: none;
+  border: none;
+  color: #5c7ca8;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0.6rem;
+  transition: all 0.24s ease;
+  width: fit-content;
+  align-self: center;
+  border-radius: 99px;
+}
+
+.login-redesign-wrapper .role-back-btn:hover {
+  color: var(--brand-0);
+  background: rgba(31, 111, 232, 0.08);
+  transform: translateX(-4px);
+}
+
+@keyframes roleSelectionFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+    filter: blur(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+/* Tablet refinements for Role Selection */
+@media (max-width: 980px) {
+  .login-redesign-wrapper .role-option-card {
+    padding: 0.9rem 1.15rem;
+  }
+
+  .login-redesign-wrapper .role-option-icon {
+    width: 38px;
+    height: 38px;
+    font-size: 1.25rem;
   }
 }

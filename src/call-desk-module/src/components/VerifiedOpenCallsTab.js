@@ -294,9 +294,9 @@ const VerifiedOpenCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
   })), [filteredCalls]);
 
   return (
-    <div className="tab-content">
+    <div className="calldesk-tab-content">
       {/* KPI Tiles */}
-      <div className="kpi-grid">
+      <div className="calldesk-kpi-grid">
         {kpiTiles.map((kpi, index) => {
           const statusKey = statusKeyMap[kpi.label];
           const isActive = filters.statuses.includes(statusKey);

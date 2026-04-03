@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { MOCK_PO_DATA } from '../data/mockData';
-import { formatDate, getProductTypeDisplayName } from '../utils/helpers';
+import { formatDate, getProductTypeDisplayName, extractNumericPoNo } from '../utils/helpers';
 import {
   saveSectionA,
   approveSectionA,
@@ -382,8 +382,9 @@ const InspectionInitiationFormContent = ({ call, formData, onFormDataChange, sho
       // This runs FIRST for Raw Material calls with a PO number
       if (call.po_no) {
         try {
-          console.log('🔍 Fetching PO data from database for PO:', call.po_no, 'Request ID:', call.call_no);
-          const poDataFromDb = await fetchPoDataForSections(call.po_no, call.call_no);
+          const numericPoNo = extractNumericPoNo(call.po_no);
+          console.log(`🔍 Fetching PO data from database for PO: ${numericPoNo} (original: ${call.po_no}), Request ID: ${call.call_no}`);
+          const poDataFromDb = await fetchPoDataForSections(numericPoNo, call.call_no);
 
           if (poDataFromDb) {
             console.log('✅ PO data fetched from database:', poDataFromDb);

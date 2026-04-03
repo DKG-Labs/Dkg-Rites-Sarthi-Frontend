@@ -60,7 +60,7 @@ const CallDeskDashboard = () => {
       setAllIEs(ies);
     };
     loadIEs();
-  }, []);
+  }, [fetchAllIEs]);
 
 
 
@@ -374,6 +374,7 @@ const CallDeskDashboard = () => {
         onVerifyAccept={handleVerifyAccept}
         onReturn={handleReturn}
         onReroute={handleReroute}
+        onWithdraw={refreshData}
         onDownloadLetter={handleDownloadLetter}
       />
 

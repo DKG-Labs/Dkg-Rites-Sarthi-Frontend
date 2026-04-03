@@ -230,12 +230,22 @@
 .performance-tab-content .perf-summary-card {
     border-radius: 20px;
     padding: 1.5rem 1.75rem;
-    border-left-width: 4px;
-    border-left-style: solid;
     position: relative;
     overflow: hidden;
     transition: transform 0.25s ease, box-shadow 0.25s ease;
     box-shadow: 0 4px 12px -3px rgba(0, 0, 0, 0.06);
+    border: 1px solid rgba(0, 0, 0, 0.03);
+}
+
+.performance-tab-content .perf-summary-card::before {
+    content: '';
+    position: absolute;
+    top: 12px;
+    left: 0;
+    bottom: 12px;
+    width: 5px;
+    border-radius: 0 10px 10px 0;
+    z-index: 2;
 }
 
 .performance-tab-content .perf-summary-card:hover {
@@ -257,26 +267,38 @@
 
 /* Blue – Total Inspected */
 .performance-tab-content .border-l-blue {
-    border-left-color: #3b82f6;
     background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+}
+
+.performance-tab-content .border-l-blue::before {
+    background: linear-gradient(to bottom, #3b82f6, #1d4ed8);
 }
 
 /* Emerald – Accepted */
 .performance-tab-content .border-l-emerald {
-    border-left-color: #10b981;
     background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+}
+
+.performance-tab-content .border-l-emerald::before {
+    background: linear-gradient(to bottom, #10b981, #059669);
 }
 
 /* Red – Rejected */
 .performance-tab-content .border-l-red {
-    border-left-color: #ef4444;
     background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
 }
 
-/* Green (replaced purple) – Avg Rejection % */
+.performance-tab-content .border-l-red::before {
+    background: linear-gradient(to bottom, #ef4444, #b91c1c);
+}
+
+/* Teal/Purple – Avg Rejection % */
 .performance-tab-content .border-l-purple {
-    border-left-color: #10b981;
-    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+    background: linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%);
+}
+
+.performance-tab-content .border-l-purple::before {
+    background: linear-gradient(to bottom, #14b8a6, #0f766e);
 }
 
 .performance-tab-content .card-label {
@@ -305,6 +327,19 @@
     border: 1px solid #e2e8f0;
     overflow: hidden;
     box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.08);
+    position: relative;
+}
+
+.performance-tab-content .perf-table-outer::before {
+    content: '';
+    position: absolute;
+    top: 25px;
+    left: 0;
+    bottom: 25px;
+    width: 5px;
+    background: linear-gradient(to bottom, #10b981, #059669);
+    border-radius: 0 10px 10px 0;
+    z-index: 2;
 }
 
 .performance-tab-content .perf-data-table-new {
@@ -471,4 +506,9 @@
     accent-color: #10b981;
     width: 14px;
     height: 14px;
+}
+
+.sortable-header {
+    cursor: pointer;
+    user-select: none;
 }

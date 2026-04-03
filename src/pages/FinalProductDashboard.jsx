@@ -10,6 +10,7 @@ import {
   saveLotResults
 } from '../services/finalProductInspectionService';
 import { getHardnessToeLoadAQL, getDimensionWeightAQL } from '../utils/is2500Calculations';
+import { normalizeErcType } from '../utils/ercUtils';
 import { finishInspection } from '../services/finalInspectionSubmoduleService';
 import { performTransitionAction } from '../services/workflowService';
 import { getStoredUser } from '../services/authService';
@@ -58,14 +59,29 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
         if (stored) {
           const data = JSON.parse(stored)[lot.lotNo];
           if (data) {
-            // Visual R1 + R2
-            totalRejected += (parseInt(data.visualR1) || 0) + (parseInt(data.visualR2) || 0);
+            const aql = getDimensionWeightAQL(lot.lotSize || 0);
 
-            // Dimensional (Go/NoGo/Flat) for 1st & 2nd sampling
-            // Note: In FinalVisualDimensionalPage, they are stored as separate fields
-            const dim1 = (parseInt(data.dimGo1) || 0) + (parseInt(data.dimNoGo1) || 0) + (parseInt(data.dimFlat1) || 0);
-            const dim2 = (parseInt(data.dimGo2) || 0) + (parseInt(data.dimNoGo2) || 0) + (parseInt(data.dimFlat2) || 0);
-            totalRejected += dim1 + dim2;
+            // Visual
+            const vR1 = data.visualR1 === '' ? 0 : parseInt(data.visualR1);
+            if (vR1 >= aql.re1) {
+              totalRejected += vR1;
+            } else if (vR1 > aql.ac1 && !aql.useSingleSampling) {
+              const vR2 = data.visualR2 === '' ? 0 : parseInt(data.visualR2);
+              totalRejected += vR1 + vR2;
+            } else {
+              totalRejected += vR1;
+            }
+
+            // Dimensional
+            const dR1 = (parseInt(data.dimGo1) || 0) + (parseInt(data.dimNoGo1) || 0) + (parseInt(data.dimFlat1) || 0);
+            if (dR1 >= aql.re1) {
+              totalRejected += dR1;
+            } else if (dR1 > aql.ac1 && !aql.useSingleSampling) {
+              const dR2 = (parseInt(data.dimGo2) || 0) + (parseInt(data.dimNoGo2) || 0) + (parseInt(data.dimFlat2) || 0);
+              totalRejected += dR1 + dR2;
+            } else {
+              totalRejected += dR1;
+            }
           }
         }
       } catch (e) { console.error('Error reading Visual/Dim data:', e); }
@@ -76,9 +92,17 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
         if (stored) {
           const data = JSON.parse(stored)[lot.lotNo];
           if (data) {
+            const aql = getHardnessToeLoadAQL(lot.lotSize || 0);
             const r1 = (data.hardness1st || []).filter(v => v && (parseFloat(v) < 40 || parseFloat(v) > 44)).length;
-            const r2 = (data.hardness2nd || []).filter(v => v && (parseFloat(v) < 40 || parseFloat(v) > 44)).length;
-            totalRejected += r1 + r2;
+            
+            if (r1 >= aql.re1) {
+              totalRejected += r1;
+            } else if (r1 > aql.ac1 && !aql.useSingleSampling) {
+              const r2 = (data.hardness2nd || []).filter(v => v && (parseFloat(v) < 40 || parseFloat(v) > 44)).length;
+              totalRejected += r1 + r2;
+            } else {
+              totalRejected += r1;
+            }
           }
         }
       } catch (e) { console.error('Error reading Hardness data:', e); }
@@ -89,42 +113,66 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
         if (stored) {
           const data = JSON.parse(stored)[lot.lotNo];
           if (data) {
-            const springType = normalizeErcType(data.springType) || normalizeErcType(lot.springType) || normalizeErcType(selectedCall?.ercType) || 'MK-III';
+            // lot.springType is already normalized (set in processDashboardData)
+            const springType = lot.springType || 'MK-III';
             const min = springType === 'MK-V' ? 1200 : (springType === 'ERC-J' ? 650 : 850);
             const max = springType === 'MK-V' ? 1500 : (springType === 'ERC-J' ? Infinity : 1100);
 
+            const aql = getHardnessToeLoadAQL(lot.lotSize || 0);
+
             const check = (v) => {
-              if (!v) return false;
-              const val = parseFloat(v);
+              if (!v || v === '') return false;
+              const val = parseFloat(String(v).replace(',', '.'));
               if (isNaN(val)) return false;
-              if (springType === 'ERC-J') return val <= 650; // ERC-J > 650 is Pass, so <= 650 is Fail
+              if (springType === 'ERC-J') return val <= 650;
               return val < min || val > max;
             };
 
             const r1 = (data.toe1st || []).filter(check).length;
-            const r2 = (data.toe2nd || []).filter(check).length;
 
-            // ERC-J special case: value > 650 is PASS. So <= 650 is FAIL.
-            // MK-III/V: value within range is PASS. Outside is FAIL.
-            totalRejected += r1 + r2;
+            // AQL Double Sampling Logic — only count r2 when first sampling is inconclusive
+            if (r1 >= aql.re1) {
+              totalRejected += r1;
+            } else if (r1 > aql.ac1 && !aql.useSingleSampling) {
+              const r2 = (data.toe2nd || []).filter(check).length;
+              totalRejected += r1 + r2;
+            } else {
+              totalRejected += r1;
+            }
           }
         }
       } catch (e) { console.error('Error reading Toe Load data:', e); }
 
-      // 4. Weight (Values < Min Weight)
+      // 4. Weight (Values outside min-max range)
       try {
         const stored = localStorage.getItem(`weightTestData_${callNo}`);
         if (stored) {
           const data = JSON.parse(stored)[lot.lotNo];
           if (data) {
-            const springType = normalizeErcType(data.springType) || normalizeErcType(lot.springType) || normalizeErcType(selectedCall?.ercType) || 'MK-III';
-            const minWeight = springType === 'MK-V' ? 1068 : 904; // ERC-J and MK-III are 904
+            // lot.springType is already normalized
+            const springType = lot.springType || 'MK-III';
+            // Match FinalWeightTestPage TOLERANCE table exactly
+            const minWeight = springType === 'MK-V' ? 1068 : 904;
+            const maxWeight = springType === 'MK-V' ? 1108 : 937;
 
-            const check = (v) => v && !isNaN(parseFloat(v)) && parseFloat(v) < minWeight;
+            const aql = getDimensionWeightAQL(lot.lotSize || 0);
+            const check = (v) => {
+              if (!v || v === '') return false;
+              const val = parseFloat(String(v).replace(',', '.'));
+              if (isNaN(val)) return false;
+              return val < minWeight || val > maxWeight;
+            };
 
             const r1 = (data.weight1st || []).filter(check).length;
-            const r2 = (data.weight2nd || []).filter(check).length;
-            totalRejected += r1 + r2;
+
+            if (r1 >= aql.re1) {
+              totalRejected += r1;
+            } else if (r1 > aql.ac1 && !aql.useSingleSampling) {
+              const r2 = (data.weight2nd || []).filter(check).length;
+              totalRejected += r1 + r2;
+            } else {
+              totalRejected += r1;
+            }
           }
         }
       } catch (e) { console.error('Error reading Weight data:', e); }
@@ -135,15 +183,29 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
         if (stored) {
           const data = JSON.parse(stored)[lot.lotNo];
           if (data) {
-            // Application & Deflection R1 + R2
-            const defR1 = parseInt(data.deflectionR1) || 0;
-            const defR2 = parseInt(data.deflectionR2) || 0;
-            totalRejected += defR1 + defR2;
+            const aql = getDimensionWeightAQL(lot.lotSize || 0);
 
-            // Dimensional (Go/NoGo/Flat) - stored here as well in FinalApplicationDeflectionPage
-            const dim1 = (parseInt(data.dimGo1) || 0) + (parseInt(data.dimNoGo1) || 0) + (parseInt(data.dimFlat1) || 0);
-            const dim2 = (parseInt(data.dimGo2) || 0) + (parseInt(data.dimNoGo2) || 0) + (parseInt(data.dimFlat2) || 0);
-            totalRejected += dim1 + dim2;
+            // Deflection
+            const defR1 = data.deflectionR1 === '' ? 0 : parseInt(data.deflectionR1);
+            if (defR1 >= aql.re1) {
+              totalRejected += defR1;
+            } else if (defR1 > aql.ac1 && !aql.useSingleSampling) {
+              const defR2 = data.deflectionR2 === '' ? 0 : parseInt(data.deflectionR2);
+              totalRejected += defR1 + defR2;
+            } else {
+              totalRejected += defR1;
+            }
+
+            // Dimensional
+            const dR1_ = (parseInt(data.dimGo1) || 0) + (parseInt(data.dimNoGo1) || 0) + (parseInt(data.dimFlat1) || 0);
+            if (dR1_ >= aql.re1) {
+              totalRejected += dR1_;
+            } else if (dR1_ > aql.ac1 && !aql.useSingleSampling) {
+              const dR2_ = (parseInt(data.dimGo2) || 0) + (parseInt(data.dimNoGo2) || 0) + (parseInt(data.dimFlat2) || 0);
+              totalRejected += dR1_ + dR2_;
+            } else {
+              totalRejected += dR1_;
+            }
           }
         }
       } catch (e) { console.error('Error reading Deflection/App data:', e); }
@@ -154,28 +216,77 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
         if (stored) {
           const data = JSON.parse(stored)[lot.lotNo];
           if (data) {
-            // Microstructure Rejection
+            const checkSection = (r1, r2) => {
+              if (r1 >= 2) return r1; // Ac1=0, Re1=2. Lot rejected.
+              if (r1 === 1) return r1 + r2; // Double sampling rule (Ac2=1, Re2=2)
+              return r1; // Accepted (r1=0)
+            };
+
+            // Microstructure
             const micro1 = (data.microstructure1st || []).filter(v => v === 'Not Tempered Martensite').length;
             const micro2 = (data.microstructure2nd || []).filter(v => v === 'Not Tempered Martensite').length;
+            totalRejected += checkSection(micro1, micro2);
 
-            // Decarb Rejection (Max 0.8)
+            // Decarb
             const maxDecarb = lot.maxDecarb || 0.8;
             const decarb1 = (data.decarb1st || []).filter(v => v !== '' && parseFloat(v) > maxDecarb).length;
             const decarb2 = (data.decarb2nd || []).filter(v => v !== '' && parseFloat(v) > maxDecarb).length;
+            totalRejected += checkSection(decarb1, decarb2);
 
-            // Inclusion Rejection (> 2.0)
-            const checkInc = (sample) => ['A', 'B', 'C', 'D'].some(k => sample[k] !== '' && parseFloat(sample[k]) > 2.0);
+            // Inclusion
+            const checkInc = (sample) => sample && ['A', 'B', 'C', 'D'].some(k => sample[k] !== '' && parseFloat(sample[k]) > 2.0);
             const inc1 = (data.inclusion1st || []).filter(checkInc).length;
             const inc2 = (data.inclusion2nd || []).filter(checkInc).length;
+            totalRejected += checkSection(inc1, inc2);
 
-            // Defects Rejection
+            // Defects
             const def1 = (data.defects1st || []).filter(v => v === 'NOT OK').length;
             const def2 = (data.defects2nd || []).filter(v => v === 'NOT OK').length;
-
-            totalRejected += (micro1 + micro2 + decarb1 + decarb2 + inc1 + inc2 + def1 + def2);
+            totalRejected += checkSection(def1, def2);
           }
         }
       } catch (e) { console.error('Error reading Inclusion Rating data:', e); }
+
+      // 7. Chemical Analysis
+      try {
+        const stored = localStorage.getItem(`chemicalAnalysisData_${callNo}`);
+        if (stored) {
+          const allChemData = JSON.parse(stored);
+          const chemValues = allChemData.chemValues?.[lot.lotNo];
+          const ladleData = (allChemData.ladleValues || []).find(l => l.lotNo === lot.lotNo || l.heatNo === lot.heatNo);
+
+          if (chemValues && ladleData) {
+            const elementRanges = {
+              c: { min: 0.5, max: 0.6 },
+              si: { min: 0.15, max: 0.35 },
+              mn: { min: 0.6, max: 0.9 },
+              s: { max: 0.04 },
+              p: { max: 0.04 }
+            };
+            const tolerances = { c: 0.03, si: 0.03, mn: 0.04, s: 0.005, p: 0.005 };
+
+            for (const el in elementRanges) {
+              const pVal = parseFloat(chemValues[el]);
+              const lVal = parseFloat(ladleData[el === 'c' ? 'percentC' : el === 'si' ? 'percentSi' : el === 'mn' ? 'percentMn' : el === 's' ? 'percentS' : 'percentP']);
+              const range = elementRanges[el];
+              const tol = tolerances[el];
+
+              if (!isNaN(pVal) && !isNaN(lVal)) {
+                if (el === 's' || el === 'p') {
+                  if (pVal > (lVal + tol)) totalRejected += 1;
+                } else {
+                  const diff = Math.abs(pVal - lVal);
+                  const expandedMin = range.min - tol;
+                  const expandedMax = range.max + tol;
+                  if (diff > (tol + 0.0001) || pVal < (expandedMin - 0.0001) || pVal > (expandedMax + 0.0001)) {
+                    totalRejected += 1;
+                  }
+                }
+              }
+            }
+          }
+        }
+      } catch (e) { console.error('Error reading Chemical Analysis data:', e); }
 
       counts[lot.lotNo] = totalRejected;
     });
@@ -270,7 +381,12 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
           noOfBags: lot.noOfBags || 0,
           manufacturer: lot.manufacturer,
           manufacturerHeat: lot.manufacturerHeat,
-          springType: lot.springType || selectedCall?.ercType // Store spring type
+          springType: normalizeErcType(
+            dashboardData?.inspectionCall?.ercType ||
+            selectedCall?.ercType ||
+            lot.springType ||
+            'MK-III'
+          )
         }));
         setLotsFromVendorCall(mappedLots);
         console.log('✅ Lots set:', mappedLots);
@@ -317,29 +433,42 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
   const validateVisualDimensionalData = useCallback((lotData, lot) => {
     if (!lotData) return 'Pending';
     // Check if any visual or dimensional data is filled
-    const hasVisualData = lotData.visualR1 || lotData.visualR2;
-    const hasDimData = lotData.dimGo1 || lotData.dimNoGo1 || lotData.dimFlat1;
+    const hasVisualData = lotData.visualR1 !== '' || lotData.visualR2 !== '';
+    const hasDimData = lotData.dimGo1 !== '' || lotData.dimNoGo1 !== '' || lotData.dimFlat1 !== '';
 
     if (!hasVisualData && !hasDimData) return 'Pending';
 
-    // Get AQL values based on Lot Size using central utility
+    // Get AQL values based on Lot Size using central utility (AQL 2.5)
     const aql = getDimensionWeightAQL(lot?.lotSize || 0);
 
     // Check Visual
-    const vR1 = parseInt(lotData.visualR1) || 0;
-    const vR2 = parseInt(lotData.visualR2) || 0;
-    const vTotal = vR1 + vR2;
+    const vR1 = lotData.visualR1 === '' ? null : parseInt(lotData.visualR1);
+    const vR2 = lotData.visualR2 === '' ? 0 : parseInt(lotData.visualR2);
 
-    if (vR1 >= aql.re1) return 'NOT OK';
-    if (!aql.useSingleSampling && vTotal >= aql.cummRej) return 'NOT OK';
+    if (vR1 !== null) {
+      if (vR1 >= aql.re1) return 'NOT OK';
+      if (vR1 > aql.ac1 && !aql.useSingleSampling) {
+        if (lotData.visualR2 === '') return 'Pending'; // 2nd sampling required
+        if ((vR1 + vR2) >= aql.cummRej) return 'NOT OK';
+      }
+    }
 
     // Check Dimensional (Sum of Go/NoGo/Flat)
+    const hasDimR1 = lotData.dimGo1 !== '' && lotData.dimNoGo1 !== '' && lotData.dimFlat1 !== '';
     const dR1 = (parseInt(lotData.dimGo1) || 0) + (parseInt(lotData.dimNoGo1) || 0) + (parseInt(lotData.dimFlat1) || 0);
     const dR2 = (parseInt(lotData.dimGo2) || 0) + (parseInt(lotData.dimNoGo2) || 0) + (parseInt(lotData.dimFlat2) || 0);
-    const dTotal = dR1 + dR2;
 
-    if (dR1 >= aql.re1) return 'NOT OK';
-    if (!aql.useSingleSampling && dTotal >= aql.cummRej) return 'NOT OK';
+    if (hasDimData) {
+      if (dR1 >= aql.re1) return 'NOT OK';
+      if (dR1 > aql.ac1 && !aql.useSingleSampling) {
+        const hasDimR2 = lotData.dimGo2 !== '' && lotData.dimNoGo2 !== '' && lotData.dimFlat2 !== '';
+        if (!hasDimR2) return 'Pending'; // 2nd sampling required
+        if ((dR1 + dR2) >= aql.cummRej) return 'NOT OK';
+      }
+    }
+
+    // If we've made it here, check if all 1st samples are present for both sections
+    if (lotData.visualR1 === '' || !hasDimR1) return 'Pending';
 
     return 'OK';
   }, []);
@@ -356,8 +485,18 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     const hasData = (lotData.hardness1st || []).some(v => !!v);
     if (!hasData) return 'Pending';
 
+    // If first sampling array is not fully filled, it's still pending
+    const isFull1st = (lotData.hardness1st || []).every(v => v !== '' && v !== null && v !== undefined);
+
     if (h1 >= aql.re1) return 'NOT OK';
-    if (!aql.useSingleSampling && (h1 + h2) >= aql.cummRej) return 'NOT OK';
+    if (!isFull1st) return 'Pending'; // Not all 1st samples filled yet
+    if (h1 <= aql.ac1) return 'OK';
+
+    if (!aql.useSingleSampling) {
+      const isFull2nd = (lotData.hardness2nd || []).every(v => v !== '' && v !== null && v !== undefined);
+      if (!isFull2nd) return 'Pending'; // 2nd sampling required but not complete
+      if ((h1 + h2) >= aql.cummRej) return 'NOT OK';
+    }
 
     return 'OK';
   }, []);
@@ -370,70 +509,79 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
       (lotData.decarb1st || []).some(v => v) ||
       (lotData.defects1st || []).some(v => v);
 
-    // Also check inclusion object array
-    const hasIncData = (lotData.inclusion1st || []).some(s => s.A || s.B || s.C || s.D);
+    const hasIncData = (lotData.inclusion1st || []).some(s => s && (s.A || s.B || s.C || s.D));
 
     if (!hasData && !hasIncData && !lotData.remarks) return 'Pending';
 
-    // Calculate Failures
-    // Microstructure
+    // Fullness helpers
+    const isFull = (arr) => arr && arr.length > 0 && arr.every(v => v !== '' && v !== null && v !== undefined);
+    const isIncFull = (arr) => arr && arr.length > 0 && arr.every(s => s && (s.A !== '' || s.B !== '' || s.C !== '' || s.D !== ''));
+
+    // Rejection counters
     const micro1 = (lotData.microstructure1st || []).filter(v => v === 'Not Tempered Martensite').length;
     const micro2 = (lotData.microstructure2nd || []).filter(v => v === 'Not Tempered Martensite').length;
-
-    // Decarb (Max 0.8)
-    const maxDecarb = lot.maxDecarb || 0.8;
-    const decarb1 = (lotData.decarb1st || []).filter(v => v !== '' && parseFloat(v) > maxDecarb).length;
-    const decarb2 = (lotData.decarb2nd || []).filter(v => v !== '' && parseFloat(v) > maxDecarb).length;
-
-    // Inclusion (> 2.0)
-    const checkInc = (sample) => ['A', 'B', 'C', 'D'].some(k => sample[k] !== '' && parseFloat(sample[k]) > 2.0);
+    const decarb1 = (lotData.decarb1st || []).filter(v => v !== '' && parseFloat(v) > (lot.maxDecarb || 0.8)).length;
+    const decarb2 = (lotData.decarb2nd || []).filter(v => v !== '' && parseFloat(v) > (lot.maxDecarb || 0.8)).length;
+    const checkInc = (s) => s && ['A', 'B', 'C', 'D'].some(k => s[k] !== '' && parseFloat(s[k]) > 2.0);
     const inc1 = (lotData.inclusion1st || []).filter(checkInc).length;
     const inc2 = (lotData.inclusion2nd || []).filter(checkInc).length;
-
-    // Defects
     const def1 = (lotData.defects1st || []).filter(v => v === 'NOT OK').length;
     const def2 = (lotData.defects2nd || []).filter(v => v === 'NOT OK').length;
 
+    // AQL Inclusion/Rating rule: Ac1=0, Re1=2, Comm=2
+    const checkStatus = (r1, r2, full1, full2) => {
+      if (r1 >= 2 || (r1 + r2) >= 2) return 'NOT OK';
+      if (r1 === 1) return (full1 && full2) ? 'OK' : 'Pending';
+      if (r1 === 0) return full1 ? 'OK' : 'Pending';
+      return 'Pending';
+    };
 
+    const sMicro = checkStatus(micro1, micro2, isFull(lotData.microstructure1st), isFull(lotData.microstructure2nd));
+    const sDecarb = checkStatus(decarb1, decarb2, isFull(lotData.decarb1st), isFull(lotData.decarb2nd));
+    const sInc = checkStatus(inc1, inc2, isIncFull(lotData.inclusion1st), isIncFull(lotData.inclusion2nd));
+    const sDef = checkStatus(def1, def2, isFull(lotData.defects1st), isFull(lotData.defects2nd));
 
-    // Logic from FinalInclusionRatingPage: Ac1: 0 | Re1: 2 | Cumm: 2
-    // Failing if any individual test has R1 > 1 or R1+R2 > 1
-    const microFail = micro1 > 1 || (micro1 + micro2) > 1;
-    const decarbFail = decarb1 > 1 || (decarb1 + decarb2) > 1;
-    const incFail = inc1 > 1 || (inc1 + inc2) > 1;
-    const defFail = def1 > 1 || (def1 + def2) > 1;
-
-    if (microFail || decarbFail || incFail || defFail) return 'NOT OK';
-
-    return 'OK';
+    const statuses = [sMicro, sDecarb, sInc, sDef];
+    if (statuses.includes('NOT OK')) return 'NOT OK';
+    if (statuses.every(s => s === 'OK')) return 'OK';
+    return 'Pending';
   }, []);
 
   // Validation function for deflection test data
   const validateDeflectionData = useCallback((lotData, lot) => {
     if (!lotData) return 'Pending';
 
-    // Check if data exists
-    const hasData = lotData.deflectionR1 || lotData.deflectionR2 || lotData.dimGo1 || lotData.dimNoGo1; // Check both defl and dim fields
-    if (!hasData) return 'Pending';
-
-    // AQL Check (Same as Visual/Dim AQL)
+    // AQL Check (Dimension & Weight AQL 2.5)
     const aql = getDimensionWeightAQL(lot.lotSize || 0);
 
     // 1. Check Deflection Failures
-    const defR1 = parseInt(lotData.deflectionR1) || 0;
-    const defR2 = parseInt(lotData.deflectionR2) || 0;
-    const defTotal = defR1 + defR2;
+    const defR1 = lotData.deflectionR1 === '' ? null : parseInt(lotData.deflectionR1);
+    const defR2 = lotData.deflectionR2 === '' ? 0 : parseInt(lotData.deflectionR2);
 
-    if (defR1 >= aql.re1) return 'NOT OK';
-    if (!aql.useSingleSampling && defTotal >= aql.cummRej) return 'NOT OK';
+    if (defR1 !== null) {
+      if (defR1 >= aql.re1) return 'NOT OK';
+      if (defR1 > aql.ac1 && !aql.useSingleSampling) {
+        if (lotData.deflectionR2 === '') return 'Pending'; // 2nd sampling required but missing
+        if ((defR1 + defR2) >= aql.cummRej) return 'NOT OK';
+      }
+    }
 
     // 2. Check Dimensional Failures (if stored here)
-    const dim1 = (parseInt(lotData.dimGo1) || 0) + (parseInt(lotData.dimNoGo1) || 0) + (parseInt(lotData.dimFlat1) || 0);
-    const dim2 = (parseInt(lotData.dimGo2) || 0) + (parseInt(lotData.dimNoGo2) || 0) + (parseInt(lotData.dimFlat2) || 0);
-    const dimTotal = dim1 + dim2;
+    const dimR1 = (parseInt(lotData.dimGo1) || 0) + (parseInt(lotData.dimNoGo1) || 0) + (parseInt(lotData.dimFlat1) || 0);
+    const dimR2 = (parseInt(lotData.dimGo2) || 0) + (parseInt(lotData.dimNoGo2) || 0) + (parseInt(lotData.dimFlat2) || 0);
+    const hasDimR1 = lotData.dimGo1 !== '' && lotData.dimNoGo1 !== '' && lotData.dimFlat1 !== '';
 
-    if (dim1 >= aql.re1) return 'NOT OK';
-    if (!aql.useSingleSampling && dimTotal >= aql.cummRej) return 'NOT OK';
+    if (hasDimR1) {
+      if (dimR1 >= aql.re1) return 'NOT OK';
+      if (dimR1 > aql.ac1 && !aql.useSingleSampling) {
+        const hasDimR2 = lotData.dimGo2 !== '' && lotData.dimNoGo2 !== '' && lotData.dimFlat2 !== '';
+        if (!hasDimR2) return 'Pending';
+        if ((dimR1 + dimR2) >= aql.cummRej) return 'NOT OK';
+      }
+    }
+
+    // Must have at least R1 for both to be OK
+    if (lotData.deflectionR1 === '' || !hasDimR1) return 'Pending';
 
     return 'OK';
   }, []);
@@ -442,8 +590,8 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
   const validateToeLoadData = useCallback((lotData, lot) => {
     if (!lotData) return 'Pending';
 
-    // Spring Type Logic
-    const springType = normalizeErcType(lotData.springType) || normalizeErcType(lot.springType) || normalizeErcType(selectedCall?.ercType) || 'MK-III';
+    // lot.springType is already normalized (set in processDashboardData)
+    const springType = lot.springType || 'MK-III';
     const min = springType === 'MK-V' ? 1200 : (springType === 'ERC-J' ? 650 : 850);
     const max = springType === 'MK-V' ? 1500 : (springType === 'ERC-J' ? Infinity : 1100);
 
@@ -451,20 +599,29 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     const aql = getHardnessToeLoadAQL(lot.lotSize || 0);
 
     const check = (v) => {
-      if (!v) return false;
-      const val = parseFloat(v);
+      if (!v || v === '') return false;
+      const val = parseFloat(String(v).replace(',', '.'));
       if (isNaN(val)) return false;
       if (springType === 'ERC-J') return val <= 650;
       return val < min || val > max;
     };
 
     const r1 = (lotData.toe1st || []).filter(check).length;
-    const r2 = (lotData.toe2nd || []).filter(check).length;
-
     const hasData = (lotData.toe1st || []).some(v => !!v);
     if (!hasData) return 'Pending';
 
+    // If first sampling array is not fully filled, it's still pending
+    const isFull1st = (lotData.toe1st || []).every(v => v !== '' && v !== null && v !== undefined);
+
     if (r1 >= aql.re1) return 'NOT OK';
+    if (!isFull1st) return 'Pending'; // Not all 1st samples filled yet
+    // AQL shortcut: if first sampling passes, we are done
+    if (r1 <= aql.ac1) return 'OK';
+
+    // First sampling inconclusive, check second sampling
+    const r2 = (lotData.toe2nd || []).filter(check).length;
+    const isFull2nd = (lotData.toe2nd || []).every(v => v !== '' && v !== null && v !== undefined);
+    if (!isFull2nd && !aql.useSingleSampling) return 'Pending'; // 2nd sampling required but not complete
     if ((r1 + r2) >= aql.cummRej) return 'NOT OK';
 
     return 'OK';
@@ -474,13 +631,21 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
   const validateWeightData = useCallback((lotData, lot) => {
     if (!lotData) return 'Pending';
 
-    const springType = normalizeErcType(lotData.springType) || normalizeErcType(lot.springType) || normalizeErcType(selectedCall?.ercType) || 'MK-III';
+    // lot.springType is already normalized
+    const springType = lot.springType || 'MK-III';
+    // Match FinalWeightTestPage TOLERANCE table exactly (both min and max)
     const minWeight = springType === 'MK-V' ? 1068 : 904;
+    const maxWeight = springType === 'MK-V' ? 1108 : 937;
 
     // Get AQL using central utility
     const aql = getDimensionWeightAQL(lot?.lotSize || 0);
 
-    const check = (v) => v && !isNaN(parseFloat(v)) && parseFloat(v) < minWeight;
+    const check = (v) => {
+      if (!v || v === '') return false;
+      const val = parseFloat(String(v).replace(',', '.'));
+      if (isNaN(val)) return false;
+      return val < minWeight || val > maxWeight;
+    };
 
     const r1 = (lotData.weight1st || []).filter(check).length;
     const r2 = (lotData.weight2nd || []).filter(check).length;
@@ -488,8 +653,18 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     const hasData = (lotData.weight1st || []).some(v => !!v);
     if (!hasData) return 'Pending';
 
+    // If first sampling array is not fully filled, it's still pending
+    const isFull1st = (lotData.weight1st || []).every(v => v !== '' && v !== null && v !== undefined);
+
     if (r1 >= aql.re1) return 'NOT OK';
-    if (!aql.useSingleSampling && (r1 + r2) >= aql.cummRej) return 'NOT OK';
+    if (!isFull1st) return 'Pending'; // Not all 1st samples filled yet
+    if (r1 <= aql.ac1) return 'OK';
+
+    if (!aql.useSingleSampling) {
+      const isFull2nd = (lotData.weight2nd || []).every(v => v !== '' && v !== null && v !== undefined);
+      if (!isFull2nd) return 'Pending'; // 2nd sampling required but not complete
+      if ((r1 + r2) >= aql.cummRej) return 'NOT OK';
+    }
 
     return 'OK';
   }, []);

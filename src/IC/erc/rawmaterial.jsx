@@ -88,12 +88,12 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
             const isAccepted = h.status === "ACCEPTED" || h.status === "PARTIALLY_ACCEPTED";
             const val = parseFloat(h.weightAcceptedMt || 0);
             if (isAccepted && val > 0) {
-              lines.push(`Heat no -${h.heatNo}- Qty ${val.toFixed(4)} MT`);
+              lines.push(`Heat no -${h.heatNo}- Qty ${val.toFixed(3)} MT`);
               totalMt += val;
             }
           });
           if (lines.length > 0) {
-            return `${lines.join(",\n")},\nTotal Qty -${totalMt.toFixed(4)} MT`;
+            return `${lines.join(",\n")},\nTotal Qty -${totalMt.toFixed(3)} MT`;
           }
         }
         return c.clearedQty || c.qtyCleared || "";
@@ -107,12 +107,12 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
             const isRejected = h.status === "REJECTED" || h.status === "PARTIALLY_ACCEPTED";
             const val = parseFloat(h.weightRejectedMt || 0);
             if (isRejected && val > 0) {
-              lines.push(`Heat no -${h.heatNo}- Qty ${val.toFixed(4)} MT`);
+              lines.push(`Heat no -${h.heatNo}- Qty ${val.toFixed(3)} MT`);
               totalMt += val;
             }
           });
           if (lines.length > 0) {
-            return `${lines.join(",\n")},\nTotal Qty -${totalMt.toFixed(4)} MT`;
+            return `${lines.join(",\n")},\nTotal Qty -${totalMt.toFixed(3)} MT`;
           }
           // Only return 'Nil' if process is done, else fallback
           const hasProcessed = c.heatDetails.some(h => ["ACCEPTED", "REJECTED", "PARTIALLY_ACCEPTED"].includes(h.status));

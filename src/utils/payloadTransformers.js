@@ -68,15 +68,21 @@ export const transformLineDataForBackend = (frontendLineData, manualQuantities =
     const mpiRejected = calculateGenericRejected(mpiData, ['mpiRejected']);
     const forgingRejected = calculateGenericRejected(forgingData, ['forgingTempRejected', 'forgingStabilisationRejectionRejected', 'improperForgingRejected', 'forgingDefectRejected', 'embossingDefectRejected']);
     const quenchingRejected = calculateGenericRejected(quenchingData, ['quenchingTemperatureRejected', 'quenchingDurationRejected', 'quenchingHardnessRejected', 'boxGaugeRejected', 'flatBearingAreaRejected', 'fallingGaugeRejected']);
-    const temperingTotalRejected = temperingData.reduce((acc, row) => acc + (parseNumber(row.totalTemperingRejection) || 0), 0);
-    const finalCheckRejected = calculateGenericRejected(finalCheckData, ['boxGaugeRejected', 'flatBearingAreaRejected', 'fallingGaugeRejected', 'surfaceDefectRejected', 'embossingDefectRejected', 'markingRejected', 'temperingHardnessRejected']);
+    
+    // Calculate Final Check constituents exactly as in ProcessDashboard.jsx
+    const visualCheckRejected = calculateGenericRejected(finalCheckData, ['surfaceDefectRejected', 'embossingDefectRejected', 'markingRejected']);
+    const dimensionsCheckRejected = calculateGenericRejected(finalCheckData, ['boxGaugeRejected', 'flatBearingAreaRejected', 'fallingGaugeRejected']);
+    const hardnessCheckRejected = calculateGenericRejected(finalCheckData, ['temperingHardnessRejected']);
+    
     const testingFinishingRejected = calculateGenericRejected(testingFinishingData, ['toeLoadRejected', 'weightRejected', 'paintIdentificationRejected', 'ercCoatingRejected']);
     const testingFinishingAccepted = calculateGenericAccepted(testingFinishingData);
 
+    const temperingBaseRejected = calculateGenericRejected(temperingData, ['temperingTemperatureRejected', 'temperingDurationRejected']);
+    // Tempering row = Visual + Dimensions + Hardness + Testing + Base (matching Stage-wise table display)
+    const temperingRejected = visualCheckRejected + dimensionsCheckRejected + hardnessCheckRejected + testingFinishingRejected + temperingBaseRejected;
+
     const totalRejected = shearingRejected + turningRejected + mpiRejected + forgingRejected +
-        quenchingRejected + temperingTotalRejected +
-        (finalCheckRejected - totalTemperingHardnessRejected) +
-        testingFinishingRejected;
+        quenchingRejected + temperingRejected;
 
     const lineFinalResult = {
         // Map metadata for IC/Lot resolution
@@ -84,6 +90,7 @@ export const transformLineDataForBackend = (frontendLineData, manualQuantities =
         heatNumber: metaData.heatNumbers || '',
         offeredQty: metaData.totalOfferedQty || 0,
         shift: metaData.shift || '',
+        dateOfInspection: metaData.dateOfInspection || sessionStorage.getItem('inspectionDate') || '',
         // Map consolidated manual manufactured quantities
         shearingManufactured: manualQuantities.shearing || 0,
         shearingAccepted: Math.max(0, (manualQuantities.shearing || 0) - shearingRejected),
@@ -104,9 +111,11 @@ export const transformLineDataForBackend = (frontendLineData, manualQuantities =
         quenchingAccepted: Math.max(0, (manualQuantities.quenching || 0) - quenchingRejected),
         quenchingRejected,
         temperingManufactured: manualQuantities.tempering || 0,
-        temperingAccepted: Math.max(0, (manualQuantities.tempering || 0) - temperingTotalRejected),
-        temperingRejected: temperingTotalRejected,
-        finalCheckRejected,
+        temperingAccepted: Math.max(0, (manualQuantities.tempering || 0) - temperingRejected),
+        temperingRejected: temperingRejected,
+        visualCheckRejected,
+        dimensionsCheckRejected,
+        hardnessCheckRejected,
         testingFinishingManufactured: manualQuantities.testingFinishing || 0,
         testingFinishingAccepted,
         testingFinishingRejected,

@@ -244,9 +244,9 @@ const DisposedCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
   })), [filteredCalls]);
 
   return (
-    <div className="tab-content">
+    <div className="calldesk-tab-content">
       {/* KPI Tiles */}
-      <div className="kpi-grid">
+      <div className="calldesk-kpi-grid">
         {kpiTiles.map((kpi, index) => (
           <div key={index} className="stat-card">
             <div className="stat-icon" style={{ color: kpi.color }}>

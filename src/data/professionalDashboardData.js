@@ -9,7 +9,7 @@ export const PROFESSIONAL_MAIN_CARDS = [
 export const SUMMARY_DATA = {
     erc: {
         kpis: [
-            { id: 'erc-po-issued', label: 'PO Issued', value: '412', icon: '📦', color: 'red' },
+            { id: 'erc-po-issued', label: 'PO Issued', value: '43', icon: '📦', color: 'red' },
             { id: 'erc-po-qty', label: 'PO Quantity', value: '95,210', icon: '📈', color: 'green', subtext: 'Nos / MT', progress: 68 },
             { id: 'erc-final-inspection', label: 'Final Inspection Quantity', value: '64,780', icon: '✅', color: 'orange', subtext: 'Nos / MT', progress: 68, gradient: true }
         ],
@@ -50,10 +50,10 @@ export const SUMMARY_DATA = {
 
 export const QUALITY_DATA = {
     summary: [
-        { label: 'Overall Rejection %', value: '1.34%', color: 'red' },
-        { label: 'Top Defect', value: 'Turning Length', color: 'blue' },
-        { label: 'Worst Performing Plant', value: 'Adinath Industries', color: 'orange' },
-        { label: 'Total Defects Recorded', value: '380', color: 'gray' }
+        { id: 'q-process-rej', label: 'Overall Rejection % in Process', value: '1.34%', color: 'red', icon: '📉' },
+        { id: 'q-top-defect', label: 'Top Defect', value: 'Turning Length', color: 'blue', icon: '⚠️' },
+        { id: 'q-worst-plant', label: 'Worst Performing Plant', value: 'XYZ Industries', color: 'orange', icon: '🏭' },
+        // { label: 'Total Defects Recorded', value: '380', color: 'gray' }
     ],
     stageRejection: [
         { name: 'Raw Material', value: 0.8, color: '#2563eb' },
@@ -78,7 +78,6 @@ export const QUALITY_DATA = {
         { name: 'Forging', value: 20, color: '#ef4444' },
         { name: 'Quenching', value: 12, color: '#10b981' },
         { name: 'Tempering', value: 10, color: '#06b6d4' },
-        { name: 'Final Testing', value: 8, color: '#3b82f6' },
     ],
     rmManufacturerRejection: [
         { name: 'JSPL', value: 0.9, color: '#10b981' },
@@ -99,6 +98,20 @@ export const QUALITY_DATA = {
         { name: 'Stage 1', turning: 25, dimensional: 18, visual: 12 },
         { name: 'Stage 2', turning: 35, dimensional: 28, visual: 22 },
         { name: 'Stage 3', turning: 20, dimensional: 15, visual: 10 },
+    ],
+    topPerformingCompanies: [
+        { name: 'JSPL', value: 0.4, color: '#10b981' },
+        { name: 'Surya Steel', value: 0.5, color: '#10b981' },
+        { name: 'RINL', value: 0.7, color: '#10b981' },
+        { name: 'Bhushan Steel', value: 0.8, color: '#10b981' },
+        { name: 'Surya', value: 0.9, color: '#10b981' },
+    ],
+    worstPerformingCompanies: [
+        { name: 'Adinath Ind.', value: 4.8, color: '#ef4444' },
+        { name: 'Nova Jaiswal', value: 4.2, color: '#ef4444' },
+        { name: 'Prakash Met.', value: 3.9, color: '#ef4444' },
+        { name: 'Kalimata Ind.', value: 3.5, color: '#ef4444' },
+        { name: 'Royal Comp.', value: 3.2, color: '#ef4444' },
     ]
 };
 
@@ -108,7 +121,7 @@ export const REPORTS_DATA = {
         { id: 'mpr', label: 'Monthly Progress Report' },
         { id: 'mau', label: 'Monthly Analysis of Units' },
         { id: 'lwcl', label: 'Lot Wise Closed Loop' },
-        { id: 'qmr', label: 'Quality Monitoring Report' }
+        // { id: 'qmr', label: 'Quality Monitoring Report' }
     ],
     mpr: [
         { rly: 'NR', poNo: 'NR/2025/ERC/0145', manufacturer: 'JSPL', poQty: '120,000', monthlyRM: '8,500', monthlyProcess: '7,900', monthlyFinal: '7,850', totalInspected: '65,200', poBalance: '54,800' },

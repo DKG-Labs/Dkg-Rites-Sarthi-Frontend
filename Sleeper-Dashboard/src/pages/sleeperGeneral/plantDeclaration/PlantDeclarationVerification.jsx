@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { apiService } from '../../../services/api';
 import { getAllCompletedCalls } from '../../../services/workflowService';
 import VerificationDetailModal from '../rawMaterialVerification/VerificationDetailModal';
+import { useShift } from '../../../context/ShiftContext';
 import './PlantDeclarationVerification.css';
 
 // ─────────────────────────────────────────────────────
@@ -100,6 +101,8 @@ const tdStyle = {
 //  Main Component
 // ─────────────────────────────────────────────────────
 const PlantDeclarationVerification = () => {
+    const { userId, dutyUnit } = useShift();
+    const effectiveUserId = userId || localStorage.getItem('userId');
     const [loading, setLoading]                   = useState(false);
     const [error, setError]                       = useState(null);
     
@@ -124,7 +127,7 @@ const PlantDeclarationVerification = () => {
         setError(null);
         try {
             const [pendingRes, completedRes] = await Promise.all([
-                apiService.getAllPendingWorkflowTransitions('IE'),
+                apiService.getAllPendingWorkflowTransitions('IE', effectiveUserId, dutyUnit),
                 getAllCompletedCalls()
             ]);
 
@@ -134,7 +137,12 @@ const PlantDeclarationVerification = () => {
             // Helper to filter and group by moduleId
             const groupRecords = (list) => {
                 const plantModuleIds = PLANT_DECLARATION_MODULES.map(m => m.moduleId);
-                const plantRecords = list.filter(r => plantModuleIds.includes(r.moduleId));
+                // Filter by moduleId AND active plantId (dutyUnit)
+                const plantRecords = list.filter(r => {
+                    const isCorrectModule = plantModuleIds.includes(r.moduleId);
+                    const isCorrectPlant = !dutyUnit || r.plantId === dutyUnit;
+                    return isCorrectModule && isCorrectPlant;
+                });
                 
                 const grouped = {};
                 plantModuleIds.forEach(id => { grouped[id] = []; });
@@ -225,7 +233,7 @@ const PlantDeclarationVerification = () => {
                 moduleId: row.moduleId,
                 requestId: row.requestId,
                 action: action,
-                actionBy: LOGGED_IN_USER_ID,
+                actionBy: effectiveUserId,
                 remarks: action === 'VERIFY' ? 'Verified by IE' : (action === 'UNLOCK' ? 'Unlocked by IE' : 'Returned for resubmission')
             });
             alert(`Succesfully performed: ${action}`);
@@ -440,7 +448,7 @@ const PlantDeclarationVerification = () => {
                 <VerificationDetailModal
                     row={detailModal}
                     moduleLabel={PLANT_DECLARATION_MODULES.find(m => m.moduleId === detailModal.moduleId)?.label || `Module ${detailModal.moduleId}`}
-                    actionBy={LOGGED_IN_USER_ID}
+                    actionBy={effectiveUserId}
                     onClose={() => setDetailModal(null)}
                     onDone={loadData}
                 />

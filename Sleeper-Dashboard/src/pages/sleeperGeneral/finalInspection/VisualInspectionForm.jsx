@@ -26,13 +26,55 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
     );
     const [saving, setSaving] = useState(false);
 
-    const toggleSleeperSelection = (id) => {
-        // Allow selecting even if rejected to allow re-inspection/acceptance
-        // if (sleeper?.status === 'rejected') return;
+    const toggleSleeperSelection = async (id) => {
+        const sleeper = sleepers.find(s => s.id === id);
+        const isCurrentlySelected = selectedSleepers.includes(id);
 
-        setSelectedSleepers(prev =>
-            prev.includes(id) ? prev.filter(sid => sid !== id) : [...prev, id]
-        );
+        if (isCurrentlySelected) {
+            // DESELECTING: If it's already inspected (status passed/rejected), 
+            // check if it belongs to this specific module (1 for Visual)
+            if (sleeper.status !== 'pending') {
+                if (sleeper.moduleId !== 1) {
+                    alert(`Cannot deselect: This sleeper was inspected in ${sleeper.moduleId === 2 ? 'Critical Dimensions' : 'Non-Critical Dimensions'}. You can only deselect Visual Check sleepers here.`);
+                    return;
+                }
+
+                const confirmReset = window.confirm(`Deselecting will reset Sleeper ${sleeper.displayNo} to PENDING. Continue?`);
+                if (!confirmReset) return;
+
+                try {
+                    setSaving(true);
+                    const payload = {
+                        batchId: batch.batchId,
+                        moduleId: 1,
+                        shift: shift || 'General',
+                        createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
+                        sleepers: [{
+                            sleeperId: id,
+                            sleeperNo: sleeper.displayNo,
+                            result: 'PENDING',
+                            rejectionReason: '',
+                            parameters: []
+                        }]
+                    };
+                    await apiService.updateInspectionSleepers(payload);
+                    
+                    // On success, reset local state for this sleeper
+                    setSleepers(prev => prev.map(s => s.id === id ? { ...s, status: 'pending', moduleId: null } : s));
+                    setSelectedSleepers(prev => prev.filter(sid => sid !== id));
+                } catch (error) {
+                    alert('Failed to reset sleeper status: ' + error.message);
+                } finally {
+                    setSaving(false);
+                }
+            } else {
+                // If it's just a newly selected pending sleeper, hide it from current selection
+                setSelectedSleepers(prev => prev.filter(sid => sid !== id));
+            }
+        } else {
+            // Selecting: Just add to current selection state
+            setSelectedSleepers(prev => [...prev, id]);
+        }
     };
 
     const sections = [
@@ -294,33 +336,118 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                     </div>
                 </section>
 
-                {/* 2. Available Sleepers (Select for Testing) */}
+                {/* 2. Sleeper Pool (Grouped Divisions) */}
                 <section className="critical-section">
-                    <h4 className="section-label">2. Available Sleepers (Select for Testing)</h4>
-                    <div className="sleeper-selection-header">
-                        <div className="count-label">Selected: {selectedSleepers.length} / {sleepers.length}</div>
+                    <h4 className="section-label">2. Sleeper Pool & Verification Status</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', minHeight: '150px' }}>
+                        
+                        {/* Column 1: Rejected Sleepers (Grouped by Module) */}
+                        <div style={{ background: '#fef2f2', padding: '12px', borderRadius: '8px', border: '1px solid #fee2e2' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#b91c1c', fontWeight: '700', fontSize: '11px', marginBottom: '15px', borderBottom: '1px solid #fecaca', paddingBottom: '4px' }}>
+                                <span>REJECTED SLEEPERS</span>
+                                <span>{sleepers.filter(s => s.status === 'rejected').length}</span>
+                            </div>
+
+                            {[
+                                { id: 1, label: 'Visual Check' },
+                                { id: 2, label: 'Critical Dimensions' },
+                                { id: 3, label: 'Non-Critical Dimensions' }
+                            ].map(group => {
+                                const groupSleepers = sleepers.filter(s => s.status === 'rejected' && s.moduleId === group.id);
+                                if (groupSleepers.length === 0) return null;
+                                return (
+                                    <div key={group.id} style={{ marginBottom: '12px' }}>
+                                        <div style={{ fontSize: '9px', fontWeight: '800', color: '#ef4444', textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.5px' }}>
+                                            {group.label} ({groupSleepers.length})
+                                        </div>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                            {groupSleepers.map(s => {
+                                                const isSelected = selectedSleepers.includes(s.id);
+                                                return (
+                                                    <div
+                                                        key={s.id}
+                                                        onClick={() => !saving && toggleSleeperSelection(s.id)}
+                                                        style={{
+                                                            padding: '4px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '700', cursor: saving ? 'not-allowed' : 'pointer',
+                                                            background: isSelected ? '#ef4444' : '#fff',
+                                                            color: isSelected ? '#fff' : '#b91c1c',
+                                                            border: `1px solid ${isSelected ? 'transparent' : '#fca5a5'}`,
+                                                            boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                                                        }}
+                                                    >
+                                                        {s.displayNo}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                            {sleepers.filter(s => s.status === 'rejected').length === 0 && <div style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic' }}>No rejections found</div>}
+                        </div>
+
+                        {/* Column 2: Verified Sleepers */}
+                        <div style={{ background: '#f0fdf4', padding: '12px', borderRadius: '8px', border: '1px solid #dcfce7' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#15803d', fontWeight: '700', fontSize: '11px', marginBottom: '10px' }}>
+                                <span>VERIFIED / PASSED</span>
+                                <span>{sleepers.filter(s => s.status === 'passed').length}</span>
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                {sleepers.filter(s => s.status === 'passed').map(s => {
+                                    const isSelected = selectedSleepers.includes(s.id);
+                                    return (
+                                        <div
+                                            key={s.id}
+                                            onClick={() => !saving && toggleSleeperSelection(s.id)}
+                                            style={{
+                                                padding: '4px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '700', cursor: saving ? 'not-allowed' : 'pointer',
+                                                background: isSelected ? '#22c55e' : '#fff',
+                                                color: isSelected ? '#fff' : '#15803d',
+                                                border: `1px solid ${isSelected ? 'transparent' : '#86efac'}`,
+                                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                                            }}
+                                        >
+                                            {s.displayNo}
+                                        </div>
+                                    );
+                                })}
+                                {sleepers.filter(s => s.status === 'passed').length === 0 && <div style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic' }}>None</div>}
+                            </div>
+                        </div>
+
+                        {/* Column 3: Pending Sleepers */}
+                        <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', fontWeight: '700', fontSize: '11px', marginBottom: '10px' }}>
+                                <span>PENDING INSPECTION</span>
+                                <span>{sleepers.filter(s => s.status === 'pending').length}</span>
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                {sleepers.filter(s => s.status === 'pending').map(s => {
+                                    const isSelected = selectedSleepers.includes(s.id);
+                                    return (
+                                        <div
+                                            key={s.id}
+                                            onClick={() => !saving && toggleSleeperSelection(s.id)}
+                                            style={{
+                                                padding: '4px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '700', cursor: saving ? 'not-allowed' : 'pointer',
+                                                background: isSelected ? '#42818c' : '#fff',
+                                                color: isSelected ? '#fff' : '#475569',
+                                                border: `1px solid ${isSelected ? 'transparent' : '#cbd5e1'}`,
+                                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                                            }}
+                                        >
+                                            {s.displayNo}
+                                        </div>
+                                    );
+                                })}
+                                {sleepers.filter(s => s.status === 'pending').length === 0 && <div style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic' }}>None</div>}
+                            </div>
+                        </div>
+
                     </div>
-                    <div className="sleeper-pool-grid">
-                        {sleepers.map(s => {
-                            const isSelected = selectedSleepers.includes(s.id);
-                            const isAlreadyRejected = s.status === 'rejected';
-                            return (
-                                <div
-                                    key={s.id}
-                                    onClick={() => !saving && toggleSleeperSelection(s.id)}
-                                    className={`sleeper-chip ${isSelected ? 'selected' : ''} ${isAlreadyRejected ? 'already-rejected' : ''}`}
-                                    style={{
-                                        background: isSelected ? getStatusColor(s.status, isSelected) : (isAlreadyRejected ? '#fee2e2' : '#f3f4f6'),
-                                        color: isSelected ? '#fff' : (isAlreadyRejected ? '#b91c1c' : '#374151'),
-                                        borderColor: isSelected ? 'transparent' : (isAlreadyRejected ? '#ef4444' : '#9ca3af'),
-                                        cursor: saving ? 'not-allowed' : 'pointer',
-                                        textDecoration: 'none'
-                                    }}
-                                >
-                                    {s.displayNo}
-                                </div>
-                            );
-                        })}
+                    <div style={{ marginTop: '12px', fontSize: '11px', color: '#64748b', display: 'flex', gap: '15px' }}>
+                        <span>• Click a sleeper to select/deselect for your current session.</span>
+                        <span style={{ color: '#42818c', fontWeight: '700' }}>Selected: {selectedSleepers.length}</span>
                     </div>
                 </section>
 

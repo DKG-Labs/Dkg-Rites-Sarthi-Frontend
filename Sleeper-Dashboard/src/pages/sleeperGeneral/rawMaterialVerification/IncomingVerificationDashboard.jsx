@@ -309,7 +309,7 @@ const getStatusDisplay = (status) => {
 // ─────────────────────────────────────────────
 
 const IncomingVerificationDashboard = ({ initialGroup = null }) => {
-    const { userId } = useShift();
+    const { userId, dutyUnit } = useShift();
     const effectiveUserId = userId || localStorage.getItem('userId');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -330,15 +330,20 @@ const IncomingVerificationDashboard = ({ initialGroup = null }) => {
         setLoading(true);
         setError(null);
         try {
-            const res = await apiService.getAllPendingWorkflowTransitions('IE', effectiveUserId);
+            const res = await apiService.getAllPendingWorkflowTransitions('IE', effectiveUserId, dutyUnit);
 
             const rawList = Array.isArray(res)
                 ? res
                 : (Array.isArray(res?.responseData) ? res.responseData : []);
 
-            // Filter by initialGroup's module IDs
+            // Filter by initialGroup's module IDs AND active plantId (dutyUnit)
             const filteredModuleIds = filteredModules.map(m => m.moduleId);
-            const myFilteredRecords = rawList.filter(r => filteredModuleIds.includes(r.moduleId));
+            const myFilteredRecords = rawList.filter(r => {
+                const isCorrectModule = filteredModuleIds.includes(r.moduleId);
+                // Secondary safeguard: Ensure we only show records for the current plant (dutyUnit)
+                const isCorrectPlant = !dutyUnit || r.plantId === dutyUnit;
+                return isCorrectModule && isCorrectPlant;
+            });
 
 
             // Group by moduleId
@@ -442,7 +447,7 @@ const IncomingVerificationDashboard = ({ initialGroup = null }) => {
                         {totalCount > 0 ? `${totalCount} record(s) pending your verification` : 'All records verified — no pending items'}
                     </strong>
                     <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
-                        Source: GET /sleeper-workflow/allPendingWorkflowTransition?roleName=IE
+                        Source: GET ...?roleName=IE&assignedTo={effectiveUserId}{dutyUnit ? `&plantId=${dutyUnit}` : ''}
                     </div>
                 </div>
             </div>

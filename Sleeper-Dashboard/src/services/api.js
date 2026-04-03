@@ -184,8 +184,8 @@ export const apiService = {
      * @param {string} roleName - e.g. "IE"
      * Returns: [{ workflowTransitionId, moduleId, requestId, assignedTo, ... }]
      */
-    getAllPendingWorkflowTransitions: (roleName = 'IE', userId = '') =>
-        api.get(`/sleeper-workflow/allPendingWorkflowTransition?roleName=${roleName}${userId ? `&assignedTo=${userId}` : ''}`),
+    getAllPendingWorkflowTransitions: (roleName = 'IE', userId = '', plantId = '') =>
+        api.get(`/sleeper-workflow/allPendingWorkflowTransition?roleName=${roleName}${userId ? `&assignedTo=${userId}` : ''}${plantId ? `&plantId=${plantId}` : ''}`),
 
     /**
      * IE Action: Verify or Request Change on a workflow transition.
@@ -253,8 +253,9 @@ export const apiService = {
 
     // ================= Final Inspection Controller ================= //
     getFinalInspectionBatches: (moduleId = 1) => api.get(`/FinalInspectionController/inspection/batches/${moduleId}`),
-    getFinalInspectionBatchDetail: (batchId) => api.get(`/FinalInspectionController/inspection/batch/${batchId}`),
+    getFinalInspectionBatchDetail: (batchId, moduleId = 1) => api.get(`/FinalInspectionController/inspection/batch?batchId=${batchId}&moduleId=${moduleId}`),
     saveFinalInspection: (payload) => api.post('/FinalInspectionController/save', payload),
+    updateInspectionSleepers: (payload) => api.put('/FinalInspectionController/updateInspectionSleepers', payload),
     submitInspectionCall: (payload) => api.post('/FinalInspectionController/submit-inspection-call', payload),
     getInspectionCalls: (userId) => api.get(`/FinalInspectionController/inspection-calls?userId=${userId}`),
     getCompletedBatches: (sleeperType, userId) => api.get(`/FinalInspectionController/completed-batches?sleeperType=${sleeperType}&userId=${userId}`),

@@ -268,6 +268,30 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
             return;
         }
 
+        let hasMissingReason = false;
+        sections.forEach(sect => {
+            const sectState = sectionStates[sect.id];
+            if (sectState.result === 'all-rejected') {
+                if (!sectState.globalReason) hasMissingReason = true;
+                const subs = getSubReasons(sectState.globalReason, sect.id);
+                if (subs.length > 0 && !sectState.globalSubReason) hasMissingReason = true;
+            } else if (sectState.result === 'partial-ok') {
+                sectState.failedSleepers.forEach(fid => {
+                     const details = sectState.rejectionDetails[fid] || {};
+                     if (!details.reason) hasMissingReason = true;
+                     else {
+                         const subs = getSubReasons(details.reason, sect.id);
+                         if (subs.length > 0 && !details.subReason) hasMissingReason = true;
+                     }
+                });
+            }
+        });
+
+        if (hasMissingReason) {
+            toast.error('Please provide a Reason and Sub-Reason for all rejected sleepers.');
+            return;
+        }
+
         try {
             setSaving(true);
             const payload = {
@@ -542,7 +566,11 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                                                             
                                                             {sectionStates[s.id].result === 'partial-ok' && (
                                                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                                                                    {sleepers.filter(sl => selectedSleepers.includes(sl.id)).map(sl => {
+                                                                    {sleepers.filter(sl => {
+                                                                        if (!selectedSleepers.includes(sl.id)) return false;
+                                                                        const originalSleeper = initialSleepers.find(x => x.id === sl.id);
+                                                                        return originalSleeper && originalSleeper.status === 'pending';
+                                                                    }).map(sl => {
                                                                         const isRejectedElsewhere = sections.some(otherSect => 
                                                                             otherSect.id !== s.id && 
                                                                             (sectionStates[otherSect.id].result === 'all-rejected' || sectionStates[otherSect.id].failedSleepers.includes(sl.id))

@@ -217,6 +217,26 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
     }, [batch]);
 
     const handleSave = async () => {
+        if (selectedSleepers.length === 0) {
+            toast.error('Please select at least one sleeper for testing.');
+            return;
+        }
+
+        if (overallResult === 'all-rejected' || overallResult === 'partial-ok') {
+            const hasMissingReason = Object.keys(rejectionDetails).some(sid => {
+                const sDetails = rejectionDetails[sid];
+                if (!sDetails.mainReason) return true;
+                const availableSubReasons = getSubReasons(sDetails.mainReason);
+                if (availableSubReasons.length > 0 && !sDetails.subReason) return true;
+                return false;
+            });
+            
+            if (hasMissingReason) {
+                toast.error('Please select both Main Reason and Sub Reason for all rejected sleepers.');
+                return;
+            }
+        }
+
         try {
             setSaving(true);
             const payload = {
@@ -442,7 +462,10 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
 
                             {overallResult === 'partial-ok' && (
                                 <div className="rejection-sleepers-row">
-                                    {selectedSleepers.map(sid => {
+                                    {selectedSleepers.filter(sid => {
+                                        const s = allSleepersPool.find(x => x.id === sid);
+                                        return s && !s.isAlreadyPassed && !s.isRejected;
+                                    }).map(sid => {
                                         const isRejected = !!rejectionDetails[sid];
                                         return (
                                             <button

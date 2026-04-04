@@ -1,8 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { apiService } from '../../../services/api';
+import { useToast } from '../../../context/ToastContext';
 import './CriticalDimensionForm.css'; // Reusing styles if applicable or ensuring consistency
 
 const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
+    const toast = useToast();
     // Sleeper data from batch details
     const initialSleepers = useMemo(() => {
         return (batch?.sleepers || [])
@@ -60,11 +62,10 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                     };
                     await apiService.updateInspectionSleepers(payload);
                     
-                    // On success, reset local state for this sleeper
                     setSleepers(prev => prev.map(s => s.id === id ? { ...s, status: 'pending', moduleId: null } : s));
                     setSelectedSleepers(prev => prev.filter(sid => sid !== id));
                 } catch (error) {
-                    alert('Failed to reset sleeper status: ' + error.message);
+                    toast.error('Failed to reset sleeper status: ' + error.message);
                 } finally {
                     setSaving(false);
                 }
@@ -201,7 +202,16 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                     return { ...sleeper, status: 'rejected' };
                 }
 
-                return { ...sleeper, status: 'passed' };
+                // FIX: Only sleepers currently selected for verification can move to 'passed'
+                if (selectedSleepers.includes(sleeper.id)) {
+                    return { ...sleeper, status: 'passed' };
+                }
+
+                // If not selected and not rejected, it stays in its original state (usually 'pending')
+                return { 
+                    ...sleeper, 
+                    status: originalSleeper?.status?.toLowerCase() === 'passed' ? 'passed' : 'pending' 
+                };
             });
         });
     };
@@ -254,7 +264,7 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
 
     const handleSave = async () => {
         if (selectedSleepers.length === 0) {
-            alert('Please select at least one sleeper for testing.');
+            toast.error('Please select at least one sleeper for testing.');
             return;
         }
 
@@ -310,11 +320,11 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
             };
 
             await apiService.saveFinalInspection(payload);
-            alert('Visual Inspection results saved successfully.');
+            toast.success('Visual Inspection results saved successfully.');
             onSave();
         } catch (error) {
             console.error('Save failed:', error);
-            alert('Failed to save inspection results');
+            toast.error('Failed to save inspection results');
         } finally {
             setSaving(false);
         }

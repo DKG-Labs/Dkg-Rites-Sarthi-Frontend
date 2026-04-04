@@ -1,8 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { apiService } from '../../../services/api';
+import { useToast } from '../../../context/ToastContext';
 import './CriticalDimensionForm.css';
 
 const NonCriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
+    const toast = useToast();
     // List of all sleepers in the batch
     const allSleepersPool = useMemo(() => {
         return (batch?.sleepers || [])
@@ -22,6 +24,21 @@ const NonCriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
         // Initial select: both OK and REJECTED ones.
         allSleepersPool.filter(s => s.isAlreadyPassed || s.isRejected).map(s => s.id)
     );
+
+    const [displaySleepers, setDisplaySleepers] = useState(() => {
+        return allSleepersPool.map(s => ({
+            ...s,
+            currentStatus: s.isRejected ? 'rejected' : (s.isAlreadyPassed ? 'passed' : 'pending')
+        }));
+    });
+
+    React.useEffect(() => {
+        setDisplaySleepers(allSleepersPool.map(s => ({
+            ...s,
+            currentStatus: s.isRejected ? 'rejected' : (s.isAlreadyPassed ? 'passed' : 'pending')
+        })));
+    }, [allSleepersPool]);
+
     const [saving, setSaving] = useState(false);
 
     const toggleSleeperSelection = async (id) => {
@@ -34,7 +51,7 @@ const NonCriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
             if (sleeper.isAlreadyPassed || sleeper.isRejected) {
                 if (sleeper.moduleId !== 3) {
                     const moduleMap = { 1: 'Visual & Dimension', 2: 'Critical Dimensions', 4: 'Demoulding' };
-                    alert(`Cannot deselect: This sleeper was inspected in ${moduleMap[sleeper.moduleId] || 'another module'}. You can only deselect Non-Critical Dimensions here.`);
+                    toast.error(`Cannot deselect: This sleeper was inspected in ${moduleMap[sleeper.moduleId] || 'another module'}. You can only deselect Non-Critical Dimensions here.`);
                     return;
                 }
 
@@ -60,14 +77,16 @@ const NonCriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
                     
                     // Reset selection locally
                     setSelectedSleepers(prev => prev.filter(sid => sid !== id));
-                    alert(`Sleeper ${sleeper.displayNo} reset successfully.`);
+                    setDisplaySleepers(prev => prev.map(s => s.id === id ? { ...s, currentStatus: 'pending' } : s));
+                    toast.success(`Sleeper ${sleeper.displayNo} reset successfully.`);
                 } catch (error) {
-                    alert('Failed to reset sleeper status: ' + error.message);
+                    toast.error('Failed to reset sleeper status: ' + error.message);
                 } finally {
                     setSaving(false);
                 }
             } else {
                 setSelectedSleepers(prev => prev.filter(sid => sid !== id));
+                setDisplaySleepers(prev => prev.map(s => s.id === id ? { ...s, currentStatus: 'pending' } : s));
             }
         } else {
             setSelectedSleepers(prev => [...prev, id]);
@@ -117,15 +136,33 @@ const NonCriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
     const handleResultChange = (result) => {
         if (!isChecklistComplete) return;
         setOverallResult(result);
+        
+        let newRejectionDetails = { ...rejectionDetails };
         if (result === 'ok') {
+            newRejectionDetails = {};
             setRejectionDetails({});
         } else if (result === 'all-rejected') {
             const allRejected = {};
             selectedSleepers.forEach(id => {
-                allRejected[id] = { mainReason: '', subReason: '' };
+                allRejected[id] = rejectionDetails[id] || { mainReason: '', subReason: '' };
             });
+            newRejectionDetails = allRejected;
             setRejectionDetails(allRejected);
         }
+
+        setDisplaySleepers(prev => prev.map(sleeper => {
+            if (sleeper.isRejected) return { ...sleeper, currentStatus: 'rejected' };
+            if (!selectedSleepers.includes(sleeper.id)) return sleeper;
+
+            if (result === 'all-rejected') return { ...sleeper, currentStatus: 'rejected', moduleId: 3 };
+            if (result === 'ok') return { ...sleeper, currentStatus: 'passed' };
+            
+            if (result === 'partial-ok') {
+                 if (newRejectionDetails[sleeper.id]) return { ...sleeper, currentStatus: 'rejected', moduleId: 3 };
+                 return { ...sleeper, currentStatus: 'passed' };
+            }
+            return sleeper;
+        }));
     };
 
     const handleRejectionChange = (sleeperId, field, value) => {
@@ -140,13 +177,23 @@ const NonCriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
 
     const toggleRejection = (sleeperId) => {
         setRejectionDetails(prev => {
-            if (prev[sleeperId]) {
-                const newState = { ...prev };
+            const newState = { ...prev };
+            let isNowRejected = false;
+            if (newState[sleeperId]) {
                 delete newState[sleeperId];
-                return newState;
             } else {
-                return { ...prev, [sleeperId]: { mainReason: '', subReason: '' } };
+                newState[sleeperId] = { mainReason: '', subReason: '' };
+                isNowRejected = true;
             }
+
+            setDisplaySleepers(disp => disp.map(s => {
+                if (s.id === sleeperId) {
+                   return { ...s, currentStatus: isNowRejected ? 'rejected' : 'passed', moduleId: isNowRejected ? 3 : s.moduleId };
+                }
+                return s;
+            }));
+
+            return newState;
         });
     };
 
@@ -206,11 +253,11 @@ const NonCriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
             };
 
             await apiService.saveFinalInspection(payload);
-            alert('Non-Critical Dimension results saved successfully.');
+            toast.success('Non-Critical Dimension results saved successfully.');
             onSave();
         } catch (error) {
             console.error('Save failed:', error);
-            alert('Failed to save inspection results');
+            toast.error('Failed to save inspection results');
         } finally {
             setSaving(false);
         }
@@ -243,7 +290,7 @@ const NonCriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
                         <div style={{ background: '#fef2f2', padding: '12px', borderRadius: '8px', border: '1px solid #fee2e2' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', color: '#b91c1c', fontWeight: '700', fontSize: '11px', marginBottom: '15px', borderBottom: '1px solid #fecaca', paddingBottom: '4px' }}>
                                 <span>REJECTED SLEEPERS</span>
-                                <span>{allSleepersPool.filter(s => s.isRejected).length}</span>
+                                <span>{displaySleepers.filter(s => s.currentStatus === 'rejected').length}</span>
                             </div>
 
                             {[
@@ -252,7 +299,7 @@ const NonCriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
                                 { id: 3, label: 'Non-Critical Dimensions' },
                                 { id: 4, label: 'Demoulding' }
                             ].map(group => {
-                                const groupSleepers = allSleepersPool.filter(s => s.isRejected && s.moduleId === group.id);
+                                const groupSleepers = displaySleepers.filter(s => s.currentStatus === 'rejected' && s.moduleId === group.id);
                                 if (groupSleepers.length === 0) return null;
                                 return (
                                     <div key={group.id} style={{ marginBottom: '12px' }}>
@@ -282,17 +329,17 @@ const NonCriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
                                     </div>
                                 );
                             })}
-                            {allSleepersPool.filter(s => s.isRejected).length === 0 && <div style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic' }}>No rejections found</div>}
+                            {displaySleepers.filter(s => s.currentStatus === 'rejected').length === 0 && <div style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic' }}>No rejections found</div>}
                         </div>
 
                         {/* Column 2: Verified Sleepers */}
                         <div style={{ background: '#f0fdf4', padding: '12px', borderRadius: '8px', border: '1px solid #dcfce7' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', color: '#15803d', fontWeight: '700', fontSize: '11px', marginBottom: '10px' }}>
                                 <span>VERIFIED / PASSED</span>
-                                <span>{allSleepersPool.filter(s => s.isAlreadyPassed).length}</span>
+                                <span>{displaySleepers.filter(s => s.currentStatus === 'passed').length}</span>
                             </div>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                                {allSleepersPool.filter(s => s.isAlreadyPassed).map(s => {
+                                {displaySleepers.filter(s => s.currentStatus === 'passed').map(s => {
                                     const isSelected = selectedSleepers.includes(s.id);
                                     return (
                                         <div
@@ -310,7 +357,7 @@ const NonCriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
                                         </div>
                                     );
                                 })}
-                                {allSleepersPool.filter(s => s.isAlreadyPassed).length === 0 && <div style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic' }}>None</div>}
+                                {displaySleepers.filter(s => s.currentStatus === 'passed').length === 0 && <div style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic' }}>None</div>}
                             </div>
                         </div>
 
@@ -318,10 +365,10 @@ const NonCriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
                         <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', fontWeight: '700', fontSize: '11px', marginBottom: '10px' }}>
                                 <span>PENDING INSPECTION</span>
-                                <span>{allSleepersPool.filter(s => !s.isRejected && !s.isAlreadyPassed).length}</span>
+                                <span>{displaySleepers.filter(s => s.currentStatus === 'pending').length}</span>
                             </div>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                                {allSleepersPool.filter(s => !s.isRejected && !s.isAlreadyPassed).map(s => {
+                                {displaySleepers.filter(s => s.currentStatus === 'pending').map(s => {
                                     const isSelected = selectedSleepers.includes(s.id);
                                     return (
                                         <div
@@ -339,7 +386,7 @@ const NonCriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
                                         </div>
                                     );
                                 })}
-                                {allSleepersPool.filter(s => !s.isRejected && !s.isAlreadyPassed).length === 0 && <div style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic' }}>None</div>}
+                                {displaySleepers.filter(s => s.currentStatus === 'pending').length === 0 && <div style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic' }}>None</div>}
                             </div>
                         </div>
 

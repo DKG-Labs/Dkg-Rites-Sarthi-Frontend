@@ -105,6 +105,10 @@ export const apiService = {
     updateBenchMouldInspection: (id, payload) => api.put(`/bench-mould-inspection/update/${id}`, payload),
     deleteBenchMouldInspection: (id) => api.delete(`/bench-mould-inspection/delete/${id}`),
 
+    // ================= Stress Bench / Long Line Update (IE Verification) =================
+    getBenchMouldStressLongLineById: (id) => api.get(`/bench-mould-stress-longline/get/${id}`),
+    updateBenchMouldStressLongLine: (id, payload) => api.put(`/bench-mould-stress-longline/update/${id}`, payload),
+
     // ================= Wire Tensioning =================
     getAllWireTensioning: () => getWithCache('/wire-tensioning/get-all'),
     getWireTensioningById: (id) => api.get(`/wire-tensioning/get/${id}`),

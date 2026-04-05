@@ -1,18 +1,12 @@
 {
   "navigationFallback": {
-    "rewrite": "/index.html",
+    "rewrite": "/sleeper/index.html",
     "exclude": [
-      "/sleeper/*",
+      "/sleeper/assets/*",
       "/assets/*",
       "/images/*",
       "/css/*",
       "/js/*"
     ]
-  },
-  "routes": [
-    {
-      "route": "/sleeper/*",
-      "rewrite": "/sleeper/index.html"
-    }
-  ]
+  }
 }

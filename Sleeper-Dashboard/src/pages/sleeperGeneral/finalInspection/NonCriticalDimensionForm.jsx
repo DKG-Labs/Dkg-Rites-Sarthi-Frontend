@@ -50,7 +50,7 @@ const NonCriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
             // check if it belongs to this specific module (3 for Non-Critical)
             if (sleeper.isAlreadyPassed || sleeper.isRejected) {
                 if (sleeper.moduleId !== 3) {
-                    const moduleMap = { 1: 'Visual & Dimension', 2: 'Critical Dimensions', 4: 'Demoulding' };
+                    const moduleMap = { 1: 'Visual and Check Measurements', 2: 'Critical Dimensions', 4: 'Demoulding' };
                     toast.error(`Cannot deselect: This sleeper was inspected in ${moduleMap[sleeper.moduleId] || 'another module'}. You can only deselect Non-Critical Dimensions here.`);
                     return;
                 }
@@ -63,6 +63,7 @@ const NonCriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
                     const payload = {
                         batchId: batch.batchId,
                         moduleId: 3,
+                        sleeperType: batch.sleeperType,
                         shift: shift || 'General',
                         createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
                         sleepers: [{
@@ -109,23 +110,8 @@ const NonCriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
         }), {})
     );
 
-    const [overallResult, setOverallResult] = useState(() => 
-        allSleepersPool.some(s => s.isRejected) ? 'partial-ok' : 'ok'
-    );
-    const [rejectionDetails, setRejectionDetails] = useState(() => {
-        const initialRejections = {};
-        allSleepersPool.filter(s => s.isRejected).forEach(s => {
-            let main = '';
-            let sub = '';
-            if (s.rejectionReason && s.rejectionReason.includes(':')) {
-                const parts = s.rejectionReason.split(':');
-                main = parts[0]?.trim() || '';
-                sub = parts[1]?.trim() || '';
-            }
-            initialRejections[s.id] = { mainReason: main, subReason: sub };
-        });
-        return initialRejections;
-    });
+    const [overallResult, setOverallResult] = useState('ok');
+    const [rejectionDetails, setRejectionDetails] = useState({});
 
     const isChecklistComplete = parametersToCheck.every(p => checklistState[p.label]);
 
@@ -144,7 +130,11 @@ const NonCriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
         } else if (result === 'all-rejected') {
             const allRejected = {};
             selectedSleepers.forEach(id => {
-                allRejected[id] = rejectionDetails[id] || { mainReason: '', subReason: '' };
+                const sleeper = allSleepersPool.find(s => s.id === id);
+                // Only include in rejection list if not already rejected in another module
+                if (sleeper && (!sleeper.isRejected || sleeper.moduleId === 3)) {
+                    allRejected[id] = rejectionDetails[id] || { mainReason: '', subReason: '' };
+                }
             });
             newRejectionDetails = allRejected;
             setRejectionDetails(allRejected);
@@ -247,9 +237,15 @@ const NonCriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
             const payload = {
                 batchId: batch.batchId,
                 moduleId: 3,
+                sleeperType: batch.sleeperType,
                 shift: shift || 'General',
                 createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
-                sleepers: selectedSleepers.map(sid => {
+                sleepers: selectedSleepers
+                    .filter(sid => {
+                        const s = allSleepersPool.find(x => x.id === sid);
+                        return s && (!s.moduleId || s.moduleId === 3);
+                    })
+                    .map(sid => {
                     const sleeper = allSleepersPool.find(s => s.id === sid);
                     
                     // A sleeper is rejected if it's currently marked as rejected in the form UI,
@@ -314,7 +310,7 @@ const NonCriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
                             </div>
 
                             {[
-                                { id: 1, label: 'Visual & Dimension' },
+                                { id: 1, label: 'Visual and Check Measurements' },
                                 { id: 2, label: 'Critical Dimensions' },
                                 { id: 3, label: 'Non-Critical Dimensions' },
                                 { id: 4, label: 'Demoulding' }

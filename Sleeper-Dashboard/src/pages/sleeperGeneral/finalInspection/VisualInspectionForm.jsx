@@ -38,7 +38,7 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
             if (sleeper.status !== 'pending') {
                 if (sleeper.moduleId !== 1) {
                     const moduleMap = { 2: 'Critical Dimensions', 3: 'Non-Critical Dimensions', 4: 'Demoulding' };
-                    alert(`Cannot deselect: This sleeper was inspected in ${moduleMap[sleeper.moduleId] || 'another module'}. You can only deselect Visual & Dimension sleepers here.`);
+                    alert(`Cannot deselect: This sleeper was inspected in ${moduleMap[sleeper.moduleId] || 'another module'}. You can only deselect Visual and Check Measurements sleepers here.`);
                     return;
                 }
 
@@ -50,6 +50,7 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                     const payload = {
                         batchId: batch.batchId,
                         moduleId: 1,
+                        sleeperType: batch.sleeperType,
                         shift: shift || 'General',
                         createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
                         sleepers: [{
@@ -86,50 +87,17 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
     ];
 
     const [sectionStates, setSectionStates] = useState(() => {
-        const parseVisualRejection = (reasonStr, label) => {
-            if (!reasonStr || !reasonStr.includes(label)) return null;
-            const sectionPart = reasonStr.split(';').find(part => part.includes(label));
-            if (!sectionPart) return null;
-            const content = sectionPart.split(':')[1]?.trim() || '';
-            if (!content) return null;
-            let reason = content;
-            let subReason = '';
-            if (content.includes('(')) {
-                const parts = content.split('(');
-                reason = parts[0].trim();
-                subReason = parts[1].replace(')', '').trim();
+        return sections.reduce((acc, s) => ({
+            ...acc,
+            [s.id]: {
+                allChecked: initialSleepers.some(sl => sl.status === 'passed' || sl.status === 'rejected'),
+                result: 'all-ok',
+                failedSleepers: [],
+                rejectionDetails: {},
+                globalReason: '',
+                globalSubReason: ''
             }
-            return { reason, subReason };
-        };
-
-        return sections.reduce((acc, s) => {
-            const label = s.label; // e.g., "Visual Checking"
-            const failedSids = [];
-            const rDetails = {};
-
-            initialSleepers.filter(sl => sl.status === 'rejected').forEach(sl => {
-                const parsed = parseVisualRejection(sl.rejectionReason, label);
-                // If this section contributed to the rejection, mark it here
-                if (parsed || sl.rejectionReason?.includes(label)) {
-                    failedSids.push(sl.id);
-                    if (parsed) {
-                        rDetails[sl.id] = parsed;
-                    }
-                }
-            });
-
-            return {
-                ...acc,
-                [s.id]: {
-                    allChecked: initialSleepers.some(sl => sl.status === 'passed' || sl.status === 'rejected'),
-                    result: failedSids.length > 0 ? 'partial-ok' : (initialSleepers.some(sl => sl.status === 'rejected') ? 'all-ok' : 'all-ok'),
-                    failedSleepers: failedSids,
-                    rejectionDetails: rDetails,
-                    globalReason: '',
-                    globalSubReason: ''
-                }
-            };
-        }, {});
+        }), {});
     });
 
     const handleSectionChange = (sectionId, field, value) => {
@@ -144,7 +112,11 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
 
             // If switching to all-rejected, automatically fail all selected sleepers
             if (field === 'result' && value === 'all-rejected') {
-                newState[sectionId].failedSleepers = [...selectedSleepers];
+                newState[sectionId].failedSleepers = selectedSleepers.filter(id => {
+                    const sl = sleepers.find(item => item.id === id);
+                    // Only include in failure list if not already rejected in another module
+                    return sl && (sl.status !== 'rejected' || sl.moduleId === 1);
+                });
             } else if (field === 'result' && value === 'all-ok') {
                 newState[sectionId].failedSleepers = [];
             }
@@ -268,14 +240,39 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
             return;
         }
 
+        let hasMissingReason = false;
+        sections.forEach(sect => {
+            const sectState = sectionStates[sect.id];
+            if (sectState.result === 'all-rejected') {
+                if (!sectState.globalReason) hasMissingReason = true;
+                const subs = getSubReasons(sectState.globalReason, sect.id);
+                if (subs.length > 0 && !sectState.globalSubReason) hasMissingReason = true;
+            } else if (sectState.result === 'partial-ok') {
+                sectState.failedSleepers.forEach(fid => {
+                     const details = sectState.rejectionDetails[fid] || {};
+                     if (!details.reason) hasMissingReason = true;
+                     else {
+                         const subs = getSubReasons(details.reason, sect.id);
+                         if (subs.length > 0 && !details.subReason) hasMissingReason = true;
+                     }
+                });
+            }
+        });
+
+        if (hasMissingReason) {
+            toast.error('Please provide a Reason and Sub-Reason for all rejected sleepers.');
+            return;
+        }
+
         try {
             setSaving(true);
             const payload = {
                 batchId: batch.batchId,
                 moduleId: 1,
+                sleeperType: batch.sleeperType,
                 shift: shift || 'General',
                 createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
-                sleepers: sleepers.filter(s => selectedSleepers.includes(s.id)).map(s => {
+                sleepers: sleepers.filter(s => selectedSleepers.includes(s.id) && (!s.moduleId || s.moduleId === 1)).map(s => {
                     const currentIsRejected = sections.some(sect => {
                         const sectState = sectionStates[sect.id];
                         return sectState.result === 'all-rejected' || sectState.failedSleepers.includes(s.id);
@@ -369,7 +366,7 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                             </div>
 
                             {[
-                                { id: 1, label: 'Visual & Dimension' },
+                                { id: 1, label: 'Visual and Check Measurements' },
                                 { id: 2, label: 'Critical Dimensions' },
                                 { id: 3, label: 'Non-Critical Dimensions' },
                                 { id: 4, label: 'Demoulding' }
@@ -542,7 +539,11 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                                                             
                                                             {sectionStates[s.id].result === 'partial-ok' && (
                                                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                                                                    {sleepers.filter(sl => selectedSleepers.includes(sl.id)).map(sl => {
+                                                                    {sleepers.filter(sl => {
+                                                                        if (!selectedSleepers.includes(sl.id)) return false;
+                                                                        const originalSleeper = initialSleepers.find(x => x.id === sl.id);
+                                                                        return originalSleeper && originalSleeper.status === 'pending';
+                                                                    }).map(sl => {
                                                                         const isRejectedElsewhere = sections.some(otherSect => 
                                                                             otherSect.id !== s.id && 
                                                                             (sectionStates[otherSect.id].result === 'all-rejected' || sectionStates[otherSect.id].failedSleepers.includes(sl.id))

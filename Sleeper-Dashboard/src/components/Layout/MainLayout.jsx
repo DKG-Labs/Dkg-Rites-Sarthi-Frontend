@@ -169,7 +169,7 @@ const MainLayout = ({ children, activeItem, onItemClick }) => {
 
                         <div className="user-profile-section">
                             <div className="header-user-avatar">
-                                {user?.userName?.charAt(0).toUpperCase() || 'U'}
+                                {user?.userName?.charAt(0)?.toUpperCase() || 'U'}
                             </div>
                             <div className="user-details">
                                 <span className="user-name">{user?.userName || 'User'}</span>

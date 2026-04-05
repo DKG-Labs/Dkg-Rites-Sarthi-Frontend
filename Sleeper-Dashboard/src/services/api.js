@@ -14,6 +14,20 @@ const api = axios.create({
     },
 });
 
+// Request interceptor to add authentication token
+api.interceptors.request.use(
+    (config) => {
+        const token = localStorage.getItem('authToken');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    },
+    (error) => {
+        return Promise.reject(error);
+    }
+);
+
 // Simple promise-based cache to prevent redundant simultaneous requests
 const pendingRequests = new Map();
 

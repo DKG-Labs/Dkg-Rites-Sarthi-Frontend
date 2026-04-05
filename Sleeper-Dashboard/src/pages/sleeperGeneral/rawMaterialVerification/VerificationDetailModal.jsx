@@ -6,7 +6,7 @@ import { apiService } from '../../../services/api';
 // ─────────────────────────────────────────────────────────────────────────────
 const MODULE_FETCHERS = {
     1:  (id) => apiService.getPlantProfileById(id),
-    2:  (id) => apiService.getBenchMouldMasterById(id),
+    2:  (id) => apiService.getBenchMouldStressLongLineById(id),
     3:  (id) => apiService.getRawMaterialSourceById(id),
     4:  (id) => apiService.getMixDesignById(id),
     5:  (id) => apiService.getHtsWireRecordById(id),
@@ -16,7 +16,7 @@ const MODULE_FETCHERS = {
     9:  (id) => apiService.getSgciRecordById(id),
     10: (id) => apiService.getDowelRecordById(id),
     11: (id) => apiService.getProductionDeclarationRecordById(id),
-    12: (id) => apiService.getBenchMouldMasterById(id),
+    12: (id) => apiService.getBenchMouldStressLongLineById(id),
 };
 
 // Human-readable labels for common backend keys

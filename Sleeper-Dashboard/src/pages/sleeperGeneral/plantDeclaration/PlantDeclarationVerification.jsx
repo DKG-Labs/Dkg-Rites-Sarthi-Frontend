@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { apiService } from '../../../services/api';
 import { getAllCompletedCalls } from '../../../services/workflowService';
 import VerificationDetailModal from '../rawMaterialVerification/VerificationDetailModal';
+import BenchMouldUpdateModal from './BenchMouldUpdateModal';
 import { useShift } from '../../../context/ShiftContext';
 import './PlantDeclarationVerification.css';
 
@@ -34,16 +35,18 @@ const MODULE_TABLE_FIELDS = {
         { label: 'Sheds / Lines',  key: 'numberOfSheds' },
     ],
     2: [
-        { label: 'Entry Type',     key: 'entryType' },
-        { label: 'Bench(es)',      key: 'benchIdentifier' }, // Custom key for display logic
-        { label: 'Sleeper Cat',    key: 'sleeperCategory' },
-        { label: 'Moulds/Bench',   key: 'mouldsPerBench' },
+        { label: 'Plant Type',     key: 'plantType' },
+        { label: 'Category',       key: 'category' },
+        { label: 'Sub-Category',   key: 'subCategory' },
+        { label: 'Drawing No.',    key: 'drawingNo' },
+        { label: 'Moulds Info',    key: 'mouldsIdentifier' }, // Custom cell for detail summary
     ],
     12: [
-        { label: 'Entry Type',     key: 'entryType' },
-        { label: 'Bench(es)',      key: 'benchIdentifier' }, 
-        { label: 'Sleeper Cat',    key: 'sleeperCategory' },
-        { label: 'Moulds/Bench',   key: 'mouldsPerBench' },
+        { label: 'Plant Type',     key: 'plantType' },
+        { label: 'Category',       key: 'category' },
+        { label: 'Sub-Category',   key: 'subCategory' },
+        { label: 'Drawing No.',    key: 'drawingNo' },
+        { label: 'Moulds Info',    key: 'mouldsIdentifier' },
     ],
     3: [
         { label: 'Material Type',  key: 'rawMaterialType' },
@@ -61,10 +64,10 @@ const MODULE_TABLE_FIELDS = {
 const fetchRecordDetail = async (moduleId, requestId) => {
     const fetchers = {
         1: apiService.getPlantProfileById,
-        2: apiService.getBenchMouldMasterById,
+        2: apiService.getBenchMouldStressLongLineById,
         3: apiService.getRawMaterialSourceById,
         4: apiService.getMixDesignById,
-        12: apiService.getBenchMouldMasterById,
+        12: apiService.getBenchMouldStressLongLineById,
     };
     const fn = fetchers[moduleId];
     if (!fn) return null;
@@ -278,12 +281,14 @@ const PlantDeclarationVerification = () => {
                             <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: '12px', color: '#64748b' }}>{row.workflowTransitionId}</td>
                             <td style={tdStyle}>User {row.assignedTo}</td>
                             {MODULE_TABLE_FIELDS[row.moduleId || selectedModuleId]?.map(col => {
-                                if (col.key === 'benchIdentifier') {
-                                    const bNo = row.detail?.benchNo;
-                                    const bFrom = row.detail?.benchFrom;
-                                    const bTo = row.detail?.benchTo;
-                                    const display = bNo ? bNo : (bFrom && bTo ? `${bFrom}-${bTo}` : '-');
-                                    return <td key={col.key} style={tdStyle}>{display}</td>;
+                                if (col.key === 'mouldsIdentifier') {
+                                    const details = row.detail?.details || [];
+                                    const totalMoulds = details.reduce((sum, d) => sum + (d.noOfMoulds || 0), 0);
+                                    const entryCount = details.length;
+                                    return <td key={col.key} style={tdStyle}>
+                                        <div style={{ fontWeight: '700' }}>{totalMoulds} Moulds</div>
+                                        <div style={{ fontSize: '10px', color: '#64748b' }}>({entryCount} entries)</div>
+                                    </td>;
                                 }
                                 return <td key={col.key} style={tdStyle}>{row.detail?.[col.key] ?? '-'}</td>;
                             })}
@@ -402,9 +407,12 @@ const PlantDeclarationVerification = () => {
                                 ) : (
                                     renderTable(
                                         selectedModuleId === 2
-                                            ? (benchType === 'STRESS_BENCH' 
-                                                ? (enrichedPending[2] || []) 
-                                                : (enrichedPending[12] || []))
+                                            ? [...(enrichedPending[2] || []), ...(enrichedPending[12] || [])].filter(r => {
+                                                const type = r.detail?.plantType || '';
+                                                return benchType === 'STRESS_BENCH' 
+                                                    ? type.toUpperCase().includes('STRESS')
+                                                    : type.toUpperCase().includes('LONG');
+                                              })
                                             : (enrichedPending[selectedModuleId] || []),
                                         false
                                     )
@@ -430,9 +438,12 @@ const PlantDeclarationVerification = () => {
                                 ) : (
                                     renderTable(
                                         selectedModuleId === 2
-                                            ? (benchType === 'STRESS_BENCH' 
-                                                ? (enrichedCompleted[2] || []) 
-                                                : (enrichedCompleted[12] || []))
+                                            ? [...(enrichedCompleted[2] || []), ...(enrichedCompleted[12] || [])].filter(r => {
+                                                const type = r.detail?.plantType || '';
+                                                return benchType === 'STRESS_BENCH' 
+                                                    ? type.toUpperCase().includes('STRESS')
+                                                    : type.toUpperCase().includes('LONG');
+                                              })
                                             : (enrichedCompleted[selectedModuleId] || []),
                                         true
                                     )
@@ -445,13 +456,21 @@ const PlantDeclarationVerification = () => {
             )}
 
             {detailModal && (
-                <VerificationDetailModal
-                    row={detailModal}
-                    moduleLabel={PLANT_DECLARATION_MODULES.find(m => m.moduleId === detailModal.moduleId)?.label || `Module ${detailModal.moduleId}`}
-                    actionBy={effectiveUserId}
-                    onClose={() => setDetailModal(null)}
-                    onDone={loadData}
-                />
+                detailModal.moduleId === 2 || detailModal.moduleId === 12 ? (
+                    <BenchMouldUpdateModal
+                        row={detailModal}
+                        onClose={() => setDetailModal(null)}
+                        onDone={loadData}
+                    />
+                ) : (
+                    <VerificationDetailModal
+                        row={detailModal}
+                        moduleLabel={PLANT_DECLARATION_MODULES.find(m => m.moduleId === detailModal.moduleId)?.label || `Module ${detailModal.moduleId}`}
+                        actionBy={effectiveUserId}
+                        onClose={() => setDetailModal(null)}
+                        onDone={loadData}
+                    />
+                )
             )}
         </div>
     );

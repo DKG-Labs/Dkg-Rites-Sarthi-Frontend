@@ -1,14 +1,15 @@
-import React, { useState } from 'react'; // Re-adding useState
+import React, { useState, useEffect } from 'react'; // Re-adding hooks
+import reportService from '../../services/reportService';
 import Pagination from '../Pagination';
-import { PROFESSIONAL_MAIN_CARDS, SUMMARY_DATA, QUALITY_DATA, REPORTS_DATA } from '../../data/professionalDashboardData';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-    Cell, PieChart, Pie, Legend, LineChart, Line, ComposedChart
+    Cell, PieChart, Pie, Legend, Line, ComposedChart, AreaChart, Area, LabelList
 } from 'recharts';
 import { formatDecimal } from '../../utils/helpers';
 import './ProfessionalCardSection.css';
 import './InspectionStackedCharts.css';
 import './PerformanceMatrixTheme.css';
+import FeedbackSection from './FeedbackSection';
 
 // --- Static Data moved outside component to fix ESLint re-render warnings ---
 const staticInspectionCallsData = [
@@ -76,7 +77,17 @@ const ProfessionalCardSection = ({
     lwclLotNumbers = [],
     // NEW: Level 4 Report Props
     level4Data = [],
-    level4Loading = false
+    level4Loading = false,
+    activeReportFromParent = 'mpr',
+    setSelectedProduct = () => { },
+    // New Manufacture Process Inspection Analysis Props from API
+    mpiaData = [],
+    mpiaLoading = false,
+    mpiaPagination = { totalElements: 0, totalPages: 0 },
+    mpiaPage = 0,
+    setMpiaPage = () => { },
+    mpiaRowsPerPage = 10,
+    setMpiaRowsPerPage = () => { }
 }) => {
     // Map selectedProduct to summary data keys
     const getSummaryKey = (prod) => {
@@ -88,25 +99,83 @@ const ProfessionalCardSection = ({
         return 'erc'; // Default
     };
 
-    const summarySubTab = getSummaryKey(selectedProduct);
-    const [activeReport, setActiveReport] = useState('mpr');
+    getSummaryKey(selectedProduct);
+    const [activeReport, setActiveReport] = useState(activeReportFromParent || 'mpr');
+    const [drilldownManufacturer, setDrilldownManufacturer] = useState(null);
+    const [drilldownData, setDrilldownData] = useState([]);
+    const [isDrilldownLoading, setIsDrilldownLoading] = useState(false);
 
-    // Sorting State for Performance Matrix
-    const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
-
-    // Filter State for Performance Matrix (Client-side)
-    const [perfFilterIe, setPerfFilterIe] = useState('all');
-    const [perfFilterStage, setPerfFilterStage] = useState('all');
+    // Fetch Drill-down data when manufacturer is selected
+    useEffect(() => {
+        if (drilldownManufacturer) {
+            const fetchDrilldown = async () => {
+                setIsDrilldownLoading(true);
+                const end = new Date().toISOString().split('T')[0];
+                const start = new Date(new Date().setFullYear(new Date().getFullYear() - 1)).toISOString().split('T')[0];
+                try {
+                    const res = await reportService.getCompanyMonthWiseData({
+                        companyName: drilldownManufacturer,
+                        startDate: start,
+                        endDate: end,
+                        page: 0,
+                        size: 30
+                    });
+                    const data = res.responseData?.content || res.content || res || [];
+                    setDrilldownData(Array.isArray(data) ? data : []);
+                } catch (e) {
+                    console.error("Failed to fetch drilldown data:", e);
+                    setDrilldownData([]);
+                }
+                setIsDrilldownLoading(false);
+            };
+            fetchDrilldown();
+        }
+    }, [drilldownManufacturer]);
 
     // States for Reports Searching & Sorting
     const [mprSearch, setMprSearch] = useState('');
     const [mprSort, setMprSort] = useState({ key: null, direction: 'asc' });
     const [mauSearch, setMauSearch] = useState('');
     const [mauSort, setMauSort] = useState({ key: null, direction: 'asc' });
+    const [mpiaSearch, setMpiaSearch] = useState('');
+    const [mpiaSort, setMpiaSort] = useState({ key: null, direction: 'asc' });
+
+    const [isPreparingBatchPdf, setIsPreparingBatchPdf] = useState(false);
+    const [batchReportData, setBatchReportData] = useState(null);
+    const [batchProgress, setBatchProgress] = useState(0);
+
+    // Sync activeReport with parent navigation
+    React.useEffect(() => {
+        if (activeReportFromParent) {
+            setActiveReport(activeReportFromParent);
+            setDrilldownManufacturer(null); // Reset drilldown when tab changes
+        }
+    }, [activeReportFromParent]);
+
+    // Handle Batch PDF Printing
+    React.useEffect(() => {
+        if (batchReportData && batchReportData.length > 0) {
+            // Give Recharts and React a full second to render all pages/charts off-screen
+            const timer = setTimeout(() => {
+                window.print();
+                // Add an extra delay before clearing to allow print engine to fully capture the DOM
+                setTimeout(() => {
+                    setBatchReportData(null);
+                    setIsPreparingBatchPdf(false);
+                }, 1000);
+            }, 2000);
+            return () => clearTimeout(timer);
+        }
+    }, [batchReportData]);
+
+    // States for Performance Matrix Filtering & Sorting
+    const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+    const [perfFilterIe, setPerfFilterIe] = useState('all');
+    const [perfFilterStage, setPerfFilterStage] = useState('all');
 
     // Filtered & Sorted MPR Data
     const displayMprData = React.useMemo(() => {
-        let result = [...mprData];
+        let result = [...(mprData || [])];
         if (mprSearch) {
             const query = mprSearch.toLowerCase();
             result = result.filter(item =>
@@ -134,7 +203,7 @@ const ProfessionalCardSection = ({
 
     // Filtered & Sorted MAU Data
     const displayMauData = React.useMemo(() => {
-        let result = [...mauData];
+        let result = [...(mauData || [])];
         if (mauSearch) {
             const query = mauSearch.toLowerCase();
             result = result.filter(item =>
@@ -158,19 +227,34 @@ const ProfessionalCardSection = ({
         return result;
     }, [mauData, mauSearch, mauSort]);
 
-    const handleMprSort = (key) => {
-        setMprSort(prev => ({
-            key,
-            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
-        }));
-    };
+    // Filtered & Sorted MPIA Data
+    const displayMpiaData = React.useMemo(() => {
+        let result = [...(mpiaData || [])];
+        if (mpiaSearch) {
+            const query = mpiaSearch.toLowerCase();
+            result = result.filter(item =>
+                (item.manufacture || '').toLowerCase().includes(query)
+            );
+        }
+        if (mpiaSort.key) {
+            result.sort((a, b) => {
+                const aVal = a[mpiaSort.key];
+                const bVal = b[mpiaSort.key];
+                if (typeof aVal === 'number' && typeof bVal === 'number') {
+                    return mpiaSort.direction === 'asc' ? aVal - bVal : bVal - aVal;
+                }
+                const aStr = (aVal || '').toString().toLowerCase();
+                const bStr = (bVal || '').toString().toLowerCase();
+                if (aStr < bStr) return mpiaSort.direction === 'asc' ? -1 : 1;
+                if (aStr > bStr) return mpiaSort.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+        return result;
+    }, [mpiaData, mpiaSearch, mpiaSort]);
 
-    const handleMauSort = (key) => {
-        setMauSort(prev => ({
-            key,
-            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
-        }));
-    };
+    // Calculated data for charts
+
 
     // Calculate Stage vs Defect Contribution dynamic data (Top 3 defects for Process stage)
     const stageVsDefectTop3 = React.useMemo(() => {
@@ -183,9 +267,8 @@ const ProfessionalCardSection = ({
             ];
         }
 
-        const sorted = [...paretoAnalysisData].sort((a, b) => (b.count || b.value) - (a.count || a.value));
+        const sorted = [...(paretoAnalysisData || [])].sort((a, b) => (b.count || b.value) - (a.count || a.value));
         const top3 = sorted.slice(0, 3);
-
         const processStage = { name: 'Process' };
         top3.forEach(d => {
             processStage[d.name] = d.count || d.value;
@@ -202,7 +285,7 @@ const ProfessionalCardSection = ({
         if (!paretoAnalysisData || paretoAnalysisData.length === 0) {
             return ['Turning Dia', 'MPI', 'Full Turning Length'];
         }
-        return [...paretoAnalysisData]
+        return [...(paretoAnalysisData || [])]
             .sort((a, b) => (b.count || b.value) - (a.count || a.value))
             .slice(0, 3)
             .map(d => d.name);
@@ -216,9 +299,20 @@ const ProfessionalCardSection = ({
         setSortConfig({ key, direction });
     };
 
+    const handleMprSort = (key) => {
+        let direction = 'asc';
+        if (mprSort.key === key && mprSort.direction === 'asc') {
+            direction = 'desc';
+        }
+        setMprSort({ key, direction });
+    };
+
+    const handleMauSort = (key) => setMauSort({ key, direction: mauSort.key === key && mauSort.direction === 'asc' ? 'desc' : 'asc' });
+    const handleMpiaSort = (key) => setMpiaSort({ key, direction: mpiaSort.key === key && mpiaSort.direction === 'asc' ? 'desc' : 'asc' });
+
     const getSortedData = (data) => {
-        if (!sortConfig.key) return data;
-        return [...data].sort((a, b) => {
+        if (!sortConfig.key || !data) return data;
+        return [...(data || [])].sort((a, b) => {
             let aValue = a[sortConfig.key];
             let bValue = b[sortConfig.key];
 
@@ -238,1111 +332,886 @@ const ProfessionalCardSection = ({
         });
     };
 
-    // Filtered records logic was removed to fix ESLint warnings as it was not being utilized in the current table implementation.
 
-    // ... (rest of the logic remains same until renderSubContent)
-
-    // Moving logic inside component
-    const displayInspectionCallsData = (inspectionCallStatusData && inspectionCallStatusData.length > 0)
-        ? inspectionCallStatusData
-        : staticInspectionCallsData;
-
-    // ── Inspection Details Data Logic ──
-    const displayInspectionDetailsData = (inspectionDetailsData && inspectionDetailsData.length > 0)
-        ? inspectionDetailsData
-        : staticInspectionDetailsData;
-
-    // Custom tooltip for Inspection Calls Status chart
-    const CallsTooltip = ({ active, payload, label }) => {
-        if (!active || !payload || !payload.length) return null;
-        return (
-            <div className="isc-tooltip">
-                <div className="isc-tooltip-label">{label}</div>
-                {payload.map((p, i) => (
-                    <div key={i} className="isc-tooltip-row">
-                        <span className="isc-tooltip-swatch" style={{ background: p.fill }} />
-                        <span>{p.name}: <strong>{p.value}</strong></span>
-                    </div>
-                ))}
-            </div>
-        );
-    };
-
-    // Custom tooltip for Inspection Details chart
-    const DetailsTooltip = ({ active, payload, label }) => {
-        if (!active || !payload || !payload.length) return null;
-        return (
-            <div className="isc-tooltip">
-                <div className="isc-tooltip-label">{label}</div>
-                {payload.map((p, i) => (
-                    <div key={i} className="isc-tooltip-row">
-                        <span className="isc-tooltip-swatch" style={{ background: p.fill }} />
-                        <span>{p.name}: <strong>{p.value.toLocaleString()}</strong></span>
-                    </div>
-                ))}
-            </div>
-        );
+    const renderSortIcon = (key, config) => {
+        if (config.key !== key) return <span style={{ opacity: 0.3, marginLeft: '5px', fontSize: '10px' }}>↕</span>;
+        return <span style={{ marginLeft: '5px', color: '#10b981', fontSize: '10px' }}>{config.direction === 'asc' ? '▲' : '▼'}</span>;
     };
 
 
     const renderSubContent = () => {
-        if (selectedProduct && selectedProduct !== 'ERC') {
+        // Under Development Placeholder for non-ERC products
+        const product = selectedProduct?.toLowerCase() || '';
+        const isErc = product.includes('erc') || product === 'all' || !product;
+
+        if (!isErc) {
             return (
-                <div className="under-development-container">
-                    <div className="under-development-card">
-                        <div className="under-development-icon">🛠️</div>
-                        <h2 className="under-development-title">Under Development</h2>
-                        <p className="under-development-text">
-                            The dashboard for <strong>{selectedProduct}</strong> is currently being developed.
-                            Please check back later for updates.
+                <div className="under-dev-container fade-in" style={{ padding: '2rem 0' }}>
+                    <div className="prof-card" style={{
+                        height: '450px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: 'rgba(255, 255, 255, 0.8)',
+                        backdropFilter: 'blur(10px)',
+                        border: '2px dashed #10b981',
+                        borderRadius: '24px',
+                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.05)',
+                        textAlign: 'center'
+                    }}>
+                        <div style={{
+                            fontSize: '6rem',
+                            marginBottom: '1rem',
+                            filter: 'drop-shadow(0 10px 15px rgba(0,0,0,0.1))',
+                            animation: 'bounce 2s infinite'
+                        }}>🏗️</div>
+                        <h2 style={{ fontSize: '32px', color: '#065f46', marginBottom: '10px' }}>
+                            {selectedProduct?.toUpperCase()}
+                        </h2>
+                        <h3 style={{ fontSize: '20px', color: '#059669', marginBottom: '20px', fontWeight: '600' }}>
+                            Section Under Development
+                        </h3>
+                        <p style={{ color: '#475569', maxWidth: '450px', lineHeight: '1.6', fontSize: '15px' }}>
+                            We are currently integrating data for this product line.
+                            Stay tuned for a complete performance overview of {selectedProduct} soon!
                         </p>
+                        <div style={{
+                            marginTop: '2rem',
+                            padding: '10px 20px',
+                            background: '#10b981',
+                            color: 'white',
+                            borderRadius: '30px',
+                            fontWeight: '600',
+                            fontSize: '14px',
+                            boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.4)'
+                        }}>
+                            Coming Soon
+                        </div>
                     </div>
                 </div>
             );
         }
 
-        switch (activeMainCard) {
-            case 'summary':
-                const baseSummary = SUMMARY_DATA[summarySubTab];
-                const kpis = baseSummary.kpis.map(kpi => {
-                    if (!summaryData || Array.isArray(summaryData)) return kpi;
+        // Client-side filtering logic for Performance Matrix
+        const uniqueIes = [...new Set((perfData || []).map(d => d.username))].filter(Boolean).sort();
+        const uniqueStages = [...new Set((perfData || []).map(d => d.stage))].filter(Boolean).sort();
 
-                    if (kpi.label === 'PO Issued') {
-                        return { ...kpi, value: (summaryData.poIssued || 0).toLocaleString() };
-                    }
-                    if (kpi.label === 'PO Quantity') {
-                        return {
-                            ...kpi,
-                            isDual: true,
-                            leftValue: (summaryData.poQuantityNos || 0).toLocaleString(),
-                            leftLabel: 'Nos',
-                            rightValue: (summaryData.poQuantityMt || 0).toLocaleString(),
-                            rightLabel: 'MT'
-                        };
-                    }
-                    if (kpi.label === 'Final Inspection Quantity') {
-                        return { ...kpi, value: (summaryData.finalInspectionQuantity || 0).toLocaleString() };
-                    }
-                    return kpi;
-                });
+        const filteredPerfRecords = (perfData || []).filter(d => {
+            const matchIe = perfFilterIe === 'all' || d.username === perfFilterIe;
+            const matchStage = perfFilterStage === 'all' || d.stage === perfFilterStage;
+            return matchIe && matchStage;
+        });
 
-                const production = baseSummary.production.map(p => {
-                    if (!summaryData || Array.isArray(summaryData)) return p;
+        return (
+            <div className="tab-body-wrapper fade-in">
+                {(() => {
+                    switch (activeMainCard) {
+                        case 'summary':
+                            const s = summaryData || {};
+                            return (
+                                <div className="summary-tab-content">
+                                    <div className="g3 mb">
+                                        <div className="prof-card card-dark-green" style={{ textAlign: 'center' }}>
+                                            <div className="kpi-lbl">PO Issued</div>
+                                            <div className="kpi-val">{(s.poIssued || 412).toLocaleString()}</div>
+                                            <div className="kpi-sub">Nos.</div>
+                                        </div>
+                                        <div className="prof-card card-ocean" style={{ textAlign: 'center' }}>
+                                            <div className="kpi-lbl">PO Quantity</div>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '4px' }}>
+                                                <div style={{ borderRight: '1px solid rgba(255,255,255,0.2)', paddingRight: '4px' }}>
+                                                    <div className="kpi-val" style={{ fontSize: '26px' }}>{(s.poQuantityNos || 0).toLocaleString()}</div>
+                                                    <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Nos.</div>
+                                                </div>
+                                                <div style={{ paddingLeft: '4px' }}>
+                                                    <div className="kpi-val" style={{ fontSize: '26px' }}>{(s.poQuantityMt || 0).toLocaleString()}</div>
+                                                    <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>MT</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="prof-card card-indigo" style={{ textAlign: 'center' }}>
+                                            <div className="kpi-lbl">Final Inspection Qty</div>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '4px' }}>
+                                                <div style={{ borderRight: '1px solid rgba(255,255,255,0.2)', paddingRight: '4px' }}>
+                                                    <div className="kpi-val" style={{ fontSize: '26px' }}>{(s.finalInspectionQuantity || 0).toLocaleString()}</div>
+                                                    <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Nos.</div>
+                                                </div>
+                                                <div style={{ paddingLeft: '4px' }}>
+                                                    <div className="kpi-val" style={{ fontSize: '26px' }}>-</div>
+                                                    <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>MT</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
 
-                    if (p.label === 'Avg Production / Day') {
-                        return { ...p, value: Math.round(summaryData.avgProductionPerDay || 0).toLocaleString() };
-                    }
-                    if (p.label === 'Process Rejection %') {
-                        const val = summaryData.processRejectionPercentage || 0;
-                        return { ...p, value: `${formatDecimal(val)}%`, progress: Math.min(Math.round(val * 10), 100) };
-                    }
-                    if (p.label === 'Final Rejection %') {
-                        const val = summaryData.finalRejectionPercentage || 0;
-                        return { ...p, value: `${formatDecimal(val)}%`, progress: Math.min(Math.round(val * 10), 100) };
-                    }
-                    if (p.label === 'Raw Material Rejection %') {
-                        const val = summaryData.rmRejectionPercentage || 0;
-                        return { ...p, value: `${formatDecimal(val)}%`, progress: Math.min(Math.round(val * 10), 100) };
-                    }
-                    return p;
-                });
-
-                const currentSummary = { ...baseSummary, kpis, production };
-                return (
-                    <div className="summary-tab-content fade-in">
-
-
-                        <div className="kpi-cards-container">
-                            {currentSummary.kpis.map((kpi, index) => (
-                                <div key={index} className={`kpi-card-premium ${kpi.gradient ? 'gradient-orange' : ''} animated-up`}>
-                                    <div className="kpi-card-header">
-                                        <div className="kpi-info">
-                                            <span className="kpi-label">{kpi.label}</span>
-                                            {kpi.isDual ? (
-                                                <div className="kpi-dual-container">
-                                                    <div className="kpi-dual-item">
-                                                        <h2 className={`kpi-dual-value text-glow-${kpi.color}`}>{kpi.leftValue}</h2>
-                                                        <span className="kpi-dual-label">{kpi.leftLabel}</span>
+                                    <div className="sec-title-flex" style={{ marginBottom: '12px', marginTop: '10px' }}>
+                                        <span style={{ fontSize: '14px', fontWeight: '700', color: '#166534' }}>Inspection Calls Status</span>
+                                    </div>
+                                    <div className="g3 mb">
+                                        {['RM', 'Process', 'Final'].map((cat, idx) => {
+                                            const d = (inspectionCallStatusData?.length > 0 ? inspectionCallStatusData : staticInspectionCallsData).find(x => x.name === cat || x.category === cat);
+                                            return (
+                                                <div className="prof-card" key={idx} style={{
+                                                    padding: '15px',
+                                                    borderLeft: cat === 'RM' ? '4px solid #3b82f6' : cat === 'Process' ? '4px solid #f59e0b' : '4px solid #ef4444',
+                                                    background: cat === 'RM' ? 'linear-gradient(135deg, #eff6ff, #dbeafe)' : cat === 'Process' ? 'linear-gradient(135deg, #fff7ed, #ffedd5)' : 'linear-gradient(135deg, #fef2f2, #fee2e2)'
+                                                }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                                        <span style={{ fontSize: '14px', fontWeight: '800', color: '#475569', textTransform: 'uppercase' }}>{cat} Stage</span>
+                                                        <span className="prof-badge" style={{ background: '#f8fafc', color: '#64748b', fontSize: '10px' }}>CALLS</span>
                                                     </div>
-                                                    <div className="kpi-divider"></div>
-                                                    <div className="kpi-dual-item">
-                                                        <h2 className={`kpi-dual-value text-glow-${kpi.color}`}>{kpi.rightValue}</h2>
-                                                        <span className="kpi-dual-label">{kpi.rightLabel}</span>
+                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                                        <div>
+                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>UNDER INSPECTION</div>
+                                                            <div style={{ fontSize: '28px', fontWeight: '800', color: '#f59e0b' }}>{d?.under?.toLocaleString() || '0'}</div>
+                                                        </div>
+                                                        <div style={{ textAlign: 'right' }}>
+                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>PENDING</div>
+                                                            <div style={{ fontSize: '28px', fontWeight: '800', color: '#ef4444' }}>{d?.pending?.toLocaleString() || '0'}</div>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            ) : (
-                                                <React.Fragment>
-                                                    <h2 className={`kpi-value text-glow-${kpi.color}`}>{kpi.value}</h2>
-                                                    {kpi.subtext && <span className="kpi-subtext">{kpi.subtext}</span>}
-                                                </React.Fragment>
-                                            )}
-                                        </div>
-                                        <span className="kpi-icon">{kpi.icon}</span>
+                                            );
+                                        })}
                                     </div>
-                                    {kpi.progress && (
-                                        <div className="kpi-progress-wrapper">
-                                            <div className="progress-bar">
-                                                <div className={`progress-fill bg-${kpi.color}`} style={{ width: `${kpi.progress}%` }}></div>
+
+                                    <div className="sec-title-flex" style={{ marginBottom: '12px' }}>
+                                        <span style={{ fontSize: '14px', fontWeight: '700', color: '#166534' }}>Inspection Details</span>
+                                    </div>
+                                    <div className="g3 mb">
+                                        {['RM', 'Process', 'Final'].map((cat, idx) => {
+                                            const d = (inspectionDetailsData?.length > 0 ? inspectionDetailsData : staticInspectionDetailsData).find(x => x.name === cat);
+                                            return (
+                                                <div className="prof-card" key={idx} style={{
+                                                    padding: '15px',
+                                                    borderLeft: cat === 'RM' ? '4px solid #0d9488' : cat === 'Process' ? '4px solid #7c3aed' : '4px solid #db2777',
+                                                    background: cat === 'RM' ? 'linear-gradient(135deg, #f0fdfa, #ccfbf1)' : cat === 'Process' ? 'linear-gradient(135deg, #f5f3ff, #ede9fe)' : 'linear-gradient(135deg, #fff1f2, #ffe4e6)'
+                                                }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                                        <span style={{ fontSize: '14px', fontWeight: '800', color: '#475569', textTransform: 'uppercase' }}>{cat} Stage</span>
+                                                        <span className="prof-badge" style={{ background: '#f8fafc', color: '#64748b', fontSize: '10px' }}>Nos.</span>
+                                                    </div>
+                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                                        <div>
+                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>ACCEPTED</div>
+                                                            <div style={{ fontSize: '26px', fontWeight: '800', color: '#22c55e' }}>{d?.accepted?.toLocaleString() || '0'}</div>
+                                                        </div>
+                                                        <div style={{ textAlign: 'right' }}>
+                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>REJECTED</div>
+                                                            <div style={{ fontSize: '26px', fontWeight: '800', color: '#ef4444' }}>{d?.rejected?.toLocaleString() || '0'}</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    <div className="prof-card">
+                                        <div className="sec-title">Production & Rejection</div>
+                                        <div className="g4">
+                                            <div className="prof-card card-spring-green" style={{ textAlign: 'center' }}>
+                                                <div className="kpi-lbl" style={{ color: '#065f46' }}>Avg Production/Day</div>
+                                                <div className="kpi-val" style={{ color: '#064e3b' }}>{(Math.round(s.avgProductionPerDay || 947)).toLocaleString()}</div>
+                                                <div className="kpi-sub" style={{ color: '#047857' }}>Nos.</div>
+                                            </div>
+                                            <div className="prof-card card-lime" style={{ textAlign: 'center' }}>
+                                                <div className="kpi-lbl" style={{ color: '#3f6212' }}>Process Rejection</div>
+                                                <div className="kpi-val" style={{ color: '#365314' }}>{formatDecimal(s.processRejectionPercentage || 4.2)}%</div>
+                                                <div className="prof-prog"><div className="prof-prog-f" style={{ width: '42%', background: '#84cc16' }}></div></div>
+                                            </div>
+                                            <div className="prof-card card-ruby" style={{ textAlign: 'center' }}>
+                                                <div className="kpi-lbl" style={{ color: '#991b1b' }}>Final Rejection</div>
+                                                <div className="kpi-val" style={{ color: '#7f1d1d' }}>{formatDecimal(s.finalRejectionPercentage || 1.8)}%</div>
+                                                <div className="prof-prog"><div className="prof-prog-f" style={{ width: '18%', background: '#e11d48' }}></div></div>
+                                            </div>
+                                            <div className="prof-card card-gold" style={{ textAlign: 'center' }}>
+                                                <div className="kpi-lbl" style={{ color: '#854d0e' }}>RM Rejection</div>
+                                                <div className="kpi-val" style={{ color: '#713f12' }}>{formatDecimal(s.rmRejectionPercentage || 3.2)}%</div>
+                                                <div className="prof-prog"><div className="prof-prog-f" style={{ width: '32%', background: '#eab308' }}></div></div>
                                             </div>
                                         </div>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* ── Inspection Charts Row ── */}
-                        <div className="isc-charts-row animated-up delay-1">
-
-                            {/* ── Inspection Calls Status ── */}
-                            <div className="isc-chart-card">
-                                <h3 className="isc-chart-title">Inspection Calls Status</h3>
-                                <p className="isc-chart-subtitle">
-                                    Total Calls: {((displayInspectionCallsData[0]?.under || 0) + (displayInspectionCallsData[0]?.pending || 0)).toLocaleString()}
-                                </p>
-                                <div className="isc-chart-area">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart
-                                            data={displayInspectionCallsData}
-                                            margin={{ top: 10, right: 16, left: -10, bottom: 0 }}
-                                            barCategoryGap="30%"
-                                            barGap={2}
-                                        >
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                            <XAxis
-                                                dataKey="name"
-                                                axisLine={false}
-                                                tickLine={false}
-                                                tick={{ fill: '#64748b', fontSize: 12, fontWeight: 600 }}
-                                            />
-                                            <YAxis
-                                                axisLine={false}
-                                                tickLine={false}
-                                                tick={{ fill: '#94a3b8', fontSize: 11 }}
-                                                width={30}
-                                            />
-                                            <Tooltip content={<CallsTooltip />} cursor={{ fill: 'rgba(241,245,249,0.7)' }} />
-                                            <Bar dataKey="under" name="Under Inspection" stackId="s" fill="#f59e0b" radius={[0, 0, 0, 0]} />
-                                            <Bar dataKey="pending" name="Pending" stackId="s" fill="#ef4444" radius={[6, 6, 0, 0]} />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
-                                <div className="isc-legend-row">
-                                    <div className="isc-legend-item">
-                                        <span className="isc-dot isc-dot--amber"></span> Under Inspection
-                                    </div>
-                                    <div className="isc-legend-item">
-                                        <span className="isc-dot isc-dot--red"></span> Pending
                                     </div>
                                 </div>
-                            </div>
+                            );
 
-                            {/* ── Inspection Details ── */}
-                            <div className="isc-chart-card">
-                                <h3 className="isc-chart-title">Inspection Details</h3>
-                                <p className="isc-chart-subtitle">
-                                    Total Inspections: {Math.round((displayInspectionDetailsData[0]?.accepted || 0) + (displayInspectionDetailsData[0]?.rejected || 0)).toLocaleString()}
-                                </p>
-                                <div className="isc-chart-area">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart
-                                            data={displayInspectionDetailsData}
-                                            margin={{ top: 10, right: 16, left: -10, bottom: 0 }}
-                                            barCategoryGap="30%"
-                                            barGap={2}
-                                        >
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                            <XAxis
-                                                dataKey="name"
-                                                axisLine={false}
-                                                tickLine={false}
-                                                tick={{ fill: '#64748b', fontSize: 12, fontWeight: 600 }}
-                                            />
-                                            <YAxis
-                                                axisLine={false}
-                                                tickLine={false}
-                                                tick={{ fill: '#94a3b8', fontSize: 11 }}
-                                                width={45}
-                                                tickFormatter={(v) => v >= 1000000 ? `${(v / 1000000).toFixed(1)}M` : v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}
-                                            />
-                                            <Tooltip content={<DetailsTooltip />} cursor={{ fill: 'rgba(241,245,249,0.7)' }} />
-                                            <Bar dataKey="accepted" name="Accepted" stackId="s" fill="#22c55e" radius={[0, 0, 0, 0]} />
-                                            <Bar dataKey="rejected" name="Rejected" stackId="s" fill="#ef4444" radius={[6, 6, 0, 0]} />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
-                                <div className="isc-legend-row">
-                                    <div className="isc-legend-item">
-                                        <span className="isc-dot" style={{ backgroundColor: '#22c55e' }}></span> Accepted
+                        case 'quality':
+                            return (
+                                <div className="quality-tab-content fade-in">
+                                    <div className="sec-title" style={{ fontSize: '14px', marginBottom: '10px' }}>Railway Quality Surveillance · ERC Defect Analysis</div>
+
+                                    {/* KPI Row exactly from Index 5, adjusted to hide Total Defects */}
+                                    <div className="g3 mb">
+                                        <div className="prof-card card-red" style={{ textAlign: 'center' }}>
+                                            <div className="kpi-lbl" style={{ color: '#991b1b' }}>Overall Rejection %</div>
+                                            <div className="kpi-val" style={{ color: '#7f1d1d' }}>{formatDecimal(summaryData?.totalRejectionPercent || 1.34)}%</div>
+                                        </div>
+                                        <div className="prof-card card-mint" style={{ textAlign: 'center' }}>
+                                            <div className="kpi-lbl" style={{ color: '#166534' }}>Top Defect</div>
+                                            <div style={{ fontSize: '13px', fontWeight: '700', color: '#166534', marginTop: '5px' }}>{paretoAnalysisData?.[0]?.name || 'Turning Length'}</div>
+                                        </div>
+                                        <div className="prof-card card-amber" style={{ textAlign: 'center' }}>
+                                            <div className="kpi-lbl" style={{ color: '#92400e' }}>Worst Plant</div>
+                                            <div style={{ fontSize: '12px', fontWeight: '700', color: '#78350f', marginTop: '5px' }}>{processPerformanceData?.worstPerforming?.length > 0 ? processPerformanceData.worstPerforming[0]?.name : manufacturerRejectionData?.length > 0 ? [...manufacturerRejectionData].sort((a, b) => b.value - a.value)[0]?.name : 'Adinath Industries'}</div>
+                                        </div>
                                     </div>
-                                    <div className="isc-legend-item">
-                                        <span className="isc-dot isc-dot--red"></span> Rejected
-                                    </div>
-                                </div>
-                            </div>
 
-                        </div>
-
-                        <div className="production-grid animated-up delay-3">
-                            <h3>Production & Rejection</h3>
-                            <div className="production-metrics">
-                                {currentSummary.production.map((p, idx) => (
-                                    <div key={idx} className="prod-metric-card">
-                                        <span className="prod-label">{p.label}</span>
-                                        <div className={`prod-value text-${p.color}`}>{p.value}</div>
-                                        {p.unit && <span className="prod-unit">{p.unit}</span>}
-                                        {p.progress && (
-                                            <div className="progress-bar-small">
-                                                <div className={`progress-fill bg-${p.color}`} style={{ width: `${p.progress}%` }}></div>
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                );
-            case 'quality':
-                return (
-                    <div className="quality-tab-content fade-in">
-                        <div className="quality-header-main text-center">
-                            {/* <h1 className="quality-title-lg">Railway Quality Surveillance</h1>
-                            <p className="quality-subtitle-lg">ERC Defect Analysis & Rejection Monitoring</p> */}
-                        </div>
-
-                        {/* Top Summary Cards - Enhanced Layout */}
-                        <div className="quality-summary-grid">
-                            {QUALITY_DATA.summary.map((item, idx) => {
-                                // Dynamically override values from live data
-                                let displayValue = item.value;
-
-                                // 1. Overall Rejection % logic
-                                if (item.id === 'q-process-rej' && summaryData && !Array.isArray(summaryData)) {
-                                    displayValue = `${formatDecimal(summaryData.processRejectionPercentage || 0)}%`;
-                                }
-
-                                // 2. Top Defect from Pareto Analysis logic
-                                if (item.id === 'q-top-defect') {
-                                    const pData = (paretoAnalysisData && paretoAnalysisData.length > 0)
-                                        ? paretoAnalysisData
-                                        : QUALITY_DATA.pareto;
-
-                                    if (pData && pData.length > 0) {
-                                        // Find the item with the highest value (usually the first in a Pareto list)
-                                        const topItem = [...pData].sort((a, b) => (b.value || b.count || 0) - (a.value || a.count || 0))[0];
-                                        displayValue = topItem.name || topItem.label || item.value;
-                                    }
-                                }
-
-                                // 3. Worst Performing Plant from Performance Matrix logic
-                                if (item.id === 'q-worst-plant') {
-                                    if (processPerformanceData && processPerformanceData.worstPerforming && processPerformanceData.worstPerforming.length > 0) {
-                                        // Take the first one from the worst list
-                                        const worstPlant = processPerformanceData.worstPerforming[0];
-                                        displayValue = worstPlant.companyName || worstPlant.vendorName || worstPlant.name || item.value;
-                                    }
-                                }
-
-                                return (
-                                    <div key={idx} className={`quality-summary-card card-glow-${item.color}`}>
-                                        <div className="q-card-inner">
-                                            <div className="q-info-side">
-                                                <span className="q-label">{item.label}</span>
-                                                <h2 className={`q-value color-${item.color}`}>{displayValue}</h2>
-                                            </div>
-                                            <div className="q-icon-side">
-                                                <span className="q-icon-pill">{item.icon}</span>
+                                    {/* Analysis Grid (3x2) exactly from Index 5 */}
+                                    <div className="g2 mb">
+                                        <div className="prof-card">
+                                            <div className="sec-title">Defect Distribution</div>
+                                            <div className="chart-wrap" style={{ height: '210px' }}>
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <PieChart>
+                                                        <Pie
+                                                            data={stepWiseRejectionData?.length ? stepWiseRejectionData : [
+                                                                { name: 'Shearing', value: 12, color: '#3b82f6' },
+                                                                { name: 'Turning', value: 22, color: '#f59e0b' },
+                                                                { name: 'MPI', value: 10, color: '#8b5cf6' },
+                                                                { name: 'Forging', value: 18, color: '#ef4444' },
+                                                                { name: 'Quenching', value: 14, color: '#10b981' },
+                                                                { name: 'Tempering', value: 9, color: '#06b6d4' }
+                                                            ]}
+                                                            innerRadius={60}
+                                                            outerRadius={90}
+                                                            paddingAngle={3}
+                                                            dataKey="value"
+                                                        >
+                                                            {(stepWiseRejectionData?.length ? stepWiseRejectionData : [
+                                                                { color: '#3b82f6' }, { color: '#f59e0b' },
+                                                                { color: '#8b5cf6' }, { color: '#ef4444' },
+                                                                { color: '#10b981' }, { color: '#06b6d4' }
+                                                            ]).map((entry, i) => (
+                                                                <Cell key={`cell-${i}`} fill={entry.color} />
+                                                            ))}
+                                                        </Pie>
+                                                        <Tooltip formatter={(v) => `${v}%`} />
+                                                        <Legend
+                                                            layout="vertical"
+                                                            align="right"
+                                                            verticalAlign="middle"
+                                                            iconType="circle"
+                                                            formatter={(value, entry) => (
+                                                                <span style={{
+                                                                    color: entry.color,
+                                                                    fontWeight: '700',
+                                                                    display: 'inline-flex',
+                                                                    justifyContent: 'space-between',
+                                                                    width: '160px',
+                                                                    verticalAlign: 'middle'
+                                                                }}>
+                                                                    <span>{value}</span>
+                                                                    <span>{entry.payload.value}%</span>
+                                                                </span>
+                                                            )}
+                                                            wrapperStyle={{
+                                                                fontSize: '13px',
+                                                                paddingLeft: '20px',
+                                                                lineHeight: '28px'
+                                                            }}
+                                                        />
+                                                    </PieChart>
+                                                </ResponsiveContainer>
                                             </div>
                                         </div>
-                                        <div className="q-status-bar" />
+                                        <div className="prof-card">
+                                            <div className="sec-title">Pareto Analysis</div>
+                                            <div className="chart-wrap" style={{ height: '230px' }}>
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <ComposedChart data={paretoAnalysisData?.map(d => ({ ...d, count: d.count || d.value || 0 }))}>
+                                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                                        <XAxis
+                                                            dataKey="name"
+                                                            axisLine={false}
+                                                            tickLine={false}
+                                                            interval={0}
+                                                            height={85}
+                                                            tick={<ParetoXAxisTick />}
+                                                        />
+                                                        <YAxis yAxisId="left" axisLine={false} tickLine={false} style={{ fontSize: '9px' }} />
+                                                        <YAxis
+                                                            yAxisId="right"
+                                                            orientation="right"
+                                                            axisLine={false}
+                                                            tickLine={false}
+                                                            unit="%"
+                                                            style={{ fontSize: '9px' }}
+                                                            domain={[0, 100]}
+                                                        />
+                                                        <Tooltip />
+                                                        <Bar yAxisId="left" dataKey="count" fill="#16a34a" radius={[2, 2, 0, 0]} barSize={20} />
+                                                        <Line
+                                                            yAxisId="right"
+                                                            type="monotone"
+                                                            dataKey="cumulative"
+                                                            stroke="#ef4444"
+                                                            strokeWidth={2}
+                                                            dot={{ r: 4, fill: '#ef4444', strokeWidth: 1, stroke: '#fff' }}
+                                                            activeDot={{ r: 6 }}
+                                                        />
+                                                    </ComposedChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                        </div>
+                                        <div className="prof-card">
+                                            <div className="sec-title">Stage-wise Rejection %</div>
+                                            <div className="chart-wrap" style={{ height: '170px' }}>
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <BarChart data={qualityRejectionData?.length ? qualityRejectionData : [{ name: 'Raw Material', value: 0.8 }, { name: 'Process', value: 1.6 }, { name: 'Final', value: 0.9 }]}>
+                                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0fdf4" />
+                                                        <XAxis dataKey="name" axisLine={false} tickLine={false} style={{ fontSize: '10px' }} />
+                                                        <YAxis axisLine={false} tickLine={false} unit="%" style={{ fontSize: '10px' }} />
+                                                        <Tooltip />
+                                                        <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={40}>
+                                                            {qualityRejectionData?.map((entry, index) => (
+                                                                <Cell key={`cell-${index}`} fill={index === 0 ? '#22c55e' : index === 1 ? '#f59e0b' : '#ef4444'} />
+                                                            )) || [<Cell fill="#22c55e" />, <Cell fill="#f59e0b" />, <Cell fill="#ef4444" />]}
+                                                        </Bar>
+                                                    </BarChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                        </div>
+                                        <div className="prof-card">
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                                                <div className="sec-title" style={{ marginBottom: 0 }}>Rejection % by RM Manufacturer</div>
+                                            </div>
+                                            <div className="chart-wrap" style={{ height: '170px' }}>
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <BarChart data={manufacturerRejectionData?.length ? [...manufacturerRejectionData].sort((a, b) => b.value - a.value).slice(0, 5) : [
+                                                        { name: 'JSPL', value: 0.9 },
+                                                        { name: 'RINL', value: 1.2 },
+                                                        { name: 'Neco Jaiswal', value: 1.8 },
+                                                        { name: 'Bhushan', value: 1.1 },
+                                                        { name: 'Surya', value: 0.7 }
+                                                    ]}>
+                                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                                        <XAxis
+                                                            dataKey="name"
+                                                            axisLine={false}
+                                                            tickLine={false}
+                                                            style={{ fontSize: '9px', fontWeight: '500' }}
+                                                            tickFormatter={(name) => name.length > 12 ? name.substring(0, 10) + '...' : name}
+                                                        />
+                                                        <YAxis axisLine={false} tickLine={false} unit="%" style={{ fontSize: '9px' }} />
+                                                        <Tooltip formatter={(v) => `${v}%`} />
+                                                        <Bar dataKey="value" fill="#166534" radius={[4, 4, 0, 0]} barSize={24}>
+                                                            <LabelList dataKey="value" position="top" formatter={(v) => `${formatDecimal(v)}%`} style={{ fontSize: '9px', fill: '#166534', fontWeight: 'bold' }} />
+                                                        </Bar>
+                                                    </BarChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                        </div>
+                                        <div className="prof-card">
+                                            <div className="sec-title">Monthly Rejection Trend</div>
+                                            <div className="chart-wrap" style={{ height: '170px' }}>
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <AreaChart data={monthlyRejectionTrendData?.length ? monthlyRejectionTrendData : [
+                                                        { name: 'Apr', value: 1.4 }, { name: 'May', value: 1.2 },
+                                                        { name: 'Jun', value: 1.6 }, { name: 'Jul', value: 1.3 },
+                                                        { name: 'Aug', value: 1.1 }, { name: 'Sep', value: 0.9 }
+                                                    ]}>
+                                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0fdf4" />
+                                                        <XAxis dataKey="name" axisLine={false} tickLine={false} style={{ fontSize: '10px' }} />
+                                                        <YAxis axisLine={false} tickLine={false} style={{ fontSize: '10px' }} />
+                                                        <Tooltip />
+                                                        <Area type="monotone" dataKey="value" stroke="#16a34a" fill="rgba(22,163,74,0.1)" strokeWidth={3} dot={{ r: 4, fill: '#16a34a' }} />
+                                                    </AreaChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                        </div>
+                                        <div className="prof-card">
+                                            <div className="sec-title">Stage vs Defect Contribution</div>
+                                            <div className="chart-wrap" style={{ height: '170px' }}>
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <BarChart data={stageVsDefectTop3} margin={{ bottom: 5 }}>
+                                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0fdf4" />
+                                                        <XAxis dataKey="name" axisLine={false} tickLine={false} style={{ fontSize: '10px' }} />
+                                                        <YAxis axisLine={false} tickLine={false} style={{ fontSize: '10px' }} />
+                                                        <Tooltip />
+                                                        <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
+                                                        {top3DefectNames.map((name, i) => (
+                                                            <Bar
+                                                                key={name}
+                                                                dataKey={name}
+                                                                fill={i === 0 ? '#3b82f6' : i === 1 ? '#f59e0b' : '#ef4444'}
+                                                                radius={[4, 4, 0, 0]}
+                                                                barSize={20}
+                                                            />
+                                                        ))}
+                                                    </BarChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                        </div>
                                     </div>
-                                );
-                            })}
-                        </div>
 
-                        {/* First Row of Charts - Interchanged Position and Size */}
-                        <div className="quality-charts-row">
-                            <div className="q-chart-card wide-60">
-                                <h3>Pareto Analysis</h3>
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <ComposedChart
-                                        data={
-                                            paretoAnalysisData && paretoAnalysisData.length > 0
-                                                ? paretoAnalysisData.map(d => ({ name: d.name, count: d.value, color: d.color, cumulative: d.cumulative }))
-                                                : QUALITY_DATA.pareto
-                                        }
-                                        margin={{ top: 10, right: 30, left: 0, bottom: 50 }}
-                                    >
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                        <XAxis
-                                            dataKey="name"
-                                            axisLine={false}
-                                            tickLine={false}
-                                            tick={<ParetoXAxisTick />}
-                                            interval={0}
-                                            height={80}
-                                        />
-                                        <YAxis yAxisId="left" axisLine={false} tickLine={false} />
-                                        <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tickFormatter={(val) => `${val}%`} domain={[0, 100]} />
-                                        <Tooltip
-                                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                                            formatter={(value, name) => name === 'cumulative' ? [`${value}%`, 'Cumulative %'] : [value, 'Rejections']}
-                                        />
-                                        <Bar yAxisId="left" dataKey="count" barSize={30} radius={[4, 4, 0, 0]}>
-                                            {(paretoAnalysisData && paretoAnalysisData.length > 0
-                                                ? paretoAnalysisData
-                                                : QUALITY_DATA.pareto
-                                            ).map((entry, index) => (
-                                                <Cell key={`pareto-cell-${index}`} fill={entry.color || '#2563eb'} />
-                                            ))}
-                                        </Bar>
-                                        <Line yAxisId="right" type="monotone" dataKey="cumulative" stroke="#ef4444" strokeWidth={2} dot={{ r: 4, fill: '#ef4444' }} />
-                                    </ComposedChart>
-                                </ResponsiveContainer>
-                            </div>
-
-                            <div className="q-chart-card wide-40">
-                                <h3>Stage-wise Rejection %</h3>
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <BarChart data={qualityRejectionData && qualityRejectionData.length > 0 ? qualityRejectionData : QUALITY_DATA.stageRejection}>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                        <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                                        <YAxis tickFormatter={(val) => `${val}%`} axisLine={false} tickLine={false} />
-                                        <Tooltip cursor={{ fill: '#f8fafc' }} />
-                                        <Bar dataKey="value" barSize={50} radius={[6, 6, 0, 0]}>
-                                            {(qualityRejectionData && qualityRejectionData.length > 0 ? qualityRejectionData : QUALITY_DATA.stageRejection).map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={entry.color} />
-                                            ))}
-                                        </Bar>
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </div>
-
-                        {/* Second Row of Charts */}
-                        <div className="quality-charts-row mt-6">
-                            <div className="q-chart-card wide-50">
-                                <h3 className="text-center">Manufacturing Step Wise Rejection %</h3>
-                                <ResponsiveContainer width="100%" height={350}>
-                                    <PieChart>
-                                        <Pie
-                                            data={stepWiseRejectionData && stepWiseRejectionData.length > 0 ? stepWiseRejectionData : QUALITY_DATA.defectDistribution}
-                                            innerRadius={80}
-                                            outerRadius={110}
-                                            paddingAngle={5}
-                                            dataKey="value"
-                                            stroke="none"
-                                        >
-                                            {(stepWiseRejectionData && stepWiseRejectionData.length > 0 ? stepWiseRejectionData : QUALITY_DATA.defectDistribution).map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={entry.color} />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip />
-                                        <Legend verticalAlign="bottom" height={36} />
-                                    </PieChart>
-                                </ResponsiveContainer>
-                            </div>
-
-                            <div className="q-chart-card wide-50">
-                                <h3>Rejection % by Raw Material Manufacturer</h3>
-                                <ResponsiveContainer width="100%" height={350}>
-                                    <BarChart data={manufacturerRejectionData && manufacturerRejectionData.length > 0 ? manufacturerRejectionData : QUALITY_DATA.rmManufacturerRejection}>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                        <XAxis
-                                            dataKey="name"
-                                            axisLine={false}
-                                            tickLine={false}
-                                            tick={<ParetoXAxisTick />}
-                                            interval={0}
-                                            height={70}
-                                        />
-                                        <YAxis tickFormatter={(val) => `${val}%`} axisLine={false} tickLine={false} />
-                                        <Tooltip
-                                            cursor={{ fill: '#f8fafc' }}
-                                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                                            formatter={(value) => [`${value}%`, "Rejection %"]}
-                                        />
-                                        <Bar dataKey="value" barSize={40} radius={[4, 4, 0, 0]}>
-                                            {(manufacturerRejectionData && manufacturerRejectionData.length > 0 ? manufacturerRejectionData : QUALITY_DATA.rmManufacturerRejection).map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={entry.color} />
-                                            ))}
-                                        </Bar>
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </div>
-
-                        {/* Third Row of Charts */}
-                        <div className="quality-charts-row mt-6">
-                            <div className="q-chart-card wide-50">
-                                <h3>Monthly Rejection Trend</h3>
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <LineChart data={monthlyRejectionTrendData && monthlyRejectionTrendData.length > 0 ? monthlyRejectionTrendData : QUALITY_DATA.monthlyTrend}>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                        <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                                        <YAxis axisLine={false} tickLine={false} tickFormatter={(val) => `${val}%`} />
-                                        <Tooltip
-                                            formatter={(value) => [`${value}%`, "Rejection %"]}
-                                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                                        />
-                                        <Line type="monotone" dataKey="value" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 6, fill: '#fff', stroke: '#8b5cf6', strokeWidth: 2 }} />
-                                    </LineChart>
-                                </ResponsiveContainer>
-                            </div>
-
-                            <div className="q-chart-card wide-50">
-                                <h3>Stage vs Defect Contribution</h3>
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <BarChart data={stageVsDefectTop3}>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                        <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                                        <YAxis axisLine={false} tickLine={false} />
-                                        <Tooltip />
-                                        <Legend />
-                                        {top3DefectNames.map((name, idx) => (
-                                            <Bar
-                                                key={name}
-                                                dataKey={name}
-                                                fill={['#3b82f6', '#f59e0b', '#ef4444'][idx % 3]}
-                                                radius={[4, 4, 0, 0]}
-                                            />
-                                        ))}
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </div>
-
-                        {/* Top & Worst Performing Companies Charts */}
-                        <div className="quality-charts-row mt-6">
-                            <div className="q-chart-card wide-50">
-                                <h3>Top 5 Performing Companies (Process Rejection %)</h3>
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <BarChart
-                                        data={processPerformanceData?.topPerforming?.length > 0 ? processPerformanceData.topPerforming : QUALITY_DATA.topPerformingCompanies}
-                                        layout="vertical"
-                                        margin={{ left: 20, right: 30, top: 10, bottom: 10 }}
-                                    >
-                                        <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
-                                        <XAxis type="number" hide />
-                                        <YAxis
-                                            dataKey="name"
-                                            type="category"
-                                            axisLine={false}
-                                            tickLine={false}
-                                            width={100}
-                                            fontSize={10}
-                                            tickFormatter={(name) => name.length > 15 ? `${name.substring(0, 13)}...` : name}
-                                        />
-                                        <Tooltip
-                                            formatter={(value) => `${value}%`}
-                                            cursor={{ fill: '#f8fafc' }}
-                                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                                        />
-                                        <Bar dataKey="value" barSize={20} radius={[0, 4, 4, 0]}>
-                                            {(processPerformanceData?.topPerforming?.length > 0 ? processPerformanceData.topPerforming : QUALITY_DATA.topPerformingCompanies).map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={entry.color} />
-                                            ))}
-                                        </Bar>
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </div>
-
-                            <div className="q-chart-card wide-50">
-                                <h3>Worst 5 Performing Companies (Process Rejection %)</h3>
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <BarChart
-                                        data={processPerformanceData?.worstPerforming?.length > 0 ? processPerformanceData.worstPerforming : QUALITY_DATA.worstPerformingCompanies}
-                                        layout="vertical"
-                                        margin={{ left: 20, right: 30, top: 10, bottom: 10 }}
-                                    >
-                                        <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
-                                        <XAxis type="number" hide />
-                                        <YAxis
-                                            dataKey="name"
-                                            type="category"
-                                            axisLine={false}
-                                            tickLine={false}
-                                            width={100}
-                                            fontSize={10}
-                                            tickFormatter={(name) => name.length > 15 ? `${name.substring(0, 13)}...` : name}
-                                        />
-                                        <Tooltip
-                                            formatter={(value) => `${value}%`}
-                                            cursor={{ fill: '#f8fafc' }}
-                                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                                        />
-                                        <Bar dataKey="value" barSize={20} radius={[0, 4, 4, 0]}>
-                                            {(processPerformanceData?.worstPerforming?.length > 0 ? processPerformanceData.worstPerforming : QUALITY_DATA.worstPerformingCompanies).map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={entry.color} />
-                                            ))}
-                                        </Bar>
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </div>
-                    </div>
-                );
-
-            case 'lifecycle':
-                return (
-                    <div className="lifecycle-content fade-in">
-                        {/* <div className="lifecycle-kpi-wrapper">
-                            {kpiGrid}
-                        </div> */}
-                        <div className="integrated-table-container">
-                            {poTable}
-                        </div>
-                    </div>
-                );
-            case 'performance':
-                // Client-side filtering logic
-                const uniqueIes = [...new Set(perfData.map(d => d.username))].filter(Boolean).sort();
-                const uniqueStages = [...new Set(perfData.map(d => d.stage))].filter(Boolean).sort();
-
-                const filteredPerfRecords = perfData.filter(d => {
-                    const matchIe = perfFilterIe === 'all' || d.username === perfFilterIe;
-                    const matchStage = perfFilterStage === 'all' || d.stage === perfFilterStage;
-                    return matchIe && matchStage;
-                });
-
-                return (
-                    <div className="performance-tab-content fade-in">
-                        {/* Summary Cards (Note: These now reflect filtered data if filters are active) */}
-                        {/* 
-                        <div className="perf-summary-grid">
-                            {[
-                                {
-                                    label: 'TOTAL INSPECTED',
-                                    value: filteredPerfRecords.reduce((acc, curr) => acc + (curr.inspectedQty || 0), 0).toLocaleString(),
-                                    color: 'blue'
-                                },
-                                {
-                                    label: 'ACCEPTED',
-                                    value: filteredPerfRecords.reduce((acc, curr) => acc + (curr.acceptedQty || 0), 0).toLocaleString(),
-                                    color: 'emerald'
-                                },
-                                {
-                                    label: 'REJECTED',
-                                    value: filteredPerfRecords.reduce((acc, curr) => acc + (curr.rejectedQty || 0), 0).toLocaleString(),
-                                    color: 'red'
-                                },
-                                {
-                                    label: 'AVG REJECTION %',
-                                    value: (() => {
-                                        const totalInspected = filteredPerfRecords.reduce((acc, curr) => acc + (curr.inspectedQty || 0), 0);
-                                        const totalRejected = filteredPerfRecords.reduce((acc, curr) => acc + (curr.rejectedQty || 0), 0);
-                                        return totalInspected > 0 ? ((totalRejected * 100) / totalInspected).toFixed(2) + '%' : '0.00%';
-                                    })(),
-                                    color: 'purple'
-                                }
-                            ].map((kpi, idx) => (
-                                <div key={idx} className={`perf-summary-card border-l-${kpi.color}`}>
-                                    <span className="card-label">{kpi.label}</span>
-                                    <h2 className="card-value">{kpi.value}</h2>
-                                </div>
-                            ))}
-                        </div>
-                        */}
-
-                        {/* Client-side Filters */}
-                        <div className="perf-filters-container animate-up">
-                            <div className="perf-filters-header">
-                                <div className="filter-icon-badge">
-                                    <span className="filter-icon">🔍</span>
-                                    <h3>Advanced Data Filters</h3>
-                                </div>
-                                <div className="filter-status">
-                                    {filteredPerfRecords.length !== perfData.length && (
-                                        <button
-                                            className="btn-clear-filters-new"
-                                            onClick={() => { setPerfFilterIe('all'); setPerfFilterStage('all'); }}
-                                        >
-                                            Reset Filters ↺
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="perf-filters-flex">
-                                <div className="filter-group-new">
-                                    <label className="filter-label-new">
-                                        <span className="label-icon">💼</span> Inspecting Engineer (IE)
-                                    </label>
-                                    <select
-                                        className="filter-select-modern"
-                                        value={perfFilterIe}
-                                        onChange={(e) => setPerfFilterIe(e.target.value)}
-                                    >
-                                        <option value="all">View All Engineers</option>
-                                        {uniqueIes.map(ie => <option key={ie} value={ie}>👤 {ie}</option>)}
-                                    </select>
-                                </div>
-
-                                <div className="filter-group-new">
-                                    <label className="filter-label-new">
-                                        <span className="label-icon">⛓️</span> Manufacturing Stage
-                                    </label>
-                                    <select
-                                        className="filter-select-modern"
-                                        value={perfFilterStage}
-                                        onChange={(e) => setPerfFilterStage(e.target.value)}
-                                    >
-                                        <option value="all">All Production Stages</option>
-                                        {uniqueStages.map(stage => <option key={stage} value={stage}>⚙️ {stage}</option>)}
-                                    </select>
-                                </div>
-
-
-                            </div>
-                        </div>
-
-                        {/* Record Table */}
-                        <div className="perf-table-outer">
-                            {perfLoading ? (
-                                <div className="loading-state p-12 text-center text-teal font-medium">
-                                    Loading Performance Data...
-                                </div>
-                            ) : (
-                                <>
-                                    <table className="perf-data-table-new">
-                                        <thead>
-                                            <tr>
-                                                <th className="sortable-header" onClick={() => handleSort('id')}># {sortConfig.key === 'id' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
-                                                <th className="sortable-header" onClick={() => handleSort('manufacturerName')}>MANUFACTURER {sortConfig.key === 'manufacturerName' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
-                                                <th className="sortable-header" onClick={() => handleSort('rio')}>RITES RIO {sortConfig.key === 'rio' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
-                                                <th className="sortable-header" onClick={() => handleSort('username')}>IE {sortConfig.key === 'username' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
-                                                <th className="sortable-header" onClick={() => handleSort('stage')}>STAGE {sortConfig.key === 'stage' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
-                                                <th className="text-right sortable-header" onClick={() => handleSort('inspectedQty')}>INSPECTED {sortConfig.key === 'inspectedQty' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
-                                                <th className="text-right sortable-header" onClick={() => handleSort('acceptedQty')}>ACCEPTED {sortConfig.key === 'acceptedQty' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
-                                                <th className="text-right sortable-header" onClick={() => handleSort('rejectedQty')}>REJECTED {sortConfig.key === 'rejectedQty' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
-                                                <th className="text-right sortable-header" onClick={() => handleSort('rejectionPercentage')}>REJECTION % {sortConfig.key === 'rejectionPercentage' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
-                                                {/* <th>REASON</th> */}
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {getSortedData(filteredPerfRecords).map((record, idx) => {
-                                                const rowClass = (idx % 2 === 0) ? 'row-odd' : 'row-even';
-                                                return (
-                                                    <tr key={idx} className={rowClass}>
-                                                        <td className="row-id">{(perfPage * perfRowsPerPage) + idx + 1}</td>
-                                                        <td className="vendor-name">{record.manufacturerName}</td>
-                                                        <td>
-                                                            <span className="rio-tag">{record.rio}</span>
-                                                        </td>
-                                                        <td>
-                                                            <span className="ie-tag">👤 {record.username}</span>
-                                                        </td>
-                                                        <td>
-                                                            <span className={`stage-tag stage-${record.stage?.toLowerCase().replace(' ', '-') || 'unknown'}`}>
-                                                                {record.stage}
-                                                            </span>
-                                                        </td>
-                                                        <td className="text-right font-bold">{record.inspectedQty?.toLocaleString()}</td>
-                                                        <td className="text-right font-bold text-emerald">{record.acceptedQty?.toLocaleString()}</td>
-                                                        <td className="text-right font-bold text-red">{record.rejectedQty?.toLocaleString()}</td>
-                                                        <td className="text-right">
-                                                            <span className="rejection-badge">{formatDecimal(record.rejectionPercentage)}%</span>
-                                                        </td>
-                                                        {/* <td className="reason-cell">N/A</td> */}
-                                                    </tr>
-                                                );
-                                            })}
-                                            {filteredPerfRecords.length === 0 && (
-                                                <tr>
-                                                    <td colSpan="9" className="text-center p-8 text-slate-400">
-                                                        No performance records found for the selected IE/Stage filters.
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-
-                                    {/* API Integrated Pagination */}
-                                    <div className="mt-4">
-                                        <Pagination
-                                            currentPage={perfPage}
-                                            totalPages={perfPagination.totalPages}
-                                            start={perfPage * perfRowsPerPage}
-                                            end={Math.min((perfPage + 1) * perfRowsPerPage, perfPagination.totalElements)}
-                                            totalCount={perfPagination.totalElements}
-                                            onPageChange={setPerfPage}
-                                            rows={perfRowsPerPage}
-                                            onRowsChange={setPerfRowsPerPage}
-                                            theme="orange"
-                                        />
+                                    {/* Benchmark Row: Top vs Worst Performers using processPerformance API */}
+                                    <div className="g2">
+                                        <div className="prof-card">
+                                            <div className="sec-title" style={{ fontSize: '11px', color: '#166534' }}>Top 5 Performing Companies (Process Rejection %)</div>
+                                            <div className="chart-wrap" style={{ height: '220px' }}>
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <BarChart
+                                                        data={processPerformanceData?.topPerforming?.length > 0
+                                                            ? processPerformanceData.topPerforming.slice(0, 5)
+                                                            : [
+                                                                { name: 'JSPL', value: 0.15 }, { name: 'Surya Steel', value: 0.22 },
+                                                                { name: 'RINL', value: 0.28 }, { name: 'Bhushan Steel', value: 0.32 },
+                                                                { name: 'Surya', value: 0.45 }
+                                                            ]
+                                                        }
+                                                        layout="vertical"
+                                                        margin={{ left: 5, right: 45, top: 10, bottom: 10 }}
+                                                    >
+                                                        <XAxis type="number" hide />
+                                                        <YAxis
+                                                            dataKey="name"
+                                                            type="category"
+                                                            axisLine={false}
+                                                            tickLine={false}
+                                                            style={{ fontSize: '9px', fontWeight: '600', fill: '#475569' }}
+                                                            width={90}
+                                                            tickFormatter={(name) => name.length > 15 ? name.substring(0, 12) + '...' : name}
+                                                        />
+                                                        <Tooltip formatter={(v) => `${v}%`} />
+                                                        <Bar dataKey="value" fill="#10b981" barSize={16} radius={[0, 4, 4, 0]}>
+                                                            <LabelList dataKey="value" position="right" formatter={(v) => `${formatDecimal(v)}%`} style={{ fontSize: '10px', fontWeight: '700', fill: '#059669' }} />
+                                                        </Bar>
+                                                    </BarChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                        </div>
+                                        <div className="prof-card">
+                                            <div className="sec-title" style={{ fontSize: '11px', color: '#991b1b' }}>Worst 5 Performing Companies (Process Rejection %)</div>
+                                            <div className="chart-wrap" style={{ height: '220px' }}>
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <BarChart
+                                                        data={processPerformanceData?.worstPerforming?.length > 0
+                                                            ? processPerformanceData.worstPerforming.slice(0, 5)
+                                                            : [
+                                                                { name: 'Adinath Ind.', value: 1.85 }, { name: 'Nova Jaiswal', value: 1.62 },
+                                                                { name: 'Prakash Met.', value: 1.45 }, { name: 'Kalimata Ind.', value: 1.32 },
+                                                                { name: 'Royal Comp.', value: 1.15 }
+                                                            ]
+                                                        }
+                                                        layout="vertical"
+                                                        margin={{ left: 5, right: 45, top: 10, bottom: 10 }}
+                                                    >
+                                                        <XAxis type="number" hide />
+                                                        <YAxis
+                                                            dataKey="name"
+                                                            type="category"
+                                                            axisLine={false}
+                                                            tickLine={false}
+                                                            style={{ fontSize: '9px', fontWeight: '600', fill: '#475569' }}
+                                                            width={90}
+                                                            tickFormatter={(name) => name.length > 15 ? name.substring(0, 12) + '...' : name}
+                                                        />
+                                                        <Tooltip formatter={(v) => `${v}%`} />
+                                                        <Bar dataKey="value" fill="#ef4444" barSize={16} radius={[0, 4, 4, 0]}>
+                                                            <LabelList dataKey="value" position="right" formatter={(v) => `${formatDecimal(v)}%`} style={{ fontSize: '10px', fontWeight: '700', fill: '#dc2626' }} />
+                                                        </Bar>
+                                                    </BarChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                        </div>
                                     </div>
-                                </>
-                            )}
-
-                            <div className="perf-table-footer">
-                                <div className="footer-stats">
-                                    Showing <strong>{perfData.length}</strong> of <strong>{perfPagination.totalElements}</strong> records
                                 </div>
-                                <div className="footer-timestamp">Last updated: {new Date().toLocaleDateString()}</div>
-                            </div>
-                        </div>
-                    </div>
-                );
+                            );
 
+                        case 'lifecycle':
+                            return (
+                                <div className="lifecycle-tab-content fade-in">
+                                    <div className="prof-card mb">
+                                        <div className="sec-title">Purchase Order Lifecycle Tracking</div>
 
-            case 'reports':
-                return (
-                    <div className="reports-tab-content fade-in">
-                        {/* Report Navigation Tabs */}
-                        <div className="reports-filter-pills">
-                            {REPORTS_DATA.tabs.map((tab) => {
-                                const icons = { mpr: '📋', mau: '📈', lwcl: '🔄', qmr: '🛡️' };
-                                return (
-                                    <button
-                                        key={tab.id}
-                                        className={`report-pill ${activeReport === tab.id ? 'active' : ''}`}
-                                        onClick={() => setActiveReport(tab.id)}
-                                    >
-                                        <span className="pill-icon">{icons[tab.id]}</span>
-                                        {tab.label}
-                                    </button>
-                                );
-                            })}
-                        </div>
+                                        {poTable}
+                                    </div>
+                                </div>
+                            );
 
-                        <div className="report-viewer-content">
-                            {activeReport === 'mpr' && (
-                                <div className="report-card animate-up">
-                                    <div className="report-card-header">
-                                        <h3>Monthly Progress Report</h3>
-                                        <div className="header-actions">
-                                            <div className="report-search-container">
-                                                <input
-                                                    type="text"
-                                                    className="report-search-input"
-                                                    placeholder="Search MPR..."
-                                                    value={mprSearch}
-                                                    onChange={(e) => setMprSearch(e.target.value)}
+                        case 'performance':
+                            return (
+                                <div className="performance-tab-content fade-in">
+                                    <div className="prof-card">
+                                        <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span>Performance Monitoring Matrix</span>
+                                            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                                <ExportButton
+                                                    onClick={() => downloadExcel(
+                                                        getSortedData(filteredPerfRecords),
+                                                        [
+                                                            { label: 'MANUFACTURER', key: 'manufacturerName' },
+                                                            { label: 'RIO', key: 'rio' },
+                                                            { label: 'IE', key: 'username' },
+                                                            { label: 'STAGE', key: 'stage' },
+                                                            { label: 'INSPECTED', key: 'inspectedQty' },
+                                                            { label: 'ACCEPTED', key: 'acceptedQty' },
+                                                            { label: 'REJECTED', key: 'rejectedQty' },
+                                                            { label: 'REJECTION %', key: 'rejectionPercentage' }
+                                                        ],
+                                                        'Performance_Monitoring_Matrix'
+                                                    )}
                                                 />
-                                                <span className="search-icon">🔍</span>
+                                                <select className="prof-select" value={perfFilterIe} onChange={(e) => setPerfFilterIe(e.target.value)}>
+                                                    <option value="all">All Engineers</option>
+                                                    {uniqueIes.map(ie => <option key={ie} value={ie}>{ie}</option>)}
+                                                </select>
+                                                <select className="prof-select" value={perfFilterStage} onChange={(e) => setPerfFilterStage(e.target.value)}>
+                                                    <option value="all">All Stages</option>
+                                                    {uniqueStages.map(s => <option key={s} value={s}>{s}</option>)}
+                                                </select>
                                             </div>
-                                            <button className="btn-icon" title="Download Excel">📥</button>
-                                            <button className="btn-icon" title="Print Report">⎙</button>
-                                            <button className="btn-icon" title="Share">🔗</button>
+                                        </div>
+                                        <div className="table-responsive">
+                                            <table className="prof-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th onClick={() => handleSort('id')}># {renderSortIcon('id', sortConfig)}</th>
+                                                        <th onClick={() => handleSort('manufacturerName')}>MANUFACTURER {renderSortIcon('manufacturerName', sortConfig)}</th>
+                                                        <th onClick={() => handleSort('rio')}>RIO {renderSortIcon('rio', sortConfig)}</th>
+                                                        <th onClick={() => handleSort('username')}>IE {renderSortIcon('username', sortConfig)}</th>
+                                                        <th onClick={() => handleSort('stage')}>STAGE {renderSortIcon('stage', sortConfig)}</th>
+                                                        <th className="text-right" onClick={() => handleSort('inspectedQty')} style={{ cursor: 'pointer' }}>INSPECTED {renderSortIcon('inspectedQty', sortConfig)}</th>
+                                                        <th className="text-right" onClick={() => handleSort('acceptedQty')} style={{ cursor: 'pointer' }}>ACCEPTED {renderSortIcon('acceptedQty', sortConfig)}</th>
+                                                        <th className="text-right" onClick={() => handleSort('rejectedQty')} style={{ cursor: 'pointer' }}>REJECTED {renderSortIcon('rejectedQty', sortConfig)}</th>
+                                                        <th className="text-right" onClick={() => handleSort('rejectionPercentage')} style={{ cursor: 'pointer' }}>REJ % {renderSortIcon('rejectionPercentage', sortConfig)}</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {getSortedData(filteredPerfRecords).map((record, idx) => (
+                                                        <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
+                                                            <td>{(perfPage * perfRowsPerPage) + idx + 1}</td>
+                                                            <td>{record.manufacturerName}</td>
+                                                            <td><span className="prof-badge" style={{ background: '#f0fdf4', color: '#166534' }}>{record.rio}</span></td>
+                                                            <td>👤 {record.username}</td>
+                                                            <td><span className="prof-badge" style={{ background: '#f0f9ff', color: '#075985' }}>{record.stage}</span></td>
+                                                            <td className="text-right">{record.inspectedQty?.toLocaleString()}</td>
+                                                            <td className="text-right" style={{ color: '#16a34a' }}>{record.acceptedQty?.toLocaleString()}</td>
+                                                            <td className="text-right" style={{ color: '#dc2626' }}>{record.rejectedQty?.toLocaleString()}</td>
+                                                            <td className="text-right"><span className="prof-badge" style={{ background: '#fff7ed', color: '#9a3412' }}>{formatDecimal(record.rejectionPercentage)}%</span></td>
+                                                        </tr>
+                                                    ))}
+                                                    {filteredPerfRecords.length === 0 && (
+                                                        <tr>
+                                                            <td colSpan="9" className="text-center p-8 text-slate-400">No records found.</td>
+                                                        </tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <div className="mt-4">
+                                            <Pagination
+                                                currentPage={perfPage} totalPages={perfPagination.totalPages}
+                                                start={perfPage * perfRowsPerPage} end={Math.min((perfPage + 1) * perfRowsPerPage, perfPagination.totalElements)}
+                                                totalCount={perfPagination.totalElements} onPageChange={setPerfPage}
+                                                rows={perfRowsPerPage} onRowsChange={setPerfRowsPerPage}
+                                            />
                                         </div>
                                     </div>
-                                    <div className="report-table-wrapper">
-                                        {mprLoading ? (
-                                            <div className="loading-state p-12 text-center text-teal font-medium">
-                                                Loading Monthly Progress Report...
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <table className="report-data-table">
-                                                    <thead>
-                                                        <tr>
-                                                            <th className="sortable-report-th" onClick={() => handleMprSort('rly')}>Rly <SortIcon field="rly" config={mprSort} /></th>
-                                                            <th className="sortable-report-th" onClick={() => handleMprSort('poNumber')}>PO Number <SortIcon field="poNumber" config={mprSort} /></th>
-                                                            <th className="sortable-report-th" onClick={() => handleMprSort('manufacturer')}>Manufacturer <SortIcon field="manufacturer" config={mprSort} /></th>
-                                                            <th className="text-right sortable-report-th" onClick={() => handleMprSort('poQty')}>PO Qty <SortIcon field="poQty" config={mprSort} /></th>
-                                                            <th className="text-right sortable-report-th" onClick={() => handleMprSort('monthlyRm')}>Monthly RM <SortIcon field="monthlyRm" config={mprSort} /></th>
-                                                            <th className="text-right sortable-report-th" onClick={() => handleMprSort('monthlyProcess')}>Monthly Process <SortIcon field="monthlyProcess" config={mprSort} /></th>
-                                                            <th className="text-right sortable-report-th" onClick={() => handleMprSort('monthlyFinal')}>Monthly Final <SortIcon field="monthlyFinal" config={mprSort} /></th>
-                                                            <th className="text-right sortable-report-th" onClick={() => handleMprSort('totalFinalInspected')}>Total Final Inspected <SortIcon field="totalFinalInspected" config={mprSort} /></th>
-                                                            <th className="text-right sortable-report-th" onClick={() => handleMprSort('poBalance')}>PO Balance <SortIcon field="poBalance" config={mprSort} /></th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {displayMprData.map((row, idx) => {
-                                                            const rowClass = (idx % 2 === 0) ? 'row-odd' : 'row-even';
-                                                            return (
-                                                                <tr key={idx} className={rowClass}>
+                                </div>
+                            );
+
+                        case 'reports':
+                            return (
+                                <div className="reports-tab-content fade-in">
+                                    <div className="sub-tabs">
+                                        <div className={`sub-tab-btn ${activeReport === 'mpr' ? 'active' : ''}`} onClick={() => setActiveReport('mpr')}>📋 MPR</div>
+                                        <div className={`sub-tab-btn ${activeReport === 'mau' ? 'active' : ''}`} onClick={() => setActiveReport('mau')}>📈 MAU</div>
+                                        <div className={`sub-tab-btn ${activeReport === 'lwcl' ? 'active' : ''}`} onClick={() => setActiveReport('lwcl')}>🔄 LWCL</div>
+                                        <div className={`sub-tab-btn ${activeReport === 'mpia' ? 'active' : ''}`} onClick={() => setActiveReport('mpia')}>⚙️ MPIA</div>
+                                    </div>
+
+                                    <div className="report-viewer-content">
+                                        {activeReport === 'mpr' && (
+                                            <div className="prof-card animate-up">
+                                                <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    <span>Monthly Progress Report</span>
+                                                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                                        <ExportButton
+                                                            onClick={() => downloadExcel(
+                                                                displayMprData,
+                                                                [
+                                                                    { label: 'Rly', key: 'rly' },
+                                                                    { label: 'PO Number', key: 'poNumber' },
+                                                                    { label: 'Manufacturer', key: 'manufacturer' },
+                                                                    { label: 'PO Qty', key: 'poQty' },
+                                                                    { label: 'RM', key: 'monthlyRm' },
+                                                                    { label: 'Process', key: 'monthlyProcess' },
+                                                                    { label: 'Final', key: 'monthlyFinal' },
+                                                                    { label: 'Total Final Inspected', key: 'totalFinalInspected' },
+                                                                    { label: 'Balance', key: 'poBalance' }
+                                                                ],
+                                                                'Monthly_Progress_Report'
+                                                            )}
+                                                        />
+                                                        <input type="text" placeholder="Search..." className="prof-search" value={mprSearch} onChange={(e) => setMprSearch(e.target.value)} />
+                                                    </div>
+                                                </div>
+                                                <div className="table-responsive">
+                                                    <table className="prof-table">
+                                                        <thead>
+                                                            <tr className="sortable-header">
+                                                                <th onClick={() => handleMprSort('rly')}>Rly {renderSortIcon('rly', mprSort)}</th>
+                                                                <th onClick={() => handleMprSort('poNumber')}>PO Number {renderSortIcon('poNumber', mprSort)}</th>
+                                                                <th onClick={() => handleMprSort('manufacturer')}>Manufacturer {renderSortIcon('manufacturer', mprSort)}</th>
+                                                                <th className="text-right" onClick={() => handleMprSort('poQty')}>PO Qty {renderSortIcon('poQty', mprSort)}</th>
+                                                                <th className="text-right" onClick={() => handleMprSort('monthlyRm')}>RM {renderSortIcon('monthlyRm', mprSort)}</th>
+                                                                <th className="text-right" onClick={() => handleMprSort('monthlyProcess')}>Process {renderSortIcon('monthlyProcess', mprSort)}</th>
+                                                                <th className="text-right" onClick={() => handleMprSort('monthlyFinal')}>Final {renderSortIcon('monthlyFinal', mprSort)}</th>
+                                                                <th className="text-right" onClick={() => handleMprSort('totalFinalInspected')}>Total Final Inspected {renderSortIcon('totalFinalInspected', mprSort)}</th>
+                                                                <th className="text-right" onClick={() => handleMprSort('poBalance')}>Balance {renderSortIcon('poBalance', mprSort)}</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {displayMprData.map((row, idx) => (
+                                                                <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
                                                                     <td>{row.rly}</td>
-                                                                    <td className="font-mono text-xs">{row.poNumber}</td>
+                                                                    <td>{row.poNumber}</td>
                                                                     <td>{row.manufacturer}</td>
-                                                                    <td className="text-right font-bold">{row.poQty?.toLocaleString()}</td>
+                                                                    <td className="text-right">{row.poQty?.toLocaleString()}</td>
                                                                     <td className="text-right">{row.monthlyRm?.toLocaleString()}</td>
                                                                     <td className="text-right">{row.monthlyProcess?.toLocaleString()}</td>
                                                                     <td className="text-right">{row.monthlyFinal?.toLocaleString()}</td>
                                                                     <td className="text-right">{row.totalFinalInspected?.toLocaleString()}</td>
-                                                                    <td className="text-right font-bold text-accent">{row.poBalance?.toLocaleString()}</td>
+                                                                    <td className="text-right font-bold" style={{ color: '#16a34a' }}>{row.poBalance?.toLocaleString()}</td>
                                                                 </tr>
-                                                            );
-                                                        })}
-                                                        {displayMprData.length === 0 && (
-                                                            <tr>
-                                                                <td colSpan="9" className="text-center p-8 text-slate-400">
-                                                                    {mprSearch ? "No matching records found for your search." : "No progress records found for the selected period."}
-                                                                </td>
-                                                            </tr>
-                                                        )}
-                                                    </tbody>
-                                                </table>
-
-                                                {/* API Integrated Pagination for MPR */}
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
                                                 <div className="mt-4">
                                                     <Pagination
-                                                        currentPage={mprPage}
-                                                        totalPages={mprPagination.totalPages}
-                                                        start={mprPage * mprRowsPerPage}
-                                                        end={Math.min((mprPage + 1) * mprRowsPerPage, mprPagination.totalElements)}
-                                                        totalCount={mprPagination.totalElements}
-                                                        onPageChange={setMprPage}
-                                                        rows={mprRowsPerPage}
-                                                        onRowsChange={setMprRowsPerPage}
-                                                        theme="teal"
+                                                        currentPage={mprPage} totalPages={mprPagination.totalPages}
+                                                        start={mprPage * mprRowsPerPage} end={Math.min((mprPage + 1) * mprRowsPerPage, mprPagination.totalElements)}
+                                                        totalCount={mprPagination.totalElements} onPageChange={setMprPage}
+                                                        rows={mprRowsPerPage} onRowsChange={setMprRowsPerPage}
                                                     />
                                                 </div>
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-
-                            {activeReport === 'mau' && (
-                                <div className="mau-report-container animate-up">
-                                    <div className="report-card mb-6">
-                                        <div className="report-card-header">
-                                            <h3>Monthly Analysis of Units</h3>
-                                            <div className="header-actions">
-                                                <div className="report-search-container">
-                                                    <input
-                                                        type="text"
-                                                        className="report-search-input"
-                                                        placeholder="Search MAU..."
-                                                        value={mauSearch}
-                                                        onChange={(e) => setMauSearch(e.target.value)}
-                                                    />
-                                                    <span className="search-icon">🔍</span>
-                                                </div>
-                                                <button className="btn-icon" title="Download Excel">📥</button>
-                                                <button className="btn-icon" title="Print Report">⎙</button>
                                             </div>
-                                        </div>
-                                        <div className="report-table-wrapper">
-                                            {mauLoading ? (
-                                                <div className="loading-state p-12 text-center text-emerald font-medium">
-                                                    Loading Monthly Analysis...
+                                        )}
+
+                                        {activeReport === 'mau' && (
+                                            <div className="prof-card animate-up">
+                                                <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    <span>Monthly Analysis of Units</span>
+                                                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                                        <ExportButton
+                                                            onClick={() => downloadExcel(
+                                                                displayMauData,
+                                                                [
+                                                                    { label: 'Manufacturer', key: 'manufacturer' },
+                                                                    { label: 'Manufactured', key: 'manufactured' },
+                                                                    { label: 'Inspected', key: 'inspected' },
+                                                                    { label: 'Rejected', key: 'rejected' },
+                                                                    { label: 'RM %', key: 'rmRejPercent' },
+                                                                    { label: 'Process %', key: 'processRejPercent' },
+                                                                    { label: 'Final %', key: 'finalRejPercent' }
+                                                                ],
+                                                                'Monthly_Analysis_of_Units'
+                                                            )}
+                                                        />
+                                                        <input type="text" placeholder="Search..." className="prof-search" value={mauSearch} onChange={(e) => setMauSearch(e.target.value)} />
+                                                    </div>
                                                 </div>
-                                            ) : (
-                                                <>
-                                                    <table className="report-data-table">
+                                                <div className="table-responsive">
+                                                    <table className="prof-table">
                                                         <thead>
-                                                            <tr>
-                                                                <th className="sortable-report-th" onClick={() => handleMauSort('manufacturer')}>Manufacturer <SortIcon field="manufacturer" config={mauSort} /></th>
-                                                                <th className="text-right sortable-report-th" onClick={() => handleMauSort('manufactured')}>Manufactured <SortIcon field="manufactured" config={mauSort} /></th>
-                                                                <th className="text-right sortable-report-th" onClick={() => handleMauSort('inspected')}>Inspected <SortIcon field="inspected" config={mauSort} /></th>
-                                                                <th className="text-right sortable-report-th" onClick={() => handleMauSort('rejected')}>Rejected <SortIcon field="rejected" config={mauSort} /></th>
-                                                                <th className="text-right sortable-report-th" onClick={() => handleMauSort('rmRejPercent')}>RM Rej % <SortIcon field="rmRejPercent" config={mauSort} /></th>
-                                                                <th className="text-right sortable-report-th" onClick={() => handleMauSort('processRejPercent')}>Process Rej % <SortIcon field="processRejPercent" config={mauSort} /></th>
-                                                                <th className="text-right sortable-report-th" onClick={() => handleMauSort('finalRejPercent')}>Final Rej % <SortIcon field="finalRejPercent" config={mauSort} /></th>
+                                                            <tr className="sortable-header">
+                                                                <th onClick={() => handleMauSort('manufacturer')}>Manufacturer {renderSortIcon('manufacturer', mauSort)}</th>
+                                                                <th className="text-right" onClick={() => handleMauSort('manufactured')}>Manufactured {renderSortIcon('manufactured', mauSort)}</th>
+                                                                <th className="text-right" onClick={() => handleMauSort('inspected')}>Inspected {renderSortIcon('inspected', mauSort)}</th>
+                                                                <th className="text-right" onClick={() => handleMauSort('rejected')}>Rejected {renderSortIcon('rejected', mauSort)}</th>
+                                                                <th className="text-right" onClick={() => handleMauSort('rmRejPercent')}>RM % {renderSortIcon('rmRejPercent', mauSort)}</th>
+                                                                <th className="text-right" onClick={() => handleMauSort('processRejPercent')}>Process % {renderSortIcon('processRejPercent', mauSort)}</th>
+                                                                <th className="text-right" onClick={() => handleMauSort('finalRejPercent')}>Final % {renderSortIcon('finalRejPercent', mauSort)}</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
-                                                            {displayMauData.map((row, idx) => {
-                                                                const rowClass = (idx % 2 === 0) ? 'row-odd' : 'row-even';
-                                                                return (
-                                                                    <tr key={idx} className={rowClass}>
-                                                                        <td className="font-bold">{row.manufacturer}</td>
-                                                                        <td className="text-right">{row.manufactured?.toLocaleString()}</td>
-                                                                        <td className="text-right">{row.inspected?.toLocaleString()}</td>
-                                                                        <td className="text-right font-bold">{row.rejected?.toLocaleString()}</td>
-                                                                        <td className="text-right">{formatDecimal(row.rmRejPercent)}%</td>
-                                                                        <td className="text-right text-red font-bold">{formatDecimal(row.processRejPercent)}%</td>
-                                                                        <td className="text-right">{formatDecimal(row.finalRejPercent)}%</td>
-                                                                    </tr>
-                                                                );
-                                                            })}
-                                                            {displayMauData.length === 0 && (
-                                                                <tr>
-                                                                    <td colSpan="7" className="text-center p-8 text-slate-400">
-                                                                        {mauSearch ? "No matching records found for your search." : "No analysis records found for the selected period."}
-                                                                    </td>
+                                                            {displayMauData.map((row, idx) => (
+                                                                <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
+                                                                    <td>{row.manufacturer}</td>
+                                                                    <td className="text-right">{row.manufactured?.toLocaleString()}</td>
+                                                                    <td className="text-right">{row.inspected?.toLocaleString()}</td>
+                                                                    <td className="text-right" style={{ color: '#dc2626' }}>{row.rejected?.toLocaleString()}</td>
+                                                                    <td className="text-right">{formatDecimal(row.rmRejPercent)}%</td>
+                                                                    <td className="text-right text-red-600">{formatDecimal(row.processRejPercent)}%</td>
+                                                                    <td className="text-right">{formatDecimal(row.finalRejPercent)}%</td>
                                                                 </tr>
-                                                            )}
+                                                            ))}
                                                         </tbody>
                                                     </table>
-
-                                                    {/* API Integrated Pagination for MAU */}
-                                                    <div className="mt-4">
-                                                        <Pagination
-                                                            currentPage={mauPage}
-                                                            totalPages={mauPagination.totalPages}
-                                                            start={mauPage * mauRowsPerPage}
-                                                            end={Math.min((mauPage + 1) * mauRowsPerPage, mauPagination.totalElements)}
-                                                            totalCount={mauPagination.totalElements}
-                                                            onPageChange={setMauPage}
-                                                            rows={mauRowsPerPage}
-                                                            onRowsChange={setMauRowsPerPage}
-                                                            theme="emerald"
-                                                        />
-                                                    </div>
-                                                </>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* 
-                                    <div className="reports-charts-grid">
-                                        <div className="report-chart-card">
-                                            <h4>ERC Manufactured (Monthly)</h4>
-                                            <ResponsiveContainer width="100%" height={250}>
-                                                <BarChart data={REPORTS_DATA.mau.production}>
-                                                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
-                                                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
-                                                    <Tooltip contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
-                                                    <Bar dataKey="value" fill="#10b981" radius={[4, 4, 0, 0]} barSize={40} />
-                                                </BarChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                        <div className="report-chart-card">
-                                            <h4>Rejection % Analysis</h4>
-                                            <ResponsiveContainer width="100%" height={250}>
-                                                <RadarChart cx="50%" cy="50%" outerRadius="80%" data={REPORTS_DATA.mau.rejectionRadar}>
-                                                    <PolarGrid stroke="#e2e8f0" />
-                                                    <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fill: '#64748b' }} />
-                                                    <PolarRadiusAxis angle={30} domain={[0, 1.5]} hide />
-                                                    <Radar name="Rejection" dataKey="A" stroke="#059669" fill="#10b981" fillOpacity={0.6} />
-                                                    <Tooltip contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
-                                                </RadarChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                    </div>
-                                    */}
-                                </div>
-                            )}
-
-                            {activeReport === 'lwcl' && (
-                                <div className="lwcl-report-container animate-up">
-                                    <div className="report-card mb-6 overflow-hidden">
-                                        <div className="report-card-header">
-                                            <h3>Lot Wise Closed Loop</h3>
-                                            <div className="selection-group">
-                                                {/* Call No Dropdown */}
-                                                <select
-                                                    className="report-select"
-                                                    value={lwclCallNo}
-                                                    onChange={(e) => setLwclCallNo(e.target.value)}
-                                                >
-                                                    <option value="">Select Call No.</option>
-                                                    {lwclRequestIds.map(id => <option key={id} value={id}>{id}</option>)}
-                                                </select>
-
-                                                {/* Lot No Dropdown - HIDDEN/COMMENTED as per request */}
-                                                {/* 
-                                                <select
-                                                    className="report-select"
-                                                    value={lwclLotNo}
-                                                    onChange={(e) => setLwclLotNo(e.target.value)}
-                                                    disabled={!lwclCallNo}
-                                                >
-                                                    <option value="">Select Lot No.</option>
-                                                    {lwclLotNumbers.map(lot => <option key={lot} value={lot}>{lot}</option>)}
-                                                </select>
-                                                */}
-
-                                                <div className="header-actions" style={{ marginLeft: '1rem' }}>
-                                                    <span className="badge-count teal-light">
-                                                        {level4Data.length} Records
-                                                    </span>
-                                                    <button className="btn-icon" title="Print">⎙</button>
+                                                </div>
+                                                <div className="mt-4">
+                                                    <Pagination
+                                                        currentPage={mauPage} totalPages={mauPagination.totalPages}
+                                                        start={mauPage * mauRowsPerPage} end={Math.min((mauPage + 1) * mauRowsPerPage, mauPagination.totalElements)}
+                                                        totalCount={mauPagination.totalElements} onPageChange={setMauPage}
+                                                        rows={mauRowsPerPage} onRowsChange={setMauRowsPerPage}
+                                                    />
                                                 </div>
                                             </div>
-                                        </div>
+                                        )}
 
-                                        <div className="report-body">
-                                            {level4Loading ? (
-                                                <div className="loading-state p-12 text-center text-indigo-500 font-medium">
-                                                    <div className="spinner-border mb-4"></div>
-                                                    Fetching Process Defect Summary...
+                                        {activeReport === 'lwcl' && (
+                                            <div className="prof-card animate-up">
+                                                <div className="sec-title">Lot Wise Closed Loop</div>
+                                                <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+                                                    <select className="prof-select" style={{ maxWidth: '300px' }} value={lwclCallNo} onChange={(e) => setLwclCallNo(e.target.value)}>
+                                                        <option value="">Select Call No.</option>
+                                                        {lwclRequestIds.map(id => <option key={id} value={id}>{id}</option>)}
+                                                    </select>
                                                 </div>
-                                            ) : lwclCallNo ? (
-                                                <Level4ReportTable data={level4Data} />
-                                            ) : (
-                                                <div className="p-12 text-center text-slate-400 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
-                                                    <div className="mb-2 text-3xl">📋</div>
-                                                    Please select a **Call Number** to view the process defect breakdown report.
-                                                </div>
-                                            )}
-                                        </div>
+                                                {level4Loading ? (
+                                                    <div className="p-12 text-center text-teal font-medium">Loading Process Defect Summary...</div>
+                                                ) : lwclCallNo ? (
+                                                    <Level4ReportTable data={level4Data} />
+                                                ) : (
+                                                    <div className="p-12 text-center text-slate-400">
+                                                        Please select a <strong>Call Number</strong> from the dropdown above to view the report details.
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {activeReport === 'mpia' && (
+                                            <div className={`prof-card animate-up ${batchReportData ? 'no-print' : ''}`} style={{ padding: drilldownManufacturer ? '0' : '15px' }}>
+                                                {drilldownManufacturer ? (
+                                                    <MpiaDrillDown
+                                                        data={drilldownData}
+                                                        manufacturer={drilldownManufacturer}
+                                                        loading={isDrilldownLoading}
+                                                        onBack={() => setDrilldownManufacturer(null)}
+                                                    />
+                                                ) : (
+                                                    <>
+                                                        <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                            <span>Manufacture Process Inspection Analysis</span>
+                                                            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                                                <ExportButton
+                                                                    label="Download Summary"
+                                                                    onClick={() => downloadExcel(
+                                                                        displayMpiaData,
+                                                                        [
+                                                                            { label: 'Manufacture', key: 'manufacture' },
+                                                                            { label: 'Total Inspected', key: 'totalInspected' },
+                                                                            { label: 'Total Accepted', key: 'totalAccepted' },
+                                                                            { label: 'Total Rejected', key: 'totalRejected' },
+                                                                            { label: 'Rejection %', key: 'rejectionPercent' }
+                                                                        ],
+                                                                        'Manufacture_Process_Inspection_Analysis_Summary'
+                                                                    )}
+                                                                />
+                                                                <ExportButton
+                                                                    label={isPreparingBatchPdf ? `Preparing (${batchProgress}/${mpiaData.length})...` : "Batch PDF Report"}
+                                                                    disabled={isPreparingBatchPdf}
+                                                                    onClick={async () => {
+                                                                        if (!mpiaData || mpiaData.length === 0) {
+                                                                            alert("No manufacturers found to process.");
+                                                                            return;
+                                                                        }
+                                                                        try {
+                                                                            setBatchProgress(0);
+                                                                            setIsPreparingBatchPdf(true);
+                                                                            const end = new Date().toISOString().split('T')[0];
+                                                                            const start = new Date(new Date().setFullYear(new Date().getFullYear() - 1)).toISOString().split('T')[0];
+
+                                                                            const results = await Promise.all(mpiaData.map(async (m) => {
+                                                                                try {
+                                                                                    const res = await reportService.getCompanyMonthWiseData({
+                                                                                        companyName: m.manufacture,
+                                                                                        startDate: start,
+                                                                                        endDate: end,
+                                                                                        page: 0,
+                                                                                        size: 13
+                                                                                    });
+                                                                                    const data = res.responseData?.content || res.content || res || [];
+                                                                                    setBatchProgress(prev => prev + 1);
+                                                                                    return { manufacturer: m.manufacture, data: Array.isArray(data) ? data : [] };
+                                                                                } catch (e) {
+                                                                                    return { manufacturer: m.manufacture, data: [] };
+                                                                                }
+                                                                            }));
+
+                                                                            setBatchReportData(results);
+                                                                        } catch (err) {
+                                                                            setIsPreparingBatchPdf(false);
+                                                                            alert("Failed to prepare batch PDF data.");
+                                                                        }
+                                                                    }}
+                                                                />
+                                                                <input type="text" placeholder="Search..." className="prof-search" value={mpiaSearch} onChange={(e) => setMpiaSearch(e.target.value)} />
+                                                            </div>
+                                                        </div>
+                                                        <div className="table-responsive">
+                                                            <table className="prof-table">
+                                                                <thead>
+                                                                    <tr className="sortable-header">
+                                                                        <th onClick={() => handleMpiaSort('manufacture')}>Manufacture {renderSortIcon('manufacture', mpiaSort)}</th>
+                                                                        <th className="text-right" onClick={() => handleMpiaSort('totalInspected')}>Total Inspected {renderSortIcon('totalInspected', mpiaSort)}</th>
+                                                                        <th className="text-right" onClick={() => handleMpiaSort('totalAccepted')}>Total Accepted {renderSortIcon('totalAccepted', mpiaSort)}</th>
+                                                                        <th className="text-right" onClick={() => handleMpiaSort('totalRejected')}>Total Rejected {renderSortIcon('totalRejected', mpiaSort)}</th>
+                                                                        <th className="text-right" onClick={() => handleMpiaSort('rejectionPercent')}>Rejection % {renderSortIcon('rejectionPercent', mpiaSort)}</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {displayMpiaData.map((row, idx) => (
+                                                                        <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
+                                                                            <td
+                                                                                className="font-bold text-emerald-800 cursor-pointer hover:underline"
+                                                                                onClick={() => setDrilldownManufacturer(row.manufacture)}
+                                                                            >
+                                                                                {row.manufacture}
+                                                                            </td>
+                                                                            <td className="text-right">{row.totalInspected?.toLocaleString()}</td>
+                                                                            <td className="text-right" style={{ color: '#16a34a' }}>{row.totalAccepted?.toLocaleString()}</td>
+                                                                            <td className="text-right" style={{ color: '#dc2626' }}>{row.totalRejected?.toLocaleString()}</td>
+                                                                            <td className="text-right">
+                                                                                <span className="prof-badge" style={{ background: '#fff7ed', color: '#9a3412', fontWeight: 'bold' }}>
+                                                                                    {row.rejectionPercent?.toFixed(2)}%
+                                                                                </span>
+                                                                            </td>
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                        <div className="mt-4">
+                                                            <Pagination
+                                                                currentPage={mpiaPage} totalPages={mpiaPagination.totalPages}
+                                                                start={mpiaPage * mpiaRowsPerPage} end={Math.min((mpiaPage + 1) * mpiaRowsPerPage, mpiaPagination.totalElements)}
+                                                                totalCount={mpiaPagination.totalElements} onPageChange={setMpiaPage}
+                                                                rows={mpiaRowsPerPage} onRowsChange={setMpiaRowsPerPage}
+                                                            />
+                                                        </div>
+                                                    </>
+                                                )}
+                                            </div>
+                                        )}
+
+
                                     </div>
                                 </div>
-                            )}
-
-                            {/*
-                            {activeReport === 'qmr' && (
-                                <div className="qmr-report-container animate-up">
-                                    <div className="report-card">
-                                        <div className="report-card-header">
-                                            <h3>Quality Monitoring Report</h3>
-                                        </div>
-                                        <div className="report-table-wrapper sticky-header">
-                                            <table className="report-data-table ">
-                                                <thead>
-                                                    <tr>
-                                                        <th>Defect Parameter</th>
-                                                        <th className="text-right">Raw Material</th>
-                                                        <th className="text-right">Process</th>
-                                                        <th className="text-right">Final</th>
-                                                        <th className="text-right">Overall (Nos.)</th>
-                                                        <th className="text-right">Overall (%)</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {REPORTS_DATA.qmr.map((row, idx) => {
-                                                        const rowClass = (idx % 2 === 0) ? 'row-odd' : 'row-even';
-                                                        return (
-                                                            <tr key={idx} className={rowClass}>
-                                                                <td className="font-medium text-slate-700">{row.parameter}</td>
-                                                                <td className="text-right">{row.rm}</td>
-                                                                <td className="text-right">{row.process}</td>
-                                                                <td className="text-right">{row.final}</td>
-                                                                <td className="text-right font-bold">{row.overallNos}</td>
-                                                                <td className="text-right font-bold text-slate-800">{row.overallPct}</td>
-                                                            </tr>
-                                                        );
-                                                    })}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                            */}
-                        </div>
-                    </div>
-                );
-            default:
-                return null;
-        }
+                            );
+                        case 'feedback':
+                            return <FeedbackSection />;
+                        default:
+                            return null;
+                    }
+                })()}
+            </div>
+        );
     };
 
     return (
-        <div className="professional-dashboard-section">
-            <div className="nav-wrapper">
-                <div className="main-cards-container">
-                    {PROFESSIONAL_MAIN_CARDS.map((card) => (
-                        <div
-                            key={card.id}
-                            className={`main-card ${activeMainCard === card.id ? 'active' : ''}`}
-                            onClick={() => setActiveMainCard(card.id)}
-                            style={{ '--card-color': card.color }}
-                        >
-                            <div className="main-card-icon-wrapper">
-                                <span className="main-card-icon">{card.icon}</span>
-                            </div>
-                            <div className="main-card-title">{card.title}</div>
-                        </div>
+        <div className="dashboard-content-integrated">
+            {renderSubContent()}
+            {batchReportData && (
+                <div className="mpia-batch-print-viewport">
+                    {batchReportData.map((item, idx) => (
+                        <MpiaReportPage key={idx} manufacturer={item.manufacturer} data={item.data} />
                     ))}
                 </div>
-            </div>
-
-            <div className="sub-content-area">
-                <div className="section-header">
-                    <h2 className="section-title">
-                        {PROFESSIONAL_MAIN_CARDS.find(c => c.id === activeMainCard)?.title}
-                    </h2>
-                    <div className="section-actions">
-                        <button className="btn-refresh">🔄 Refresh</button>
-                        <button className="btn-export">📥 Export</button>
-                    </div>
-                </div>
-                {renderSubContent()}
-            </div>
+            )}
         </div>
     );
 };
@@ -1429,10 +1298,10 @@ const Level4ReportTable = ({ data }) => {
                                 <td>{basic.date ? new Date(basic.date).toLocaleDateString() : 'N/A'}</td>
                                 <td className="text-center"><span className="shift-badge">{basic.shift || '-'}</span></td>
                                 <td className="text-center font-medium text-slate-400">{idx + 1}</td>
-                                <td className="font-mono text-xs">{basic.poSrNo || '-'}</td>
-                                <td className="font-bold">{basic.lotNumber || '-'}</td>
-                                <td className="text-right font-bold text-emerald-600 bg-emerald-50/30">{basic.totalAcceptedQty?.toLocaleString() || 0}</td>
-                                <td className="text-right font-bold text-red-600 bg-red-50/30">{basic.totalRejectionQty?.toLocaleString() || 0}</td>
+                                <td>{basic.poSrNo || '-'}</td>
+                                <td>{basic.lotNumber || '-'}</td>
+                                <td className="text-right text-emerald-600 bg-emerald-50/30">{basic.totalAcceptedQty?.toLocaleString() || 0}</td>
+                                <td className="text-right text-red-600 bg-red-50/30">{basic.totalRejectionQty?.toLocaleString() || 0}</td>
 
                                 {/* Stage Data */}
                                 <td className="text-right">{qty.shearingProductionQty || 0}</td><td className="text-right text-red-400">{qty.shearingRejectionQty || 0}</td>
@@ -1473,12 +1342,13 @@ const ParetoXAxisTick = (props) => {
             <text
                 x={0}
                 y={0}
-                dy={14}
+                dx={-8}
+                dy={16}
                 textAnchor="end"
                 fill="#64748b"
-                transform="rotate(-40)"
+                transform="rotate(-35)"
                 style={{
-                    fontSize: '10.5px',
+                    fontSize: '10px',
                     fontWeight: '600',
                     fontFamily: 'Inter, system-ui, sans-serif'
                 }}
@@ -1489,10 +1359,304 @@ const ParetoXAxisTick = (props) => {
     );
 };
 
+// ────────────────────────────────────────────────────────────────────────────────
+// NEW: MpiaDrillDown - Details for a specific manufacturer
+// ────────────────────────────────────────────────────────────────────────────────
+const MpiaDrillDown = ({ data = [], manufacturer, onBack, loading }) => {
+    const [isPrinting, setIsPrinting] = useState(false);
+
+    if (loading) {
+        return (
+            <div className="flex flex-col items-center justify-center p-20 bg-white">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mb-4"></div>
+                <p className="text-slate-500 font-medium">Fetching Monthly Analysis for {manufacturer}...</p>
+            </div>
+        );
+    }
+
+    const handlePrint = () => {
+        setIsPrinting(true);
+        // Delay to allow Recharts to stabilize before browser capture
+        setTimeout(() => {
+            window.print();
+            setIsPrinting(false);
+        }, 1200);
+    };
+
+    return (
+        <div className="bg-slate-50 p-6 min-h-screen">
+            <div className="max-w-6xl mx-auto mb-6 flex justify-between items-center no-print">
+                <button
+                    onClick={onBack}
+                    className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-all font-medium"
+                >
+                    <span className="text-xl">←</span> Back to Summary
+                </button>
+                <button
+                    onClick={handlePrint}
+                    disabled={isPrinting}
+                    className="flex items-center gap-2 px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all font-bold shadow-lg no-print disabled:opacity-70"
+                >
+                    {isPrinting ? (
+                        <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white"></div>
+                            Preparing PDF...
+                        </>
+                    ) : (
+                        <>
+                            <span>PDF</span> Download Report
+                        </>
+                    )}
+                </button>
+            </div>
+
+            <MpiaReportPage manufacturer={manufacturer} data={data} />
+        </div>
+    );
+};
+
+
 /**
- * Helper component to render sort icons in table headers
+ * ────────────────────────────────────────────────────────────────────────────────
+ * EXPORT UTILITIES & COMPONENTS
+ * ────────────────────────────────────────────────────────────────────────────────
  */
-const SortIcon = ({ field, config }) => {
-    if (config.key !== field) return <span className="sort-icon-placeholder">↕</span>;
-    return <span className="sort-icon-active">{config.direction === 'asc' ? '↑' : '↓'}</span>;
+
+/**
+ * Professional Export Button Component with Icon, Loading & Disabled States
+ */
+const ExportButton = ({ onClick, label = "Export Excel", disabled = false }) => (
+    <button
+        className={`btn-export-excel ${disabled ? 'disabled' : ''}`}
+        onClick={disabled ? null : onClick}
+        disabled={disabled}
+        title={disabled ? "Processing..." : "Download Excel Report"}
+    >
+        {disabled ? (
+            <div className="spinner-small"></div>
+        ) : (
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 3V16M12 16L7 11M12 16L17 11M5 21H19" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+        )}
+        <span>{label}</span>
+    </button>
+);
+
+/**
+ * Professional Excel Export Utility (CSV-based with UTF-8 support)
+ * Handles data formatting, escaping, and triggers browser download.
+ */
+const downloadExcel = (data, headers, filename) => {
+    if (!data || data.length === 0) {
+        alert("No data available to export.");
+        return;
+    }
+
+    // Header Row
+    const headerRow = headers.map(h => h.label).join(',');
+
+    // Data Rows
+    const dataRows = data.map(row => {
+        return headers.map(header => {
+            let cellValue = row[header.key];
+
+            // Handle null/undefined
+            if (cellValue === null || cellValue === undefined) {
+                cellValue = '';
+            }
+
+            // Format numbers to strings if needed
+            const stringValue = String(cellValue);
+
+            // Force Excel to treat long numeric strings as text (fixes scientific notation & leading zeros)
+            if (/^\d+$/.test(stringValue) && (stringValue.length > 10 || stringValue.startsWith('0'))) {
+                return `="${stringValue}"`;
+            }
+
+            // Escape double quotes and surround with quotes if necessary
+            const escaped = stringValue.replace(/"/g, '""');
+            return escaped.includes(',') || escaped.includes('\n') || escaped.includes('"')
+                ? `"${escaped}"`
+                : escaped;
+        }).join(',');
+    });
+
+    // Combine with UTF-8 BOM to ensure Excel opens with correct encoding
+    const csvContent = '\uFEFF' + [headerRow, ...dataRows].join('\n');
+
+    // Create Blob and trigger download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${filename}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.display = 'none';
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+
+/**
+ * Component to render a full A4 page report for a single manufacturer
+ * Reusable for both individual drill-down and consolidated batch PDF.
+ */
+const MpiaReportPage = ({ manufacturer, data, showFooter = true }) => {
+    // Process Defects for Pie Chart (Aggregation)
+    const defectAgg = {
+        'Shearing': 0, 'Turning': 0, 'Forging': 0, 'Finishing': 0, 'Quenching': 0, 'Tempering': 0
+    };
+
+    data.forEach(m => {
+        defectAgg['Shearing'] += (m.shearingDefects?.lengthOfCutBar || 0) + (m.shearingDefects?.ovalityImproperDiaAtEnd || 0) + (m.shearingDefects?.sharpEdges || 0) + (m.shearingDefects?.crackedEdges || 0);
+        defectAgg['Turning'] += (m.turningDefects?.parallelLength || 0) + (m.turningDefects?.fullTurningLength || 0) + (m.turningDefects?.turningDia || 0);
+        defectAgg['Forging'] += (m.forgingDefects?.forgingTemperature || 0) + (m.forgingDefects?.forgingStabilisationRejection || 0) + (m.forgingDefects?.improperForging || 0) + (m.forgingDefects?.forgingMarksNotches || 0);
+        defectAgg['Finishing'] += (m.finishingDefects?.paintIdentification || 0) + (m.finishingDefects?.ercCoating || 0);
+        defectAgg['Quenching'] += (m.quenchingDefects?.quenchingTemperatureRejected || 0) + (m.quenchingDefects?.quenchingDurationRejected || 0) + (m.quenchingDefects?.quenchingHardnessRejected || 0) + (m.quenchingDefects?.boxGaugeRejected || 0) + (m.quenchingDefects?.flatBearingAreaRejected || 0);
+        defectAgg['Tempering'] += (m.temperingDefects?.temperingTemp || 0) + (m.temperingDefects?.temperingDuration || 0);
+    });
+
+    const pieData = Object.entries(defectAgg)
+        .map(([name, value]) => ({ name, value }))
+        .filter(d => d.value > 0);
+
+    const COLORS = ['#0f172a', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+
+    return (
+        <div
+            className="bg-white px-6 pb-6 pt-2 shadow-none rounded-sm mx-auto print-container page-break full-report-page"
+            style={{
+                width: '280mm',
+                height: '190mm',
+                minHeight: '190mm',
+                maxHeight: '190mm',
+                boxSizing: 'border-box',
+                overflow: 'hidden',
+                position: 'relative',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                margin: '0 auto',
+                border: 'none',
+                background: 'white'
+            }}
+        >
+            {/* Header */}
+            <div className="text-center mb-2">
+                <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">{manufacturer}</h2>
+                <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mt-1">Manufacturer Performance Analysis (Monthly)</p>
+                <div className="h-1 w-20 bg-emerald-500 mx-auto mt-4 rounded-full"></div>
+            </div>
+
+            {/* Graphs & Table Row */}
+            <div className="grid grid-cols-2 gap-8 items-start">
+                {/* Left: Defect Pie Chart */}
+                <div className="flex flex-col items-center">
+                    <h3 className="font-bold text-slate-700 mb-2 text-sm uppercase">Process Defect Distribution</h3>
+                    {pieData.length > 0 ? (
+                        <PieChart
+                            width={340}
+                            height={280}
+                            margin={{ top: 0, right: 60, bottom: 0, left: 60 }}
+                        >
+                            <Pie
+                                data={pieData} cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={5} minAngle={15} dataKey="value"
+                                isAnimationActive={false}
+                                label={({ cx, cy, midAngle, outerRadius, name, percent }) => {
+                                    const RADIAN = Math.PI / 180;
+                                    const radius = outerRadius + 25;
+                                    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                                    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                                    return (
+                                        <text x={x} y={y} fill="#475569" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize="10" fontWeight="700">
+                                            {`${name} ${(percent * 100).toFixed(0)}%`}
+                                        </text>
+                                    );
+                                }}
+                                labelLine={{ stroke: '#cbd5e1', strokeWidth: 1.5 }}
+                            >
+                                {pieData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                ))}
+                            </Pie>
+                        </PieChart>
+                    ) : (
+                        <div className="h-[300px] flex items-center justify-center border-2 border-dashed border-slate-100 rounded-2xl w-full">
+                            <p className="text-slate-400 italic text-sm">No process defects recorded.</p>
+                        </div>
+                    )}
+                    <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-2 w-full">
+                        {pieData.map((d, i) => (
+                            <div key={i} className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                                <div className="w-2 h-2 rounded-full" style={{ background: COLORS[i % COLORS.length] }}></div>
+                                <span>{d.name}: {d.value}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Right: Monthly Table */}
+                <div>
+                    <h3 className="font-bold text-slate-700 mb-6 text-sm flex items-center gap-2 uppercase">Monthly Performance</h3>
+                    <div className="overflow-hidden border border-slate-100 rounded-xl">
+                        <table className="w-full text-xs">
+                            <thead className="bg-slate-800 text-white" style={{ backgroundColor: '#1e293b', color: 'white', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+                                <tr>
+                                    <th className="p-3 text-left">MONTH</th>
+                                    <th className="p-3 text-right">INSPECTED</th>
+                                    <th className="p-3 text-right">REJECTED</th>
+                                    <th className="p-3 text-right">% REJ</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {data.map((m, i) => (
+                                    <tr key={i} className="hover:bg-slate-50 transition-colors">
+                                        <td className="p-3 font-bold text-slate-700 uppercase">{m.month}</td>
+                                        <td className="p-3 text-right font-medium text-slate-600">{m.inspected?.toLocaleString()}</td>
+                                        <td className="p-3 text-right font-bold text-red-600">{m.processRejected?.toLocaleString()}</td>
+                                        <td className="p-3 text-right">
+                                            <span className="bg-red-50 text-red-700 px-2 py-0.5 rounded font-bold">
+                                                {m.processRejPercent?.toFixed(2)}%
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {data.length === 0 && (
+                                    <tr><td colSpan="4" className="p-4 text-center italic text-slate-400">No data available.</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* KPI Widgets */}
+                    <div className="mt-8 grid grid-cols-3 gap-4">
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
+                            <p className="text-[9px] text-slate-400 font-bold mb-1">INSPECTED</p>
+                            <p className="text-sm font-black text-slate-800">{data.reduce((acc, m) => acc + (m.inspected || 0), 0).toLocaleString()}</p>
+                        </div>
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
+                            <p className="text-[9px] text-slate-400 font-bold mb-1">REJECTED</p>
+                            <p className="text-sm font-black text-red-600">{data.reduce((acc, m) => acc + (m.processRejected || 0), 0).toLocaleString()}</p>
+                        </div>
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
+                            <p className="text-[9px] text-slate-400 font-bold mb-1">AVG% REJ</p>
+                            <p className="text-sm font-black text-slate-800">
+                                {data.length > 0 ? (data.reduce((acc, m) => acc + (m.processRejPercent || 0), 0) / data.length).toFixed(2) : 0}%
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {showFooter && (
+                <div className="mt-8 pt-4 border-t border-slate-100 text-[10px] text-slate-300 flex justify-between font-bold uppercase">
+                    <span>SARTHI RAILWAY DASHBOARD - CONFIDENTIAL</span>
+                    <span>GENERATED ON: {new Date().toLocaleDateString()}</span>
+                </div>
+            )}
+        </div>
+    );
 };

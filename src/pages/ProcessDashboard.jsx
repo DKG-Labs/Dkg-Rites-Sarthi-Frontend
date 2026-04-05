@@ -3853,12 +3853,20 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       const totalProducedPredicted = numValue + historicalProducedOthers + currentShiftProducedOthers;
 
       if (maxAllowedAllShifts !== Infinity && totalProducedPredicted > maxAllowedAllShifts) {
-         const remainingAllowed = Math.max(0, maxAllowedAllShifts - (historicalProducedOthers + currentShiftProducedOthers));
-         showNotification(
-           'error', 
-           `Total ${field} produced across all shifts and lines (${totalProducedPredicted}) cannot exceed ${prevStageName} (${maxAllowedAllShifts}) for Lot ${lotNo}. Maximum allowed in this line/shift: ${remainingAllowed}`
-         );
-         return;
+         // Allow users to reduce the value even if it's still over the limit,
+         // otherwise they get stuck when clearing downstream stages character-by-character
+         const currentStoredValue = parseInt(manufacturedQtyByLine[selectedLine]?.[lotNo]?.[field]) || 0;
+         if (numValue < currentStoredValue) {
+            // Let them reduce it, but maybe still show warning?
+            // Optional: showNotification('warn', `Reduced, but still over limit of ${maxAllowedAllShifts}`);
+         } else {
+           const remainingAllowed = Math.max(0, maxAllowedAllShifts - (historicalProducedOthers + currentShiftProducedOthers));
+           showNotification(
+             'error', 
+             `Total ${field} produced across all shifts and lines (${totalProducedPredicted}) cannot exceed ${prevStageName} (${maxAllowedAllShifts}) for Lot ${lotNo}. Maximum allowed in this line/shift: ${remainingAllowed}`
+           );
+           return;
+         }
       }
     }
 

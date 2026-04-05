@@ -8,6 +8,7 @@
     "@mui/icons-material": "^7.3.5",
     "@mui/material": "^7.3.5",
     "axios": "^1.13.2",
+    "dom-to-image-more": "^3.7.2",
     "html2canvas": "^1.4.1",
     "jspdf": "^3.0.4",
     "pdf-parse": "^2.4.5",
@@ -20,10 +21,15 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
+    "build": "node scripts/integrate-sleeper.js",
+    "build:main": "react-scripts build",
+    "build:sleeper": "cd Sleeper-Dashboard && npm install && npm run build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "integrate": "node scripts/integrate-sleeper.js",
+    "dev:sleeper": "cd Sleeper-Dashboard && npm run dev"
   },
+  "proxy": "http://localhost:5173",
   "eslintConfig": {
     "extends": [
       "react-app",

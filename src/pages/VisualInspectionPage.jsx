@@ -304,6 +304,11 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
     return totalLengthMetres * factor;
   }, [productModel]);
 
+  // Calculate values for current heat
+  const currentHeatData = heatVisualData[activeHeatTab] || {};
+  const totalDefectiveLength = calculateTotalDefectiveLength(currentHeatData);
+  const weightRejected = calculateWeightRejected(totalDefectiveLength);
+
   // Handle Pass button click
   const handlePassVisualInspection = useCallback(async () => {
     const currentHeat = heats[activeHeatTab];
@@ -345,7 +350,9 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
           acc[defect] = currentHeatData.defectCounts[defect] || '';
           return acc;
         }, {}),
-        otherRemarks: currentHeatData.otherRemarks || ''
+        otherRemarks: currentHeatData.otherRemarks || '',
+        weightRejected: weightRejected,
+        defectCount: selectedDefects.includes('No Defect') ? 0 : selectedDefects.length
       };
 
       await saveVisualInspectionPass(payload);
@@ -376,12 +383,8 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
     } finally {
       setIsSaving(false);
     }
-  }, [activeHeatTab, heats, inspectionCallNo, heatVisualData]);
+  }, [activeHeatTab, heats, inspectionCallNo, heatVisualData, weightRejected]);
 
-  // Calculate values for current heat
-  const currentHeatData = heatVisualData[activeHeatTab] || {};
-  const totalDefectiveLength = calculateTotalDefectiveLength(currentHeatData);
-  const weightRejected = calculateWeightRejected(totalDefectiveLength);
   const currentHeat = heats[activeHeatTab];
   const currentHeatNo = currentHeat?.heatNo || currentHeat?.heat_no;
   const isCurrentHeatPassed = passedHeats[currentHeatNo];

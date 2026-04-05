@@ -1,0 +1,181 @@
+.manual-checks-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.sub-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.manual-sub-card {
+    background: #f8fafc;
+    padding: 1rem 1.25rem;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    min-height: 110px;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.manual-sub-card.active {
+    background: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.sub-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.sub-card-mini-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.add-btn-mini {
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    border: none;
+    color: #fff;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.sub-card-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: #1e293b;
+}
+
+.sub-card-footer {
+    margin-top: auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.log-count-indicator {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.log-count-text {
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.manual-form-wrapper {
+    background: #fff;
+    padding: 1.25rem 1.5rem;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    max-width: 820px;
+    margin: 0 auto;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04);
+}
+
+/* Standard Form Grid for Dynamic Layouts */
+.form-grid-standard {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    background: #fcfcfc;
+    padding: 16px;
+    border-radius: 12px;
+    border: 1px solid #eef2f6;
+}
+
+.form-field-full {
+    grid-column: 1 / -1;
+}
+
+.form-actions-row {
+    margin-top: 24px;
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.form-actions-row button {
+    flex: 1;
+    min-width: 160px;
+    max-width: 240px;
+    height: 44px;
+    font-weight: 800;
+    border-radius: 50px;
+    /* Pill shape to match toggle-btn */
+}
+
+.form-info-card {
+    padding: 10px;
+    background: #f1f5f9;
+    border-radius: 6px;
+    font-weight: 700;
+    color: #475569;
+    font-size: 13px;
+    border: 1px solid #e2e8f0;
+}
+
+.form-input-standard {
+    padding: 0 12px;
+    height: 40px;
+    line-height: 40px;
+    font-size: 13px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    width: 100%;
+    background: white;
+}
+
+.form-input-error {
+    border-color: #ef4444 !important;
+    background-color: #fef2f2 !important;
+}
+
+@media (max-width: 768px) {
+    .sub-cards-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .manual-sub-card {
+        min-height: auto;
+    }
+
+    .form-grid-standard {
+        grid-template-columns: 1fr;
+        padding: 12px;
+    }
+
+    .form-actions-row button {
+        max-width: none;
+        width: 100%;
+    }
+}

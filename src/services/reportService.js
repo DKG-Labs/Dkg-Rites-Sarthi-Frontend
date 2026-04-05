@@ -266,6 +266,47 @@ const reportService = {
         });
         return handleResponse(response);
     },
+
+    /**
+     * Get Manufacture Process Inspection Analysis Data
+     * Hits: /api/SummaryReports/manufacture-process-analysis
+     * @param {Object} params - { page, size, startDate, endDate }
+     */
+    getManufactureProcessAnalysis: async (params) => {
+        const { page = 0, size = 10, startDate, endDate } = params || {};
+        const url = new URL(`${API_BASE_URL}/api/SummaryReports/manufacture-process-analysis`);
+
+        url.searchParams.append('page', page);
+        url.searchParams.append('size', size);
+        if (startDate) url.searchParams.append('startDate', startDate);
+        if (endDate) url.searchParams.append('endDate', endDate);
+
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    /**
+     * Get Company Month Wise Data for Drill Down
+     * Hits: /api/SummaryReports/company-month-wise
+     * @param {Object} params - { page, size, startDate, endDate, companyName }
+     */
+    getCompanyMonthWiseData: async (params) => {
+        const { page = 0, size = 30, startDate, endDate, companyName } = params || {};
+        const url = new URL(`${API_BASE_URL}/api/SummaryReports/company-month-wise`);
+
+        url.searchParams.append('page', page);
+        url.searchParams.append('size', size);
+        if (startDate) url.searchParams.append('startDate', startDate);
+        if (endDate) url.searchParams.append('endDate', endDate);
+        if (companyName) url.searchParams.append('companyName', companyName);
+
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
 };
 
 export default reportService;

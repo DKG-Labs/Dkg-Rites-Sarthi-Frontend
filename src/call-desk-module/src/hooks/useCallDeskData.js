@@ -79,15 +79,20 @@ export const useCallDeskData = () => {
         internalStatus = CALL_STATUS.RETURNED;
       }
 
+      const poParts = (item.poNo || "").split(" / ");
+      const rlyName = poParts[0] || "-";
+      const actualPoNo = poParts[1] || "-";
+      const actualSerialNo = poParts[1] && poParts[2] ? `${poParts[1]} / ${poParts[2]}` : (poParts[2] || "-");
+
       return {
         id: item.workflowTransitionId,
         callNumber: item.requestId,
         vendor: { name: item.vendorName || '-' },
         submissionDateTime: item.createdDate,
-        poNumber: item.poNo,
-        poSerialNo: item.poSerialNo,
-        rlyShortName: item.rlyShortName,
-        rlyPoSr: `${item.rlyShortName || ''} / ${item.poNo || ''} / ${item.poSerialNo || ''}`,
+        poNumber: actualPoNo,
+        poSerialNo: actualSerialNo,
+        rlyShortName: rlyName,
+        rlyPoSr: item.poNo || '-',
         product: item.productType,
         productStage: item.productType,
         desiredInspectionDate: item.desiredInspectionDate,

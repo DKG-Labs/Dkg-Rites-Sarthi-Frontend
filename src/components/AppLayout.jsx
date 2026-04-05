@@ -198,6 +198,17 @@ const AppLayout = () => {
                     <span className="sidebar-text">Final Product Inspection</span>
                   </li>
                 )}
+                {/* Annexures - Show for IE users */}
+                {currentUser?.roleName !== 'CM' && currentUser?.roleName !== 'CALL_DESK' && currentUser?.roleName !== 'Finance' && (
+                  <li
+                    className={`sidebar-item ${isActivePage(ROUTES.ANNEXURES) ? 'active' : ''}`}
+                    onClick={() => { setIsSidebarOpen(false); navigate(ROUTES.ANNEXURES); }}
+                    title="Annexures"
+                  >
+                    <span className="sidebar-icon">📋</span>
+                    <span className="sidebar-text">Annexures</span>
+                  </li>
+                )}
                 {/* CM Dashboard - Only show for CM role */}
                 {currentUser?.roleName === 'CM' && (
                   <li
@@ -240,7 +251,7 @@ const AppLayout = () => {
           <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)} aria-hidden="true" />
         )}
 
-        <main className="main-content">
+        <main className={`main-content ${isRailwayBoardRoute ? 'full-width-main' : ''}`}>
           <Outlet />
         </main>
       </div>

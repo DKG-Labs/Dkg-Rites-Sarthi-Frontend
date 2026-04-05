@@ -51,6 +51,8 @@ import { CallDeskDashboardWrapper } from './pages/wrappers/CallDeskWrapper';
 import { FinanceDashboardWrapper } from './pages/wrappers/FinanceWrapper';
 import { RailwayBoardDashboardWrapper } from './pages/wrappers/RailwayBoardWrapper';
 import { AdminDashboardWrapper } from './pages/wrappers/AdminDashboardWrapper';
+import AnnexurePage from './pages/AnnexurePage';
+import { useNavigate } from 'react-router-dom';
 
 /**
  * Role-based redirect component
@@ -74,9 +76,15 @@ import { AdminDashboardWrapper } from './pages/wrappers/AdminDashboardWrapper';
 
 const RoleBasedRedirect = () => {
   const user = getStoredUser();
-  const target =
-    ROLE_LANDING_ROUTE[user?.roleName] || ROUTES.LOGIN;
+  const roleName = user?.roleName;
 
+  // Handle external redirection for Sleeper Process IE
+  if (roleName === 'Sleeper Process IE' || (typeof roleName === 'string' && roleName.includes('Sleeper Process IE'))) {
+    window.location.href = '/sleeper/';
+    return null;
+  }
+
+  const target = ROLE_LANDING_ROUTE[roleName] || ROUTES.LOGIN;
   return <Navigate to={target} replace />;
 };
 
@@ -102,19 +110,28 @@ const RoleBasedRedirect = () => {
 
 const LandingPageGuard = () => {
   const user = getStoredUser();
+  const roleName = user?.roleName;
+
+  // Handle external redirection for Sleeper Process IE
+  if (roleName === 'Sleeper Process IE' || (typeof roleName === 'string' && roleName.includes('Sleeper Process IE'))) {
+    window.location.href = '/sleeper/';
+    return null;
+  }
 
   // Allow IE and Process IE users to access landing page
   const ieRoles = ['IE', 'Process IE'];
-  if (!ieRoles.includes(user?.roleName)) {
-    return (
-      <Navigate
-        to={ROLE_LANDING_ROUTE[user?.roleName]}
-        replace
-      />
-    );
+  if (!ieRoles.includes(roleName)) {
+    const target = ROLE_LANDING_ROUTE[roleName] || ROUTES.LOGIN;
+    return <Navigate to={target} replace />;
   }
 
   return <LandingPageWrapper />;
+};
+
+// Wrapper for AnnexurePage to provide onBack logic
+const AnnexureRouteWrapper = () => {
+  const navigate = useNavigate();
+  return <AnnexurePage onBack={() => navigate(ROUTES.LANDING)} />;
 };
 
 /**
@@ -137,61 +154,98 @@ const App = () => {
               </ProtectedRoute>
             }
           >
-            {/* Landing Page - with role-based guard */}
+            {/* Landing Page - with role-based guard (Guard handles IE/Process IE only) */}
             <Route path={ROUTES.LANDING} element={<LandingPageGuard />} />
 
-            {/* Inspection Initiation */}
-            <Route path={ROUTES.INITIATION} element={<InitiationPageWrapper />} />
-            <Route path={ROUTES.MULTI_INITIATION} element={<MultiInitiationWrapper />} />
+            {/* IE & Process IE Restricted Routes */}
+            <Route element={<ProtectedRoute allowedRoles={['IE', 'Process IE']} />}>
+              {/* Inspection Initiation */}
+              <Route path={ROUTES.INITIATION} element={<InitiationPageWrapper />} />
+              <Route path={ROUTES.MULTI_INITIATION} element={<MultiInitiationWrapper />} />
 
-            {/* Raw Material Routes */}
-            <Route path={ROUTES.RAW_MATERIAL} element={<RawMaterialDashboardWrapper />} />
-            <Route path={ROUTES.RAW_MATERIAL_CALIBRATION} element={<CalibrationDocumentsWrapper />} />
-            <Route path={ROUTES.RAW_MATERIAL_VISUAL} element={<VisualInspectionWrapper />} />
-            <Route path={ROUTES.RAW_MATERIAL_DIMENSIONAL} element={<DimensionalCheckWrapper />} />
-            <Route path={ROUTES.RAW_MATERIAL_TESTING} element={<MaterialTestingWrapper />} />
-            <Route path={ROUTES.RAW_MATERIAL_PACKING} element={<PackingStorageWrapper />} />
-            <Route path={ROUTES.RAW_MATERIAL_SUMMARY} element={<SummaryReportsWrapper />} />
+              {/* Raw Material Routes */}
+              <Route path={ROUTES.RAW_MATERIAL} element={<RawMaterialDashboardWrapper />} />
+              <Route path={ROUTES.RAW_MATERIAL_CALIBRATION} element={<CalibrationDocumentsWrapper />} />
+              <Route path={ROUTES.RAW_MATERIAL_VISUAL} element={<VisualInspectionWrapper />} />
+              <Route path={ROUTES.RAW_MATERIAL_DIMENSIONAL} element={<DimensionalCheckWrapper />} />
+              <Route path={ROUTES.RAW_MATERIAL_TESTING} element={<MaterialTestingWrapper />} />
+              <Route path={ROUTES.RAW_MATERIAL_PACKING} element={<PackingStorageWrapper />} />
+              <Route path={ROUTES.RAW_MATERIAL_SUMMARY} element={<SummaryReportsWrapper />} />
 
-            {/* Process Routes */}
-            <Route path={ROUTES.PROCESS} element={<ProcessDashboardWrapper />} />
-            <Route path={ROUTES.PROCESS_CALIBRATION} element={<ProcessCalibrationWrapper />} />
-            <Route path={ROUTES.PROCESS_STATIC_CHECK} element={<ProcessStaticCheckWrapper />} />
-            <Route path={ROUTES.PROCESS_OIL_TANK} element={<ProcessOilTankWrapper />} />
-            <Route path={ROUTES.PROCESS_PARAMETERS} element={<ProcessParametersWrapper />} />
-            <Route path={ROUTES.PROCESS_SUMMARY} element={<ProcessSummaryWrapper />} />
+              {/* Process Routes */}
+              <Route path={ROUTES.PROCESS} element={<ProcessDashboardWrapper />} />
+              <Route path={ROUTES.PROCESS_CALIBRATION} element={<ProcessCalibrationWrapper />} />
+              <Route path={ROUTES.PROCESS_STATIC_CHECK} element={<ProcessStaticCheckWrapper />} />
+              <Route path={ROUTES.PROCESS_OIL_TANK} element={<ProcessOilTankWrapper />} />
+              <Route path={ROUTES.PROCESS_PARAMETERS} element={<ProcessParametersWrapper />} />
+              <Route path={ROUTES.PROCESS_SUMMARY} element={<ProcessSummaryWrapper />} />
 
-            {/* Final Product Routes */}
-            <Route path={ROUTES.FINAL_PRODUCT} element={<FinalProductDashboardWrapper />} />
-            <Route path={ROUTES.FINAL_CALIBRATION} element={<FinalCalibrationWrapper />} />
-            <Route path={ROUTES.FINAL_VISUAL_DIMENSIONAL} element={<FinalVisualDimensionalWrapper />} />
-            <Route path={ROUTES.FINAL_CHEMICAL} element={<FinalChemicalWrapper />} />
-            <Route path={ROUTES.FINAL_HARDNESS} element={<FinalHardnessWrapper />} />
-            <Route path={ROUTES.FINAL_INCLUSION} element={<FinalInclusionWrapper />} />
-            <Route path={ROUTES.FINAL_DEFLECTION} element={<FinalDeflectionWrapper />} />
-            <Route path={ROUTES.FINAL_TOE_LOAD} element={<FinalToeLoadWrapper />} />
-            <Route path={ROUTES.FINAL_WEIGHT} element={<FinalWeightWrapper />} />
-            <Route path={ROUTES.FINAL_REPORTS} element={<FinalReportsWrapper />} />
+              {/* Final Product Routes */}
+              <Route path={ROUTES.FINAL_PRODUCT} element={<FinalProductDashboardWrapper />} />
+              <Route path={ROUTES.FINAL_CALIBRATION} element={<FinalCalibrationWrapper />} />
+              <Route path={ROUTES.FINAL_VISUAL_DIMENSIONAL} element={<FinalVisualDimensionalWrapper />} />
+              <Route path={ROUTES.FINAL_CHEMICAL} element={<FinalChemicalWrapper />} />
+              <Route path={ROUTES.FINAL_HARDNESS} element={<FinalHardnessWrapper />} />
+              <Route path={ROUTES.FINAL_INCLUSION} element={<FinalInclusionWrapper />} />
+              <Route path={ROUTES.FINAL_DEFLECTION} element={<FinalDeflectionWrapper />} />
+              <Route path={ROUTES.FINAL_TOE_LOAD} element={<FinalToeLoadWrapper />} />
+              <Route path={ROUTES.FINAL_WEIGHT} element={<FinalWeightWrapper />} />
+              <Route path={ROUTES.FINAL_REPORTS} element={<FinalReportsWrapper />} />
 
-            {/* IC (Inspection Certificate) Routes */}
-            <Route path={ROUTES.IC_RAW_MATERIAL} element={<RawMaterialCertificateWrapper />} />
-            <Route path={ROUTES.IC_PROCESS} element={<ProcessMaterialCertificateWrapper />} />
-            <Route path={ROUTES.IC_FINAL_PRODUCT} element={<FinalProductCertificateWrapper />} />
+              {/* IC (Inspection Certificate) Routes */}
+              <Route path={ROUTES.IC_RAW_MATERIAL} element={<RawMaterialCertificateWrapper />} />
+              <Route path={ROUTES.IC_PROCESS} element={<ProcessMaterialCertificateWrapper />} />
+              <Route path={ROUTES.IC_FINAL_PRODUCT} element={<FinalProductCertificateWrapper />} />
 
-            {/* CM (Controlling Manager) Routes */}
-            <Route path={ROUTES.CM_DASHBOARD} element={<CMDashboardWrapper />} />
+              {/* Annexures Route */}
+              <Route path={ROUTES.ANNEXURES} element={<AnnexureRouteWrapper />} />
+            </Route>
 
-            {/* Call Desk Routes */}
-            <Route path={ROUTES.CALL_DESK} element={<CallDeskDashboardWrapper />} />
+            {/* Role-Specific Dashboards */}
+            <Route
+              path={ROUTES.CM_DASHBOARD}
+              element={
+                <ProtectedRoute allowedRoles={['CM']}>
+                  <CMDashboardWrapper />
+                </ProtectedRoute>
+              }
+            />
 
-            {/* Finance Routes */}
-            <Route path={ROUTES.FINANCE} element={<FinanceDashboardWrapper />} />
+            <Route
+              path={ROUTES.CALL_DESK}
+              element={
+                <ProtectedRoute allowedRoles={['CALL_DESK', 'RIO Help Desk']}>
+                  <CallDeskDashboardWrapper />
+                </ProtectedRoute>
+              }
+            />
 
-            {/* Railway Board Routes */}
-            <Route path={ROUTES.RAILWAY_BOARD_DASHBOARD} element={<RailwayBoardDashboardWrapper />} />
+            <Route
+              path={ROUTES.FINANCE}
+              element={
+                <ProtectedRoute allowedRoles={['Finance']}>
+                  <FinanceDashboardWrapper />
+                </ProtectedRoute>
+              }
+            />
 
-            {/* Admin Dashboard Route */}
-            <Route path={ROUTES.ADMIN_DASHBOARD} element={<AdminDashboardWrapper />} />
+            <Route
+              path={ROUTES.RAILWAY_BOARD_DASHBOARD}
+              element={
+                <ProtectedRoute allowedRoles={['RAILWAY_BOARD']}>
+                  <RailwayBoardDashboardWrapper />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path={ROUTES.ADMIN_DASHBOARD}
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <AdminDashboardWrapper />
+                </ProtectedRoute>
+              }
+            />
           </Route>
 
           {/* Catch-all redirect - role-based */}

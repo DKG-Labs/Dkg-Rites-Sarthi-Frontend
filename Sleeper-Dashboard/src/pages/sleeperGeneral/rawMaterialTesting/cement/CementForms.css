@@ -1,0 +1,622 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+.cement-forms-scope {
+    /* Color Palette based on reference image */
+    --primary-color: #42818c;
+    --accent-color: #42818c;
+    --bg-color: #f8fafc;
+    --header-bg: #fff;
+    --input-bg: #f5f7fa;
+    --input-border: #cbd5e1;
+    --input-focus: #42818c;
+    --text-main: #334155;
+    --text-label: #475569;
+    --text-muted: #94a3b8;
+    --required-color: #ef4444;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --font-family: var(--font-primary);
+    --font-size-base: var(--fs-sm);
+    --font-size-label: var(--fs-xs);
+    --font-size-table-row: var(--fs-sm);
+    --font-size-table-header: var(--fs-xs);
+}
+
+.cement-forms-scope {
+    font-family: var(--font-family);
+    color: var(--text-main);
+    line-height: normal;
+    /* Tighter line height for compact mode */
+}
+
+/* Card / Form Container */
+.cement-forms-scope .form-card {
+    background: #f8fafc;
+    /* Lighter background to contrast with white cards */
+    border-radius: var(--radius-md);
+    box-shadow: none;
+    overflow: visible;
+    border: none;
+}
+
+.cement-forms-scope .form-header {
+    background-color: #FBF6EC;
+    /* Global beige box header */
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--input-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.cement-forms-scope .form-header h2 {
+    font-size: var(--fs-xl);
+    color: #101828;
+    font-weight: 600;
+    margin: 0;
+}
+
+.cement-forms-scope .close-btn {
+    background: #f1f5f9;
+    border: none;
+    width: 24px;
+    /* Smaller close button */
+    height: 24px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-label);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 1.2rem;
+    line-height: 1;
+}
+
+.cement-forms-scope .close-btn:hover {
+    background: #e2e8f0;
+}
+
+.cement-forms-scope .form-body {
+    padding: 0.75rem 1rem;
+    /* Minimized padding */
+}
+
+/* Grid Layout */
+.cement-forms-scope .form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem 1.25rem;
+    margin-bottom: 0.75rem;
+    align-items: end;
+}
+
+@media (max-width: 768px) {
+    .cement-forms-scope .form-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Input Group */
+.cement-forms-scope .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    margin-bottom: 10px;
+    /* Reduced gap between label and input */
+}
+
+.cement-forms-scope .input-group label {
+    font-size: var(--font-size-label);
+    font-weight: 600;
+    color: var(--text-label);
+    display: flex;
+    align-items: center;
+}
+
+.cement-forms-scope .required {
+    color: var(--required-color);
+    margin-left: 3px;
+    font-size: 12px;
+}
+
+.cement-forms-scope .input-wrapper {
+    position: relative;
+}
+
+.cement-forms-scope input,
+.cement-forms-scope select,
+.cement-forms-scope textarea {
+    width: 100%;
+    padding: 0 10px;
+    background-color: white;
+    border: 1.2px solid var(--input-border);
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: var(--font-size-base);
+    color: var(--text-main);
+    transition: all 0.2s;
+    height: 32px;
+    /* Compact height */
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.01);
+    box-sizing: border-box;
+}
+
+.cement-forms-scope textarea {
+    height: auto;
+}
+
+.cement-forms-scope input:focus,
+.cement-forms-scope select:focus,
+.cement-forms-scope textarea:focus {
+    outline: none;
+    background-color: white;
+    border-color: var(--input-focus);
+    box-shadow: 0 0 0 2px rgba(19, 52, 59, 0.1);
+    /* Smaller shadow spread */
+}
+
+.cement-forms-scope input:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.cement-forms-scope .hint-text {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 1px;
+}
+
+/* Info Box / Summary Section */
+.cement-forms-scope .info-section {
+    background: transparent;
+    padding: 0;
+    margin-bottom: 1.5rem;
+}
+
+.cement-forms-scope .info-title {
+    color: #13343b;
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.cement-forms-scope .info-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+}
+
+.cement-forms-scope .info-card {
+    background: white;
+    padding: 10px 16px;
+    border-radius: var(--radius-md);
+    text-align: center;
+    border: 1px solid var(--input-border);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.cement-forms-scope .info-card-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+    text-transform: uppercase;
+}
+
+.cement-forms-scope .info-card-value {
+    font-size: 1rem;
+    /* Reduced from 1.25rem */
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+/* Sections */
+.cement-forms-scope .section-divider {
+    border: none;
+    height: 1px;
+    margin: 1rem 0;
+}
+
+.cement-forms-scope .section-title {
+    background: white;
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-size: var(--fs-md);
+    font-weight: 600;
+    color: var(--text-main);
+    margin-bottom: 0.5rem;
+    border: 1px solid var(--input-border);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.cement-forms-scope .section-subtitle {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+}
+
+/* Buttons */
+.cement-forms-scope .btn-save {
+    background-color: #42818c;
+    color: white;
+    padding: 0.4rem 1.25rem;
+    border-radius: 20px;
+    border: none;
+    font-weight: 600;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+    margin-top: 0.4rem;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cement-forms-scope .form-modal-footer {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.cement-forms-scope .form-modal-footer .btn-save {
+    width: auto;
+    min-width: 150px;
+    margin-top: 0;
+}
+
+.cement-forms-scope .btn-save:hover {
+    background-color: #356972;
+    transform: translateY(-1px);
+}
+
+/* Specific overrides for Record Test and Add New Test buttons */
+.cement-forms-scope .btn-verify,
+.cement-forms-scope .btn-action {
+    background-color: #42818c !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 20px !important;
+    padding: 6px 16px !important;
+    font-weight: 600 !important;
+    font-size: 12px !important;
+    cursor: pointer !important;
+    transition: all 0.2s !important;
+    box-shadow: 0 2px 4px rgba(66, 129, 140, 0.2) !important;
+}
+
+.cement-forms-scope .btn-verify:hover,
+.cement-forms-scope .btn-action:hover {
+    background-color: #356972 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 6px rgba(66, 129, 140, 0.3) !important;
+}
+
+/* Table styles */
+.cement-forms-scope .table-container {
+    background: #ffffff;
+    border-radius: 14px;
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+    margin-bottom: 24px;
+}
+
+.cement-forms-scope table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.cement-forms-scope th {
+    background-color: #FBF6EC;
+    padding: 14px;
+    font-weight: 600;
+    color: #4a5568;
+    border-bottom: 1px solid #e5e7eb;
+    text-transform: uppercase;
+    /* Standardized to global */
+    font-size: var(--fs-xs);
+    letter-spacing: 0.05em;
+    vertical-align: middle;
+}
+
+.cement-forms-scope td {
+    padding: 18px 16px;
+    background: white;
+    font-size: 14px;
+    color: #344054;
+    border-bottom: 1px solid #e5e7eb;
+    vertical-align: middle;
+}
+
+.cement-forms-scope .readOnly {
+    background: #f9fafb !important;
+    font-weight: 600;
+    color: #475569;
+    text-align: center;
+}
+
+.cement-forms-scope tr:nth-child(even) {
+    background-color: #fcfcfd;
+}
+
+.cement-forms-scope tr:hover {
+    background-color: #fafafa;
+}
+
+/* --- Responsive Table Fix for Forms --- */
+@media (max-width: 768px) {
+    .cement-forms-scope .table-container {
+        border: none;
+        background: transparent;
+        overflow: visible;
+    }
+
+    .cement-forms-scope table,
+    .cement-forms-scope thead,
+    .cement-forms-scope tbody,
+    .cement-forms-scope th,
+    .cement-forms-scope td,
+    .cement-forms-scope tr {
+        display: block;
+        width: 100%;
+    }
+
+    .cement-forms-scope thead tr {
+        display: none;
+        /* Hide header on mobile */
+    }
+
+    .cement-forms-scope tr {
+        margin-bottom: 20px;
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 10px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .cement-forms-scope td {
+        border: none;
+        padding: 8px 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        text-align: right;
+        position: relative;
+    }
+
+    .cement-forms-scope td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: #64748b;
+        font-size: 11px;
+        text-align: left;
+        margin-right: 16px;
+        flex: 1;
+    }
+
+    .cement-forms-scope td input {
+        width: 60%;
+        /* Take up remaining space */
+        text-align: right;
+        background: white;
+        border: 1px solid #e2e8f0;
+    }
+}
+
+/* Inputs inside table cells should be very compact and blend in */
+.cement-forms-scope td input {
+    padding: 0 6px;
+    background: #fcfcfd;
+    font-size: 11.5px;
+    height: 26px;
+    /* Ultra-compact for tables */
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    width: 100%;
+    box-sizing: border-box;
+    text-align: center;
+}
+
+.cement-forms-scope td {
+    padding: 3px 6px;
+    vertical-align: middle;
+}
+
+.cement-forms-scope td input:hover,
+.cement-forms-scope td input:focus {
+    border-color: var(--input-border);
+}
+
+.cement-forms-scope td input:focus {
+    border-color: var(--input-focus);
+}
+
+/* Tabs for navigation */
+.cement-forms-scope .nav-tabs {
+    display: flex;
+    gap: 0.25rem;
+    margin-bottom: 1.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 4px;
+}
+
+.cement-forms-scope .nav-tab {
+    padding: 0.4rem 0.75rem;
+    border-radius: 6px 6px 0 0;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--text-label);
+    font-weight: 600;
+    font-size: 12px;
+    /* Smaller tabs */
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.cement-forms-scope .nav-tab.active {
+    color: #13343b;
+    background: transparent;
+    border-bottom-color: #13343b;
+}
+
+/* Modal Overlay & Backdrop */
+.cement-forms-scope .form-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 20px;
+}
+
+.modal-content {
+    width: 90%;
+    max-width: 800px;
+    max-height: 95vh;
+    overflow-y: hidden;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.25);
+    animation: modalSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow: visible;
+}
+
+.cement-forms-scope .form-body-scroll {
+    overflow-y: auto;
+    flex: 1;
+    padding: 16px 20px;
+}
+
+.cement-forms-scope .input-group-gap {
+    margin-bottom: 16px;
+}
+
+.cement-forms-scope .calculated-param-card {
+    padding: 12px;
+    margin-bottom: 12px;
+    background: #f8fafc;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+}
+
+.modal-close-icon {
+    position: absolute;
+    top: -12px;
+    right: -12px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #64748b;
+    z-index: 50;
+    transition: all 0.2s;
+    border: 1px solid #e2e8f0;
+    font-size: 14px;
+}
+
+.modal-close-icon:hover {
+    background: #f8fafc;
+    color: #ef4444;
+    transform: scale(1.05);
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.99);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Global Checkbox logic for Form Scope - Matches MainLayout.js system */
+.cement-forms-scope input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border: 1.5px solid #9ca3af;
+    border-radius: 3px;
+    background: #ffffff;
+    cursor: pointer;
+    display: grid;
+    place-content: center;
+    transition: all 0.1s ease-in-out;
+}
+
+.cement-forms-scope input[type="checkbox"]::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    transform: scale(0);
+    transition: transform 0.1s ease-in-out;
+    background-color: #21808d;
+    clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+}
+
+.cement-forms-scope input[type="checkbox"]:checked::before {
+    transform: scale(1);
+}
+
+.cement-forms-scope input[type="checkbox"]:hover {
+    border-color: #21808d;
+}
+
+.cement-forms-scope .disabled-btn {
+    opacity: 0.4 !important;
+    cursor: not-allowed !important;
+    background-color: #94a3b8 !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+.cement-forms-scope .disabled-btn:hover {
+    background-color: #94a3b8 !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.cement-forms-scope .success-row td {
+    background-color: #ecfdf5 !important; /* light green background */
+}
+
+.cement-forms-scope .success-row td input {
+    background-color: #d1fae5 !important; /* darker green for inputs */
+    border: 1px solid #10b981 !important; /* green border */
+}

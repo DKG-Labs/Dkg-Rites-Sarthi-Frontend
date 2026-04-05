@@ -11,15 +11,18 @@ const getCurrentUserId = () => {
 };
 
 /**
- * Add createdBy field for new records (first save)
+ * Enrich payload with userId and inspectionDate
  * @param {Object} data - Original data object
- * @returns {Object} Data with createdBy field added
+ * @returns {Object} Data with audit and date fields added
  */
-const addCreatedByField = (data) => {
+const enrichPayload = (data) => {
   const userId = getCurrentUserId();
+  const inspectionDate = sessionStorage.getItem('inspectionDate');
   return {
     ...data,
-    createdBy: userId
+    createdBy: userId,
+    updatedBy: userId,
+    dateOfInspection: inspectionDate
   };
 };
 
@@ -30,7 +33,7 @@ const addCreatedByField = (data) => {
 export const saveCalibrationDocuments = async (data) => {
   try {
     const url = `${API_BASE_URL}/api/final-inspection/submodules/calibration-documents`;
-    const payload = addCreatedByField(data);
+    const payload = enrichPayload(data);
     const response = await fetch(url, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -51,7 +54,7 @@ export const saveCalibrationDocuments = async (data) => {
 export const saveVisualInspection = async (data) => {
   try {
     const url = `${API_BASE_URL}/api/final-material/visual-inspection`;
-    const payload = addCreatedByField(data);
+    const payload = enrichPayload(data);
     const response = await fetch(url, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -72,7 +75,7 @@ export const saveVisualInspection = async (data) => {
 export const saveDimensionalInspection = async (data) => {
   try {
     const url = `${API_BASE_URL}/api/final-inspection/submodules/dimensional-inspection`;
-    const payload = addCreatedByField(data);
+    const payload = enrichPayload(data);
     const response = await fetch(url, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -94,7 +97,7 @@ export const saveDimensionalInspection = async (data) => {
 export const saveDimensionalInspectionFlat = async (data) => {
   try {
     const url = `${API_BASE_URL}/api/final-inspection/submodules/dimensional-inspection-flat`;
-    const payload = addCreatedByField(data);
+    const payload = enrichPayload(data);
     const response = await fetch(url, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -114,7 +117,7 @@ export const saveDimensionalInspectionFlat = async (data) => {
 export const saveChemicalAnalysis = async (data) => {
   try {
     const url = `${API_BASE_URL}/api/final-inspection/submodules/chemical-analysis`;
-    const payload = addCreatedByField(data);
+    const payload = enrichPayload(data);
     const response = await fetch(url, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -167,12 +170,7 @@ export const getChemicalAnalysisByCall = async (callNo) => {
 export const saveHardnessTest = async (data) => {
   try {
     const url = `${API_BASE_URL}/api/final-inspection/submodules/hardness-test`;
-    const userId = getCurrentUserId();
-    const payload = {
-      ...data,
-      createdBy: userId,
-      updatedBy: userId
-    };
+    const payload = enrichPayload(data);
     const response = await fetch(url, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -212,7 +210,7 @@ export const getHardnessTestsByCall = async (callNo) => {
 export const saveInclusionRating = async (data) => {
   try {
     const url = `${API_BASE_URL}/api/final-inspection/submodules/inclusion-rating`;
-    const payload = addCreatedByField(data);
+    const payload = enrichPayload(data);
     const response = await fetch(url, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -233,7 +231,7 @@ export const saveInclusionRating = async (data) => {
 export const saveInclusionRatingBatch = async (data) => {
   try {
     const url = `${API_BASE_URL}/api/final-inspection/submodules/inclusion-rating/batch`;
-    const payload = addCreatedByField(data);
+    const payload = enrichPayload(data);
     const response = await fetch(url, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -253,7 +251,7 @@ export const saveInclusionRatingBatch = async (data) => {
 export const saveDepthOfDecarburization = async (data) => {
   try {
     const url = `${API_BASE_URL}/api/final-inspection/submodules/depth-of-decarburization`;
-    const payload = addCreatedByField(data);
+    const payload = enrichPayload(data);
     const response = await fetch(url, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -273,7 +271,7 @@ export const saveDepthOfDecarburization = async (data) => {
 export const saveInclusionRatingNew = async (data) => {
   try {
     const url = `${API_BASE_URL}/api/final-inspection/submodules/inclusion-rating-new`;
-    const payload = addCreatedByField(data);
+    const payload = enrichPayload(data);
     const response = await fetch(url, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -293,7 +291,7 @@ export const saveInclusionRatingNew = async (data) => {
 export const saveMicrostructureTest = async (data) => {
   try {
     const url = `${API_BASE_URL}/api/final-inspection/submodules/microstructure-test`;
-    const payload = addCreatedByField(data);
+    const payload = enrichPayload(data);
     const response = await fetch(url, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -313,7 +311,7 @@ export const saveMicrostructureTest = async (data) => {
 export const saveFreedomFromDefectsTest = async (data) => {
   try {
     const url = `${API_BASE_URL}/api/final-inspection/submodules/freedom-from-defects-test`;
-    const payload = addCreatedByField(data);
+    const payload = enrichPayload(data);
     const response = await fetch(url, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -333,7 +331,7 @@ export const saveFreedomFromDefectsTest = async (data) => {
 export const saveApplicationDeflection = async (data) => {
   try {
     const url = `${API_BASE_URL}/api/final-inspection/submodules/application-deflection`;
-    const payload = addCreatedByField(data);
+    const payload = enrichPayload(data);
     const response = await fetch(url, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -408,7 +406,7 @@ export const getApplicationDeflectionByCallNo = async (callNo) => {
 export const saveWeightTest = async (data) => {
   try {
     const url = `${API_BASE_URL}/api/final-inspection/submodules/weight-test`;
-    const payload = addCreatedByField(data);
+    const payload = enrichPayload(data);
     const response = await fetch(url, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -447,7 +445,7 @@ export const getWeightTestsByCall = async (callNo) => {
 export const saveToeLoadTest = async (data) => {
   try {
     const url = `${API_BASE_URL}/api/final-inspection/submodules/toe-load-test`;
-    const payload = addCreatedByField(data);
+    const payload = enrichPayload(data);
     const response = await fetch(url, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -498,6 +496,298 @@ export const finishInspection = async (callNo) => {
       success: [],
       failed: [],
       skipped: []
+    };
+
+    // Helper function to get and save data for a submodule (PARALLEL EXECUTION)
+    // Special handler for Visual Inspection data (NEW consolidated endpoint - PARALLEL EXECUTION)
+    const saveVisualInspectionData = async () => {
+      try {
+        const storedData = localStorage.getItem(`visualDimensionalData_${callNo}`);
+        if (!storedData) {
+          console.log(`⏭️  Skipping Visual Inspection - no data found`);
+          results.skipped.push('Visual Inspection');
+          return;
+        }
+
+        const data = JSON.parse(storedData);
+        console.log(`📤 Saving Visual Inspection data:`, data);
+
+        // Get lot details from sessionStorage to retrieve heatNo for each lot
+        let lotDetailsMap = {};
+        try {
+          const fpDashboardCache = sessionStorage.getItem('fpDashboardDataCache');
+          if (fpDashboardCache) {
+            const cacheData = JSON.parse(fpDashboardCache);
+            const finalLotDetails = cacheData[callNo]?.finalLotDetails || [];
+            finalLotDetails.forEach(lot => {
+              lotDetailsMap[lot.lotNo || lot.lotNumber] = {
+                heatNo: lot.heatNo || lot.heatNumber
+              };
+            });
+          }
+        } catch (e) {
+          console.warn('Could not retrieve lot details from cache:', e);
+        }
+
+        // Collect all promises for parallel execution
+        const promises = [];
+
+        // Save each lot's visual inspection data
+        for (const [lotNo, lotData] of Object.entries(data)) {
+          const heatNo = lotDetailsMap[lotNo]?.heatNo || "";
+
+          // Only save if there's actual visual data
+          if (lotData.visualR1 !== "" || lotData.visualR2 !== "" || lotData.visualRemark !== "") {
+            const r1 = parseInt(lotData.visualR1) || 0;
+            const r2 = parseInt(lotData.visualR2) || 0;
+            const totalRejected = r1 + r2;
+
+            const visualPayload = {
+              inspectionCallNo: callNo,
+              lotNo: lotNo,
+              heatNo: heatNo,
+              firstSampleRejected: r1,
+              secondSampleRejected: r2,
+              totalRejected: totalRejected,
+              remarks: lotData.visualRemark || "",
+              status: totalRejected > 0 ? "NOT OK" : "OK"
+            };
+
+            promises.push(
+              saveVisualInspection(visualPayload).then(() => {
+                console.log(`✅ Visual Inspection saved for lot ${lotNo}`);
+              })
+            );
+          }
+        }
+
+        // Execute all promises in parallel
+        await Promise.all(promises);
+        results.success.push('Visual Inspection');
+      } catch (error) {
+        console.error(`❌ Error saving Visual Inspection:`, error);
+        results.failed.push({ module: 'Visual Inspection', error: error.message });
+      }
+    };
+
+    // Special handler for NEW submodules (Inclusion, Decarb, Micro, Defects - PARALLEL EXECUTION)
+    const saveNewSubmodulesData = async () => {
+      try {
+        const storedData = localStorage.getItem(`inclusionRatingData_${callNo}`);
+        if (!storedData) {
+          console.log(`⏭️  Skipping New Submodules (Inclusion/Decarb/Micro/Defects) - no data found`);
+          results.skipped.push('Inclusion Rating Tests');
+          return;
+        }
+
+        const data = JSON.parse(storedData);
+        console.log(`📤 Saving New Submodules data:`, data);
+
+        // Get lot details from sessionStorage to retrieve heatNo and quantity for each lot
+        let lotDetailsMap = {};
+        let ercType = "MK-III";
+        try {
+          const fpDashboardCache = sessionStorage.getItem('fpDashboardDataCache');
+          if (fpDashboardCache) {
+            const cacheData = JSON.parse(fpDashboardCache);
+            const dashboardData = cacheData[callNo]?.dashboardData || cacheData[callNo] || {};
+            ercType = dashboardData.inspectionCall?.ercType || dashboardData.ercType || "MK-III";
+            
+            const finalLotDetails = cacheData[callNo]?.finalLotDetails || dashboardData.finalLotDetails || [];
+            finalLotDetails.forEach(lot => {
+              lotDetailsMap[lot.lotNo || lot.lotNumber] = {
+                heatNo: lot.heatNo || lot.heatNumber,
+                qty: lot.lotSize || lot.offeredQty || 0
+              };
+            });
+          }
+        } catch (e) {
+          console.warn('Could not retrieve lot details from cache:', e);
+        }
+
+        const maxDecarb = ercType.includes('MK-V') ? 0.23 : 0.15;
+        const promises = [];
+        let hasDecarb = false, hasInclusion = false, hasMicrostructure = false, hasDefects = false;
+
+        // Process each lot
+        for (const [lotNo, lotData] of Object.entries(data)) {
+          const heatNo = lotDetailsMap[lotNo]?.heatNo || "";
+          const qty = lotDetailsMap[lotNo]?.qty || 0;
+
+          // 1. Depth of Decarburization
+          const decarb1st = lotData.decarb1st || [];
+          const decarb2nd = lotData.decarb2nd || [];
+          if (decarb1st.length > 0 || decarb2nd.length > 0) {
+            hasDecarb = true;
+            const decarbSamples = [];
+            let rejectedCount = 0;
+
+            decarb1st.forEach((v, index) => {
+              if (v !== "") {
+                const val = parseFloat(v);
+                if (val > maxDecarb) rejectedCount++;
+                decarbSamples.push({ samplingNo: 1, sampleNo: index + 1, sampleValue: val });
+              }
+            });
+            decarb2nd.forEach((v, index) => {
+              if (v !== "") {
+                const val = parseFloat(v);
+                if (val > maxDecarb) rejectedCount++;
+                decarbSamples.push({ samplingNo: 2, sampleNo: index + 1, sampleValue: val });
+              }
+            });
+
+            if (decarbSamples.length > 0) {
+              promises.push(
+                saveDepthOfDecarburization({
+                  inspectionCallNo: callNo,
+                  lotNo: lotNo,
+                  heatNo: heatNo,
+                  sampleSize: decarbSamples.length,
+                  qty: qty,
+                  remarks: lotData.decarbRemarks || "",
+                  status: rejectedCount > 0 ? "NOT OK" : "OK",
+                  rejected: rejectedCount,
+                  samples: decarbSamples
+                }).then(() => console.log(`✅ Depth of Decarburization saved for lot ${lotNo}`))
+              );
+            }
+          }
+
+          // 2. Inclusion Rating
+          const inclusion1st = lotData.inclusion1st || [];
+          const inclusion2nd = lotData.inclusion2nd || [];
+          if (inclusion1st.length > 0 || inclusion2nd.length > 0) {
+            hasInclusion = true;
+            const inclusionSamples = [];
+            let rejectedCount = 0;
+
+            const processInclusionSample = (s, samplingNo, index) => {
+              if (!s || typeof s !== 'object') return;
+              const sample = {
+                samplingNo: samplingNo,
+                sampleNo: index + 1,
+                sampleValueA: s.A || "", sampleTypeA: s.typeA || "",
+                sampleValueB: s.B || "", sampleTypeB: s.typeB || "",
+                sampleValueC: s.C || "", sampleTypeC: s.typeC || "",
+                sampleValueD: s.D || "", sampleTypeD: s.typeD || ""
+              };
+              
+              if (parseFloat(s.A) > 2.0 || parseFloat(s.B) > 2.0 || parseFloat(s.C) > 2.0 || parseFloat(s.D) > 2.0) {
+                rejectedCount++;
+              }
+              inclusionSamples.push(sample);
+            };
+
+            inclusion1st.forEach((s, i) => processInclusionSample(s, 1, i));
+            inclusion2nd.forEach((s, i) => processInclusionSample(s, 2, i));
+
+            if (inclusionSamples.length > 0) {
+              promises.push(
+                saveInclusionRatingNew({
+                  inspectionCallNo: callNo,
+                  lotNo: lotNo,
+                  heatNo: heatNo,
+                  sampleSize: inclusionSamples.length,
+                  samplingType: "Random",
+                  remarks: lotData.inclusionRemarks || "",
+                  status: rejectedCount > 0 ? "NOT OK" : "OK",
+                  rejected: rejectedCount,
+                  samples: inclusionSamples
+                }).then(() => console.log(`✅ Inclusion Rating saved for lot ${lotNo}`))
+              );
+            }
+          }
+
+          // 3. Microstructure Test
+          const micro1st = lotData.microstructure1st || [];
+          const micro2nd = lotData.microstructure2nd || [];
+          if (micro1st.length > 0 || micro2nd.length > 0) {
+            hasMicrostructure = true;
+            const microSamples = [];
+            let rejectedCount = 0;
+
+            micro1st.forEach((v, index) => {
+              if (v !== "") {
+                if (v === 'Not Tempered Martensite') rejectedCount++;
+                microSamples.push({ samplingNo: 1, sampleNo: index + 1, sampleType: v });
+              }
+            });
+            micro2nd.forEach((v, index) => {
+              if (v !== "") {
+                if (v === 'Not Tempered Martensite') rejectedCount++;
+                microSamples.push({ samplingNo: 2, sampleNo: index + 1, sampleType: v });
+              }
+            });
+
+            if (microSamples.length > 0) {
+              promises.push(
+                saveMicrostructureTest({
+                  inspectionCallNo: callNo,
+                  lotNo: lotNo,
+                  heatNo: heatNo,
+                  sampleSize: microSamples.length,
+                  qty: qty,
+                  remarks: lotData.microstructureRemarks || "",
+                  status: rejectedCount > 0 ? "NOT OK" : "OK",
+                  rejected: rejectedCount,
+                  samples: microSamples
+                }).then(() => console.log(`✅ Microstructure Test saved for lot ${lotNo}`))
+              );
+            }
+          }
+
+          // 4. Freedom from Defects
+          const defects1st = lotData.defects1st || [];
+          const defects2nd = lotData.defects2nd || [];
+          if (defects1st.length > 0 || defects2nd.length > 0) {
+            hasDefects = true;
+            const defectSamples = [];
+            let rejectedCount = 0;
+
+            defects1st.forEach((v, index) => {
+              if (v !== "") {
+                if (v === 'NOT OK') rejectedCount++;
+                defectSamples.push({ samplingNo: 1, sampleNo: index + 1, sampleType: v });
+              }
+            });
+            defects2nd.forEach((v, index) => {
+              if (v !== "") {
+                if (v === 'NOT OK') rejectedCount++;
+                defectSamples.push({ samplingNo: 2, sampleNo: index + 1, sampleType: v });
+              }
+            });
+
+            if (defectSamples.length > 0) {
+              promises.push(
+                saveFreedomFromDefectsTest({
+                  inspectionCallNo: callNo,
+                  lotNo: lotNo,
+                  heatNo: heatNo,
+                  sampleSize: defectSamples.length,
+                  qty: qty,
+                  remarks: lotData.defectsRemarks || "",
+                  status: rejectedCount > 0 ? "NOT OK" : "OK",
+                  rejected: rejectedCount,
+                  samples: defectSamples
+                }).then(() => console.log(`✅ Freedom from Defects saved for lot ${lotNo}`))
+              );
+            }
+          }
+        }
+
+        // Execute all promises in parallel
+        await Promise.all(promises);
+
+        // Add to results only if data was found
+        if (hasDecarb) results.success.push('Depth of Decarburization');
+        if (hasInclusion) results.success.push('Inclusion Rating');
+        if (hasMicrostructure) results.success.push('Microstructure Test');
+        if (hasDefects) results.success.push('Freedom from Defects');
+      } catch (error) {
+        console.error(`❌ Error saving new submodules:`, error);
+        results.failed.push({ module: 'New Submodules', error: error.message });
+      }
     };
 
     // Helper function to get and save data for a submodule (PARALLEL EXECUTION)
@@ -698,21 +988,23 @@ export const finishInspection = async (callNo) => {
           if (lotData.dimGo1 !== "" || lotData.dimNoGo1 !== "" || lotData.dimFlat1 !== "" ||
             lotData.dimGo2 !== "" || lotData.dimNoGo2 !== "" || lotData.dimFlat2 !== "" ||
             lotData.dimRemark !== "") {
-            const dimensionalFlatPayload = {
-              inspectionCallNo: callNo,
-              lotNo: lotNo,
-              heatNo: heatNo,
-              firstSampleGoGaugeFail: lotData.dimGo1 || 0,
-              firstSampleNoGoFail: lotData.dimNoGo1 || 0,
-              firstSampleFlatBearingFail: lotData.dimFlat1 || 0,
-              secondSampleGoGaugeFail: lotData.dimGo2 || 0,
-              secondSampleNoGoFail: lotData.dimNoGo2 || 0,
-              secondSampleFlatBearingFail: lotData.dimFlat2 || 0,
-              totalRejected: (lotData.dimGo1 || 0) + (lotData.dimNoGo1 || 0) + (lotData.dimFlat1 || 0) +
-                (lotData.dimGo2 || 0) + (lotData.dimNoGo2 || 0) + (lotData.dimFlat2 || 0),
-              remarks: lotData.dimRemark || "",
-              status: "PENDING"
-            };
+              const totalRejected = (lotData.dimGo1 || 0) + (lotData.dimNoGo1 || 0) + (lotData.dimFlat1 || 0) +
+                (lotData.dimGo2 || 0) + (lotData.dimNoGo2 || 0) + (lotData.dimFlat2 || 0);
+
+              const dimensionalFlatPayload = {
+                inspectionCallNo: callNo,
+                lotNo: lotNo,
+                heatNo: heatNo,
+                firstSampleGoGaugeFail: lotData.dimGo1 || 0,
+                firstSampleNoGoFail: lotData.dimNoGo1 || 0,
+                firstSampleFlatBearingFail: lotData.dimFlat1 || 0,
+                secondSampleGoGaugeFail: lotData.dimGo2 || 0,
+                secondSampleNoGoFail: lotData.dimNoGo2 || 0,
+                secondSampleFlatBearingFail: lotData.dimFlat2 || 0,
+                totalRejected: totalRejected,
+                remarks: lotData.dimRemark || "",
+                status: totalRejected > 0 ? "NOT OK" : "OK"
+              };
             promises.push(
               saveDimensionalInspectionFlat(dimensionalFlatPayload).then(() => {
                 console.log(`✅ Dimensional Inspection (Flat) saved for lot ${lotNo}`);
@@ -804,13 +1096,16 @@ export const finishInspection = async (callNo) => {
               });
             }
 
+            const totalRejected = samples.filter(s => s.isRejected).length;
+
             const hardnessPayload = {
               inspectionCallNo: callNo,
               lotNo: lotNo,
               heatNo: heatNo,
               qtyNo: qtyNo,
               remarks: lotData.remarks || "",
-              status: "PENDING",
+              status: samples.length > 0 ? (totalRejected > 0 ? "NOT OK" : "OK") : "PENDING",
+              rejected: totalRejected,
               samples: samples
             };
 
@@ -870,21 +1165,54 @@ export const finishInspection = async (callNo) => {
           const heatNo = lotDetailsMap[lotNo]?.heatNo || "";
           const qtyNo = lotDetailsMap[lotNo]?.qtyNo || 0;
 
+          // Get spring type from cache to determine weight tolerance
+          let springType = "MK-III"; // Default
+          try {
+            const fpDashboardCache = sessionStorage.getItem('fpDashboardDataCache');
+            if (fpDashboardCache) {
+              const cacheData = JSON.parse(fpDashboardCache);
+              springType = cacheData[callNo]?.dashboardData?.inspectionCall?.ercType || 
+                           cacheData[callNo]?.inspectionCall?.ercType || 
+                           "MK-III";
+            }
+          } catch (e) {
+            console.warn('Could not retrieve ercType from cache:', e);
+          }
+
+          // Tolerance values (Must match FinalWeightTestPage.jsx)
+          const TOLERANCE = {
+            "MK-III": { min: 904, max: 937 },
+            "MK-V": { min: 1068, max: 1108 },
+            "ERC-J": { min: 904, max: 937 }
+          };
+
+          // Normalize type
+          const normalType = (springType || "").toUpperCase().replace(/[\s-]/g, '');
+          let finalType = "MK-III";
+          if (normalType.includes("MKV")) finalType = "MK-V";
+          else if (normalType.includes("ERCJ")) finalType = "ERC-J";
+          
+          const limits = TOLERANCE[finalType] || TOLERANCE["MK-III"];
+
           // Only save if there's actual data
           if (lotData.weight1st?.some(v => v !== "") || lotData.weight2nd?.some(v => v !== "") || lotData.remarks !== "") {
             // Transform frontend format to backend format
             const samples = [];
+            let r1 = 0;
+            let r2 = 0;
 
             // Add 1st sampling samples
             if (lotData.weight1st && Array.isArray(lotData.weight1st)) {
               lotData.weight1st.forEach((value, index) => {
                 if (value !== "") {
                   const numValue = parseFloat(value);
+                  const rejected = numValue < limits.min || numValue > limits.max;
+                  if (rejected) r1++;
                   samples.push({
                     samplingNo: 1,
                     sampleNo: index + 1,
                     sampleValue: numValue,
-                    isRejected: false // Will be determined by backend based on tolerance
+                    isRejected: rejected
                   });
                 }
               });
@@ -895,14 +1223,33 @@ export const finishInspection = async (callNo) => {
               lotData.weight2nd.forEach((value, index) => {
                 if (value !== "") {
                   const numValue = parseFloat(value);
+                  const rejected = numValue < limits.min || numValue > limits.max;
+                  if (rejected) r2++;
                   samples.push({
                     samplingNo: 2,
                     sampleNo: index + 1,
                     sampleValue: numValue,
-                    isRejected: false // Will be determined by backend based on tolerance
+                    isRejected: rejected
                   });
                 }
               });
+            }
+
+            // Calculate status based on common AQL patterns (simplified or passed from UI if possible)
+            // But for now, we'll just determine OK/NOT OK based on whether ANY sample is rejected 
+            // and if all required samples are present.
+            // A more robust way is to use the calculated 'result' from the UI if we had it in storage.
+            // Since we don't store the result in localStorage, we do a basic Check:
+            const totalRejected = r1 + r2;
+            let finalStatus = "PENDING";
+            
+            // If data exists, mark it as OK or NOT OK
+            if (samples.length > 0) {
+                // If any rejection exists, it's at least potentially NOT OK.
+                // In the interest of safety and mirroring the UI which the user sees,
+                // we'll mark it NOT OK if there are rejections exceeding typical AQL (usually Ac=0 for first sampling in these tests)
+                // Actually, let's just use the presence of rejections to flag it for inspector review as NOT OK.
+                finalStatus = totalRejected > 0 ? "NOT OK" : "OK";
             }
 
             const weightPayload = {
@@ -911,13 +1258,14 @@ export const finishInspection = async (callNo) => {
               heatNo: heatNo,
               qtyNo: qtyNo,
               remarks: lotData.remarks || "",
-              status: "PENDING",
+              status: finalStatus,
+              rejected: totalRejected,
               samples: samples
             };
 
             promises.push(
               saveWeightTest(weightPayload).then(() => {
-                console.log(`✅ Weight Test saved for lot ${lotNo}`);
+                console.log(`✅ Weight Test saved for lot ${lotNo} with status ${finalStatus}`);
               })
             );
           }
@@ -971,21 +1319,58 @@ export const finishInspection = async (callNo) => {
           const heatNo = lotDetailsMap[lotNo]?.heatNo || "";
           const qtyNo = lotDetailsMap[lotNo]?.qtyNo || 0;
 
+          // Get spring type from cache to determine toe load tolerance
+          let springType = "MK-III"; // Default
+          try {
+            const fpDashboardCache = sessionStorage.getItem('fpDashboardDataCache');
+            if (fpDashboardCache) {
+              const cacheData = JSON.parse(fpDashboardCache);
+              springType = cacheData[callNo]?.dashboardData?.inspectionCall?.ercType || 
+                           cacheData[callNo]?.inspectionCall?.ercType || 
+                           "MK-III";
+            }
+          } catch (e) {
+            console.warn('Could not retrieve ercType from cache:', e);
+          }
+
+          // Tolerance values (Must match FinalToeLoadTestPage.jsx)
+          const TOLERANCES = {
+            "MK-III": { min: 850, max: 1100 },
+            "MK-V": { min: 1200, max: 1500 },
+            "ERC-J": { min: 650, max: Infinity }
+          };
+
+          // Normalize type
+          const normalType = (springType || "").toUpperCase().replace(/[\s-]/g, '');
+          let finalType = "MK-III";
+          if (normalType.includes("MKV")) finalType = "MK-V";
+          else if (normalType.includes("ERCJ")) finalType = "ERC-J";
+          
+          const limits = TOLERANCES[finalType] || TOLERANCES["MK-III"];
+
           // Only save if there's actual data
           if (lotData.toe1st?.some(v => v !== "") || lotData.toe2nd?.some(v => v !== "") || lotData.remarks !== "") {
             // Transform frontend format to backend format
             const samples = [];
+            let totalRejected = 0;
 
             // Add 1st sampling samples
             if (lotData.toe1st && Array.isArray(lotData.toe1st)) {
               lotData.toe1st.forEach((value, index) => {
                 if (value !== "") {
                   const numValue = parseFloat(value);
+                  let rejected = false;
+                  if (finalType === "ERC-J") {
+                      rejected = numValue <= limits.min;
+                  } else {
+                      rejected = numValue < limits.min || numValue > limits.max;
+                  }
+                  if (rejected) totalRejected++;
                   samples.push({
                     samplingNo: 1,
                     sampleNo: index + 1,
                     sampleValue: numValue,
-                    isRejected: false // Will be determined by backend based on tolerance
+                    isRejected: rejected
                   });
                 }
               });
@@ -996,14 +1381,30 @@ export const finishInspection = async (callNo) => {
               lotData.toe2nd.forEach((value, index) => {
                 if (value !== "") {
                   const numValue = parseFloat(value);
+                  let rejected = false;
+                  if (finalType === "ERC-J") {
+                      rejected = numValue <= limits.min;
+                  } else {
+                      rejected = numValue < limits.min || numValue > limits.max;
+                  }
+                  if (rejected) totalRejected++;
                   samples.push({
                     samplingNo: 2,
                     sampleNo: index + 1,
                     sampleValue: numValue,
-                    isRejected: false // Will be determined by backend based on tolerance
+                    isRejected: rejected
                   });
                 }
               });
+            }
+
+            // Calculate status
+            let finalStatus = "PENDING";
+            if (samples.length > 0) {
+                // If any rejection exists, mark as NOT OK.
+                // Note: The UI has complex AQL logic, but for simple storage validation, 
+                // we'll flag any rejection as potentially NOT OK in the core status field.
+                finalStatus = totalRejected > 0 ? "NOT OK" : "OK";
             }
 
             const toeLoadPayload = {
@@ -1012,7 +1413,8 @@ export const finishInspection = async (callNo) => {
               heatNo: heatNo,
               qtyNo: qtyNo,
               remarks: lotData.remarks || "",
-              status: "PENDING",
+              status: finalStatus,
+              rejected: totalRejected,
               samples: samples
             };
 
@@ -1033,278 +1435,6 @@ export const finishInspection = async (callNo) => {
       }
     };
 
-    // Special handler for new submodules (split from combined inclusion rating data - PARALLEL EXECUTION)
-    const saveNewSubmodulesData = async () => {
-      try {
-        const storedData = localStorage.getItem(`inclusionRatingData_${callNo}`);
-        if (!storedData) {
-          console.log(`⏭️  Skipping new submodules - no data found`);
-          results.skipped.push('Depth of Decarburization', 'Inclusion Rating', 'Microstructure Test', 'Freedom from Defects');
-          return;
-        }
-
-        const data = JSON.parse(storedData);
-
-        // Get lot details from sessionStorage
-        let lotDetailsMap = {};
-        try {
-          const fpDashboardCache = sessionStorage.getItem('fpDashboardDataCache');
-          if (fpDashboardCache) {
-            const cacheData = JSON.parse(fpDashboardCache);
-            const finalLotDetails = cacheData[callNo]?.finalLotDetails || [];
-            finalLotDetails.forEach(lot => {
-              lotDetailsMap[lot.lotNo || lot.lotNumber] = {
-                heatNo: lot.heatNo || lot.heatNumber,
-                qtyNo: lot.lotSize || lot.offeredQty || 0
-              };
-            });
-          }
-        } catch (e) {
-          console.warn('Could not retrieve lot details from cache:', e);
-        }
-
-        // Track which submodules had data and collect promises
-        let hasDecarb = false, hasInclusion = false, hasMicrostructure = false, hasDefects = false;
-        const promises = [];
-
-        // Process each lot and split into 4 separate submodules
-        for (const [lotNo, lotData] of Object.entries(data)) {
-          const heatNo = lotDetailsMap[lotNo]?.heatNo || "";
-          const qtyNo = lotDetailsMap[lotNo]?.qtyNo || 0;
-          const sampleSize = lotData.microstructure1st?.length || 0;
-
-          // 1. DEPTH OF DECARBURIZATION
-          if (lotData.decarb1st || lotData.decarb2nd) {
-            const decarbSamples = [];
-
-            // Add 1st sampling samples
-            if (lotData.decarb1st && Array.isArray(lotData.decarb1st)) {
-              lotData.decarb1st.forEach((value, index) => {
-                if (value !== "") {
-                  decarbSamples.push({
-                    samplingNo: 1,
-                    sampleNo: index + 1,
-                    sampleValue: value
-                  });
-                }
-              });
-            }
-
-            // Add 2nd sampling samples
-            if (lotData.decarb2nd && Array.isArray(lotData.decarb2nd)) {
-              lotData.decarb2nd.forEach((value, index) => {
-                if (value !== "") {
-                  decarbSamples.push({
-                    samplingNo: 2,
-                    sampleNo: index + 1,
-                    sampleValue: value
-                  });
-                }
-              });
-            }
-
-            if (decarbSamples.length > 0) {
-              const decarbPayload = {
-                inspectionCallNo: callNo,
-                lotNo: lotNo,
-                heatNo: heatNo,
-                sampleSize: sampleSize,
-                qty: qtyNo,
-                remarks: lotData.decarbRemarks || "",
-                status: "PENDING",
-                samples: decarbSamples
-              };
-              promises.push(
-                // eslint-disable-next-line no-loop-func
-                saveDepthOfDecarburization(decarbPayload).then(() => {
-                  hasDecarb = true;
-                  console.log(`✅ Depth of Decarburization saved for lot ${lotNo}`);
-                })
-              );
-            }
-          }
-
-          // 2. INCLUSION RATING (NEW)
-          if (lotData.inclusion1st || lotData.inclusion2nd) {
-            const inclusionSamples = [];
-
-            // Add 1st sampling samples
-            if (lotData.inclusion1st && Array.isArray(lotData.inclusion1st)) {
-              lotData.inclusion1st.forEach((value, index) => {
-                if (value && (value.A || value.B || value.C || value.D)) {
-                  inclusionSamples.push({
-                    samplingNo: 1,
-                    sampleNo: index + 1,
-                    sampleValueA: value.A || "",
-                    sampleTypeA: value.AType || "",
-                    sampleValueB: value.B || "",
-                    sampleTypeB: value.BType || "",
-                    sampleValueC: value.C || "",
-                    sampleTypeC: value.CType || "",
-                    sampleValueD: value.D || "",
-                    sampleTypeD: value.DType || ""
-                  });
-                }
-              });
-            }
-
-            // Add 2nd sampling samples
-            if (lotData.inclusion2nd && Array.isArray(lotData.inclusion2nd)) {
-              lotData.inclusion2nd.forEach((value, index) => {
-                if (value && (value.A || value.B || value.C || value.D)) {
-                  inclusionSamples.push({
-                    samplingNo: 2,
-                    sampleNo: index + 1,
-                    sampleValueA: value.A || "",
-                    sampleTypeA: value.AType || "",
-                    sampleValueB: value.B || "",
-                    sampleTypeB: value.BType || "",
-                    sampleValueC: value.C || "",
-                    sampleTypeC: value.CType || "",
-                    sampleValueD: value.D || "",
-                    sampleTypeD: value.DType || ""
-                  });
-                }
-              });
-            }
-
-            if (inclusionSamples.length > 0) {
-              const inclusionPayload = {
-                inspectionCallNo: callNo,
-                lotNo: lotNo,
-                heatNo: heatNo,
-                sampleSize: sampleSize,
-                samplingType: "STANDARD",
-                remarks: lotData.inclusionRemarks || "",
-                status: "PENDING",
-                samples: inclusionSamples
-              };
-              promises.push(
-                // eslint-disable-next-line no-loop-func
-                saveInclusionRatingNew(inclusionPayload).then(() => {
-                  hasInclusion = true;
-                  console.log(`✅ Inclusion Rating saved for lot ${lotNo}`);
-                })
-              );
-            }
-          }
-
-          // 3. MICROSTRUCTURE TEST
-          if (lotData.microstructure1st || lotData.microstructure2nd) {
-            const microstructureSamples = [];
-
-            // Add 1st sampling samples
-            if (lotData.microstructure1st && Array.isArray(lotData.microstructure1st)) {
-              lotData.microstructure1st.forEach((value, index) => {
-                if (value !== "") {
-                  microstructureSamples.push({
-                    samplingNo: 1,
-                    sampleNo: index + 1,
-                    sampleType: value
-                  });
-                }
-              });
-            }
-
-            // Add 2nd sampling samples
-            if (lotData.microstructure2nd && Array.isArray(lotData.microstructure2nd)) {
-              lotData.microstructure2nd.forEach((value, index) => {
-                if (value !== "") {
-                  microstructureSamples.push({
-                    samplingNo: 2,
-                    sampleNo: index + 1,
-                    sampleType: value
-                  });
-                }
-              });
-            }
-
-            if (microstructureSamples.length > 0) {
-              const microstructurePayload = {
-                inspectionCallNo: callNo,
-                lotNo: lotNo,
-                heatNo: heatNo,
-                sampleSize: sampleSize,
-                qty: qtyNo,
-                remarks: lotData.microstructureRemarks || "",
-                status: "PENDING",
-                samples: microstructureSamples
-              };
-              promises.push(
-                // eslint-disable-next-line no-loop-func
-                saveMicrostructureTest(microstructurePayload).then(() => {
-                  hasMicrostructure = true;
-                  console.log(`✅ Microstructure Test saved for lot ${lotNo}`);
-                })
-              );
-            }
-          }
-
-          // 4. FREEDOM FROM DEFECTS
-          if (lotData.defects1st || lotData.defects2nd) {
-            const defectsSamples = [];
-
-            // Add 1st sampling samples
-            if (lotData.defects1st && Array.isArray(lotData.defects1st)) {
-              lotData.defects1st.forEach((value, index) => {
-                if (value !== "") {
-                  defectsSamples.push({
-                    samplingNo: 1,
-                    sampleNo: index + 1,
-                    sampleType: value
-                  });
-                }
-              });
-            }
-
-            // Add 2nd sampling samples
-            if (lotData.defects2nd && Array.isArray(lotData.defects2nd)) {
-              lotData.defects2nd.forEach((value, index) => {
-                if (value !== "") {
-                  defectsSamples.push({
-                    samplingNo: 2,
-                    sampleNo: index + 1,
-                    sampleType: value
-                  });
-                }
-              });
-            }
-
-            if (defectsSamples.length > 0) {
-              const defectsPayload = {
-                inspectionCallNo: callNo,
-                lotNo: lotNo,
-                heatNo: heatNo,
-                sampleSize: sampleSize,
-                qty: qtyNo,
-                remarks: lotData.defectsRemarks || "",
-                status: "PENDING",
-                samples: defectsSamples
-              };
-              promises.push(
-                // eslint-disable-next-line no-loop-func
-                saveFreedomFromDefectsTest(defectsPayload).then(() => {
-                  hasDefects = true;
-                  console.log(`✅ Freedom from Defects saved for lot ${lotNo}`);
-                })
-              );
-            }
-          }
-        }
-
-        // Execute all promises in parallel
-        await Promise.all(promises);
-
-        // Add to results only if data was found
-        if (hasDecarb) results.success.push('Depth of Decarburization');
-        if (hasInclusion) results.success.push('Inclusion Rating');
-        if (hasMicrostructure) results.success.push('Microstructure Test');
-        if (hasDefects) results.success.push('Freedom from Defects');
-      } catch (error) {
-        console.error(`❌ Error saving new submodules:`, error);
-        results.failed.push({ module: 'New Submodules', error: error.message });
-      }
-    };
 
     // Special handler for Chemical Analysis data (needs field name transformation - PARALLEL EXECUTION)
     const saveChemicalAnalysisData = async () => {
@@ -1441,13 +1571,20 @@ export const finishInspection = async (callNo) => {
               });
             }
 
+            // Calculate total rejected and status
+            let totalRejectedInSamples = 0;
+            dimSamples.forEach(s => {
+              totalRejectedInSamples += (s.goGaugeFailed || 0) + (s.noGoGaugeFailed || 0) + (s.flatnessFailed || 0);
+            });
+
             const dimPayload = {
               inspectionCallNo: callNo,
               lotNo: lotNo,
               heatNo: heatNo,
               sampleSize: sampleSize,
               remarks: lotData.dimRemarks || "",
-              status: "PENDING",
+              status: dimSamples.length > 0 ? (totalRejectedInSamples > 0 ? "NOT OK" : "OK") : "PENDING",
+              rejected: totalRejectedInSamples,
               samples: dimSamples
             };
 
@@ -1528,13 +1665,20 @@ export const finishInspection = async (callNo) => {
               });
             }
 
+            // Calculate total rejected and status
+            let totalRejected = 0;
+            deflSamples.forEach(s => {
+              totalRejected += (s.noOfSamplesFailed || 0);
+            });
+
             const deflPayload = {
               inspectionCallNo: callNo,
               lotNo: lotNo,
               heatNo: heatNo,
               sampleSize: sampleSize,
               remarks: lotData.deflectionRemarks || "",
-              status: "PENDING",
+              status: totalRejected > 0 ? "NOT OK" : "OK",
+              rejected: totalRejected,
               samples: deflSamples
             };
 
@@ -1566,6 +1710,7 @@ export const finishInspection = async (callNo) => {
       // New parent-child structure submodules (split from combined inclusion rating data)
       saveNewSubmodulesData(),
       // New consolidated endpoints for dimensional inspection and application deflection
+      saveVisualInspectionData(),
       saveDimensionalInspectionData(),
       saveApplicationDeflectionData(),
       // Legacy submodules

@@ -3,7 +3,7 @@
  * Hook for Call Desk actions (verify, return, re-route)
  */
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 
 import axios from 'axios';
 import { getStoredUser, getAuthHeaders } from '../../../services/authService';
@@ -251,10 +251,10 @@ export const useCallActions = () => {
   /**
    * Fetch all IEs (REAL API)
    */
-  const fetchAllIEs = async () => {
+  const fetchAllIEs = useCallback(async () => {
     try {
       const response = await axios.get(
-        `${API_BASE_URL}/auth/api/users/by-role`,
+        `${API_BASE_URL}/api/auth/api/users/by-role`,
         {
           params: { roleName: 'IE' },
           headers: {
@@ -270,13 +270,15 @@ export const useCallActions = () => {
       return response.data.responseData.map(user => ({
         id: user.userId,
         name: user.fullName || user.userName,
-        shortName: user.shortName
+        employeeCode: user.employeeCode,
+        shortName: user.shortName,
+        roleName: user.roleName
       }));
     } catch (err) {
       console.error('Error fetching IEs:', err);
       return [];
     }
-  };
+  }, []);
 
   return {
     // State

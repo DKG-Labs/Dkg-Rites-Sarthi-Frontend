@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { getAuthHeaders } from '../../../services/authService';
+import { getAuthHeaders, getStoredUser } from '../../../services/authService';
 import { API_BASE_URL } from '../../../services/apiConfig';
 import { formatDateTime } from '../utils/helpers';
+import { Autocomplete, TextField } from '@mui/material';
 
 const CallDetailsModal = ({
   isOpen,
@@ -12,48 +13,217 @@ const CallDetailsModal = ({
   onVerifyAccept,
   onReturn,
   onReroute,
+  onWithdraw,
   onDownloadLetter
 }) => {
   const [selectedIE, setSelectedIE] = useState('');
   const [remarks, setRemarks] = useState('');
+  const remarksRef = useRef(null);
   
   const [mappedIEs, setMappedIEs] = useState([]);
   const [isLoadingIEs, setIsLoadingIEs] = useState(false);
+  const [changeIE, setChangeIE] = useState(false);
+
+  const [isLoadingRemappingIEs, setIsLoadingRemappingIEs] = useState(false);
+  const [remappingPoiCode, setRemappingPoiCode] = useState(null);
+
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [withdrawRemarks, setWithdrawRemarks] = useState('');
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
+
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [validationError, setValidationError] = useState('');
+
+  const filteredIEs = React.useMemo(() => {
+    if (!call?.callNumber) return allIEs;
+    if (call.callNumber.startsWith('ER') || call.callNumber.startsWith('EF')) {
+      return allIEs.filter(ie => ie.roleName === 'IE');
+    }
+    if (call.callNumber.startsWith('EP')) {
+      return allIEs.filter(ie => ie.roleName === 'Process IE');
+    }
+    return allIEs;
+  }, [call?.callNumber, allIEs]);
+
+  const handleOpenRemapping = async () => {
+    setChangeIE(true);
+    setIsLoadingRemappingIEs(true);
+    try {
+      // 1. Fetch POI Codes and store in localStorage
+      const poiRes = await axios.get(`${API_BASE_URL}/api/auth/${call.callNumber}/poi-codes`, { headers: getAuthHeaders() });
+      const data = poiRes.data?.responseData || poiRes.data || [];
+      const poiArray = Array.isArray(data) ? data : [data];
+      localStorage.setItem('remappingData', JSON.stringify(poiArray));
+
+      let currentPoiCode = null;
+      if (poiArray.length > 0) {
+        currentPoiCode = poiArray[0].poiCode || poiArray[0].poicode || poiArray[0];
+      }
+      setRemappingPoiCode(currentPoiCode);
+
+      if (!currentPoiCode) {
+        console.warn("No POI Code found in response");
+      } else {
+        // 2. Fetch IEs based on call type
+        if (call.callNumber.startsWith('ER') || call.callNumber.startsWith('EF')) {
+          const ieRes = await axios.get(`${API_BASE_URL}/api/auth/getEmpBYcompany/${currentPoiCode}`, { headers: getAuthHeaders() });
+          const rawData = ieRes.data?.responseData || ieRes.data || [];
+          console.log("Raw ER/EF IE remapping data:", rawData);
+          localStorage.setItem('remappingDataER', JSON.stringify(rawData));
+        } else if (call.callNumber.startsWith('EP')) {
+          const ieRes = await axios.get(`${API_BASE_URL}/api/auth/poi/${currentPoiCode}/getProcessIeByPOI`, { headers: getAuthHeaders() });
+          const rawData = ieRes.data?.responseData || ieRes.data || [];
+          console.log("Raw EP IE remapping data:", rawData);
+          localStorage.setItem('remappingDataEP', JSON.stringify(rawData));
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching remapping details:", error);
+    } finally {
+      setIsLoadingRemappingIEs(false);
+    }
+  };
+
+  const fetchMappedIEs = React.useCallback(async () => {
+    if (!call?.callNumber) return;
+    try {
+      setIsLoadingIEs(true);
+      const response = await axios.get(`${API_BASE_URL}/api/auth/employee-codes/${call.callNumber}`, {
+        headers: getAuthHeaders()
+      });
+      if (response.data && response.data.responseData) {
+        const ieList = response.data.responseData;
+        setMappedIEs(ieList);
+        if (ieList.length === 1) {
+          setSelectedIE(ieList[0]);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch Mapped IEs", error);
+    } finally {
+      setIsLoadingIEs(false);
+    }
+  }, [call?.callNumber]);
+
+  const handleSubmitRemapping = async () => {
+    if (!selectedIE) {
+      alert('Please select an IE to remap');
+      return;
+    }
+
+    const availableIEs = filteredIEs;
+    const selectedIEData = availableIEs.find(ie => String(ie.id) === String(selectedIE));
+    
+    if (!selectedIEData) { 
+      alert('Invalid selection'); 
+      return; 
+    }
+
+    try {
+      if (call.callNumber.startsWith('ER') || call.callNumber.startsWith('EF')) {
+        const storedData = JSON.parse(localStorage.getItem('remappingDataER') || localStorage.getItem('remappingData') || "[]");
+        if (!storedData || storedData.length === 0) {
+          alert("Mapping data not found. Please try again.");
+          return;
+        }
+        const payload = storedData.map(item => ({
+            ...item,
+            employeeCode: selectedIEData.employeeCode
+        }));
+        const poiCode = remappingPoiCode || storedData[0]?.poiCode;
+        
+        await axios.put(`${API_BASE_URL}/api/auth/company/${poiCode}/updateIemapping`, payload, { headers: getAuthHeaders() });
+        alert('Remapping updated successfully');
+        fetchMappedIEs();
+      } else if (call.callNumber.startsWith('EP')) {
+        const poiCode = remappingPoiCode;
+        const userId = selectedIEData.id;
+        const headers = { ...getAuthHeaders(), userId: userId };
+        const payload = [userId]; // Request DTO is an array containing the userId
+        
+        await axios.put(`${API_BASE_URL}/api/auth/poi/${poiCode}/Update/processIe`, payload, { headers: headers });
+        alert('Remapping updated successfully');
+        fetchMappedIEs();
+      }
+      
+      setChangeIE(false);
+      setSelectedIE('');
+    } catch (error) {
+      console.error("Error submitting remapping:", error);
+      alert("Failed to submit remapping. Check console for details.");
+    }
+  };
+
+  const handleWithdrawSubmit = async () => {
+    if (!withdrawRemarks.trim()) {
+      alert("Please provide remarks for withdrawal.");
+      return;
+    }
+    try {
+      setIsWithdrawing(true);
+      const user = getStoredUser();
+      
+      const payload = {
+        workflowTransitionId: call.workflowTransitionId || call.id,
+        requestId: call.callNumber,
+        action: "WITHDRAW",
+        remarks: withdrawRemarks.trim(),
+        actionBy: Number(user?.userId || 0)
+      };
+
+      await axios.post(`${API_BASE_URL}/api/workflow/withdraw`, payload, {
+        headers: getAuthHeaders()
+      });
+      
+      alert('Inspection call successfully withdrawn.');
+      setShowWithdrawModal(false);
+      onClose();
+      if (onWithdraw) {
+        onWithdraw();
+      }
+    } catch (error) {
+      console.error("Error withdrawing call:", error);
+      alert("Failed to withdraw call. Please try again.");
+    } finally {
+      setIsWithdrawing(false);
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
       setSelectedIE('');
       setRemarks('');
       setMappedIEs([]);
-      
-      const fetchMappedIEs = async () => {
-        if (!call?.callNumber) return;
-        try {
-          setIsLoadingIEs(true);
-          const response = await axios.get(`${API_BASE_URL}/api/auth/employee-codes/${call.callNumber}`, {
-            headers: getAuthHeaders()
-          });
-          if (response.data && response.data.responseData) {
-            const ieList = response.data.responseData;
-            setMappedIEs(ieList);
-            if (ieList.length === 1) {
-              setSelectedIE(ieList[0]);
-            }
-          }
-        } catch (error) {
-          console.error("Failed to fetch Mapped IEs", error);
-        } finally {
-          setIsLoadingIEs(false);
-        }
-      };
+      setChangeIE(false);
+      setShowWithdrawModal(false);
+      setShowVerifyModal(false);
+      setWithdrawRemarks('');
       
       fetchMappedIEs();
     }
-  }, [isOpen, call]);
+  }, [isOpen, call, fetchMappedIEs]);
 
   if (!isOpen || !call) return null;
 
   const displayValue = (value, fallback = '-') => value || fallback;
+
+  // Resolve Target IE for confirmation
+  let targetIEDisplay = 'System Assigned';
+  if (selectedIE) {
+    if (typeof selectedIE === 'string' && selectedIE.includes(' - ')) {
+      targetIEDisplay = selectedIE;
+    } else {
+      const match = filteredIEs.find(ie => String(ie.id) === String(selectedIE));
+      if (match) {
+        targetIEDisplay = match.employeeCode ? `${match.employeeCode} - ${match.name}` : match.name;
+      }
+    }
+  } else if (mappedIEs.length > 0) {
+    targetIEDisplay = mappedIEs[0];
+  } else if (call.assignedIeName) {
+    targetIEDisplay = call.assignedIeName;
+  }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -88,69 +258,223 @@ const CallDetailsModal = ({
           </div>
 
           {/* IE Assignment Section */}
-          <div className="ie-assignment-section mb-8 p-4 bg-blue-50 rounded-lg border border-blue-100">
-            <h3 className="text-blue-800 font-bold mb-3 flex items-center">
-              <span className="mr-2">👷</span> IE Assignment
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">Name of IE mapped in System</label>
+          <div className="bg-white p-5 rounded-lg border border-gray-200 shadow-sm mb-6">
+            <h4 className="font-bold border-b pb-3 mb-4 text-gray-700 uppercase text-sm flex items-center">
+              <span className="mr-2 text-lg">👷</span> IE Assignment Configuration
+            </h4>
+            
+            <div className="flex flex-col md:flex-row items-end gap-6 pb-2">
+              {/* Left Column: Current IE */}
+              <div className="flex-1 w-full">
+                <label className="block text-xs text-gray-500 uppercase font-bold mb-2">Current System Mapped IE</label>
                 {isLoadingIEs ? (
-                  <div className="font-semibold p-2 bg-white rounded border border-blue-200">
-                    Loading...
-                  </div>
+                  <div className="text-sm font-semibold text-blue-600 pt-1 animate-pulse">Loading assigned IE...</div>
                 ) : mappedIEs.length === 1 ? (
-                  <div className="font-semibold p-2 bg-white rounded border border-blue-200">
+                  <div className="font-bold text-lg text-gray-800 p-2.5 bg-gray-50 rounded border border-gray-200 w-full h-11 flex items-center">
                     {mappedIEs[0]}
                   </div>
                 ) : mappedIEs.length > 1 ? (
-                  <select
-                    className="form-control w-full p-2 rounded border border-blue-200 bg-white"
-                    value={selectedIE}
-                    onChange={(e) => setSelectedIE(e.target.value)}
-                  >
-                    <option value="">-- Select IE --</option>
-                    {mappedIEs.map((ie, index) => (
-                      <option key={index} value={ie}>{ie}</option>
-                    ))}
-                  </select>
+                  <Autocomplete
+                    options={mappedIEs}
+                    getOptionLabel={(option) => option}
+                    value={selectedIE || null}
+                    onChange={(event, newValue) => {
+                      setSelectedIE(newValue || '');
+                    }}
+                    renderInput={(params) => (
+                      <TextField 
+                        {...params} 
+                        placeholder="Select Current IE..." 
+                        variant="outlined" 
+                        size="small" 
+                      />
+                    )}
+                    sx={{ width: '100%', '& .MuiOutlinedInput-root': { backgroundColor: '#f9fafb', height: '44px' } }}
+                  />
                 ) : (
-                  <div className="font-semibold p-2 bg-white rounded border border-blue-200">
+                  <div className="font-bold text-lg text-gray-800 p-2.5 bg-gray-50 rounded border border-gray-200 w-full h-11 flex items-center">
                     {call.assignedIeName || 'System Assigned'}
                   </div>
                 )}
               </div>
-              <div className="flex flex-col gap-3">
-                {/* 
-                <label className="flex items-center cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    className="mr-2 h-4 w-4"
-                    checked={changeIE}
-                    onChange={(e) => setChangeIE(e.target.checked)}
-                  />
-                  <span className="text-sm font-medium text-gray-700">Do you want to change the IE for this call?</span>
-                </label>
 
-                {changeIE && (
-                  <div className="animate-fade-in">
-                    <label className="block text-xs text-gray-500 mb-1 uppercase font-bold">Select New IE</label>
-                    <select
-                      className="form-control w-full p-2 rounded border border-blue-300"
-                      value={selectedIE}
-                      onChange={(e) => setSelectedIE(e.target.value)}
-                    >
-                      <option value="">-- Select IE --</option>
-                      {allIEs.map(ie => (
-                        <option key={ie.id} value={ie.id}>{ie.name} ({ie.shortName})</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-                */}
+              {/* Right Column: Re-assignment Options */}
+              <div className="w-full md:w-auto mt-4 md:mt-0 pb-1">
+                <button
+                  className="w-full md:w-auto bg-indigo-600 text-white hover:bg-indigo-700 font-bold py-2.5 px-6 rounded shadow-md transition-all active:scale-95 flex items-center justify-center whitespace-nowrap h-11"
+                  onClick={handleOpenRemapping}
+                  disabled={isLoadingRemappingIEs}
+                >
+                  <span className="mr-2">🔄</span>{isLoadingRemappingIEs ? " Loading..." : " Remapping"}
+                </button>
               </div>
             </div>
-          </div>
+
+            {/* Remapping Popup Module */}
+            {changeIE && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm" onClick={(e) => { if(e.target === e.currentTarget) { setChangeIE(false); setSelectedIE(''); } }}>
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-fade-in mx-4 transform transition-all">
+                  <div className="bg-gradient-to-r from-indigo-50 to-white px-6 py-4 border-b border-indigo-100 flex justify-between items-center">
+                    <h3 className="font-bold text-indigo-900 text-lg flex items-center">
+                      <span className="mr-2">🔄</span> IE Remapping
+                    </h3>
+                    <button 
+                      className="text-gray-400 hover:text-red-600 focus:outline-none transition-colors"
+                      onClick={() => { setChangeIE(false); setSelectedIE(''); }}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                  </div>
+                  
+                  <div className="p-6">
+                    <label className="block text-xs text-indigo-700 uppercase font-bold mb-3 tracking-wide">Select Available IE</label>
+                    <Autocomplete
+                      id="ie-select"
+                      options={filteredIEs}
+                      getOptionLabel={(option) => option.employeeCode ? `${option.name} (${option.employeeCode})` : option.name}
+                      value={filteredIEs.find(ie => String(ie.id) === String(selectedIE)) || null}
+                      onChange={(event, newValue) => {
+                        setSelectedIE(newValue ? String(newValue.id) : '');
+                      }}
+                      renderInput={(params) => (
+                        <TextField 
+                          {...params} 
+                          placeholder="Type to search available IEs..." 
+                          variant="outlined" 
+                          size="medium" // Slightly larger for the popup
+                        />
+                      )}
+                      sx={{
+                        width: '100%',
+                        '& .MuiOutlinedInput-root': {
+                          backgroundColor: '#f8fafc',
+                          '&:hover fieldset': { borderColor: '#4f46e5' },
+                          '&.Mui-focused fieldset': { borderColor: '#4f46e5', borderWidth: '2px' },
+                        }
+                      }}
+                    />
+                  </div>
+                  
+                  <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+                    <button 
+                      className="bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-bold py-2 px-6 rounded-md text-sm transition-colors shadow-sm"
+                      onClick={() => { 
+                        setChangeIE(false); 
+                        setSelectedIE(''); 
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-md text-sm transition-colors shadow-md transform hover:-translate-y-0.5"
+                      onClick={handleSubmitRemapping}
+                    >
+                      Remapping
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Withdraw Popup Module */}
+            {showWithdrawModal && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm" onClick={(e) => { if(e.target === e.currentTarget) { setShowWithdrawModal(false); } }}>
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-fade-in mx-4 transform transition-all">
+                  <div className="bg-gradient-to-r from-red-50 to-white px-6 py-4 border-b border-red-100 flex justify-between items-center">
+                    <h3 className="font-bold text-red-900 text-lg flex items-center">
+                      <span className="mr-2">📥</span> Withdraw Call
+                    </h3>
+                    <button 
+                      className="text-gray-400 hover:text-red-600 focus:outline-none transition-colors"
+                      onClick={() => setShowWithdrawModal(false)}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                  </div>
+                  
+                  <div className="p-6">
+                    <label className="block text-xs text-red-700 uppercase font-bold mb-3 tracking-wide">Remarks <span className="text-red-500">*</span></label>
+                    <textarea
+                      className="form-control w-full p-3 rounded border border-gray-300 focus:border-red-500 min-h-[100px]"
+                      placeholder="Please provide details for withdrawal..."
+                      value={withdrawRemarks}
+                      onChange={(e) => setWithdrawRemarks(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+                    <button 
+                      className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-bold py-2 px-6 rounded-md text-sm transition-colors shadow-sm"
+                      onClick={() => setShowWithdrawModal(false)}
+                      disabled={isWithdrawing}
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-md text-sm transition-colors shadow-md flex items-center"
+                      onClick={handleWithdrawSubmit}
+                      disabled={isWithdrawing}
+                    >
+                      {isWithdrawing ? "Withdrawing..." : "Submit"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Verify Confirmation Popup Module */}
+            {showVerifyModal && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm" onClick={(e) => { if(e.target === e.currentTarget) { setShowVerifyModal(false); } }}>
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-fade-in mx-4 transform transition-all">
+                  <div className="bg-gradient-to-r from-blue-50 to-white px-6 py-4 border-b border-blue-100 flex justify-between items-center">
+                    <h3 className="font-bold text-blue-900 text-lg flex items-center">
+                      <span className="mr-2">✅</span> Verify Inspection Call
+                    </h3>
+                    <button 
+                      className="text-gray-400 hover:text-red-600 focus:outline-none transition-colors"
+                      onClick={() => setShowVerifyModal(false)}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                  </div>
+                  
+                  <div className="p-8 text-center">
+                    <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                      ℹ️
+                    </div>
+                    <p className="text-gray-600 mb-2">The inspection call will be verified and assigned to:</p>
+                    <div className="text-xl font-bold text-gray-900 bg-gray-50 p-4 rounded-lg border border-gray-100">
+                      {targetIEDisplay}
+                    </div>
+                    <p className="text-xs text-gray-400 mt-4 uppercase tracking-widest font-semibold italic">Please confirm to proceed</p>
+                  </div>
+
+                  <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+                    <button 
+                      className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-bold py-2 px-6 rounded-md text-sm transition-colors shadow-sm"
+                      onClick={() => setShowVerifyModal(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-md text-sm transition-colors shadow-md transform hover:-translate-y-0.5 active:translate-y-0"
+                      onClick={() => {
+                        let ieId = null;
+                        if (selectedIE) {
+                          const match = String(selectedIE).match(/^(\d+)/);
+                          ieId = match ? match[1] : null;
+                        }
+                        onVerifyAccept(call, remarks, ieId);
+                        setShowVerifyModal(false);
+                      }}
+                    >
+                      Confirm Verification
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            </div>
 
           {/* Details Tabs/Sections */}
           <div className="details-container grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -205,12 +529,29 @@ const CallDetailsModal = ({
           <div className="mt-8">
             <label className="block text-sm font-bold text-gray-700 mb-2">Remarks / Observations</label>
             <textarea
-              className="form-control w-full p-3 rounded border border-gray-300 focus:border-blue-500"
+              ref={remarksRef}
+              className="form-control w-full p-3 rounded border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all shadow-sm"
               rows="3"
               placeholder="Enter remarks for the selected action..."
               value={remarks}
-              onChange={(e) => setRemarks(e.target.value)}
+              onChange={(e) => {
+                setRemarks(e.target.value);
+                if (validationError) setValidationError('');
+              }}
             />
+            {validationError && (
+              <div className="mt-3 p-3 bg-red-50 border-l-4 border-red-500 rounded-r shadow-sm flex items-start gap-3 animate-slideDown">
+                <div className="mt-0.5 text-red-500">
+                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                   </svg>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-red-700 text-sm font-bold tracking-wide">Action Required</span>
+                  <p className="text-red-600 text-xs mt-0.5 leading-relaxed">{validationError}</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -232,6 +573,12 @@ const CallDetailsModal = ({
               Cancel
             </button>
             <button
+              className="btn bg-teal-600 text-white hover:bg-teal-700"
+              onClick={() => setShowWithdrawModal(true)}
+            >
+              📥 Withdraw
+            </button>
+            <button
               className="btn bg-orange-500 text-white hover:bg-orange-600"
               onClick={() => onReroute(call, remarks)}
             >
@@ -239,23 +586,73 @@ const CallDetailsModal = ({
             </button>
             <button
               className="btn bg-red-600 text-white hover:bg-red-700"
-              onClick={() => onReturn(call, remarks)}
+              onClick={() => {
+                if (!remarks.trim()) {
+                  setValidationError('Remarks are mandatory for returning a call');
+                  // Auto-scroll to field & focus
+                  remarksRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  remarksRef.current?.focus();
+                } else {
+                  setShowReturnModal(true);
+                }
+              }}
             >
               ↩️ Return
             </button>
             <button
               className="btn bg-blue-600 text-white hover:bg-blue-700"
-              onClick={() => {
-                let ieId = null;
-                if (selectedIE) {
-                  const match = String(selectedIE).match(/^(\d+)/);
-                  ieId = match ? match[1] : null;
-                }
-                onVerifyAccept(call, remarks, ieId);
-              }}
+              onClick={() => setShowVerifyModal(true)}
             >
               ✅ Verify
             </button>
+
+            {/* Return Confirmation Modal */}
+            {showReturnModal && (
+              <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm animate-fadeIn">
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all animate-scaleIn">
+                  <div className="bg-red-50 px-6 py-4 border-b border-red-100 flex justify-between items-center">
+                    <h3 className="text-xl font-bold text-red-700 flex items-center gap-2">
+                       ↩️ Confirm Return
+                    </h3>
+                    <button 
+                      className="text-red-300 hover:text-red-600 focus:outline-none transition-colors"
+                      onClick={() => setShowReturnModal(false)}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                  </div>
+                  
+                  <div className="p-8 text-center">
+                    <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                      ⚠️
+                    </div>
+                    <p className="text-gray-600 mb-2">Are you sure you want to return this Inspection Call?</p>
+                    <div className="text-xl font-bold text-gray-900 bg-gray-50 p-4 rounded-lg border border-gray-100 mb-2">
+                      {call.callNumber}
+                    </div>
+                    <p className="text-sm text-gray-500 italic">"The call will be sent back to the vendor for rectification."</p>
+                  </div>
+
+                  <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+                    <button 
+                      className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-bold py-2 px-6 rounded-md text-sm transition-colors shadow-sm"
+                      onClick={() => setShowReturnModal(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-md text-sm transition-colors shadow-md transform hover:-translate-y-0.5 active:translate-y-0"
+                      onClick={() => {
+                        onReturn(call, remarks);
+                        setShowReturnModal(false);
+                      }}
+                    >
+                      Confirm Return
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             {call.isVerified && (
               <button
                 className="btn bg-indigo-600 text-white hover:bg-indigo-700"

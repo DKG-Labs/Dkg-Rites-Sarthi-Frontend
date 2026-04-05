@@ -14,15 +14,20 @@ export async function exportToPdf(element, filename = "certificate.pdf") {
   const certificatePage = element.querySelector('.certificate-page') || element;
 
   // Capture with high quality settings for A4
-  // Let html2canvas determine the height based on actual content
   const canvas = await html2canvas(certificatePage, {
     scale: 2,
     useCORS: true,
     backgroundColor: '#ffffff',
     logging: false,
-    // Remove fixed dimensions to capture full content
     scrollY: -window.scrollY,
     scrollX: -window.scrollX,
+    windowWidth: 1200, // Explicit virtual width for stable layout capture
+    onclone: (clonedDoc) => {
+      const clonedElement = clonedDoc.querySelector('.certificate-page') || clonedDoc.body;
+      clonedElement.style.width = '210mm';
+      clonedElement.style.height = 'auto';
+    },
+    removeContainer: true,
   });
 
   const imgData = canvas.toDataURL("image/png");

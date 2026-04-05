@@ -1,9 +1,28 @@
 /* Professional Dashboard Section - Premium Design */
-.professional-dashboard-section {
+.dashboard-content-integrated {
     padding: 1.5rem 0;
     max-width: 1400px;
     margin: 0 auto;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Universal Table Typographic Standardization */
+.dashboard-content-integrated table,
+.dashboard-content-integrated th,
+.dashboard-content-integrated td {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+    font-size: 13.5px !important;
+    letter-spacing: -0.01em !important;
+}
+
+.dashboard-content-integrated td {
+    font-weight: 500 !important;
+    color: #1e293b !important;
+}
+
+.dashboard-content-integrated th {
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
 }
 
 /* Global Animations */
@@ -35,6 +54,46 @@
 
 .animate-up {
     animation: slideUp 0.4s ease-out;
+}
+
+.sortable-header th,
+thead th {
+    cursor: pointer !important;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.sortable-header th:hover,
+thead th:hover {
+    color: #10b981 !important;
+}
+
+/* Enhanced Search Bar */
+.prof-search {
+    padding: 8px 16px;
+    padding-left: 36px !important;
+    border: 1px solid #e2e8f0;
+    border-radius: 50px;
+    font-size: 13px;
+    color: #1e293b;
+    background: #f8fafc url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2310b981' stroke-width='2.5'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'%3E%3C/path%3E%3C/svg%3E") no-repeat 12px center !important;
+    background-size: 16px !important;
+    width: 220px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.03);
+}
+
+.prof-search:focus {
+    outline: none;
+    border-color: #10b981;
+    background-color: #fff !important;
+    width: 300px;
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1), 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+}
+
+.prof-search::placeholder {
+    color: #94a3b8;
+    font-weight: 500;
 }
 
 /* Main Navigation Tabs - Modern Pill Style */
@@ -137,17 +196,20 @@
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(12px);
     border-radius: 40px;
-    padding: 3rem;
+    padding: 1.5rem 2.5rem;
     border: 1px solid rgba(255, 255, 255, 0.5);
     box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.08), 0 18px 36px -18px rgba(0, 0, 0, 0.08);
     min-height: 600px;
+    max-width: 100%;
+    overflow-x: hidden;
+    min-width: 0;
 }
 
 .section-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 2rem;
+    margin-bottom: 0.75rem;
     border-bottom: 1px solid #f1f5f9;
     padding-bottom: 1rem;
 }
@@ -288,9 +350,9 @@
 }
 
 .kpi-card-premium .kpi-value {
-    font-size: 2.5rem;
+    font-size: 3.2rem;
     font-weight: 900;
-    margin: 0.5rem 0;
+    margin: 0.25rem 0;
     letter-spacing: -0.04em;
     line-height: 1;
 }
@@ -1122,12 +1184,17 @@
 
 .reports-tab-content {
     animation: fadeIn 0.4s ease-out;
+    max-width: 100%;
+    overflow-x: hidden;
 }
 
 .report-viewer-content {
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+    max-width: 100%;
+    overflow-x: hidden;
+    min-width: 0;
 }
 
 .report-card {
@@ -1138,6 +1205,7 @@
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.04), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
     position: relative;
     overflow: hidden;
+    max-width: 100%;
 }
 
 .report-card::before {
@@ -1203,9 +1271,12 @@
 }
 
 .report-table-wrapper {
+    display: block;
+    width: 100%;
     overflow-x: auto;
     border-radius: 12px;
     border: 1px solid #f1f5f9;
+    min-width: 0;
 }
 
 .report-data-table {
@@ -1235,11 +1306,11 @@
 }
 
 .report-data-table th {
-    background: #f8fafc;
+    background: #1e3a8a;
     padding: 1.25rem 1rem;
     text-align: left;
     font-weight: 700;
-    color: #475569;
+    color: #ffffff;
     text-transform: uppercase;
     font-size: 0.6875rem;
     letter-spacing: 0.05em;
@@ -1311,7 +1382,7 @@ tr.row-even td {
 
 .sticky-header {
     max-height: 500px;
-    overflow-y: auto;
+    overflow: auto;
 }
 
 .sticky-header th {
@@ -1351,8 +1422,8 @@ tr.row-even td {
 
 /* Scrollbar for tables */
 .report-table-wrapper::-webkit-scrollbar {
-    height: 6px;
-    width: 6px;
+    height: 10px;
+    width: 8px;
 }
 
 .report-table-wrapper::-webkit-scrollbar-track {
@@ -1360,8 +1431,13 @@ tr.row-even td {
 }
 
 .report-table-wrapper::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
+    background: #10b981;
     border-radius: 10px;
+    border: 2px solid #f1f5f9;
+}
+
+.report-table-wrapper::-webkit-scrollbar-thumb:hover {
+    background: #059669;
 }
 
 /* Integrated Elements */
@@ -1626,12 +1702,15 @@ tr.row-even td {
         align-self: flex-start;
     }
 }
+
 /* --- Level 4 Enhanced Table Styles (Shift Wise Defect Breakdown) --- */
 .level-4-enhanced {
+    width: 100%;
     max-width: 100%;
     overflow-x: auto;
+    display: block;
     border-radius: 16px;
-    box-shadow: 0 10px 30px -10px rgba(0,0,0,0.1);
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.1);
     background: white;
     margin-top: 1rem;
     border: 1px solid #e2e8f0;
@@ -1657,8 +1736,8 @@ tr.row-even td {
 }
 
 .level-4-table thead tr:first-child th {
-    background: #f8fafc;
-    color: #475569;
+    background: #1e3a8a;
+    color: #ffffff;
     font-weight: 800;
 }
 
@@ -1674,12 +1753,35 @@ tr.row-even td {
     border-bottom: 4px solid transparent !important;
 }
 
-.stage-header.shearing { background: #eff6ff !important; border-bottom-color: #3b82f6 !important; }
-.stage-header.turning { background: #f5f3ff !important; border-bottom-color: #8b5cf6 !important; }
-.stage-header.mpi { background: #fdf2f8 !important; border-bottom-color: #ec4899 !important; }
-.stage-header.forging { background: #fffbeb !important; border-bottom-color: #f59e0b !important; }
-.stage-header.quenching { background: #ecfeff !important; border-bottom-color: #06b6d4 !important; }
-.stage-header.tempering { background: #f0fdf4 !important; border-bottom-color: #10b981 !important; }
+.stage-header.shearing {
+    background: #eff6ff !important;
+    border-bottom-color: #3b82f6 !important;
+}
+
+.stage-header.turning {
+    background: #f5f3ff !important;
+    border-bottom-color: #8b5cf6 !important;
+}
+
+.stage-header.mpi {
+    background: #fdf2f8 !important;
+    border-bottom-color: #ec4899 !important;
+}
+
+.stage-header.forging {
+    background: #fffbeb !important;
+    border-bottom-color: #f59e0b !important;
+}
+
+.stage-header.quenching {
+    background: #ecfeff !important;
+    border-bottom-color: #06b6d4 !important;
+}
+
+.stage-header.tempering {
+    background: #f0fdf4 !important;
+    border-bottom-color: #10b981 !important;
+}
 
 .defect-header {
     background: #f1f5f9 !important;
@@ -1702,8 +1804,13 @@ tr.row-even td {
     font-size: 0.65rem;
 }
 
-.level-4-table .row-odd { background: #ffffff; }
-.level-4-table .row-even { background: #fcfdfe; }
+.level-4-table .row-odd {
+    background: #ffffff;
+}
+
+.level-4-table .row-even {
+    background: #fcfdfe;
+}
 
 .badge-count {
     padding: 6px 14px;
@@ -1794,4 +1901,273 @@ tr.row-even td {
 .header-actions {
     display: flex;
     align-items: center;
+}
+
+/* --- Added Export Button Styles --- */
+.btn-export-excel {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 18px;
+    background: #10b981;
+    color: white;
+    border: none;
+    border-radius: 50px;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.3);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    height: 36px;
+    white-space: nowrap;
+    margin-left: 12px;
+}
+
+.btn-export-excel:hover {
+    background: #059669;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.4);
+}
+
+.btn-export-excel:active {
+    transform: translateY(0);
+}
+
+.btn-export-excel svg {
+    width: 14px;
+    height: 14px;
+    stroke: currentColor;
+    stroke-width: 3;
+}
+
+/* Ensure report header flexes nicely with export buttons */
+.sec-title-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+/* Export Button - Professional States */
+.btn-export-excel.disabled {
+    background: #94a3b8 !important;
+    cursor: not-allowed !important;
+    box-shadow: none !important;
+    transform: none !important;
+    opacity: 0.8;
+}
+
+.spinner-small {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: white;
+    animation: spin-detail 0.8s linear infinite;
+    margin-right: 6px;
+}
+
+@keyframes spin-detail {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Batch PDF Print Styles */
+.mpia-batch-print-viewport {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 0;
+    overflow: hidden;
+    z-index: -100;
+    opacity: 0;
+    pointer-events: none;
+}
+
+@media print {
+
+    /* Hide everything by default */
+    body * {
+        visibility: hidden !important;
+    }
+
+    /* Show the main content wrapper and the specific print containers */
+    .prof-dashboard-wrapper,
+    .prof-layout-container,
+    #prof-main,
+    #prof-main *,
+    #prof-content-area,
+    #prof-content-area *,
+    .dashboard-content-integrated,
+    .dashboard-content-integrated *,
+    .mpia-batch-print-viewport,
+    .mpia-batch-print-viewport *,
+    .print-container,
+    .print-container * {
+        visibility: visible !important;
+    }
+
+    /* Reset ALL parent containers that might shift the layout */
+    .prof-dashboard-wrapper,
+    .prof-layout-container,
+    #prof-main,
+    #prof-content-area,
+    .dashboard-content-integrated,
+    .bg-slate-50 {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        left: 0 !important;
+        position: static !important;
+        display: block !important;
+        background: white !important;
+        min-height: auto !important;
+    }
+
+    /* Ensure specific Batch Report Viewport is also handled */
+    .mpia-batch-print-viewport {
+        display: block !important;
+        visibility: visible !important;
+        height: auto !important;
+        min-height: 100% !important;
+        width: 100% !important;
+        opacity: 1 !important;
+        z-index: 99999 !important;
+        position: static !important;
+        overflow: visible !important;
+    }
+
+    .mpia-batch-print-viewport * {
+        visibility: visible !important;
+    }
+
+    /* Surgical isolation: Hide non-print elements inside the visible containers */
+    .no-print,
+    .no-print *,
+    .sidebar-top-action,
+    #prof-sidebar,
+    #prof-topbar,
+    .sub-tabs,
+    .sec-title-flex,
+    .Pagination,
+    .prof-search,
+    .btn-export-excel,
+    .nav-wrapper {
+        display: none !important;
+        visibility: hidden !important;
+    }
+
+    /* Force Landscape orientation and remove browser default margins */
+    @page {
+        size: A4 landscape;
+        margin: 0 !important;
+    }
+
+    html,
+    body {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+        background: white !important;
+        overflow: visible !important;
+    }
+
+    /* Ensure the report page is pinned to the top and centered horizontally */
+    .print-container {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        margin: 0 auto !important;
+        page-break-after: avoid !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        border: none !important;
+        box-shadow: none !important;
+        /* Using slightly smaller than A4 to ensure it fits without scaling issues */
+        width: 280mm !important;
+        height: 190mm !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: flex-start !important;
+        align-items: center !important;
+        padding-top: 5mm !important;
+        background: white !important;
+        overflow: hidden !important;
+        z-index: 99999 !important;
+    }
+
+    /* ONLY for batch reports, add a break BETWEEN (but not after last) pages */
+    .mpia-batch-print-viewport .print-container {
+        position: relative !important;
+        top: auto !important;
+        margin-top: 0 !important;
+    }
+
+    .mpia-batch-print-viewport .print-container:not(:last-child) {
+        page-break-after: always !important;
+        break-after: page !important;
+    }
+
+    /* Special rule for the MpiaDrillDown specifically used in the screenshot */
+    .full-report-page {
+        margin: 0 auto !important;
+        width: 280mm !important;
+        height: 190mm !important;
+    }
+
+    /* Reset background and padding on drill-down wrapper during print */
+    .bg-slate-50.p-6.min-h-screen {
+        background: transparent !important;
+        padding: 0 !important;
+        min-height: auto !important;
+        display: block !important;
+    }
+
+    /* Fix for PieChart / Recharts visibility */
+    .recharts-responsive-container {
+        width: 100% !important;
+    }
+
+    .bg-slate-50 {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        background-color: #f8fafc !important;
+        box-shadow: inset 0 0 0 1000px #f8fafc !important;
+    }
+
+    .bg-emerald-500 {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        background-color: #10b981 !important;
+        box-shadow: inset 0 0 0 1000px #10b981 !important;
+    }
+
+    .bg-slate-800,
+    thead.bg-slate-800,
+    thead.bg-slate-800 th {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        background-color: #1e293b !important;
+        box-shadow: inset 0 0 0 1000px #1e293b !important;
+        color: white !important;
+    }
+
+    .text-white {
+        color: white !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* Remove backgrounds/colors normalization for printing */
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
 }

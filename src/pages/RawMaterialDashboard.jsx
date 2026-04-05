@@ -1298,22 +1298,43 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
               // Convert defects object to map format
               const defects = {};
               const defectLengths = {};
+              let defectCount = 0;
+              let totalDefectiveLength = 0;
 
               Object.entries(heatData.selectedDefects).forEach(([defectName, isSelected]) => {
                 defects[defectName] = isSelected || false;
 
+                if (isSelected && defectName !== 'No Defect') {
+                  defectCount++;
+                }
+
                 // Add length if defect is selected and has a value
                 if (isSelected && heatData.defectCounts?.[defectName]) {
-                  defectLengths[defectName] = parseFloat(heatData.defectCounts[defectName]) || null;
+                  const val = parseFloat(heatData.defectCounts[defectName]);
+                  if (!isNaN(val)) {
+                    defectLengths[defectName] = val;
+                    if (defectName !== 'No Defect') {
+                      totalDefectiveLength += val;
+                    }
+                  }
                 }
               });
+
+              // Apply weight factor based on product model
+              const wFactor = productModel?.toUpperCase().includes('V') ? 0.00326 : 0.00263;
+              const weightRejected = defects['No Defect'] ? 0 : totalDefectiveLength * wFactor;
+              if (defects['No Defect']) {
+                  defectCount = 0;
+              }
 
               visualInspectionData.push({
                 inspectionCallNo,
                 heatNo,
                 heatIndex,
                 defects,
-                defectLengths
+                defectLengths,
+                defectCount,
+                weightRejected
               });
             }
           });
@@ -1331,19 +1352,32 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           dimParsed.heatDimData.forEach((heatData, heatIndex) => {
             const heat = activeHeats[heatIndex];
             if (heat && heatData?.dimSamples && Array.isArray(heatData.dimSamples)) {
-              // Convert all 20 samples to a list
+              // Get tolerance based on product model
+              const specs = productModel?.toUpperCase().includes('V')
+                ? { min: 22.81, max: 23.23 }
+                : { min: 20.47, max: 20.84 }; // Default MK-III
+
+              let defectCount = 0;
+
+              // Convert all 20 samples to a list and count defects
               const sampleDiameters = heatData.dimSamples.map(sample => {
                 const diameter = sample?.diameter;
-                return (diameter !== null && diameter !== undefined && diameter !== '')
-                  ? parseFloat(diameter)
-                  : null;
+                if (diameter !== null && diameter !== undefined && diameter !== '') {
+                  const val = parseFloat(diameter);
+                  if (!isNaN(val) && (val < specs.min || val > specs.max)) {
+                    defectCount++;
+                  }
+                  return val;
+                }
+                return null;
               });
 
               dimensionalCheckData.push({
                 inspectionCallNo,
                 heatNo: heat.heatNo,
                 heatIndex,
-                sampleDiameters
+                sampleDiameters,
+                defectCount
               });
             }
           });
@@ -1873,22 +1907,43 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
               // Convert defects object to map format
               const defects = {};
               const defectLengths = {};
+              let defectCount = 0;
+              let totalDefectiveLength = 0;
 
               Object.entries(heatData.selectedDefects).forEach(([defectName, isSelected]) => {
                 defects[defectName] = isSelected || false;
 
+                if (isSelected && defectName !== 'No Defect') {
+                  defectCount++;
+                }
+
                 // Add length if defect is selected and has a value
                 if (isSelected && heatData.defectCounts?.[defectName]) {
-                  defectLengths[defectName] = parseFloat(heatData.defectCounts[defectName]) || null;
+                  const val = parseFloat(heatData.defectCounts[defectName]);
+                  if (!isNaN(val)) {
+                    defectLengths[defectName] = val;
+                    if (defectName !== 'No Defect') {
+                      totalDefectiveLength += val;
+                    }
+                  }
                 }
               });
+
+              // Apply weight factor based on product model
+              const wFactor = productModel?.toUpperCase().includes('V') ? 0.00326 : 0.00263;
+              const weightRejected = defects['No Defect'] ? 0 : totalDefectiveLength * wFactor;
+              if (defects['No Defect']) {
+                  defectCount = 0;
+              }
 
               visualInspectionData.push({
                 inspectionCallNo,
                 heatNo,
                 heatIndex,
                 defects,
-                defectLengths
+                defectLengths,
+                defectCount,
+                weightRejected
               });
             }
           });
@@ -1905,19 +1960,32 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           dimParsed.heatDimData.forEach((heatData, heatIndex) => {
             const heat = activeHeats[heatIndex];
             if (heat && heatData?.dimSamples && Array.isArray(heatData.dimSamples)) {
-              // Convert all 20 samples to a list
+              // Get tolerance based on product model
+              const specs = productModel?.toUpperCase().includes('V')
+                ? { min: 22.81, max: 23.23 }
+                : { min: 20.47, max: 20.84 }; // Default MK-III
+
+              let defectCount = 0;
+
+              // Convert all 20 samples to a list and count defects
               const sampleDiameters = heatData.dimSamples.map(sample => {
                 const diameter = sample?.diameter;
-                return (diameter !== null && diameter !== undefined && diameter !== '')
-                  ? parseFloat(diameter)
-                  : null;
+                if (diameter !== null && diameter !== undefined && diameter !== '') {
+                  const val = parseFloat(diameter);
+                  if (!isNaN(val) && (val < specs.min || val > specs.max)) {
+                    defectCount++;
+                  }
+                  return val;
+                }
+                return null;
               });
 
               dimensionalCheckData.push({
                 inspectionCallNo,
                 heatNo: heat.heatNo,
                 heatIndex,
-                sampleDiameters
+                sampleDiameters,
+                defectCount
               });
             }
           });

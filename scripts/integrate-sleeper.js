@@ -72,14 +72,14 @@ try {
     </staticContent>
     <rewrite>
       <rules>
-        <!-- Rule 1: Static File Bypass for Sleeper Assets -->
-        <rule name="Sleeper Dashboard Assets" stopProcessing="true">
+        <!-- Rule 1: STOP PROCESSING and Serve Sleeper Assets Directly -->
+        <rule name="Sleeper Assets Pass-Through" stopProcessing="true">
           <match url="^sleeper/assets/(.*)" />
           <action type="None" />
         </rule>
         
         <!-- Rule 2: SPA Fallback for Sleeper Dashboard -->
-        <rule name="Sleeper Subfolder Redirect" stopProcessing="true">
+        <rule name="Sleeper Dashboard SPA" stopProcessing="true">
           <match url="^sleeper(/.*)?" />
           <conditions logicalGrouping="MatchAll">
             <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="true" />
@@ -89,7 +89,7 @@ try {
         </rule>
 
         <!-- Rule 3: SPA Fallback for Main App -->
-        <rule name="Parent App Fallback" stopProcessing="true">
+        <rule name="Parent App SPA" stopProcessing="true">
           <match url=".*" />
           <conditions logicalGrouping="MatchAll">
             <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="true" />

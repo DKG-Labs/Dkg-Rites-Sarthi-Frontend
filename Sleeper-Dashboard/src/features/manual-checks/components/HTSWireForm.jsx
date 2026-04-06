@@ -233,6 +233,7 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
 
         // Payload matching hts-wire-placement-controller schema exactly
         const payload = {
+            location: formData.location || activeContainer?.name || 'N/A',
             lineShedNo: formData.location || activeContainer?.name || 'N/A',
             placementDate: formatToBackendDate(formData.dateTime.split('T')[0]),
             placementTime: formData.dateTime.split('T')[1],

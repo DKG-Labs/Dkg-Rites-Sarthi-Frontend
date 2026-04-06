@@ -164,8 +164,8 @@ const ManualChecks = ({ onBack, activeContainer, initialSubModule, initialViewMo
         // Prepare the payload with location data
         const enrichedData = {
             ...data,
-            location: activeContainer?.name || 'N/A',
-            lineShedNo: activeContainer?.name || 'N/A',
+            location: data.location || activeContainer?.name || 'N/A',
+            lineShedNo: data.lineShedNo || data.location || activeContainer?.name || 'N/A',
             locationType: activeContainer?.type || 'Location'
         };
 

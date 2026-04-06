@@ -219,7 +219,7 @@ export const apiService = {
     // moduleId=4  MIX_DESIGN
     getMixDesignById: (id) => api.get(`/mix-design/${id}`),
     getVerifiedMixDesignIdentifications: () => api.get('/mix-design/verified-identifications'),
-    getApprovedMixDesigns: (moduleId = 1) => api.get(`/mix-design/approvedMixDesign?moduleId=${moduleId}`),
+    getApprovedMixDesigns: (moduleId = 4, vendorId = '') => api.get(`/mix-design/approvedMixDesign?moduleId=${moduleId}${vendorId ? `&vendorId=${vendorId}` : ''}`),
 
     // moduleId=5  HTS Wire
     getHtsWireRecordById: (id) => api.get(`/hts-wire/${id}`),

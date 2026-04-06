@@ -1,6 +1,7 @@
 import React from "react";
 
-const ErcFinalIc = ({ data = {}, isEditing = false, onFieldChange = () => { } }) => {
+const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChange = () => { } }) => {
+
   const {
     certificateNo = "",
     certificateDate = "",
@@ -43,7 +44,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, onFieldChange = () => { } })
     .trim();
 
   // Editable field component
-  const EditableField = ({ value, fieldName, placeholder = "", className = "", type = "text" }) => {
+  const EditableField = ({ value, fieldName, placeholder = "", className = "", type = "text", disabled = false }) => {
     if (isEditing) {
       if (type === "textarea") {
         return (
@@ -53,6 +54,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, onFieldChange = () => { } })
             placeholder={placeholder}
             className={`w-full p-1 border border-blue-400 bg-blue-50 text-sm`}
             rows={2}
+            disabled={disabled || isBusy}
           />
         );
       }
@@ -64,9 +66,11 @@ const ErcFinalIc = ({ data = {}, isEditing = false, onFieldChange = () => { } })
           placeholder={placeholder}
           className={`w-full p-0 border border-blue-400 bg-blue-50 text-sm`}
           style={type === "inline" ? { display: "inline-block", width: "80px" } : {}}
+          disabled={disabled || isBusy}
         />
       );
     }
+
     return type === "inline" ? <span className={className}>{value}</span> : <div className={className}>{value}</div>;
   };
 
@@ -84,7 +88,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, onFieldChange = () => { } })
                 <div className="h-[2px]" />
               </div>
               <div className="p-1 flex items-center justify-center min-h-[22px]">
-                <EditableField value={bookNo} fieldName="bookNo" className="text-center font-bold text-[12px]" />
+                <EditableField value={bookNo} fieldName="bookNo" disabled={isBusy} className="text-center font-bold text-[12px]" />
               </div>
             </div>
             <div className="flex flex-col">
@@ -94,8 +98,9 @@ const ErcFinalIc = ({ data = {}, isEditing = false, onFieldChange = () => { } })
                 <div className="h-[2px]" />
               </div>
               <div className="p-1 flex items-center justify-center min-h-[22px]">
-                <EditableField value={setNo} fieldName="setNo" className="text-center font-bold text-[12px]" />
+                <EditableField value={setNo} fieldName="setNo" disabled={isBusy} className="text-center font-bold text-[12px]" />
               </div>
+
             </div>
           </div>
 

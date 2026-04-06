@@ -1,6 +1,7 @@
 import React from "react";
 
-const EditableField = ({ isEditing, value, onChange, className = "", type = "text" }) => {
+const EditableField = ({ isEditing, value, onChange, className = "", type = "text", disabled = false }) => {
+
   if (!isEditing) {
     return type === "inline" ? <span className={className}>{value}</span> : <div className={className}>{value}</div>;
   }
@@ -17,15 +18,17 @@ const EditableField = ({ isEditing, value, onChange, className = "", type = "tex
   return (
     <input
       type="text"
-      className={`${className} w-full p-1 border border-blue-400 bg-blue-50 text-sm`}
+      className={`${className} w-full p-1 border border-blue-400 bg-blue-50 text-sm ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
       value={value || ""}
       onChange={(e) => onChange(e.target.value)}
+      disabled={disabled}
       style={type === "inline" ? { display: "inline-block", width: "80px" } : {}}
     />
+
   );
 };
 
-const ErcRmIC = ({ data = {}, isEditing = false, onChange = () => {} }) => {
+const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () => {}, onArrayChange = () => {} }) => {
   const {
     certificateNo = "",
     certificateDate = "",
@@ -81,7 +84,7 @@ const ErcRmIC = ({ data = {}, isEditing = false, onChange = () => {} }) => {
                 <div className="h-[2px]" />
               </div>
               <div className="p-1 flex items-center justify-center min-h-[22px]">
-                <EditableField isEditing={isEditing} value={bookNo} onChange={(val) => onChange("bookNo", val)} className="text-center font-bold text-[12px]" />
+                <EditableField isEditing={isEditing} disabled={isBusy} value={bookNo} onChange={(val) => onChange("bookNo", val)} className="text-center font-bold text-[12px]" />
               </div>
             </div>
             <div className="flex flex-col">
@@ -91,7 +94,7 @@ const ErcRmIC = ({ data = {}, isEditing = false, onChange = () => {} }) => {
                 <div className="h-[2px]" />
               </div>
               <div className="p-1 flex items-center justify-center min-h-[22px]">
-                <EditableField isEditing={isEditing} value={setNo} onChange={(val) => onChange("setNo", val)} className="text-center font-bold text-[12px]" />
+                <EditableField isEditing={isEditing} disabled={isBusy} value={setNo} onChange={(val) => onChange("setNo", val)} className="text-center font-bold text-[12px]" />
               </div>
             </div>
           </div>

@@ -17,7 +17,10 @@ import '../styles/CallDeskDashboard.css';
 import { generateCallLetterPDF } from '../utils/generateCallLetterPDF';
 
 const CallDeskDashboard = () => {
-  const [activeTab, setActiveTab] = useState('pending');
+  // Initialize tab from localStorage or default to 'pending'
+  const [activeTab, setActiveTab] = useState(() => {
+    return localStorage.getItem('callDeskActiveTab') || 'pending';
+  });
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
@@ -48,7 +51,7 @@ const CallDeskDashboard = () => {
     loading,
     error,
     refreshData
-  } = useCallDeskData();
+  } = useCallDeskData(activeTab);
 
   const {
     verifyAndAccept,
@@ -67,6 +70,11 @@ const CallDeskDashboard = () => {
     };
     loadIEs();
   }, [fetchAllIEs]);
+
+  // Persist activeTab to localStorage whenever it changes
+  React.useEffect(() => {
+    localStorage.setItem('callDeskActiveTab', activeTab);
+  }, [activeTab]);
 
 
 
@@ -157,6 +165,16 @@ const CallDeskDashboard = () => {
       console.error('Failed to generate Call Letter PDF:', err);
       alert('Failed to generate PDF. Please try again.');
     }
+  };
+
+  // Helper to format technical status/action strings to readable text
+  const formatStatusText = (text) => {
+    if (!text) return '-';
+    return text
+      .toLowerCase()
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
   };
 
   // Submit actions
@@ -255,6 +273,7 @@ const CallDeskDashboard = () => {
     );
   }
 
+  // Tab Content
   return (
     <div className="dashboard-container">
       {/* Breadcrumb */}
@@ -266,7 +285,11 @@ const CallDeskDashboard = () => {
       <h1 className="page-title">Call Desk Dashboard</h1>
 
       {/* Tabs */}
-      <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
+      <Tabs 
+        tabs={tabs} 
+        activeTab={activeTab} 
+        onChange={setActiveTab} 
+      />
 
       {/* Tab Content */}
       {activeTab === 'pending' && (
@@ -307,55 +330,68 @@ const CallDeskDashboard = () => {
             </div>
             <div className="modal-body">
               {historyLoading ? (
-                <div className="history-empty">Loading history...</div>
+                <div className="history-empty" style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>
+                  <div className="spinner" style={{ margin: '0 auto 12px' }}></div>
+                  Loading history...
+                </div>
               ) : historyData.length === 0 ? (
-                <div className="history-empty">No history found</div>
+                <div className="history-empty" style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>
+                  No history found for this call.
+                </div>
               ) : (
-                <table className="history-table">
-                  <thead>
-                    <tr>
-                      <th>Action</th>
-                      <th>Status</th>
-                      <th>Created By</th>
-                      <th>Modified By</th>
-                      <th>Date & Time</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {historyData.map((row, index) => (
-                      <tr key={index}>
-                        {/* Action */}
-                        <td className="action-cell">
-                          {row.action || '-'}
-                        </td>
-
-                        {/* Status */}
-                        <td>
-                          {row.status || '-'}
-                        </td>
-
-                        {/* Created By */}
-                        <td>
-                          {row.createdBy ?? '-'}
-                        </td>
-
-                        {/* Modified By */}
-                        <td>
-                          {row.updatedBy ?? '-'}
-                        </td>
-
-                        {/* Date & Time */}
-                        <td>
-                          {row.createdDate
-                            ? formatDate(row.createdDate)
-                            : '-'}
-                        </td>
+                <div className="history-table-container">
+                  <table className="history-table">
+                    <thead>
+                      <tr>
+                        <th>Date & Time</th>
+                        <th>Action</th>
+                        <th>Status</th>
+                        <th>Remarks</th>
+                        <th>Performed By</th>
                       </tr>
-                    ))}
-                  </tbody>
-
-                </table>
+                    </thead>
+                    <tbody>
+                      {historyData.map((row, index) => (
+                        <tr key={index}>
+                          <td style={{ whiteSpace: 'nowrap' }}>
+                            {row.createdDate ? formatDate(row.createdDate) : '-'}
+                          </td>
+                          <td>
+                            <div className="history-action-text">
+                              {formatStatusText(row.action)}
+                            </div>
+                          </td>
+                          <td>
+                            <span className="history-status-badge history-status-default">
+                              {formatStatusText(row.status)}
+                            </span>
+                          </td>
+                          <td>
+                            {row.remarks && row.remarks !== 'null' ? (
+                              <div className="history-remarks-box">
+                                "{row.remarks}"
+                              </div>
+                            ) : (
+                              <span className="text-gray-300">-</span>
+                            )}
+                          </td>
+                          <td>
+                            <div className="history-user-info">
+                              <span className="history-user-name">
+                                {row.createdBy || 'System'}
+                              </span>
+                              {row.modifiedBy && row.modifiedBy !== row.createdBy && (
+                                <span className="history-user-label" title="Modified By">
+                                  mod: {row.modifiedBy}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
 

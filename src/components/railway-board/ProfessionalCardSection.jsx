@@ -87,7 +87,8 @@ const ProfessionalCardSection = ({
     mpiaPage = 0,
     setMpiaPage = () => { },
     mpiaRowsPerPage = 10,
-    setMpiaRowsPerPage = () => { }
+    setMpiaRowsPerPage = () => { },
+    onReportTabChange = () => { }
 }) => {
     // Map selectedProduct to summary data keys
     const getSummaryKey = (prod) => {
@@ -494,11 +495,11 @@ const ProfessionalCardSection = ({
                                                     </div>
                                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                                                         <div>
-                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>ACCEPTED</div>
+                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>ACCEPTED (Nos.)</div>
                                                             <div style={{ fontSize: '26px', fontWeight: '800', color: '#22c55e' }}>{d?.accepted?.toLocaleString() || '0'}</div>
                                                         </div>
                                                         <div style={{ textAlign: 'right' }}>
-                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>REJECTED</div>
+                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>REJECTED (Nos.)</div>
                                                             <div style={{ fontSize: '26px', fontWeight: '800', color: '#ef4444' }}>{d?.rejected?.toLocaleString() || '0'}</div>
                                                         </div>
                                                     </div>
@@ -512,23 +513,23 @@ const ProfessionalCardSection = ({
                                         <div className="g4">
                                             <div className="prof-card card-spring-green" style={{ textAlign: 'center' }}>
                                                 <div className="kpi-lbl" style={{ color: '#065f46' }}>Avg Production/Day</div>
-                                                <div className="kpi-val" style={{ color: '#064e3b' }}>{(Math.round(s.avgProductionPerDay || 947)).toLocaleString()}</div>
+                                                <div className="kpi-val" style={{ color: '#064e3b' }}>{(Math.round(s.avgProductionPerDay ?? 947)).toLocaleString()}</div>
                                                 <div className="kpi-sub" style={{ color: '#047857' }}>Nos.</div>
                                             </div>
                                             <div className="prof-card card-lime" style={{ textAlign: 'center' }}>
                                                 <div className="kpi-lbl" style={{ color: '#3f6212' }}>Process Rejection</div>
-                                                <div className="kpi-val" style={{ color: '#365314' }}>{formatDecimal(s.processRejectionPercentage || 4.2)}%</div>
-                                                <div className="prof-prog"><div className="prof-prog-f" style={{ width: '42%', background: '#84cc16' }}></div></div>
+                                                <div className="kpi-val" style={{ color: '#365314' }}>{formatDecimal(s.processRejectionPercentage ?? 4.2)}%</div>
+                                                <div className="prof-prog"><div className="prof-prog-f" style={{ width: `${Math.min(100, (s.processRejectionPercentage ?? 4.2) * 10)}%`, background: '#84cc16' }}></div></div>
                                             </div>
                                             <div className="prof-card card-ruby" style={{ textAlign: 'center' }}>
                                                 <div className="kpi-lbl" style={{ color: '#991b1b' }}>Final Rejection</div>
-                                                <div className="kpi-val" style={{ color: '#7f1d1d' }}>{formatDecimal(s.finalRejectionPercentage || 1.8)}%</div>
-                                                <div className="prof-prog"><div className="prof-prog-f" style={{ width: '18%', background: '#e11d48' }}></div></div>
+                                                <div className="kpi-val" style={{ color: '#7f1d1d' }}>{formatDecimal(s.finalRejectionPercentage ?? 1.8)}%</div>
+                                                <div className="prof-prog"><div className="prof-prog-f" style={{ width: `${Math.min(100, (s.finalRejectionPercentage ?? 1.8) * 10)}%`, background: '#e11d48' }}></div></div>
                                             </div>
                                             <div className="prof-card card-gold" style={{ textAlign: 'center' }}>
                                                 <div className="kpi-lbl" style={{ color: '#854d0e' }}>RM Rejection</div>
-                                                <div className="kpi-val" style={{ color: '#713f12' }}>{formatDecimal(s.rmRejectionPercentage || 3.2)}%</div>
-                                                <div className="prof-prog"><div className="prof-prog-f" style={{ width: '32%', background: '#eab308' }}></div></div>
+                                                <div className="kpi-val" style={{ color: '#713f12' }}>{formatDecimal(s.rmRejectionPercentage ?? 3.2)}%</div>
+                                                <div className="prof-prog"><div className="prof-prog-f" style={{ width: `${Math.min(100, (s.rmRejectionPercentage ?? 3.2) * 10)}%`, background: '#eab308' }}></div></div>
                                             </div>
                                         </div>
                                     </div>
@@ -543,8 +544,8 @@ const ProfessionalCardSection = ({
                                     {/* KPI Row exactly from Index 5, adjusted to hide Total Defects */}
                                     <div className="g3 mb">
                                         <div className="prof-card card-red" style={{ textAlign: 'center' }}>
-                                            <div className="kpi-lbl" style={{ color: '#991b1b' }}>Overall Rejection %</div>
-                                            <div className="kpi-val" style={{ color: '#7f1d1d' }}>{formatDecimal(summaryData?.totalRejectionPercent || 1.34)}%</div>
+                                            <div className="kpi-lbl" style={{ color: '#991b1b' }}>Process Overall Rejection %</div>
+                                            <div className="kpi-val" style={{ color: '#7f1d1d' }}>{formatDecimal(summaryData?.processRejectionPercentage ?? 1.34)}%</div>
                                         </div>
                                         <div className="prof-card card-mint" style={{ textAlign: 'center' }}>
                                             <div className="kpi-lbl" style={{ color: '#166534' }}>Top Defect</div>
@@ -915,10 +916,10 @@ const ProfessionalCardSection = ({
                             return (
                                 <div className="reports-tab-content fade-in">
                                     <div className="sub-tabs">
-                                        <div className={`sub-tab-btn ${activeReport === 'mpr' ? 'active' : ''}`} onClick={() => setActiveReport('mpr')}>📋 MPR</div>
-                                        <div className={`sub-tab-btn ${activeReport === 'mau' ? 'active' : ''}`} onClick={() => setActiveReport('mau')}>📈 MAU</div>
-                                        <div className={`sub-tab-btn ${activeReport === 'lwcl' ? 'active' : ''}`} onClick={() => setActiveReport('lwcl')}>🔄 LWCL</div>
-                                        <div className={`sub-tab-btn ${activeReport === 'mpia' ? 'active' : ''}`} onClick={() => setActiveReport('mpia')}>⚙️ MPIA</div>
+                                        <div className={`sub-tab-btn ${activeReport === 'mpr' ? 'active' : ''}`} onClick={() => { setActiveReport('mpr'); onReportTabChange('mpr'); }}>📋 MPR</div>
+                                        <div className={`sub-tab-btn ${activeReport === 'mau' ? 'active' : ''}`} onClick={() => { setActiveReport('mau'); onReportTabChange('mau'); }}>📈 MAU</div>
+                                        <div className={`sub-tab-btn ${activeReport === 'lwcl' ? 'active' : ''}`} onClick={() => { setActiveReport('lwcl'); onReportTabChange('lwcl'); }}>🔄 LWCL</div>
+                                        <div className={`sub-tab-btn ${activeReport === 'mpia' ? 'active' : ''}`} onClick={() => { setActiveReport('mpia'); onReportTabChange('mpia'); }}>⚙️ MPIA</div>
                                     </div>
 
                                     <div className="report-viewer-content">
@@ -1519,9 +1520,17 @@ const MpiaReportPage = ({ manufacturer, data, showFooter = true }) => {
         defectAgg['Tempering'] += (m.temperingDefects?.temperingTemp || 0) + (m.temperingDefects?.temperingDuration || 0);
     });
 
+    const totalInspectedAllMonths = data.reduce((acc, m) => acc + (m.inspected || 0), 0);
+
     const pieData = Object.entries(defectAgg)
-        .map(([name, value]) => ({ name, value }))
+        .map(([name, value]) => ({ 
+            name, 
+            value,
+            rate: totalInspectedAllMonths > 0 ? (value / totalInspectedAllMonths) * 100 : 0
+        }))
         .filter(d => d.value > 0);
+
+    const totalDefects = pieData.reduce((acc, d) => acc + d.value, 0);
 
     const COLORS = ['#0f172a', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
@@ -1565,14 +1574,14 @@ const MpiaReportPage = ({ manufacturer, data, showFooter = true }) => {
                             <Pie
                                 data={pieData} cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={5} minAngle={15} dataKey="value"
                                 isAnimationActive={false}
-                                label={({ cx, cy, midAngle, outerRadius, name, percent }) => {
+                                label={({ cx, cy, midAngle, outerRadius, name, percent, payload }) => {
                                     const RADIAN = Math.PI / 180;
                                     const radius = outerRadius + 25;
                                     const x = cx + radius * Math.cos(-midAngle * RADIAN);
                                     const y = cy + radius * Math.sin(-midAngle * RADIAN);
                                     return (
                                         <text x={x} y={y} fill="#475569" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize="10" fontWeight="700">
-                                            {`${name} ${(percent * 100).toFixed(0)}%`}
+                                            {`${name} ${payload.rate.toFixed(2)}%`}
                                         </text>
                                     );
                                 }}
@@ -1592,7 +1601,7 @@ const MpiaReportPage = ({ manufacturer, data, showFooter = true }) => {
                         {pieData.map((d, i) => (
                             <div key={i} className="flex items-center gap-2 text-xs font-semibold text-slate-500">
                                 <div className="w-2 h-2 rounded-full" style={{ background: COLORS[i % COLORS.length] }}></div>
-                                <span>{d.name}: {d.value}</span>
+                                <span>{d.name}: {d.value} Nos. ({((d.value / totalDefects) * 100).toFixed(0)}%)</span>
                             </div>
                         ))}
                     </div>
@@ -1606,15 +1615,21 @@ const MpiaReportPage = ({ manufacturer, data, showFooter = true }) => {
                             <thead className="bg-slate-800 text-white" style={{ backgroundColor: '#1e293b', color: 'white', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
                                 <tr>
                                     <th className="p-3 text-left">MONTH</th>
-                                    <th className="p-3 text-right">INSPECTED</th>
-                                    <th className="p-3 text-right">REJECTED</th>
+                                    <th className="p-3 text-right">INSPECTED (Nos.)</th>
+                                    <th className="p-3 text-right">REJECTED (Nos.)</th>
                                     <th className="p-3 text-right">% REJ</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {data.map((m, i) => (
                                     <tr key={i} className="hover:bg-slate-50 transition-colors">
-                                        <td className="p-3 font-bold text-slate-700 uppercase">{m.month}</td>
+                                        <td className="p-3 font-bold text-slate-700 uppercase">
+                                            {(() => {
+                                                const [year, month] = (m.month || '').split('-');
+                                                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                                                return month ? `${months[parseInt(month) - 1]} ${year}` : m.month;
+                                            })()}
+                                        </td>
                                         <td className="p-3 text-right font-medium text-slate-600">{m.inspected?.toLocaleString()}</td>
                                         <td className="p-3 text-right font-bold text-red-600">{m.processRejected?.toLocaleString()}</td>
                                         <td className="p-3 text-right">
@@ -1634,17 +1649,17 @@ const MpiaReportPage = ({ manufacturer, data, showFooter = true }) => {
                     {/* KPI Widgets */}
                     <div className="mt-8 grid grid-cols-3 gap-4">
                         <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
-                            <p className="text-[9px] text-slate-400 font-bold mb-1">INSPECTED</p>
+                            <p className="text-[9px] text-slate-400 font-bold mb-1">INSPECTED (Nos.)</p>
                             <p className="text-sm font-black text-slate-800">{data.reduce((acc, m) => acc + (m.inspected || 0), 0).toLocaleString()}</p>
                         </div>
                         <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
-                            <p className="text-[9px] text-slate-400 font-bold mb-1">REJECTED</p>
+                            <p className="text-[9px] text-slate-400 font-bold mb-1">REJECTED (Nos.)</p>
                             <p className="text-sm font-black text-red-600">{data.reduce((acc, m) => acc + (m.processRejected || 0), 0).toLocaleString()}</p>
                         </div>
                         <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
                             <p className="text-[9px] text-slate-400 font-bold mb-1">AVG% REJ</p>
                             <p className="text-sm font-black text-slate-800">
-                                {data.length > 0 ? (data.reduce((acc, m) => acc + (m.processRejPercent || 0), 0) / data.length).toFixed(2) : 0}%
+                                {totalInspectedAllMonths > 0 ? ((data.reduce((acc, m) => acc + (m.processRejected || 0), 0) / totalInspectedAllMonths) * 100).toFixed(2) : 0}%
                             </p>
                         </div>
                     </div>

@@ -30,6 +30,8 @@ const RailwayBoardDashboard = () => {
     const [activeReport, setActiveReport] = useState('mpr');
 
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [poSearch, setPoSearch] = useState('');
+    const [poSort, setPoSort] = useState({ key: 'poNo', direction: 'asc' });
 
     // Initialize dates
     const [fromDate, setFromDate] = useState(() => {
@@ -79,7 +81,7 @@ const RailwayBoardDashboard = () => {
 
     // Data Fetching
     const { data: reportData = [] } = useReportData(reportService.getLevel1Report, activeMainCard === 'lifecycle' ? dashboardFilters : undefined);
-    const { data: summaryData } = useReportData(reportService.getDashboardSummary, activeMainCard === 'summary' ? dashboardFilters : undefined);
+    const { data: summaryData } = useReportData(reportService.getDashboardSummary, (activeMainCard === 'summary' || activeMainCard === 'quality') ? dashboardFilters : undefined);
     const { data: inspectionCallStatusData } = useReportData(reportService.getInspectionCallStatus, activeMainCard === 'summary' ? dashboardFilters : undefined);
     const { data: inspectionDetailsData } = useReportData(reportService.getInspectionDetails, activeMainCard === 'summary' ? trendParams : undefined);
     const { data: qualityRejectionData } = useReportData(reportService.getQualityRejection, activeMainCard === 'quality' ? dashboardFilters : undefined);
@@ -201,9 +203,59 @@ const RailwayBoardDashboard = () => {
     const handleChangePage = (newPage) => setPage(newPage);
     const handleChangeRowsPerPage = (newRows) => setRowsPerPage(newRows);
 
-    const filteredData = reportData || [];
-    const count = filteredData.length;
-    const paginatedData = filteredData.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
+    // Filtered & Sorted PO Data (Client-side)
+    const displayPoData = React.useMemo(() => {
+        let result = [...(reportData || [])];
+        
+        // Search filter
+        if (poSearch) {
+            const query = poSearch.toLowerCase();
+            result = result.filter(po => 
+                (po.rly || '').toLowerCase().includes(query) ||
+                (po.poNo || '').toLowerCase().includes(query) ||
+                (po.vendor || '').toLowerCase().includes(query) ||
+                (po.region || '').toLowerCase().includes(query)
+            );
+        }
+
+        // Sorting
+        if (poSort.key) {
+            result.sort((a, b) => {
+                let aVal = a[poSort.key];
+                let bVal = b[poSort.key];
+
+                // Handle numbers
+                const numA = parseFloat(aVal);
+                const numB = parseFloat(bVal);
+                if (!isNaN(numA) && !isNaN(numB)) {
+                    return poSort.direction === 'asc' ? numA - numB : numB - numA;
+                }
+
+                // Handle strings
+                aVal = (aVal || '').toString().toLowerCase();
+                bVal = (bVal || '').toString().toLowerCase();
+                if (aVal < bVal) return poSort.direction === 'asc' ? -1 : 1;
+                if (aVal > bVal) return poSort.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+        return result;
+    }, [reportData, poSearch, poSort]);
+
+    const count = displayPoData.length;
+    const paginatedData = displayPoData.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
+
+    const handlePoSort = (key) => {
+        setPoSort(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+        }));
+    };
+
+    const renderSortIcon = (key) => {
+        if (poSort.key !== key) return <span style={{ opacity: 0.3, marginLeft: '5px', fontSize: '11px' }}>↕</span>;
+        return <span style={{ marginLeft: '5px', color: '#10b981', fontSize: '11px' }}>{poSort.direction === 'asc' ? '▲' : '▼'}</span>;
+    };
 
     const handleSwitchTab = (tab) => {
         setActiveMainCard(tab);
@@ -219,23 +271,36 @@ const RailwayBoardDashboard = () => {
     // Components to pass into ProfessionalCardSection
     const poTable = (
         <div className="content-card-integrated">
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '15px' }}>
+                <div className="prof-search-wrapper" style={{ position: 'relative', width: '300px' }}>
+                    <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontSize: '13px' }}></i>
+                    <input 
+                        type="text" 
+                        placeholder="Search POs, Vendors..." 
+                        className="prof-search" 
+                        style={{ width: '100%', paddingLeft: '35px' }}
+                        value={poSearch} 
+                        onChange={(e) => setPoSearch(e.target.value)} 
+                    />
+                </div>
+            </div>
             <div className="table-responsive">
                 <table className="prof-table main-table level-1-table">
                     <thead>
-                        <tr>
+                        <tr className="sortable-header">
                             <th style={{ width: '40px' }}></th>
                             <th>Sl No.</th>
-                            <th>Rly</th>
-                            <th>PO No.</th>
-                            <th>PO Date</th>
-                            <th>Vendor</th>
-                            <th>Region</th>
-                            <th>PO Qty</th>
-                            <th>Acc Qty</th>
-                            <th>Bal Qty</th>
-                            <th>RM %</th>
-                            <th>Proc %</th>
-                            <th>Final %</th>
+                            <th onClick={() => handlePoSort('rly')} style={{ cursor: 'pointer' }}>Rly {renderSortIcon('rly')}</th>
+                            <th onClick={() => handlePoSort('poNo')} style={{ cursor: 'pointer' }}>PO No. {renderSortIcon('poNo')}</th>
+                            <th onClick={() => handlePoSort('poDate')} style={{ cursor: 'pointer' }}>PO Date {renderSortIcon('poDate')}</th>
+                            <th onClick={() => handlePoSort('vendor')} style={{ cursor: 'pointer' }}>Vendor {renderSortIcon('vendor')}</th>
+                            <th onClick={() => handlePoSort('region')} style={{ cursor: 'pointer' }}>Region {renderSortIcon('region')}</th>
+                            <th className="text-right" onClick={() => handlePoSort('poQuantityNos')} style={{ cursor: 'pointer' }}>PO Qty {renderSortIcon('poQuantityNos')}</th>
+                            <th className="text-right" onClick={() => handlePoSort('acceptedQty')} style={{ cursor: 'pointer' }}>Acc Qty {renderSortIcon('acceptedQty')}</th>
+                            <th className="text-right" onClick={() => handlePoSort('balanceQty')} style={{ cursor: 'pointer' }}>Bal Qty {renderSortIcon('balanceQty')}</th>
+                            <th className="text-right">RM %</th>
+                            <th className="text-right">Proc %</th>
+                            <th className="text-right">Final %</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -317,8 +382,8 @@ const RailwayBoardDashboard = () => {
                         <button className={`sub-tab-btn ${selectedProduct === 'Rail Pad' ? 'active' : ''}`} onClick={() => setSelectedProduct('Rail Pad')}>Rail Pad</button>
                     </div>
 
-                    {/* TOPBAR / FILTERS - Hidden on Dashboard (summary), Lifecycle, and Feedback tabs */}
-                    {activeMainCard !== 'summary' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && (
+                    {/* TOPBAR / FILTERS - Hidden on Dashboard (summary), Quality, Lifecycle, and Feedback tabs */}
+                    {activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && (
                         <div id="prof-topbar">
                             <label>From</label>
                             <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
@@ -383,6 +448,7 @@ const RailwayBoardDashboard = () => {
                             lwclRequestIds={lwclRequestIds} lwclLotNumbers={lwclLotNumbers}
                             level4Data={level4Data} level4Loading={level4Loading}
                             activeReportFromParent={activeReport}
+                            onReportTabChange={handleReportLink}
                             setSelectedProduct={setSelectedProduct}
                         />
                     </div>

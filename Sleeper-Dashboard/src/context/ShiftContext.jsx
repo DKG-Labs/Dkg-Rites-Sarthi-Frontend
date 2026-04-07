@@ -212,28 +212,92 @@ export const ShiftProvider = ({ children }) => {
     };
 
     const fetchWireTension = async () => {
-        const res = await apiService.getAllWireTensioning();
-        if (res?.responseData) {
-            const flattenedRecords = mapWireTensionRecords(res.responseData);
-            setAllTensionRecords(prev => ({ ...prev, [activeContainerId]: flattenedRecords }));
+        const currentUserId = userId || localStorage.getItem('userId');
+        const currentVendorCode = vendorCode || localStorage.getItem('vendorCode');
+        const currentShift = selectedShift || localStorage.getItem('selectedShift');
+        const currentPlantId = dutyUnit || localStorage.getItem('dutyUnit');
+        const currentDutyDate = dutyDate || localStorage.getItem('dutyDate') || new Date().toISOString().split('T')[0];
+
+        const [y, m, d] = currentDutyDate.split('-');
+        const formattedDate = `${d}/${m}/${y}`;
+
+        const params = {
+            plantId: currentPlantId || ":41647/01",
+            vendorCode: currentVendorCode || "134",
+            shift: currentShift || "1",
+            createdBy: currentUserId || "135",
+            date: formattedDate
+        };
+
+        try {
+            const res = await apiService.getWireTensioningTodayRecord(params);
+            if (res?.responseData) {
+                const flattenedRecords = mapWireTensionRecords(res.responseData);
+                setAllTensionRecords(prev => ({ ...prev, [activeContainerId]: flattenedRecords }));
+            }
+        } catch (error) {
+            console.error("Error fetching wire tension:", error);
         }
     };
 
     const fetchCompaction = async () => {
-        const res = await apiService.getAllCompaction();
-        if (res?.responseData) {
-            const flattenedRecords = mapCompactionRecords(res.responseData);
-            setAllCompactionRecords(prev => ({ ...prev, [activeContainerId]: flattenedRecords }));
+        const currentUserId = userId || localStorage.getItem('userId');
+        const currentVendorCode = vendorCode || localStorage.getItem('vendorCode');
+        const currentShift = selectedShift || localStorage.getItem('selectedShift');
+        const currentPlantId = dutyUnit || localStorage.getItem('dutyUnit');
+        const currentDutyDate = dutyDate || localStorage.getItem('dutyDate') || new Date().toISOString().split('T')[0];
+
+        const [y, m, d] = currentDutyDate.split('-');
+        const formattedDate = `${d}/${m}/${y}`;
+
+        const params = {
+            plantId: currentPlantId || ":41647/01",
+            vendorCode: currentVendorCode || "134",
+            shift: currentShift || "1",
+            createdBy: currentUserId || "135",
+            date: formattedDate
+        };
+
+        try {
+            const res = await apiService.getCompactionTodayRecord(params);
+            if (res?.responseData) {
+                const flattenedRecords = mapCompactionRecords(res.responseData);
+                setAllCompactionRecords(prev => ({ ...prev, [activeContainerId]: flattenedRecords }));
+            }
+        } catch (error) {
+            console.error("Error fetching compaction:", error);
         }
     };
 
     const fetchBatchWeighment = async () => {
-        const res = await apiService.getAllBatchWeighment();
-        if (res?.responseData) {
-            const { declarations, configs, witnessed } = mapBatchWeighmentData(res.responseData, containers);
-            setAllWitnessedRecords(witnessed);
-            setAllBatchDeclarations(declarations);
-            setAllSessionConfigs(prev => ({ ...prev, ...configs }));
+        const currentUserId = userId || localStorage.getItem('userId');
+        const currentVendorCode = vendorCode || localStorage.getItem('vendorCode');
+        const currentShift = selectedShift || localStorage.getItem('selectedShift');
+        const currentPlantId = dutyUnit || localStorage.getItem('dutyUnit');
+        const currentDutyDate = dutyDate || localStorage.getItem('dutyDate') || new Date().toISOString().split('T')[0];
+
+        const [y, m, d] = currentDutyDate.split('-');
+        const formattedDate = `${d}/${m}/${y}`;
+
+        const params = {
+            plantId: currentPlantId || ":41647/01",
+            vendorCode: currentVendorCode || "134",
+            shift: currentShift || "1",
+            createdBy: currentUserId || "135",
+            date: formattedDate
+        };
+
+        try {
+            let res = await apiService.getAllBatchWeighment();
+            
+            if (res?.responseData) {
+                const { declarations, configs, witnessed } = mapBatchWeighmentData(res.responseData, containers);
+                setAllWitnessedRecords(witnessed);
+                setAllBatchDeclarations(declarations);
+                setAllSessionConfigs(prev => ({ ...prev, ...configs }));
+            }
+        } catch (error) {
+            console.error("Error fetching batch weighment:", error);
         }
     };
 

@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '../../../context/ToastContext';
 import { apiService } from '../../../services/api';
+import { useShift } from '../../../context/ShiftContext';
 
 /**
  * InitialDeclaration Component
  * Configures sensors and batch set values for the shift.
  */
 const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorUpdate, activeContainer, loadShiftData, initialSensors }) => {
+    const { vendorCode, dutyUnit, selectedShift, dutyDate, userId } = useShift();
     const [sensors, setSensors] = useState(initialSensors || {
         sensorStatus: 'working', // 'working', 'notAvailable', 'notWorking'
         sandType: ''
@@ -145,16 +147,25 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
         }
         setSaving(true);
         try {
+            const [y, m, d] = (dutyDate || new Date().toISOString().split('T')[0]).split('-');
+            const formattedDate = `${d}/${m}/${y}`;
+
             const payload = {
                 lineNo: activeContainer?.name || "Line I",
-                entryDate: new Date().toLocaleDateString('en-GB'),
+                location: activeContainer?.name || 'Line I',
+                locationType: (activeContainer?.name || 'Line I').toLowerCase().includes('shed') ? 'Shed' : 'Line',
+                entryDate: formattedDate,
                 sandType: sensors.sandType || "River Sand",
                 moistureSensorStatus: String(sensors.sensorStatus || "WORKING").toUpperCase(),
                 verifiedBy: "Operator",
                 remarks: "Initial declaration",
                 entryMode: "MANUAL",
-                createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
-                updatedBy: parseInt(localStorage.getItem('userId') || '118', 10),
+                vendorCode: vendorCode || localStorage.getItem('vendorCode'),
+                plantId: dutyUnit || localStorage.getItem('dutyUnit'),
+                shift: selectedShift || localStorage.getItem('selectedShift'),
+                date: formattedDate,
+                createdBy: userId || localStorage.getItem('userId'),
+                updatedBy: userId || localStorage.getItem('userId'),
                 batchDetails: batches.map(b => ({
                     batchNo: String(b.batchNo || "0"),
                     proportionStatus: b.proportionMatch || "OK",
@@ -175,13 +186,7 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
                 manualRecords: []
             };
 
-            const existingId = batches.find(b => b.parentId)?.parentId;
-
-            if (existingId) {
-                await apiService.updateBatchWeighment(existingId, payload);
-            } else {
-                await apiService.createBatchWeighment(payload);
-            }
+            await apiService.createBatchWeighment(payload);
 
             if (loadShiftData) loadShiftData().catch(() => { });
             alert("Declaration deployed successfully!");

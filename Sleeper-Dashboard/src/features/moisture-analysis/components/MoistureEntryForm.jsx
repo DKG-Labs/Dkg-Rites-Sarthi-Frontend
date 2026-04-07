@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { apiService } from '../../../services/api';
+import { useShift } from '../../../context/ShiftContext';
 import './MoistureEntryForm.css';
 
 const DEFAULT_MIX_VALUES = {
@@ -21,6 +22,7 @@ const DEFAULT_MIX_VALUES = {
  * - CA1, CA2, FA Toggle Sections (with all calculations)
  */
 const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
+    const { vendorId } = useShift();
     const [activeSection, setActiveSection] = useState('ca1');
     const [mixDesignPlans, setMixDesignPlans] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -30,8 +32,8 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
     useEffect(() => {
         const fetchMixDesigns = async () => {
             try {
-                // Fetch full mix design records for selection
-                const response = await apiService.getApprovedMixDesigns(1);
+                // Fetch full mix design records for selection (Module 4)
+                const response = await apiService.getApprovedMixDesigns(4, vendorId);
                 if (response?.responseData) {
                     setMixDesignPlans(response.responseData);
                 }
@@ -40,7 +42,7 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
             }
         };
         fetchMixDesigns();
-    }, []);
+    }, [vendorId]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -310,9 +312,8 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
         ? ((parseFloat(ca1Calc.batchWtDry) + parseFloat(ca2Calc.batchWtDry) + parseFloat(faCalc.batchWtDry)) / M)
         : 0;
 
-    // 35 = (Water / Cement) Ratio = W/C (Using D from mix design)
-    const D = parseFloat(commonData.designValues?.water) || 0;
-    const step35_WCRatio = M > 0 ? (D / M) : 0;
+    // 35 = (Water / Cement) Ratio = W/C (Actual Water / Actual Cement)
+    const step35_WCRatio = M > 0 ? (step31_WaterContent / M) : 0;
 
     const totalFreeMoisture = step32_TotalFreeMoisture.toFixed(3);
     const adjustedWater = step33_AdjustedWater.toFixed(3);
@@ -480,8 +481,8 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
                             {/* Row 2: User Inputs (Manual) */}
                             <div className="comparison-grid-row input-row">
                                 <div className="cell row-label input-text">Actual Batch</div>
-                                <div className="cell data-cell calculated-cell">--</div>
-                                <div className="cell data-cell calculated-cell">--</div>
+                                <div className="cell data-cell calculated-cell">{acRatio}</div>
+                                <div className="cell data-cell calculated-cell">{wcRatio}</div>
                                 <div className="cell data-cell">
                                     <input id="moisture-actual-cement" name="actualCement" type="number" min="0" step="0.01" value={commonData.userDryCement} onChange={e => handleCommonChange('userDryCement', e.target.value)} placeholder="0.00" aria-label="Actual Cement Weight" />
                                 </div>
@@ -525,7 +526,7 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
                             <div className="calc-card">
                                 <span className="mini-label">W/C Ratio (35)</span>
                                 <div className="calc-value">{wcRatio}</div>
-                                <span className="hint-text">Mix Design D: {D}</span>
+                                <span className="hint-text">Mix Design D: {commonData.designValues?.water || 0}</span>
                             </div>
                         </div>
                     </div>

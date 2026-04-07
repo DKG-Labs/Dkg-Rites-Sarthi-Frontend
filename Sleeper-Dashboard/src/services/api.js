@@ -73,6 +73,7 @@ export const apiService = {
     createHtsWirePlacement: (payload) => api.post('/HtsWirePlacement/create', payload),
     updateHtsWirePlacement: (id, payload) => api.put(`/HtsWirePlacement/update/${id}`, payload),
     deleteHtsWirePlacement: (id) => api.delete(`/HtsWirePlacement/delete/${id}`),
+    getHtsWireTodayRecord: (params) => api.get('/HtsWirePlacement/htsTodayRecord', { params }),
 
     // ================= Demoulding Inspection =================
     getAllDemouldingInspection: () => getWithCache('/DemouldingInspection/all'),
@@ -80,6 +81,7 @@ export const apiService = {
     createDemouldingInspection: (payload) => api.post('/DemouldingInspection/create', payload),
     updateDemouldingInspection: (id, payload) => api.put(`/DemouldingInspection/update/${id}`, payload),
     deleteDemouldingInspection: (id) => api.delete(`/DemouldingInspection/delete/${id}`),
+    getDemouldingTodayRecord: (params) => api.get('/DemouldingInspection/demouldingTodayRecord', { params }),
 
     // ================= Mould Preparation =================
     getAllMouldPreparations: () => getWithCache('/MouldPreparation/all'),
@@ -87,6 +89,7 @@ export const apiService = {
     createMouldPreparation: (data) => api.post('/MouldPreparation/create', data),
     updateMouldPreparation: (id, payload) => api.put(`/MouldPreparation/update/${id}`, payload),
     deleteMouldPreparation: (id) => api.delete(`/MouldPreparation/delete/${id}`),
+    getMouldPreparationTodayRecord: (params) => api.get('/MouldPreparation/mouldPreparationTodayRecord', { params }),
 
     // ================= Steam Cube Testing =================
     waterCubeSamples: {
@@ -233,7 +236,7 @@ export const apiService = {
     // moduleId=4  MIX_DESIGN
     getMixDesignById: (id) => api.get(`/mix-design/${id}`),
     getVerifiedMixDesignIdentifications: () => api.get('/mix-design/verified-identifications'),
-    getApprovedMixDesigns: (moduleId = 1) => api.get(`/mix-design/approvedMixDesign?moduleId=${moduleId}`),
+    getApprovedMixDesigns: (moduleId = 4, vendorId = '') => api.get(`/mix-design/approvedMixDesign?moduleId=${moduleId}${vendorId ? `&vendorId=${vendorId}` : ''}`),
 
     // moduleId=5  HTS Wire
     getHtsWireRecordById: (id) => api.get(`/hts-wire/${id}`),

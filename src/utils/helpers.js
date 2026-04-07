@@ -208,3 +208,17 @@ export const formatDecimal = (value, decimals = 2) => {
     maximumFractionDigits: decimals
   });
 };
+/**
+ * Get current date in IST (YYYY-MM-DD)
+ * @returns {string} Current date in YYYY-MM-DD
+ */
+export const getISTDateOnly = () => {
+    // Current date/time in UTC
+    const date = new Date();
+    // Offset for IST (UTC+5:30) in milliseconds
+    const IST_OFFSET = 5.5 * 60 * 60 * 1000;
+    // Calculate IST date/time
+    const istDate = new Date(date.getTime() + IST_OFFSET);
+    // Return in YYYY-MM-DD format
+    return istDate.toISOString().split('T')[0];
+};

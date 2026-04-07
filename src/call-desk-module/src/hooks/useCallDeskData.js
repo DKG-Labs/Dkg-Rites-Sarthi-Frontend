@@ -9,22 +9,27 @@ import { API_BASE_URL } from '../../../services/apiConfig';
 const BASE_URL = API_BASE_URL;
 
 
-export const useCallDeskData = () => {
+export const useCallDeskData = (activeTab = 'pending') => {
   const [pendingCalls, setPendingCalls] = useState([]);
   const [verifiedCalls, setVerifiedCalls] = useState([]);
-  const [disposedCalls, setDisposedCalls] = useState([]);
+  const [disposedCalls] = useState([]);
   const [dashboardKPIs, setDashboardKPIs] = useState(null);
-  const [vendors, setVendors] = useState([]);
-  const [rioOffices, setRioOffices] = useState([]);
+  const [vendors] = useState([]);
+  const [rioOffices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  //  API: Fetch Pending Verification Calls
+  // Track what has been loaded to avoid redundant fetches
+  const [dataLoaded, setDataLoaded] = useState({
+    pending: false,
+    verified: false,
+    disposed: false,
+    kpis: false
+  });
+
+  // API: Fetch Pending Verification Calls
   const fetchPendingVerificationCalls = useCallback(async () => {
     const user = getStoredUser();
-
-    console.log('🔍 Call Desk - Logged in user:', user);
-    console.log('🔍 Call Desk - User RIO:', user?.rio);
 
     const response = await axios.get(
       `${BASE_URL}/allPendingWorkflowTransition`,
@@ -43,28 +48,14 @@ export const useCallDeskData = () => {
     }
 
     const allCalls = response.data.responseData || [];
-    console.log('🔍 Call Desk - Total calls from API:', allCalls.length);
-    console.log('🔍 Call Desk - All calls:', allCalls);
 
-    //  Filter by RIO - match logged-in user's RIO with call's RIO
-    //  Exclude calls where RIO is null or empty
+    // Filter by RIO - match logged-in user's RIO with call's RIO
     const filteredCalls = allCalls.filter(item => {
-      // Skip calls with null or empty RIO
-      if (!item.rio || item.rio === null || item.rio === '') {
-        console.log(`🔍 Skipping call ${item.requestId}: RIO is null/empty`);
-        return false;
-      }
-
+      if (!item.rio || item.rio === null || item.rio === '') return false;
       const itemRio = String(item.rio).trim();
       const userRio = String(user?.rio || '').trim();
-      const matches = itemRio === userRio;
-
-      console.log(`🔍 Comparing: Call ${item.requestId} - Item RIO="${itemRio}" vs User RIO="${userRio}" => ${matches ? '✅ MATCH' : '❌ NO MATCH'}`);
-
-      return matches;
+      return itemRio === userRio;
     });
-
-    console.log('🔍 Call Desk - Filtered calls for user RIO:', filteredCalls.length);
 
     return filteredCalls.map(item => {
       // Map backend status to internal CALL_STATUS
@@ -80,7 +71,6 @@ export const useCallDeskData = () => {
       }
 
       const poParts = (item.poNo || "").split(" / ");
-      const rlyName = poParts[0] || "-";
       const actualPoNo = poParts[1] || "-";
       const actualSerialNo = poParts[1] && poParts[2] ? `${poParts[1]} / ${poParts[2]}` : (poParts[2] || "-");
 
@@ -91,7 +81,6 @@ export const useCallDeskData = () => {
         submissionDateTime: item.createdDate,
         poNumber: actualPoNo,
         poSerialNo: actualSerialNo,
-        rlyShortName: rlyName,
         rlyPoSr: item.poNo || '-',
         product: item.productType,
         productStage: item.productType,
@@ -100,94 +89,156 @@ export const useCallDeskData = () => {
         dpDate: item.dpDate,
         extDpDate: item.extDpDate,
         dpDates: `${item.dpDate || '-'} / ${item.extDpDate || '-'}`,
-        status: internalStatus, // Use mapped internal status
+        status: internalStatus,
         rio: item.rio,
-        // Include additional fields for details view if available
         submissionCount: item.workflowSequence || 1,
         returnReason: internalStatus === CALL_STATUS.RETURN_TO_VENDOR ? item.remarks : null
       };
     });
   }, []);
 
+  // API: Fetch Dashboard KPIs
+  const fetchDashboardKPIs = useCallback(async () => {
+    const user = getStoredUser();
+    const response = await axios.get(
+      `${BASE_URL}/dashboardKPIs`,
+      {
+        params: {
+          rio: user?.rio || '',
+        },
+        headers: {
+          ...getAuthHeaders(),
+        },
+      }
+    );
+
+    if (response.data?.responseStatus?.statusCode !== 0) {
+      throw new Error('Failed to fetch dashboard KPIs');
+    }
+
+    return response.data.responseData;
+  }, []);
+
+  // API: Fetch Verified & Open Calls
+  const fetchVerifiedCalls = useCallback(async () => {
+    const user = getStoredUser();
+    const response = await axios.get(
+      `${BASE_URL}/allVerifiedWorkflowTransitions`,
+      {
+        params: {
+          rio: user?.rio || '',
+        },
+        headers: {
+          ...getAuthHeaders(),
+        },
+      }
+    );
+
+    if (response.data?.responseStatus?.statusCode !== 0) {
+      throw new Error('Failed to fetch verified calls');
+    }
+
+    const data = response.data.responseData || [];
+    
+    return data.map(item => {
+      // Map backend status to internal CALL_STATUS
+      let internalStatus = item.status;
+      const backendStatus = item.status ? item.status.toString().toUpperCase() : '';
+
+      if (backendStatus.includes('VERIFIED') || backendStatus.includes('REGISTERED')) {
+        internalStatus = 'verified_registered';
+      } else if (backendStatus.includes('SCHEDULE')) {
+        internalStatus = 'scheduled';
+      } else if (backendStatus.includes('INITIATE') || backendStatus.includes('PROGRESS')) {
+        internalStatus = 'under_inspection';
+      } else if (backendStatus.includes('COMPLETE') || backendStatus.includes('CONFIRM')) {
+        internalStatus = 'ic_pending';
+      } else if (backendStatus.includes('LAB')) {
+        internalStatus = 'under_lab_testing';
+      } else if (backendStatus.includes('BILLING')) {
+        internalStatus = 'billing_pending';
+      } else if (backendStatus.includes('PAYMENT') || backendStatus.includes('BLOCKED')) {
+        internalStatus = 'payment_pending';
+      }
+
+      const poParts = (item.poNo || "").split(" / ");
+      const actualPoNo = poParts[1] || "-";
+
+      return {
+        id: item.workflowTransitionId,
+        callNumber: item.requestId,
+        vendor: { name: item.vendorName || '-' },
+        submissionDateTime: item.createdDate,
+        poNumber: actualPoNo,
+        product: item.productType,
+        productStage: item.productType,
+        desiredInspectionDate: item.desiredInspectionDate,
+        placeOfInspection: item.placeOfInspection || '-',
+        status: internalStatus,
+        assignedIE: item.assignedToUserName || item.ieName || '-',
+        rio: item.rio
+      };
+    });
+  }, []);
+
   // Fetch data from backend API
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (tabId = null) => {
     try {
       setLoading(true);
       setError(null);
 
-      // Pending Verification Calls
-      const pending = await fetchPendingVerificationCalls();
+      const targetTab = tabId || activeTab;
+      
+      // Always fetch KPIs on mount or total refresh
+      const fetchActions = [fetchDashboardKPIs()];
+      
+      // Selectively fetch main data
+      if (targetTab === 'pending') {
+        fetchActions.push(fetchPendingVerificationCalls());
+      } else if (targetTab === 'verified') {
+        fetchActions.push(fetchVerifiedCalls());
+      } else {
+        // Fetch all if not specified
+        fetchActions.push(fetchPendingVerificationCalls());
+        fetchActions.push(fetchVerifiedCalls());
+      }
 
-      // Sort pending calls by submissionDateTime DESC (newest first)
-      const sortedPending = [...pending].sort((a, b) => {
-        const dateA = new Date(a.submissionDateTime);
-        const dateB = new Date(b.submissionDateTime);
-        return dateB - dateA;
-      });
-
-      setPendingCalls(sortedPending);
-
-      // KPIs (derived from API data)
-      // Calculate real KPIs from data
-      const freshCount = pending.filter(c => c.status === CALL_STATUS.FRESH_SUBMISSION).length;
-      const resubCount = pending.filter(c => c.status === CALL_STATUS.RESUBMISSION).length;
-      const returnedCount = pending.filter(c => c.status === CALL_STATUS.RETURNED).length;
-
-      // Verified Calls (placeholder for future API)
-      const verified = [];
-
-      // Extract verified counts from local verified data (currently empty)
-      const vRegCount = verified.filter(c => c.status === CALL_STATUS.VERIFIED_REGISTERED).length;
-      const iePendCount = verified.filter(c => c.status === CALL_STATUS.IE_ASSIGNMENT_PENDING).length;
-      const assignedCount = verified.filter(c => c.status === CALL_STATUS.ASSIGNED_TO_IE).length;
-      const scheduledCount = verified.filter(c => c.status === CALL_STATUS.SCHEDULED).length;
-      const inspectionCount = verified.filter(c => c.status === CALL_STATUS.UNDER_INSPECTION).length;
-      const labCount = verified.filter(c => c.status === CALL_STATUS.UNDER_LAB_TESTING).length;
-      const icPendCount = verified.filter(c => c.status === CALL_STATUS.IC_PENDING).length;
-      const billingCount = verified.filter(c => c.status === CALL_STATUS.BILLING_PENDING).length;
-      const paymentCount = verified.filter(c => c.status === CALL_STATUS.PAYMENT_PENDING).length;
-
-      setDashboardKPIs({
-        pendingVerification: {
-          total: pending.length,
-          fresh: freshCount,
-          resubmissions: resubCount,
-          returned: returnedCount,
-        },
-        verifiedOpen: {
-          total: verified.length,
-          verifiedRegistered: vRegCount,
-          ieAssignmentPending: iePendCount,
-          assignedToIE: assignedCount,
-          scheduled: scheduledCount,
-          underInspection: inspectionCount,
-          underLabTesting: labCount,
-          icPending: icPendCount,
-          billingPending: billingCount,
-          paymentPending: paymentCount,
-        },
-        disposed: {
-          total: 0,
-        },
-      });
-
-      setVerifiedCalls(verified);
-      setDisposedCalls([]);   // later via API
-      setVendors([]);         // later via API
-      setRioOffices([]);      // later via API
+      const results = await Promise.all(fetchActions);
+      const kpis = results[0];
+      
+      setDashboardKPIs(kpis);
+      
+      if (targetTab === 'pending') {
+        setPendingCalls(results[1]);
+        setDataLoaded(prev => ({ ...prev, pending: true, kpis: true }));
+      } else if (targetTab === 'verified') {
+        setVerifiedCalls(results[1]);
+        setDataLoaded(prev => ({ ...prev, verified: true, kpis: true }));
+      } else {
+        setPendingCalls(results[1]);
+        setVerifiedCalls(results[2]);
+        setDataLoaded({ pending: true, verified: true, kpis: true, disposed: false });
+      }
 
     } catch (err) {
       setError(err.message || 'Failed to fetch Call Desk data');
     } finally {
       setLoading(false);
     }
-  }, [fetchPendingVerificationCalls]);
+  }, [activeTab, fetchPendingVerificationCalls, fetchDashboardKPIs, fetchVerifiedCalls]);
 
 
-  // Fetch data on mount
+  // Effect for initial load and tab switching
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    // Determine what needs to be fetched
+    const needsKpi = !dataLoaded.kpis;
+    const needsPending = activeTab === 'pending' && !dataLoaded.pending;
+    const needsVerified = activeTab === 'verified' && !dataLoaded.verified;
+
+    if (needsKpi || needsPending || needsVerified) {
+      fetchData(activeTab);
+    }
+  }, [activeTab, fetchData, dataLoaded]);
 
   // Get call by ID
   const getCallById = (callId) => {
@@ -218,8 +269,8 @@ export const useCallDeskData = () => {
   };
 
   // Refresh data
-  const refreshData = () => {
-    fetchData();
+  const refreshData = (tabId = null) => {
+    fetchData(tabId);
   };
 
   return {

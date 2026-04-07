@@ -1816,3 +1816,27 @@ export const getLadleValuesByCall = async (callNo) => {
     throw error;
   }
 };
+
+/**
+ * Get IC Report Data (with optional digital signature request)
+ * GET /api/certificate/report-data
+ * 
+ * @param {Object} params - Report parameters (CaseNO, CallSNo, BkNo, SetNo, isDigitallySign, etc.)
+ */
+export const getICReportData = async (params) => {
+  try {
+    const url = `${API_BASE_URL}/api/certificate/report-data`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(params)
+    });
+    return handleResponse(response);
+  } catch (error) {
+    console.error('Error fetching IC report data:', error);
+    throw error;
+  }
+};

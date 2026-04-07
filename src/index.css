@@ -3148,5 +3148,291 @@ input[type="number"] {
 
   .card__body {
     padding: var(--space-12);
+    flex-direction: column;
+    gap: var(--space-12);
+    padding: var(--space-12);
+    align-items: stretch;
   }
+
+  .pagination-controls {
+    justify-content: center;
+  }
+
+  .pagination-info {
+    text-align: center;
+  }
+}
+
+/* Horizontal scroll hint for tables */
+@media (max-width: 768px) {
+  .data-table-container::after {
+    content: '← Scroll →';
+    position: sticky;
+    right: 0;
+    bottom: 0;
+    display: block;
+    padding: var(--space-4) var(--space-8);
+    background: rgba(var(--color-primary-rgb, 33, 128, 141), 0.1);
+    color: var(--color-primary);
+    font-size: var(--font-size-xs);
+    text-align: center;
+    border-radius: var(--radius-sm);
+    margin: var(--space-8);
+  }
+
+  .hourly-grid::after {
+    content: '← Scroll horizontally to see all columns →';
+    display: block;
+    padding: var(--space-8);
+    background: rgba(var(--color-primary-rgb, 33, 128, 141), 0.1);
+    color: var(--color-primary);
+    font-size: var(--font-size-xs);
+    text-align: center;
+    border-radius: var(--radius-sm);
+    margin-top: var(--space-8);
+  }
+}
+
+/* Prevent horizontal overflow on mobile */
+@media (max-width: 768px) {
+
+  body,
+  html {
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .main-content {
+    overflow-x: hidden;
+    overflow-y: visible;
+    padding: var(--space-16);
+  }
+
+  /* Ensure cards don't overflow */
+  .card,
+  .alert,
+  .process-submodule-session {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+}
+
+/* Safe area insets for notched devices */
+@supports (padding: max(0px)) {
+  .app-header {
+    padding-left: max(var(--space-24), env(safe-area-inset-left));
+    padding-right: max(var(--space-24), env(safe-area-inset-right));
+  }
+
+  .main-content {
+    padding-left: max(var(--space-24), env(safe-area-inset-left));
+    padding-right: max(var(--space-24), env(safe-area-inset-right));
+    padding-bottom: max(var(--space-24), env(safe-area-inset-bottom));
+  }
+}
+
+/* Landscape orientation on mobile */
+@media (max-width: 768px) and (orientation: landscape) {
+  .app-header {
+    padding: var(--space-8) var(--space-16);
+  }
+
+  .main-content {
+    padding: var(--space-16);
+  }
+
+  .sidebar.open {
+    width: 240px;
+  }
+}
+
+/* High DPI screens optimization */
+@media (-webkit-min-device-pixel-ratio: 2),
+(min-resolution: 192dpi) {
+
+  .app-logo,
+  .card-title,
+  h1,
+  h2,
+  h3 {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+
+/* --- Mobile responsive tweaks for page headers and process line toggle --- */
+.page-header {
+  display: flex;
+  gap: var(--space-12);
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin-bottom: var(--space-16);
+}
+
+.page-header-actions {
+  display: flex;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+}
+
+/* Make header compact on small screens */
+@media (max-width: 640px) {
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .page-header .btn {
+    width: 100%;
+  }
+}
+
+/* Process Line Toggle: wrap nicely and ensure tappable targets */
+.process-line-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  padding: var(--space-8);
+  background: var(--color-bg-2);
+  border: 1px solid rgba(var(--color-warning-rgb, 168, 75, 47), 0.35);
+  border-radius: var(--radius-base);
+}
+
+.process-line-toggle button {
+  flex: 1 1 140px;
+  min-width: 120px;
+  padding: var(--space-8) var(--space-12);
+  border-radius: var(--radius-sm);
+  border: 2px solid transparent;
+  background: transparent;
+  color: var(--color-text);
+}
+
+.process-line-toggle button[aria-pressed="true"] {
+  background: var(--color-primary);
+  color: var(--color-white);
+  border-color: var(--color-primary);
+}
+
+@media (max-width: 480px) {
+  .process-line-toggle button {
+    flex-basis: calc(50% - var(--space-8));
+  }
+}
+
+/* Tighten table spacing on mobile */
+@media (max-width: 640px) {
+
+  .data-table th,
+  .data-table td {
+    padding: var(--space-8) var(--space-12);
+  }
+
+  .table-controls {
+    gap: var(--space-8);
+  }
+}
+
+/* Slightly reduce card padding on mobile */
+@media (max-width: 640px) {
+  .card {
+    padding: var(--space-12);
+  }
+
+  .card__body {
+    padding: var(--space-12);
+  }
+}
+
+/* Call History Table Styles */
+.history-table-container {
+  max-height: 60vh;
+  overflow-y: auto;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+}
+
+.history-table th {
+  position: sticky;
+  top: 0;
+  background-color: #f9fafb;
+  color: #374151;
+  font-weight: 600;
+  text-align: left;
+  padding: 12px 16px;
+  border-bottom: 2px solid #e5e7eb;
+  z-index: 10;
+}
+
+.history-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f3f4f6;
+  color: #4b5563;
+  vertical-align: top;
+}
+
+.history-table tr:last-child td {
+  border-bottom: none;
+}
+
+.history-table tr:nth-child(even) {
+  background-color: #f9fafb;
+}
+
+.history-table tr:hover {
+  background-color: #f3f4f6;
+}
+
+.history-action-text {
+  font-weight: 600;
+  color: #111827;
+}
+
+.history-status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.history-status-default {
+  background-color: #e5e7eb;
+  color: #374151;
+}
+
+.history-remarks-box {
+  margin-top: 4px;
+  font-style: italic;
+  font-size: 12px;
+  color: #6b7280;
+  max-width: 250px;
+  word-wrap: break-word;
+}
+
+.history-user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+}
+
+.history-user-label {
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+.history-user-name {
+  color: #374151;
+  font-weight: 500;
 }

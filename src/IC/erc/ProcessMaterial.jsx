@@ -1,75 +1,58 @@
 // src/IC/erc/ProcessMaterialCertificate.jsx
 
-import { useRef, useState, useEffect } from "react";
-import { formatDate } from "../../utils/helpers";
+import React, { useRef, useState, useEffect } from "react";
+import { 
+    Button, 
+    CircularProgress, 
+    Snackbar, 
+    Alert,
+    Box 
+} from "@mui/material";
+import { formatDate, getISTDateOnly } from "../../utils/helpers";
 import ErcProcessIc from "./ErcProcessIc";
-import { exportToPdf } from "../../utils/exportUtils";
+import { exportToPdf, generatePdfBase64 } from "../../utils/exportUtils";
+import { getICReportData } from "../../services/finalInspectionSubmoduleService";
 
-/**
- * PROCESS MATERIAL CERTIFICATE (Wrapper)
- * Shows EMPTY layout by default and renders API data when provided.
- *
- * - NO mock data
- * - NO default values
- * - Layout NEVER changes
- * - API integration becomes trivial
- */
 export default function ProcessMaterialCertificate({ call = {}, onBack }) {
   const printAreaRef = useRef();
   const [isEditing, setIsEditing] = useState(false);
+  const [isESigning, setIsESigning] = useState(false);
   const [editableData, setEditableData] = useState(null);
+  const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
+
+  useEffect(() => {
+    const handlePkiStatus = (event) => {
+      const { status, message } = event.detail;
+      setNotification({ open: true, message, severity: status });
+    };
+
+    window.addEventListener('pki-status', handlePkiStatus);
+    return () => window.removeEventListener('pki-status', handlePkiStatus);
+  }, []);
+
+  const handleCloseNotification = () => setNotification({ ...notification, open: false });
 
   const transformCallToIC = (c) => {
     if (!c || Object.keys(c).length === 0) return {};
-
-    // Format today's date for certificate date
     const certificateDate = formatDate(new Date().toISOString());
 
-    // Format contract reference in the expected format
     const formatContractRef = (contractRef) => {
       if (!contractRef) return "";
-
-      // If it's already in the expected format, return as is
-      if (typeof contractRef === 'string' && contractRef.includes('RB L. No.') && contractRef.includes('Dt.')) {
-        return contractRef;
-      }
-
-      // Handle array of contract references
-      if (Array.isArray(contractRef)) {
-        return contractRef.map(ref => {
-          if (typeof ref === 'string' && ref.includes('RB L. No.')) {
-            return ref;
-          }
-          // If it's a different format, try to transform it
-          // This is a placeholder transformation - adjust based on actual data structure
-          return ref;
-        }).join('\n');
-      }
-
-      // Handle single contract reference - transform to expected format
+      if (typeof contractRef === 'string' && contractRef.includes('RB L. No.') && contractRef.includes('Dt.')) return contractRef;
+      if (Array.isArray(contractRef)) return contractRef.join('\n');
       if (typeof contractRef === 'string') {
-        // If it contains "dated", try to extract and reformat
         const datedMatch = contractRef.match(/(.+?)\s+dated\s+(.+)/i);
-        if (datedMatch) {
-          const refNumber = datedMatch[1].trim();
-          const date = datedMatch[2].trim();
-          // Transform to RB L. No. format
-          return `RB L. No. ${refNumber}, Dt. ${date}`;
-        }
-
-        // If no transformation needed, return as is
+        if (datedMatch) return `RB L. No. ${datedMatch[1].trim()}, Dt. ${datedMatch[2].trim()}`;
         return contractRef;
       }
-
       return contractRef;
     };
 
     return {
       certificateNo: c.icNo || "",
-      certificateDate: certificateDate, // Use today's date
+      certificateDate: certificateDate,
       offeredInstNo: c.offeredInstNo || "",
       passedInstNo: c.passedInstNo || "",
-
       contractor: c.contractor || c.vendorName || c.vendor_name || "",
       manufacturer: c.manufacturer || "",
       contractRef: formatContractRef(c.contractRef) || "",
@@ -78,36 +61,16 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
       consigneeRailway: c.consigneeRailway || c.consignee || "",
       consigneeManufacturer: c.consigneeManufacturer || c.consigneeFinished || "",
       purchasingAuthority: c.purchasingAuthority || "",
-
       description: c.productDescription || c.productType || "",
-
-      // Dynamically generate Drg. No. based on ERC type from inspection call
       drgNo: (() => {
         const ercType = c.ercType || c.productType || '';
-
-        if (!ercType) return c.drgNo || "";
-
-        // Drawing number mapping based on ERC type (case-insensitive)
-        const drawingMap = {
-          'mk-iii': 'RT-3701',
-          'mk-v': 'T-5919',
-          'erc mk-iii': 'RT-3701',
-          'erc mk-v': 'T-5919',
-          'MK-III': 'RT-3701',
-          'MK-V': 'T-5919',
-          'ERC MK-III': 'RT-3701',
-          'ERC MK-V': 'T-5919'
-        };
-
-        const drawing = drawingMap[ercType] || ercType;
-        return `${ercType} : ${drawing}`;
+        const drawingMap = { 'mk-iii': 'RT-3701', 'mk-v': 'T-5919', 'erc mk-iii': 'RT-3701', 'erc mk-v': 'T-5919' };
+        return `${ercType} : ${drawingMap[ercType.toLowerCase()] || ercType}`;
       })(),
-
       specNo: c.specNo || "",
       qapNo: c.qapNo || "",
       inspectionType: c.inspectionType || "",
       chpClause: c.chpClause || "",
-
       lots: c.lots || [],
       reference: c.reference || "",
       callDate: c.callDate || c.dateOfCall || "",
@@ -118,17 +81,13 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
     };
   };
 
-  // Initialize editable data whenever the underlying API data changes
   useEffect(() => {
     if (call && Object.keys(call).length > 0) {
       setEditableData(transformCallToIC(call));
     }
   }, [call]);
 
-  const handleDataChange = (field, value) => {
-    setEditableData((prev) => ({ ...prev, [field]: value }));
-  };
-
+  const handleDataChange = (field, value) => setEditableData((prev) => ({ ...prev, [field]: value }));
   const handleArrayDataChange = (arrayField, index, field, value) => {
     setEditableData((prev) => {
       const newArray = [...(prev[arrayField] || [])];
@@ -137,50 +96,115 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
     });
   };
 
-  // FINAL DATA: use locally edited data if available, else fallback to API
   const dataToPass = editableData || transformCallToIC(call);
 
   const handleExport = async () => {
     if (!printAreaRef.current) return;
-
-    // Use certificate number as filename, fallback to default if not available
-    const certificateNo = dataToPass.certificateNo || "ProcessMaterialIC";
-    // Sanitize filename: remove special characters that are invalid in filenames
-    const sanitizedFilename = certificateNo.replace(/[/\\?%*:|"<>]/g, '-');
-
+    const sanitizedFilename = (dataToPass.certificateNo || "ProcessMaterialIC").replace(/[/\\?%*:|"<>]/g, '-');
     await exportToPdf(printAreaRef.current, `${sanitizedFilename}.pdf`);
   };
 
+  const handleESign = async () => {
+    const datetimeStr = call.updated_at || call.createdAt || new Date().toISOString();
+    if (datetimeStr.split("T")[0] !== getISTDateOnly() && ["M", "U", "S", "W"].includes(call.status || "")) {
+      setNotification({ open: true, message: "First, the IC must be saved on today’s date.", severity: 'warning' });
+      return;
+    }
+
+    if (!dataToPass.bookNo || !dataToPass.setNo) {
+        setNotification({ open: true, message: "Please fill in the 'Book No.' and 'Set No.' before signing.", severity: 'warning' });
+        return;
+    }
+
+    try {
+      setIsESigning(true);
+      await new Promise(resolve => setTimeout(resolve, 500));
+      const pdfBase64 = await generatePdfBase64(printAreaRef.current);
+      if (!pdfBase64) {
+          throw new Error("Failed to generate PDF snapshot for signing.");
+      }
+
+      const payload = {
+        CaseNO: call.icNo || call.icNumber || call.case_no || "",
+        Call_Recv_Dt: call.call_recv_dt || call.callRecvDt || call.createdAt || new Date().toISOString(),
+        CallSNo: call.call_no || call.callSNo || call.call_sno || "",
+        Consignee_CD: call.consignee_cd || call.consigneeCode || "",
+        Region: call.region || "",
+        BkNo: dataToPass.bookNo || "",
+        SetNo: dataToPass.setNo || "",
+        type: "PM",
+        date: new Date().toISOString(),
+        isDigitallySign: true,
+        pdfBase64: pdfBase64
+      };
+
+      const response = await getICReportData(payload);
+      if (response?.responseText) {
+        if (typeof window.abc === 'function') {
+          window.abc(response.responseText, (dataToPass.certificateNo || `${payload.CaseNO}_${payload.CallSNo}`) + ".pdf");
+        } else {
+          setNotification({ open: true, message: "Digital signature client not detected.", severity: 'error' });
+        }
+      }
+    } catch (error) {
+        setNotification({ open: true, message: "Failed to fetch report data for signing.", severity: 'error' });
+    } finally {
+        setIsESigning(false);
+    }
+  };
+
   return (
-    <div style={{ padding: 18 }}>
-      {/* Top Buttons - Hidden during print */}
+    <Box sx={{ padding: 3 }}>
       <div className="no-print" style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
         <button onClick={onBack} className="btn btn-outline">← Back</button>
-
         <div style={{ display: "flex", gap: 8 }}>
-          <button
+          <Button
+            variant="outlined" 
+            color="primary" 
+            size="small" 
             onClick={() => setIsEditing(!isEditing)}
-            className={`btn ${isEditing ? "btn-success" : "btn-outline"}`}
+            disabled={isESigning}
           >
             {isEditing ? "Save Changes" : "Edit Certificate"}
-          </button>
-          <button onClick={() => window.print()} className="btn btn-outline">Print</button>
-          <button onClick={handleExport} className="btn btn-primary">Export PDF</button>
+          </Button>
+          <Button 
+            variant="contained" 
+            color="success" 
+            size="small" 
+            onClick={handleESign} 
+            disabled={isESigning}
+            startIcon={isESigning ? <CircularProgress size={20} color="inherit" /> : null}
+          >
+            {isESigning ? "SIGNING..." : "✒ E SIGN"}
+          </Button>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            size="small" 
+            onClick={handleExport} 
+            disabled={isESigning}
+          >
+            Export PDF
+          </Button>
         </div>
       </div>
 
-      {/* Printable content - Wrapped for proper print isolation */}
+      <Snackbar
+        open={notification.open}
+        autoHideDuration={6000}
+        onClose={handleCloseNotification}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert onClose={handleCloseNotification} severity={notification.severity} variant="filled">
+          {notification.message}
+        </Alert>
+      </Snackbar>
+
       <div className="certificate-print-wrapper" ref={printAreaRef}>
         <div className="certificate-page">
-          <ErcProcessIc
-            data={dataToPass}
-            isEditing={isEditing}
-            onChange={handleDataChange}
-            onArrayChange={handleArrayDataChange}
-          />
+          <ErcProcessIc data={dataToPass} isEditing={isEditing} isBusy={isESigning} onChange={handleDataChange} onArrayChange={handleArrayDataChange} />
         </div>
       </div>
-    </div>
+    </Box>
   );
 }
-

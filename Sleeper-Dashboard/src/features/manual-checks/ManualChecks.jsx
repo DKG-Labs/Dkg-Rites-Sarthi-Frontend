@@ -142,7 +142,7 @@ const HTS_TABLE_MAPPING = [
 
 const ManualChecks = ({ onBack, activeContainer, initialSubModule, initialViewMode, sharedState, initialEditData, isInline = false }) => {
     const { entries, setEntries } = sharedState;
-    const { fetchManualChecks, sharedBatchNo, setSharedBatchNo, sharedBenchNo, setSharedBenchNo } = useShift();
+    const { fetchManualChecks, sharedBatchNo, setSharedBatchNo, sharedBenchNo, setSharedBenchNo, vendorCode, dutyUnit, selectedShift, dutyDate, userId } = useShift();
 
     const [viewMode, setViewMode] = useState(initialViewMode === 'form' ? 'form' : 'dashboard');
     const [activeModule, setActiveModule] = useState(initialSubModule || 'mouldPrep');
@@ -161,12 +161,24 @@ const ManualChecks = ({ onBack, activeContainer, initialSubModule, initialViewMo
     }, [initialSubModule]);
 
     const handleSave = async (subModule, data) => {
-        // Prepare the payload with location data
+        // Prepare the payload with location data and shift context
+        const [y, m, d] = (dutyDate || new Date().toISOString().split('T')[0]).split('-');
+        const formattedDate = `${d}/${m}/${y}`;
+
+        // Derive location and locationType consistently from lineShedNo if provided
+        const finalLineShedNo = data.lineShedNo || activeContainer?.name || 'N/A';
+        const finalLocationType = finalLineShedNo.toLowerCase().includes('shed') ? 'Shed' : (activeContainer?.type || 'Line');
+
         const enrichedData = {
             ...data,
-            location: activeContainer?.name || 'N/A',
-            lineShedNo: activeContainer?.name || 'N/A',
-            locationType: activeContainer?.type || 'Location'
+            lineShedNo: finalLineShedNo,
+            location: finalLineShedNo, // Ensure location matches lineShedNo as requested
+            locationType: finalLocationType,
+            vendorCode: vendorCode || localStorage.getItem('vendorCode'),
+            plantId: dutyUnit || localStorage.getItem('dutyUnit'),
+            shift: selectedShift || localStorage.getItem('selectedShift'),
+            date: formattedDate,
+            createdBy: userId || localStorage.getItem('userId')
         };
 
         try {
@@ -437,10 +449,24 @@ const ManualChecks = ({ onBack, activeContainer, initialSubModule, initialViewMo
                                             </>
                                         )}
                                         <td className="text-center">
-                                            <div className="btn-group-center">
-                                                <button className="btn-action mini" onClick={() => handleModify(mod, entry)}>Modify</button>
-                                                <button className="btn-action mini danger" onClick={() => handleDelete(mod, entry.id)}>Delete</button>
-                                            </div>
+                                            {(() => {
+                                                const todayStr = new Date().toISOString().split('T')[0]; 
+                                                const [y, m, d] = todayStr.split('-');
+                                                const todayDMY = `${d}/${m}/${y}`;
+                                                
+                                                const recordDate = entry.createdDate || entry.date || entry.preparationDate || entry.placementDate || entry.inspectionDate || "";
+                                                const isToday = recordDate.includes(todayStr) || recordDate.includes(todayDMY);
+                                                
+                                                if (isToday) {
+                                                    return (
+                                                        <div className="btn-group-center">
+                                                            <button className="btn-action mini" onClick={() => handleModify(mod, entry)}>Modify</button>
+                                                            <button className="btn-action mini danger" onClick={() => handleDelete(mod, entry.id)}>Delete</button>
+                                                        </div>
+                                                    );
+                                                }
+                                                return <span style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic' }}>Fixed</span>;
+                                            })()}
                                         </td>
                                     </tr>
                                 ))

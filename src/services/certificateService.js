@@ -159,7 +159,7 @@ export const generateFinalCertificate = async (icNumber) => {
     const encodedIcNumber = encodeURIComponent(icNumber);
     console.log('📝 Encoded IC Number:', encodedIcNumber);
 
-    const response = await fetch(`${API_BASE_URL}/final-material?icNumber=${encodedIcNumber}`, {
+    const response = await fetch(`${API_BASE_URL}/final-product?icNumber=${encodedIcNumber}`, {
       method: 'GET',
       headers: getAuthHeaders()
     });
@@ -187,7 +187,7 @@ export const generateFinalCertificateById = async (callId) => {
   try {
     console.log('🔍 Generating Final Material certificate for Call ID:', callId);
 
-    const response = await fetch(`${API_BASE_URL}/final-material/by-id/${callId}`, {
+    const response = await fetch(`${API_BASE_URL}/final-product/by-id/${callId}`, {
       method: 'GET',
       headers: getAuthHeaders()
     });

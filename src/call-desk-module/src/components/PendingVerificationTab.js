@@ -20,6 +20,9 @@ const PendingVerificationTab = ({
   onViewDetails
 }) => {
   const [searchTerm] = useState('');
+  const [showIEModal, setShowIEModal] = useState(false);
+  const [selectedIENames, setSelectedIENames] = useState('');
+  const [selectedCallNo, setSelectedCallNo] = useState('');
 
   // Filter state
   const [showFilters, setShowFilters] = useState(false);
@@ -113,6 +116,43 @@ const PendingVerificationTab = ({
       key: 'placeOfInspection',
       label: 'Place of Inspection',
       sortable: true
+    },
+    {
+      key: 'assignedIE',
+      label: 'Assigned IE',
+      render: (value, row) => {
+        if (row.product === 'Process' && value && value !== '-') {
+          return (
+            <button 
+              className="btn btn-sm"
+              onClick={() => {
+                setSelectedIENames(value);
+                setSelectedCallNo(row.callNumber);
+                setShowIEModal(true);
+              }}
+              style={{ 
+                fontSize: '11px', 
+                padding: '4px 10px', 
+                backgroundColor: '#4f46e5', 
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                fontWeight: '600',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+              }}
+              onMouseOver={(e) => e.target.style.backgroundColor = '#4338ca'}
+              onMouseOut={(e) => e.target.style.backgroundColor = '#4f46e5'}
+            >
+              👁️ View Assigned IE
+            </button>
+          );
+        }
+        return value || '-';
+      }
     },
     {
       key: 'status',
@@ -241,7 +281,6 @@ const PendingVerificationTab = ({
   }));
 
   return (
-
     <div className="calldesk-tab-content">
       {/* KPI Tiles */}
       <div className="calldesk-kpi-grid">
@@ -293,6 +332,35 @@ const PendingVerificationTab = ({
         initialSortColumn="submissionDateTime"
         initialSortDirection="desc"
       />
+
+      {/* Assigned IE Modal for Process Calls */}
+      {showIEModal && (
+        <div className="modal-overlay" onClick={() => setShowIEModal(false)} style={{ zIndex: 1100 }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '450px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">Assigned Inspectors - {selectedCallNo}</h3>
+              <button className="modal-close" onClick={() => setShowIEModal(false)}>×</button>
+            </div>
+            <div className="modal-body p-4">
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-4">
+                <p className="text-xs text-blue-700 uppercase font-bold mb-2 tracking-wide">Assigned IEs:</p>
+                <div className="space-y-2">
+                  {selectedIENames.split(',').map((name, idx) => (
+                    <div key={idx} className="flex items-center gap-2 p-2 bg-white rounded border border-blue-50 shadow-sm">
+                      <span className="text-blue-500">👤</span>
+                      <span className="font-medium text-gray-800">{name.trim()}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <p className="text-xs text-gray-400 italic">This list includes all inspectors assigned to this process inspection call.</p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowIEModal(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

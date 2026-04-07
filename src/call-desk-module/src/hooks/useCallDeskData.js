@@ -189,36 +189,73 @@ export const useCallDeskData = (activeTab = 'pending') => {
 
       const targetTab = tabId || activeTab;
       
-      // Always fetch KPIs on mount or total refresh
+      // Define fetch actions
       const fetchActions = [fetchDashboardKPIs()];
       
-      // Selectively fetch main data
       if (targetTab === 'pending') {
         fetchActions.push(fetchPendingVerificationCalls());
       } else if (targetTab === 'verified') {
         fetchActions.push(fetchVerifiedCalls());
       } else {
-        // Fetch all if not specified
         fetchActions.push(fetchPendingVerificationCalls());
         fetchActions.push(fetchVerifiedCalls());
       }
 
-      const results = await Promise.all(fetchActions);
-      const kpis = results[0];
+      // Use allSettled to handle partial failures
+      const results = await Promise.allSettled(fetchActions);
       
-      setDashboardKPIs(kpis);
-      
-      if (targetTab === 'pending') {
-        setPendingCalls(results[1]);
-        setDataLoaded(prev => ({ ...prev, pending: true, kpis: true }));
-      } else if (targetTab === 'verified') {
-        setVerifiedCalls(results[1]);
-        setDataLoaded(prev => ({ ...prev, verified: true, kpis: true }));
+      // Track only the flags we are updating in this fetch
+      const newLoadedFlags = {};
+
+      // 1. Handle KPIs (First action)
+      const kpisResult = results[0];
+      if (kpisResult.status === 'fulfilled') {
+        setDashboardKPIs(kpisResult.value);
       } else {
-        setPendingCalls(results[1]);
-        setVerifiedCalls(results[2]);
-        setDataLoaded({ pending: true, verified: true, kpis: true, disposed: false });
+        console.error('KPI Fetch Error:', kpisResult.reason);
       }
+      newLoadedFlags.kpis = true;
+      
+      // 2. Handle Tab-specific data
+      if (targetTab === 'pending') {
+        const pendingResult = results[1];
+        if (pendingResult.status === 'fulfilled') {
+          setPendingCalls(pendingResult.value);
+        } else {
+          setError(pendingResult.reason?.message || 'Failed to fetch pending calls');
+        }
+        newLoadedFlags.pending = true;
+      } else if (targetTab === 'verified') {
+        const verifiedResult = results[1];
+        if (verifiedResult.status === 'fulfilled') {
+          setVerifiedCalls(verifiedResult.value);
+        } else {
+          setError(verifiedResult.reason?.message || 'Failed to fetch verified calls');
+        }
+        newLoadedFlags.verified = true;
+      } else {
+        // Multi-fetch case (all tabs)
+        const pendingResult = results[1];
+        const verifiedResult = results[2];
+
+        if (pendingResult?.status === 'fulfilled') {
+          setPendingCalls(pendingResult.value);
+        }
+        if (verifiedResult?.status === 'fulfilled') {
+          setVerifiedCalls(verifiedResult.value);
+        }
+        
+        newLoadedFlags.pending = true;
+        newLoadedFlags.verified = true;
+
+        // Only set error if BOTH failed in this case
+        if (pendingResult?.status === 'rejected' && verifiedResult?.status === 'rejected') {
+          setError('Failed to fetch dashboard data');
+        }
+      }
+
+      // Use functional update to avoid 'dataLoaded' dependency
+      setDataLoaded(prev => ({ ...prev, ...newLoadedFlags }));
 
     } catch (err) {
       setError(err.message || 'Failed to fetch Call Desk data');

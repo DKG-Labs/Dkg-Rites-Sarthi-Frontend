@@ -174,18 +174,41 @@ export const ShiftProvider = ({ children }) => {
     };
 
     const fetchManualChecks = async () => {
-        const [mouldPrep, htsWire, demoulding] = await Promise.all([
-            apiService.getAllMouldPreparations(),
-            apiService.getAllHtsWirePlacement(),
-            apiService.getAllDemouldingInspection()
-        ]);
-        const htsListData = htsWire?.responseData || [];
-        setHtsData(htsListData);
-        setManualCheckEntries({
-            mouldPrep: mouldPrep?.responseData || [],
-            htsWire: htsListData,
-            demoulding: demoulding?.responseData || []
-        });
+        const currentUserId = userId || localStorage.getItem('userId');
+        const currentVendorCode = vendorCode || localStorage.getItem('vendorCode');
+        const currentShift = selectedShift || localStorage.getItem('selectedShift');
+        const currentPlantId = dutyUnit || localStorage.getItem('dutyUnit');
+        const currentDutyDate = dutyDate || localStorage.getItem('dutyDate') || new Date().toISOString().split('T')[0];
+
+        // Format date to dd/MM/yyyy as per backend requirement
+        const [y, m, d] = currentDutyDate.split('-');
+        const formattedDate = `${d}/${m}/${y}`;
+
+        const params = {
+            plantId: currentPlantId || ":41647/01", // Fallback if not set
+            vendorCode: currentVendorCode || "134",
+            shift: currentShift || "1",
+            createdBy: currentUserId || "135",
+            date: formattedDate
+        };
+
+        try {
+            const [mouldPrep, htsWire, demoulding] = await Promise.all([
+                apiService.getMouldPreparationTodayRecord(params),
+                apiService.getHtsWireTodayRecord(params),
+                apiService.getDemouldingTodayRecord(params)
+            ]);
+            
+            const htsListData = htsWire?.responseData || [];
+            setHtsData(htsListData);
+            setManualCheckEntries({
+                mouldPrep: mouldPrep?.responseData || [],
+                htsWire: htsListData,
+                demoulding: demoulding?.responseData || []
+            });
+        } catch (error) {
+            console.error("Error fetching manual checks:", error);
+        }
     };
 
     const fetchWireTension = async () => {

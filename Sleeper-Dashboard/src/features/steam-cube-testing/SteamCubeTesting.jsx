@@ -9,6 +9,7 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
     const [viewMode, setViewMode] = useState('statistics'); // 'statistics', 'declared', 'tested'
     const [showDeclareModal, setShowDeclareModal] = useState(false);
     const [showTestModal, setShowTestModal] = useState(false);
+    const [showDetailsModal, setShowDetailsModal] = useState(false);
     const [selectedSample, setSelectedSample] = useState(null);
     const [isModifying, setIsModifying] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -49,19 +50,26 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
             const response = await apiService.getAllSteamCubes();
             if (response && response.responseData) {
                 // Normalize dates from backend (dd/mm/yyyy) to internal (yyyy-mm-dd)
-                const allRecords = response.responseData.map(r => ({
-                    ...r,
-                    castingDate: DateUtils.formatFromBackend(r.castingDate),
-                    testDate: DateUtils.formatFromBackend(r.testDate),
-                    cubeResults: (r.cubeResults || []).map(cr => ({
-                        ...cr,
-                        testDate: DateUtils.formatFromBackend(cr.testDate)
-                    }))
-                }));
+                // Process all records to handle dates and status
+                const allRecords = response.responseData.map(r => {
+                    // A record is "tested" if it has strength data
+                    const isTested = !!r.avgStrength || (r.cubeResults && r.cubeResults.some(cr => cr.strength && cr.strength !== ""));
+                    
+                    return {
+                        ...r,
+                        status: isTested ? 'Completed' : 'Testing Pending',
+                        isTested: isTested,
+                        castingDate: DateUtils.formatFromBackend(r.castingDate),
+                        testDate: DateUtils.formatFromBackend(r.testDate),
+                        cubeResults: (r.cubeResults || []).map(cr => ({
+                            ...cr,
+                            testDate: DateUtils.formatFromBackend(cr.testDate)
+                        }))
+                    };
+                });
                 
-                // A record is "tested" if it has strength data (from backend or local mapping)
-                const tested = allRecords.filter(r => r.avgStrength || (r.cubeResults && r.cubeResults.length > 0));
-                const declared = allRecords.filter(r => !tested.find(t => t.id === r.id));
+                const tested = allRecords.filter(r => r.isTested);
+                const declared = allRecords.filter(r => !r.isTested);
 
                 setDeclaredSamples(declared);
                 setTestedRecords(tested);
@@ -135,6 +143,12 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
     const handleEnterTestDetails = (sample) => {
         setSelectedSample(sample);
         setShowTestModal(true);
+        setShowDetailsModal(false);
+    };
+
+    const handleOpenDetails = (sample) => {
+        setSelectedSample(sample);
+        setShowDetailsModal(true);
     };
 
     const saveDeclaration = async (formData) => {
@@ -271,12 +285,24 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
             }
         },
         {
+            key: 'status',
+            label: 'Status',
+            render: (_, row) => (
+                <span className="status-pill manual" style={{ 
+                    background: row.status === 'Completed' ? '#ecfdf5' : '#3b82f615', 
+                    color: row.status === 'Completed' ? '#059669' : '#3b82f6', 
+                    border: `1px solid ${row.status === 'Completed' ? '#059669' : '#3b82f630'}` 
+                }}>
+                    {row.status || 'Testing Pending'}
+                </span>
+            )
+        },
+        {
             key: 'actions',
             label: 'Actions',
             render: (_, row) => (
                 <div style={{ display: 'flex', gap: '8px' }}>
-                    <button className="btn-save" style={{ marginTop: 0, padding: '4px 12px', height: '28px' }} onClick={() => handleModifySample(row)}>Modify</button>
-                    <button className="btn-verify" style={{ padding: '4px 12px', height: '28px', fontSize: '11px' }} onClick={() => handleEnterTestDetails(row)}>Enter Test Details</button>
+                    <button className="btn-verify" style={{ padding: '4px 12px', height: '28px', fontSize: '11px' }} onClick={() => handleOpenDetails(row)}>Open Details</button>
                 </div>
             )
         }
@@ -298,6 +324,19 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
             }
         },
         { key: 'concreteGrade', label: 'Concrete Grade', render: (_, row) => row.concreteGrade || row.grade || '-' },
+        { 
+            key: 'status', 
+            label: 'Status', 
+            render: (_, row) => (
+                <span className="status-pill witnessed" style={{ 
+                    background: '#ecfdf5', 
+                    color: '#059669', 
+                    border: '1px solid #059669' 
+                }}>
+                    {row.status || 'Completed'}
+                </span>
+            )
+        },
         { key: 'ageDays', label: 'Age (Days)' },
         { key: 'testDate', label: 'Date of Testing', render: (val) => val ? (val.includes('-') ? val.split('-').reverse().join('/') : val) : '-' },
         {
@@ -371,7 +410,7 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
                     style={cardTabStyle(viewMode === 'declared', '#3b82f6')}
                 >
                     <span style={{ fontSize: '10px', fontWeight: '700', opacity: 0.8 }}>PENDING</span>
-                    <span style={{ fontSize: '14px', fontWeight: '800' }}>Test Sample Declared</span>
+                    <span style={{ fontSize: '14px', fontWeight: '800' }}>Testing Pending</span>
                 </div>
                 <div
                     className={`nav-tab-card ${viewMode === 'tested' ? 'active' : ''}`}
@@ -463,6 +502,18 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
                 )}
             </div>
 
+            {showDetailsModal && (
+                <SteamCubeDetailsModal
+                    sample={selectedSample}
+                    onClose={() => setShowDetailsModal(false)}
+                    onModify={() => {
+                        handleModifySample(selectedSample);
+                        setShowDetailsModal(false);
+                    }}
+                    onEnterTest={() => handleEnterTestDetails(selectedSample)}
+                />
+            )}
+
             {showDeclareModal && (
                 <SampleDeclarationModal
                     sample={selectedSample}
@@ -516,6 +567,64 @@ const StatCard = ({ label, value, unit = '', color = '#1e293b' }) => (
         <div style={{ fontSize: '18px', fontWeight: '800', color }}>{value} <span style={{ fontSize: '12px', fontWeight: '600', color: '#94a3b8' }}>{unit}</span></div>
     </div>
 );
+
+const SteamCubeDetailsModal = ({ sample, onClose, onModify, onEnterTest }) => {
+    if (!sample) return null;
+
+    const details = [
+        { label: 'Status', value: sample.status || 'Testing Pending' },
+        { label: 'Location (Line/Shed)', value: sample.location || sample.lineNo || sample.shedNo || '-' },
+        { label: 'Batch No.', value: sample.batchNo || '-' },
+        { 
+            label: 'Date & Time of Casting', 
+            value: `${sample.castingDate ? sample.castingDate.split('-').reverse().join('/') : '-'} ${sample.lbcTime || '-'}`
+        },
+        { label: 'Concrete Grade', value: sample.concreteGrade || sample.grade || '-' },
+        { label: 'No. of Cubes', value: (sample.cubes || sample.cubeResults)?.length || 0 },
+        { 
+            label: 'Gangs/Benches', 
+            value: (sample.otherBenches || []).map(b => b.benchNo).filter(Boolean).join(', ') || '-'
+        }
+    ];
+
+    return (
+        <div className="form-modal-overlay" onClick={onClose}>
+            <div className="form-modal-container" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+                <div className="form-modal-header">
+                    <span className="form-modal-header-title">Steam Cube Details</span>
+                    <button className="form-modal-close" onClick={onClose}>X</button>
+                </div>
+                <div className="form-modal-body">
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '30px' }}>
+                        {details.map((detail, idx) => (
+                            <div key={idx}>
+                                <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', marginBottom: '4px' }}>{detail.label}</div>
+                                <div style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>{detail.value}</div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                        <button 
+                            className="btn-save" 
+                            style={{ padding: '8px 24px', fontSize: '12px', height: '36px', width: 'auto', background: '#f1f5f9', color: '#64748b', marginTop: 0 }} 
+                            onClick={onModify}
+                        >
+                            Modify
+                        </button>
+                        <button 
+                            className="btn-verify" 
+                            style={{ padding: '8px 24px', fontSize: '12px', height: '36px', width: 'auto' }} 
+                            onClick={onEnterTest}
+                        >
+                            Enter Test Details
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete, activeContainer }) => {
     const { containers } = useShift();

@@ -17,7 +17,6 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
   const printAreaRef = useRef();
   const [isEditing, setIsEditing] = useState(false);
   const [isESigning, setIsESigning] = useState(false);
-  const [isSigned, setIsSigned] = useState(false);
   const [editableData, setEditableData] = useState(null);
   const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
 
@@ -112,7 +111,6 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
       return;
     }
 
-    // 2. Mandatory Certificate Fields Validation (Book & Set No)
     if (!dataToPass.bookNo || !dataToPass.setNo) {
         setNotification({ open: true, message: "Please fill in the 'Book No.' and 'Set No.' before signing.", severity: 'warning' });
         return;
@@ -120,12 +118,8 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
 
     try {
       setIsESigning(true);
-      
-      // 3. Wait 500ms for UI to show "SIGNING..." and visual signature stamp
       await new Promise(resolve => setTimeout(resolve, 500));
-
-      const sanitizedFilename = (dataToPass.certificateNo || "ProcessMaterialIC").replace(/[/\\?%*:|"<>]/g, '-');
-      const pdfBase64 = await generatePdfBase64(printAreaRef.current, `${sanitizedFilename}.pdf`);
+      const pdfBase64 = await generatePdfBase64(printAreaRef.current);
       if (!pdfBase64) {
           throw new Error("Failed to generate PDF snapshot for signing.");
       }
@@ -148,7 +142,6 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
       if (response?.responseText) {
         if (typeof window.abc === 'function') {
           window.abc(response.responseText, (dataToPass.certificateNo || `${payload.CaseNO}_${payload.CallSNo}`) + ".pdf");
-          setIsSigned(true); // Mark as signed on success
         } else {
           setNotification({ open: true, message: "Digital signature client not detected.", severity: 'error' });
         }
@@ -209,7 +202,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
 
       <div className="certificate-print-wrapper" ref={printAreaRef}>
         <div className="certificate-page">
-          <ErcProcessIc data={dataToPass} isEditing={isEditing} isBusy={isESigning} isSigned={isSigned} onChange={handleDataChange} onArrayChange={handleArrayDataChange} />
+          <ErcProcessIc data={dataToPass} isEditing={isEditing} isBusy={isESigning} onChange={handleDataChange} onArrayChange={handleArrayDataChange} />
         </div>
       </div>
     </Box>

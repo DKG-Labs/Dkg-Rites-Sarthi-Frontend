@@ -17,7 +17,6 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
   const printAreaRef = useRef();
   const [isEditing, setIsEditing] = useState(false);
   const [isESigning, setIsESigning] = useState(false);
-  const [isSigned, setIsSigned] = useState(false);
   const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
 
   useEffect(() => {
@@ -135,12 +134,11 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
     try {
       setIsESigning(true);
       
-      // 3. Wait 500ms for UI to show "SIGNING..." and visual signature stamp
+      // 3. Wait 500ms for UI to show "SIGNING..."
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      // 3. Generate PDF Base64 from current view
-      const sanitizedFilename = (data.certificateNo || "FinalProductIC").replace(/[/\\?%*:|"<>]/g, '-');
-      const pdfBase64 = await generatePdfBase64(printAreaRef.current, `${sanitizedFilename}.pdf`);
+      // 3. Generate PDF Base64 from current view (No filename here to prevent local download before signing)
+      const pdfBase64 = await generatePdfBase64(printAreaRef.current);
       if (!pdfBase64) {
           throw new Error("Failed to generate PDF snapshot for signing.");
       }
@@ -163,7 +161,6 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
       if (response?.responseText) {
           if (typeof window.abc === 'function') {
               window.abc(response.responseText, (data.certificateNo || `${payload.CaseNO}_${payload.CallSNo}`) + ".pdf");
-              setIsSigned(true);
           } else {
               setNotification({ open: true, message: "Digital signature client not detected.", severity: 'error' });
           }
@@ -209,7 +206,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
 
       <div className="certificate-print-wrapper" ref={printAreaRef}>
         <div className="certificate-page">
-          <ErcFinalIc data={data} isEditing={isEditing} isBusy={isESigning} isSigned={isSigned} onFieldChange={handleFieldChange} />
+          <ErcFinalIc data={data} isEditing={isEditing} isBusy={isESigning} onFieldChange={handleFieldChange} />
         </div>
       </div>
 

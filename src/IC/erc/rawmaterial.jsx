@@ -19,7 +19,6 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
   const [poDetails, setPoDetails] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isESigning, setIsESigning] = useState(false);
-  const [isSigned, setIsSigned] = useState(false);
   const [editableData, setEditableData] = useState(null);
   const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
 
@@ -148,9 +147,8 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
       // 3. Wait 500ms for UI to show "SIGNING..." and visual signature stamp
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      // 3. Generate PDF Base64 from current view
-      const sanitizedFilename = (dataToPass.certificateNo || "RawMaterialIC").replace(/[/\\?%*:|"<>]/g, '-');
-      const pdfBase64 = await generatePdfBase64(printAreaRef.current, `${sanitizedFilename}.pdf`);
+      // 3. Generate PDF Base64 from current view (No filename here to prevent local download before signing)
+      const pdfBase64 = await generatePdfBase64(printAreaRef.current);
       if (!pdfBase64) {
           throw new Error("Failed to generate PDF snapshot for signing.");
       }
@@ -173,7 +171,6 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
       if (response?.responseText) {
         if (typeof window.abc === 'function') {
           window.abc(response.responseText, (dataToPass.certificateNo || `${payload.CaseNO}_${payload.CallSNo}`) + ".pdf");
-          setIsSigned(true);
         } else {
           setNotification({ open: true, message: "Digital signature client not detected.", severity: 'error' });
         }
@@ -224,7 +221,7 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
 
       <div className="certificate-print-wrapper" ref={printAreaRef}>
         <div className="certificate-page">
-          <ErcRmIC data={dataToPass} isEditing={isEditing} isBusy={isESigning} isSigned={isSigned} onChange={handleDataChange} onArrayChange={handleArrayDataChange} />
+          <ErcRmIC data={dataToPass} isEditing={isEditing} isBusy={isESigning} onChange={handleDataChange} onArrayChange={handleArrayDataChange} />
         </div>
       </div>
 

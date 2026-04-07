@@ -9,7 +9,7 @@ import {
     Box
 } from "@mui/material";
 import ErcRmIC from "./ErcRmIc";
-import { exportToPdf } from "../../utils/exportUtils";
+import { exportToPdf, generatePdfBase64 } from "../../utils/exportUtils";
 import { fetchPoDataForSections } from "../../services/poDataService";
 import { getICReportData } from "../../services/finalInspectionSubmoduleService";
 import { getISTDateOnly } from "../../utils/helpers";
@@ -19,6 +19,7 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
   const [poDetails, setPoDetails] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isESigning, setIsESigning] = useState(false);
+  const [isSigned, setIsSigned] = useState(false);
   const [editableData, setEditableData] = useState(null);
   const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
 
@@ -135,14 +136,7 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
       return;
     }
 
-    const currentUserEmail = localStorage.getItem('userEmail');
-    const assignedIEEmail = call.ie_email || call.inspectingEngineerEmail || "";
-    if (currentUserEmail && assignedIEEmail && currentUserEmail.toLowerCase() !== assignedIEEmail.toLowerCase()) {
-      setNotification({ open: true, message: "Only the assigned Inspecting Engineer is authorized to E-Sign.", severity: 'error' });
-      return;
-    }
-
-    // 3. Mandatory Certificate Fields Validation (Book & Set No)
+    // 2. Mandatory Certificate Fields Validation (Book & Set No)
     if (!dataToPass.bookNo || !dataToPass.setNo) {
         setNotification({ open: true, message: "Please fill in the 'Book No.' and 'Set No.' before signing.", severity: 'warning' });
         return;
@@ -150,8 +144,19 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
 
     try {
       setIsESigning(true);
+
+      // 3. Wait 500ms for UI to show "SIGNING..." and visual signature stamp
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // 3. Generate PDF Base64 from current view
+      const sanitizedFilename = (dataToPass.certificateNo || "RawMaterialIC").replace(/[/\\?%*:|"<>]/g, '-');
+      const pdfBase64 = await generatePdfBase64(printAreaRef.current, `${sanitizedFilename}.pdf`);
+      if (!pdfBase64) {
+          throw new Error("Failed to generate PDF snapshot for signing.");
+      }
+
       const payload = {
-        CaseNO: call.icNo || call.icNumber || call.case_no || "",
+        CaseNO: call.case_no || call.icNo || call.icNumber || "",
         Call_Recv_Dt: call.call_recv_dt || call.callRecvDt || call.createdAt || new Date().toISOString(),
         CallSNo: call.call_no || call.callSNo || call.call_sno || "",
         Consignee_CD: call.consignee_cd || call.consigneeCode || "",
@@ -160,13 +165,15 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
         SetNo: dataToPass.setNo || "",
         type: "RM",
         date: new Date().toISOString(),
-        isDigitallySign: true
+        isDigitallySign: true,
+        pdfBase64: pdfBase64
       };
 
       const response = await getICReportData(payload);
       if (response?.responseText) {
         if (typeof window.abc === 'function') {
-          window.abc(response.responseText, `${payload.CaseNO}_${payload.CallSNo}.pdf`);
+          window.abc(response.responseText, (dataToPass.certificateNo || `${payload.CaseNO}_${payload.CallSNo}`) + ".pdf");
+          setIsSigned(true);
         } else {
           setNotification({ open: true, message: "Digital signature client not detected.", severity: 'error' });
         }
@@ -217,7 +224,7 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
 
       <div className="certificate-print-wrapper" ref={printAreaRef}>
         <div className="certificate-page">
-          <ErcRmIC data={dataToPass} isEditing={isEditing} isBusy={isESigning} onChange={handleDataChange} onArrayChange={handleArrayDataChange} />
+          <ErcRmIC data={dataToPass} isEditing={isEditing} isBusy={isESigning} isSigned={isSigned} onChange={handleDataChange} onArrayChange={handleArrayDataChange} />
         </div>
       </div>
 

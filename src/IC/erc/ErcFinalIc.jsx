@@ -1,6 +1,6 @@
 import React from "react";
 
-const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChange = () => { } }) => {
+const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, isSigned = false, onFieldChange = () => { } }) => {
 
   const {
     certificateNo = "",
@@ -305,9 +305,20 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
             <div className="font-bold leading-tight">Facsimile of seal</div>
             <EditableField value={facsimileText} fieldName="facsimileText" type="textarea" className="text-black italic leading-tight flex-grow" />
           </div>
-          <div className="p-1 flex flex-col justify-between">
+          <div className="p-1 flex flex-col justify-between min-h-[60px]">
             <div className="font-bold leading-tight">Inspecting Engineer</div>
-            <EditableField value={inspectingEngineer} fieldName="inspectingEngineer" className="text-right font-bold uppercase" />
+            {(isBusy || isSigned) ? (
+              <div className="border-2 border-green-600 p-1 mt-1 bg-green-50 rounded flex flex-col items-center justify-center self-end w-full max-w-[150px]">
+                <div className="text-green-700 font-bold text-[9px] flex items-center gap-1">
+                  ✓ DIGITALLY SIGNED
+                </div>
+                <div className="text-[10px] font-bold text-gray-800 uppercase leading-tight text-center">{inspectingEngineer || "RITES IE"}</div>
+                <div className="text-[8px] text-gray-600">Date: {new Date().toLocaleDateString()}</div>
+                <div className="text-[7px] text-gray-400 italic">SARTHI PKI SERVICE</div>
+              </div>
+            ) : (
+              <EditableField value={inspectingEngineer} fieldName="inspectingEngineer" className="text-right font-bold uppercase" />
+            )}
           </div>
         </div>
 

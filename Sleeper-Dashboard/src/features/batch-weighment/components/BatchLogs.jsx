@@ -1,7 +1,8 @@
 import React from 'react';
 import ManualDataEntry from './ManualDataEntry';
 
-const BatchLogs = ({ batchDeclarations, witnessedRecords, handleSaveWitness, activeContainer, handleDelete }) => {
+const BatchLogs = ({ batchDeclarations, witnessedRecords, handleSaveWitness, activeContainer, handleDelete, small = false }) => {
+
     return (
         <div className="fade-in">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '16px' }}>
@@ -17,7 +18,9 @@ const BatchLogs = ({ batchDeclarations, witnessedRecords, handleSaveWitness, act
                 activeContainer={activeContainer}
                 onDelete={handleDelete}
                 onlyHistory={true}
+                small={small}
             />
+
         </div>
     );
 };

@@ -22,9 +22,11 @@ const DEFAULT_MIX_VALUES = {
  * - CA1, CA2, FA Toggle Sections (with all calculations)
  */
 const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
-    const { vendorId } = useShift();
+    const { vendorId, dutyDate, selectedShift, dutyUnit } = useShift();
     const [activeSection, setActiveSection] = useState('ca1');
     const [mixDesignPlans, setMixDesignPlans] = useState([]);
+    const [availableLocations, setAvailableLocations] = useState([]);
+    const [availableBatches, setAvailableBatches] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef(null);
@@ -43,6 +45,33 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
         };
         fetchMixDesigns();
     }, [vendorId]);
+
+    // Fetch Dynamic Locations for current Unit
+    useEffect(() => {
+        const fetchLocations = async () => {
+            const vId = vendorId || localStorage.getItem('vendorId');
+            if (dutyUnit && vId) {
+                try {
+                    const response = await apiService.getPlantSheds(vId, dutyUnit);
+                    let locList = [];
+                    const data = response?.responseData || response;
+                    if (typeof data === 'object' && data !== null) {
+                        Object.values(data).forEach((ids) => {
+                            if (Array.isArray(ids)) {
+                                ids.forEach(id => {
+                                    locList.push(id);
+                                });
+                            }
+                        });
+                    }
+                    setAvailableLocations(locList);
+                } catch (err) {
+                    console.error("Error fetching locations in moisture form:", err);
+                }
+            }
+        };
+        fetchLocations();
+    }, [dutyUnit, vendorId]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -71,9 +100,10 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
 
     // Common Form Section Data
     const [commonData, setCommonData] = useState({
-        date: initialData?.date || localInit.date,
-        shift: initialData?.shift || 'A',
+        date: initialData?.date || dutyDate || localInit.date,
+        shift: initialData?.shift || selectedShift || 'A',
         timing: initialData?.timing || localInit.time,
+        location: initialData?.location || '',
         batchNo: initialData?.batchNo || '',
         mixDesignId: initialData?.mixDesignId || '',
 
@@ -92,6 +122,37 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
         designWC: initialData?.designWC || ''
     });
 
+    // Fetch batches when date or location change
+    useEffect(() => {
+        const fetchBatches = async () => {
+            if (commonData.date && commonData.location) {
+                try {
+                    const formattedDate = commonData.date.includes('-') 
+                        ? commonData.date.split('-').reverse().join('/') 
+                        : commonData.date;
+                    
+                    const response = await apiService.getAllProductionBatches(
+                        vendorId, 
+                        formattedDate, 
+                        dutyUnit, 
+                        commonData.location
+                    );
+                    
+                    if (response?.responseData) {
+                        setAvailableBatches(response.responseData);
+                    } else {
+                        setAvailableBatches([]);
+                    }
+                } catch (error) {
+                    console.error("Error fetching batches:", error);
+                    setAvailableBatches([]);
+                }
+            }
+        };
+        fetchBatches();
+    }, [commonData.date, commonData.location, vendorId, dutyUnit]);
+
+
     // Aggregate Data for CA1, CA2, FA
     const [aggData, setAggData] = useState({
         ca1: initialData?.ca1Details || { wetSample: '', driedSample: '', absorption: '' },
@@ -103,9 +164,10 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
     useEffect(() => {
         if (initialData) {
             setCommonData({
-                date: initialData.date || localInit.date,
-                shift: initialData.shift || 'A',
+                date: initialData.date || dutyDate || localInit.date,
+                shift: initialData.shift || selectedShift || 'A',
                 timing: initialData.timing || localInit.time,
+                location: initialData.location || '',
                 batchNo: initialData.batchNo || '',
                 mixDesignId: initialData.mixDesignId || '',
                 designValues: initialData.designValues || null,
@@ -123,8 +185,16 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
                 ca2: initialData.ca2Details || { wetSample: '', driedSample: '', absorption: '' },
                 fa: initialData.faDetails || { wetSample: '', driedSample: '', absorption: '' }
             });
+        } else {
+            // Update shift/date if duty context changes
+            setCommonData(prev => ({
+                ...prev,
+                date: dutyDate || prev.date,
+                shift: selectedShift || prev.shift
+            }));
         }
-    }, [initialData]);
+    }, [initialData, dutyDate, selectedShift]);
+
 
     const handleCommonChange = (field, val) => {
         if (field === 'mixDesignId') {
@@ -368,9 +438,9 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
 
             {/* Common Form Section */}
             <div className="moisture-section">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-                    <h4 style={{ margin: 0 }}>Common Form Section</h4>
-                    <div style={{ display: 'flex', gap: '1rem', background: '#fff', padding: '10px 16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                    <h4 style={{ margin: 0, fontSize: '0.85rem' }}>Common Form Section</h4>
+                    <div style={{ display: 'flex', gap: '0.75rem', background: '#fff', padding: '6px 12px', borderRadius: '10px', border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
                         <div className="form-field-compact">
                             <span className="mini-label">Date</span>
                             <strong>{commonData.date ? commonData.date.split('-').reverse().join('/') : ''}</strong>
@@ -383,22 +453,50 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
                     </div>
                 </div>
 
-                <div className="moisture-grid">
+                <div className="moisture-grid-one-line">
                     <div className="form-field">
                         <label htmlFor="moisture-timing">Time <span className="required">*</span></label>
                         <input id="moisture-timing" name="timing" type="time" value={commonData.timing} onChange={e => handleCommonChange('timing', e.target.value)} />
                     </div>
                     <div className="form-field">
-                        <label htmlFor="moisture-batch">Batch No. <span className="required">*</span></label>
-                        <input id="moisture-batch" name="batchNo" type="number" min="0" value={commonData.batchNo} onChange={e => handleCommonChange('batchNo', e.target.value)} placeholder="000" />
+                        <label htmlFor="moisture-location">Location <span className="required">*</span></label>
+                        <select 
+                            id="moisture-location" 
+                            name="location" 
+                            value={commonData.location} 
+                            onChange={e => handleCommonChange('location', e.target.value)}
+                        >
+                            <option value="">-- Select --</option>
+                            {availableLocations.map(loc => (
+                                <option key={loc} value={loc}>{loc}</option>
+                            ))}
+                        </select>
                     </div>
-                    <div className="form-field" style={{ gridColumn: 'span 2' }} ref={dropdownRef}>
-                        <label htmlFor="moisture-mix-design">Approved Mix Design <span className="required">*</span></label>
+                    <div className="form-field">
+                        <label htmlFor="moisture-batch">Batch No. <span className="required">*</span></label>
+                        <select 
+                            id="moisture-batch" 
+                            name="batchNo" 
+                            value={commonData.batchNo} 
+                            onChange={e => handleCommonChange('batchNo', e.target.value)}
+                        >
+                            <option value="">-- Select --</option>
+                            {availableBatches.length > 0 ? (
+                                availableBatches.map(b => (
+                                    <option key={b} value={b}>{b}</option>
+                                ))
+                            ) : (
+                                commonData.batchNo && <option value={commonData.batchNo}>{commonData.batchNo}</option>
+                            )}
+                        </select>
+                    </div>
+                    <div className="form-field" ref={dropdownRef}>
+                        <label htmlFor="moisture-mix-design">Mix Design <span className="required">*</span></label>
                         <div style={{ position: 'relative' }}>
                             <input
                                 id="moisture-mix-design"
                                 type="text"
-                                placeholder="Search by Identification or Created By..."
+                                placeholder="..."
                                 value={isDropdownOpen ? searchTerm : commonData.mixDesignId}
                                 onClick={() => {
                                     setIsDropdownOpen(true);
@@ -434,14 +532,12 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
                                                 onMouseLeave={(e) => e.target.style.background = 'white'}
                                             >{m.identification}</li>
                                         ))}
-                                    {mixDesignPlans.filter(m => m.identification.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 && (
-                                        <li style={{ padding: '8px 12px', color: '#94a3b8' }}>No results found</li>
-                                    )}
                                 </ul>
                             )}
                         </div>
                     </div>
                 </div>
+
 
                 {commonData.mixDesignId && (
                     <div className="design-comparison-container" style={{ marginTop: '24px', animation: 'fadeIn 0.3s' }}>
@@ -507,28 +603,29 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
                         {/* Summary Metrics */}
                         <div className="moisture-calc-grid">
                             <div className="calc-card">
-                                <span className="mini-label">Water Content (31)</span>
+                                <span className="mini-label">Water Content</span>
                                 <div className="calc-value">{step31_WaterContent.toFixed(2)}</div>
                             </div>
                             <div className="calc-card highlight-border">
-                                <span className="mini-label">Total Free Moist. (32)</span>
+                                <span className="mini-label">Total Free Moist.</span>
                                 <div className="calc-value success-text">{totalFreeMoisture}</div>
                             </div>
                             <div className="calc-card">
-                                <span className="mini-label">Adj. Water (33)</span>
+                                <span className="mini-label">Adj. Water</span>
                                 <div className="calc-value">{adjustedWater}</div>
                             </div>
                             <div className="calc-card">
-                                <span className="mini-label">A/C Ratio (34)</span>
+                                <span className="mini-label">A/C Ratio</span>
                                 <div className="calc-value">{acRatio}</div>
                                 <span className="hint-text">Target: {commonData.designAC}</span>
                             </div>
                             <div className="calc-card">
-                                <span className="mini-label">W/C Ratio (35)</span>
+                                <span className="mini-label">W/C Ratio</span>
                                 <div className="calc-value">{wcRatio}</div>
-                                <span className="hint-text">Mix Design D: {commonData.designValues?.water || 0}</span>
+                                <span className="hint-text">Target: {commonData.designValues?.water || 0}</span>
                             </div>
                         </div>
+
                     </div>
                 )}
             </div>

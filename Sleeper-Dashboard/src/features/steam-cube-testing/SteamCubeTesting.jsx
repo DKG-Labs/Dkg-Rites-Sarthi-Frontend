@@ -112,6 +112,16 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
     };
 
     const handleModifySample = async (sample) => {
+        // Enforce 8-hour restriction for modification
+        const declarationTime = new Date(sample.castingDate + 'T' + (sample.lbcTime || '00:00'));
+        const diffMs = Date.now() - declarationTime.getTime();
+        const hoursPassed = diffMs / (1000 * 60 * 60);
+
+        if (hoursPassed > 8) {
+            alert("This record is more than 8 hours old and cannot be modified.");
+            return;
+        }
+
         try {
             let fetchedData = sample;
             // Only fetch from backend if ID is a real numeric ID (not a local timestamp or string)
@@ -139,6 +149,7 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
             setShowDeclareModal(true);
         }
     };
+
 
     const handleEnterTestDetails = (sample) => {
         setSelectedSample(sample);
@@ -224,33 +235,40 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
         }
     };
 
-    const handleDeleteTest = async (id) => {
+    const handleDeleteTest = async (id, sampleData) => {
         if (!id) {
             alert("No valid record ID found to delete.");
             return;
         }
 
+        // Enforce 8-hour restriction for deletion if sample context is provided
+        if (sampleData) {
+            const declarationTime = new Date(sampleData.castingDate + 'T' + (sampleData.lbcTime || '00:00'));
+            const diffMs = Date.now() - declarationTime.getTime();
+            const hoursPassed = diffMs / (1000 * 60 * 60);
+
+            if (hoursPassed > 8) {
+                alert("This record is more than 8 hours old and cannot be deleted.");
+                return;
+            }
+        }
+
         if (window.confirm('Are you sure you want to delete this test record?')) {
             try {
-                // Optimistic local update
-                const previousDeclared = [...declaredSamples];
-                const previousTested = [...testedRecords];
-
                 setDeclaredSamples(prev => prev.filter(r => r.id !== id));
                 setTestedRecords(prev => prev.filter(r => r.id !== id));
 
-                const response = await apiService.deleteSteamCube(id);
-                
-                // Show success if not caught by interceptor
+                await apiService.deleteSteamCube(id);
                 alert('Record deleted successfully.');
-                loadData().catch(console.error); // Sync in background
+                loadData().catch(console.error);
             } catch (error) {
                 console.error('Error deleting test record:', error);
                 alert(`Failed to delete record: ${error.message}`);
-                loadData(); // Re-fetch to restore UI
+                loadData();
             }
         }
     };
+
 
 
     const getColumnsDeclared = () => [
@@ -510,6 +528,10 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
                         handleModifySample(selectedSample);
                         setShowDetailsModal(false);
                     }}
+                    onDelete={(id) => {
+                        setShowDetailsModal(false);
+                        handleDeleteTest(id, selectedSample);
+                    }}
                     onEnterTest={() => handleEnterTestDetails(selectedSample)}
                 />
             )}
@@ -522,7 +544,7 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
                     onSave={saveDeclaration}
                     onDelete={(id) => {
                         setShowDeclareModal(false);
-                        handleDeleteTest(id);
+                        handleDeleteTest(id, selectedSample);
                     }}
                     activeContainer={activeContainer}
                 />
@@ -535,12 +557,13 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
                     onSave={saveTestDetails}
                     onDelete={(id) => {
                         setShowTestModal(false);
-                        handleDeleteTest(id);
+                        handleDeleteTest(id, selectedSample);
                     }}
                     isModifying={isModifying}
                     activeContainer={activeContainer}
                 />
             )}
+
         </div>
     );
 };
@@ -568,7 +591,7 @@ const StatCard = ({ label, value, unit = '', color = '#1e293b' }) => (
     </div>
 );
 
-const SteamCubeDetailsModal = ({ sample, onClose, onModify, onEnterTest }) => {
+const SteamCubeDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelete }) => {
     if (!sample) return null;
 
     const details = [
@@ -587,6 +610,11 @@ const SteamCubeDetailsModal = ({ sample, onClose, onModify, onEnterTest }) => {
         }
     ];
 
+    const declarationTime = new Date(sample.castingDate + 'T' + (sample.lbcTime || '00:00'));
+    const diffMs = Date.now() - declarationTime.getTime();
+    const hoursPassed = diffMs / (1000 * 60 * 60);
+    const canModifyOrDelete = hoursPassed <= 8;
+
     return (
         <div className="form-modal-overlay" onClick={onClose}>
             <div className="form-modal-container" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
@@ -604,11 +632,34 @@ const SteamCubeDetailsModal = ({ sample, onClose, onModify, onEnterTest }) => {
                         ))}
                     </div>
 
-                    <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                    <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                        <button 
+                            className="btn-delete-entry" 
+                            style={{ 
+                                padding: '8px 24px', fontSize: '12px', height: '36px', width: 'auto', 
+                                background: canModifyOrDelete ? '#fee2e2' : '#f8fafc', 
+                                color: canModifyOrDelete ? '#ef4444' : '#cbd5e1', 
+                                border: '1.5px solid #e2e8f0', cursor: canModifyOrDelete ? 'pointer' : 'not-allowed', 
+                                marginTop: 0 
+                            }} 
+                            disabled={!canModifyOrDelete}
+                            onClick={() => onDelete(sample.id)}
+                            title={!canModifyOrDelete ? "Deletions only allowed within 8 hours" : ""}
+                        >
+                            Delete
+                        </button>
                         <button 
                             className="btn-save" 
-                            style={{ padding: '8px 24px', fontSize: '12px', height: '36px', width: 'auto', background: '#f1f5f9', color: '#64748b', marginTop: 0 }} 
+                            style={{ 
+                                padding: '8px 24px', fontSize: '12px', height: '36px', width: 'auto', 
+                                background: canModifyOrDelete ? '#f1f5f9' : '#f8fafc', 
+                                color: canModifyOrDelete ? '#64748b' : '#cbd5e1', 
+                                cursor: canModifyOrDelete ? 'pointer' : 'not-allowed',
+                                marginTop: 0 
+                            }} 
+                            disabled={!canModifyOrDelete}
                             onClick={onModify}
+                            title={!canModifyOrDelete ? "Modifications only allowed within 8 hours" : ""}
                         >
                             Modify
                         </button>
@@ -626,8 +677,11 @@ const SteamCubeDetailsModal = ({ sample, onClose, onModify, onEnterTest }) => {
     );
 };
 
+
 const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete, activeContainer }) => {
     const { containers } = useShift();
+    const [moistureReports, setMoistureReports] = useState([]);
+    
     const [formData, setFormData] = useState({
         lineNo: sample?.lineNo || (activeContainer?.type !== 'Shed' ? activeContainer?.name : null) || (sample?.location && !sample?.shedNo ? sample.location : ''),
         shedNo: sample?.shedNo || (activeContainer?.type === 'Shed' ? activeContainer?.name : null) || (sample?.location && sample?.shedNo ? sample.location : ''),
@@ -636,11 +690,37 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
         batchNo: sample?.batchNo || '',
         concreteGrade: sample?.concreteGrade || sample?.grade || 'M60',
         chamberNo: sample?.chamberNo || '',
-        cubes: sample?.cubes || sample?.cubeResults || [{ cubeNo: 1, weight: '', load: '', strength: '' }],
+        cubes: sample?.cubes || sample?.cubeResults || [],
         otherBenches: sample?.otherBenches || []
     });
 
     const [currentCube, setCurrentCube] = useState({ benchNo: '', sleeperSequence: '', cubeCode: '' });
+
+    // Fetch batch numbers from moisture reports
+    useEffect(() => {
+        const fetchReports = async () => {
+            try {
+                const res = await apiService.getLastFiveMoisture();
+                if (res?.responseData) {
+                    setMoistureReports(res.responseData);
+                }
+            } catch (err) {
+                console.error("Failed to fetch batches:", err);
+            }
+        };
+        fetchReports();
+    }, []);
+
+    // Auto-generate Cube Code when bench or sequence changes
+    useEffect(() => {
+        if (currentCube.benchNo && currentCube.sleeperSequence) {
+            setCurrentCube(prev => ({ 
+                ...prev, 
+                cubeCode: `${prev.benchNo}/${prev.sleeperSequence}` 
+            }));
+        }
+    }, [currentCube.benchNo, currentCube.sleeperSequence]);
+
 
     const handleLocationChange = (e) => {
         const selectedId = parseInt(e.target.value);
@@ -724,14 +804,22 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
                             />
                         </div>
                         <div className="input-group">
-                            <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569', marginBottom: '4px' }}>Batch No.</label>
-                            <input 
-                                type="text" 
+                            <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569', marginBottom: '4px' }}>Batch No. (From Moisture Reports)</label>
+                            <select 
                                 value={formData.batchNo} 
-                                onChange={e => setFormData({ ...formData, batchNo: e.target.value })} 
-                                style={{ width: '100%', padding: '0 12px', height: '42px', borderRadius: '8px', border: '1.5px solid #e2e8f0', fontSize: '14px', color: '#1e293b', outline: 'none' }}
-                            />
+                                onChange={e => setFormData({ ...formData, batchNo: e.target.value })}
+                                style={{ width: '100%', padding: '0 12px', height: '42px', borderRadius: '8px', border: '1.5px solid #e2e8f0', fontSize: '14px', color: '#1e293b', outline: 'none', background: '#fff' }}
+                            >
+                                <option value="">-- Select Batch --</option>
+                                {moistureReports.map(report => (
+                                    <option key={report.id} value={report.batchNo}>{report.batchNo}</option>
+                                ))}
+                                {formData.batchNo && !moistureReports.find(r => String(r.batchNo) === String(formData.batchNo)) && (
+                                    <option value={formData.batchNo}>{formData.batchNo}</option>
+                                )}
+                            </select>
                         </div>
+
                         <div className="input-group">
                             <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569', marginBottom: '4px' }}>LBC Time</label>
                             <input 
@@ -781,15 +869,16 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
                                 </select>
                             </div>
                             <div className="input-group">
-                                <label style={{ fontSize: '11px', color: '#64748b', fontWeight: '700' }}>Cube Code</label>
+                                <label style={{ fontSize: '11px', color: '#64748b', fontWeight: '700' }}>Cube Code (Auto)</label>
                                 <input
                                     type="text"
+                                    readOnly
                                     value={currentCube.cubeCode}
-                                    onChange={e => setCurrentCube({ ...currentCube, cubeCode: e.target.value })}
-                                    placeholder="e.g., C1"
-                                    style={{ padding: '0 10px', height: '38px', borderRadius: '6px', border: '1.5px solid #e2e8f0', fontSize: '13px', color: '#1e293b', outline: 'none' }}
+                                    placeholder="Auto-generated"
+                                    style={{ padding: '0 10px', height: '38px', borderRadius: '6px', border: '1.5px solid #e2e8f0', fontSize: '13px', color: '#475569', outline: 'none', background: '#f8fafc' }}
                                 />
                             </div>
+
                             <button 
                                 className="btn-verify" 
                                 onClick={addCube} 
@@ -814,7 +903,7 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
                                             alignItems: 'center',
                                             gap: '8px'
                                         }}>
-                                            <span style={{ fontWeight: '700', color: '#42818c' }}>{cube.benchNo}{cube.sleeperSequence}{cube.cubeCode}</span>
+                                            <span style={{ fontWeight: '700', color: '#42818c' }}>{cube.cubeCode}</span>
                                             <button
                                                 onClick={() => removeCube(idx)}
                                                 style={{

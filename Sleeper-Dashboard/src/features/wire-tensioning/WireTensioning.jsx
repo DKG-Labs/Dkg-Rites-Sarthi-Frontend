@@ -3,6 +3,7 @@ import { apiService } from '../../services/api';
 import WireTensionStats from './components/WireTensionStats';
 import CollapsibleSection from '../../components/common/CollapsibleSection';
 import { useWireTensionStats } from '../../hooks/useStats';
+import { useShift } from '../../context/ShiftContext';
 
 /**
  * WireTensioning Feature
@@ -45,6 +46,7 @@ const TensionSubCard = ({ id, title, color, statusDetail, isActive, onClick }) =
 
 const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'modal', showForm: propsShowForm, setShowForm: propsSetShowForm, loadShiftData, activeContainer }) => {
     const { tensionRecords, setTensionRecords } = sharedState;
+    const { vendorCode, dutyUnit, selectedShift, dutyDate, userId } = useShift();
     const [viewMode, setViewMode] = useState('witnessed'); // Default to History/Logs
     const [localShowForm, setLocalShowForm] = useState(false);
 
@@ -240,11 +242,23 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
                     finalLoad: parseFloat(r.finalLoad) || 0
                 }));
 
+            const [y, m, d] = (dutyDate || new Date().toISOString().split('T')[0]).split('-');
+            const formattedDate = `${d}/${m}/${y}`;
+
             const payload = {
                 batchNo: String(selectedBatch),
                 sleeperType: "RT-1234",
                 wiresPerSleeper: parseInt(wiresPerSleeper),
                 targetLoadKn: 730,
+                location: activeContainer?.name || 'Line I',
+                locationType: (activeContainer?.name || 'Line I').toLowerCase().includes('shed') ? 'Shed' : 'Line',
+                vendorCode: vendorCode || localStorage.getItem('vendorCode'),
+                plantId: dutyUnit || localStorage.getItem('dutyUnit'),
+                shift: selectedShift || localStorage.getItem('selectedShift'),
+                date: formattedDate,
+                entryDate: formattedDate,
+                createdBy: userId || localStorage.getItem('userId'),
+                updatedBy: userId || localStorage.getItem('userId'),
                 manualRecords,
                 scadaRecords: witnessedScadaRecords
             };
@@ -745,10 +759,24 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
                                                             <td>{entry.totalLoad || '-'}</td>
                                                             <td><strong>{entry.finalLoad} KN</strong></td>
                                                             <td>
-                                                                <div style={{ display: 'flex', gap: '4px' }}>
-                                                                    {entry.source === 'Manual' && <button className="btn-action mini" onClick={() => handleEdit(entry)}>Edit</button>}
-                                                                    <button className="btn-action mini danger" style={{ background: '#fee2e2', color: '#ef4444', border: 'none' }} onClick={() => handleDelete(entry.id)}>Delete</button>
-                                                                </div>
+                                                                {(() => {
+                                                                    const todayStr = new Date().toISOString().split('T')[0];
+                                                                    const [y, m, d] = todayStr.split('-');
+                                                                    const todayDMY = `${d}/${m}/${y}`;
+                                                                    
+                                                                    const recordDate = entry.date || entry.entryDate || entry.timestamp || "";
+                                                                    const isToday = recordDate.includes(todayStr) || recordDate.includes(todayDMY);
+                                                                    
+                                                                    if (isToday) {
+                                                                        return (
+                                                                            <div style={{ display: 'flex', gap: '4px' }}>
+                                                                                {entry.source === 'Manual' && <button className="btn-action mini" onClick={() => handleEdit(entry)}>Edit</button>}
+                                                                                <button className="btn-action mini danger" style={{ background: '#fee2e2', color: '#ef4444', border: 'none' }} onClick={() => handleDelete(entry.id)}>Delete</button>
+                                                                            </div>
+                                                                        );
+                                                                    }
+                                                                    return <span style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic', display: 'block', textAlign: 'center' }}>Fixed</span>;
+                                                                })()}
                                                             </td>
                                                         </tr>
                                                     ))}

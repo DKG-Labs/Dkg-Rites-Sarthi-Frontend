@@ -118,6 +118,7 @@ export const apiService = {
     createWireTensioning: (payload) => api.post('/wire-tensioning/create', payload),
     updateWireTensioning: (id, payload) => api.put(`/wire-tensioning/update/${id}`, payload),
     deleteWireTensioning: (id) => api.delete(`/wire-tensioning/delete/${id}`),
+    getWireTensioningTodayRecord: (params) => api.get('/wire-tensioning/wireTensioningData', { params }),
 
     // ================= Compaction (Vibrator Report) =================
     getAllCompaction: () => getWithCache('/compaction/getAll'),
@@ -125,6 +126,7 @@ export const apiService = {
     createCompaction: (payload) => api.post('/compaction/create', payload),
     updateCompaction: (id, payload) => api.put(`/compaction/update/${id}`, payload),
     deleteCompaction: (id) => api.delete(`/compaction/delete/${id}`),
+    getCompactionTodayRecord: (params) => api.get('/compaction/compactionData', { params }),
 
     // ================= Steam Curing =================
     getAllSteamCuring: () => getWithCache('/steam-curing/getAll'),
@@ -139,6 +141,7 @@ export const apiService = {
     createBatchWeighment: (payload) => api.post('/batch-weighment/create', payload),
     updateBatchWeighment: (id, payload) => api.put(`/batch-weighment/update/${id}`, payload),
     deleteBatchWeighment: (id) => api.delete(`/batch-weighment/delete/${id}`),
+    getBatchWeighmentTodayRecord: (params) => api.get('/batch-weighment/batchWeighmentData', { params }),
 
     // ================= Inventory – Cement =================
     getAllCementInventory: () => api.get('/inventory/cement/all'),

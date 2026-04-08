@@ -125,10 +125,12 @@ export default function SettingTimeForm({ onSave, onCancel, inventoryData = [], 
                 init = mins;
             }
 
-            // FST: Time at which spot column is selected as "Yes"
-            if (fin === null && (r.spot === 'yes' || r.spot === 'YES') && r.time) {
+            // FST: Time where spot column is selected as "Yes" (C) - Time of adding water (A)
+            if (fin === null && (r.spot?.toLowerCase() === 'yes') && r.time) {
+                // Final Setting Time = C (observation time) - A (water add time)
                 fin = diffMinutes(header.waterAddTime, r.time);
             }
+
         });
 
         setInitialTime(init);
@@ -385,11 +387,15 @@ export default function SettingTimeForm({ onSave, onCancel, inventoryData = [], 
                                                         step="0.1"
                                                         value={r.needle}
                                                         onChange={(e) => updateRow(i, "needle", e.target.value)}
+                                                        placeholder="mm"
                                                     />
                                                 ) : (
-                                                    <span style={{ color: '#94a3b8', fontSize: '10px', fontWeight: '700' }}>INITIAL SETTING REACHED</span>
+                                                    <div style={{ color: '#94a3b8', fontSize: '11px', fontStyle: 'italic', padding: '8px' }}>
+                                                        IST Reached
+                                                    </div>
                                                 )}
                                             </td>
+
                                             <td data-label="Final Spot?">
                                                 <select
                                                     value={r.spot}

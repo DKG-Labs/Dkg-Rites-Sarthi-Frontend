@@ -26,6 +26,13 @@
     gap: 12px;
 }
 
+.moisture-grid-one-line {
+    display: grid;
+    grid-template-columns: 0.8fr 1.2fr 1fr 1.5fr;
+    gap: 12px;
+}
+
+
 .moisture-mix-grid {
     display: grid;
     grid-template-columns: 2fr 1fr 1fr;
@@ -41,33 +48,39 @@
 }
 
 .moisture-calc-grid {
-    margin-top: 1.5rem;
+    margin-top: 1rem;
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-    gap: 12px;
+    gap: 10px;
 }
 
+
 .calc-card {
-    padding: 8px;
+    padding: 6px 10px;
     background: white;
-    border-radius: 8px;
+    border-radius: 10px;
     border: 1px solid #e2e8f0;
     display: flex;
     flex-direction: column;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
 }
 
+
 .calc-card .mini-label {
-    font-size: 9px;
+    font-size: 8px;
     color: #94a3b8;
     text-transform: uppercase;
-    font-weight: 700;
+    font-weight: 800;
+    margin-bottom: 2px;
 }
 
 .calc-card .calc-value {
-    font-size: 0.9rem;
-    font-weight: 700;
+    font-size: 0.85rem;
+    font-weight: 800;
     color: #1e293b;
 }
+
 
 .moisture-tabs {
     display: flex;
@@ -143,7 +156,18 @@
     .moisture-tabs {
         flex-direction: column;
     }
+
+    .moisture-grid-one-line {
+        grid-template-columns: 1fr 1fr;
+    }
 }
+
+@media (max-width: 480px) {
+    .moisture-grid-one-line {
+        grid-template-columns: 1fr;
+    }
+}
+
 
 .design-weights-card,
 .user-weights-card {
@@ -299,16 +323,17 @@
 }
 
 .cell {
-    padding: 10px 8px;
+    padding: 6px 4px;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     border-right: 1px solid #f1f5f9;
     transition: all 0.2s ease;
     text-align: center;
 }
+
 
 .cell:last-child {
     border-right: none;
@@ -354,15 +379,16 @@
 
 .input-row .cell input {
     width: 100%;
-    padding: 8px;
+    padding: 4px 6px;
     border: 1px solid #cbd5e1;
     border-radius: 6px;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-weight: 700;
     color: #1e293b;
     background: #f8fafc;
     transition: all 0.2s;
 }
+
 
 .input-row .cell input:focus {
     outline: none;

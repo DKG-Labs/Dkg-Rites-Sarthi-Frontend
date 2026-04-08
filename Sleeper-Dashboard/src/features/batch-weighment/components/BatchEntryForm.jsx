@@ -2,7 +2,10 @@ import React, { useState } from 'react';
 import InitialDeclaration from './InitialDeclaration';
 import WeightBatching from './WeightBatching';
 import ManualDataEntry from './ManualDataEntry';
+import BatchLogs from './BatchLogs';
+
 import { apiService } from '../../../services/api';
+import { useShift } from '../../../context/ShiftContext';
 
 const BatchEntryForm = ({
     setShowForm,
@@ -17,6 +20,7 @@ const BatchEntryForm = ({
     sessionConfig,
     setSessionConfig
 }) => {
+    const { vendorCode, dutyUnit, selectedShift, dutyDate, userId } = useShift();
     const [formSections, setFormSections] = useState({ declaration: true, scada: true, manual: true, witness: true });
     const [isSaving, setIsSaving] = useState(false);
     const [witnessInfo, setWitnessInfo] = useState({ verifiedBy: '', remarks: '' });
@@ -25,16 +29,25 @@ const BatchEntryForm = ({
     const handleFinalSave = async () => {
         setIsSaving(true);
         try {
+            const [y, m, d] = (dutyDate || new Date().toISOString().split('T')[0]).split('-');
+            const formattedDate = `${d}/${m}/${y}`;
+
             const payload = {
                 lineNo: activeContainer?.name || "Line I",
-                entryDate: new Date().toLocaleDateString('en-GB'),
+                location: activeContainer?.name || 'Line I',
+                locationType: (activeContainer?.name || 'Line I').toLowerCase().includes('shed') ? 'Shed' : 'Line',
+                entryDate: formattedDate,
                 sandType: sensorConfig.sandType || "River Sand",
                 moistureSensorStatus: (sensorConfig.sensorStatus || "WORKING").toUpperCase(),
                 verifiedBy: witnessInfo.verifiedBy || "Operator",
                 remarks: witnessInfo.remarks || "Batch session sync",
                 entryMode: "MIXED",
-                createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
-                updatedBy: parseInt(localStorage.getItem('userId') || '118', 10),
+                vendorCode: vendorCode || localStorage.getItem('vendorCode'),
+                plantId: dutyUnit || localStorage.getItem('dutyUnit'),
+                shift: selectedShift || localStorage.getItem('selectedShift'),
+                date: formattedDate,
+                createdBy: userId || localStorage.getItem('userId'),
+                updatedBy: userId || localStorage.getItem('userId'),
                 batchDetails: batchDeclarations.map(d => ({
                     id: (typeof d.id === 'number' && d.id < 1000000) ? d.id : 0,
                     batchNo: String(d.batchNo || "0"),
@@ -85,15 +98,7 @@ const BatchEntryForm = ({
                 }))
             };
 
-            // Determine if this is an update or create
-            const existingId = batchDeclarations.find(d => d.parentId)?.parentId || 
-                             witnessedRecords.find(r => r.parentId)?.parentId;
-
-            if (existingId) {
-                await apiService.updateBatchWeighment(existingId, payload);
-            } else {
-                await apiService.createBatchWeighment(payload);
-            }
+            await apiService.createBatchWeighment(payload);
 
             if (loadShiftData) await loadShiftData();
             setShowForm(false);
@@ -191,68 +196,48 @@ const BatchEntryForm = ({
                             )}
                         </div>
 
-                        {/* Section 4: Witness Confirmation */}
+                        {/* Section 4: Summary for Review */}
                         <div style={{ background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
                             <div
                                 onClick={() => toggleSection('witness')}
                                 style={{ padding: '1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
                             >
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    <span style={{ background: '#475569', color: '#fff', fontSize: '0.75rem', fontWeight: '800', width: '24px', height: '24px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>4</span>
-                                    <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#1e293b', fontWeight: '800' }}>Witness Confirmation & Logs</h3>
+                                    <span style={{ background: '#64748b', color: '#fff', fontSize: '0.75rem', fontWeight: '800', width: '24px', height: '24px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>4</span>
+                                    <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#1e293b', fontWeight: '800' }}>Review Witnessed Records</h3>
                                 </div>
-                                <span style={{ transition: 'transform 0.2s', transform: formSections.witness ? 'rotate(180deg)' : 'rotate(0deg)', color: '#475569' }}>▼</span>
+                                <span style={{ transition: 'transform 0.2s', transform: formSections.witness ? 'rotate(180deg)' : 'rotate(0deg)', color: '#64748b' }}>▼</span>
                             </div>
                             {formSections.witness && (
                                 <div style={{ padding: '0 1.5rem 1.5rem 1.5rem', borderTop: '1px solid #e2e8f0', paddingTop: '1.5rem' }}>
-                                    <div style={{ marginBottom: '1.5rem', display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
-                                        <div className="form-field">
-                                            <label>Verified By (Witness Name)</label>
-                                            <input
-                                                type="text"
-                                                placeholder="Enter name"
-                                                value={witnessInfo.verifiedBy}
-                                                onChange={e => setWitnessInfo(prev => ({ ...prev, verifiedBy: e.target.value }))}
-                                                style={{ padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', width: '100%' }}
-                                            />
-                                        </div>
-                                        <div className="form-field">
-                                            <label>Overall Batch Remarks</label>
-                                            <input
-                                                type="text"
-                                                placeholder="Any deviations or observations..."
-                                                value={witnessInfo.remarks}
-                                                onChange={e => setWitnessInfo(prev => ({ ...prev, remarks: e.target.value }))}
-                                                style={{ padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', width: '100%' }}
-                                            />
-                                        </div>
+                                    <div style={{ marginBottom: '1rem', padding: '1rem', background: '#fff', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                                        <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Below are the records captured in Sections 2 and 3. Verify all weights before final confirmation.</p>
                                     </div>
-
-                                    {/* History list for current batch session */}
-                                    <ManualDataEntry
-                                        batches={batchDeclarations}
-                                        witnessedRecords={witnessedRecords.filter(r => r.batchNo === selectedBatchNo)}
-                                        onSave={handleSaveWitness}
-                                        activeContainer={activeContainer}
-                                        onDelete={handleDelete}
-                                        onlyHistory={true}
+                                    <BatchLogs 
+                                        batchDeclarations={batchDeclarations}
+                                        witnessedRecords={witnessedRecords} 
+                                        handleDelete={handleDelete} 
                                         small={true}
                                     />
 
-                                    <div style={{ marginTop: '1.5rem', textAlign: 'center', padding: '1.25rem', borderTop: '1px dashed #e2e8f0' }}>
-                                        <button
-                                            className="toggle-btn"
-                                            disabled={isSaving}
-                                            onClick={handleFinalSave}
-                                            style={{ minWidth: '200px', height: '40px', fontSize: '0.85rem', background: isSaving ? '#94a3b8' : '#1e293b' }}
-                                        >
-                                            {isSaving ? 'Processing...' : 'Confirm & Save Batch Records'}
-                                        </button>
-                                    </div>
                                 </div>
                             )}
                         </div>
+
                     </div>
+                </div>
+
+                {/* Fixed Footer for Save Action */}
+                <div style={{ background: '#f8fafc', padding: '1rem 1.5rem', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+                    <button onClick={() => setShowForm(false)} style={{ padding: '0 1.5rem', background: '#fff', border: '1px solid #cbd5e1', borderRadius: '8px', fontWeight: '700', color: '#64748b', cursor: 'pointer' }}>Cancel</button>
+                    <button
+                        className="toggle-btn"
+                        disabled={isSaving}
+                        onClick={handleFinalSave}
+                        style={{ padding: '0 1.5rem', height: '40px', fontSize: '0.85rem', background: isSaving ? '#94a3b8' : '#1e293b' }}
+                    >
+                        {isSaving ? 'Processing...' : 'Confirm & Save Batch Records'}
+                    </button>
                 </div>
             </div>
         </div>

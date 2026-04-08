@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { apiService } from '../../../services/api';
+import { useShift } from '../../../context/ShiftContext';
 
 /**
  * ManualDataEntry Component
  * Provides a form for manual batch result entry and displays a log of all witnessed records.
  */
 const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = false, onlyHistory = false, activeContainer, onDelete, small = false }) => {
+    const { dutyDate } = useShift();
     const defaultFormData = {
         date: new Date().toISOString().split('T')[0],
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
@@ -16,10 +18,76 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
     const [formData, setFormData] = useState(defaultFormData);
     const [editingId, setEditingId] = useState(null);
     const [saving, setSaving] = useState(false);
+    const [recentBatches, setRecentBatches] = useState([]);
 
-    const handleChange = (e) => {
+    useEffect(() => {
+        const fetchBatches = async () => {
+            try {
+                const res = await apiService.getLastFiveMoisture();
+                if (res?.responseData) {
+                    setRecentBatches(res.responseData);
+                }
+            } catch (err) {
+                console.error("Failed to fetch last 5 batches:", err);
+            }
+        };
+        fetchBatches();
+    }, []);
+
+    const handleChange = async (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
+
+        if (name === 'batchNo' && value) {
+            // Check if we need to fetch details for this batch to auto-fill limits or baselines
+            const recentMatch = recentBatches.find(b => String(b.batchNo) === String(value));
+            const existingBatch = batches.find(b => String(b.batchNo) === String(value));
+            
+            if (recentMatch && !existingBatch?.adjustedWeights) {
+                try {
+                    const res = await apiService.getMoistureAnalysisById(recentMatch.id);
+                    const detail = res?.responseData || res;
+                    if (detail) {
+                        setFormData(prev => ({
+                            ...prev,
+                            ca1: detail.wtAdoptedCa1 || '',
+                            ca2: detail.wtAdoptedCa2 || '',
+                            fa: detail.wtAdoptedFa || '',
+                            cement: detail.actualCement || detail.designCement || '',
+                            water: detail.adjustedWaterWt || detail.actualWater || '',
+                            admixture: detail.actualAdmix || detail.designAdmix || 1.44
+                        }));
+                        
+                        // We also temporarily push this into 'batches' context so that the onSave validation passes
+                        const artificialBatch = {
+                            batchNo: String(value),
+                            adjustedWeights: {
+                                ca1: detail.wtAdoptedCa1 || 0,
+                                ca2: detail.wtAdoptedCa2 || 0,
+                                fa: detail.wtAdoptedFa || 0,
+                                cement: detail.actualCement || detail.designCement || 0,
+                                water: detail.adjustedWaterWt || detail.actualWater || 0,
+                                admixture: detail.actualAdmix || detail.designAdmix || 1.44
+                            }
+                        };
+                        recentMatch.adjustedWeights = artificialBatch.adjustedWeights; // Store it back to recentBatches as cache
+                    }
+                } catch (err) {
+                    console.error("Failed to fetch detailed moisture info for batch", value, err);
+                }
+            } else if (existingBatch?.adjustedWeights) {
+                // Auto-fill from existing batch
+                setFormData(prev => ({
+                    ...prev,
+                    ca1: existingBatch.adjustedWeights.ca1 || '',
+                    ca2: existingBatch.adjustedWeights.ca2 || '',
+                    fa: existingBatch.adjustedWeights.fa || '',
+                    cement: existingBatch.adjustedWeights.cement || '',
+                    water: existingBatch.adjustedWeights.water || '',
+                    admixture: existingBatch.adjustedWeights.admixture || ''
+                }));
+            }
+        }
     };
 
     const handleEdit = async (record) => {
@@ -102,7 +170,7 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
         }
 
         // --- NEW VALIDATION: Allowed Error Check ---
-        const selectedBatch = batches.find(b => b.batchNo === formData.batchNo);
+        const selectedBatch = batches.find(b => String(b.batchNo) === String(formData.batchNo)) || recentBatches.find(b => String(b.batchNo) === String(formData.batchNo));
         if (selectedBatch && selectedBatch.adjustedWeights) {
             const adj = selectedBatch.adjustedWeights;
             
@@ -182,9 +250,14 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
                             <label htmlFor="manual-batch" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>Batch No.</label>
                             <select id="manual-batch" name="batchNo" value={formData.batchNo} onChange={handleChange} style={{ height: small ? '28px' : '32px', fontSize: small ? '0.75rem' : '0.8rem' }}>
                                 <option value="">-- Select --</option>
-                                {batches.map(b => <option key={b.id || b.batchNo} value={b.batchNo}>{b.batchNo}</option>)}
+                                {(() => {
+                                    const allBatches = [...batches, ...recentBatches];
+                                    const uniqueBatches = Array.from(new Set(allBatches.map(b => String(b.batchNo)))).filter(Boolean);
+                                    return uniqueBatches.map(bNo => <option key={bNo} value={bNo}>{bNo}</option>);
+                                })()}
                             </select>
                         </div>
+
                         <div className="form-field">
                             <label htmlFor="manual-ca1" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>CA1 (±3%) - Actual Wt. (Kg)</label>
                             <input id="manual-ca1" type="number" name="ca1" value={formData.ca1} onChange={handleChange} placeholder="Kgs" style={{ height: small ? '28px' : '32px', fontSize: small ? '0.75rem' : '0.8rem' }} />
@@ -278,22 +351,36 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
                                                         </span>
                                                     </td>
                                                     <td data-label="Actions">
-                                                        <div style={{ display: 'flex', gap: small ? '4px' : '8px', justifyContent: 'center' }}>
-                                                            <button
-                                                                onClick={() => handleEdit(record)}
-                                                                className="btn-action mini"
-                                                                style={{ background: '#3b82f6', color: '#fff' }}
-                                                            >
-                                                                Edit
-                                                            </button>
-                                                            <button
-                                                                onClick={() => onDelete(record.id)}
-                                                                className="btn-action danger mini"
-                                                                style={{ background: '#ef4444', color: '#fff' }}
-                                                            >
-                                                                Del
-                                                            </button>
-                                                        </div>
+                                                        {(() => {
+                                                            const todayStr = new Date().toISOString().split('T')[0];
+                                                            const [y, m, d] = todayStr.split('-');
+                                                            const todayDMY = `${d}/${m}/${y}`;
+                                                            
+                                                            const recordDate = record.date || record.entryDate || "";
+                                                            const isToday = recordDate.includes(todayStr) || recordDate.includes(todayDMY);
+                                                            
+                                                            if (isToday) {
+                                                                return (
+                                                                    <div style={{ display: 'flex', gap: small ? '4px' : '8px', justifyContent: 'center' }}>
+                                                                        <button
+                                                                            onClick={() => handleEdit(record)}
+                                                                            className="btn-action mini"
+                                                                            style={{ background: '#3b82f6', color: '#fff' }}
+                                                                        >
+                                                                            Edit
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => onDelete(record.id)}
+                                                                            className="btn-action danger mini"
+                                                                            style={{ background: '#ef4444', color: '#fff' }}
+                                                                        >
+                                                                            Del
+                                                                        </button>
+                                                                    </div>
+                                                                );
+                                                            }
+                                                            return <span style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', display: 'block' }}>Fixed</span>;
+                                                        })()}
                                                     </td>
                                                 </tr>
                                             ))}
@@ -303,10 +390,19 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
                             </div>
                         );
 
+                        const sortedRecords = [...witnessedRecords].sort((a, b) => {
+                            const dateA = (a.date && a.date.includes('/')) ? a.date.split('/').reverse().join('-') : (a.date || '');
+                            const dateB = (b.date && b.date.includes('/')) ? b.date.split('/').reverse().join('-') : (b.date || '');
+                            
+                            if (dateA !== dateB) return dateB.localeCompare(dateA);
+                            return String(b.time || '').localeCompare(String(a.time || ''));
+                        });
+
                         return (
                             <>
-                                {witnessedRecords.length > 0 ? (
-                                    renderTable(witnessedRecords, "BATCH WEIGHMENT LOGS", "#10b981")
+                                {sortedRecords.length > 0 ? (
+                                    renderTable(sortedRecords, "BATCH WEIGHMENT LOGS", "#10b981")
+
                                 ) : (
                                     <div style={{ padding: '3rem', textAlign: 'center', color: '#64748b', fontStyle: 'italic', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                                         No witnessed declarations found.

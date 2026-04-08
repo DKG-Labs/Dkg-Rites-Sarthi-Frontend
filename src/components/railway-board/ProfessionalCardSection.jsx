@@ -141,6 +141,11 @@ const ProfessionalCardSection = ({
     const [mpiaSearch, setMpiaSearch] = useState('');
     const [mpiaSort, setMpiaSort] = useState({ key: null, direction: 'asc' });
 
+    // Reset pages to 0 when search query changes
+    useEffect(() => { setMprPage(0); }, [mprSearch, setMprPage]);
+    useEffect(() => { setMauPage(0); }, [mauSearch, setMauPage]);
+    useEffect(() => { setMpiaPage(0); }, [mpiaSearch, setMpiaPage]);
+
     const [isPreparingBatchPdf, setIsPreparingBatchPdf] = useState(false);
     const [batchReportData, setBatchReportData] = useState(null);
     const [batchProgress, setBatchProgress] = useState(0);
@@ -173,6 +178,9 @@ const ProfessionalCardSection = ({
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
     const [perfFilterIe, setPerfFilterIe] = useState('all');
     const [perfFilterStage, setPerfFilterStage] = useState('all');
+
+    // Reset performance page when filters change
+    useEffect(() => { setPerfPage(0); }, [perfFilterIe, perfFilterStage, setPerfPage]);
 
     // Filtered & Sorted MPR Data
     const displayMprData = React.useMemo(() => {
@@ -1523,8 +1531,8 @@ const MpiaReportPage = ({ manufacturer, data, showFooter = true }) => {
     const totalInspectedAllMonths = data.reduce((acc, m) => acc + (m.inspected || 0), 0);
 
     const pieData = Object.entries(defectAgg)
-        .map(([name, value]) => ({ 
-            name, 
+        .map(([name, value]) => ({
+            name,
             value,
             rate: totalInspectedAllMonths > 0 ? (value / totalInspectedAllMonths) * 100 : 0
         }))

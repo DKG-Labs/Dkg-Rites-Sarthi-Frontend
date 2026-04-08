@@ -107,6 +107,11 @@ const DataTable = ({ columns, data, onRowClick, actions, selectable, selectedRow
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(initialPageSize);
 
+  // Reset page to 1 when search term changes
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
   // Helper function to get rendered text from a column
   const getRenderedText = (row, column) => {
     if (!column.render) {

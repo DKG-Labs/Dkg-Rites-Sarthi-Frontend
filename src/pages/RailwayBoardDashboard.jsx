@@ -133,6 +133,15 @@ const RailwayBoardDashboard = () => {
         reportService.getManufactureProcessAnalysis, activeReport === 'mpia' && activeMainCard === 'reports' ? mpiaParams : undefined
     );
 
+    // Reset all pages when global filters change
+    useEffect(() => {
+        setPage(0);
+        setPerfPage(0);
+        setMprPage(0);
+        setMauPage(0);
+        setMpiaPage(0);
+    }, [dashboardFilters]);
+
     const [lwclCallNo, setLwclCallNo] = useState('');
     const [lwclLotNo, setLwclLotNo] = useState('');
     const [lwclRequestIds, setLwclRequestIds] = useState([]);
@@ -203,14 +212,19 @@ const RailwayBoardDashboard = () => {
     const handleChangePage = (newPage) => setPage(newPage);
     const handleChangeRowsPerPage = (newRows) => setRowsPerPage(newRows);
 
+    // Reset page to 0 when search changes
+    useEffect(() => {
+        setPage(0);
+    }, [poSearch]);
+
     // Filtered & Sorted PO Data (Client-side)
     const displayPoData = React.useMemo(() => {
         let result = [...(reportData || [])];
-        
+
         // Search filter
         if (poSearch) {
             const query = poSearch.toLowerCase();
-            result = result.filter(po => 
+            result = result.filter(po =>
                 (po.rly || '').toLowerCase().includes(query) ||
                 (po.poNo || '').toLowerCase().includes(query) ||
                 (po.vendor || '').toLowerCase().includes(query) ||
@@ -274,13 +288,13 @@ const RailwayBoardDashboard = () => {
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '15px' }}>
                 <div className="prof-search-wrapper" style={{ position: 'relative', width: '300px' }}>
                     <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontSize: '13px' }}></i>
-                    <input 
-                        type="text" 
-                        placeholder="Search POs, Vendors..." 
-                        className="prof-search" 
+                    <input
+                        type="text"
+                        placeholder="Search POs, Vendors..."
+                        className="prof-search"
                         style={{ width: '100%', paddingLeft: '35px' }}
-                        value={poSearch} 
-                        onChange={(e) => setPoSearch(e.target.value)} 
+                        value={poSearch}
+                        onChange={(e) => setPoSearch(e.target.value)}
                     />
                 </div>
             </div>

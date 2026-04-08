@@ -302,9 +302,31 @@ export const ShiftProvider = ({ children }) => {
     };
 
     const fetchSteamCuring = async () => {
-        const res = await apiService.getAllSteamCuring();
-        if (res?.responseData) {
-            setSteamRecords(mapSteamCuringRecords(res.responseData));
+        const currentUserId = userId || localStorage.getItem('userId');
+        const currentVendorCode = vendorCode || localStorage.getItem('vendorCode');
+        const currentShift = selectedShift || localStorage.getItem('selectedShift');
+        const currentPlantId = dutyUnit || localStorage.getItem('dutyUnit');
+        const currentDutyDate = dutyDate || localStorage.getItem('dutyDate') || new Date().toISOString().split('T')[0];
+
+        // Format date to dd/MM/yyyy
+        const [y, m, d] = currentDutyDate.split('-');
+        const formattedDate = `${d}/${m}/${y}`;
+
+        const params = {
+            plantId: currentPlantId || ":41647/01",
+            vendorCode: currentVendorCode || "134",
+            shift: currentShift || "1",
+            createdBy: currentUserId || "135",
+            date: formattedDate
+        };
+
+        try {
+            const res = await apiService.getSteamCuringTodayRecord(params);
+            if (res?.responseData) {
+                setSteamRecords(mapSteamCuringRecords(res.responseData));
+            }
+        } catch (error) {
+            console.error("Error fetching steam curing today records:", error);
         }
     };
 

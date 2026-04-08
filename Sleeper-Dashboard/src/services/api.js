@@ -134,6 +134,7 @@ export const apiService = {
     createSteamCuring: (payload) => api.post('/steam-curing/create', payload),
     updateSteamCuring: (id, payload) => api.put(`/steam-curing/update/${id}`, payload),
     deleteSteamCuring: (id) => api.delete(`/steam-curing/delete/${id}`),
+    getSteamCuringTodayRecord: (params) => api.get('/steam-curing/steamCuringData', { params }),
 
     // ================= Batch Weighment =================
     getAllBatchWeighment: () => getWithCache('/batch-weighment/get-all'),
@@ -211,10 +212,7 @@ export const apiService = {
     // getPlantProfileById:       (id) => api.get(`/plant-profile/getById/${id}`),
     getPlantProfileById: (id) => api.get(`/plant-profile/${id}`),
     getDistinctShedsByVendorCode: (vendorCode) => api.get(`/plant-profile/vendor/${vendorCode}/sheds`),
-    getPlantSheds: (vendorId, plantId) => api.get(`/plant-profile/vendor/{vendorId}/{plantId}/sheds`, { 
-        params: { vendorId, plantId } 
-    }),
-
+    getPlantSheds: (vendorId, plantId) => api.get(`/plant-profile/vendor/%7BvendorId%7D/%7BplantId%7D/sheds?vendorId=${vendorId}&plantId=${encodeURIComponent(plantId)}`),
 
     // moduleId=2  STRESS_BENCH_MASTER
     getBenchMouldMasterById: (id) => api.get(`/stress-bench/get/${id}`),
@@ -249,6 +247,10 @@ export const apiService = {
     getVerifiedProductionDeclarations: () => api.get('/production-declaration/verified-declarations'),
     getAllProductionBatches: (vendorId, castingDate, plantId, productionUnit) =>
         api.get('/production-declaration/getAll/batches', {
+            params: { vendorId, castingDate, plantId, productionUnit }
+        }),
+    getProductionBatchesWithId: (vendorId, castingDate, plantId, productionUnit) =>
+        api.get('/production-declaration/getAll/batchesWithId', {
             params: { vendorId, castingDate, plantId, productionUnit }
         }),
     getAllProductionBenches: (batchNo) => api.get(`/production-declaration/getAll/benches?batchNo=${batchNo}`),

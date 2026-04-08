@@ -124,6 +124,9 @@ export const mapBatchWeighmentData = (responseData, containers) => {
             id: d.id,
             parentId: session.id,
             batchNo: d.batchNo,
+            date: session.entryDate,
+            location: session.lineNo,
+            concreteGrade: session.concreteGrade,
             proportionMatch: d.proportionStatus,
             setValues: {
                 ca1: d.ca1Set, ca2: d.ca2Set, fa: d.faSet,

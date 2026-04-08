@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { apiService } from '../../services/api';
 import { useShift } from '../../context/ShiftContext';
 import CollapsibleSection from '../../components/common/CollapsibleSection';
+import { formatToIST } from '../../utils/helpers';
 
 const SteamCuringSubCard = ({ id, title, color, statusDetail, isActive, onClick }) => {
     const label = id === 'stats' ? 'ANALYSIS' : id === 'witnessed' ? 'HISTORY' : 'SCADA';
@@ -69,7 +70,7 @@ const InlineRow = ({ cols }) => (
 );
 
 const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: propSetSteamRecords, displayMode = 'modal', batches: propBatches = [], activeContainer }) => {
-    const { containers, allBatchDeclarations, dutyDate, vendorId, dutyUnit, fetchSteamCuring } = useShift();
+    const { containers, allBatchDeclarations, dutyDate, vendorId, dutyUnit, fetchSteamCuring, vendorCode, selectedShift, userId } = useShift();
     const [viewMode, setViewMode] = useState('witnessed');
     const [availableLocations, setAvailableLocations] = useState([]);
     const [batchOptions, setBatchOptions] = useState([]);
@@ -128,14 +129,14 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
     const [editParentId, setEditParentId] = useState(null);
 
     const [manualForm, setManualForm] = useState({
-        date: new Date().toISOString().split('T')[0],
+        date: formatToIST(null, 'iso_date'),
         batchNo: '', 
         chamberNo: '', 
         benches: '', 
         minConstTemp: '', 
         maxConstTemp: '',
         location: activeContainer?.name || '',
-        dateOfCasting: dutyDate || new Date().toISOString().split('T')[0],
+        dateOfCasting: dutyDate || formatToIST(null, 'iso_date'),
         grade: 'M60'
     });
 
@@ -455,8 +456,19 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
             }
         } else {
             setEntries(prev => [newEntry, ...prev]);
+            alert('Manual record added. Please remember to click "Save / Finish Batch" at the bottom to sync with the server.');
         }
-        setManualForm({ date: new Date().toISOString().split('T')[0], batchNo: '', chamberNo: '', benches: '', minConstTemp: '', maxConstTemp: '' });
+        setManualForm({ 
+            date: formatToIST(null, 'iso_date'), 
+            batchNo: '', 
+            chamberNo: '', 
+            benches: '', 
+            minConstTemp: '', 
+            maxConstTemp: '',
+            location: manualForm.location || activeContainer?.name || '',
+            dateOfCasting: manualForm.dateOfCasting || dutyDate || formatToIST(null, 'iso_date'),
+            grade: 'M60'
+        });
     };
 
     const handleFinalSave = async () => {
@@ -511,11 +523,20 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                     finalDuration: parseFloat(e.finalDuration) || 0
                 }));
 
+            const currentVendorCode = vendorCode || localStorage.getItem('vendorCode');
+            const currentShift = selectedShift || localStorage.getItem('selectedShift');
+            const currentPlantId = dutyUnit || localStorage.getItem('dutyUnit');
+
             const payload = {
                 batchNo: String(batchToSave),
                 chamber: String(selectedChamber || manualForm.chamberNo),
                 grade: 'M60',
-                entryDate: manualForm.date ? manualForm.date.split('-').reverse().join('/') : new Date().toLocaleDateString('en-GB'),
+                entryDate: manualForm.date ? manualForm.date.split('-').reverse().join('/') : formatToIST(null, 'date'),
+                location: manualForm.location,
+                vendorCode: currentVendorCode,
+                plantId: currentPlantId,
+                shift: currentShift,
+                createdBy: userId || localStorage.getItem('userId'),
                 scadaRecords: scadaRecordsPayload,
                 manualRecords
             };
@@ -735,7 +756,7 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                                     <input 
                                         value={manualForm.chamberNo} 
                                         readOnly 
-                                        placeholder={manualForm.location.toLowerCase().includes('line') ? 'N/A (Long Line)' : 'Automated...'}
+                                        placeholder={(manualForm.location || '').toLowerCase().includes('line') ? 'N/A (Long Line)' : 'Automated...'}
                                         style={{ background: '#f8fafc', fontSize: '13px', padding: '6px', border: '1px solid #e2e8f0', color: '#64748b' }} 
                                     />
                                 </div>
@@ -924,7 +945,7 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                                     <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', marginRight: '6px' }}>Batch No.:</label>
                                     <select className="dash-select" value={selectedBatch} onChange={e => setSelectedBatch(e.target.value)}>
                                         <option value="">-- Select --</option>
-                                        {availableBatches.map(b => <option key={b} value={b}>{b}</option>)}
+                                        {availableBatches.map(b => <option key={b.id} value={b.id}>{b.batchNo}</option>)}
                                     </select>
                                 </div>
                                 <div>

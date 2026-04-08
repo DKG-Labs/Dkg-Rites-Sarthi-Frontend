@@ -1,4 +1,39 @@
 /**
+ * India Standard Time (IST) Helpers
+ * Ensures that device timezone changes do not affect data consistency.
+ */
+const IST_OFFSET = 5.5 * 60 * 60 * 1000;
+
+export const getISTDate = () => {
+  const now = new Date();
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  return new Date(utc + IST_OFFSET);
+};
+
+export const formatToIST = (date, format = 'date') => {
+  const d = date ? new Date(date) : getISTDate();
+  if (isNaN(d.getTime())) return '-';
+
+  // If we are passing a date object that was already adjusted, we don't want to adjust again
+  // But usually, we pass a raw date or null.
+  
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  
+  if (format === 'date') return `${day}/${month}/${year}`;
+  if (format === 'iso_date') return `${year}-${month}-${day}`;
+  
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  const seconds = String(d.getSeconds()).padStart(2, '0');
+  
+  if (format === 'time') return `${hours}:${minutes}`;
+  if (format === 'full') return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+  return `${day}/${month}/${year}`;
+};
+
+/**
  * Call Desk Module Helper Functions
  * Utility functions for the Call Desk Module
  */

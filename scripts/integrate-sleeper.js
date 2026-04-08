@@ -52,6 +52,66 @@ try {
         console.error('Error: Sleeper-Dashboard directory not found.');
     }
 
+    console.log('\n--- Injecting root server configuration (web.config) ---');
+    const webConfigContent = `<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <system.webServer>
+    <staticContent>
+      <remove fileExtension=".js" />
+      <mimeMap fileExtension=".js" mimeType="application/javascript" />
+      <remove fileExtension=".jsx" />
+      <mimeMap fileExtension=".jsx" mimeType="application/javascript" />
+      <remove fileExtension=".css" />
+      <mimeMap fileExtension=".css" mimeType="text/css" />
+      <remove fileExtension=".json" />
+      <mimeMap fileExtension=".json" mimeType="application/json" />
+      <remove fileExtension=".woff" />
+      <mimeMap fileExtension=".woff" mimeType="application/font-woff" />
+      <remove fileExtension=".woff2" />
+      <mimeMap fileExtension=".woff2" mimeType="application/font-woff2" />
+    </staticContent>
+    <rewrite>
+      <rules>
+        <!-- Rule 1: STOP PROCESSING and Serve Sleeper Assets Directly -->
+        <rule name="Sleeper Assets Pass-Through" stopProcessing="true">
+          <match url="^sleeper/assets/(.*)" />
+          <action type="None" />
+        </rule>
+        
+        <!-- Rule 2: SPA Fallback for Sleeper Dashboard -->
+        <rule name="Sleeper Dashboard SPA" stopProcessing="true">
+          <match url="^sleeper(/.*)?" />
+          <conditions logicalGrouping="MatchAll">
+            <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="true" />
+            <add input="{REQUEST_FILENAME}" matchType="IsDirectory" negate="true" />
+          </conditions>
+          <action type="Rewrite" url="/sleeper/index.html" />
+        </rule>
+
+        <!-- Rule 3: SPA Fallback for Main App -->
+        <rule name="Parent App SPA" stopProcessing="true">
+          <match url=".*" />
+          <conditions logicalGrouping="MatchAll">
+            <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="true" />
+            <add input="{REQUEST_FILENAME}" matchType="IsDirectory" negate="true" />
+            <add input="{REQUEST_URI}" pattern="^/sleeper" negate="true" />
+          </conditions>
+          <action type="Rewrite" url="/index.html" />
+        </rule>
+      </rules>
+    </rewrite>
+    <httpErrors errorMode="Detailed" />
+  </system.webServer>
+</configuration>`;
+    
+    const buildPath = path.join(process.cwd(), 'build');
+    if (fs.existsSync(buildPath)) {
+        fs.writeFileSync(path.join(buildPath, 'web.config'), webConfigContent);
+        console.log('web.config successfully injected into /build directory.');
+    } else {
+        console.warn('Warning: build directory not found. Skipping web.config injection.');
+    }
+
     console.log('\nDeployment-ready build completed successfully.');
 } catch (error) {
     console.error('\nBuild failed:', error.message);

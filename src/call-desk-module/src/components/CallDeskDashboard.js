@@ -259,13 +259,15 @@ const CallDeskDashboard = () => {
     );
   }
 
-  // Error state
-  if (error) {
+  // Error state - only show full page error if we have NO data at all
+  const isDataEmpty = pendingCalls.length === 0 && verifiedCalls.length === 0 && !dashboardKPIs;
+  
+  if (error && isDataEmpty) {
     return (
       <div className="dashboard-container">
         <div className="error-state">
           <p className="error-message">❌ {error}</p>
-          <button className="btn btn-primary" onClick={refreshData}>
+          <button className="btn btn-primary" onClick={() => refreshData()}>
             Retry
           </button>
         </div>

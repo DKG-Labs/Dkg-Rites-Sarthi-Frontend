@@ -221,6 +221,10 @@ const RailwayBoardDashboard = () => {
     const displayPoData = React.useMemo(() => {
         let result = [...(reportData || [])];
 
+        // Filter by Item Category Description (Elastic Rail Clips only)
+        // Helper function defined at the bottom of this file
+        result = getOnlyErcRecords(result);
+
         // Search filter
         if (poSearch) {
             const query = poSearch.toLowerCase();
@@ -471,6 +475,13 @@ const RailwayBoardDashboard = () => {
             </div>
         </div>
     );
+};
+
+// Helper function to filter records by 'Elastic Rail Clips' category
+// Placed at the bottom of the file as requested.
+const getOnlyErcRecords = (data) => {
+    if (!data || !Array.isArray(data)) return [];
+    return data.filter(po => po.itemCatDescr === 'Elastic Rail Clips');
 };
 
 export default RailwayBoardDashboard;

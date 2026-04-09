@@ -10,15 +10,53 @@ import { useShift } from '../../../context/ShiftContext';
 const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorUpdate, activeContainer, loadShiftData, initialSensors }) => {
     const { vendorCode, dutyUnit, selectedShift, dutyDate, userId } = useShift();
     const [sensors, setSensors] = useState(initialSensors || {
-        sensorStatus: 'working', // 'working', 'notAvailable', 'notWorking'
-        sandType: ''
+        sensorStatus: 'Working', 
+        sandType: '',
+        location: '',
+        castingDate: new Date().toISOString().split('T')[0],
+        batchNo: ''
     });
 
     const [batches, setBatches] = useState([]);
     const [saving, setSaving] = useState(false);
     const [lastFiveMoisture, setLastFiveMoisture] = useState([]);
+    const [availableLocations, setAvailableLocations] = useState([]);
     const [selectedMoistureReportId, setSelectedMoistureReportId] = useState('');
     const [fetchingMoistureDetail, setFetchingMoistureDetail] = useState(false);
+
+    const effectiveVendorId = userId || localStorage.getItem('userId') || vendorCode?.replace(':', '');
+    const effectivePlantId = dutyUnit || localStorage.getItem('dutyUnit');
+    console.log("Batch IDs:", { effectiveVendorId, effectivePlantId });
+
+    // Fetch dynamic locations for the current plant
+    useEffect(() => {
+        const fetchLocations = async () => {
+            if (effectivePlantId && effectiveVendorId) {
+                try {
+                    const response = await apiService.getPlantSheds(effectiveVendorId, effectivePlantId);
+                    console.log("Plant Profile Response:", response);
+                    let locList = [];
+                    const data = response?.responseData || response;
+                    
+                    if (Array.isArray(data)) {
+                        data.forEach(item => { if (item && !locList.includes(item)) locList.push(String(item)); });
+                    } else if (typeof data === 'object' && data !== null) {
+                        Object.values(data).forEach((val) => {
+                            if (Array.isArray(val)) {
+                                val.forEach(id => { if (id && !locList.includes(id)) locList.push(String(id)); });
+                            } else if (typeof val === 'string' && val && !locList.includes(val)) {
+                                locList.push(val);
+                            }
+                        });
+                    }
+                    setAvailableLocations(locList);
+                } catch (err) {
+                    console.error("Error fetching locations in batch form:", err);
+                }
+            }
+        };
+        fetchLocations();
+    }, [effectivePlantId, effectiveVendorId]);
 
     // Fetch last five moisture reports on mount
     useEffect(() => {
@@ -138,13 +176,18 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
         }
         setSaving(true);
         try {
-            const [y, m, d] = (dutyDate || new Date().toISOString().split('T')[0]).split('-');
+            // Priority: Use user-selected casting date, fallback to dutyDate or today
+            const baseDate = sensors.castingDate || dutyDate || new Date().toISOString().split('T')[0];
+            const [y, m, d] = (baseDate).split('-');
             const formattedDate = `${d}/${m}/${y}`;
 
+            const selectedLocation = sensors.location || activeContainer?.name || 'Line I';
+            const locationType = String(selectedLocation).toLowerCase().includes('shed') ? 'Shed' : 'Line';
+
             const payload = {
-                lineNo: activeContainer?.name || "Line I",
-                location: activeContainer?.name || 'Line I',
-                locationType: (activeContainer?.name || 'Line I').toLowerCase().includes('shed') ? 'Shed' : 'Line',
+                lineNo: selectedLocation,
+                location: selectedLocation,
+                locationType: locationType,
                 entryDate: formattedDate,
                 sandType: sensors.sandType || "River Sand",
                 moistureSensorStatus: String(sensors.sensorStatus || "WORKING").toUpperCase(),
@@ -158,7 +201,7 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
                 createdBy: userId || localStorage.getItem('userId'),
                 updatedBy: userId || localStorage.getItem('userId'),
                 batchDetails: batches.map(b => ({
-                    batchNo: String(b.batchNo || "0"),
+                    batchNo: String(sensors.batchNo || b.batchNo || "0"),
                     proportionStatus: b.proportionMatch || "OK",
                     ca1Ref: parseFloat(b.adjustedWeights?.ca1) || 0,
                     ca2Ref: parseFloat(b.adjustedWeights?.ca2) || 0,
@@ -213,73 +256,103 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
                 <h4>Sensor & Lab Integration</h4>
             </div>
 
-            <div className="form-grid" style={{ marginBottom: '2rem' }}>
-                <div className="form-field">
-                    <label>Moisture Sensor Status</label>
-                    <div style={{ display: 'flex', gap: '2rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-                        <label className="radio-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                            <input
-                                type="radio"
-                                name="sensorStatus"
-                                value="working"
-                                checked={sensors.sensorStatus === 'working'}
-                                onChange={handleSensorChange}
-                                style={{ width: '16px', height: '16px', cursor: 'pointer', margin: 0 }}
-                            />
-                            <span style={{ color: '#059669', fontWeight: '600' }}>Working</span>
-                        </label>
-                        <label className="radio-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                            <input
-                                type="radio"
-                                name="sensorStatus"
-                                value="notAvailable"
-                                checked={sensors.sensorStatus === 'notAvailable'}
-                                onChange={handleSensorChange}
-                                style={{ width: '16px', height: '16px', cursor: 'pointer', margin: 0 }}
-                            />
-                            <span style={{ color: '#64748b', fontWeight: '600' }}>Not Available</span>
-                        </label>
-                        <label className="radio-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                            <input
-                                type="radio"
-                                name="sensorStatus"
-                                value="notWorking"
-                                checked={sensors.sensorStatus === 'notWorking'}
-                                onChange={handleSensorChange}
-                                style={{ width: '16px', height: '16px', cursor: 'pointer', margin: 0 }}
-                            />
-                            <span style={{ color: '#d97706', fontWeight: '600' }}>Not Working</span>
-                        </label>
-                    </div>
-                </div>
-
-                <div className="form-field">
-                    <label>Sand Type</label>
-                    <select name="sandType" value={sensors.sandType} onChange={handleSensorChange}>
-                        <option value="">-- Select Sand Type --</option>
-                        <option value="M-Sand">M-Sand</option>
-                        <option value="Natural Sand">Natural Sand</option>
+            <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', 
+                gap: '12px', 
+                alignItems: 'end',
+                background: '#fff',
+                padding: '16px',
+                borderRadius: '12px',
+                border: '1px solid #e2e8f0',
+                marginBottom: '2rem'
+            }}>
+                <div className="input-group">
+                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', display: 'block' }}>Sensor Status</label>
+                    <select 
+                        name="sensorStatus" 
+                        value={sensors.sensorStatus} 
+                        onChange={handleSensorChange}
+                        style={{ width: '100%', height: '38px', borderRadius: '6px', border: '1.5px solid #e2e8f0', fontSize: '12px' }}
+                    >
+                        <option value="Not available">Not available</option>
+                        <option value="Working">Working</option>
+                        <option value="Not Working">Not Working</option>
                     </select>
                 </div>
 
-                <div className="form-field">
-                    <label>Select Batch (From Last 5 Lab Reports) <span className="required">*</span> {fetchingMoistureDetail && <span style={{ fontSize: '0.65rem', color: '#42818c' }}>(Fetching Detail...)</span>}</label>
+                <div className="input-group">
+                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', display: 'block' }}>Sand Type</label>
+                    <select 
+                        name="sandType" 
+                        value={sensors.sandType} 
+                        onChange={handleSensorChange}
+                        style={{ width: '100%', height: '38px', borderRadius: '6px', border: '1.5px solid #e2e8f0', fontSize: '12px' }}
+                    >
+                        <option value="">-- Select --</option>
+                        <option value="Natural Sand">Natural Sand</option>
+                        <option value="Crushed Sand">Crushed Sand</option>
+                        <option value="River Sand">River Sand</option>
+                    </select>
+                </div>
+
+                <div className="input-group">
+                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', display: 'block' }}>Location</label>
+                    <select 
+                        name="location" 
+                        value={sensors.location} 
+                        onChange={handleSensorChange}
+                        style={{ width: '100%', height: '38px', borderRadius: '6px', border: '1.5px solid #e2e8f0', fontSize: '12px' }}
+                    >
+                        <option value="">-- Select --</option>
+                        {availableLocations.map((loc, i) => <option key={i} value={loc}>{loc}</option>)}
+                    </select>
+                </div>
+
+                <div className="input-group">
+                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', display: 'block' }}>Moisture Analysis</label>
                     <select 
                         value={selectedMoistureReportId} 
                         onChange={handleMoistureReportSelect}
                         style={{ 
-                            border: (selectedMoistureReportId ? '1px solid #42818c' : '2px solid #ef4444'),
-                            background: (selectedMoistureReportId ? '#eff6f7' : '#fef2f2'),
-                            fontWeight: '700'
+                            width: '100%', 
+                            height: '38px', 
+                            borderRadius: '6px', 
+                            border: (selectedMoistureReportId ? '1.5px solid #42818c' : '1.5px solid #ef4444'),
+                            fontSize: '11px',
+                            fontWeight: '600'
                         }}
                     >
-                        <option value="">-- Choose Batch No --</option>
+                        <option value="">-- Choose Lab Report --</option>
                         {lastFiveMoisture.map(report => (
                             <option key={report.id} value={report.id}>
-                                Batch #{report.batchNo} ({report.entryDate})
+                                Batch #{report.batchNo} ({report.entryDate} {report.time || ''})
                             </option>
                         ))}
                     </select>
+                </div>
+
+                <div className="input-group">
+                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', display: 'block' }}>Date of Casting</label>
+                    <input 
+                        type="date"
+                        name="castingDate"
+                        value={sensors.castingDate}
+                        onChange={handleSensorChange}
+                        style={{ width: '100%', height: '38px', borderRadius: '6px', border: '1.5px solid #e2e8f0', fontSize: '12px', padding: '0 8px' }}
+                    />
+                </div>
+
+                <div className="input-group">
+                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', display: 'block' }}>Batch Number</label>
+                    <input 
+                        type="number"
+                        name="batchNo"
+                        value={sensors.batchNo}
+                        onChange={handleSensorChange}
+                        placeholder="e.g. 101"
+                        style={{ width: '100%', height: '38px', borderRadius: '6px', border: '1.5px solid #e2e8f0', fontSize: '12px', padding: '0 8px' }}
+                    />
                 </div>
             </div>
 

@@ -220,7 +220,8 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
                     ca2: selectedPlan.ca2 || '0',
                     fa: selectedPlan.fa || '0',
                     water: selectedPlan.water || '0',
-                    admix: selectedPlan.admix || selectedPlan.admixtureLabel || '1.44'
+                    admix: selectedPlan.admixture || selectedPlan.admix || '1.44',
+                    admixPct: selectedPlan.cement > 0 ? ((parseFloat(selectedPlan.admixture || selectedPlan.admix || 0) / parseFloat(selectedPlan.cement)) * 100).toFixed(2) : '0.00'
                 };
                 
                 setCommonData(prev => ({
@@ -287,7 +288,7 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
                     const ca2 = (K * B).toFixed(2);
                     const fa = (K * C).toFixed(2);
                     const water = (K * D).toFixed(2);
-                    const admix = (K * E).toFixed(2);
+                    const admix = (K * E).toFixed(2); // J = K * E
 
                     return {
                         ...prev,
@@ -393,13 +394,13 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
         ? ((parseFloat(ca1Calc.batchWtDry) + parseFloat(ca2Calc.batchWtDry) + parseFloat(faCalc.batchWtDry)) / M)
         : 0;
 
-    // 35 = (Water / Cement) Ratio = W/C (Actual Water / Actual Cement)
+    // 35 = (Water / Cement) Ratio = W/C (Actual Water / Actual Cement) = 31 / M
     const step35_WCRatio = M > 0 ? (step31_WaterContent / M) : 0;
 
     const totalFreeMoisture = step32_TotalFreeMoisture.toFixed(3);
     const adjustedWater = step33_AdjustedWater.toFixed(3);
     const acRatio = step34_ACRatio.toFixed(2);
-    const wcRatio = step35_WCRatio.toFixed(3);
+    const wcRatio = step35_WCRatio.toFixed(3); // Point 235: 35 = 31 / M
 
     const handleSubmit = () => {
         if (!commonData.batchNo) {
@@ -563,9 +564,10 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
                                 <div className="cell col-label">CA2 (10) [B]</div>
                                 <div className="cell col-label">FA [C]</div>
                                 <div className="cell col-label">Water [D]</div>
-                                <div className="cell col-label">Admix [E]</div>
+                                <div className="cell col-label">Admix (Kg/m³) [E]</div>
+                                <div className="cell col-label">Admix (%)</div>
                             </div>
-
+ 
                             {/* Row 1: Autofetched (Design) */}
                             <div className="comparison-grid-row design-row">
                                 <div className="cell row-label design-text">Approved Design</div>
@@ -577,6 +579,7 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
                                 <div className="cell data-cell">{commonData.designValues?.fa}</div>
                                 <div className="cell data-cell">{commonData.designValues?.water}</div>
                                 <div className="cell data-cell">{commonData.designValues?.admix}</div>
+                                <div className="cell data-cell" style={{ color: '#0369a1', fontWeight: '800' }}>{commonData.designValues?.admixPct}%</div>
                             </div>
 
                             {/* Row 2: User Inputs (Manual) */}
@@ -603,6 +606,9 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
                                 </div>
                                 <div className="cell data-cell">
                                     <input id="moisture-actual-admix" name="actualAdmix" type="number" step="0.01" value={commonData.userDryAdmix} readOnly tabIndex={-1} placeholder="[J]" aria-label="Actual Admix Weight" style={{ background: '#f8fafc', color: '#64748b' }} />
+                                </div>
+                                <div className="cell data-cell calculated-cell" style={{ fontSize: '0.7rem' }}>
+                                    {((parseFloat(commonData.userDryAdmix) / (parseFloat(commonData.userDryCement) || 1)) * 100).toFixed(2)}%
                                 </div>
                             </div>
                         </div>

@@ -714,8 +714,8 @@ const SteamCubeDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelet
 const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete, activeContainer }) => {
     const [moistureReports, setMoistureReports] = useState([]);
     const [availableLocations, setAvailableLocations] = useState([]);
-    const { vendorId, dutyUnit } = useShift();
-    const effectiveVendorId = vendorId || localStorage.getItem('userId');
+    const { vendorId, dutyUnit, userId } = useShift();
+    const effectiveVendorId = userId || vendorId || localStorage.getItem('userId');
     const effectivePlantId = dutyUnit || localStorage.getItem('dutyUnit');
     
     const [formData, setFormData] = useState({
@@ -740,12 +740,15 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
                     const response = await apiService.getPlantSheds(effectiveVendorId, effectivePlantId);
                     let locList = [];
                     const data = response?.responseData || response;
-                    if (typeof data === 'object' && data !== null) {
-                        Object.values(data).forEach((ids) => {
-                            if (Array.isArray(ids)) {
-                                ids.forEach(id => {
-                                    if (id && !locList.includes(id)) locList.push(id);
-                                });
+                    
+                    if (Array.isArray(data)) {
+                        data.forEach(item => { if (item && !locList.includes(item)) locList.push(String(item)); });
+                    } else if (typeof data === 'object' && data !== null) {
+                        Object.values(data).forEach((val) => {
+                            if (Array.isArray(val)) {
+                                val.forEach(id => { if (id && !locList.includes(id)) locList.push(String(id)); });
+                            } else if (typeof val === 'string' && val && !locList.includes(val)) {
+                                locList.push(val);
                             }
                         });
                     }

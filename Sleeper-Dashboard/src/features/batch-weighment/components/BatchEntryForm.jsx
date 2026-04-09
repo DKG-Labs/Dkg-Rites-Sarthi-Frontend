@@ -205,7 +205,7 @@ const BatchEntryForm = ({
                             </div>
                             {formSections.manual && (
                                 <div style={{ padding: '0 1.5rem 1.5rem 1.5rem', borderTop: '1px solid #86efac', paddingTop: '1.5rem' }}>
-                                    <ManualDataEntry batches={activeBatchDeclarations} witnessedRecords={witnessedRecords} onSave={handleSaveWitness} activeContainer={activeContainer} onDelete={handleDelete} hideHistory={true} />
+                                    <ManualDataEntry batches={activeBatchDeclarations} witnessedRecords={witnessedRecords} onSave={handleSaveWitness} activeContainer={activeContainer} onDelete={handleDelete} hideHistory={true} globalConfig={sensorConfig} />
                                 </div>
                             )}
                         </div>

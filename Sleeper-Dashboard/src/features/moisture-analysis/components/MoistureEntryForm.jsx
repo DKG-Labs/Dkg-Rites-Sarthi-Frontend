@@ -35,10 +35,20 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
         const fetchMixDesigns = async () => {
             try {
                 const currentPlantId = dutyUnit || localStorage.getItem('dutyUnit');
-                // Fetch full mix design records for selection (Module 4)
-                const response = await apiService.getApprovedMixDesigns(4, vendorId, currentPlantId);
+                // Fetch full mix design records for selection (Module 4) - only passing moduleId as requested
+                const response = await apiService.getApprovedMixDesigns(4);
                 if (response?.responseData) {
-                    setMixDesignPlans(response.responseData);
+                    // Apply frontend filter as well to be safe (handles backend inconsistencies)
+                    const filtered = response.responseData.filter(m => {
+                        if (!currentPlantId) return true;
+                        
+                        // Clean IDs (remove leading colons or whitespace)
+                        const cleanConfigPlantId = currentPlantId.replace(/^:/, '').trim();
+                        const cleanRecordPlantId = (m.plantId || '').replace(/^:/, '').trim();
+                        
+                        return cleanConfigPlantId === cleanRecordPlantId;
+                    });
+                    setMixDesignPlans(filtered);
                 }
             } catch (error) {
                 console.error("Error fetching mix designs:", error);
@@ -548,12 +558,12 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
                                 <div className="cell col-label">Category</div>
                                 <div className="cell col-label">Design A/C</div>
                                 <div className="cell col-label">Design W/C</div>
-                                <div className="cell col-label">Cement</div>
-                                <div className="cell col-label">CA1 (20)</div>
-                                <div className="cell col-label">CA2 (10)</div>
-                                <div className="cell col-label">FA</div>
-                                <div className="cell col-label">Water</div>
-                                <div className="cell col-label">Admix</div>
+                                <div className="cell col-label">Cement [L]</div>
+                                <div className="cell col-label">CA1 (20) [A]</div>
+                                <div className="cell col-label">CA2 (10) [B]</div>
+                                <div className="cell col-label">FA [C]</div>
+                                <div className="cell col-label">Water [D]</div>
+                                <div className="cell col-label">Admix [E]</div>
                             </div>
 
                             {/* Row 1: Autofetched (Design) */}
@@ -571,26 +581,28 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
 
                             {/* Row 2: User Inputs (Manual) */}
                             <div className="comparison-grid-row input-row">
-                                <div className="cell row-label input-text">Actual Batch</div>
+                                <div className="cell row-label input-text">
+                                    Actual Batch [K={((parseFloat(commonData.userDryCement) || 0) / (parseFloat(commonData.designValues?.cement) || 1)).toFixed(3)}]
+                                </div>
                                 <div className="cell data-cell calculated-cell">{acRatio}</div>
                                 <div className="cell data-cell calculated-cell">{wcRatio}</div>
                                 <div className="cell data-cell">
-                                    <input id="moisture-actual-cement" name="actualCement" type="number" min="0" step="0.01" value={commonData.userDryCement} onChange={e => handleCommonChange('userDryCement', e.target.value)} placeholder="0.00" aria-label="Actual Cement Weight" />
+                                    <input id="moisture-actual-cement" name="actualCement" type="number" min="0" step="0.01" value={commonData.userDryCement} onChange={e => handleCommonChange('userDryCement', e.target.value)} placeholder="[M]" aria-label="Actual Cement Weight" />
                                 </div>
                                 <div className="cell data-cell">
-                                    <input id="moisture-actual-ca1" name="actualCA1" type="number" step="0.01" value={commonData.userDryCA1} readOnly tabIndex={-1} placeholder="0.00" aria-label="Actual CA1 Weight" style={{ background: '#f8fafc', color: '#64748b' }} />
+                                    <input id="moisture-actual-ca1" name="actualCA1" type="number" step="0.01" value={commonData.userDryCA1} readOnly tabIndex={-1} placeholder="[F]" aria-label="Actual CA1 Weight" style={{ background: '#f8fafc', color: '#64748b' }} />
                                 </div>
                                 <div className="cell data-cell">
-                                    <input id="moisture-actual-ca2" name="actualCA2" type="number" step="0.01" value={commonData.userDryCA2} readOnly tabIndex={-1} placeholder="0.00" aria-label="Actual CA2 Weight" style={{ background: '#f8fafc', color: '#64748b' }} />
+                                    <input id="moisture-actual-ca2" name="actualCA2" type="number" step="0.01" value={commonData.userDryCA2} readOnly tabIndex={-1} placeholder="[G]" aria-label="Actual CA2 Weight" style={{ background: '#f8fafc', color: '#64748b' }} />
                                 </div>
                                 <div className="cell data-cell">
-                                    <input id="moisture-actual-fa" name="actualFA" type="number" step="0.01" value={commonData.userDryFA} readOnly tabIndex={-1} placeholder="0.00" aria-label="Actual FA Weight" style={{ background: '#f8fafc', color: '#64748b' }} />
+                                    <input id="moisture-actual-fa" name="actualFA" type="number" step="0.01" value={commonData.userDryFA} readOnly tabIndex={-1} placeholder="[H]" aria-label="Actual FA Weight" style={{ background: '#f8fafc', color: '#64748b' }} />
                                 </div>
                                 <div className="cell data-cell">
-                                    <input id="moisture-actual-water" name="actualWater" type="number" step="0.01" value={commonData.userDryWater} readOnly tabIndex={-1} placeholder="0.00" aria-label="Actual Water Weight" style={{ background: '#f8fafc', color: '#64748b' }} />
+                                    <input id="moisture-actual-water" name="actualWater" type="number" step="0.01" value={commonData.userDryWater} readOnly tabIndex={-1} placeholder="[I]" aria-label="Actual Water Weight" style={{ background: '#f8fafc', color: '#64748b' }} />
                                 </div>
                                 <div className="cell data-cell">
-                                    <input id="moisture-actual-admix" name="actualAdmix" type="number" step="0.01" value={commonData.userDryAdmix} readOnly tabIndex={-1} placeholder="0.00" aria-label="Actual Admix Weight" style={{ background: '#f8fafc', color: '#64748b' }} />
+                                    <input id="moisture-actual-admix" name="actualAdmix" type="number" step="0.01" value={commonData.userDryAdmix} readOnly tabIndex={-1} placeholder="[J]" aria-label="Actual Admix Weight" style={{ background: '#f8fafc', color: '#64748b' }} />
                                 </div>
                             </div>
                         </div>
@@ -598,26 +610,29 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
                         {/* Summary Metrics */}
                         <div className="moisture-calc-grid">
                             <div className="calc-card">
-                                <span className="mini-label">Water Content</span>
+                                <span className="mini-label">Water Content (31)</span>
                                 <div className="calc-value">{step31_WaterContent.toFixed(2)}</div>
+                                <span className="hint-text">(D * M / L)</span>
                             </div>
                             <div className="calc-card highlight-border">
-                                <span className="mini-label">Total Free Moist.</span>
+                                <span className="mini-label">Act. Batch Free Moisture (32)</span>
                                 <div className="calc-value success-text">{totalFreeMoisture}</div>
+                                <span className="hint-text">(8 + 18 + 28)</span>
                             </div>
                             <div className="calc-card">
-                                <span className="mini-label">Adj. Water</span>
+                                <span className="mini-label">Adj. Water in Batch (33)</span>
                                 <div className="calc-value">{adjustedWater}</div>
+                                <span className="hint-text">(31 - 32)</span>
                             </div>
                             <div className="calc-card">
-                                <span className="mini-label">A/C Ratio</span>
+                                <span className="mini-label">Agg / Cement Ratio (34)</span>
                                 <div className="calc-value">{acRatio}</div>
-                                <span className="hint-text">Target: {commonData.designAC}</span>
+                                <span className="hint-text">(7 + 17 + 27) / M</span>
                             </div>
                             <div className="calc-card">
-                                <span className="mini-label">W/C Ratio</span>
+                                <span className="mini-label">Water / Cement Ratio (35)</span>
                                 <div className="calc-value">{wcRatio}</div>
-                                <span className="hint-text">Target: {commonData.designValues?.water || 0}</span>
+                                <span className="hint-text">(31 / M)</span>
                             </div>
                         </div>
 

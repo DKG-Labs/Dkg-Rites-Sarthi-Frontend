@@ -55,10 +55,16 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
                     // A record is "tested" if it has strength data
                     const isTested = !!r.avgStrength || (r.cubeResults && r.cubeResults.some(cr => cr.strength && cr.strength !== ""));
                     
+                    // Normalize creation timestamp for 8-hour window logic
+                    // If backend doesn't provide time, we assume 00:00 or current time for new logs
+                    const createdTimeStr = r.createdTime || r.lbcTime || '00:00';
+                    const createdAt = new Date(`${DateUtils.formatFromBackend(r.entryDate || r.castingDate)}T${createdTimeStr}`);
+
                     return {
                         ...r,
                         status: isTested ? 'Completed' : 'Testing Pending',
                         isTested: isTested,
+                        createdAt: createdAt,
                         castingDate: DateUtils.formatFromBackend(r.castingDate),
                         testDate: DateUtils.formatFromBackend(r.testDate),
                         cubeResults: (r.cubeResults || []).map(cr => ({
@@ -236,35 +242,49 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
     };
 
     const handleDeleteTest = async (id, sampleData) => {
-        if (!id) {
-            alert("No valid record ID found to delete.");
+        if (!id) return;
+
+        // Check 8-hour window based on creation time
+        const diffMs = Date.now() - new Date(sampleData.createdAt).getTime();
+        const hoursPassed = diffMs / (1000 * 60 * 60);
+
+        if (hoursPassed > 8) {
+            alert("This action is only allowed within 8 hours of log creation.");
             return;
         }
 
-        // Enforce 8-hour restriction for deletion if sample context is provided
-        if (sampleData) {
-            const declarationTime = new Date(sampleData.castingDate + 'T' + (sampleData.lbcTime || '00:00'));
-            const diffMs = Date.now() - declarationTime.getTime();
-            const hoursPassed = diffMs / (1000 * 60 * 60);
+        const msg = sampleData.isTested 
+            ? "Are you sure you want to remove this test result and move it back to 'Pending'?" 
+            : "Are you sure you want to delete this sample declaration?";
 
-            if (hoursPassed > 8) {
-                alert("This record is more than 8 hours old and cannot be deleted.");
-                return;
-            }
-        }
-
-        if (window.confirm('Are you sure you want to delete this test record?')) {
+        if (window.confirm(msg)) {
             try {
-                setDeclaredSamples(prev => prev.filter(r => r.id !== id));
-                setTestedRecords(prev => prev.filter(r => r.id !== id));
-
-                await apiService.deleteSteamCube(id);
-                alert('Record deleted successfully.');
-                loadData().catch(console.error);
-            } catch (error) {
-                console.error('Error deleting test record:', error);
-                alert(`Failed to delete record: ${error.message}`);
+                if (sampleData.isTested) {
+                    // "Delete" for tested records means resetting the test data
+                    const payload = {
+                        ...sampleData,
+                        avgStrength: null,
+                        result: null,
+                        testDate: null,
+                        cubeResults: (sampleData.cubeResults || []).map(cr => ({
+                            ...cr,
+                            strength: "",
+                            load: "",
+                            weight: "",
+                            testDate: null
+                        }))
+                    };
+                    await apiService.updateSteamCube(id, payload);
+                } else {
+                    // "Delete" for declared records is a hard delete
+                    await apiService.deleteSteamCube(id);
+                }
+                
+                alert('Action success.');
                 loadData();
+            } catch (error) {
+                console.error('Error in delete action:', error);
+                alert('Failed: ' + error.message);
             }
         }
     };
@@ -289,6 +309,16 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
             }
         },
         { key: 'concreteGrade', label: 'Concrete Grade', render: (_, row) => row.concreteGrade || row.grade || '-' },
+        {
+            key: 'createdAt',
+            label: 'Date & Time of Log Created',
+            render: (_, row) => {
+                if (!row.createdAt) return '-';
+                const d = new Date(row.createdAt);
+                if (isNaN(d.getTime())) return '-';
+                return `${d.toLocaleDateString('en-GB')} ${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
+            }
+        },
         { 
             key: 'noOfCubes', 
             label: 'No. of Cubes', 
@@ -320,7 +350,7 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
             label: 'Actions',
             render: (_, row) => (
                 <div style={{ display: 'flex', gap: '8px' }}>
-                    <button className="btn-verify" style={{ padding: '4px 12px', height: '28px', fontSize: '11px' }} onClick={() => handleOpenDetails(row)}>Open Details</button>
+                    <button className="btn-verify" style={{ height: '28px', padding: '4px 12px', fontSize: '11px' }} onClick={() => handleOpenDetails(row)}>View Details</button>
                 </div>
             )
         }
@@ -342,45 +372,29 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
             }
         },
         { key: 'concreteGrade', label: 'Concrete Grade', render: (_, row) => row.concreteGrade || row.grade || '-' },
-        { 
-            key: 'status', 
-            label: 'Status', 
-            render: (_, row) => (
-                <span className="status-pill witnessed" style={{ 
-                    background: '#ecfdf5', 
-                    color: '#059669', 
-                    border: '1px solid #059669' 
-                }}>
-                    {row.status || 'Completed'}
-                </span>
-            )
+        {
+            key: 'createdAt',
+            label: 'Date & Time of Log Created',
+            render: (_, row) => {
+                if (!row.createdAt) return '-';
+                const d = new Date(row.createdAt);
+                if (isNaN(d.getTime())) return '-';
+                return `${d.toLocaleDateString('en-GB')} ${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
+            }
         },
-        { key: 'ageDays', label: 'Age (Days)' },
-        { key: 'testDate', label: 'Date of Testing', render: (val) => val ? (val.includes('-') ? val.split('-').reverse().join('/') : val) : '-' },
+        { 
+            key: 'testDateTime', 
+            label: 'Date & Time of Testing', 
+            render: (_, row) => {
+                const date = row.testDate ? (row.testDate.includes('-') ? row.testDate.split('-').reverse().join('/') : row.testDate) : '-';
+                const time = row.testTime || '-';
+                return `${date} ${time}`;
+            }
+        },
         {
             key: 'avgStrength',
             label: 'Avg Strength (N/mm²)',
             render: (val) => <strong>{val ? parseFloat(val).toFixed(2) : '-'}</strong>
-        },
-        {
-            key: 'cubeResults',
-            label: 'Individual Strengths',
-            render: (results) => (
-                <div style={{ display: 'flex', gap: '4px' }}>
-                    {results?.map((r, i) => (
-                        <span key={i} style={{
-                            background: '#f1f5f9',
-                            padding: '2px 6px',
-                            borderRadius: '4px',
-                            fontSize: '10px',
-                            fontWeight: '700',
-                            color: '#475569'
-                        }}>
-                            {r.strength ? parseFloat(r.strength).toFixed(1) : '-'}
-                        </span>
-                    ))}
-                </div>
-            )
         },
         {
             key: 'result',
@@ -394,7 +408,7 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
             label: 'Actions',
             render: (_, row) => (
                 <div style={{ display: 'flex', gap: '8px' }}>
-                    <button className="btn-save" style={{ marginTop: 0, padding: '4px 12px', height: '28px' }} onClick={() => handleEnterTestDetails(row)}>Edit</button>
+                    <button className="btn-verify" style={{ height: '28px', padding: '4px 12px', fontSize: '11px' }} onClick={() => handleOpenDetails(row)}>View Details</button>
                 </div>
             )
         }
@@ -525,8 +539,12 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
                     sample={selectedSample}
                     onClose={() => setShowDetailsModal(false)}
                     onModify={() => {
-                        handleModifySample(selectedSample);
                         setShowDetailsModal(false);
+                        if (selectedSample.isTested) {
+                            handleEnterTestDetails(selectedSample);
+                        } else {
+                            handleModifySample(selectedSample);
+                        }
                     }}
                     onDelete={(id) => {
                         setShowDetailsModal(false);
@@ -610,10 +628,19 @@ const SteamCubeDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelet
         }
     ];
 
-    const declarationTime = new Date(sample.castingDate + 'T' + (sample.lbcTime || '00:00'));
-    const diffMs = Date.now() - declarationTime.getTime();
+    const createdTime = sample.createdAt ? new Date(sample.createdAt) : new Date();
+    const diffMs = Date.now() - createdTime.getTime();
     const hoursPassed = diffMs / (1000 * 60 * 60);
     const canModifyOrDelete = hoursPassed <= 8;
+
+    const summaryDetails = sample.isTested ? [
+        { label: 'Avg Strength', value: `${parseFloat(sample.avgStrength || 0).toFixed(2)} N/mm²` },
+        { label: 'Result', value: sample.result || 'PENDING' },
+        { label: 'Date of Testing', value: `${sample.testDate ? sample.testDate.split('-').reverse().join('/') : '-'} ${sample.testTime || ''}` },
+        { label: 'Log Created', value: `${createdTime.toLocaleDateString('en-GB')} ${createdTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` }
+    ] : [
+        { label: 'Log Created', value: `${createdTime.toLocaleDateString('en-GB')} ${createdTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` }
+    ];
 
     return (
         <div className="form-modal-overlay" onClick={onClose}>
@@ -628,6 +655,12 @@ const SteamCubeDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelet
                             <div key={idx}>
                                 <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', marginBottom: '4px' }}>{detail.label}</div>
                                 <div style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>{detail.value}</div>
+                            </div>
+                        ))}
+                        {summaryDetails.map((detail, idx) => (
+                            <div key={`sum-${idx}`} style={{ background: '#f8fafc', padding: '8px', borderRadius: '6px' }}>
+                                <div style={{ fontSize: '11px', color: '#42818c', fontWeight: '700', textTransform: 'uppercase', marginBottom: '4px' }}>{detail.label}</div>
+                                <div style={{ fontSize: '14px', fontWeight: '700', color: '#13343b' }}>{detail.value}</div>
                             </div>
                         ))}
                     </div>
@@ -668,7 +701,7 @@ const SteamCubeDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelet
                             style={{ padding: '8px 24px', fontSize: '12px', height: '36px', width: 'auto' }} 
                             onClick={onEnterTest}
                         >
-                            Enter Test Details
+                            {sample.isTested ? 'Review Test Results' : 'Enter Test Details'}
                         </button>
                     </div>
                 </div>
@@ -679,8 +712,11 @@ const SteamCubeDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelet
 
 
 const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete, activeContainer }) => {
-    const { containers } = useShift();
     const [moistureReports, setMoistureReports] = useState([]);
+    const [availableLocations, setAvailableLocations] = useState([]);
+    const { vendorId, dutyUnit } = useShift();
+    const effectiveVendorId = vendorId || localStorage.getItem('userId');
+    const effectivePlantId = dutyUnit || localStorage.getItem('dutyUnit');
     
     const [formData, setFormData] = useState({
         lineNo: sample?.lineNo || (activeContainer?.type !== 'Shed' ? activeContainer?.name : null) || (sample?.location && !sample?.shedNo ? sample.location : ''),
@@ -695,6 +731,32 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
     });
 
     const [currentCube, setCurrentCube] = useState({ benchNo: '', sleeperSequence: '', cubeCode: '' });
+
+    // Fetch dynamic locations for the current plant
+    useEffect(() => {
+        const fetchLocations = async () => {
+            if (effectivePlantId && effectiveVendorId) {
+                try {
+                    const response = await apiService.getPlantSheds(effectiveVendorId, effectivePlantId);
+                    let locList = [];
+                    const data = response?.responseData || response;
+                    if (typeof data === 'object' && data !== null) {
+                        Object.values(data).forEach((ids) => {
+                            if (Array.isArray(ids)) {
+                                ids.forEach(id => {
+                                    if (id && !locList.includes(id)) locList.push(id);
+                                });
+                            }
+                        });
+                    }
+                    setAvailableLocations(locList);
+                } catch (err) {
+                    console.error("Error fetching locations in steam cube form:", err);
+                }
+            }
+        };
+        fetchLocations();
+    }, [effectivePlantId, effectiveVendorId]);
 
     // Fetch batch numbers from moisture reports
     useEffect(() => {
@@ -723,16 +785,13 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
 
 
     const handleLocationChange = (e) => {
-        const selectedId = parseInt(e.target.value);
-        const container = containers.find(c => c.id === selectedId);
-        if (container) {
-            if (container.type === 'Shed') {
-                setFormData({ ...formData, shedNo: container.name, lineNo: null });
-            } else {
-                setFormData({ ...formData, lineNo: container.name, shedNo: null });
-            }
+        const val = e.target.value;
+        // In the new API structure, locations are simple strings (Shed No or Line No)
+        // We set lineNo by default, or shedNo if the value suggests it's a shed
+        if (String(val).toLowerCase().includes('shed')) {
+            setFormData({ ...formData, shedNo: val, lineNo: null });
         } else {
-            setFormData({ ...formData, lineNo: null, shedNo: null });
+            setFormData({ ...formData, lineNo: val, shedNo: null });
         }
     };
 
@@ -759,7 +818,7 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
         });
     };
 
-    const selectedContainerId = containers.find(c => c.name === (formData.lineNo || formData.shedNo))?.id || '';
+    // Removal of selectedContainerId as it was tied to the old containers list which is no longer used.
 
     return (
         <div className="form-modal-overlay" onClick={onClose}>
@@ -773,7 +832,7 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
                         <div className="input-group">
                             <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569', marginBottom: '4px' }}>Location (Line/Shed)</label>
                             <select 
-                                value={selectedContainerId} 
+                                value={formData.lineNo || formData.shedNo || ''} 
                                 onChange={handleLocationChange}
                                 style={{
                                     width: '100%',
@@ -789,8 +848,8 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
                                 }}
                             >
                                 <option value="">-- Select Location --</option>
-                                {containers.map(c => (
-                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                {availableLocations.map((loc, i) => (
+                                    <option key={i} value={loc}>{loc}</option>
                                 ))}
                             </select>
                         </div>
@@ -934,15 +993,6 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
                         >
                             {isModifying ? 'Update Declaration' : 'Save Declaration'}
                         </button>
-                        {isModifying && (
-                            <button 
-                                className="btn-delete-entry" 
-                                style={{ padding: '8px 24px', fontSize: '12px', height: '36px', width: 'auto', background: '#fee2e2', color: '#ef4444', border: '1px solid #fecaca', borderRadius: '20px', cursor: 'pointer', fontWeight: '700' }} 
-                                onClick={() => onDelete(sample.id)}
-                            >
-                                Delete Record
-                            </button>
-                        )}
                         <button 
                             className="btn-save" 
                             style={{ padding: '8px 24px', fontSize: '12px', height: '36px', width: 'auto', background: '#f1f5f9', color: '#64748b', marginTop: 0 }} 
@@ -1222,13 +1272,6 @@ const TestDetailsModal = ({ sample, onClose, onSave, onDelete, isModifying, acti
                             })}
                         >
                             Complete Test & Archive
-                        </button>
-                        <button 
-                            className="btn-delete-entry" 
-                            style={{ padding: '8px 24px', fontSize: '12px', height: '36px', width: 'auto', background: '#fee2e2', color: '#ef4444', border: '1px solid #fecaca', borderRadius: '20px', cursor: 'pointer', fontWeight: '700' }} 
-                            onClick={() => onDelete(sample.id)}
-                        >
-                            Delete Record
                         </button>
                         <button 
                             className="btn-save" 

@@ -64,6 +64,13 @@ const BatchWeighment = ({
 
     const [selectedBatchNo, setSelectedBatchNo] = useState('');
 
+    // Load history on mount or view mode change
+    useEffect(() => {
+        if (loadShiftData && viewMode === 'witnessed') {
+            loadShiftData().catch(() => {});
+        }
+    }, [viewMode, loadShiftData]);
+
     // Safety check for watchedRecords being an array
     const records = Array.isArray(witnessedRecords) ? witnessedRecords : [];
     const declarations = Array.isArray(batchDeclarations) ? batchDeclarations : [];
@@ -73,12 +80,13 @@ const BatchWeighment = ({
     // Load history via ShiftContext's loadShiftData or individual fetch if needed
 
     const handleSaveWitness = async (record) => {
-        setAllWitnessedRecords(prev => {
-            const currentRecords = Array.isArray(prev) ? prev : [];
-            const exists = currentRecords.find(r => r.id === record.id);
-            return exists ? currentRecords.map(r => r.id === record.id ? record : r) : [record, ...currentRecords];
-        });
-        alert('Record added to local session. Click "Confirm & Save" in section 4 to sync with backend.');
+        if (window.confirm('This entry should move the entry to section 4')) {
+            setAllWitnessedRecords(prev => {
+                const currentRecords = Array.isArray(prev) ? prev : [];
+                const exists = currentRecords.find(r => r.id === record.id);
+                return exists ? currentRecords.map(r => r.id === record.id ? record : r) : [record, ...currentRecords];
+            });
+        }
     };
 
     const handleDelete = (id) => {

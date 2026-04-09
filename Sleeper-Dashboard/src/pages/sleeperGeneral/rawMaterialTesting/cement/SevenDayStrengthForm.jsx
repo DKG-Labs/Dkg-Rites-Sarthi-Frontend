@@ -18,9 +18,9 @@ export default function SevenDayStrengthForm({ onSave, onCancel, inventoryData =
         waterRequired: 0,
         area: 4984, // Cross-sectional area in mm2
         cubes: [
-            { castDate: new Date().toLocaleDateString('en-GB').split('/').join('-'), castTime: "08:00", testDate: new Date().toLocaleDateString('en-GB').split('/').join('-'), testTime: "08:00", loadNewton: "", strength: "" },
-            { castDate: new Date().toLocaleDateString('en-GB').split('/').join('-'), castTime: "08:00", testDate: new Date().toLocaleDateString('en-GB').split('/').join('-'), testTime: "08:00", loadNewton: "", strength: "" },
-            { castDate: new Date().toLocaleDateString('en-GB').split('/').join('-'), castTime: "08:00", testDate: new Date().toLocaleDateString('en-GB').split('/').join('-'), testTime: "08:00", loadNewton: "", strength: "" }
+            { castDate: "", castTime: "", testDate: "", testTime: "", loadNewton: "", strength: "" },
+            { castDate: "", castTime: "", testDate: "", testTime: "", loadNewton: "", strength: "" },
+            { castDate: "", castTime: "", testDate: "", testTime: "", loadNewton: "", strength: "" }
         ],
         avgStrength: "",
         validationRange: "",

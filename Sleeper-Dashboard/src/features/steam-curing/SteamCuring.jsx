@@ -140,6 +140,13 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
         grade: 'M60'
     });
 
+    // Fetch Steam Curing data on mount
+    useEffect(() => {
+        if (fetchSteamCuring) {
+            fetchSteamCuring();
+        }
+    }, [fetchSteamCuring]);
+
     // Fetch Dynamic Locations for current Unit (Matching Demoulding Card logic)
     useEffect(() => {
         const fetchLocations = async () => {
@@ -255,11 +262,21 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
 
     // Auto-select chamber and grade when batch ID changes
     useEffect(() => {
-        const fetchDetails = async () => {
-            if (!selectedBatch) return; 
+        const syncFormWithBatch = async () => {
+            if (!selectedBatch) {
+                setManualForm(prev => ({ ...prev, batchNo: '' }));
+                return;
+            }
 
-            // Only call detail API if the selectedBatch ID exists in our live API batchOptions
-            const isApiBatch = batchOptions.some(b => b.id === selectedBatch);
+            // 1. Resolve current batch number from availableBatches list
+            const matchedOption = availableBatches.find(b => String(b.id) === String(selectedBatch));
+            const batchNoStr = matchedOption ? matchedOption.batchNo : String(selectedBatch);
+            
+            // Sync the batch number to manual form immediately
+            setManualForm(prev => ({ ...prev, batchNo: batchNoStr }));
+
+            // 2. Try to fetch more details (Grade, Chamber)
+            const isApiBatch = batchOptions.some(b => String(b.id) === String(selectedBatch));
             
             if (isApiBatch) {
                 try {
@@ -283,20 +300,23 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                 }
             }
 
-            // Fallback: If it's a batch number (string) from local/scada/history
-            const batchNoStr = String(selectedBatch);
+            // Fallback for Grade and Chamber from local context
             const allDecls = Object.values(allBatchDeclarations).flat();
             const localMatch = allDecls.find(b => String(b.batchNo) === batchNoStr);
             if (localMatch) {
-                setManualForm(prev => ({ ...prev, batchNo: batchNoStr, grade: localMatch.concreteGrade || 'M60' }));
+                setManualForm(prev => ({ 
+                    ...prev, 
+                    grade: localMatch.concreteGrade || localMatch.mixDesignReference || 'M60',
+                    chamberNo: localMatch.chambers?.[0]?.chamberNo || prev.chamberNo
+                }));
             }
 
             const scadaMatch = scadaCycles.find(c => String(c.batchNo) === batchNoStr);
             if (scadaMatch) setSelectedChamber(scadaMatch.chamberNo);
         };
 
-        fetchDetails();
-    }, [selectedBatch, batchOptions]);
+        syncFormWithBatch();
+    }, [selectedBatch, batchOptions, availableBatches, allBatchDeclarations]);
 
     const isTempInvalid = (val) => {
         if (val === '' || val === null || val === undefined) return false;
@@ -402,8 +422,9 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
     };
 
     const handleSaveManual = async () => {
-        if (!manualForm.batchNo || !manualForm.chamberNo) {
-            alert('Batch and Chamber numbers required');
+        const isLine = (manualForm.location || '').toLowerCase().includes('line');
+        if (!manualForm.batchNo || (!manualForm.chamberNo && !isLine)) {
+            alert(isLine ? 'Batch number required' : 'Batch and Chamber numbers required');
             return;
         }
         const minVal = parseFloat(manualForm.minConstTemp);
@@ -529,7 +550,7 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
 
             const payload = {
                 batchNo: String(batchToSave),
-                chamber: String(selectedChamber || manualForm.chamberNo),
+                chamber: String(selectedChamber || manualForm.chamberNo || "0"),
                 grade: 'M60',
                 entryDate: manualForm.date ? manualForm.date.split('-').reverse().join('/') : formatToIST(null, 'date'),
                 location: manualForm.location,
@@ -911,20 +932,25 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                                 <thead><tr><th>Source</th><th>Date</th><th>Batch</th><th>Chamber</th><th>Temp Range</th><th>Status</th><th>Actions</th></tr></thead>
                                 <tbody>
                                     {entries.map(e => (
-                                        <tr key={e.id}>
-                                            <td><span className={`status-pill ${e.source === 'Manual' ? 'manual' : 'witnessed'}`}>{e.source}</span></td>
+                                        <tr key={e.id} style={{ background: e.isHeader ? '#f1f5f9' : 'transparent', fontWeight: e.isHeader ? '700' : '400' }}>
+                                            <td>
+                                                <span className={`status-pill ${e.source === 'Manual' ? 'manual' : e.source === 'Batch' ? 'header' : 'witnessed'}`} 
+                                                      style={e.source === 'Batch' ? { background: '#e2e8f0', color: '#475569' } : {}}>
+                                                    {e.source}
+                                                </span>
+                                            </td>
                                             <td>{e.date ? e.date.split('-').reverse().join('/') : ''}</td>
                                             <td>{e.batchNo}</td><td>{e.chamberNo}</td>
-                                            <td>{e.minConstTemp}–{e.maxConstTemp}°C</td>
+                                            <td>{e.minConstTemp}{e.maxConstTemp !== '—' ? `–${e.maxConstTemp}°C` : ''}</td>
                                             <td>
-                                                <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '800', background: e.status === 'OK' ? '#ecfdf5' : '#fef2f2', color: e.status === 'OK' ? '#059669' : '#dc2626' }}>
+                                                <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '800', background: e.status === 'OK' || e.status === 'REGISTERED' ? '#ecfdf5' : '#fef2f2', color: e.status === 'OK' || e.status === 'REGISTERED' ? '#059669' : '#dc2626' }}>
                                                     {e.status || 'OK'}
                                                 </span>
                                             </td>
                                             <td>
                                                 <div style={{ display: 'flex', gap: '8px' }}>
                                                     {e.source === 'Manual' && <button className="btn-action" onClick={() => handleEdit(e)}>Edit</button>}
-                                                    <button className="btn-action" style={{ background: '#fee2e2', color: '#ef4444', border: 'none' }} onClick={() => handleDelete(e.id)}>Delete</button>
+                                                    {!e.isHeader && <button className="btn-action" style={{ background: '#fee2e2', color: '#ef4444', border: 'none' }} onClick={() => handleDelete(e.id)}>Delete</button>}
                                                 </div>
                                             </td>
                                         </tr>

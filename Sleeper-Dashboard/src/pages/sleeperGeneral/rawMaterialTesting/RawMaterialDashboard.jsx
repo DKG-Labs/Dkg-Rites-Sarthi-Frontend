@@ -82,7 +82,7 @@ const RawMaterialDashboard = () => {
         { id: 'aggregates', title: 'Aggregate Testing', subtitle: 'Periodic & New Batch', moduleId: 8 },
         { id: 'hts-wire', title: 'HTS Wire Testing', subtitle: 'Daily mandatory', moduleId: 5 },
         { id: 'sgci', title: 'SGCI Insert Testing', subtitle: 'Weekly summary', moduleId: 9 },
-        { id: 'admixture', title: 'Admixture Testing', subtitle: 'Batch verification', moduleId: 7 },
+        // { id: 'admixture', title: 'Admixture Testing', subtitle: 'Batch verification', moduleId: 7 },
         { id: 'water', title: 'Water Testing', subtitle: 'PH & TDS monthly', moduleId: 10 }
     ];
 
@@ -110,11 +110,11 @@ const RawMaterialDashboard = () => {
                     onBack={() => setSelectedMaterial(null)} 
                     inventoryData={filterCalls(9)} 
                 />;
-            case 'admixture':
+            /* case 'admixture':
                 return <AdmixtureTesting
                     onBack={() => setSelectedMaterial(null)}
                     inventoryData={filterCalls(7)}
-                />;
+                />; */
             case 'water': 
                 return <WaterTesting 
                     onBack={() => setSelectedMaterial(null)} 

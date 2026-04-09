@@ -34,8 +34,9 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
     useEffect(() => {
         const fetchMixDesigns = async () => {
             try {
+                const currentPlantId = dutyUnit || localStorage.getItem('dutyUnit');
                 // Fetch full mix design records for selection (Module 4)
-                const response = await apiService.getApprovedMixDesigns(4, vendorId);
+                const response = await apiService.getApprovedMixDesigns(4, vendorId, currentPlantId);
                 if (response?.responseData) {
                     setMixDesignPlans(response.responseData);
                 }
@@ -44,7 +45,7 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
             }
         };
         fetchMixDesigns();
-    }, [vendorId]);
+    }, [vendorId, dutyUnit]);
 
     // Fetch Dynamic Locations for current Unit
     useEffect(() => {
@@ -474,21 +475,15 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
                     </div>
                     <div className="form-field">
                         <label htmlFor="moisture-batch">Batch No. <span className="required">*</span></label>
-                        <select 
+                        <input 
                             id="moisture-batch" 
                             name="batchNo" 
+                            type="text"
+                            placeholder="Enter Batch No."
                             value={commonData.batchNo} 
-                            onChange={e => handleCommonChange('batchNo', e.target.value)}
-                        >
-                            <option value="">-- Select --</option>
-                            {availableBatches.length > 0 ? (
-                                availableBatches.map(b => (
-                                    <option key={b} value={b}>{b}</option>
-                                ))
-                            ) : (
-                                commonData.batchNo && <option value={commonData.batchNo}>{commonData.batchNo}</option>
-                            )}
-                        </select>
+                            onChange={e => handleCommonChange('batchNo', e.target.value)} 
+                            required
+                        />
                     </div>
                     <div className="form-field" ref={dropdownRef}>
                         <label htmlFor="moisture-mix-design">Mix Design <span className="required">*</span></label>

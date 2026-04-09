@@ -223,7 +223,7 @@ export const apiService = {
     // moduleId=4  MIX_DESIGN
     getMixDesignById: (id) => api.get(`/mix-design/${id}`),
     getVerifiedMixDesignIdentifications: () => api.get('/mix-design/verified-identifications'),
-    getApprovedMixDesigns: (moduleId = 4, vendorId = '') => api.get(`/mix-design/approvedMixDesign?moduleId=${moduleId}${vendorId ? `&vendorId=${vendorId}` : ''}`),
+    getApprovedMixDesigns: (moduleId = 4, vendorId = '', plantId = '') => api.get(`/mix-design/approvedMixDesign?moduleId=${moduleId}${vendorId ? `&vendorId=${vendorId}` : ''}${plantId ? `&plantId=${plantId}` : ''}`),
 
     // moduleId=5  HTS Wire
     getHtsWireRecordById: (id) => api.get(`/hts-wire/${id}`),
@@ -265,7 +265,7 @@ export const apiService = {
     getCompanyUnitsByUser: (userId) => api.get(`/sleeper-mapping/company-units/${userId}`),
 
     // ================= Final Inspection Controller ================= //
-    getFinalInspectionBatches: (moduleId = 1) => api.get(`/FinalInspectionController/inspection/batches/${moduleId}`),
+    getFinalInspectionBatches: (moduleId = 1, params = {}) => api.get(`/FinalInspectionController/inspection/batches/${moduleId}`, { params }),
     getFinalInspectionBatchDetail: (batchId, moduleId = 1) => api.get(`/FinalInspectionController/inspection/batch?batchId=${batchId}&moduleId=${moduleId}`),
     saveFinalInspection: (payload) => api.post('/FinalInspectionController/save', payload),
     updateInspectionSleepers: (payload) => api.put('/FinalInspectionController/updateInspectionSleepers', payload),

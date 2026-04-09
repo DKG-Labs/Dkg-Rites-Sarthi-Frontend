@@ -25,6 +25,20 @@ const BatchEntryForm = ({
     const [isSaving, setIsSaving] = useState(false);
     const [witnessInfo, setWitnessInfo] = useState({ verifiedBy: '', remarks: '' });
     const [sensorConfig, setSensorConfig] = useState(sessionConfig || { sensorStatus: 'working', sandType: 'River Sand' });
+    const [activeBatchDeclarations, setActiveBatchDeclarations] = useState([]);
+
+    // Logic to handle internal updates and also update the parent state
+    const handleBatchUpdate = (newBatches) => {
+        setActiveBatchDeclarations(newBatches);
+        // We still update the global state so other modules (like stats) can see it
+        // but we only display 'newBatches' in these form sections.
+        setBatchDeclarations(prev => {
+            const current = Array.isArray(prev) ? prev : [];
+            const newBatchNos = newBatches.map(b => String(b.batchNo));
+            const filteredPrev = current.filter(b => !newBatchNos.includes(String(b.batchNo)));
+            return [...filteredPrev, ...newBatches];
+        });
+    };
 
     const handleFinalSave = async () => {
         setIsSaving(true);
@@ -147,8 +161,8 @@ const BatchEntryForm = ({
                             {formSections.declaration && (
                                 <div style={{ padding: '0 1.5rem 1.5rem 1.5rem', borderTop: '1px solid #dbeafe', paddingTop: '1.5rem' }}>
                                     <InitialDeclaration
-                                        batches={batchDeclarations}
-                                        onBatchUpdate={setBatchDeclarations}
+                                        batches={activeBatchDeclarations}
+                                        onBatchUpdate={handleBatchUpdate}
                                         onSensorUpdate={setSensorConfig}
                                         activeContainer={activeContainer}
                                         loadShiftData={loadShiftData}
@@ -172,7 +186,7 @@ const BatchEntryForm = ({
                             </div>
                             {formSections.scada && (
                                 <div style={{ padding: '0 1.5rem 1.5rem 1.5rem', borderTop: '1px solid #fcd34d', paddingTop: '1.5rem' }}>
-                                    <WeightBatching onWitness={handleSaveWitness} batches={batchDeclarations} selectedBatchNo={selectedBatchNo} />
+                                    <WeightBatching onWitness={handleSaveWitness} batches={activeBatchDeclarations} selectedBatchNo={activeBatchDeclarations[0]?.batchNo || selectedBatchNo} />
                                 </div>
                             )}
                         </div>
@@ -191,7 +205,7 @@ const BatchEntryForm = ({
                             </div>
                             {formSections.manual && (
                                 <div style={{ padding: '0 1.5rem 1.5rem 1.5rem', borderTop: '1px solid #86efac', paddingTop: '1.5rem' }}>
-                                    <ManualDataEntry batches={batchDeclarations} witnessedRecords={witnessedRecords} onSave={handleSaveWitness} activeContainer={activeContainer} onDelete={handleDelete} hideHistory={true} />
+                                    <ManualDataEntry batches={activeBatchDeclarations} witnessedRecords={witnessedRecords} onSave={handleSaveWitness} activeContainer={activeContainer} onDelete={handleDelete} hideHistory={true} />
                                 </div>
                             )}
                         </div>

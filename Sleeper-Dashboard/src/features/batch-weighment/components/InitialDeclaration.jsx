@@ -94,16 +94,7 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
         }
     };
 
-    // Only sync external batches if they match the selected lab report context
-    useEffect(() => {
-        if (externalBatches && externalBatches.length > 0 && lastFiveMoisture.length > 0) {
-            const match = lastFiveMoisture.find(r => String(r.batchNo) === String(externalBatches[0].batchNo));
-            if (match && !selectedMoistureReportId) {
-                setSelectedMoistureReportId(match.id);
-                setBatches(externalBatches);
-            }
-        }
-    }, [externalBatches, lastFiveMoisture, selectedMoistureReportId]);
+    // Note: Automatic synchronization from externalBatches is removed to enforce manual selection from the Lab Reports dropdown as requested.
 
     const handleSensorChange = (e) => {
         const { name, value, type } = e.target;

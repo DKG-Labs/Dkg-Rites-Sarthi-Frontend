@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { apiService } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { mapWireTensionRecords, mapCompactionRecords, mapSteamCuringRecords, mapBatchWeighmentData } from '../utils/shiftMappingUtils';
+import { getISTDate, formatToIST } from '../utils/helpers';
 
 const ShiftContext = createContext();
 
@@ -16,7 +17,7 @@ export const useShift = () => {
 export const ShiftProvider = ({ children }) => {
     const [dutyStarted, setDutyStarted] = useState(() => localStorage.getItem('dutyStarted') === 'true');
     const [selectedShift, setSelectedShift] = useState(() => localStorage.getItem('selectedShift') || ''); // 'A', 'B', 'C', 'General'
-    const [dutyDate, setDutyDate] = useState(() => localStorage.getItem('dutyDate') || new Date().toISOString().split('T')[0]);
+    const [dutyDate, setDutyDate] = useState(() => localStorage.getItem('dutyDate') || formatToIST(null, 'iso_date'));
     const [dutyUnit, setDutyUnit] = useState(() => localStorage.getItem('dutyUnit') || '');
     const [dutyLocation, setDutyLocation] = useState(() => localStorage.getItem('dutyLocation') || '');
     const [vendorCode, setVendorCode] = useState(() => localStorage.getItem('vendorCode') || '');
@@ -178,11 +179,10 @@ export const ShiftProvider = ({ children }) => {
         const currentVendorCode = vendorCode || localStorage.getItem('vendorCode');
         const currentShift = selectedShift || localStorage.getItem('selectedShift');
         const currentPlantId = dutyUnit || localStorage.getItem('dutyUnit');
-        const currentDutyDate = dutyDate || localStorage.getItem('dutyDate') || new Date().toISOString().split('T')[0];
+        const currentDutyDate = dutyDate || localStorage.getItem('dutyDate') || formatToIST(null, 'iso_date');
 
-        // Format date to dd/MM/yyyy as per backend requirement
-        const [y, m, d] = currentDutyDate.split('-');
-        const formattedDate = `${d}/${m}/${y}`;
+        // Format date to dd/MM/yyyy as per backend requirement (IST forced)
+        const formattedDate = formatToIST(currentDutyDate, 'date');
 
         const params = {
             plantId: currentPlantId || ":41647/01", // Fallback if not set
@@ -216,10 +216,9 @@ export const ShiftProvider = ({ children }) => {
         const currentVendorCode = vendorCode || localStorage.getItem('vendorCode');
         const currentShift = selectedShift || localStorage.getItem('selectedShift');
         const currentPlantId = dutyUnit || localStorage.getItem('dutyUnit');
-        const currentDutyDate = dutyDate || localStorage.getItem('dutyDate') || new Date().toISOString().split('T')[0];
+        const currentDutyDate = dutyDate || localStorage.getItem('dutyDate') || formatToIST(null, 'iso_date');
 
-        const [y, m, d] = currentDutyDate.split('-');
-        const formattedDate = `${d}/${m}/${y}`;
+        const formattedDate = formatToIST(currentDutyDate, 'date');
 
         const params = {
             plantId: currentPlantId || ":41647/01",
@@ -245,10 +244,9 @@ export const ShiftProvider = ({ children }) => {
         const currentVendorCode = vendorCode || localStorage.getItem('vendorCode');
         const currentShift = selectedShift || localStorage.getItem('selectedShift');
         const currentPlantId = dutyUnit || localStorage.getItem('dutyUnit');
-        const currentDutyDate = dutyDate || localStorage.getItem('dutyDate') || new Date().toISOString().split('T')[0];
+        const currentDutyDate = dutyDate || localStorage.getItem('dutyDate') || formatToIST(null, 'iso_date');
 
-        const [y, m, d] = currentDutyDate.split('-');
-        const formattedDate = `${d}/${m}/${y}`;
+        const formattedDate = formatToIST(currentDutyDate, 'date');
 
         const params = {
             plantId: currentPlantId || ":41647/01",
@@ -274,10 +272,9 @@ export const ShiftProvider = ({ children }) => {
         const currentVendorCode = vendorCode || localStorage.getItem('vendorCode');
         const currentShift = selectedShift || localStorage.getItem('selectedShift');
         const currentPlantId = dutyUnit || localStorage.getItem('dutyUnit');
-        const currentDutyDate = dutyDate || localStorage.getItem('dutyDate') || new Date().toISOString().split('T')[0];
+        const currentDutyDate = dutyDate || localStorage.getItem('dutyDate') || formatToIST(null, 'iso_date');
 
-        const [y, m, d] = currentDutyDate.split('-');
-        const formattedDate = `${d}/${m}/${y}`;
+        const formattedDate = formatToIST(currentDutyDate, 'date');
 
         const params = {
             plantId: currentPlantId || ":41647/01",
@@ -302,9 +299,13 @@ export const ShiftProvider = ({ children }) => {
     };
 
     const fetchSteamCuring = async () => {
-        const res = await apiService.getAllSteamCuring();
-        if (res?.responseData) {
-            setSteamRecords(mapSteamCuringRecords(res.responseData));
+        try {
+            const res = await apiService.getAllSteamCuring();
+            if (res?.responseData) {
+                setSteamRecords(mapSteamCuringRecords(res.responseData));
+            }
+        } catch (error) {
+            console.error("Error fetching all steam curing records:", error);
         }
     };
 

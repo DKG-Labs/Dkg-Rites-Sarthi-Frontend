@@ -229,7 +229,7 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
             }
         }
         if (sectionId === 'dimension') {
-            return ['+ve Deviation', '-ve Deviation', 'Out of Tolerance'];
+            return ['+ve Deviation', '-ve Deviation'];
         }
         return ['General Defect'];
     };

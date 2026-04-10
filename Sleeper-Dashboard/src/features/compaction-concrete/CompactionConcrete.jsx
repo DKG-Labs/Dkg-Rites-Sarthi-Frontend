@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { apiService } from '../../services/api';
 import './CompactionConcrete.css';
+import { useShift } from '../../context/ShiftContext';
 
 const CompactionSubCard = ({ id, title, color, statusDetail, isActive, onClick }) => {
     const label = id === 'stats' ? 'ANALYSIS' : id === 'witnessed' ? 'HISTORY' : 'SCADA';
@@ -26,8 +27,9 @@ const CompactionSubCard = ({ id, title, color, statusDetail, isActive, onClick }
     );
 };
 
-const CompactionConcrete = ({ onBack, batches = [], sharedState, displayMode = 'modal', showForm: propsShowForm, setShowForm: propsSetShowForm }) => {
+const CompactionConcrete = ({ onBack, batches = [], sharedState, displayMode = 'modal', showForm: propsShowForm, setShowForm: propsSetShowForm, activeContainer }) => {
     const { compactionRecords: entries, setAllCompactionRecords: setEntries } = sharedState;
+    const { vendorCode, dutyUnit, selectedShift, dutyDate, userId } = useShift();
     const [viewMode, setViewMode] = useState('witnessed'); // Default to 'witnessed'
     const [localShowForm, setLocalShowForm] = useState(false);
     const showForm = propsShowForm !== undefined ? propsShowForm : localShowForm;
@@ -164,12 +166,22 @@ const CompactionConcrete = ({ onBack, batches = [], sharedState, displayMode = '
                     duration: parseInt(r.duration) || 0
                 }));
 
+            const [y, m, d] = (dutyDate || new Date().toISOString().split('T')[0]).split('-');
+            const formattedDate = `${d}/${m}/${y}`;
+
             const batchMeta = batches.find(b => String(b.batchNo) === String(selectedBatch));
             const payload = {
                 batchNo: String(selectedBatch),
-
                 sleeperType: batchMeta?.sleeperType || "RT-1234",
-                entryDate: manualForm.date ? manualForm.date.split('-').reverse().join('/') : new Date().toLocaleDateString('en-GB'),
+                entryDate: formattedDate,
+                date: formattedDate,
+                location: activeContainer?.name || 'Line I',
+                locationType: (activeContainer?.name || 'Line I').toLowerCase().includes('shed') ? 'Shed' : 'Line',
+                vendorCode: vendorCode || localStorage.getItem('vendorCode'),
+                plantId: dutyUnit || localStorage.getItem('dutyUnit'),
+                shift: selectedShift || localStorage.getItem('selectedShift'),
+                createdBy: userId || localStorage.getItem('userId'),
+                updatedBy: userId || localStorage.getItem('userId'),
                 scadaRecords: scadaRecordsPayload,
                 manualRecords: manualRecords
             };
@@ -494,10 +506,24 @@ const CompactionConcrete = ({ onBack, batches = [], sharedState, displayMode = '
                                                 <td>{e.date ? e.date.split('-').reverse().join('/') : ''}</td>
                                                 <td>{e.batchNo}</td><td>{e.benchNo}</td><td>{e.minRpm}-{e.maxRpm}</td><td>{e.minDuration ? `${e.minDuration}-${e.maxDuration}s` : `${e.duration}s`}</td>
                                                 <td>
-                                                    <div className="btn-group">
-                                                        {e.source === 'Manual' && <button className="btn-action" onClick={() => handleEdit(e)}>Edit</button>}
-                                                        <button className="btn-action danger" onClick={() => handleDelete(e.id)}>Delete</button>
-                                                    </div>
+                                                    {(() => {
+                                                        const todayStr = new Date().toISOString().split('T')[0];
+                                                        const [y, m, d] = todayStr.split('-');
+                                                        const todayDMY = `${d}/${m}/${y}`;
+                                                        
+                                                        const recordDate = e.date || e.entryDate || e.timestamp || "";
+                                                        const isToday = recordDate.includes(todayStr) || recordDate.includes(todayDMY);
+                                                        
+                                                        if (isToday) {
+                                                            return (
+                                                                <div className="btn-group">
+                                                                    {e.source === 'Manual' && <button className="btn-action" onClick={() => handleEdit(e)}>Edit</button>}
+                                                                    <button className="btn-action danger" onClick={() => handleDelete(e.id)}>Delete</button>
+                                                                </div>
+                                                            );
+                                                        }
+                                                        return <span style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic', display: 'block', textAlign: 'center' }}>Fixed</span>;
+                                                    })()}
                                                 </td>
                                             </tr>
                                         ))}
@@ -619,10 +645,24 @@ const CompactionConcrete = ({ onBack, batches = [], sharedState, displayMode = '
                                                             <td>{e.date ? e.date.split('-').reverse().join('/') : ''}</td>
                                                             <td>{e.time}</td><td>{e.batchNo}</td><td><strong>{e.benchNo}</strong></td><td>{e.minRpm}-{e.maxRpm}</td><td>{e.minDuration ? `${e.minDuration}-${e.maxDuration}s` : `${e.duration}s`}</td>
                                                             <td>
-                                                                <div className="btn-group">
-                                                                    {e.source === 'Manual' && <button className="btn-action" onClick={() => handleEdit(e)}>Edit</button>}
-                                                                    <button className="btn-action danger" onClick={() => handleDelete(e.id)}>Delete</button>
-                                                                </div>
+                                                                {(() => {
+                                                                    const todayStr = new Date().toISOString().split('T')[0];
+                                                                    const [y, m, d] = todayStr.split('-');
+                                                                    const todayDMY = `${d}/${m}/${y}`;
+                                                                    
+                                                                    const recordDate = e.date || e.entryDate || e.timestamp || "";
+                                                                    const isToday = recordDate.includes(todayStr) || recordDate.includes(todayDMY);
+                                                                    
+                                                                    if (isToday) {
+                                                                        return (
+                                                                            <div className="btn-group">
+                                                                                {e.source === 'Manual' && <button className="btn-action" onClick={() => handleEdit(e)}>Edit</button>}
+                                                                                <button className="btn-action danger" onClick={() => handleDelete(e.id)}>Delete</button>
+                                                                            </div>
+                                                                        );
+                                                                    }
+                                                                    return <span style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic', display: 'block', textAlign: 'center' }}>Fixed</span>;
+                                                                })()}
                                                             </td>
                                                         </tr>
                                                     ))}

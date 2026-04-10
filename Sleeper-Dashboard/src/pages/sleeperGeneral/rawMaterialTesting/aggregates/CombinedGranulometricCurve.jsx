@@ -5,37 +5,43 @@ import { saveAggregateGranulometric, getAggregateGranulometricByReqId } from "..
 import TrendChart from "../../../../components/common/TrendChart";
 
 const SieveTable = ({ title, sectionType, sieveSizes, sampleWeight, onDataChange }) => {
-    const [rows, setRows] = useState(sieveSizes.map(size => ({
-        sieveSize: size,
-        wtRetained: 0,
-        cummWtRetained: 0,
-        pctRetained: 0,
-        pctPassing: 100
-    })));
+    // Only store the raw weights in state
+    const [weights, setWeights] = useState(Array(sieveSizes.length).fill(0));
+
+    // Derive the calculated values on every render
+    const rows = React.useMemo(() => {
+        let cumulative = 0;
+        const A = Number(sampleWeight) > 0 ? Number(sampleWeight) : 0;
+        
+        return sieveSizes.map((size, idx) => {
+            const wtRetained = weights[idx] || 0;
+            cumulative += wtRetained;
+            
+            // Formula: % Retained = (Cumm. Wt. Retained / Sample Weight) * 100
+            const pctRetained = A > 0 ? (cumulative / A) * 100 : 0;
+            // Formula: % Passing = 100 - % Retained
+            const pctPassing = A > 0 ? Math.max(0, 100 - pctRetained) : 100;
+
+            return {
+                sieveSize: size,
+                wtRetained,
+                cummWtRetained: cumulative,
+                pctRetained,
+                pctPassing
+            };
+        });
+    }, [weights, sampleWeight, sieveSizes]);
 
     const handleWtChange = (idx, val) => {
-        const newRows = [...rows];
-        newRows[idx].wtRetained = Number(val);
-
-        let cumulative = 0;
-        const A = sampleWeight > 0 ? sampleWeight : 1; // Prevent division by zero
-
-        newRows.forEach((r) => {
-            cumulative += r.wtRetained;
-            r.cummWtRetained = cumulative;
-            r.pctRetained = (cumulative / A) * 100;
-            r.pctPassing = Math.max(0, 100 - r.pctRetained);
-        });
-
-        setRows(newRows);
-        onDataChange(newRows.map(r => r.pctPassing));
+        const newWeights = [...weights];
+        newWeights[idx] = Number(val) || 0;
+        setWeights(newWeights);
     };
 
-    // Recalculate if sampleWeight changes
+    // Notify parent of % passing changes
     useEffect(() => {
-        handleWtChange(0, rows[0].wtRetained);
-        // eslint-disable-next-line
-    }, [sampleWeight]);
+        onDataChange(rows.map(r => r.pctPassing));
+    }, [rows, onDataChange]);
 
     return (
         <div style={{ marginBottom: '2rem' }}>
@@ -210,15 +216,15 @@ export default function CombinedGranulometricCurve({ onSave, onCancel, inventory
                         <div className="section-title" style={{ fontSize: '12px', color: '#475569', marginBottom: '10px' }}>Initial Sample Weights (Grams)</div>
                         <div className="form-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
                             <div className="input-group">
-                                <label>CA1 Weight (A)</label>
+                                <label>Weight of 20mm (CA1) [A]</label>
                                 <input type="number" placeholder="Grams" value={wtCA1} onChange={(e) => setWtCA1(e.target.value)} required />
                             </div>
                             <div className="input-group">
-                                <label>CA2 Weight (B)</label>
+                                <label>Weight of 10mm (CA2) [B]</label>
                                 <input type="number" placeholder="Grams" value={wtCA2} onChange={(e) => setWtCA2(e.target.value)} required />
                             </div>
                             <div className="input-group">
-                                <label>FA Weight (C)</label>
+                                <label>Weight of Fine Agg (FA) [C]</label>
                                 <input type="number" placeholder="Grams" value={wtFA} onChange={(e) => setWtFA(e.target.value)} required />
                             </div>
                         </div>

@@ -1,25 +1,132 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { apiService } from '../../../services/api';
+import { useShift } from '../../../context/ShiftContext';
 
 /**
  * ManualDataEntry Component
  * Provides a form for manual batch result entry and displays a log of all witnessed records.
  */
-const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = false, onlyHistory = false, activeContainer, onDelete, small = false }) => {
+const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = false, onlyHistory = false, activeContainer, onDelete, small = false, globalConfig }) => {
     const defaultFormData = {
-        date: new Date().toISOString().split('T')[0],
+        date: globalConfig?.castingDate || new Date().toISOString().split('T')[0],
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
-        batchNo: '',
+        batchNo: globalConfig?.batchNo || '',
         ca1: '', ca2: '', fa: '', cement: '', water: '', admixture: ''
     };
 
     const [formData, setFormData] = useState(defaultFormData);
+    const [totalWeight, setTotalWeight] = useState(0);
+
+    // Sync with global header changes
+    useEffect(() => {
+        if (globalConfig) {
+            setFormData(prev => ({
+                ...prev,
+                date: globalConfig.castingDate || prev.date,
+                batchNo: globalConfig.batchNo || prev.batchNo
+            }));
+        }
+    }, [globalConfig]);
+
+    // Calculate Total
+    useEffect(() => {
+        const sum = (parseFloat(formData.ca1) || 0) + 
+                    (parseFloat(formData.ca2) || 0) + 
+                    (parseFloat(formData.fa) || 0) + 
+                    (parseFloat(formData.cement) || 0) + 
+                    (parseFloat(formData.water) || 0) + 
+                    (parseFloat(formData.admixture) || 0);
+        setTotalWeight(sum);
+    }, [formData]);
     const [editingId, setEditingId] = useState(null);
     const [saving, setSaving] = useState(false);
+    const [recentBatches, setRecentBatches] = useState([]);
 
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+    useEffect(() => {
+        const fetchBatches = async () => {
+            try {
+                const res = await apiService.getLastFiveMoisture();
+                if (res?.responseData) {
+                    setRecentBatches(res.responseData);
+                }
+            } catch (err) {
+                console.error("Failed to fetch last 5 batches:", err);
+            }
+        };
+        fetchBatches();
+    }, []);
+
+
+
+    const getFieldValidation = (field, value, limit) => {
+        if (!value) return false;
+        const selectedBatch = batches.find(b => String(b.batchNo) === String(formData.batchNo)) || 
+                             recentBatches.find(b => String(b.batchNo) === String(formData.batchNo));
+        if (selectedBatch?.adjustedWeights) {
+            const refVal = parseFloat(selectedBatch.adjustedWeights[field]) || 0;
+            const curVal = parseFloat(value) || 0;
+            if (refVal > 0) {
+                return (Math.abs(curVal - refVal) / refVal) > limit;
+            }
+        }
+        return false;
+    };
+
+    const handleChange = async (e) => {
+        const { name, value, type, checked } = e.target;
+        const val = type === 'checkbox' ? checked : value;
+        setFormData(prev => ({ ...prev, [name]: val }));
+
+        if (name === 'batchNo' && value) {
+            // Check if we need to fetch details for this batch to auto-fill limits or baselines
+            const recentMatch = recentBatches.find(b => String(b.batchNo) === String(value));
+            const existingBatch = batches.find(b => String(b.batchNo) === String(value));
+            
+            if (recentMatch && !existingBatch?.adjustedWeights) {
+                try {
+                    const res = await apiService.getMoistureAnalysisById(recentMatch.id);
+                    const detail = res?.responseData || res;
+                    if (detail) {
+                        setFormData(prev => ({
+                            ...prev,
+                            ca1: detail.wtAdoptedCa1 || '',
+                            ca2: detail.wtAdoptedCa2 || '',
+                            fa: detail.wtAdoptedFa || '',
+                            cement: detail.actualCement || detail.designCement || '',
+                            water: detail.adjustedWaterWt || detail.actualWater || '',
+                            admixture: detail.actualAdmix || detail.designAdmix || 1.44
+                        }));
+                        
+                        // We also temporarily push this into 'batches' context so that the onSave validation passes
+                        const artificialBatch = {
+                            batchNo: String(value),
+                            adjustedWeights: {
+                                ca1: detail.wtAdoptedCa1 || 0,
+                                ca2: detail.wtAdoptedCa2 || 0,
+                                fa: detail.wtAdoptedFa || 0,
+                                cement: detail.actualCement || detail.designCement || 0,
+                                water: detail.adjustedWaterWt || detail.actualWater || 0,
+                                admixture: detail.actualAdmix || detail.designAdmix || 1.44
+                            }
+                        };
+                        recentMatch.adjustedWeights = artificialBatch.adjustedWeights; // Store it back to recentBatches as cache
+                    }
+                } catch (err) {
+                    console.error("Failed to fetch detailed moisture info for batch", value, err);
+                }
+            } else if (existingBatch?.adjustedWeights) {
+                // Auto-fill from existing batch
+                setFormData(prev => ({
+                    ...prev,
+                    ca1: existingBatch.adjustedWeights.ca1 || '',
+                    ca2: existingBatch.adjustedWeights.ca2 || '',
+                    fa: existingBatch.adjustedWeights.fa || '',
+                    cement: existingBatch.adjustedWeights.cement || '',
+                    water: existingBatch.adjustedWeights.water || '',
+                    admixture: existingBatch.adjustedWeights.admixture || ''
+                }));
+            }
+        }
     };
 
     const handleEdit = async (record) => {
@@ -102,7 +209,7 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
         }
 
         // --- NEW VALIDATION: Allowed Error Check ---
-        const selectedBatch = batches.find(b => b.batchNo === formData.batchNo);
+        const selectedBatch = batches.find(b => String(b.batchNo) === String(formData.batchNo)) || recentBatches.find(b => String(b.batchNo) === String(formData.batchNo));
         if (selectedBatch && selectedBatch.adjustedWeights) {
             const adj = selectedBatch.adjustedWeights;
             
@@ -136,12 +243,24 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
         // --- END VALIDATION ---
 
         setSaving(true);
+        // Using batchRef to avoid redeclaration conflict
+        const batchRef = batches.find(b => String(b.batchNo) === String(formData.batchNo)) || recentBatches.find(b => String(b.batchNo) === String(formData.batchNo));
+        const adj = batchRef?.adjustedWeights || {};
+
         const record = {
             ...formData,
             id: editingId || Date.now(),
             source: 'Manual',
             timestamp: new Date().toISOString(),
-            location: activeContainer?.name || 'N/A'
+            location: activeContainer?.name || 'N/A',
+            // Store Set values for later display in the log
+            ca1Set: adj.ca1 || 0,
+            ca2Set: adj.ca2 || 0,
+            faSet: adj.fa || 0,
+            cementSet: adj.cement || 0,
+            waterSet: adj.water || 0,
+            admixtureSet: adj.admixture || 0,
+            total: totalWeight
         };
 
         onSave(record);
@@ -182,32 +301,128 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
                             <label htmlFor="manual-batch" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>Batch No.</label>
                             <select id="manual-batch" name="batchNo" value={formData.batchNo} onChange={handleChange} style={{ height: small ? '28px' : '32px', fontSize: small ? '0.75rem' : '0.8rem' }}>
                                 <option value="">-- Select --</option>
-                                {batches.map(b => <option key={b.id || b.batchNo} value={b.batchNo}>{b.batchNo}</option>)}
+                                {(() => {
+                                    const allBatches = [...batches, ...recentBatches];
+                                    const uniqueBatches = Array.from(new Set(allBatches.map(b => String(b.batchNo)))).filter(Boolean);
+                                    return uniqueBatches.map(bNo => <option key={bNo} value={bNo}>{bNo}</option>);
+                                })()}
                             </select>
                         </div>
+
+
+
                         <div className="form-field">
                             <label htmlFor="manual-ca1" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>CA1 (±3%) - Actual Wt. (Kg)</label>
-                            <input id="manual-ca1" type="number" name="ca1" value={formData.ca1} onChange={handleChange} placeholder="Kgs" style={{ height: small ? '28px' : '32px', fontSize: small ? '0.75rem' : '0.8rem' }} />
+                            <input 
+                                id="manual-ca1" 
+                                type="number" 
+                                name="ca1" 
+                                value={formData.ca1} 
+                                onChange={handleChange} 
+                                placeholder="Kgs" 
+                                style={{ 
+                                    height: small ? '28px' : '32px', 
+                                    fontSize: small ? '0.75rem' : '0.8rem',
+                                    background: getFieldValidation('ca1', formData.ca1, 0.03) ? '#fecaca' : '#fff'
+                                }} 
+                            />
                         </div>
                         <div className="form-field">
                             <label htmlFor="manual-ca2" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>CA2 (±3%) - Actual Wt. (Kg)</label>
-                            <input id="manual-ca2" type="number" name="ca2" value={formData.ca2} onChange={handleChange} placeholder="Kgs" style={{ height: small ? '28px' : '32px', fontSize: small ? '0.75rem' : '0.8rem' }} />
+                            <input 
+                                id="manual-ca2" 
+                                type="number" 
+                                name="ca2" 
+                                value={formData.ca2} 
+                                onChange={handleChange} 
+                                placeholder="Kgs" 
+                                style={{ 
+                                    height: small ? '28px' : '32px', 
+                                    fontSize: small ? '0.75rem' : '0.8rem',
+                                    background: getFieldValidation('ca2', formData.ca2, 0.03) ? '#fecaca' : '#fff'
+                                }} 
+                            />
                         </div>
                         <div className="form-field">
                             <label htmlFor="manual-fa" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>FA (±3%) - Actual Wt. (Kg)</label>
-                            <input id="manual-fa" type="number" name="fa" value={formData.fa} onChange={handleChange} placeholder="Sand Kgs" style={{ height: small ? '28px' : '32px', fontSize: small ? '0.75rem' : '0.8rem' }} />
+                            <input 
+                                id="manual-fa" 
+                                type="number" 
+                                name="fa" 
+                                value={formData.fa} 
+                                onChange={handleChange} 
+                                placeholder="Sand Kgs" 
+                                style={{ 
+                                    height: small ? '28px' : '32px', 
+                                    fontSize: small ? '0.75rem' : '0.8rem',
+                                    background: getFieldValidation('fa', formData.fa, 0.03) ? '#fecaca' : '#fff'
+                                }} 
+                            />
                         </div>
                         <div className="form-field">
                             <label htmlFor="manual-cement" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>Cement (±2%) - Actual Wt. (Kg)</label>
-                            <input id="manual-cement" type="number" name="cement" value={formData.cement} onChange={handleChange} placeholder="Kgs" style={{ height: small ? '28px' : '32px', fontSize: small ? '0.75rem' : '0.8rem' }} />
+                            <input 
+                                id="manual-cement" 
+                                type="number" 
+                                name="cement" 
+                                value={formData.cement} 
+                                onChange={handleChange} 
+                                placeholder="Kgs" 
+                                style={{ 
+                                    height: small ? '28px' : '32px', 
+                                    fontSize: small ? '0.75rem' : '0.8rem',
+                                    background: getFieldValidation('cement', formData.cement, 0.02) ? '#fecaca' : '#fff'
+                                }} 
+                            />
                         </div>
                         <div className="form-field">
                             <label htmlFor="manual-water" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>Water (±3%) - Actual (L)</label>
-                            <input id="manual-water" type="number" name="water" value={formData.water} onChange={handleChange} placeholder="Ltrs" style={{ height: small ? '28px' : '32px', fontSize: small ? '0.75rem' : '0.8rem' }} />
+                            <input 
+                                id="manual-water" 
+                                type="number" 
+                                name="water" 
+                                value={formData.water} 
+                                onChange={handleChange} 
+                                placeholder="Ltrs" 
+                                style={{ 
+                                    height: small ? '28px' : '32px', 
+                                    fontSize: small ? '0.75rem' : '0.8rem',
+                                    background: getFieldValidation('water', formData.water, 0.03) ? '#fecaca' : '#fff'
+                                }} 
+                            />
                         </div>
                         <div className="form-field">
                             <label htmlFor="manual-admix" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>Admix (±3%) - Actual Wt. (Kg)</label>
-                            <input id="manual-admix" type="number" name="admixture" value={formData.admixture} onChange={handleChange} placeholder="Kgs" style={{ height: small ? '28px' : '32px', fontSize: small ? '0.75rem' : '0.8rem' }} />
+                            <input 
+                                id="manual-admix" 
+                                type="number" 
+                                name="admixture" 
+                                value={formData.admixture} 
+                                onChange={handleChange} 
+                                placeholder="Kgs" 
+                                style={{ 
+                                    height: small ? '28px' : '32px', 
+                                    fontSize: small ? '0.75rem' : '0.8rem',
+                                    background: getFieldValidation('admixture', formData.admixture, 0.03) ? '#fecaca' : '#fff'
+                                }} 
+                            />
+                        </div>
+                        <div className="form-field">
+                            <label style={{ fontSize: small ? '0.65rem' : '0.725rem', fontWeight: '800', color: '#1e3a8a' }}>TOTAL CALCULATED (Kg)</label>
+                            <div style={{ 
+                                height: small ? '28px' : '32px', 
+                                fontSize: small ? '0.75rem' : '0.9rem', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                padding: '0 12px', 
+                                background: '#f1f5f9', 
+                                borderRadius: '6px', 
+                                border: '1.5px solid #cbd5e1',
+                                fontWeight: '900',
+                                color: '#0f172a'
+                            }}>
+                                {totalWeight.toFixed(2)}
+                            </div>
                         </div>
                     </div>
 
@@ -236,66 +451,110 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
                     {(() => {
                         const renderTable = (recordsSubset, title, groupColor) => (
                             <div style={{ marginBottom: '2.5rem' }}>
-                                <div style={{ padding: '8px 16px', background: `${groupColor}10`, borderLeft: `4px solid ${groupColor}`, marginBottom: '12px' }}>
-                                    <h4 style={{ margin: 0, fontSize: '0.85rem', color: groupColor, fontWeight: '800' }}>{title} ({recordsSubset.length})</h4>
-                                </div>
-                                <div className="table-responsive" style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                                    <table className="ui-table">
+                                <div className="table-responsive" style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', overflowX: 'auto' }}>
+                                    <table className="ui-table" style={{ borderCollapse: 'collapse', minWidth: '1200px' }}>
                                         <thead>
                                             <tr>
-                                                <th style={{ fontSize: small ? '0.6rem' : '0.7rem' }}>Location</th>
-                                                <th style={{ fontSize: small ? '0.6rem' : '0.7rem' }}>Date</th>
-                                                <th style={{ fontSize: small ? '0.6rem' : '0.7rem' }}>Time</th>
-                                                <th style={{ fontSize: small ? '0.6rem' : '0.7rem' }}>Grade</th>
-                                                <th style={{ fontSize: small ? '0.6rem' : '0.7rem' }}>Batch</th>
-                                                <th style={{ fontSize: small ? '0.6rem' : '0.7rem' }}>CA1 (Kg)</th>
-                                                <th style={{ fontSize: small ? '0.6rem' : '0.7rem' }}>CA2 (Kg)</th>
-                                                <th style={{ fontSize: small ? '0.6rem' : '0.7rem' }}>FA (Kg)</th>
-                                                <th style={{ fontSize: small ? '0.6rem' : '0.7rem' }}>Cement (Kg)</th>
-                                                <th style={{ fontSize: small ? '0.6rem' : '0.7rem' }}>Water (L)</th>
-                                                <th style={{ fontSize: small ? '0.6rem' : '0.7rem' }}>Admix (Kg)</th>
-                                                <th style={{ fontSize: small ? '0.6rem' : '0.7rem' }}>Source</th>
-                                                <th style={{ textAlign: 'center', fontSize: small ? '0.6rem' : '0.7rem' }}>Actions</th>
+                                                <th rowSpan="2" style={{ fontSize: '10px' }}>S.No</th>
+                                                <th rowSpan="2" style={{ fontSize: '10px' }}>Date</th>
+                                                <th rowSpan="2" style={{ fontSize: '10px' }}>Time</th>
+                                                <th rowSpan="2" style={{ fontSize: '10px' }}>Batch</th>
+                                                <th colSpan="2" style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '10px' }}>20MM (Kg)</th>
+                                                <th colSpan="2" style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '10px' }}>10MM (Kg)</th>
+                                                <th colSpan="2" style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '10px' }}>SAND (Kg)</th>
+                                                <th colSpan="2" style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '10px' }}>CEMENT (Kg)</th>
+                                                <th colSpan="2" style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '10px' }}>WATER (L)</th>
+                                                <th colSpan="2" style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '10px' }}>ADMIX (Kg)</th>
+                                                <th rowSpan="2" style={{ fontSize: '10px' }}>Total</th>
+                                                <th rowSpan="2" style={{ fontSize: '10px' }}>Sand/Sensor</th>
+                                                <th rowSpan="2" style={{ fontSize: '10px' }}>Remarks</th>
+                                                <th rowSpan="2" style={{ fontSize: '10px' }}>Source</th>
+                                                <th rowSpan="2" style={{ textAlign: 'center', fontSize: '10px' }}>Actions</th>
+                                            </tr>
+                                            <tr>
+                                                <th style={{ fontSize: '9px', padding: '4px' }}>Set</th>
+                                                <th style={{ fontSize: '9px', padding: '4px' }}>Actual</th>
+                                                <th style={{ fontSize: '9px', padding: '4px' }}>Set</th>
+                                                <th style={{ fontSize: '9px', padding: '4px' }}>Actual</th>
+                                                <th style={{ fontSize: '9px', padding: '4px' }}>Set</th>
+                                                <th style={{ fontSize: '9px', padding: '4px' }}>Actual</th>
+                                                <th style={{ fontSize: '9px', padding: '4px' }}>Set</th>
+                                                <th style={{ fontSize: '9px', padding: '4px' }}>Actual</th>
+                                                <th style={{ fontSize: '9px', padding: '4px' }}>Set</th>
+                                                <th style={{ fontSize: '9px', padding: '4px' }}>Actual</th>
+                                                <th style={{ fontSize: '9px', padding: '4px' }}>Set</th>
+                                                <th style={{ fontSize: '9px', padding: '4px' }}>Actual</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {recordsSubset.map((record) => (
-                                                <tr key={record.id} className="hover-row">
-                                                    <td style={{ fontSize: small ? '0.65rem' : '0.75rem', color: '#64748b' }}>{record.location || 'N/A'}</td>
-                                                    <td data-label="Date" style={{ fontSize: small ? '0.65rem' : '0.8rem' }}>{record.date ? record.date.split('-').reverse().join('/') : ''}</td>
-                                                    <td data-label="Time" style={{ fontSize: small ? '0.65rem' : '0.8rem' }}>{record.time}</td>
-                                                    <td data-label="Grade" style={{ fontSize: small ? '0.65rem' : '0.8rem', color: '#0369a1', fontWeight: '700' }}>{record.concreteGrade || '-'}</td>
-                                                    <td data-label="Batch" style={{ fontSize: small ? '0.65rem' : '0.8rem' }}><strong>{record.batchNo}</strong></td>
-                                                    <td style={{ fontSize: small ? '0.65rem' : '0.8rem' }}>{record.ca1}</td>
-                                                    <td style={{ fontSize: small ? '0.65rem' : '0.8rem' }}>{record.ca2}</td>
-                                                    <td style={{ fontSize: small ? '0.65rem' : '0.8rem' }}>{record.fa}</td>
-                                                    <td style={{ fontSize: small ? '0.65rem' : '0.8rem' }}>{record.cement}</td>
-                                                    <td style={{ fontSize: small ? '0.65rem' : '0.8rem' }}>{record.water}</td>
-                                                    <td style={{ fontSize: small ? '0.65rem' : '0.8rem' }}>{record.admixture}</td>
-                                                    <td data-label="Source">
-                                                        <span className={`status-pill ${record.source?.toLowerCase().includes('scada') ? 'witnessed' : 'manual'}`} style={{ fontSize: small ? '0.6rem' : '0.65rem' }}>
-                                                            {record.source}
-                                                        </span>
-                                                    </td>
-                                                    <td data-label="Actions">
-                                                        <div style={{ display: 'flex', gap: small ? '4px' : '8px', justifyContent: 'center' }}>
-                                                            <button
-                                                                onClick={() => handleEdit(record)}
-                                                                className="btn-action mini"
-                                                                style={{ background: '#3b82f6', color: '#fff' }}
-                                                            >
-                                                                Edit
-                                                            </button>
-                                                            <button
-                                                                onClick={() => onDelete(record.id)}
-                                                                className="btn-action danger mini"
-                                                                style={{ background: '#ef4444', color: '#fff' }}
-                                                            >
-                                                                Del
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
+                                            {recordsSubset.map((record, idx) => (
+                                                 record.isHeader ? (
+                                                     <tr key={record.id} style={{ background: '#f8fafc', borderLeft: '4px solid #3b82f6' }}>
+                                                         <td style={{ fontSize: '11px' }}>{idx + 1}</td>
+                                                         <td style={{ fontSize: '11px' }}>{record.date}</td>
+                                                         <td style={{ fontSize: '11px' }}>{record.time}</td>
+                                                         <td colSpan="13" style={{ fontSize: '11px', fontWeight: '700', color: '#1e3a8a' }}>
+                                                             SESSION START: {record.remarks}
+                                                         </td>
+                                                         <td style={{ fontSize: '11px' }}>
+                                                             <div style={{ fontSize: '9px' }}>{record.sandType}</div>
+                                                             <div style={{ fontSize: '8px', color: '#64748b' }}>{record.sensorStatus}</div>
+                                                         </td>
+                                                         <td style={{ fontSize: '10px', color: '#64748b', fontStyle: 'italic' }}>-</td>
+                                                         <td>
+                                                             <span className="status-pill session" style={{ fontSize: '9px', background: '#e0f2fe', color: '#0369a1' }}>
+                                                                 {record.source}
+                                                             </span>
+                                                         </td>
+                                                         <td style={{ textAlign: 'center' }}>-</td>
+                                                     </tr>
+                                                 ) : (
+                                                     <tr key={record.id} className="hover-row">
+                                                         <td style={{ fontSize: '11px' }}>{idx + 1}</td>
+                                                         <td style={{ fontSize: '11px' }}>{record.date ? (record.date.includes('-') ? record.date.split('-').reverse().join('/') : record.date) : ''}</td>
+                                                         <td style={{ fontSize: '11px' }}>{record.time}</td>
+                                                         <td style={{ fontSize: '11px' }}><strong>{record.batchNo}</strong></td>
+                                                         
+                                                         <td style={{ fontSize: '11px', color: '#64748b' }}>{record.ca1Set || '-'}</td>
+                                                         <td style={{ fontSize: '11px' }}>{record.ca1 || record.ca1Actual || '-'}</td>
+                                                         
+                                                         <td style={{ fontSize: '11px', color: '#64748b' }}>{record.ca2Set || '-'}</td>
+                                                         <td style={{ fontSize: '11px' }}>{record.ca2 || record.ca2Actual || '-'}</td>
+                                                         
+                                                         <td style={{ fontSize: '11px', color: '#64748b' }}>{record.faSet || '-'}</td>
+                                                         <td style={{ fontSize: '11px' }}>{record.fa || record.faActual || '-'}</td>
+                                                         
+                                                         <td style={{ fontSize: '11px', color: '#64748b' }}>{record.cementSet || '-'}</td>
+                                                         <td style={{ fontSize: '11px', fontWeight: '700' }}>{record.cement || record.cementActual || '-'}</td>
+                                                         
+                                                         <td style={{ fontSize: '11px', color: '#64748b' }}>{record.waterSet || '-'}</td>
+                                                         <td style={{ fontSize: '11px' }}>{record.water || record.waterActual || '-'}</td>
+                                                         
+                                                         <td style={{ fontSize: '11px', color: '#64748b' }}>{record.admixtureSet || '-'}</td>
+                                                         <td style={{ fontSize: '11px' }}>{record.admixture || record.admixtureActual || '-'}</td>
+                                                         
+                                                         <td style={{ fontSize: '11px', fontWeight: '800' }}>{record.total ? parseFloat(record.total).toFixed(1) : '-'}</td>
+                                                         
+                                                         <td style={{ fontSize: '11px' }}>
+                                                            <div style={{ fontSize: '9px' }}>{record.sandType || '-'}</div>
+                                                            <div style={{ fontSize: '8px', color: '#64748b' }}>{record.sensorStatus || '-'}</div>
+                                                         </td>
+                                                         <td style={{ fontSize: '10px', color: '#64748b', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                            {record.remarks || '-'}
+                                                         </td>
+                                                         <td>
+                                                             <span className={`status-pill ${record.source?.toLowerCase().includes('scada') ? 'witnessed' : 'manual'}`} style={{ fontSize: '9px' }}>
+                                                                 {record.source}
+                                                             </span>
+                                                         </td>
+                                                         <td style={{ textAlign: 'center' }}>
+                                                             <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                                                                 <button onClick={() => handleEdit(record)} className="btn-action mini" style={{ background: '#3b82f6', color: '#fff', fontSize: '9px', padding: '2px 8px' }}>Edit</button>
+                                                                 <button onClick={() => onDelete(record.id)} className="btn-action danger mini" style={{ background: '#ef4444', color: '#fff', fontSize: '9px', padding: '2px 8px' }}>Del</button>
+                                                             </div>
+                                                         </td>
+                                                     </tr>
+                                                 )
                                             ))}
                                         </tbody>
                                     </table>
@@ -303,10 +562,19 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
                             </div>
                         );
 
+                        const sortedRecords = [...witnessedRecords].sort((a, b) => {
+                            const dateA = (a.date && a.date.includes('/')) ? a.date.split('/').reverse().join('-') : (a.date || '');
+                            const dateB = (b.date && b.date.includes('/')) ? b.date.split('/').reverse().join('-') : (b.date || '');
+                            
+                            if (dateA !== dateB) return dateB.localeCompare(dateA);
+                            return String(b.time || '').localeCompare(String(a.time || ''));
+                        });
+
                         return (
                             <>
-                                {witnessedRecords.length > 0 ? (
-                                    renderTable(witnessedRecords, "BATCH WEIGHMENT LOGS", "#10b981")
+                                {sortedRecords.length > 0 ? (
+                                    renderTable(sortedRecords, "BATCH WEIGHMENT LOGS", "#10b981")
+
                                 ) : (
                                     <div style={{ padding: '3rem', textAlign: 'center', color: '#64748b', fontStyle: 'italic', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                                         No witnessed declarations found.

@@ -132,6 +132,7 @@ export const apiService = {
     createWireTensioning: (payload) => api.post('/wire-tensioning/create', payload),
     updateWireTensioning: (id, payload) => api.put(`/wire-tensioning/update/${id}`, payload),
     deleteWireTensioning: (id) => api.delete(`/wire-tensioning/delete/${id}`),
+    getWireTensioningTodayRecord: (params) => api.get('/wire-tensioning/wireTensioningData', { params }),
 
     // ================= Compaction (Vibrator Report) =================
     getAllCompaction: () => getWithCache('/compaction/getAll'),
@@ -139,6 +140,7 @@ export const apiService = {
     createCompaction: (payload) => api.post('/compaction/create', payload),
     updateCompaction: (id, payload) => api.put(`/compaction/update/${id}`, payload),
     deleteCompaction: (id) => api.delete(`/compaction/delete/${id}`),
+    getCompactionTodayRecord: (params) => api.get('/compaction/compactionData', { params }),
 
     // ================= Steam Curing =================
     getAllSteamCuring: () => getWithCache('/steam-curing/getAll'),
@@ -146,6 +148,7 @@ export const apiService = {
     createSteamCuring: (payload) => api.post('/steam-curing/create', payload),
     updateSteamCuring: (id, payload) => api.put(`/steam-curing/update/${id}`, payload),
     deleteSteamCuring: (id) => api.delete(`/steam-curing/delete/${id}`),
+    getSteamCuringTodayRecord: (params) => api.get('/steam-curing/steamCuringData', { params }),
 
     // ================= Batch Weighment =================
     getAllBatchWeighment: () => getWithCache('/batch-weighment/get-all'),
@@ -153,6 +156,7 @@ export const apiService = {
     createBatchWeighment: (payload) => api.post('/batch-weighment/create', payload),
     updateBatchWeighment: (id, payload) => api.put(`/batch-weighment/update/${id}`, payload),
     deleteBatchWeighment: (id) => api.delete(`/batch-weighment/delete/${id}`),
+    getBatchWeighmentTodayRecord: (params) => api.get('/batch-weighment/batchWeighmentData', { params }),
 
     // ================= Inventory – Cement =================
     getAllCementInventory: () => api.get('/inventory/cement/all'),
@@ -222,10 +226,7 @@ export const apiService = {
     // getPlantProfileById:       (id) => api.get(`/plant-profile/getById/${id}`),
     getPlantProfileById: (id) => api.get(`/plant-profile/${id}`),
     getDistinctShedsByVendorCode: (vendorCode) => api.get(`/plant-profile/vendor/${vendorCode}/sheds`),
-    getPlantSheds: (vendorId, plantId) => api.get(`/plant-profile/vendor/{vendorId}/{plantId}/sheds`, { 
-        params: { vendorId, plantId } 
-    }),
-
+    getPlantSheds: (vendorId, plantId) => api.get(`/plant-profile/vendor/%7BvendorId%7D/%7BplantId%7D/sheds?vendorId=${vendorId}&plantId=${encodeURIComponent(plantId)}`),
 
     // moduleId=2  STRESS_BENCH_MASTER
     getBenchMouldMasterById: (id) => api.get(`/stress-bench/get/${id}`),
@@ -236,7 +237,7 @@ export const apiService = {
     // moduleId=4  MIX_DESIGN
     getMixDesignById: (id) => api.get(`/mix-design/${id}`),
     getVerifiedMixDesignIdentifications: () => api.get('/mix-design/verified-identifications'),
-    getApprovedMixDesigns: (moduleId = 4, vendorId = '') => api.get(`/mix-design/approvedMixDesign?moduleId=${moduleId}${vendorId ? `&vendorId=${vendorId}` : ''}`),
+    getApprovedMixDesigns: (moduleId = 4, vendorId = '', plantId = '') => api.get(`/mix-design/approvedMixDesign?moduleId=${moduleId}${vendorId ? `&vendorId=${vendorId}` : ''}${plantId ? `&plantId=${plantId}` : ''}`),
 
     // moduleId=5  HTS Wire
     getHtsWireRecordById: (id) => api.get(`/hts-wire/${id}`),
@@ -262,6 +263,10 @@ export const apiService = {
         api.get('/production-declaration/getAll/batches', {
             params: { vendorId, castingDate, plantId, productionUnit }
         }),
+    getProductionBatchesWithId: (vendorId, castingDate, plantId, productionUnit) =>
+        api.get('/production-declaration/getAll/batchesWithId', {
+            params: { vendorId, castingDate, plantId, productionUnit }
+        }),
     getAllProductionBenches: (batchNo) => api.get(`/production-declaration/getAll/benches?batchNo=${batchNo}`),
     getAllProductionSleeperTypes: (batchNo, benchNo) => api.get(`/production-declaration/getAll/sleeper-types?batchNo=${batchNo}&benchNo=${benchNo}`),
     getAllProductionSleepers: (batchNo, benchNo, sleeperType) => api.get(`/production-declaration/getAll/sleepers?batchNo=${batchNo}&benchNo=${benchNo}&sleeperType=${sleeperType}`),
@@ -274,7 +279,7 @@ export const apiService = {
     getCompanyUnitsByUser: (userId) => api.get(`/sleeper-mapping/company-units/${userId}`),
 
     // ================= Final Inspection Controller ================= //
-    getFinalInspectionBatches: (moduleId = 1) => api.get(`/FinalInspectionController/inspection/batches/${moduleId}`),
+    getFinalInspectionBatches: (moduleId = 1, params = {}) => api.get(`/FinalInspectionController/inspection/batches/${moduleId}`, { params }),
     getFinalInspectionBatchDetail: (batchId, moduleId = 1) => api.get(`/FinalInspectionController/inspection/batch?batchId=${batchId}&moduleId=${moduleId}`),
     saveFinalInspection: (payload) => api.post('/FinalInspectionController/save', payload),
     updateInspectionSleepers: (payload) => api.put('/FinalInspectionController/updateInspectionSleepers', payload),

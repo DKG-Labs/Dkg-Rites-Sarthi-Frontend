@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { apiService } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { mapWireTensionRecords, mapCompactionRecords, mapSteamCuringRecords, mapBatchWeighmentData } from '../utils/shiftMappingUtils';
+import { getISTDate, formatToIST } from '../utils/helpers';
 
 const ShiftContext = createContext();
 
@@ -16,7 +17,7 @@ export const useShift = () => {
 export const ShiftProvider = ({ children }) => {
     const [dutyStarted, setDutyStarted] = useState(() => localStorage.getItem('dutyStarted') === 'true');
     const [selectedShift, setSelectedShift] = useState(() => localStorage.getItem('selectedShift') || ''); // 'A', 'B', 'C', 'General'
-    const [dutyDate, setDutyDate] = useState(() => localStorage.getItem('dutyDate') || new Date().toISOString().split('T')[0]);
+    const [dutyDate, setDutyDate] = useState(() => localStorage.getItem('dutyDate') || formatToIST(null, 'iso_date'));
     const [dutyUnit, setDutyUnit] = useState(() => localStorage.getItem('dutyUnit') || '');
     const [dutyLocation, setDutyLocation] = useState(() => localStorage.getItem('dutyLocation') || '');
     const [vendorCode, setVendorCode] = useState(() => localStorage.getItem('vendorCode') || '');
@@ -168,27 +169,25 @@ export const ShiftProvider = ({ children }) => {
     const activeContainer = containers.find(c => c.id === activeContainerId);
 
     // Granular fetch functions for better performance and targeted updates
-    const fetchMoisture = async () => {
+    const fetchMoisture = useCallback(async () => {
         const res = await apiService.getAllMoistureAnalysis();
         if (res?.responseData) setMoistureRecords(res.responseData);
-    };
+    }, []);
 
-    const fetchManualChecks = async () => {
+    const fetchManualChecks = useCallback(async () => {
         const currentUserId = userId || localStorage.getItem('userId');
         const currentVendorCode = vendorCode || localStorage.getItem('vendorCode');
         const currentShift = selectedShift || localStorage.getItem('selectedShift');
         const currentPlantId = dutyUnit || localStorage.getItem('dutyUnit');
-        const currentDutyDate = dutyDate || localStorage.getItem('dutyDate') || new Date().toISOString().split('T')[0];
+        const currentDutyDate = dutyDate || localStorage.getItem('dutyDate') || formatToIST(null, 'iso_date');
 
-        // Format date to dd/MM/yyyy as per backend requirement
-        const [y, m, d] = currentDutyDate.split('-');
-        const formattedDate = `${d}/${m}/${y}`;
+        const formattedDate = formatToIST(currentDutyDate, 'date');
 
         const params = {
-            plantId: currentPlantId || ":41647/01", // Fallback if not set
-            vendorCode: currentVendorCode || "134",
-            shift: currentShift || "1",
-            createdBy: currentUserId || "135",
+            plantId: currentPlantId || ":41647/01",
+            vendorCode: currentVendorCode || ":41647",
+            shift: currentShift || "A",
+            createdBy: currentUserId || "134",
             date: formattedDate
         };
 
@@ -209,42 +208,127 @@ export const ShiftProvider = ({ children }) => {
         } catch (error) {
             console.error("Error fetching manual checks:", error);
         }
-    };
+    }, [userId, vendorCode, selectedShift, dutyUnit, dutyDate]);
 
-    const fetchWireTension = async () => {
-        const res = await apiService.getAllWireTensioning();
-        if (res?.responseData) {
-            const flattenedRecords = mapWireTensionRecords(res.responseData);
-            setAllTensionRecords(prev => ({ ...prev, [activeContainerId]: flattenedRecords }));
+    const fetchWireTension = useCallback(async () => {
+        const currentUserId = userId || localStorage.getItem('userId');
+        const currentVendorCode = vendorCode || localStorage.getItem('vendorCode');
+        const currentShift = selectedShift || localStorage.getItem('selectedShift');
+        const currentPlantId = dutyUnit || localStorage.getItem('dutyUnit');
+        const currentDutyDate = dutyDate || localStorage.getItem('dutyDate') || formatToIST(null, 'iso_date');
+
+        const formattedDate = formatToIST(currentDutyDate, 'date');
+
+        const params = {
+            plantId: currentPlantId || ":41647/01",
+            vendorCode: currentVendorCode || ":41647",
+            shift: currentShift || "A",
+            createdBy: currentUserId || "134",
+            date: formattedDate
+        };
+
+        try {
+            const res = await apiService.getWireTensioningTodayRecord(params);
+            if (res?.responseData) {
+                const flattenedRecords = mapWireTensionRecords(res.responseData);
+                setAllTensionRecords(prev => ({ ...prev, [activeContainerId]: flattenedRecords }));
+            }
+        } catch (error) {
+            console.error("Error fetching wire tension:", error);
         }
-    };
+    }, [userId, vendorCode, selectedShift, dutyUnit, dutyDate, activeContainerId]);
 
-    const fetchCompaction = async () => {
-        const res = await apiService.getAllCompaction();
-        if (res?.responseData) {
-            const flattenedRecords = mapCompactionRecords(res.responseData);
-            setAllCompactionRecords(prev => ({ ...prev, [activeContainerId]: flattenedRecords }));
+    const fetchCompaction = useCallback(async () => {
+        const currentUserId = userId || localStorage.getItem('userId');
+        const currentVendorCode = vendorCode || localStorage.getItem('vendorCode');
+        const currentShift = selectedShift || localStorage.getItem('selectedShift');
+        const currentPlantId = dutyUnit || localStorage.getItem('dutyUnit');
+        const currentDutyDate = dutyDate || localStorage.getItem('dutyDate') || formatToIST(null, 'iso_date');
+
+        const formattedDate = formatToIST(currentDutyDate, 'date');
+
+        const params = {
+            plantId: currentPlantId || ":41647/01",
+            vendorCode: currentVendorCode || ":41647",
+            shift: currentShift || "A",
+            createdBy: currentUserId || "134",
+            date: formattedDate
+        };
+
+        try {
+            const res = await apiService.getCompactionTodayRecord(params);
+            if (res?.responseData) {
+                const flattenedRecords = mapCompactionRecords(res.responseData);
+                setAllCompactionRecords(prev => ({ ...prev, [activeContainerId]: flattenedRecords }));
+            }
+        } catch (error) {
+            console.error("Error fetching compaction:", error);
         }
-    };
+    }, [userId, vendorCode, selectedShift, dutyUnit, dutyDate, activeContainerId]);
 
-    const fetchBatchWeighment = async () => {
-        const res = await apiService.getAllBatchWeighment();
-        if (res?.responseData) {
-            const { declarations, configs, witnessed } = mapBatchWeighmentData(res.responseData, containers);
-            setAllWitnessedRecords(witnessed);
-            setAllBatchDeclarations(declarations);
-            setAllSessionConfigs(prev => ({ ...prev, ...configs }));
+    const fetchBatchWeighment = useCallback(async () => {
+        const currentUserId = userId || localStorage.getItem('userId');
+        const currentVendorCode = vendorCode || localStorage.getItem('vendorCode');
+        const currentShift = selectedShift || localStorage.getItem('selectedShift');
+        const currentPlantId = dutyUnit || localStorage.getItem('dutyUnit');
+        const currentDutyDate = dutyDate || localStorage.getItem('dutyDate') || formatToIST(null, 'iso_date');
+
+        // Force format to dd/MM/yyyy as strictly requested by backend for this module
+        const [y, m, d] = currentDutyDate.split('-');
+        const formattedDate = `${d}/${m}/${y}`;
+
+        const params = {
+            plantId: currentPlantId || ":41647/waidiyaram",
+            vendorCode: currentVendorCode || ":41647",
+            shift: currentShift || "A",
+            createdBy: currentUserId || "134",
+            date: formattedDate
+        };
+
+        try {
+            const res = await apiService.getBatchWeighmentTodayRecord(params);
+            
+            if (res?.responseData) {
+                const { declarations, configs, witnessed } = mapBatchWeighmentData(res.responseData, containers);
+                setAllWitnessedRecords(witnessed);
+                setAllBatchDeclarations(declarations);
+                setAllSessionConfigs(prev => ({ ...prev, ...configs }));
+            }
+        } catch (error) {
+            console.error("Error fetching batch weighment:", error);
         }
-    };
+    }, [userId, vendorCode, selectedShift, dutyUnit, dutyDate, containers]);
 
-    const fetchSteamCuring = async () => {
-        const res = await apiService.getAllSteamCuring();
-        if (res?.responseData) {
-            setSteamRecords(mapSteamCuringRecords(res.responseData));
+    const fetchSteamCuring = useCallback(async () => {
+        const currentUserId = userId || localStorage.getItem('userId');
+        const currentVendorCode = vendorCode || localStorage.getItem('vendorCode');
+        const currentShift = selectedShift || localStorage.getItem('selectedShift');
+        const currentPlantId = dutyUnit || localStorage.getItem('dutyUnit');
+        const currentDutyDate = dutyDate || localStorage.getItem('dutyDate') || formatToIST(null, 'iso_date');
+
+        // Date format: dd/MM/yyyy
+        const [y, m, d] = currentDutyDate.split('-');
+        const formattedDate = `${d}/${m}/${y}`;
+
+        const params = {
+            plantId: currentPlantId || ":41647/waidiyaram",
+            vendorCode: currentVendorCode || ":41647",
+            shift: currentShift || "A",
+            createdBy: currentUserId || "134",
+            date: formattedDate
+        };
+
+        try {
+            const res = await apiService.getSteamCuringTodayRecord(params);
+            if (res?.responseData) {
+                setSteamRecords(mapSteamCuringRecords(res.responseData));
+            }
+        } catch (error) {
+            console.error("Error fetching steam curing records:", error);
         }
-    };
+    }, [userId, vendorCode, selectedShift, dutyUnit, dutyDate]);
 
-    const fetchBenchMoulds = async () => {
+    const fetchBenchMoulds = useCallback(async () => {
         const [benchMould, stressBenches] = await Promise.all([
             apiService.getAllBenchMouldInspections(),
             apiService.getAllStressBenches()
@@ -268,12 +352,11 @@ export const ShiftProvider = ({ children }) => {
                 }))
             }));
         }
-    };
+    }, []);
 
-    const loadShiftData = async () => {
+    const loadShiftData = useCallback(async () => {
         setIsLoading(true);
         try {
-            // Firing all groups in parallel but each updates its own state when ready
             await Promise.allSettled([
                 fetchMoisture(),
                 fetchManualChecks(),
@@ -288,7 +371,7 @@ export const ShiftProvider = ({ children }) => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [fetchMoisture, fetchManualChecks, fetchWireTension, fetchCompaction, fetchBatchWeighment, fetchSteamCuring, fetchBenchMoulds]);
 
 
     const value = {

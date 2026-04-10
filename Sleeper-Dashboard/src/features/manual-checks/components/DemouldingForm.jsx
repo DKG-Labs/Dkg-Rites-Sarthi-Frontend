@@ -706,7 +706,6 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                                                         <option value="Insert Missing">Insert Missing</option>
                                                         <option value="Improper Finish">Improper Finish</option>
                                                         <option value="Blowholes">Blowholes</option>
-                                                        <option value="Other">Other</option>
                                                     </select>
                                                 </td>
                                             )}
@@ -721,12 +720,10 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                                                         disabled={!!item.visualReason}
                                                     >
                                                         <option value="">-- Select Dim. Reason --</option>
-                                                        <option value="Length Out of Tolerance">Length Out of Tolerance</option>
-                                                        <option value="Gauge Out of Tolerance">Gauge Out of Tolerance</option>
+                                                        <option value="Outer Gauge - Not ok">Outer Gauge - Not ok</option>
                                                         <option value="Rail Seat Slanted">Rail Seat Slanted</option>
                                                         <option value="Height Variation">Height Variation</option>
                                                         <option value="Insert Alignment Error">Insert Alignment Error</option>
-                                                        <option value="Other">Other</option>
                                                     </select>
                                                 </td>
                                             )}

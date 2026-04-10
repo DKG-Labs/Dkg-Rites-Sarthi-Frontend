@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { apiService } from '../../services/api';
+import { useShift } from '../../context/ShiftContext';
 import CollapsibleSection from '../../components/common/CollapsibleSection';
+import { formatToIST } from '../../utils/helpers';
 
 const SteamCuringSubCard = ({ id, title, color, statusDetail, isActive, onClick }) => {
     const label = id === 'stats' ? 'ANALYSIS' : id === 'witnessed' ? 'HISTORY' : 'SCADA';
@@ -67,8 +69,11 @@ const InlineRow = ({ cols }) => (
     </div>
 );
 
-const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: propSetSteamRecords, displayMode = 'modal', batches = [], activeContainer }) => {
+const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: propSetSteamRecords, displayMode = 'modal', batches: propBatches = [], activeContainer }) => {
+    const { containers, allBatchDeclarations, dutyDate, vendorId, dutyUnit, fetchSteamCuring, vendorCode, selectedShift, userId } = useShift();
     const [viewMode, setViewMode] = useState('witnessed');
+    const [availableLocations, setAvailableLocations] = useState([]);
+    const [batchOptions, setBatchOptions] = useState([]);
     const [localSteamRecords, setLocalSteamRecords] = useState([]);
     const entries = propSteamRecords || localSteamRecords;
     const setEntries = propSetSteamRecords || setLocalSteamRecords;
@@ -124,24 +129,194 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
     const [editParentId, setEditParentId] = useState(null);
 
     const [manualForm, setManualForm] = useState({
-        date: new Date().toISOString().split('T')[0],
-        batchNo: '', chamberNo: '', benches: '', minConstTemp: '', maxConstTemp: ''
+        date: formatToIST(null, 'iso_date'),
+        batchNo: '', 
+        chamberNo: '', 
+        benches: '', 
+        minConstTemp: '', 
+        maxConstTemp: '',
+        location: activeContainer?.name || '',
+        dateOfCasting: dutyDate || formatToIST(null, 'iso_date'),
+        grade: 'M60'
     });
 
-    // Available batches from all sources
-    const availableBatches = useMemo(() => {
-        const bSet = new Set();
-        if (Array.isArray(batches)) batches.forEach(b => { if (b.batchNo) bSet.add(String(b.batchNo)); });
-        scadaCycles.forEach(r => { if (r.batchNo) bSet.add(String(r.batchNo)); });
-        entries.forEach(r => { if (r.batchNo) bSet.add(String(r.batchNo)); });
-        return Array.from(bSet).sort();
-    }, [batches, scadaCycles, entries]);
-
-    // Auto-select chamber when batch changes
+    // Fetch Steam Curing data on mount
     useEffect(() => {
-        const match = scadaCycles.find(c => String(c.batchNo) === String(selectedBatch));
-        if (match) setSelectedChamber(match.chamberNo);
-    }, [selectedBatch]);
+        if (fetchSteamCuring) {
+            fetchSteamCuring();
+        }
+    }, [fetchSteamCuring]);
+
+    // Fetch Dynamic Locations for current Unit (Matching Demoulding Card logic)
+    useEffect(() => {
+        const fetchLocations = async () => {
+            const vId = vendorId || localStorage.getItem('vendorId');
+            if (dutyUnit && vId) {
+                try {
+                    const response = await apiService.getPlantSheds(vId, dutyUnit);
+                    let locList = [];
+                    const data = response?.responseData || response;
+                    if (typeof data === 'object' && data !== null) {
+                        Object.values(data).forEach((ids) => {
+                            if (Array.isArray(ids)) {
+                                ids.forEach(id => locList.push(id));
+                            }
+                        });
+                    }
+                    setAvailableLocations(locList);
+                    if (locList.length > 0 && !manualForm.location) {
+                        setManualForm(prev => ({ ...prev, location: locList[0] }));
+                    }
+                } catch (err) {
+                    console.error("Error fetching locations in Steam Curing:", err);
+                }
+            }
+        };
+        fetchLocations();
+    }, [dutyUnit, vendorId]);
+
+    // Format date for API (dd/MM/yyyy)
+    const formatToBackendDate = (dateStr) => {
+        if (!dateStr) return null;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+            const [year, month, day] = dateStr.split("-");
+            return `${day}/${month}/${year}`;
+        }
+        return dateStr;
+    };
+
+    // Fetch batches when casting date or location changes
+    useEffect(() => {
+        const fetchBatches = async () => {
+            // Clear previous options as soon as inputs change
+            setBatchOptions([]);
+
+            if (manualForm.dateOfCasting && manualForm.location && manualForm.location !== 'N/A' && manualForm.location !== '') {
+                try {
+                    const vId = vendorId || localStorage.getItem('vendorId');
+                    const formattedDate = formatToBackendDate(manualForm.dateOfCasting);
+                    const response = await apiService.getProductionBatchesWithId(
+                        vId,
+                        formattedDate,
+                        dutyUnit,
+                        manualForm.location
+                    );
+                    if (response?.responseData) {
+                        setBatchOptions(response.responseData);
+                    }
+                } catch (error) {
+                    console.error("Error fetching batches in Steam Curing:", error);
+                }
+            }
+        };
+        fetchBatches();
+    }, [manualForm.dateOfCasting, manualForm.location, vendorId, dutyUnit]);
+
+    // Available batches filtered by location and date
+    const availableBatches = useMemo(() => {
+        const results = []; // Store objects { id, batchNo }
+        const seen = new Set();
+        
+        const hasFilter = manualForm.dateOfCasting && manualForm.location && manualForm.location !== 'N/A' && manualForm.location !== '';
+
+        // 1. Live fetched batches (API) - Principal Source
+        if (batchOptions.length > 0) {
+            batchOptions.forEach(b => {
+                const bNo = b.batchNumber || b.batchNo;
+                if (bNo && !seen.has(String(bNo))) {
+                    results.push({ id: b.id, batchNo: String(bNo) });
+                    seen.add(String(bNo));
+                }
+            });
+        }
+        
+        // 2. Current session entries (So we don't lose sight of what we just logged)
+        entries.forEach(e => {
+            if (e.batchNo && !seen.has(String(e.batchNo))) {
+                // If it matches current filter OR no filter is active
+                const matchesFilter = !hasFilter || (
+                    e.location === manualForm.location && 
+                    e.date === manualForm.dateOfCasting.split('-').reverse().join('/')
+                );
+                
+                if (matchesFilter) {
+                    results.push({ id: e.parentId || e.batchNo, batchNo: String(e.batchNo) });
+                    seen.add(String(e.batchNo));
+                }
+            }
+        });
+
+        // 3. Fallback to Local context ONLY if no API results are found AND no filter is set
+        if (!hasFilter && results.length === 0) {
+            const allDecls = Object.values(allBatchDeclarations).flat();
+            allDecls.forEach(b => {
+                if (b.batchNo && !seen.has(String(b.batchNo))) {
+                    results.push({ id: b.id || b.batchNo, batchNo: String(b.batchNo) });
+                    seen.add(String(b.batchNo));
+                }
+            });
+        }
+        
+        return results.sort((a, b) => a.batchNo.localeCompare(b.batchNo));
+    }, [manualForm.location, manualForm.dateOfCasting, batchOptions, entries, allBatchDeclarations]);
+
+    // Auto-select chamber and grade when batch ID changes
+    useEffect(() => {
+        const syncFormWithBatch = async () => {
+            if (!selectedBatch) {
+                setManualForm(prev => ({ ...prev, batchNo: '' }));
+                return;
+            }
+
+            // 1. Resolve current batch number from availableBatches list
+            const matchedOption = availableBatches.find(b => String(b.id) === String(selectedBatch));
+            const batchNoStr = matchedOption ? matchedOption.batchNo : String(selectedBatch);
+            
+            // Sync the batch number to manual form immediately
+            setManualForm(prev => ({ ...prev, batchNo: batchNoStr }));
+
+            // 2. Try to fetch more details (Grade, Chamber)
+            const isApiBatch = batchOptions.some(b => String(b.id) === String(selectedBatch));
+            
+            if (isApiBatch) {
+                try {
+                    const response = await apiService.getProductionDeclarationRecordById(selectedBatch);
+                    const data = response?.responseData;
+                    if (data) {
+                        const grade = data.mixDesignReference ? data.mixDesignReference.split(' - ')[0] : 'M60';
+                        const chamber = (data.chambers && data.chambers.length > 0) ? String(data.chambers[0].chamberNo) : '';
+                        
+                        setManualForm(prev => ({ 
+                            ...prev, 
+                            batchNo: data.batchNumber || data.batchNo,
+                            grade: grade, 
+                            chamberNo: chamber || prev.chamberNo 
+                        }));
+                        if (chamber) setSelectedChamber(chamber);
+                        return;
+                    }
+                } catch (error) {
+                    console.error("Error fetching production declaration details:", error);
+                }
+            }
+
+            // Fallback for Grade and Chamber from local context
+            const allDecls = Object.values(allBatchDeclarations).flat();
+            const localMatch = allDecls.find(b => String(b.batchNo) === batchNoStr);
+            if (localMatch) {
+                setManualForm(prev => ({ 
+                    ...prev, 
+                    grade: localMatch.concreteGrade || localMatch.mixDesignReference || 'M60',
+                    chamberNo: localMatch.chambers?.[0]?.chamberNo || prev.chamberNo
+                }));
+            }
+
+            const scadaMatch = scadaCycles.find(c => String(c.batchNo) === batchNoStr);
+            if (scadaMatch) setSelectedChamber(scadaMatch.chamberNo);
+        };
+
+        syncFormWithBatch();
+    }, [selectedBatch, batchOptions, availableBatches, allBatchDeclarations]);
 
     const isTempInvalid = (val) => {
         if (val === '' || val === null || val === undefined) return false;
@@ -247,8 +422,9 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
     };
 
     const handleSaveManual = async () => {
-        if (!manualForm.batchNo || !manualForm.chamberNo) {
-            alert('Batch and Chamber numbers required');
+        const isLine = (manualForm.location || '').toLowerCase().includes('line');
+        if (!manualForm.batchNo || (!manualForm.chamberNo && !isLine)) {
+            alert(isLine ? 'Batch number required' : 'Batch and Chamber numbers required');
             return;
         }
         const minVal = parseFloat(manualForm.minConstTemp);
@@ -289,6 +465,7 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                 }
                 setEntries(prev => prev.map(e => e.id === editingId ? newEntry : e));
                 alert('Record updated successfully');
+                if (fetchSteamCuring) await fetchSteamCuring(); 
             } catch (error) {
                 console.error('Update failed:', error);
                 alert(`Update failed: ${error.message}`);
@@ -300,8 +477,19 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
             }
         } else {
             setEntries(prev => [newEntry, ...prev]);
+            alert('Manual record added. Please remember to click "Save / Finish Batch" at the bottom to sync with the server.');
         }
-        setManualForm({ date: new Date().toISOString().split('T')[0], batchNo: '', chamberNo: '', benches: '', minConstTemp: '', maxConstTemp: '' });
+        setManualForm({ 
+            date: formatToIST(null, 'iso_date'), 
+            batchNo: '', 
+            chamberNo: '', 
+            benches: '', 
+            minConstTemp: '', 
+            maxConstTemp: '',
+            location: manualForm.location || activeContainer?.name || '',
+            dateOfCasting: manualForm.dateOfCasting || dutyDate || formatToIST(null, 'iso_date'),
+            grade: 'M60'
+        });
     };
 
     const handleFinalSave = async () => {
@@ -356,11 +544,20 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                     finalDuration: parseFloat(e.finalDuration) || 0
                 }));
 
+            const currentVendorCode = vendorCode || localStorage.getItem('vendorCode');
+            const currentShift = selectedShift || localStorage.getItem('selectedShift');
+            const currentPlantId = dutyUnit || localStorage.getItem('dutyUnit');
+
             const payload = {
                 batchNo: String(batchToSave),
-                chamber: String(selectedChamber || manualForm.chamberNo),
+                chamber: String(selectedChamber || manualForm.chamberNo || "0"),
                 grade: 'M60',
-                entryDate: manualForm.date ? manualForm.date.split('-').reverse().join('/') : new Date().toLocaleDateString('en-GB'),
+                entryDate: manualForm.date ? manualForm.date.split('-').reverse().join('/') : formatToIST(null, 'date'),
+                location: manualForm.location,
+                vendorCode: currentVendorCode,
+                plantId: currentPlantId,
+                shift: currentShift,
+                createdBy: userId || localStorage.getItem('userId'),
                 scadaRecords: scadaRecordsPayload,
                 manualRecords
             };
@@ -370,6 +567,7 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
 
             setShowForm(false);
             alert('Steam curing data synced successfully.');
+            if (fetchSteamCuring) await fetchSteamCuring();
         } catch (error) {
             console.error('Save failed:', error);
             alert(`Failed to save: ${error.message}`);
@@ -412,8 +610,6 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                 {/* Header Info Row */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '4px' }}>
                     {[
-                        { label: 'Batch Number', value: cycle.batchNo, color: '#3b82f6', bg: '#eff6ff' },
-                        { label: 'Chamber Number', value: cycle.chamberNo, color: '#7c3aed', bg: '#f5f3ff' },
                         { label: 'Date of Casting', value: cycle.dateOfCasting ? cycle.dateOfCasting.split('-').reverse().join('/') : '—', color: '#0891b2', bg: '#ecfeff' },
                         { label: 'Bench Numbers', value: cycle.benches, color: '#059669', bg: '#f0fdf4' },
                         { label: 'Grade of Concrete', value: cycle.grade, color: '#d97706', bg: '#fffbeb' },
@@ -532,38 +728,67 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                             </div>
                             <div className="form-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem' }}>
                                 <div className="form-field">
-                                    <label style={{ fontSize: '10px' }}>Batch</label>
+                                    <label style={{ fontSize: '10px' }}>Location</label>
+                                    <select
+                                        value={manualForm.location}
+                                        onChange={e => {
+                                            setManualForm(prev => ({ ...prev, location: e.target.value, batchNo: '' }));
+                                            setSelectedBatch('');
+                                        }}
+                                        style={{ background: '#fff', fontSize: '13px', padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+                                    >
+                                        <option value="">Select Location</option>
+                                        {availableLocations.length > 0 ? (
+                                            availableLocations.map(loc => <option key={loc} value={loc}>{loc}</option>)
+                                        ) : (
+                                            (containers || []).map(c => <option key={c.id} value={c.name}>{c.name}</option>)
+                                        )}
+                                    </select>
+                                </div>
+                                <div className="form-field">
+                                    <label style={{ fontSize: '10px' }}>Date of Casting</label>
+                                    <input 
+                                        type="date"
+                                        value={manualForm.dateOfCasting}
+                                        onChange={e => {
+                                            setManualForm(prev => ({ ...prev, dateOfCasting: e.target.value, batchNo: '' }));
+                                            setSelectedBatch('');
+                                        }}
+                                        style={{ background: '#fff', fontSize: '13px', padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+                                    />
+                                </div>
+                                <div className="form-field">
+                                    <label style={{ fontSize: '10px' }}>Batch Number</label>
                                     <select
                                         value={selectedBatch}
                                         onChange={e => {
-                                            setSelectedBatch(e.target.value);
-                                            setManualForm(prev => ({ ...prev, batchNo: e.target.value }));
+                                            const val = e.target.value;
+                                            // Store numeric ID if possible, otherwise string
+                                            setSelectedBatch(isNaN(Number(val)) ? val : Number(val));
                                         }}
                                         style={{ background: '#fff', fontSize: '13px', padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
                                     >
                                         <option value="">Select Batch</option>
-                                        {availableBatches.map(b => <option key={b} value={b}>{b}</option>)}
+                                        {availableBatches.map(b => <option key={b.id} value={b.id}>{b.batchNo}</option>)}
                                     </select>
                                 </div>
                                 <div className="form-field">
-                                    <label style={{ fontSize: '10px' }}>Chamber</label>
-                                    <select
-                                        value={selectedChamber}
-                                        onChange={e => {
-                                            setSelectedChamber(e.target.value);
-                                            setManualForm(prev => ({ ...prev, chamberNo: e.target.value }));
-                                        }}
-                                        style={{ background: '#fff', fontSize: '13px', padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
-                                    >
-                                        <option value="">Select Chamber</option>
-                                        {scadaCycles
-                                            .filter(c => !selectedBatch || String(c.batchNo) === String(selectedBatch))
-                                            .map(c => <option key={c.chamberNo} value={c.chamberNo}>{c.chamberNo}</option>)
-                                        }
-                                    </select>
+                                    <label style={{ fontSize: '10px' }}>Chamber No.</label>
+                                    <input 
+                                        value={manualForm.chamberNo} 
+                                        readOnly 
+                                        placeholder={(manualForm.location || '').toLowerCase().includes('line') ? 'N/A (Long Line)' : 'Automated...'}
+                                        style={{ background: '#f8fafc', fontSize: '13px', padding: '6px', border: '1px solid #e2e8f0', color: '#64748b' }} 
+                                    />
                                 </div>
-                                <div className="form-field"><label style={{ fontSize: '10px' }}>Grade</label><input value={activeRecord?.grade || 'M60'} readOnly style={{ background: '#fff', fontSize: '13px', padding: '6px' }} /></div>
-                                <div className="form-field"><label style={{ fontSize: '10px' }}>Date</label><input type="text" value={manualForm.date ? manualForm.date.split('-').reverse().join('/') : ''} readOnly style={{ background: '#fff', fontSize: '13px', padding: '6px' }} /></div>
+                                <div className="form-field">
+                                    <label style={{ fontSize: '10px' }}>Concrete Grade</label>
+                                    <input 
+                                        value={manualForm.grade} 
+                                        readOnly 
+                                        style={{ background: '#f8fafc', fontSize: '13px', padding: '6px', border: '1px solid #e2e8f0', color: '#64748b' }} 
+                                    />
+                                </div>
                             </div>
                         </div>
                         )}
@@ -591,8 +816,12 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                                 <h4 style={{ margin: 0, fontSize: '0.9rem', color: '#064e3b', fontWeight: '800' }}>Manual Entry Form</h4>
                             </div>
                             <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '1rem' }}>
-                                <div className="form-field"><label style={{ fontSize: '10px' }}>Batch No.</label><input style={{ padding: '6px' }} type="number" min="0" value={manualForm.batchNo} onChange={e => setManualForm({ ...manualForm, batchNo: e.target.value })} /></div>
-                                <div className="form-field"><label style={{ fontSize: '10px' }}>Chamber</label><input style={{ padding: '6px' }} type="number" min="0" value={manualForm.chamberNo} onChange={e => setManualForm({ ...manualForm, chamberNo: e.target.value })} /></div>
+                                <div className="form-field">
+                                    <label style={{ fontSize: '10px' }}>Declaration Summary</label>
+                                    <div style={{ padding: '6px', background: '#fff', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '11px', fontWeight: '700', color: '#065f46' }}>
+                                        Batch {manualForm.batchNo || '—'} / Chamber {manualForm.chamberNo || '—'}
+                                    </div>
+                                </div>
                                 <div className="form-field">
                                     <label style={{ fontSize: '10px' }}>Min Temp</label>
                                     <input
@@ -703,20 +932,25 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                                 <thead><tr><th>Source</th><th>Date</th><th>Batch</th><th>Chamber</th><th>Temp Range</th><th>Status</th><th>Actions</th></tr></thead>
                                 <tbody>
                                     {entries.map(e => (
-                                        <tr key={e.id}>
-                                            <td><span className={`status-pill ${e.source === 'Manual' ? 'manual' : 'witnessed'}`}>{e.source}</span></td>
+                                        <tr key={e.id} style={{ background: e.isHeader ? '#f1f5f9' : 'transparent', fontWeight: e.isHeader ? '700' : '400' }}>
+                                            <td>
+                                                <span className={`status-pill ${e.source === 'Manual' ? 'manual' : e.source === 'Batch' ? 'header' : 'witnessed'}`} 
+                                                      style={e.source === 'Batch' ? { background: '#e2e8f0', color: '#475569' } : {}}>
+                                                    {e.source}
+                                                </span>
+                                            </td>
                                             <td>{e.date ? e.date.split('-').reverse().join('/') : ''}</td>
                                             <td>{e.batchNo}</td><td>{e.chamberNo}</td>
-                                            <td>{e.minConstTemp}–{e.maxConstTemp}°C</td>
+                                            <td>{e.minConstTemp}{e.maxConstTemp !== '—' ? `–${e.maxConstTemp}°C` : ''}</td>
                                             <td>
-                                                <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '800', background: e.status === 'OK' ? '#ecfdf5' : '#fef2f2', color: e.status === 'OK' ? '#059669' : '#dc2626' }}>
+                                                <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '800', background: e.status === 'OK' || e.status === 'REGISTERED' ? '#ecfdf5' : '#fef2f2', color: e.status === 'OK' || e.status === 'REGISTERED' ? '#059669' : '#dc2626' }}>
                                                     {e.status || 'OK'}
                                                 </span>
                                             </td>
                                             <td>
                                                 <div style={{ display: 'flex', gap: '8px' }}>
                                                     {e.source === 'Manual' && <button className="btn-action" onClick={() => handleEdit(e)}>Edit</button>}
-                                                    <button className="btn-action" style={{ background: '#fee2e2', color: '#ef4444', border: 'none' }} onClick={() => handleDelete(e.id)}>Delete</button>
+                                                    {!e.isHeader && <button className="btn-action" style={{ background: '#fee2e2', color: '#ef4444', border: 'none' }} onClick={() => handleDelete(e.id)}>Delete</button>}
                                                 </div>
                                             </td>
                                         </tr>
@@ -737,7 +971,7 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                                     <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', marginRight: '6px' }}>Batch No.:</label>
                                     <select className="dash-select" value={selectedBatch} onChange={e => setSelectedBatch(e.target.value)}>
                                         <option value="">-- Select --</option>
-                                        {availableBatches.map(b => <option key={b} value={b}>{b}</option>)}
+                                        {availableBatches.map(b => <option key={b.id} value={b.id}>{b.batchNo}</option>)}
                                     </select>
                                 </div>
                                 <div>

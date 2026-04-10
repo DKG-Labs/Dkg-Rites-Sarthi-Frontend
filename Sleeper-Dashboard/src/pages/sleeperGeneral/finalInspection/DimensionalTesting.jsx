@@ -7,7 +7,7 @@ import CriticalDimensionForm from './CriticalDimensionForm';
 import NonCriticalDimensionForm from './NonCriticalDimensionForm';
 
 const DimensionalTesting = ({ type }) => {
-    const { selectedShift } = useShift();
+    const { selectedShift, dutyUnit } = useShift();
     const [activeTab, setActiveTab] = useState('pending'); // 'pending' or 'completed'
     const [showForm, setShowForm] = useState(false);
     const [selectedBatch, setSelectedBatch] = useState(null);
@@ -25,7 +25,8 @@ const DimensionalTesting = ({ type }) => {
             setLoading(true);
             const typeToModuleId = { visual: 1, critical: 2, noncritical: 3 };
             const moduleId = typeToModuleId[type] || 1;
-            const data = await apiService.getFinalInspectionBatches(moduleId);
+            const currentPlantId = dutyUnit || localStorage.getItem('dutyUnit');
+            const data = await apiService.getFinalInspectionBatches(moduleId, { plantId: currentPlantId });
             
             // Use API-provided testedPercentage directly.
             // Only recalculate if sleeper-level detail is returned (rarely the case in list endpoints).

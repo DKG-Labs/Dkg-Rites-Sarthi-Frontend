@@ -70,39 +70,59 @@ export const mapCompactionRecords = (responseData) => {
 };
 
 export const mapSteamCuringRecords = (responseData) => {
-    if (!responseData) return [];
+    if (!responseData || !Array.isArray(responseData)) return [];
     const flattenedRecords = [];
     responseData.forEach(batchRecord => {
-        const { batchNo, chamber, grade, entryDate, id } = batchRecord;
+        const { batchNo, chamber, grade, entryDate, id, location } = batchRecord;
+
+        // Add a Summary/Header record for the batch
+        flattenedRecords.push({
+            id: `batch-${id}`,
+            parentId: id,
+            batchNo,
+            chamberNo: chamber,
+            date: entryDate,
+            source: 'Batch',
+            grade,
+            location,
+            minConstTemp: '—',
+            maxConstTemp: '—',
+            status: 'REGISTERED',
+            isHeader: true
+        });
 
         (batchRecord.manualRecords || []).forEach(m => {
             flattenedRecords.push({
                 ...m,
-                id: `${id}-m-${flattenedRecords.length}`,
+                id: `${id}-m-${m.id || Math.random()}`,
                 manualId: m.id,
                 parentId: id,
                 batchNo,
-                chamberNo: chamber,
+                chamberNo: m.chamber || chamber,
                 date: entryDate,
                 source: 'Manual',
                 grade,
+                location,
                 minConstTemp: m.minTemp,
-                maxConstTemp: m.maxTemp
+                maxConstTemp: m.maxTemp,
+                status: (m.minTemp >= 55 && m.maxTemp <= 60) ? 'OK' : 'NOT OK'
             });
         });
 
         (batchRecord.scadaRecords || []).forEach(s => {
             flattenedRecords.push({
                 ...s,
-                id: `${id}-s-${flattenedRecords.length}`,
+                id: `${id}-s-${s.id || Math.random()}`,
                 parentId: id,
                 batchNo,
-                chamberNo: chamber,
+                chamberNo: s.chamberNo || chamber,
                 date: entryDate,
                 source: 'Scada',
                 grade,
-                minConstTemp: s.minTemp || 0,
-                maxConstTemp: s.maxTemp || 0
+                location,
+                minConstTemp: s.constTempMin || s.minTemp || 0,
+                maxConstTemp: s.constTempMax || s.maxTemp || 0,
+                status: (s.constTempMin >= 55 && s.constTempMax <= 60) ? 'OK' : 'NOT OK'
             });
         });
     });
@@ -124,6 +144,9 @@ export const mapBatchWeighmentData = (responseData, containers) => {
             id: d.id,
             parentId: session.id,
             batchNo: d.batchNo,
+            date: session.entryDate,
+            location: session.lineNo,
+            concreteGrade: session.concreteGrade,
             proportionMatch: d.proportionStatus,
             setValues: {
                 ca1: d.ca1Set, ca2: d.ca2Set, fa: d.faSet,
@@ -142,6 +165,24 @@ export const mapBatchWeighmentData = (responseData, containers) => {
         };
 
         const witnessed = [];
+
+        // 1. Create a "Session Header" record to ensure the session itself is logged
+        witnessed.push({
+            id: `session-${session.id}`,
+            parentId: session.id,
+            batchNo: session.remarks?.includes('Batch #') ? session.remarks.split('#')[1].split(' ')[0] : 'N/A',
+            date: session.entryDate,
+            time: session.time || 'N/A',
+            location: session.lineNo,
+            source: session.entryMode === 'MIXED' ? 'Mixed' : 'Session',
+            remarks: session.remarks,
+            sandType: session.sandType,
+            sensorStatus: session.moistureSensorStatus,
+            verifiedBy: session.verifiedBy,
+            isHeader: true, // Special flag for UI
+            ca1: '-', ca2: '-', fa: '-', cement: '-', water: '-', admixture: '-', total: 0
+        });
+
         (session.scadaRecords || []).forEach(s => {
             witnessed.push({
                 ...s,
@@ -156,7 +197,9 @@ export const mapBatchWeighmentData = (responseData, containers) => {
                 fa: s.faActual,
                 cement: s.cementActual,
                 water: s.waterActual,
-                admixture: s.admixtureActual
+                admixture: s.admixtureActual,
+                sandType: session.sandType,
+                sensorStatus: session.moistureSensorStatus
             });
         });
         (session.manualRecords || []).forEach(m => {
@@ -173,7 +216,9 @@ export const mapBatchWeighmentData = (responseData, containers) => {
                 fa: m.faActual,
                 cement: m.cementActual,
                 water: m.waterActual,
-                admixture: m.admixtureActual
+                admixture: m.admixtureActual,
+                sandType: session.sandType,
+                sensorStatus: session.moistureSensorStatus
             });
         });
         allWitnessed[containerId] = [...(allWitnessed[containerId] || []), ...witnessed];

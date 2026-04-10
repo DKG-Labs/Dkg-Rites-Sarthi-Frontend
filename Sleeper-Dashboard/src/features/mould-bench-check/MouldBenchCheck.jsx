@@ -32,7 +32,6 @@ const CONSTANTS = {
             "Width Gap Issue",
             "Channel Distance Mismatch",
             "Hook Position Error",
-            "Jack Height Out of Tolerance",
             "End Box Alignment Issue",
             "Hole Position Displacement"
         ],

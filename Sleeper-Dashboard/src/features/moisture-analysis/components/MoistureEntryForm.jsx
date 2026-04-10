@@ -22,9 +22,11 @@ const DEFAULT_MIX_VALUES = {
  * - CA1, CA2, FA Toggle Sections (with all calculations)
  */
 const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
-    const { vendorId } = useShift();
+    const { vendorId, dutyDate, selectedShift, dutyUnit } = useShift();
     const [activeSection, setActiveSection] = useState('ca1');
     const [mixDesignPlans, setMixDesignPlans] = useState([]);
+    const [availableLocations, setAvailableLocations] = useState([]);
+    const [availableBatches, setAvailableBatches] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef(null);
@@ -32,17 +34,55 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
     useEffect(() => {
         const fetchMixDesigns = async () => {
             try {
-                // Fetch full mix design records for selection (Module 4)
-                const response = await apiService.getApprovedMixDesigns(4, vendorId);
+                const currentPlantId = dutyUnit || localStorage.getItem('dutyUnit');
+                // Fetch full mix design records for selection (Module 4) - only passing moduleId as requested
+                const response = await apiService.getApprovedMixDesigns(4);
                 if (response?.responseData) {
-                    setMixDesignPlans(response.responseData);
+                    // Apply frontend filter as well to be safe (handles backend inconsistencies)
+                    const filtered = response.responseData.filter(m => {
+                        if (!currentPlantId) return true;
+                        
+                        // Clean IDs (remove leading colons or whitespace)
+                        const cleanConfigPlantId = currentPlantId.replace(/^:/, '').trim();
+                        const cleanRecordPlantId = (m.plantId || '').replace(/^:/, '').trim();
+                        
+                        return cleanConfigPlantId === cleanRecordPlantId;
+                    });
+                    setMixDesignPlans(filtered);
                 }
             } catch (error) {
                 console.error("Error fetching mix designs:", error);
             }
         };
         fetchMixDesigns();
-    }, [vendorId]);
+    }, [vendorId, dutyUnit]);
+
+    // Fetch Dynamic Locations for current Unit
+    useEffect(() => {
+        const fetchLocations = async () => {
+            const vId = vendorId || localStorage.getItem('vendorId');
+            if (dutyUnit && vId) {
+                try {
+                    const response = await apiService.getPlantSheds(vId, dutyUnit);
+                    let locList = [];
+                    const data = response?.responseData || response;
+                    if (typeof data === 'object' && data !== null) {
+                        Object.values(data).forEach((ids) => {
+                            if (Array.isArray(ids)) {
+                                ids.forEach(id => {
+                                    locList.push(id);
+                                });
+                            }
+                        });
+                    }
+                    setAvailableLocations(locList);
+                } catch (err) {
+                    console.error("Error fetching locations in moisture form:", err);
+                }
+            }
+        };
+        fetchLocations();
+    }, [dutyUnit, vendorId]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -71,9 +111,10 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
 
     // Common Form Section Data
     const [commonData, setCommonData] = useState({
-        date: initialData?.date || localInit.date,
-        shift: initialData?.shift || 'A',
+        date: initialData?.date || dutyDate || localInit.date,
+        shift: initialData?.shift || selectedShift || 'A',
         timing: initialData?.timing || localInit.time,
+        location: initialData?.location || '',
         batchNo: initialData?.batchNo || '',
         mixDesignId: initialData?.mixDesignId || '',
 
@@ -92,6 +133,37 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
         designWC: initialData?.designWC || ''
     });
 
+    // Fetch batches when date or location change
+    useEffect(() => {
+        const fetchBatches = async () => {
+            if (commonData.date && commonData.location) {
+                try {
+                    const formattedDate = commonData.date.includes('-') 
+                        ? commonData.date.split('-').reverse().join('/') 
+                        : commonData.date;
+                    
+                    const response = await apiService.getAllProductionBatches(
+                        vendorId, 
+                        formattedDate, 
+                        dutyUnit, 
+                        commonData.location
+                    );
+                    
+                    if (response?.responseData) {
+                        setAvailableBatches(response.responseData);
+                    } else {
+                        setAvailableBatches([]);
+                    }
+                } catch (error) {
+                    console.error("Error fetching batches:", error);
+                    setAvailableBatches([]);
+                }
+            }
+        };
+        fetchBatches();
+    }, [commonData.date, commonData.location, vendorId, dutyUnit]);
+
+
     // Aggregate Data for CA1, CA2, FA
     const [aggData, setAggData] = useState({
         ca1: initialData?.ca1Details || { wetSample: '', driedSample: '', absorption: '' },
@@ -103,9 +175,10 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
     useEffect(() => {
         if (initialData) {
             setCommonData({
-                date: initialData.date || localInit.date,
-                shift: initialData.shift || 'A',
+                date: initialData.date || dutyDate || localInit.date,
+                shift: initialData.shift || selectedShift || 'A',
                 timing: initialData.timing || localInit.time,
+                location: initialData.location || '',
                 batchNo: initialData.batchNo || '',
                 mixDesignId: initialData.mixDesignId || '',
                 designValues: initialData.designValues || null,
@@ -123,8 +196,16 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
                 ca2: initialData.ca2Details || { wetSample: '', driedSample: '', absorption: '' },
                 fa: initialData.faDetails || { wetSample: '', driedSample: '', absorption: '' }
             });
+        } else {
+            // Update shift/date if duty context changes
+            setCommonData(prev => ({
+                ...prev,
+                date: dutyDate || prev.date,
+                shift: selectedShift || prev.shift
+            }));
         }
-    }, [initialData]);
+    }, [initialData, dutyDate, selectedShift]);
+
 
     const handleCommonChange = (field, val) => {
         if (field === 'mixDesignId') {
@@ -139,7 +220,8 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
                     ca2: selectedPlan.ca2 || '0',
                     fa: selectedPlan.fa || '0',
                     water: selectedPlan.water || '0',
-                    admix: selectedPlan.admix || selectedPlan.admixtureLabel || '1.44'
+                    admix: selectedPlan.admixture || selectedPlan.admix || '1.44',
+                    admixPct: selectedPlan.cement > 0 ? ((parseFloat(selectedPlan.admixture || selectedPlan.admix || 0) / parseFloat(selectedPlan.cement)) * 100).toFixed(2) : '0.00'
                 };
                 
                 setCommonData(prev => ({
@@ -206,7 +288,7 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
                     const ca2 = (K * B).toFixed(2);
                     const fa = (K * C).toFixed(2);
                     const water = (K * D).toFixed(2);
-                    const admix = (K * E).toFixed(2);
+                    const admix = (K * E).toFixed(2); // J = K * E
 
                     return {
                         ...prev,
@@ -312,13 +394,13 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
         ? ((parseFloat(ca1Calc.batchWtDry) + parseFloat(ca2Calc.batchWtDry) + parseFloat(faCalc.batchWtDry)) / M)
         : 0;
 
-    // 35 = (Water / Cement) Ratio = W/C (Actual Water / Actual Cement)
+    // 35 = (Water / Cement) Ratio = W/C (Actual Water / Actual Cement) = 31 / M
     const step35_WCRatio = M > 0 ? (step31_WaterContent / M) : 0;
 
     const totalFreeMoisture = step32_TotalFreeMoisture.toFixed(3);
     const adjustedWater = step33_AdjustedWater.toFixed(3);
     const acRatio = step34_ACRatio.toFixed(2);
-    const wcRatio = step35_WCRatio.toFixed(3);
+    const wcRatio = step35_WCRatio.toFixed(3); // Point 235: 35 = 31 / M
 
     const handleSubmit = () => {
         if (!commonData.batchNo) {
@@ -368,9 +450,9 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
 
             {/* Common Form Section */}
             <div className="moisture-section">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-                    <h4 style={{ margin: 0 }}>Common Form Section</h4>
-                    <div style={{ display: 'flex', gap: '1rem', background: '#fff', padding: '10px 16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                    <h4 style={{ margin: 0, fontSize: '0.85rem' }}>Common Form Section</h4>
+                    <div style={{ display: 'flex', gap: '0.75rem', background: '#fff', padding: '6px 12px', borderRadius: '10px', border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
                         <div className="form-field-compact">
                             <span className="mini-label">Date</span>
                             <strong>{commonData.date ? commonData.date.split('-').reverse().join('/') : ''}</strong>
@@ -383,22 +465,44 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
                     </div>
                 </div>
 
-                <div className="moisture-grid">
+                <div className="moisture-grid-one-line">
                     <div className="form-field">
                         <label htmlFor="moisture-timing">Time <span className="required">*</span></label>
                         <input id="moisture-timing" name="timing" type="time" value={commonData.timing} onChange={e => handleCommonChange('timing', e.target.value)} />
                     </div>
                     <div className="form-field">
-                        <label htmlFor="moisture-batch">Batch No. <span className="required">*</span></label>
-                        <input id="moisture-batch" name="batchNo" type="number" min="0" value={commonData.batchNo} onChange={e => handleCommonChange('batchNo', e.target.value)} placeholder="000" />
+                        <label htmlFor="moisture-location">Location <span className="required">*</span></label>
+                        <select 
+                            id="moisture-location" 
+                            name="location" 
+                            value={commonData.location} 
+                            onChange={e => handleCommonChange('location', e.target.value)}
+                        >
+                            <option value="">-- Select --</option>
+                            {availableLocations.map(loc => (
+                                <option key={loc} value={loc}>{loc}</option>
+                            ))}
+                        </select>
                     </div>
-                    <div className="form-field" style={{ gridColumn: 'span 2' }} ref={dropdownRef}>
-                        <label htmlFor="moisture-mix-design">Approved Mix Design <span className="required">*</span></label>
+                    <div className="form-field">
+                        <label htmlFor="moisture-batch">Batch No. <span className="required">*</span></label>
+                        <input 
+                            id="moisture-batch" 
+                            name="batchNo" 
+                            type="text"
+                            placeholder="Enter Batch No."
+                            value={commonData.batchNo} 
+                            onChange={e => handleCommonChange('batchNo', e.target.value)} 
+                            required
+                        />
+                    </div>
+                    <div className="form-field" ref={dropdownRef}>
+                        <label htmlFor="moisture-mix-design">Mix Design <span className="required">*</span></label>
                         <div style={{ position: 'relative' }}>
                             <input
                                 id="moisture-mix-design"
                                 type="text"
-                                placeholder="Search by Identification or Created By..."
+                                placeholder="..."
                                 value={isDropdownOpen ? searchTerm : commonData.mixDesignId}
                                 onClick={() => {
                                     setIsDropdownOpen(true);
@@ -434,14 +538,12 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
                                                 onMouseLeave={(e) => e.target.style.background = 'white'}
                                             >{m.identification}</li>
                                         ))}
-                                    {mixDesignPlans.filter(m => m.identification.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 && (
-                                        <li style={{ padding: '8px 12px', color: '#94a3b8' }}>No results found</li>
-                                    )}
                                 </ul>
                             )}
                         </div>
                     </div>
                 </div>
+
 
                 {commonData.mixDesignId && (
                     <div className="design-comparison-container" style={{ marginTop: '24px', animation: 'fadeIn 0.3s' }}>
@@ -457,14 +559,15 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
                                 <div className="cell col-label">Category</div>
                                 <div className="cell col-label">Design A/C</div>
                                 <div className="cell col-label">Design W/C</div>
-                                <div className="cell col-label">Cement</div>
-                                <div className="cell col-label">CA1 (20)</div>
-                                <div className="cell col-label">CA2 (10)</div>
-                                <div className="cell col-label">FA</div>
-                                <div className="cell col-label">Water</div>
-                                <div className="cell col-label">Admix</div>
+                                <div className="cell col-label">Cement [L]</div>
+                                <div className="cell col-label">CA1 (20) [A]</div>
+                                <div className="cell col-label">CA2 (10) [B]</div>
+                                <div className="cell col-label">FA [C]</div>
+                                <div className="cell col-label">Water [D]</div>
+                                <div className="cell col-label">Admix (Kg/m³) [E]</div>
+                                <div className="cell col-label">Admix (%)</div>
                             </div>
-
+ 
                             {/* Row 1: Autofetched (Design) */}
                             <div className="comparison-grid-row design-row">
                                 <div className="cell row-label design-text">Approved Design</div>
@@ -476,30 +579,36 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
                                 <div className="cell data-cell">{commonData.designValues?.fa}</div>
                                 <div className="cell data-cell">{commonData.designValues?.water}</div>
                                 <div className="cell data-cell">{commonData.designValues?.admix}</div>
+                                <div className="cell data-cell" style={{ color: '#0369a1', fontWeight: '800' }}>{commonData.designValues?.admixPct}%</div>
                             </div>
 
                             {/* Row 2: User Inputs (Manual) */}
                             <div className="comparison-grid-row input-row">
-                                <div className="cell row-label input-text">Actual Batch</div>
+                                <div className="cell row-label input-text">
+                                    Actual Batch [K={((parseFloat(commonData.userDryCement) || 0) / (parseFloat(commonData.designValues?.cement) || 1)).toFixed(3)}]
+                                </div>
                                 <div className="cell data-cell calculated-cell">{acRatio}</div>
                                 <div className="cell data-cell calculated-cell">{wcRatio}</div>
                                 <div className="cell data-cell">
-                                    <input id="moisture-actual-cement" name="actualCement" type="number" min="0" step="0.01" value={commonData.userDryCement} onChange={e => handleCommonChange('userDryCement', e.target.value)} placeholder="0.00" aria-label="Actual Cement Weight" />
+                                    <input id="moisture-actual-cement" name="actualCement" type="number" min="0" step="0.01" value={commonData.userDryCement} onChange={e => handleCommonChange('userDryCement', e.target.value)} placeholder="[M]" aria-label="Actual Cement Weight" />
                                 </div>
                                 <div className="cell data-cell">
-                                    <input id="moisture-actual-ca1" name="actualCA1" type="number" step="0.01" value={commonData.userDryCA1} readOnly tabIndex={-1} placeholder="0.00" aria-label="Actual CA1 Weight" style={{ background: '#f8fafc', color: '#64748b' }} />
+                                    <input id="moisture-actual-ca1" name="actualCA1" type="number" step="0.01" value={commonData.userDryCA1} readOnly tabIndex={-1} placeholder="[F]" aria-label="Actual CA1 Weight" style={{ background: '#f8fafc', color: '#64748b' }} />
                                 </div>
                                 <div className="cell data-cell">
-                                    <input id="moisture-actual-ca2" name="actualCA2" type="number" step="0.01" value={commonData.userDryCA2} readOnly tabIndex={-1} placeholder="0.00" aria-label="Actual CA2 Weight" style={{ background: '#f8fafc', color: '#64748b' }} />
+                                    <input id="moisture-actual-ca2" name="actualCA2" type="number" step="0.01" value={commonData.userDryCA2} readOnly tabIndex={-1} placeholder="[G]" aria-label="Actual CA2 Weight" style={{ background: '#f8fafc', color: '#64748b' }} />
                                 </div>
                                 <div className="cell data-cell">
-                                    <input id="moisture-actual-fa" name="actualFA" type="number" step="0.01" value={commonData.userDryFA} readOnly tabIndex={-1} placeholder="0.00" aria-label="Actual FA Weight" style={{ background: '#f8fafc', color: '#64748b' }} />
+                                    <input id="moisture-actual-fa" name="actualFA" type="number" step="0.01" value={commonData.userDryFA} readOnly tabIndex={-1} placeholder="[H]" aria-label="Actual FA Weight" style={{ background: '#f8fafc', color: '#64748b' }} />
                                 </div>
                                 <div className="cell data-cell">
-                                    <input id="moisture-actual-water" name="actualWater" type="number" step="0.01" value={commonData.userDryWater} readOnly tabIndex={-1} placeholder="0.00" aria-label="Actual Water Weight" style={{ background: '#f8fafc', color: '#64748b' }} />
+                                    <input id="moisture-actual-water" name="actualWater" type="number" step="0.01" value={commonData.userDryWater} readOnly tabIndex={-1} placeholder="[I]" aria-label="Actual Water Weight" style={{ background: '#f8fafc', color: '#64748b' }} />
                                 </div>
                                 <div className="cell data-cell">
-                                    <input id="moisture-actual-admix" name="actualAdmix" type="number" step="0.01" value={commonData.userDryAdmix} readOnly tabIndex={-1} placeholder="0.00" aria-label="Actual Admix Weight" style={{ background: '#f8fafc', color: '#64748b' }} />
+                                    <input id="moisture-actual-admix" name="actualAdmix" type="number" step="0.01" value={commonData.userDryAdmix} readOnly tabIndex={-1} placeholder="[J]" aria-label="Actual Admix Weight" style={{ background: '#f8fafc', color: '#64748b' }} />
+                                </div>
+                                <div className="cell data-cell calculated-cell" style={{ fontSize: '0.7rem' }}>
+                                    {((parseFloat(commonData.userDryAdmix) / (parseFloat(commonData.userDryCement) || 1)) * 100).toFixed(2)}%
                                 </div>
                             </div>
                         </div>
@@ -509,26 +618,30 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
                             <div className="calc-card">
                                 <span className="mini-label">Water Content (31)</span>
                                 <div className="calc-value">{step31_WaterContent.toFixed(2)}</div>
+                                <span className="hint-text">(D * M / L)</span>
                             </div>
                             <div className="calc-card highlight-border">
-                                <span className="mini-label">Total Free Moist. (32)</span>
+                                <span className="mini-label">Act. Batch Free Moisture (32)</span>
                                 <div className="calc-value success-text">{totalFreeMoisture}</div>
+                                <span className="hint-text">(8 + 18 + 28)</span>
                             </div>
                             <div className="calc-card">
-                                <span className="mini-label">Adj. Water (33)</span>
+                                <span className="mini-label">Adj. Water in Batch (33)</span>
                                 <div className="calc-value">{adjustedWater}</div>
+                                <span className="hint-text">(31 - 32)</span>
                             </div>
                             <div className="calc-card">
-                                <span className="mini-label">A/C Ratio (34)</span>
+                                <span className="mini-label">Agg / Cement Ratio (34)</span>
                                 <div className="calc-value">{acRatio}</div>
-                                <span className="hint-text">Target: {commonData.designAC}</span>
+                                <span className="hint-text">(7 + 17 + 27) / M</span>
                             </div>
                             <div className="calc-card">
-                                <span className="mini-label">W/C Ratio (35)</span>
+                                <span className="mini-label">Water / Cement Ratio (35)</span>
                                 <div className="calc-value">{wcRatio}</div>
-                                <span className="hint-text">Mix Design D: {commonData.designValues?.water || 0}</span>
+                                <span className="hint-text">(31 / M)</span>
                             </div>
                         </div>
+
                     </div>
                 )}
             </div>

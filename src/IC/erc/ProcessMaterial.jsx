@@ -6,12 +6,11 @@ import {
     CircularProgress, 
     Snackbar, 
     Alert,
-    Box 
+    Box
 } from "@mui/material";
 import { formatDate, getISTDateOnly } from "../../utils/helpers";
 import ErcProcessIc from "./ErcProcessIc";
 import { exportToPdf, generatePdfBase64 } from "../../utils/exportUtils";
-import { getICReportData } from "../../services/finalInspectionSubmoduleService";
 
 export default function ProcessMaterialCertificate({ call = {}, onBack }) {
   const printAreaRef = useRef();
@@ -105,49 +104,67 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
   };
 
   const handleESign = async () => {
-    const datetimeStr = call.updated_at || call.createdAt || new Date().toISOString();
-    if (datetimeStr.split("T")[0] !== getISTDateOnly() && ["M", "U", "S", "W"].includes(call.status || "")) {
-      setNotification({ open: true, message: "First, the IC must be saved on today’s date.", severity: 'warning' });
-      return;
-    }
-
-    if (!dataToPass.bookNo || !dataToPass.setNo) {
-        setNotification({ open: true, message: "Please fill in the 'Book No.' and 'Set No.' before signing.", severity: 'warning' });
-        return;
-    }
-
     try {
       setIsESigning(true);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      const pdfBase64 = await generatePdfBase64(printAreaRef.current);
-      if (!pdfBase64) {
-          throw new Error("Failed to generate PDF snapshot for signing.");
+      
+      // 1. Mandatory Validations
+      if (!dataToPass.bookNo || !dataToPass.setNo) {
+          setNotification({ open: true, message: "Please fill in the 'Book No.' and 'Set No.' before signing.", severity: 'warning' });
+          return;
       }
 
-      const payload = {
-        CaseNO: call.icNo || call.icNumber || call.case_no || "",
-        Call_Recv_Dt: call.call_recv_dt || call.callRecvDt || call.createdAt || new Date().toISOString(),
-        CallSNo: call.call_no || call.callSNo || call.call_sno || "",
-        Consignee_CD: call.consignee_cd || call.consigneeCode || "",
-        Region: call.region || "",
-        BkNo: dataToPass.bookNo || "",
-        SetNo: dataToPass.setNo || "",
-        type: "PM",
-        date: new Date().toISOString(),
-        isDigitallySign: true,
-        pdfBase64: pdfBase64
-      };
+      // 2. Generate PDF Snapshot from Frontend (Bypasses PE-02 Backend parsing issues)
+      const base64Pdf = await generatePdfBase64(printAreaRef.current);
 
-      const response = await getICReportData(payload);
-      if (response?.responseText) {
-        if (typeof window.abc === 'function') {
-          window.abc(response.responseText, (dataToPass.certificateNo || `${payload.CaseNO}_${payload.CallSNo}`) + ".pdf");
-        } else {
-          setNotification({ open: true, message: "Digital signature client not detected.", severity: 'error' });
-        }
+      if (!base64Pdf || !base64Pdf.startsWith("JVBER")) {
+          throw new Error("Failed to generate PDF snapshot from UI.");
       }
+
+      // 3. Construct Capricorn XML (STRICT pkiNetworkSign SCHEMA)
+      const now = new Date();
+      const pad = (n) => n.toString().padStart(2, '0');
+      const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}+05:30`;
+      const txn = Math.random().toString(16).slice(2, 10).toUpperCase();
+
+      const xmlRequest = `
+        <request>
+          <command>pkiNetworkSign</command>
+          <ts>${timestamp}</ts>
+          <txn>${txn}</txn>
+          <certificate>
+            <attribute name='CN'></attribute>
+            <attribute name='O'></attribute>
+            <attribute name='OU'></attribute>
+            <attribute name='T'></attribute>
+            <attribute name='E'></attribute>
+            <attribute name='SN'></attribute>
+            <attribute name='CA'></attribute>
+            <attribute name='TC'>SG</attribute>
+            <attribute name='AP'>1</attribute>
+          </certificate>
+          <file>
+            <attribute name='type'>pdf</attribute>
+          </file>
+          <pdf>
+            <page>1</page>
+            <cood>425,135</cood>
+            <size>110,40</size>
+          </pdf>
+          <data>${base64Pdf}</data>
+        </request>
+      `.replace(/>\s+</g, "><").trim();
+
+      // 4. Trigger Local Bridge
+      if (typeof window.abc === 'function') {
+          const fileName = (dataToPass.certificateNo || "ProcessMaterial_IC") + ".pdf";
+          window.abc(xmlRequest, undefined, fileName);
+      } else {
+          throw new Error("Digital signature bridge (abc.js) not found.");
+      }
+
     } catch (error) {
-        setNotification({ open: true, message: "Failed to fetch report data for signing.", severity: 'error' });
+        console.error("Signing Error:", error);
+        setNotification({ open: true, message: error.message || "Failed to sign document.", severity: 'error' });
     } finally {
         setIsESigning(false);
     }

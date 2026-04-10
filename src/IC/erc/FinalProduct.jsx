@@ -11,7 +11,6 @@ import {
 import { formatDate, getISTDateOnly } from "../../utils/helpers";
 import ErcFinalIc from "./ErcFinalIc";
 import { exportToPdf, generatePdfBase64 } from "../../utils/exportUtils";
-import { getICReportData } from "../../services/finalInspectionSubmoduleService";
 
 export default function FinalProductCertificate({ call = {}, onBack }) {
   const printAreaRef = useRef();
@@ -116,57 +115,67 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
   };
 
   const handleESign = async () => {
-    const datetimeStr = call.updated_at || call.createdAt || new Date().toISOString();
-    const callStatus = call.status || "";
-    
-    // 1. Mandatory Date Validation
-    if (datetimeStr.split("T")[0] !== getISTDateOnly() && ["M", "U", "S", "W"].includes(callStatus)) {
-      setNotification({ open: true, message: "First, the IC must be saved on today’s date. This is mandatory.", severity: 'warning' });
-      return;
-    }
-
-    // 2. Mandatory Certificate Fields Validation (Book & Set No)
-    if (!data.bookNo || !data.setNo) {
-        setNotification({ open: true, message: "Please fill in the 'Book No.' and 'Set No.' before signing.", severity: 'warning' });
-        return;
-    }
-
     try {
       setIsESigning(true);
       
-      // 3. Wait 500ms for UI to show "SIGNING..."
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // 3. Generate PDF Base64 from current view (No filename here to prevent local download before signing)
-      const pdfBase64 = await generatePdfBase64(printAreaRef.current);
-      if (!pdfBase64) {
-          throw new Error("Failed to generate PDF snapshot for signing.");
+      // 1. Mandatory Validations
+      if (!data.bookNo || !data.setNo) {
+          setNotification({ open: true, message: "Please fill in the 'Book No.' and 'Set No.' before signing.", severity: 'warning' });
+          return;
       }
 
-      const payload = {
-        CaseNO: call.case_no || call.icNo || call.icNumber || "",
-        Call_Recv_Dt: call.call_recv_dt || call.callRecvDt || call.createdAt || new Date().toISOString(),
-        CallSNo: call.call_no || call.callSNo || call.call_sno || "",
-        Consignee_CD: call.consignee_cd || call.consigneeCode || "",
-        Region: call.region || "",
-        BkNo: data.bookNo || "",
-        SetNo: data.setNo || "",
-        type: "FM",
-        date: new Date().toISOString(),
-        isDigitallySign: true,
-        pdfBase64: pdfBase64
-      };
+      // 2. Generate PDF Snapshot from Frontend (Bypasses PE-02 Backend parsing issues)
+      const base64Pdf = await generatePdfBase64(printAreaRef.current);
 
-      const response = await getICReportData(payload);
-      if (response?.responseText) {
-          if (typeof window.abc === 'function') {
-              window.abc(response.responseText, (data.certificateNo || `${payload.CaseNO}_${payload.CallSNo}`) + ".pdf");
-          } else {
-              setNotification({ open: true, message: "Digital signature client not detected.", severity: 'error' });
-          }
+      if (!base64Pdf || !base64Pdf.startsWith("JVBER")) {
+          throw new Error("Failed to generate PDF snapshot from UI.");
       }
+
+      // 3. Construct Capricorn XML (STRICT pkiNetworkSign SCHEMA)
+      const now = new Date();
+      const pad = (n) => n.toString().padStart(2, '0');
+      const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}+05:30`;
+      const txn = Math.random().toString(16).slice(2, 10).toUpperCase();
+
+      const xmlRequest = `
+        <request>
+          <command>pkiNetworkSign</command>
+          <ts>${timestamp}</ts>
+          <txn>${txn}</txn>
+          <certificate>
+            <attribute name='CN'></attribute>
+            <attribute name='O'></attribute>
+            <attribute name='OU'></attribute>
+            <attribute name='T'></attribute>
+            <attribute name='E'></attribute>
+            <attribute name='SN'></attribute>
+            <attribute name='CA'></attribute>
+            <attribute name='TC'>SG</attribute>
+            <attribute name='AP'>1</attribute>
+          </certificate>
+          <file>
+            <attribute name='type'>pdf</attribute>
+          </file>
+          <pdf>
+            <page>1</page>
+            <cood>425,175</cood>
+            <size>110,40</size>
+          </pdf>
+          <data>${base64Pdf}</data>
+        </request>
+      `.replace(/>\s+</g, "><").trim();
+
+      // 4. Trigger Local Bridge
+      if (typeof window.abc === 'function') {
+          const fileName = (data.certificateNo || "FinalProduct_IC") + ".pdf";
+          window.abc(xmlRequest, undefined, fileName);
+      } else {
+          throw new Error("Digital signature bridge (abc.js) not found.");
+      }
+
     } catch (error) {
-        setNotification({ open: true, message: "Failed to fetch report data for signing.", severity: 'error' });
+        console.error("Signing Error:", error);
+        setNotification({ open: true, message: error.message || "Failed to sign document.", severity: 'error' });
     } finally {
         setIsESigning(false);
     }

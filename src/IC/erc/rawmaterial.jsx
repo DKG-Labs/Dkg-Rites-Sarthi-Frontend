@@ -11,7 +11,6 @@ import {
 import ErcRmIC from "./ErcRmIc";
 import { exportToPdf, generatePdfBase64 } from "../../utils/exportUtils";
 import { fetchPoDataForSections } from "../../services/poDataService";
-import { getISTDateOnly } from "../../utils/helpers";
 
 export default function RawMaterialCertificate({ call = {}, onBack }) {
   const printAreaRef = useRef();

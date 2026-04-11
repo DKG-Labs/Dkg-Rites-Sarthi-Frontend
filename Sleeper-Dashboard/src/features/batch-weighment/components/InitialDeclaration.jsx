@@ -8,7 +8,7 @@ import { useShift } from '../../../context/ShiftContext';
  * Configures sensors and batch set values for the shift.
  */
 const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorUpdate, activeContainer, loadShiftData, initialSensors }) => {
-    const { vendorCode, dutyUnit, selectedShift, dutyDate, userId } = useShift();
+    const { vendorCode, dutyUnit, selectedShift, dutyDate, userId, vendorId } = useShift();
     const [sensors, setSensors] = useState(initialSensors || {
         sensorStatus: 'Working', 
         sandType: '',
@@ -24,7 +24,8 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
     const [selectedMoistureReportId, setSelectedMoistureReportId] = useState('');
     const [fetchingMoistureDetail, setFetchingMoistureDetail] = useState(false);
 
-    const effectiveVendorId = userId || localStorage.getItem('userId') || vendorCode?.replace(':', '');
+    // Deriving IDs safely from Context or Storage
+    const effectiveVendorId = vendorId || userId || localStorage.getItem('vendorId') || localStorage.getItem('userId') || vendorCode?.replace(':', '');
     const effectivePlantId = dutyUnit || localStorage.getItem('dutyUnit');
     console.log("Batch IDs:", { effectiveVendorId, effectivePlantId });
 
@@ -184,22 +185,22 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
             const selectedLocation = sensors.location || activeContainer?.name || 'Line I';
             const locationType = String(selectedLocation).toLowerCase().includes('shed') ? 'Shed' : 'Line';
 
+            const currentUserIdStr = userId || localStorage.getItem('userId') || "0";
+            const currentUserId = parseInt(currentUserIdStr, 10) || 0;
+
             const payload = {
                 lineNo: selectedLocation,
-                location: selectedLocation,
-                locationType: locationType,
                 entryDate: formattedDate,
                 sandType: sensors.sandType || "River Sand",
                 moistureSensorStatus: String(sensors.sensorStatus || "WORKING").toUpperCase(),
                 verifiedBy: "Operator",
                 remarks: "Initial declaration",
                 entryMode: "MANUAL",
+                createdBy: currentUserId,
+                updatedBy: currentUserId,
                 vendorCode: vendorCode || localStorage.getItem('vendorCode'),
                 plantId: dutyUnit || localStorage.getItem('dutyUnit'),
                 shift: selectedShift || localStorage.getItem('selectedShift'),
-                date: formattedDate,
-                createdBy: userId || localStorage.getItem('userId'),
-                updatedBy: userId || localStorage.getItem('userId'),
                 batchDetails: batches.map(b => ({
                     batchNo: String(sensors.batchNo || b.batchNo || "0"),
                     proportionStatus: b.proportionMatch || "OK",

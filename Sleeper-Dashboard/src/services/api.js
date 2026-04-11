@@ -93,6 +93,15 @@ export const apiService = {
     createSteamCube: (payload) => api.post('/SteamCube/create', payload),
     updateSteamCube: (id, payload) => api.put(`/SteamCube/update/${id}`, payload),
     deleteSteamCube: (id) => api.delete(`/SteamCube/delete/${id}`),
+    getSteamCubeData: (params) => api.get('/SteamCube/steamCubeData', { params }),
+
+    // ================= Steam Cube Test Results =================
+    steamCubeResults: {
+        create: (payload) => api.post('/steam-cube-testing/create', payload),
+        update: (id, payload) => api.put(`/steam-cube-testing/update/${id}`, payload),
+        delete: (id) => api.delete(`/steam-cube-testing/delete/${id}`),
+        getResults: (params) => api.get('/steam-cube-testing/steamCubeTestingData', { params }),
+    },
 
     // ================= Stress Bench / Mould Master =================
     getAllStressBenches: () => getWithCache('/stress-bench/getAll'),
@@ -265,7 +274,9 @@ export const apiService = {
     getCompanyUnitsByUser: (userId) => api.get(`/sleeper-mapping/company-units/${userId}`),
 
     // ================= Final Inspection Controller ================= //
-    getFinalInspectionBatches: (moduleId = 1, params = {}) => api.get(`/FinalInspectionController/inspection/batches/${moduleId}`, { params }),
+    getFinalInspectionBatches: (moduleId = 1, params = {}) => api.get(`/FinalInspectionController/inspection/batches/${moduleId}`, { 
+        params: { ...params, moduleId } 
+    }),
     getFinalInspectionBatchDetail: (batchId, moduleId = 1) => api.get(`/FinalInspectionController/inspection/batch?batchId=${batchId}&moduleId=${moduleId}`),
     saveFinalInspection: (payload) => api.post('/FinalInspectionController/save', payload),
     updateInspectionSleepers: (payload) => api.put('/FinalInspectionController/updateInspectionSleepers', payload),

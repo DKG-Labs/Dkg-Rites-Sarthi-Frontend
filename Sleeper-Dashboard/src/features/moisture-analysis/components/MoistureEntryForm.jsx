@@ -400,7 +400,7 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
     const totalFreeMoisture = step32_TotalFreeMoisture.toFixed(3);
     const adjustedWater = step33_AdjustedWater.toFixed(3);
     const acRatio = step34_ACRatio.toFixed(2);
-    const wcRatio = step35_WCRatio.toFixed(3); // Point 235: 35 = 31 / M
+    const wcRatio = step35_WCRatio.toFixed(3);
 
     const handleSubmit = () => {
         if (!commonData.batchNo) {
@@ -616,29 +616,29 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
                         {/* Summary Metrics */}
                         <div className="moisture-calc-grid">
                             <div className="calc-card">
-                                <span className="mini-label">Water Content (31)</span>
+                                <span className="mini-label">Water Content</span>
                                 <div className="calc-value">{step31_WaterContent.toFixed(2)}</div>
-                                <span className="hint-text">(D * M / L)</span>
+                                <span className="hint-text">D * M / L</span>
                             </div>
                             <div className="calc-card highlight-border">
-                                <span className="mini-label">Act. Batch Free Moisture (32)</span>
+                                <span className="mini-label">Actual Batch Free Moisture</span>
                                 <div className="calc-value success-text">{totalFreeMoisture}</div>
-                                <span className="hint-text">(8 + 18 + 28)</span>
+                                <span className="hint-text">(Free Moisture CA1 + CA2 + FA)</span>
                             </div>
                             <div className="calc-card">
-                                <span className="mini-label">Adj. Water in Batch (33)</span>
+                                <span className="mini-label">Adjusted Water in Batch</span>
                                 <div className="calc-value">{adjustedWater}</div>
-                                <span className="hint-text">(31 - 32)</span>
+                                <span className="hint-text">Water Content - Free Moisture</span>
                             </div>
                             <div className="calc-card">
-                                <span className="mini-label">Agg / Cement Ratio (34)</span>
+                                <span className="mini-label">Aggregate / Cement Ratio</span>
                                 <div className="calc-value">{acRatio}</div>
-                                <span className="hint-text">(7 + 17 + 27) / M</span>
+                                <span className="hint-text">(Sum of Dry Aggr.) / M</span>
                             </div>
                             <div className="calc-card">
-                                <span className="mini-label">Water / Cement Ratio (35)</span>
+                                <span className="mini-label">Water / Cement Ratio</span>
                                 <div className="calc-value">{wcRatio}</div>
-                                <span className="hint-text">(31 / M)</span>
+                                <span className="hint-text">Water Content / M</span>
                             </div>
                         </div>
 
@@ -712,10 +712,10 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
                     <h5 className="sub-header-mini">Auto-Calculated Values</h5>
                     <div className="moisture-auto-vals">
                         {[
-                            { label: 'Wt. of Moisture in Sample', value: `${activeCalc.moistureInSample} Gms` },
-                            { label: 'Moisture %', value: `${activeCalc.moisturePct}%` },
-                            { label: 'Free Moisture %', value: `${activeCalc.freeMoisturePct}%`, highlight: true },
-                            { label: 'Batch Wt. (Dry)', value: `${activeCalc.batchWtDry} Kg` },
+                            { label: 'Wt. of Moisture Sample', value: `${activeCalc.moistureInSample} Gms` },
+                            { label: 'Moisture (%)', value: `${activeCalc.moisturePct}%` },
+                            { label: 'Free Moisture (%)', value: `${activeCalc.freeMoisturePct}%`, highlight: true },
+                            { label: 'Batch Wt. (Dry) (Kgs)', value: `${activeCalc.batchWtDry} Kg` },
                             { label: 'Free Moisture (Kgs)', value: `${activeCalc.freeMoistureKg} Kg`, success: true },
                             { label: 'Adjusted Wt.', value: `${activeCalc.adjustedWt} Kg` },
                             { label: 'Wt. Adopted (Rounded)', value: `${activeCalc.wtAdopted} Kg`, warning: true }

@@ -236,6 +236,7 @@ const SleeperProcessDuty = () => {
                                 }}
                                 showForm={showCompactionForm}
                                 setShowForm={setShowCompactionForm}
+                                loadShiftData={fetchCompaction}
                             />
                         </div>
                     )}
@@ -348,7 +349,17 @@ const SleeperProcessDuty = () => {
                                 loadShiftData={fetchWireTension}
                             />
                         ) : activeTab === 'Compaction of Concrete (Vibrator Report)' ? (
-                            <CompactionConcrete onBack={() => setDetailView('dashboard')} onSave={() => { }} />
+                            <CompactionConcrete 
+                                onBack={() => setDetailView('dashboard')} 
+                                onSave={() => { }} 
+                                batches={batchDeclarations}
+                                activeContainer={activeContainer}
+                                sharedState={{
+                                    compactionRecords,
+                                    setAllCompactionRecords: (data) => setAllCompactionRecords(prev => ({ ...prev, [activeContainerId]: typeof data === 'function' ? data(prev[activeContainerId] || []) : data }))
+                                }}
+                                loadShiftData={fetchCompaction}
+                            />
                         ) : activeTab === 'Mould & Bench Checking' ? (
                             <MouldBenchCheck
                                 onBack={() => setDetailView('dashboard')}

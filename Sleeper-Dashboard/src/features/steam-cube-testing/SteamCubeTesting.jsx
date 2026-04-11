@@ -6,6 +6,7 @@ import './SteamCubeTesting.css';
 import { formatDateForBackend } from '../../utils/helpers';
 
 const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedRecords: propSetTestedRecords, activeContainer }) => {
+    const { dutyUnit, vendorCode, selectedShift, userId, dutyDate } = useShift();
     const [viewMode, setViewMode] = useState('statistics'); // 'statistics', 'declared', 'tested'
     const [showDeclareModal, setShowDeclareModal] = useState(false);
     const [showTestModal, setShowTestModal] = useState(false);
@@ -47,39 +48,50 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
     const loadData = async () => {
         setIsLoading(true);
         try {
-            const response = await apiService.getAllSteamCubes();
-            if (response && response.responseData) {
-                // Normalize dates from backend (dd/mm/yyyy) to internal (yyyy-mm-dd)
-                // Process all records to handle dates and status
-                const allRecords = response.responseData.map(r => {
-                    // A record is "tested" if it has strength data
-                    const isTested = !!r.avgStrength || (r.cubeResults && r.cubeResults.some(cr => cr.strength && cr.strength !== ""));
-                    
-                    // Normalize creation timestamp for 8-hour window logic
-                    // If backend doesn't provide time, we assume 00:00 or current time for new logs
-                    const createdTimeStr = r.createdTime || r.lbcTime || '00:00';
-                    const createdAt = new Date(`${DateUtils.formatFromBackend(r.entryDate || r.castingDate)}T${createdTimeStr}`);
+            const params = {
+                plantId: dutyUnit || localStorage.getItem('dutyUnit'),
+                vendorCode: vendorCode || localStorage.getItem('vendorCode'),
+                shift: selectedShift || localStorage.getItem('selectedShift'),
+                createdBy: userId || localStorage.getItem('userId'),
+                date: DateUtils.formatToBackend(dutyDate || localStorage.getItem('dutyDate'))
+            };
 
-                    return {
-                        ...r,
-                        status: isTested ? 'Completed' : 'Testing Pending',
-                        isTested: isTested,
-                        createdAt: createdAt,
-                        castingDate: DateUtils.formatFromBackend(r.castingDate),
-                        testDate: DateUtils.formatFromBackend(r.testDate),
-                        cubeResults: (r.cubeResults || []).map(cr => ({
-                            ...cr,
-                            testDate: DateUtils.formatFromBackend(cr.testDate)
-                        }))
-                    };
-                });
-                
-                const tested = allRecords.filter(r => r.isTested);
-                const declared = allRecords.filter(r => !r.isTested);
+            // 1. Fetch Declared Samples (Testing Pending)
+            const declaredRes = await apiService.getSteamCubeData(params);
+            
+            // 2. Fetch Test Results (Witnessed Logs)
+            const testedRes = await apiService.steamCubeResults.getResults(params);
 
-                setDeclaredSamples(declared);
-                setTestedRecords(tested);
-            }
+            // Process Declared Samples
+            const declared = (declaredRes?.responseData || []).map(r => ({
+                ...r,
+                status: 'Testing Pending',
+                isTested: false,
+                createdAt: r.createdTime ? new Date(`${DateUtils.formatFromBackend(r.entryDate || r.castingDate)}T${r.createdTime}`) : new Date(),
+                castingDate: DateUtils.formatFromBackend(r.castingDate)
+            }));
+
+            // Process Tested Results
+            const tested = (testedRes?.responseData || []).map(r => ({
+                ...r,
+                status: 'Completed',
+                isTested: true,
+                createdAt: r.createdTime ? new Date(`${DateUtils.formatFromBackend(r.dateOfCasting)}T${r.lbcTime || '00:00'}`) : new Date(),
+                castingDate: DateUtils.formatFromBackend(r.dateOfCasting),
+                testDate: r.cubeDetails?.[0]?.dateOfTesting ? DateUtils.formatFromBackend(r.cubeDetails[0].dateOfTesting) : null,
+                // Map new cubeDetails to old cubeResults format if UI expects it, or update UI
+                cubeResults: (r.cubeDetails || []).map(cd => ({
+                    cubeCode: cd.cubeNo,
+                    strength: cd.strength,
+                    load: cd.loadKn,
+                    weight: cd.weightKgs,
+                    testDate: DateUtils.formatFromBackend(cd.dateOfTesting),
+                    testTime: cd.time
+                }))
+            }));
+
+            setDeclaredSamples(declared);
+            setTestedRecords(tested);
         } catch (error) {
             console.error('Error loading Steam Cube data:', error);
         } finally {
@@ -118,13 +130,13 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
     };
 
     const handleModifySample = async (sample) => {
-        // Enforce 8-hour restriction for modification
+        // Enforce 24-hour restriction for modification
         const declarationTime = new Date(sample.castingDate + 'T' + (sample.lbcTime || '00:00'));
         const diffMs = Date.now() - declarationTime.getTime();
         const hoursPassed = diffMs / (1000 * 60 * 60);
 
-        if (hoursPassed > 8) {
-            alert("This record is more than 8 hours old and cannot be modified.");
+        if (hoursPassed > 24) {
+            alert("This record is more than 24 hours old and cannot be modified.");
             return;
         }
 
@@ -159,6 +171,7 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
 
     const handleEnterTestDetails = (sample) => {
         setSelectedSample(sample);
+        setIsModifying(!!sample.isTested);
         setShowTestModal(true);
         setShowDetailsModal(false);
     };
@@ -180,6 +193,10 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
                 batchNo: String(formData.batchNo),
                 concreteGrade: formData.concreteGrade,
                 chamberNo: formData.chamberNo || null,
+                vendorCode: vendorCode || localStorage.getItem('vendorCode'),
+                plantId: dutyUnit || localStorage.getItem('dutyUnit'),
+                shift: selectedShift || localStorage.getItem('selectedShift'),
+                createdBy: parseInt(userId || localStorage.getItem('userId')) || 0,
                 cubes: (formData.cubes || []).map(cube => ({
                     benchNo: String(cube.benchNo)
                 })),
@@ -210,30 +227,37 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
 
     const saveTestDetails = async (testData) => {
         try {
-            const completedTest = {
-                ...selectedSample,
-                ...testData,
-                castingDate: DateUtils.formatToBackend(selectedSample.castingDate),
-                testDate: DateUtils.formatToBackend(testData.testDate),
-                cubeResults: (testData.cubeResults || []).map(cube => ({
-                    ...cube,
-                    testDate: DateUtils.formatToBackend(cube.testDate)
+            const payload = {
+                location: selectedSample.location || selectedSample.lineNo || selectedSample.shedNo,
+                dateOfCasting: DateUtils.formatToBackend(selectedSample.castingDate),
+                batchNo: String(selectedSample.batchNo),
+                lbcTime: selectedSample.lbcTime,
+                concreteGrade: selectedSample.concreteGrade || selectedSample.grade,
+                avgStrength: parseFloat(testData.avgStrength) || 0,
+                result: testData.result || 'OK',
+                vendorCode: vendorCode || localStorage.getItem('vendorCode'),
+                plantId: dutyUnit || localStorage.getItem('dutyUnit'),
+                shift: selectedShift || localStorage.getItem('selectedShift'),
+                createdBy: parseInt(userId || localStorage.getItem('userId')) || 0,
+                cubeDetails: (testData.cubeResults || []).map(cube => ({
+                    cubeNo: cube.cubeCode,
+                    dateOfTesting: DateUtils.formatToBackend(cube.testDate),
+                    time: cube.testTime || "",
+                    ageHours: 24, // Assuming default or calculated
+                    weightKgs: parseFloat(cube.weight) || 0,
+                    loadKn: parseFloat(cube.load) || 0,
+                    strength: parseFloat(cube.strength) || 0
                 }))
             };
             
-            // Map back to backend structure if needed
-            const payload = {
-                ...completedTest,
-                batchNo: String(completedTest.batchNo)
-            };
+            if (isModifying && selectedSample.id) {
+                await apiService.steamCubeResults.update(selectedSample.id, payload);
+            } else {
+                await apiService.steamCubeResults.create(payload);
+            }
 
-            await apiService.updateSteamCube(selectedSample.id, payload);
-
-            // Immediate UI closure
             setShowTestModal(false);
             setIsModifying(false);
-
-            // Background refresh
             loadData().catch(console.error);
         } catch (error) {
             console.error('Error saving test details:', error);
@@ -244,12 +268,12 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
     const handleDeleteTest = async (id, sampleData) => {
         if (!id) return;
 
-        // Check 8-hour window based on creation time
+        // Check 24-hour window based on creation time
         const diffMs = Date.now() - new Date(sampleData.createdAt).getTime();
         const hoursPassed = diffMs / (1000 * 60 * 60);
 
-        if (hoursPassed > 8) {
-            alert("This action is only allowed within 8 hours of log creation.");
+        if (hoursPassed > 24) {
+            alert("This action is only allowed within 24 hours of log creation.");
             return;
         }
 
@@ -260,23 +284,10 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
         if (window.confirm(msg)) {
             try {
                 if (sampleData.isTested) {
-                    // "Delete" for tested records means resetting the test data
-                    const payload = {
-                        ...sampleData,
-                        avgStrength: null,
-                        result: null,
-                        testDate: null,
-                        cubeResults: (sampleData.cubeResults || []).map(cr => ({
-                            ...cr,
-                            strength: "",
-                            load: "",
-                            weight: "",
-                            testDate: null
-                        }))
-                    };
-                    await apiService.updateSteamCube(id, payload);
+                    // Delete test result - this moves it back to pending declaration internally or just removes the test record
+                    await apiService.steamCubeResults.delete(id);
                 } else {
-                    // "Delete" for declared records is a hard delete
+                    // Hard delete for sample declaration
                     await apiService.deleteSteamCube(id);
                 }
                 
@@ -631,7 +642,7 @@ const SteamCubeDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelet
     const createdTime = sample.createdAt ? new Date(sample.createdAt) : new Date();
     const diffMs = Date.now() - createdTime.getTime();
     const hoursPassed = diffMs / (1000 * 60 * 60);
-    const canModifyOrDelete = hoursPassed <= 8;
+    const canModifyOrDelete = hoursPassed <= 24;
 
     const summaryDetails = sample.isTested ? [
         { label: 'Avg Strength', value: `${parseFloat(sample.avgStrength || 0).toFixed(2)} N/mm²` },
@@ -677,7 +688,7 @@ const SteamCubeDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelet
                             }} 
                             disabled={!canModifyOrDelete}
                             onClick={() => onDelete(sample.id)}
-                            title={!canModifyOrDelete ? "Deletions only allowed within 8 hours" : ""}
+                            title={!canModifyOrDelete ? "Deletions only allowed within 24 hours" : ""}
                         >
                             Delete
                         </button>
@@ -692,7 +703,7 @@ const SteamCubeDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelet
                             }} 
                             disabled={!canModifyOrDelete}
                             onClick={onModify}
-                            title={!canModifyOrDelete ? "Modifications only allowed within 8 hours" : ""}
+                            title={!canModifyOrDelete ? "Modifications only allowed within 24 hours" : ""}
                         >
                             Modify
                         </button>
@@ -715,7 +726,7 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
     const [moistureReports, setMoistureReports] = useState([]);
     const [availableLocations, setAvailableLocations] = useState([]);
     const { vendorId, dutyUnit, userId } = useShift();
-    const effectiveVendorId = userId || vendorId || localStorage.getItem('userId');
+    const effectiveVendorId = vendorId || userId || localStorage.getItem('vendorId') || localStorage.getItem('userId');
     const effectivePlantId = dutyUnit || localStorage.getItem('dutyUnit');
     
     const [formData, setFormData] = useState({
@@ -761,20 +772,33 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
         fetchLocations();
     }, [effectivePlantId, effectiveVendorId]);
 
-    // Fetch batch numbers from moisture reports
+    // Fetch production batches based on selected location and date
+    const [productionBatches, setProductionBatches] = useState([]);
     useEffect(() => {
-        const fetchReports = async () => {
-            try {
-                const res = await apiService.getLastFiveMoisture();
-                if (res?.responseData) {
-                    setMoistureReports(res.responseData);
+        const fetchBatches = async () => {
+            const location = formData.lineNo || formData.shedNo;
+            if (formData.castingDate && location) {
+                try {
+                    const formattedDate = formData.castingDate.split('-').reverse().join('/');
+                    const res = await apiService.getAllProductionBatches(
+                        effectiveVendorId,
+                        formattedDate,
+                        effectivePlantId,
+                        location
+                    );
+                    if (res?.responseData) {
+                        setProductionBatches(res.responseData);
+                    } else {
+                        setProductionBatches([]);
+                    }
+                } catch (err) {
+                    console.error("Failed to fetch production batches:", err);
+                    setProductionBatches([]);
                 }
-            } catch (err) {
-                console.error("Failed to fetch batches:", err);
             }
         };
-        fetchReports();
-    }, []);
+        fetchBatches();
+    }, [formData.castingDate, formData.lineNo, formData.shedNo, effectiveVendorId, effectivePlantId]);
 
     // Auto-generate Cube Code when bench or sequence changes
     useEffect(() => {
@@ -866,17 +890,43 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
                             />
                         </div>
                         <div className="input-group">
-                            <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569', marginBottom: '4px' }}>Batch No. (From Moisture Reports)</label>
+                            <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569', marginBottom: '4px' }}>Batch No.</label>
                             <select 
                                 value={formData.batchNo} 
-                                onChange={e => setFormData({ ...formData, batchNo: e.target.value })}
+                                onChange={e => {
+                                    const val = e.target.value;
+                                    // Find if it's an object or just use as string
+                                    const selectedBatch = productionBatches.find(b => 
+                                        typeof b === 'object' ? String(b.id) === String(val) || String(b.batchNo) === String(val) : String(b) === String(val)
+                                    );
+                                    
+                                    if (selectedBatch && typeof selectedBatch === 'object') {
+                                        setFormData({
+                                            ...formData,
+                                            batchNo: selectedBatch.batchNo,
+                                            concreteGrade: selectedBatch.concreteGrade || formData.concreteGrade,
+                                            chamberNo: selectedBatch.chamberNo || formData.chamberNo || ""
+                                        });
+                                    } else {
+                                        setFormData({ ...formData, batchNo: val });
+                                    }
+                                }}
                                 style={{ width: '100%', padding: '0 12px', height: '42px', borderRadius: '8px', border: '1.5px solid #e2e8f0', fontSize: '14px', color: '#1e293b', outline: 'none', background: '#fff' }}
                             >
                                 <option value="">-- Select Batch --</option>
-                                {moistureReports.map(report => (
-                                    <option key={report.id} value={report.batchNo}>{report.batchNo}</option>
-                                ))}
-                                {formData.batchNo && !moistureReports.find(r => String(r.batchNo) === String(formData.batchNo)) && (
+                                {productionBatches.map((batch, idx) => {
+                                    const isObj = typeof batch === 'object' && batch !== null;
+                                    const bNo = isObj ? batch.batchNo : batch;
+                                    const bId = isObj ? (batch.id || batch.batchNo) : batch;
+                                    return (
+                                        <option key={idx} value={bId}>
+                                            {bNo} {isObj && batch.chamberNo ? `(Chamber: ${batch.chamberNo})` : ''}
+                                        </option>
+                                    );
+                                })}
+                                {formData.batchNo && !productionBatches.some(b => 
+                                    (typeof b === 'object' ? String(b.batchNo) : String(b)) === String(formData.batchNo)
+                                ) && (
                                     <option value={formData.batchNo}>{formData.batchNo}</option>
                                 )}
                             </select>
@@ -1155,10 +1205,9 @@ const TestDetailsModal = ({ sample, onClose, onSave, onDelete, isModifying, acti
                                             <td style={{ padding: '6px 8px' }}>
                                                 <input
                                                     type="text"
+                                                    readOnly
                                                     value={cube.cubeNo}
-                                                    onChange={e => updateCubeData(idx, 'cubeNo', e.target.value)}
-                                                    placeholder="e.g. 401"
-                                                    style={{ width: '100%', padding: '8px 6px', border: '1.5px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', fontWeight: '800', color: '#13343b', outline: 'none' }}
+                                                    style={{ width: '100%', padding: '8px 6px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '13px', background: '#f8fafc', fontWeight: '800', color: '#13343b', outline: 'none' }}
                                                 />
                                             </td>
                                             <td style={{ padding: '6px 8px' }}>
@@ -1211,15 +1260,11 @@ const TestDetailsModal = ({ sample, onClose, onSave, onDelete, isModifying, acti
                                                     style={{ width: '100%', padding: '8px 6px', border: '1px solid #e2e8f0', borderRadius: '6px', background: '#f0fdf4', fontWeight: '800', color: '#166534', fontSize: '14px', textAlign: 'center' }}
                                                 />
                                             </td>
-                                            <td style={{ padding: '6px 8px' }}>
-                                                <button onClick={() => removeCubeRow(idx)} style={{ border: 'none', background: '#fee2e2', color: '#ef4444', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer', fontWeight: '700' }}>×</button>
-                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
                         </div>
-                        <button onClick={addCubeRow} style={{ marginTop: '12px', background: '#f5f3ff', color: '#7c3aed', border: '1px dashed #7c3aed', borderRadius: '16px', padding: '6px 16px', fontSize: '11px', fontWeight: '700', cursor: 'pointer', height: '32px', display: 'flex', alignItems: 'center' }}>+ Add Cube</button>
                     </div>
 
                     {/* Summary Section */}

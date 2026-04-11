@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+// Updated for 24-hour validity check
 import { apiService } from '../../services/api';
 import WireTensionStats from './components/WireTensionStats';
 import CollapsibleSection from '../../components/common/CollapsibleSection';
@@ -53,6 +54,13 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
     const showForm = propsShowForm !== undefined ? propsShowForm : localShowForm;
     const setShowForm = propsSetShowForm !== undefined ? propsSetShowForm : setLocalShowForm;
     const [selectedBatch, setSelectedBatch] = useState('');
+
+    useEffect(() => {
+        if (loadShiftData) {
+            loadShiftData();
+        }
+    }, [loadShiftData]);
+
     const [scadaRecords, setScadaRecords] = useState([
         { id: 201, time: '11:05', batchNo: '601', benchNo: '411', wireLength: 32000, crossSection: 154, modulus: 195, measuredElongation: 195, forceElongation: 725, totalLoad: 730, finalLoad: 733 },
         { id: 202, time: '11:12', batchNo: '601', benchNo: '412', wireLength: 32000, crossSection: 154, modulus: 195, measuredElongation: 192, forceElongation: 720, totalLoad: 725, finalLoad: 729 },
@@ -72,6 +80,50 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
     const [isSaving, setIsSaving] = useState(false);
     const [editOnly, setEditOnly] = useState(false);
     const [editParentId, setEditParentId] = useState(null);
+
+    const isEditable = (record) => {
+        if (!record) return false;
+        
+        // Use entry.date (from parent batch) and entry.time (from record itself)
+        const dateStr = record.date || record.entryDate || record.timestamp;
+        if (!dateStr) return true; // Default to true if no date info
+        
+        try {
+            // Normalize date to yyyy-MM-dd
+            let ymd = "";
+            if (dateStr.includes('/')) {
+                const parts = dateStr.split('/');
+                if (parts[2].length === 4) {
+                    ymd = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                } else {
+                    ymd = `20${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                }
+            } else if (dateStr.includes('-')) {
+                const parts = dateStr.split('T')[0].split('-');
+                if (parts[0].length === 4) {
+                    ymd = dateStr.split('T')[0];
+                } else {
+                    ymd = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                }
+            } else {
+                const d = new Date(dateStr);
+                if (isNaN(d.getTime())) return true;
+                ymd = d.toISOString().split('T')[0];
+            }
+            
+            const timeStr = record.time || "00:00";
+            const combinedDateTime = new Date(`${ymd}T${timeStr}`);
+            
+            const now = new Date();
+            const diffMs = now - combinedDateTime;
+            const diffHours = diffMs / (1000 * 60 * 60);
+            
+            return diffHours <= 24;
+        } catch (e) {
+            console.error("Error checking editability:", e);
+            return true; 
+        }
+    };
 
     // Dynamic Batch List: Merge declared batches with those found in SCADA or existing logs
     const availableBatches = useMemo(() => {
@@ -760,14 +812,9 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
                                                             <td><strong>{entry.finalLoad} KN</strong></td>
                                                             <td>
                                                                 {(() => {
-                                                                    const todayStr = new Date().toISOString().split('T')[0];
-                                                                    const [y, m, d] = todayStr.split('-');
-                                                                    const todayDMY = `${d}/${m}/${y}`;
+                                                                    const canEdit = isEditable(entry);
                                                                     
-                                                                    const recordDate = entry.date || entry.entryDate || entry.timestamp || "";
-                                                                    const isToday = recordDate.includes(todayStr) || recordDate.includes(todayDMY);
-                                                                    
-                                                                    if (isToday) {
+                                                                    if (canEdit) {
                                                                         return (
                                                                             <div style={{ display: 'flex', gap: '4px' }}>
                                                                                 {entry.source === 'Manual' && <button className="btn-action mini" onClick={() => handleEdit(entry)}>Edit</button>}
@@ -775,7 +822,7 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
                                                                             </div>
                                                                         );
                                                                     }
-                                                                    return <span style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic', display: 'block', textAlign: 'center' }}>Fixed</span>;
+                                                                    return <span style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic', display: 'block', textAlign: 'center' }}>Locked</span>;
                                                                 })()}
                                                             </td>
                                                         </tr>

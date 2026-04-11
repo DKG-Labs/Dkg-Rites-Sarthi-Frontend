@@ -46,22 +46,22 @@ const BatchEntryForm = ({
             const [y, m, d] = (dutyDate || new Date().toISOString().split('T')[0]).split('-');
             const formattedDate = `${d}/${m}/${y}`;
 
+            const currentUserIdStr = userId || localStorage.getItem('userId') || "0";
+            const currentUserId = parseInt(currentUserIdStr, 10) || 0;
+
             const payload = {
                 lineNo: activeContainer?.name || "Line I",
-                location: activeContainer?.name || 'Line I',
-                locationType: (activeContainer?.name || 'Line I').toLowerCase().includes('shed') ? 'Shed' : 'Line',
                 entryDate: formattedDate,
                 sandType: sensorConfig.sandType || "River Sand",
                 moistureSensorStatus: (sensorConfig.sensorStatus || "WORKING").toUpperCase(),
                 verifiedBy: witnessInfo.verifiedBy || "Operator",
                 remarks: witnessInfo.remarks || "Batch session sync",
                 entryMode: "MIXED",
+                createdBy: currentUserId,
+                updatedBy: currentUserId,
                 vendorCode: vendorCode || localStorage.getItem('vendorCode'),
                 plantId: dutyUnit || localStorage.getItem('dutyUnit'),
                 shift: selectedShift || localStorage.getItem('selectedShift'),
-                date: formattedDate,
-                createdBy: userId || localStorage.getItem('userId'),
-                updatedBy: userId || localStorage.getItem('userId'),
                 batchDetails: batchDeclarations.map(d => ({
                     id: (typeof d.id === 'number' && d.id < 1000000) ? d.id : 0,
                     batchNo: String(d.batchNo || "0"),
@@ -82,7 +82,7 @@ const BatchEntryForm = ({
                 scadaRecords: witnessedRecords.filter(r => r.source?.toLowerCase().includes('scada')).map(r => ({
                     id: (typeof r.id === 'number' && r.id < 1000000) ? r.id : 0,
                     batchNo: String(r.batchNo || "0"),
-                    date: (r.date && String(r.date).includes('-')) ? r.date.split('-').reverse().join('/') : (String(r.date).includes('/') ? r.date : new Date().toLocaleDateString('en-GB')),
+                    date: (r.date && String(r.date).includes('-')) ? r.date.split('-').reverse().join('/') : (String(r.date).includes('/') ? r.date : formattedDate),
                     time: (r.time && String(r.time).length >= 5) ? String(r.time).substring(0, 5) : "00:00",
                     ca1Set: parseFloat(r.ca1Set || r.mm20_set) || 0,
                     ca1Actual: parseFloat(r.ca1Actual || r.ca1) || 0,
@@ -101,7 +101,7 @@ const BatchEntryForm = ({
                 manualRecords: witnessedRecords.filter(r => r.source?.toLowerCase().includes('manual')).map(r => ({
                     id: (typeof r.id === 'number' && r.id < 1000000) ? r.id : 0,
                     batchNo: String(r.batchNo || "0"),
-                    date: (r.date && String(r.date).includes('-')) ? r.date.split('-').reverse().join('/') : (String(r.date).includes('/') ? r.date : new Date().toLocaleDateString('en-GB')),
+                    date: (r.date && String(r.date).includes('-')) ? r.date.split('-').reverse().join('/') : (String(r.date).includes('/') ? r.date : formattedDate),
                     time: (r.time && String(r.time).length >= 5) ? String(r.time).substring(0, 5) : "00:00",
                     ca1Actual: parseFloat(r.ca1Actual || r.ca1) || 0,
                     ca2Actual: parseFloat(r.ca2Actual || r.ca2) || 0,

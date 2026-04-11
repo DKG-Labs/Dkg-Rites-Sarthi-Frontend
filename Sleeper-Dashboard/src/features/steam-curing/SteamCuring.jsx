@@ -150,7 +150,7 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
     // Fetch Dynamic Locations for current Unit (Matching Demoulding Card logic)
     useEffect(() => {
         const fetchLocations = async () => {
-            const vId = vendorId || localStorage.getItem('vendorId');
+            const vId = vendorId || userId || localStorage.getItem('vendorId') || localStorage.getItem('userId');
             if (dutyUnit && vId) {
                 try {
                     const response = await apiService.getPlantSheds(vId, dutyUnit);
@@ -384,11 +384,15 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
 
     const handleEdit = async (entry) => {
         try {
-            const fetchId = entry.parentId || entry.id;
-            const response = await apiService.getSteamCuringById(fetchId);
-            const fetchedBatch = response?.responseData;
-
             let target = entry;
+            let fetchedBatch = null;
+            
+            // Only fetch if we have a valid numeric parentId (backend record)
+            if (entry.parentId && !isNaN(Number(entry.parentId))) {
+                const response = await apiService.getSteamCuringById(entry.parentId);
+                fetchedBatch = response?.responseData;
+            }
+
             if (fetchedBatch) {
                 const found = (fetchedBatch.manualRecords || []).find(m => m.id === entry.manualId || m.id === entry.id);
                 if (found) target = { ...found, parentId: fetchedBatch.id };
@@ -396,19 +400,31 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
 
             setEditingId(entry.id);
             setEditParentId(target.parentId || null);
+
+            const recordDate = target.date || entry.date || '';
+            const yyyyDate = recordDate.includes('/') ? recordDate.split('/').reverse().join('-') : recordDate;
+
             setManualForm({
-                date: target.date || entry.date,
+                dateOfCasting: yyyyDate,
+                location: target.location || entry.location || '',
+                date: recordDate,
                 batchNo: target.batchNo || entry.batchNo,
                 chamberNo: target.chamberNo || entry.chamberNo,
                 benches: target.benches || entry.benches,
                 minConstTemp: target.minConstTemp ?? target.minTemp ?? entry.minConstTemp,
-                maxConstTemp: target.maxConstTemp ?? target.maxTemp ?? entry.maxConstTemp
+                maxConstTemp: target.maxConstTemp ?? target.maxTemp ?? entry.maxConstTemp,
+                grade: target.grade || entry.grade || 'M60'
             });
+
+            setSelectedBatch(target.parentId || entry.parentId || target.batchNo || entry.batchNo);
+            setSelectedChamber(target.chamberNo || entry.chamberNo);
+            
         } catch (error) {
             console.error('Fetch failed:', error);
             setEditingId(entry.id);
             setEditParentId(entry.parentId || null);
             setManualForm({
+                ...manualForm,
                 date: entry.date,
                 batchNo: entry.batchNo,
                 chamberNo: entry.chamberNo,
@@ -418,7 +434,7 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
             });
         }
         setShowForm(true);
-        setEditOnly(true);
+        setEditOnly(false); // User requested the whole form to be open, not just manual form
     };
 
     const handleSaveManual = async () => {
@@ -871,14 +887,18 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                                 <span style={{ background: '#64748b', color: '#fff', fontSize: '10px', fontWeight: '800', width: '20px', height: '20px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>4</span>
                                 <h4 style={{ margin: 0, fontSize: '0.9rem', color: '#1e293b', fontWeight: '800' }}>Recent Witness Logs</h4>
                             </div>
-                            <table className="ui-table" style={{ background: '#fff', fontSize: '12px' }}>
-                                <thead><tr><th>Source</th><th>Date</th><th>Batch</th><th>Chamber</th><th>Temp Range</th><th>Status</th><th>Actions</th></tr></thead>
+                            <table className="ui-table" style={{ background: '#fff', fontSize: '11px' }}>
+                                <thead><tr><th>Source</th><th>Date</th><th>Location</th><th>Batch</th><th>Chamber</th><th>Grade</th><th>Temp Range</th><th>Status</th><th>Actions</th></tr></thead>
                                 <tbody>
                                     {entries.slice(0, 5).map(e => (
                                         <tr key={e.id}>
                                             <td><span className={`status-pill ${e.source === 'Manual' ? 'manual' : 'witnessed'}`}>{e.source}</span></td>
-                                            <td>{e.date ? e.date.split('-').reverse().join('/') : ''}</td>
-                                            <td>{e.batchNo}</td><td>{e.chamberNo}</td><td>{e.minConstTemp}–{e.maxConstTemp}°C</td>
+                                            <td>{e.date && e.date.includes('-') ? e.date.split('-').reverse().join('/') : (e.date || '—')}</td>
+                                            <td>{e.location || '—'}</td>
+                                            <td>{e.batchNo}</td>
+                                            <td>{e.chamberNo}</td>
+                                            <td>{e.grade || '—'}</td>
+                                            <td>{e.minConstTemp}{e.maxConstTemp !== '—' ? `–${e.maxConstTemp}°C` : ''}</td>
                                             <td>
                                                 <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '800', background: e.status === 'OK' ? '#ecfdf5' : '#fef2f2', color: e.status === 'OK' ? '#059669' : '#dc2626' }}>
                                                     {e.status || 'OK'}
@@ -892,7 +912,7 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                                             </td>
                                         </tr>
                                     ))}
-                                    {entries.length === 0 && <tr><td colSpan="7" style={{ textAlign: 'center', padding: '1.5rem', color: '#94a3b8' }}>No records yet.</td></tr>}
+                                    {entries.length === 0 && <tr><td colSpan="9" style={{ textAlign: 'center', padding: '1.5rem', color: '#94a3b8' }}>No records yet.</td></tr>}
                                 </tbody>
                             </table>
                         </div>
@@ -927,20 +947,23 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                             <h3 style={{ margin: 0 }}>Witnessed Curing Logs</h3>
                             <button className="toggle-btn" onClick={() => setShowForm(true)}>+ Add New Entry</button>
                         </div>
-                        <div className="table-outer-wrapper" style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                            <table className="ui-table">
-                                <thead><tr><th>Source</th><th>Date</th><th>Batch</th><th>Chamber</th><th>Temp Range</th><th>Status</th><th>Actions</th></tr></thead>
+                        <div className="table-outer-wrapper" style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', overflowX: 'auto' }}>
+                            <table className="ui-table" style={{ fontSize: '11px', minWidth: '800px' }}>
+                                <thead><tr><th>Source</th><th>Date</th><th>Location</th><th>Batch</th><th>Chamber</th><th>Grade</th><th>Temp Range</th><th>Status</th><th>Actions</th></tr></thead>
                                 <tbody>
                                     {entries.map(e => (
                                         <tr key={e.id} style={{ background: e.isHeader ? '#f1f5f9' : 'transparent', fontWeight: e.isHeader ? '700' : '400' }}>
                                             <td>
                                                 <span className={`status-pill ${e.source === 'Manual' ? 'manual' : e.source === 'Batch' ? 'header' : 'witnessed'}`} 
-                                                      style={e.source === 'Batch' ? { background: '#e2e8f0', color: '#475569' } : {}}>
+                                                      style={e.source === 'Batch' ? { background: '#cbd5e1', color: '#334155' } : {}}>
                                                     {e.source}
                                                 </span>
                                             </td>
-                                            <td>{e.date ? e.date.split('-').reverse().join('/') : ''}</td>
-                                            <td>{e.batchNo}</td><td>{e.chamberNo}</td>
+                                            <td>{e.date && e.date.includes('-') ? e.date.split('-').reverse().join('/') : (e.date || '—')}</td>
+                                            <td>{e.location || '—'}</td>
+                                            <td>{e.batchNo}</td>
+                                            <td>{e.chamberNo}</td>
+                                            <td>{e.grade || '—'}</td>
                                             <td>{e.minConstTemp}{e.maxConstTemp !== '—' ? `–${e.maxConstTemp}°C` : ''}</td>
                                             <td>
                                                 <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '800', background: e.status === 'OK' || e.status === 'REGISTERED' ? '#ecfdf5' : '#fef2f2', color: e.status === 'OK' || e.status === 'REGISTERED' ? '#059669' : '#dc2626' }}>
@@ -955,7 +978,7 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                                             </td>
                                         </tr>
                                     ))}
-                                    {entries.length === 0 && <tr><td colSpan="8" style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>No records found.</td></tr>}
+                                    {entries.length === 0 && <tr><td colSpan="9" style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>No records found.</td></tr>}
                                 </tbody>
                             </table>
                         </div>

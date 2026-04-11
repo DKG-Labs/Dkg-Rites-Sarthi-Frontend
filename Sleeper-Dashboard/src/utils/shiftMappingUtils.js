@@ -6,13 +6,18 @@ export const mapWireTensionRecords = (responseData) => {
     if (!responseData) return [];
     const flattenedRecords = [];
     responseData.forEach(batchRecord => {
-        const { batchNo, sleeperType, wiresPerSleeper, targetLoadKn } = batchRecord;
+        const { batchNo, sleeperType, wiresPerSleeper, targetLoadKn, date, entryDate, plantId, vendorCode, shift } = batchRecord;
 
         (batchRecord.manualRecords || []).forEach(m => {
             flattenedRecords.push({
                 ...m,
                 batchNo,
                 parentId: batchRecord.id,
+                date: date || entryDate,
+                entryDate,
+                plantId,
+                vendorCode,
+                shift,
                 modulus: m.modulus || m.youngsModulus,
                 source: 'Manual',
                 sleeperType,
@@ -26,6 +31,11 @@ export const mapWireTensionRecords = (responseData) => {
                 ...s,
                 batchNo,
                 parentId: batchRecord.id,
+                date: date || entryDate,
+                entryDate,
+                plantId,
+                vendorCode,
+                shift,
                 time: s.time || s.plcTime,
                 modulus: s.modulus || s.youngsModulus,
                 source: 'Scada',
@@ -42,7 +52,7 @@ export const mapCompactionRecords = (responseData) => {
     if (!responseData) return [];
     const flattenedRecords = [];
     responseData.forEach(batchRecord => {
-        const { batchNo, sleeperType, entryDate } = batchRecord;
+        const { batchNo, sleeperType, entryDate, shift, location, vendorCode, plantId } = batchRecord;
 
         (batchRecord.manualRecords || []).forEach(m => {
             flattenedRecords.push({
@@ -50,6 +60,10 @@ export const mapCompactionRecords = (responseData) => {
                 batchNo,
                 parentId: batchRecord.id,
                 date: entryDate,
+                shift,
+                location,
+                vendorCode,
+                plantId,
                 source: 'Manual',
                 sleeperType
             });
@@ -61,6 +75,10 @@ export const mapCompactionRecords = (responseData) => {
                 batchNo,
                 parentId: batchRecord.id,
                 date: entryDate,
+                shift,
+                location,
+                vendorCode,
+                plantId,
                 source: 'Scada',
                 sleeperType
             });
@@ -85,6 +103,9 @@ export const mapSteamCuringRecords = (responseData) => {
             source: 'Batch',
             grade,
             location,
+            shift,
+            vendorCode,
+            plantId,
             minConstTemp: '—',
             maxConstTemp: '—',
             status: 'REGISTERED',
@@ -103,13 +124,17 @@ export const mapSteamCuringRecords = (responseData) => {
                 source: 'Manual',
                 grade,
                 location,
-                minConstTemp: m.minTemp,
-                maxConstTemp: m.maxTemp,
+                shift,
+                minConstTemp: m.minTemp ?? '—',
+                maxConstTemp: m.maxTemp ?? '—',
                 status: (m.minTemp >= 55 && m.maxTemp <= 60) ? 'OK' : 'NOT OK'
             });
         });
 
         (batchRecord.scadaRecords || []).forEach(s => {
+            const minT = s.constTempMin ?? s.minTemp;
+            const maxT = s.constTempMax ?? s.maxTemp;
+            const hasTemp = minT !== undefined && minT !== null;
             flattenedRecords.push({
                 ...s,
                 id: `${id}-s-${s.id || Math.random()}`,
@@ -120,9 +145,10 @@ export const mapSteamCuringRecords = (responseData) => {
                 source: 'Scada',
                 grade,
                 location,
-                minConstTemp: s.constTempMin || s.minTemp || 0,
-                maxConstTemp: s.constTempMax || s.maxTemp || 0,
-                status: (s.constTempMin >= 55 && s.constTempMax <= 60) ? 'OK' : 'NOT OK'
+                shift,
+                minConstTemp: hasTemp ? minT : '—',
+                maxConstTemp: hasTemp ? maxT : '—',
+                status: hasTemp ? ((minT >= 55 && maxT <= 60) ? 'OK' : 'NOT OK') : 'N/A'
             });
         });
     });

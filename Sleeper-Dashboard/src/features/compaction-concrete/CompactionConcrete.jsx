@@ -27,7 +27,7 @@ const CompactionSubCard = ({ id, title, color, statusDetail, isActive, onClick }
     );
 };
 
-const CompactionConcrete = ({ onBack, batches = [], sharedState, displayMode = 'modal', showForm: propsShowForm, setShowForm: propsSetShowForm, activeContainer }) => {
+const CompactionConcrete = ({ onBack, batches = [], sharedState, displayMode = 'modal', showForm: propsShowForm, setShowForm: propsSetShowForm, activeContainer, loadShiftData }) => {
     const { compactionRecords: entries, setAllCompactionRecords: setEntries } = sharedState;
     const { vendorCode, dutyUnit, selectedShift, dutyDate, userId } = useShift();
     const [viewMode, setViewMode] = useState('witnessed'); // Default to 'witnessed'
@@ -37,6 +37,13 @@ const CompactionConcrete = ({ onBack, batches = [], sharedState, displayMode = '
 
     const [selectedBatch, setSelectedBatch] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+
+    // Call loadShiftData on mount so the data is fetched when the component loads
+    useEffect(() => {
+        if (loadShiftData) {
+            loadShiftData();
+        }
+    }, [loadShiftData]);
 
     // Mock SCADA Data - In production this would come from an API or live feed
     const [scadaRecords, setScadaRecords] = useState([
@@ -158,7 +165,7 @@ const CompactionConcrete = ({ onBack, batches = [], sharedState, displayMode = '
                 .filter(r => r.source === 'Scada')
                 .map(r => ({
                     id: typeof r.id === 'number' && r.id < 1000000000 ? r.id : 0,
-                    time: (r.time || "").substring(0, 5), // Truncate HH:mm:ss to HH:mm to satisfy backend parsing
+                    time: (r.time && r.time.length === 5) ? `${r.time}:00` : (r.time || "00:00:00"),
                     benchNo: String(r.benchNo),
                     v1V4Rpm: parseInt(r.v1V4Rpm || r.minRpm) || 0,
                     minDuration: parseInt(r.minDuration) || 0,
@@ -201,31 +208,44 @@ const CompactionConcrete = ({ onBack, batches = [], sharedState, displayMode = '
 
     const handleEdit = async (entry) => {
         try {
-            const fetchId = entry.parentId || entry.id;
-            const response = await apiService.getCompactionById(fetchId);
-            const fetchedBatch = response?.responseData;
-
             let target = entry;
+            let fetchedBatch = null;
+
+            // Guard: Only fetch if it's a backend record with a numeric parentId
+            if (entry.parentId && !isNaN(Number(entry.parentId))) {
+                const response = await apiService.getCompactionById(entry.parentId);
+                fetchedBatch = response?.responseData;
+            }
+
             if (fetchedBatch) {
                 const found = (fetchedBatch.manualRecords || []).find(m => m.id === entry.id);
                 if (found) target = { ...found, parentId: fetchedBatch.id };
             }
 
-            setEditingId(target.id);
-            setEditParentId(target.parentId || null);
+            setEditingId(target.id || entry.id);
+            setEditParentId(target.parentId || entry.parentId || null);
+
+            const recordDate = target.date || entry.date || '';
+            const yyyyDate = recordDate.includes('/') ? recordDate.split('/').reverse().join('-') : recordDate;
+
             setManualForm({
-                date: target.date || entry.date,
-                time: target.time || entry.time,
-                batchNo: target.batchNo || entry.batchNo,
-                benchNo: target.benchNo || entry.benchNo,
-                tachoCount: target.tachoCount || entry.tachoCount,
-                workingTachos: target.workingTachos || entry.workingTachos,
-                minRpm: target.minRpm || entry.minRpm,
-                maxRpm: target.maxRpm || entry.maxRpm,
+                dateOfCasting: yyyyDate,
+                location: target.location || entry.location || '',
+                date: recordDate,
+                time: target.time || entry.time || '',
+                batchNo: target.batchNo || entry.batchNo || '',
+                benchNo: target.benchNo || entry.benchNo || '',
+                tachoCount: target.tachoCount || entry.tachoCount || '',
+                workingTachos: target.workingTachos || entry.workingTachos || '',
+                minRpm: target.minRpm || entry.minRpm || '',
+                maxRpm: target.maxRpm || entry.maxRpm || '',
                 minDuration: target.minDuration || entry.minDuration || '',
                 maxDuration: target.maxDuration || entry.maxDuration || '',
-                duration: target.duration || entry.duration
+                duration: target.duration || entry.duration || ''
             });
+            
+            setSelectedBatch(target.parentId || entry.parentId || target.batchNo || entry.batchNo || '');
+            
         } catch (error) {
             console.error('Fetch failed:', error);
             setEditingId(entry.id);
@@ -237,7 +257,7 @@ const CompactionConcrete = ({ onBack, batches = [], sharedState, displayMode = '
             });
         }
         setShowForm(true);
-        setEditOnly(true);
+        setEditOnly(false); // Whole form should open
     };
 
 
@@ -323,13 +343,16 @@ const CompactionConcrete = ({ onBack, batches = [], sharedState, displayMode = '
             }
         } else {
             setEntries(prev => [newEntry, ...prev]);
+            alert('Record added to the batch list below. Please ensure you click "Save / Finish Batch" to finalize and submit to the server.');
         }
         setManualForm({
             ...manualForm,
             batchNo: selectedBatch, benchNo: '', minRpm: '', maxRpm: '', minDuration: '', maxDuration: '', duration: '',
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
         });
-        setShowForm(false);
+        if (editingId) {
+            setShowForm(false);
+        }
     };
 
     const tabs = [
@@ -498,12 +521,15 @@ const CompactionConcrete = ({ onBack, batches = [], sharedState, displayMode = '
                             </div>
                             <div className="table-responsive">
                                 <table className="ui-table compact">
-                                    <thead><tr><th>Source</th><th>Date</th><th>Batch</th><th>Bench</th><th>RPM Range</th><th>Duration</th><th>Actions</th></tr></thead>
+                                    <thead><tr><th>Source</th><th>Date</th><th>Shift</th><th>Location</th><th>Sleeper Type</th><th>Batch</th><th>Bench</th><th>RPM Range</th><th>Duration</th><th>Actions</th></tr></thead>
                                     <tbody>
                                         {entries.filter(e => !selectedBatch || String(e.batchNo) === String(selectedBatch)).slice(0, 5).map(e => (
                                             <tr key={e.id}>
                                                 <td><span className={`status-pill ${e.source === 'Manual' ? 'manual' : 'witnessed'}`}>{e.source}</span></td>
-                                                <td>{e.date ? e.date.split('-').reverse().join('/') : ''}</td>
+                                                <td>{e.date && e.date.includes('-') ? e.date.split('-').reverse().join('/') : (e.date || '—')}</td>
+                                                <td>{e.shift || '—'}</td>
+                                                <td>{e.location || '—'}</td>
+                                                <td>{e.sleeperType || '—'}</td>
                                                 <td>{e.batchNo}</td><td>{e.benchNo}</td><td>{e.minRpm}-{e.maxRpm}</td><td>{e.minDuration ? `${e.minDuration}-${e.maxDuration}s` : `${e.duration}s`}</td>
                                                 <td>
                                                     {(() => {
@@ -636,14 +662,15 @@ const CompactionConcrete = ({ onBack, batches = [], sharedState, displayMode = '
                                     <div className="table-outer-wrapper" style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                                         <div className="table-responsive">
                                             <table className="ui-table">
-                                                <thead><tr><th>Location</th><th>Source</th><th>Date</th><th>Time</th><th>Batch</th><th>Bench</th><th>RPM Range</th><th>Dur Range</th><th>Actions</th></tr></thead>
+                                                <thead><tr><th>Location</th><th>Shift</th><th>Source</th><th>Date</th><th>Time</th><th>Batch</th><th>Bench</th><th>Type</th><th>RPM Range</th><th>Dur Range</th><th>Actions</th></tr></thead>
                                                 <tbody>
                                                     {recordsSubset.map(e => (
                                                         <tr key={e.id}>
                                                             <td style={{ fontSize: '11px', color: '#64748b' }}>{e.location || 'N/A'}</td>
+                                                            <td style={{ fontSize: '11px' }}>{e.shift || '—'}</td>
                                                             <td><span className={`status-pill ${e.source === 'Manual' ? 'manual' : 'witnessed'}`}>{e.source}</span></td>
-                                                            <td>{e.date ? e.date.split('-').reverse().join('/') : ''}</td>
-                                                            <td>{e.time}</td><td>{e.batchNo}</td><td><strong>{e.benchNo}</strong></td><td>{e.minRpm}-{e.maxRpm}</td><td>{e.minDuration ? `${e.minDuration}-${e.maxDuration}s` : `${e.duration}s`}</td>
+                                                            <td>{e.date && e.date.includes('-') ? e.date.split('-').reverse().join('/') : (e.date || '—')}</td>
+                                                            <td>{e.time}</td><td>{e.batchNo}</td><td><strong>{e.benchNo}</strong></td><td>{e.sleeperType || '—'}</td><td>{e.minRpm}-{e.maxRpm}</td><td>{e.minDuration ? `${e.minDuration}-${e.maxDuration}s` : `${e.duration}s`}</td>
                                                             <td>
                                                                 {(() => {
                                                                     const todayStr = new Date().toISOString().split('T')[0];

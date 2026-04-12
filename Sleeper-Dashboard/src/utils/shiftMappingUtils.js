@@ -91,7 +91,7 @@ export const mapSteamCuringRecords = (responseData) => {
     if (!responseData || !Array.isArray(responseData)) return [];
     const flattenedRecords = [];
     responseData.forEach(batchRecord => {
-        const { batchNo, chamber, grade, entryDate, id, location } = batchRecord;
+        const { batchNo, chamber, grade, entryDate, id, location, shift, vendorCode, plantId } = batchRecord;
 
         // Add a Summary/Header record for the batch
         flattenedRecords.push({
@@ -125,6 +125,8 @@ export const mapSteamCuringRecords = (responseData) => {
                 grade,
                 location,
                 shift,
+                vendorCode,
+                plantId,
                 minConstTemp: m.minTemp ?? '—',
                 maxConstTemp: m.maxTemp ?? '—',
                 status: (m.minTemp >= 55 && m.maxTemp <= 60) ? 'OK' : 'NOT OK'
@@ -146,6 +148,8 @@ export const mapSteamCuringRecords = (responseData) => {
                 grade,
                 location,
                 shift,
+                vendorCode,
+                plantId,
                 minConstTemp: hasTemp ? minT : '—',
                 maxConstTemp: hasTemp ? maxT : '—',
                 status: hasTemp ? ((minT >= 55 && maxT <= 60) ? 'OK' : 'NOT OK') : 'N/A'

@@ -78,6 +78,24 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
     const entries = propSteamRecords || localSteamRecords;
     const setEntries = propSetSteamRecords || setLocalSteamRecords;
 
+    // Filtered entries based on plantId, vendorCode, shift, createdBy and date
+    const filteredEntries = useMemo(() => {
+        const currentUserId = userId || localStorage.getItem('userId') || "134";
+        const formattedDutyDate = (dutyDate && dutyDate.includes('-')) 
+            ? dutyDate.split('-').reverse().join('/') 
+            : dutyDate;
+
+        return entries.filter(e => {
+            const matchesPlant = !e.plantId || e.plantId === dutyUnit;
+            const matchesVendor = !e.vendorCode || e.vendorCode === vendorCode;
+            const matchesShift = !e.shift || e.shift === selectedShift;
+            const matchesDate = !e.date || e.date === dutyDate || e.date === formattedDutyDate;
+            const matchesUser = !e.createdBy || String(e.createdBy) === String(currentUserId);
+            
+            return matchesPlant && matchesVendor && matchesShift && matchesDate && matchesUser;
+        });
+    }, [entries, dutyUnit, vendorCode, selectedShift, dutyDate, userId]);
+
     const [isSaving, setIsSaving] = useState(false);
 
     // Mock SCADA cycles – rich structure matching all 5 process stages
@@ -139,6 +157,21 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
         dateOfCasting: dutyDate || formatToIST(null, 'iso_date'),
         grade: 'M60'
     });
+
+    // Local state for records added in the CURRENT session
+    const [sessionEntries, setSessionEntries] = useState([]);
+
+    // Clear session entries when form is opened
+    useEffect(() => {
+        if (showForm) {
+            if (editingId) {
+                const entryToEdit = entries.find(e => e.id === editingId);
+                setSessionEntries(entryToEdit ? [entryToEdit] : []);
+            } else {
+                setSessionEntries([]);
+            }
+        }
+    }, [showForm, editingId]);
 
     // Fetch Steam Curing data on mount
     useEffect(() => {
@@ -379,6 +412,7 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
     const handleDelete = async (id) => {
         if (window.confirm('Are you sure you want to delete this record?')) {
             setEntries(prev => prev.filter(e => e.id !== id));
+            setSessionEntries(prev => prev.filter(e => e.id !== id));
         }
     };
 
@@ -454,7 +488,11 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
             id: editingId || `m-${Date.now()}`,
             timestamp: new Date().toISOString(),
             source: 'Manual',
-            status: (minVal >= 55 && maxVal <= 60) ? 'OK' : 'NOT OK'
+            status: (minVal >= 55 && maxVal <= 60) ? 'OK' : 'NOT OK',
+            shift: selectedShift,
+            vendorCode: vendorCode,
+            plantId: dutyUnit,
+            createdBy: userId || localStorage.getItem('userId') || "134"
         };
 
         if (editingId) {
@@ -480,8 +518,9 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                     }
                 }
                 setEntries(prev => prev.map(e => e.id === editingId ? newEntry : e));
+                setSessionEntries(prev => prev.map(e => e.id === editingId ? newEntry : e));
                 alert('Record updated successfully');
-                if (fetchSteamCuring) await fetchSteamCuring(); 
+                // Redundant fetchSteamCuring removed as per user request
             } catch (error) {
                 console.error('Update failed:', error);
                 alert(`Update failed: ${error.message}`);
@@ -493,6 +532,7 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
             }
         } else {
             setEntries(prev => [newEntry, ...prev]);
+            setSessionEntries(prev => [newEntry, ...prev]);
             alert('Manual record added. Please remember to click "Save / Finish Batch" at the bottom to sync with the server.');
         }
         setManualForm({ 
@@ -509,20 +549,23 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
     };
 
     const handleFinalSave = async () => {
-        const batchToSave = selectedBatch || manualForm.batchNo;
-        if (!batchToSave) {
+        const batchNoStr = manualForm.batchNo;
+        if (!batchNoStr) {
             alert('Please select or enter a Batch Number');
             return;
         }
         setIsSaving(true);
         try {
-            const batchRecords = entries.filter(e => String(e.batchNo) === String(batchToSave));
+            // Use the string batch number for filtering entries to ensure matches regardless of ID vs Number
+            const batchRecords = entries.filter(e => String(e.batchNo) === String(batchNoStr));
+            
+            console.log(`Saving batch ${batchNoStr}. Found ${batchRecords.length} records.`, batchRecords);
 
             const manualRecords = batchRecords
                 .filter(e => e.source === 'Manual')
                 .map(e => ({
                     batchNo: String(e.batchNo),
-                    chamber: String(e.chamberNo),
+                    chamber: String(e.chamberNo || "0"),
                     minTemp: parseFloat(e.minConstTemp) || 0,
                     maxTemp: parseFloat(e.maxConstTemp) || 0
                 }));
@@ -563,26 +606,28 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
             const currentVendorCode = vendorCode || localStorage.getItem('vendorCode');
             const currentShift = selectedShift || localStorage.getItem('selectedShift');
             const currentPlantId = dutyUnit || localStorage.getItem('dutyUnit');
+            const currentUserIdInt = parseInt(userId || localStorage.getItem('userId') || "134");
 
             const payload = {
-                batchNo: String(batchToSave),
-                chamber: String(selectedChamber || manualForm.chamberNo || "0"),
-                grade: 'M60',
-                entryDate: manualForm.date ? manualForm.date.split('-').reverse().join('/') : formatToIST(null, 'date'),
+                batchNo: String(batchNoStr),
+                chamber: String(manualForm.chamberNo || "0"),
+                grade: manualForm.grade || 'M60',
+                entryDate: manualForm.date ? (manualForm.date.includes('-') ? manualForm.date.split('-').reverse().join('/') : manualForm.date) : formatToIST(null, 'date'),
                 location: manualForm.location,
                 vendorCode: currentVendorCode,
                 plantId: currentPlantId,
                 shift: currentShift,
-                createdBy: userId || localStorage.getItem('userId'),
+                createdBy: currentUserIdInt,
+                updatedBy: currentUserIdInt,
                 scadaRecords: scadaRecordsPayload,
                 manualRecords
             };
 
-            // Call create directly – avoids fetching the entire history first
+            console.log("Final Payload for Steam Curing:", payload);
             await apiService.createSteamCuring(payload);
 
-            setShowForm(false);
             alert('Steam curing data synced successfully.');
+            setShowForm(false);
             if (fetchSteamCuring) await fetchSteamCuring();
         } catch (error) {
             console.error('Save failed:', error);
@@ -890,7 +935,10 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                             <table className="ui-table" style={{ background: '#fff', fontSize: '11px' }}>
                                 <thead><tr><th>Source</th><th>Date</th><th>Location</th><th>Batch</th><th>Chamber</th><th>Grade</th><th>Temp Range</th><th>Status</th><th>Actions</th></tr></thead>
                                 <tbody>
-                                    {entries.slice(0, 5).map(e => (
+                                    {sessionEntries
+                                        .filter(e => e.source === 'Manual' && (!manualForm.batchNo || String(e.batchNo) === String(manualForm.batchNo)))
+                                        .slice(0, 5)
+                                        .map(e => (
                                         <tr key={e.id}>
                                             <td><span className={`status-pill ${e.source === 'Manual' ? 'manual' : 'witnessed'}`}>{e.source}</span></td>
                                             <td>{e.date && e.date.includes('-') ? e.date.split('-').reverse().join('/') : (e.date || '—')}</td>
@@ -951,7 +999,7 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                             <table className="ui-table" style={{ fontSize: '11px', minWidth: '800px' }}>
                                 <thead><tr><th>Source</th><th>Date</th><th>Location</th><th>Batch</th><th>Chamber</th><th>Grade</th><th>Temp Range</th><th>Status</th><th>Actions</th></tr></thead>
                                 <tbody>
-                                    {entries.map(e => (
+                                    {filteredEntries.filter(e => e.source === 'Manual' || e.source === 'Batch').map(e => (
                                         <tr key={e.id} style={{ background: e.isHeader ? '#f1f5f9' : 'transparent', fontWeight: e.isHeader ? '700' : '400' }}>
                                             <td>
                                                 <span className={`status-pill ${e.source === 'Manual' ? 'manual' : e.source === 'Batch' ? 'header' : 'witnessed'}`} 

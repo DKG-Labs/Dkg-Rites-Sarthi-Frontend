@@ -20,14 +20,30 @@ const MainLayout = ({ children, activeItem, onItemClick }) => {
     const [showEndDutyModal, setShowEndDutyModal] = useState(false);
     const [confirmCheckbox, setConfirmCheckbox] = useState(false);
 
+    // Logout Duty activation state
+    const [showLogoutDutyModal, setShowLogoutDutyModal] = useState(false);
+
     const user = getStoredUser();
 
-    const handleLogout = () => {
+    const performLogout = () => {
         logoutUser();
         // Clear local view state if necessary
         onItemClick('Main Dashboard');
         // Redirect to main Sarthi login page at the root
         window.location.href = '/';
+    };
+
+    const handleLogout = () => {
+        if (dutyStarted) {
+            setShowLogoutDutyModal(true);
+        } else {
+            performLogout();
+        }
+    };
+
+    const handleLogoutWithEndDuty = () => {
+        endDuty();
+        performLogout();
     };
 
     const handleEndDutyConfirm = () => {
@@ -97,6 +113,70 @@ const MainLayout = ({ children, activeItem, onItemClick }) => {
                                 }}
                             >
                                 End Duty Now
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Logout Duty Confirmation Modal */}
+            {showLogoutDutyModal && (
+                <div className="modal-overlay" style={{ zIndex: 9999 }}>
+                    <div className="modal-content" style={{ maxWidth: '420px', textAlign: 'center', padding: '35px' }}>
+                        <div className="modal-header" style={{ marginBottom: '20px', justifyContent: 'center' }}>
+                            <h2 style={{ color: 'var(--color-danger)', fontSize: '20px' }}>Active Duty Session</h2>
+                        </div>
+                        <div className="modal-body" style={{ marginBottom: '30px' }}>
+                            <p style={{ color: '#64748b', fontSize: '15px', lineHeight: '1.6' }}>
+                                You have an active duty session. <br />
+                                Do you want to <strong>End Duty</strong> before logging out?
+                            </p>
+                        </div>
+
+                        <div className="modal-actions" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            <button
+                                className="btn-submit"
+                                onClick={handleLogoutWithEndDuty}
+                                style={{ 
+                                    width: '100%', 
+                                    background: 'var(--color-danger)', 
+                                    borderColor: 'var(--color-danger)',
+                                    color: 'white',
+                                    padding: '12px',
+                                    height: 'auto',
+                                    fontWeight: '600'
+                                }}
+                            >
+                                Yes, End Duty & Logout
+                            </button>
+                            <button
+                                className="btn-cancel"
+                                onClick={performLogout}
+                                style={{ 
+                                    width: '100%', 
+                                    border: '1px solid #e2e8f0',
+                                    background: 'white',
+                                    color: '#475569',
+                                    padding: '12px',
+                                    height: 'auto',
+                                    fontWeight: '600'
+                                }}
+                            >
+                                Logout Without Ending Duty
+                            </button>
+                            <button
+                                onClick={() => setShowLogoutDutyModal(false)}
+                                style={{ 
+                                    background: 'transparent', 
+                                    border: 'none', 
+                                    color: '#94a3b8', 
+                                    fontSize: '13px', 
+                                    marginTop: '8px',
+                                    cursor: 'pointer',
+                                    textDecoration: 'underline'
+                                }}
+                            >
+                                Cancel
                             </button>
                         </div>
                     </div>

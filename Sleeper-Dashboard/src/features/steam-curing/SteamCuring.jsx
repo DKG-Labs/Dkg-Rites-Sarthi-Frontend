@@ -73,6 +73,7 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
     const { containers, allBatchDeclarations, dutyDate, vendorId, dutyUnit, fetchSteamCuring, vendorCode, selectedShift, userId } = useShift();
     const [viewMode, setViewMode] = useState('witnessed');
     const [availableLocations, setAvailableLocations] = useState([]);
+    const [availableChambers, setAvailableChambers] = useState([]);
     const [batchOptions, setBatchOptions] = useState([]);
     const [localSteamRecords, setLocalSteamRecords] = useState([]);
     const entries = propSteamRecords || localSteamRecords;
@@ -297,7 +298,8 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
     useEffect(() => {
         const syncFormWithBatch = async () => {
             if (!selectedBatch) {
-                setManualForm(prev => ({ ...prev, batchNo: '' }));
+                setManualForm(prev => ({ ...prev, batchNo: '', chamberNo: '' }));
+                setAvailableChambers([]);
                 return;
             }
 
@@ -317,7 +319,10 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                     const data = response?.responseData;
                     if (data) {
                         const grade = data.mixDesignReference ? data.mixDesignReference.split(' - ')[0] : 'M60';
-                        const chamber = (data.chambers && data.chambers.length > 0) ? String(data.chambers[0].chamberNo) : '';
+                        const chamberList = (data.chambers || []).map(c => String(c.chamberNo));
+                        setAvailableChambers(chamberList);
+                        
+                        const chamber = chamberList.length > 0 ? chamberList[0] : '';
                         
                         setManualForm(prev => ({ 
                             ...prev, 
@@ -337,10 +342,12 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
             const allDecls = Object.values(allBatchDeclarations).flat();
             const localMatch = allDecls.find(b => String(b.batchNo) === batchNoStr);
             if (localMatch) {
+                const chamberList = (localMatch.chambers || []).map(c => String(c.chamberNo));
+                setAvailableChambers(chamberList);
                 setManualForm(prev => ({ 
                     ...prev, 
                     grade: localMatch.concreteGrade || localMatch.mixDesignReference || 'M60',
-                    chamberNo: localMatch.chambers?.[0]?.chamberNo || prev.chamberNo
+                    chamberNo: chamberList.length > 0 ? chamberList[0] : prev.chamberNo
                 }));
             }
 
@@ -793,8 +800,10 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                                     <select
                                         value={manualForm.location}
                                         onChange={e => {
-                                            setManualForm(prev => ({ ...prev, location: e.target.value, batchNo: '' }));
+                                            const val = e.target.value;
+                                            setManualForm(prev => ({ ...prev, location: val, batchNo: '', chamberNo: '' }));
                                             setSelectedBatch('');
+                                            setAvailableChambers([]);
                                         }}
                                         style={{ background: '#fff', fontSize: '13px', padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
                                     >
@@ -835,12 +844,30 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                                 </div>
                                 <div className="form-field">
                                     <label style={{ fontSize: '10px' }}>Chamber No.</label>
-                                    <input 
-                                        value={manualForm.chamberNo} 
-                                        readOnly 
-                                        placeholder={(manualForm.location || '').toLowerCase().includes('line') ? 'N/A (Long Line)' : 'Automated...'}
-                                        style={{ background: '#f8fafc', fontSize: '13px', padding: '6px', border: '1px solid #e2e8f0', color: '#64748b' }} 
-                                    />
+                                    {(manualForm.location || '').toLowerCase().includes('line') ? (
+                                        <input 
+                                            value="" 
+                                            readOnly
+                                            disabled
+                                            placeholder="Not Applicable (Line)"
+                                            style={{ background: '#f1f5f9', fontSize: '13px', padding: '6px', border: '1px solid #e2e8f0', color: '#94a3b8', cursor: 'not-allowed' }} 
+                                        />
+                                    ) : (
+                                        <select
+                                            value={manualForm.chamberNo}
+                                            onChange={e => {
+                                                const val = e.target.value;
+                                                setManualForm(prev => ({ ...prev, chamberNo: val }));
+                                                setSelectedChamber(val);
+                                            }}
+                                            style={{ background: '#fff', fontSize: '13px', padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+                                        >
+                                            <option value="">Select Chamber</option>
+                                            {availableChambers.map(ch => (
+                                                <option key={ch} value={ch}>Chamber {ch}</option>
+                                            ))}
+                                        </select>
+                                    )}
                                 </div>
                                 <div className="form-field">
                                     <label style={{ fontSize: '10px' }}>Concrete Grade</label>

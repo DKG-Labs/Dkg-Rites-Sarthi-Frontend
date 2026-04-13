@@ -220,8 +220,8 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
                     ca2: selectedPlan.ca2 || '0',
                     fa: selectedPlan.fa || '0',
                     water: selectedPlan.water || '0',
-                    admix: selectedPlan.admixture || selectedPlan.admix || '1.44',
-                    admixPct: selectedPlan.cement > 0 ? ((parseFloat(selectedPlan.admixture || selectedPlan.admix || 0) / parseFloat(selectedPlan.cement)) * 100).toFixed(2) : '0.00'
+                    admix: selectedPlan.admixtureKg || selectedPlan.admixture || selectedPlan.admix || '1.44',
+                    admixPct: selectedPlan.admixturePercentage || (parseFloat(selectedPlan.cement) > 0 ? ((parseFloat(selectedPlan.admixtureKg || selectedPlan.admixture || selectedPlan.admix || 0) / parseFloat(selectedPlan.cement)) * 100).toFixed(2) : '0.00')
                 };
                 
                 setCommonData(prev => ({

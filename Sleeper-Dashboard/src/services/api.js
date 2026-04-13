@@ -262,9 +262,9 @@ export const apiService = {
         api.get('/production-declaration/getAll/batchesWithId', {
             params: { vendorId, castingDate, plantId, productionUnit }
         }),
-    getAllProductionBenches: (batchNo) => api.get(`/production-declaration/getAll/benches?batchNo=${batchNo}`),
-    getAllProductionSleeperTypes: (batchNo, benchNo) => api.get(`/production-declaration/getAll/sleeper-types?batchNo=${batchNo}&benchNo=${benchNo}`),
-    getAllProductionSleepers: (batchNo, benchNo, sleeperType) => api.get(`/production-declaration/getAll/sleepers?batchNo=${batchNo}&benchNo=${benchNo}&sleeperType=${sleeperType}`),
+    getAllProductionBenches: (batchNo, productionUnit) => api.get('/production-declaration/getAll/benches', { params: { batchNo, productionUnit } }),
+    getAllProductionSleeperTypes: (batchNo, benchNo, productionUnit) => api.get('/production-declaration/getAll/sleeper-types', { params: { batchNo, benchNo, productionUnit } }),
+    getAllProductionSleepers: (batchNo, benchNo, sleeperType, productionUnit) => api.get('/production-declaration/getAll/sleepers', { params: { batchNo, benchNo, sleeperType, productionUnit } }),
 
     getAllWorkflowTransitions: (roleName = 'IE', userId = '') =>
         api.get(`/sleeper-workflow/allWorkflowTransition?roleName=${roleName}${userId ? `&assignedTo=${userId}` : ''}`),

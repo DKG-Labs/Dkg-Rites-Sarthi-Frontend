@@ -189,7 +189,7 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
         if (formData.batch && !initialData) {
             const fetchBenches = async () => {
                 try {
-                    const response = await apiService.getAllProductionBenches(formData.batch);
+                    const response = await apiService.getAllProductionBenches(formData.batch, formData.location);
                     if (response?.responseData) {
                         const newBenches = response.responseData;
                         setBenches(newBenches);
@@ -227,7 +227,7 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
         if (formData.batch && formData.gangNo && !initialData) {
             const fetchSleeperTypes = async () => {
                 try {
-                    const response = await apiService.getAllProductionSleeperTypes(formData.batch, formData.gangNo);
+                    const response = await apiService.getAllProductionSleeperTypes(formData.batch, formData.gangNo, formData.location);
                     if (response?.responseData) {
                         const newTypes = response.responseData;
                         setSleeperTypes(newTypes);

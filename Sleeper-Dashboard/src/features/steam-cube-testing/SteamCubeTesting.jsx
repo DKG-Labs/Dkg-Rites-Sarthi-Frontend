@@ -240,14 +240,15 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
                 shift: selectedShift || localStorage.getItem('selectedShift'),
                 createdBy: parseInt(userId || localStorage.getItem('userId')) || 0,
                 cubeDetails: (testData.cubeResults || []).map(cube => ({
-                    cubeNo: cube.cubeCode,
+                    cubeNo: cube.cubeNo,
                     dateOfTesting: DateUtils.formatToBackend(cube.testDate),
                     time: cube.testTime || "",
-                    ageHours: 24, // Assuming default or calculated
+                    ageHours: parseFloat(cube.ageHrs) || 0,
                     weightKgs: parseFloat(cube.weight) || 0,
                     loadKn: parseFloat(cube.load) || 0,
                     strength: parseFloat(cube.strength) || 0
-                }))
+                })),
+                steamCubeId: parseInt(selectedSample.id) || 0
             };
             
             if (isModifying && selectedSample.id) {
@@ -308,6 +309,7 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
             label: 'Location (Line/Shed)',
             render: (_, row) => row.location || row.lineNo || row.shedNo || '-'
         },
+        { key: 'chamberNo', label: 'Chamber No.', render: (val) => val || '-' },
         { key: 'batchNo', label: 'Batch No.' },
         { 
             key: 'castingDateTime', 
@@ -373,6 +375,7 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
             label: 'Location (Shed/Line)', 
             render: (_, row) => row.location || row.shedNo || row.lineNo || '-'
         },
+        { key: 'chamberNo', label: 'Chamber No.', render: (val) => val || '-' },
         { key: 'batchNo', label: 'Batch No.' },
         { 
             key: 'castingDate', 
@@ -626,6 +629,7 @@ const SteamCubeDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelet
     const details = [
         { label: 'Status', value: sample.status || 'Testing Pending' },
         { label: 'Location (Line/Shed)', value: sample.location || sample.lineNo || sample.shedNo || '-' },
+        { label: 'Chamber No.', value: sample.chamberNo || '-' },
         { label: 'Batch No.', value: sample.batchNo || '-' },
         { 
             label: 'Date & Time of Casting', 
@@ -953,6 +957,18 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
                                 <option>M-60</option>
                             </select>
                         </div>
+                        {formData.shedNo && (
+                            <div className="input-group">
+                                <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569', marginBottom: '4px' }}>Chamber No. (Required for Shed)</label>
+                                <input 
+                                    type="number" 
+                                    value={formData.chamberNo} 
+                                    onChange={e => setFormData({ ...formData, chamberNo: e.target.value })} 
+                                    placeholder="Enter Chamber No."
+                                    style={{ width: '100%', padding: '0 12px', height: '42px', borderRadius: '8px', border: '1.5px solid #e2e8f0', fontSize: '14px', color: '#1e293b', outline: 'none' }}
+                                />
+                            </div>
+                        )}
                     </div>
 
                     {/* Cube Addition Section */}
@@ -1042,7 +1058,7 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
                             className="btn-verify"
                             style={{ padding: '8px 24px', fontSize: '12px', height: '36px', width: 'auto' }}
                             onClick={() => onSave(formData)}
-                            disabled={!formData.batchNo || !formData.concreteGrade || formData.cubes.length === 0}
+                            disabled={!formData.batchNo || !formData.concreteGrade || formData.cubes.length === 0 || (formData.shedNo && !formData.chamberNo)}
                         >
                             {isModifying ? 'Update Declaration' : 'Save Declaration'}
                         </button>

@@ -10,6 +10,13 @@ import './ProfessionalCardSection.css';
 import './InspectionStackedCharts.css';
 import './PerformanceMatrixTheme.css';
 import FeedbackSection from './FeedbackSection';
+import SleeperSummary from './sleeper-board/SleeperSummary';
+import SleeperQuality from './sleeper-board/SleeperQuality';
+import SleeperLifecycle from './sleeper-board/SleeperLifecycle';
+import SleeperMauReport from './sleeper-board/SleeperMauReport';
+import SleeperMprReport from './sleeper-board/SleeperMprReport';
+import SleeperLwclReport from './sleeper-board/SleeperLwclReport';
+
 
 // --- Static Data moved outside component to fix ESLint re-render warnings ---
 const staticInspectionCallsData = [
@@ -351,9 +358,14 @@ const ProfessionalCardSection = ({
     const renderSubContent = () => {
         // Under Development Placeholder for non-ERC products
         const product = selectedProduct?.toLowerCase() || '';
+        const isSleeper = product.includes('sleeper');
         const isErc = product.includes('erc') || product === 'all' || !product;
 
-        if (!isErc) {
+        const isUnderDev = (!isErc && !isSleeper) || (isSleeper && activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'reports');
+
+
+
+        if (isUnderDev) {
             return (
                 <div className="under-dev-container fade-in" style={{ padding: '2rem 0' }}>
                     <div className="prof-card" style={{
@@ -374,16 +386,16 @@ const ProfessionalCardSection = ({
                             marginBottom: '1rem',
                             filter: 'drop-shadow(0 10px 15px rgba(0,0,0,0.1))',
                             animation: 'bounce 2s infinite'
-                        }}>🏗️</div>
+                        }}>{isSleeper ? '📊' : '🏗️'}</div>
                         <h2 style={{ fontSize: '32px', color: '#065f46', marginBottom: '10px' }}>
-                            {selectedProduct?.toUpperCase()}
+                            {selectedProduct?.toUpperCase()} {isSleeper ? activeMainCard.toUpperCase() : ''}
                         </h2>
                         <h3 style={{ fontSize: '20px', color: '#059669', marginBottom: '20px', fontWeight: '600' }}>
                             Section Under Development
                         </h3>
                         <p style={{ color: '#475569', maxWidth: '450px', lineHeight: '1.6', fontSize: '15px' }}>
-                            We are currently integrating data for this product line.
-                            Stay tuned for a complete performance overview of {selectedProduct} soon!
+                            We are currently integrating data for this {isSleeper ? 'specific analysis' : 'product line'}.
+                            Stay tuned for a complete performance overview soon!
                         </p>
                         <div style={{
                             marginTop: '2rem',
@@ -417,7 +429,11 @@ const ProfessionalCardSection = ({
                 {(() => {
                     switch (activeMainCard) {
                         case 'summary':
+                            if (isSleeper) {
+                                return <SleeperSummary summaryData={summaryData} />;
+                            }
                             const s = summaryData || {};
+
                             return (
                                 <div className="summary-tab-content">
                                     <div className="g3 mb">
@@ -555,7 +571,11 @@ const ProfessionalCardSection = ({
                             );
 
                         case 'quality':
+                            if (isSleeper) {
+                                return <SleeperQuality />;
+                            }
                             return (
+
                                 <div className="quality-tab-content fade-in">
                                     <div className="sec-title" style={{ fontSize: '14px', marginBottom: '10px' }}>Railway Quality Surveillance · ERC Defect Analysis</div>
 
@@ -848,7 +868,11 @@ const ProfessionalCardSection = ({
                             );
 
                         case 'lifecycle':
+                            if (isSleeper) {
+                                return <SleeperLifecycle />;
+                            }
                             return (
+
                                 <div className="lifecycle-tab-content fade-in">
                                     <div className="prof-card mb">
                                         <div className="sec-title">Purchase Order Lifecycle Tracking</div>
@@ -952,269 +976,284 @@ const ProfessionalCardSection = ({
 
                                     <div className="report-viewer-content">
                                         {activeReport === 'mpr' && (
-                                            <div className="prof-card animate-up">
-                                                <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                    <span>Monthly Progress Report</span>
-                                                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                                                        <ExportButton
-                                                            onClick={() => downloadExcel(
-                                                                displayMprData,
-                                                                [
-                                                                    { label: 'Rly', key: 'rly' },
-                                                                    { label: 'PO Number', key: 'poNumber' },
-                                                                    { label: 'Manufacturer', key: 'manufacturer' },
-                                                                    { label: 'PO Qty', key: 'poQty' },
-                                                                    { label: 'RM', key: 'monthlyRm' },
-                                                                    { label: 'Process', key: 'monthlyProcess' },
-                                                                    { label: 'Final', key: 'monthlyFinal' },
-                                                                    { label: 'Total Final Inspected', key: 'totalFinalInspected' },
-                                                                    { label: 'Balance', key: 'poBalance' }
-                                                                ],
-                                                                'Monthly_Progress_Report'
-                                                            )}
+                                            isSleeper ? <SleeperMprReport /> : (
+                                                <div className="prof-card animate-up">
+
+                                                    <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                        <span>Monthly Progress Report</span>
+                                                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                                            <ExportButton
+                                                                onClick={() => downloadExcel(
+                                                                    displayMprData,
+                                                                    [
+                                                                        { label: 'Rly', key: 'rly' },
+                                                                        { label: 'PO Number', key: 'poNumber' },
+                                                                        { label: 'Manufacturer', key: 'manufacturer' },
+                                                                        { label: 'PO Qty', key: 'poQty' },
+                                                                        { label: 'RM', key: 'monthlyRm' },
+                                                                        { label: 'Process', key: 'monthlyProcess' },
+                                                                        { label: 'Final', key: 'monthlyFinal' },
+                                                                        { label: 'Total Final Inspected', key: 'totalFinalInspected' },
+                                                                        { label: 'Balance', key: 'poBalance' }
+                                                                    ],
+                                                                    'Monthly_Progress_Report'
+                                                                )}
+                                                            />
+                                                            <input type="text" placeholder="Search..." className="prof-search" value={mprSearch} onChange={(e) => setMprSearch(e.target.value)} />
+                                                        </div>
+                                                    </div>
+                                                    <div className="table-responsive">
+                                                        <table className="prof-table">
+                                                            <thead>
+                                                                <tr className="sortable-header">
+                                                                    <th onClick={() => handleMprSort('rly')}>Rly {renderSortIcon('rly', mprSort)}</th>
+                                                                    <th onClick={() => handleMprSort('poNumber')}>PO Number {renderSortIcon('poNumber', mprSort)}</th>
+                                                                    <th onClick={() => handleMprSort('manufacturer')}>Manufacturer {renderSortIcon('manufacturer', mprSort)}</th>
+                                                                    <th className="text-right" onClick={() => handleMprSort('poQty')}>PO Qty {renderSortIcon('poQty', mprSort)}</th>
+                                                                    <th className="text-right" onClick={() => handleMprSort('monthlyRm')}>RM {renderSortIcon('monthlyRm', mprSort)}</th>
+                                                                    <th className="text-right" onClick={() => handleMprSort('monthlyProcess')}>Process {renderSortIcon('monthlyProcess', mprSort)}</th>
+                                                                    <th className="text-right" onClick={() => handleMprSort('monthlyFinal')}>Final {renderSortIcon('monthlyFinal', mprSort)}</th>
+                                                                    <th className="text-right" onClick={() => handleMprSort('totalFinalInspected')}>Total Final Inspected {renderSortIcon('totalFinalInspected', mprSort)}</th>
+                                                                    <th className="text-right" onClick={() => handleMprSort('poBalance')}>Balance {renderSortIcon('poBalance', mprSort)}</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {displayMprData.map((row, idx) => (
+                                                                    <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
+                                                                        <td>{row.rly}</td>
+                                                                        <td>{row.poNumber}</td>
+                                                                        <td>{row.manufacturer}</td>
+                                                                        <td className="text-right">{row.poQty?.toLocaleString()}</td>
+                                                                        <td className="text-right">{row.monthlyRm?.toLocaleString()}</td>
+                                                                        <td className="text-right">{row.monthlyProcess?.toLocaleString()}</td>
+                                                                        <td className="text-right">{row.monthlyFinal?.toLocaleString()}</td>
+                                                                        <td className="text-right">{row.totalFinalInspected?.toLocaleString()}</td>
+                                                                        <td className="text-right font-bold" style={{ color: '#16a34a' }}>{row.poBalance?.toLocaleString()}</td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                    <div className="mt-4">
+                                                        <Pagination
+                                                            currentPage={mprPage} totalPages={mprPagination.totalPages}
+                                                            start={mprPage * mprRowsPerPage} end={Math.min((mprPage + 1) * mprRowsPerPage, mprPagination.totalElements)}
+                                                            totalCount={mprPagination.totalElements} onPageChange={setMprPage}
+                                                            rows={mprRowsPerPage} onRowsChange={setMprRowsPerPage}
                                                         />
-                                                        <input type="text" placeholder="Search..." className="prof-search" value={mprSearch} onChange={(e) => setMprSearch(e.target.value)} />
                                                     </div>
                                                 </div>
-                                                <div className="table-responsive">
-                                                    <table className="prof-table">
-                                                        <thead>
-                                                            <tr className="sortable-header">
-                                                                <th onClick={() => handleMprSort('rly')}>Rly {renderSortIcon('rly', mprSort)}</th>
-                                                                <th onClick={() => handleMprSort('poNumber')}>PO Number {renderSortIcon('poNumber', mprSort)}</th>
-                                                                <th onClick={() => handleMprSort('manufacturer')}>Manufacturer {renderSortIcon('manufacturer', mprSort)}</th>
-                                                                <th className="text-right" onClick={() => handleMprSort('poQty')}>PO Qty {renderSortIcon('poQty', mprSort)}</th>
-                                                                <th className="text-right" onClick={() => handleMprSort('monthlyRm')}>RM {renderSortIcon('monthlyRm', mprSort)}</th>
-                                                                <th className="text-right" onClick={() => handleMprSort('monthlyProcess')}>Process {renderSortIcon('monthlyProcess', mprSort)}</th>
-                                                                <th className="text-right" onClick={() => handleMprSort('monthlyFinal')}>Final {renderSortIcon('monthlyFinal', mprSort)}</th>
-                                                                <th className="text-right" onClick={() => handleMprSort('totalFinalInspected')}>Total Final Inspected {renderSortIcon('totalFinalInspected', mprSort)}</th>
-                                                                <th className="text-right" onClick={() => handleMprSort('poBalance')}>Balance {renderSortIcon('poBalance', mprSort)}</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {displayMprData.map((row, idx) => (
-                                                                <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
-                                                                    <td>{row.rly}</td>
-                                                                    <td>{row.poNumber}</td>
-                                                                    <td>{row.manufacturer}</td>
-                                                                    <td className="text-right">{row.poQty?.toLocaleString()}</td>
-                                                                    <td className="text-right">{row.monthlyRm?.toLocaleString()}</td>
-                                                                    <td className="text-right">{row.monthlyProcess?.toLocaleString()}</td>
-                                                                    <td className="text-right">{row.monthlyFinal?.toLocaleString()}</td>
-                                                                    <td className="text-right">{row.totalFinalInspected?.toLocaleString()}</td>
-                                                                    <td className="text-right font-bold" style={{ color: '#16a34a' }}>{row.poBalance?.toLocaleString()}</td>
-                                                                </tr>
-                                                            ))}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                                <div className="mt-4">
-                                                    <Pagination
-                                                        currentPage={mprPage} totalPages={mprPagination.totalPages}
-                                                        start={mprPage * mprRowsPerPage} end={Math.min((mprPage + 1) * mprRowsPerPage, mprPagination.totalElements)}
-                                                        totalCount={mprPagination.totalElements} onPageChange={setMprPage}
-                                                        rows={mprRowsPerPage} onRowsChange={setMprRowsPerPage}
-                                                    />
-                                                </div>
-                                            </div>
+                                            )
                                         )}
 
                                         {activeReport === 'mau' && (
-                                            <div className="prof-card animate-up">
-                                                <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                    <span>Monthly Analysis of Units</span>
-                                                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                                                        <ExportButton
-                                                            onClick={() => downloadExcel(
-                                                                displayMauData,
-                                                                [
-                                                                    { label: 'Manufacturer', key: 'manufacturer' },
-                                                                    { label: 'Manufactured', key: 'manufactured' },
-                                                                    { label: 'Inspected', key: 'inspected' },
-                                                                    { label: 'Rejected', key: 'rejected' },
-                                                                    { label: 'RM %', key: 'rmRejPercent' },
-                                                                    { label: 'Process %', key: 'processRejPercent' },
-                                                                    { label: 'Final %', key: 'finalRejPercent' }
-                                                                ],
-                                                                'Monthly_Analysis_of_Units'
-                                                            )}
+                                            isSleeper ? <SleeperMauReport /> : (
+                                                <div className="prof-card animate-up">
+                                                    <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                        <span>Monthly Analysis of Units</span>
+                                                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                                            <ExportButton
+                                                                onClick={() => downloadExcel(
+                                                                    displayMauData,
+                                                                    [
+                                                                        { label: 'Manufacturer', key: 'manufacturer' },
+                                                                        { label: 'Manufactured', key: 'manufactured' },
+                                                                        { label: 'Inspected', key: 'inspected' },
+                                                                        { label: 'Rejected', key: 'rejected' },
+                                                                        { label: 'RM %', key: 'rmRejPercent' },
+                                                                        { label: 'Process %', key: 'processRejPercent' },
+                                                                        { label: 'Final %', key: 'finalRejPercent' }
+                                                                    ],
+                                                                    'Monthly_Analysis_of_Units'
+                                                                )}
+                                                            />
+                                                            <input type="text" placeholder="Search..." className="prof-search" value={mauSearch} onChange={(e) => setMauSearch(e.target.value)} />
+                                                        </div>
+                                                    </div>
+                                                    <div className="table-responsive">
+                                                        <table className="prof-table">
+                                                            <thead>
+                                                                <tr className="sortable-header">
+                                                                    <th onClick={() => handleMauSort('manufacturer')}>Manufacturer {renderSortIcon('manufacturer', mauSort)}</th>
+                                                                    <th className="text-right" onClick={() => handleMauSort('manufactured')}>Manufactured {renderSortIcon('manufactured', mauSort)}</th>
+                                                                    <th className="text-right" onClick={() => handleMauSort('inspected')}>Inspected {renderSortIcon('inspected', mauSort)}</th>
+                                                                    <th className="text-right" onClick={() => handleMauSort('rejected')}>Rejected {renderSortIcon('rejected', mauSort)}</th>
+                                                                    <th className="text-right" onClick={() => handleMauSort('rmRejPercent')}>RM % {renderSortIcon('rmRejPercent', mauSort)}</th>
+                                                                    <th className="text-right" onClick={() => handleMauSort('processRejPercent')}>Process % {renderSortIcon('processRejPercent', mauSort)}</th>
+                                                                    <th className="text-right" onClick={() => handleMauSort('finalRejPercent')}>Final % {renderSortIcon('finalRejPercent', mauSort)}</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {displayMauData.map((row, idx) => (
+                                                                    <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
+                                                                        <td>{row.manufacturer}</td>
+                                                                        <td className="text-right">{row.manufactured?.toLocaleString()}</td>
+                                                                        <td className="text-right">{row.inspected?.toLocaleString()}</td>
+                                                                        <td className="text-right" style={{ color: '#dc2626' }}>{row.rejected?.toLocaleString()}</td>
+                                                                        <td className="text-right">{formatDecimal(row.rmRejPercent)}%</td>
+                                                                        <td className="text-right text-red-600">{formatDecimal(row.processRejPercent)}%</td>
+                                                                        <td className="text-right">{formatDecimal(row.finalRejPercent)}%</td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                    <div className="mt-4">
+                                                        <Pagination
+                                                            currentPage={mauPage} totalPages={mauPagination.totalPages}
+                                                            start={mauPage * mauRowsPerPage} end={Math.min((mauPage + 1) * mauRowsPerPage, mauPagination.totalElements)}
+                                                            totalCount={mauPagination.totalElements} onPageChange={setMauPage}
+                                                            rows={mauRowsPerPage} onRowsChange={setMauRowsPerPage}
                                                         />
-                                                        <input type="text" placeholder="Search..." className="prof-search" value={mauSearch} onChange={(e) => setMauSearch(e.target.value)} />
                                                     </div>
                                                 </div>
-                                                <div className="table-responsive">
-                                                    <table className="prof-table">
-                                                        <thead>
-                                                            <tr className="sortable-header">
-                                                                <th onClick={() => handleMauSort('manufacturer')}>Manufacturer {renderSortIcon('manufacturer', mauSort)}</th>
-                                                                <th className="text-right" onClick={() => handleMauSort('manufactured')}>Manufactured {renderSortIcon('manufactured', mauSort)}</th>
-                                                                <th className="text-right" onClick={() => handleMauSort('inspected')}>Inspected {renderSortIcon('inspected', mauSort)}</th>
-                                                                <th className="text-right" onClick={() => handleMauSort('rejected')}>Rejected {renderSortIcon('rejected', mauSort)}</th>
-                                                                <th className="text-right" onClick={() => handleMauSort('rmRejPercent')}>RM % {renderSortIcon('rmRejPercent', mauSort)}</th>
-                                                                <th className="text-right" onClick={() => handleMauSort('processRejPercent')}>Process % {renderSortIcon('processRejPercent', mauSort)}</th>
-                                                                <th className="text-right" onClick={() => handleMauSort('finalRejPercent')}>Final % {renderSortIcon('finalRejPercent', mauSort)}</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {displayMauData.map((row, idx) => (
-                                                                <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
-                                                                    <td>{row.manufacturer}</td>
-                                                                    <td className="text-right">{row.manufactured?.toLocaleString()}</td>
-                                                                    <td className="text-right">{row.inspected?.toLocaleString()}</td>
-                                                                    <td className="text-right" style={{ color: '#dc2626' }}>{row.rejected?.toLocaleString()}</td>
-                                                                    <td className="text-right">{formatDecimal(row.rmRejPercent)}%</td>
-                                                                    <td className="text-right text-red-600">{formatDecimal(row.processRejPercent)}%</td>
-                                                                    <td className="text-right">{formatDecimal(row.finalRejPercent)}%</td>
-                                                                </tr>
-                                                            ))}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                                <div className="mt-4">
-                                                    <Pagination
-                                                        currentPage={mauPage} totalPages={mauPagination.totalPages}
-                                                        start={mauPage * mauRowsPerPage} end={Math.min((mauPage + 1) * mauRowsPerPage, mauPagination.totalElements)}
-                                                        totalCount={mauPagination.totalElements} onPageChange={setMauPage}
-                                                        rows={mauRowsPerPage} onRowsChange={setMauRowsPerPage}
-                                                    />
-                                                </div>
-                                            </div>
+                                            )
                                         )}
 
                                         {activeReport === 'lwcl' && (
-                                            <div className="prof-card animate-up">
-                                                <div className="sec-title">Lot Wise Closed Loop</div>
-                                                <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-                                                    <select className="prof-select" style={{ maxWidth: '300px' }} value={lwclCallNo} onChange={(e) => setLwclCallNo(e.target.value)}>
-                                                        <option value="">Select Call No.</option>
-                                                        {lwclRequestIds.map(id => <option key={id} value={id}>{id}</option>)}
-                                                    </select>
-                                                </div>
-                                                {level4Loading ? (
-                                                    <div className="p-12 text-center text-teal font-medium">Loading Process Defect Summary...</div>
-                                                ) : lwclCallNo ? (
-                                                    <Level4ReportTable data={level4Data} />
-                                                ) : (
-                                                    <div className="p-12 text-center text-slate-400">
-                                                        Please select a <strong>Call Number</strong> from the dropdown above to view the report details.
+                                            isSleeper ? <SleeperLwclReport /> : (
+                                                <div className="prof-card animate-up">
+                                                    <div className="sec-title">Lot Wise Closed Loop</div>
+                                                    <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+                                                        <select className="prof-select" style={{ maxWidth: '300px' }} value={lwclCallNo} onChange={(e) => setLwclCallNo(e.target.value)}>
+                                                            <option value="">Select Call No.</option>
+                                                            {lwclRequestIds.map(id => <option key={id} value={id}>{id}</option>)}
+                                                        </select>
                                                     </div>
-                                                )}
-                                            </div>
+                                                    {level4Loading ? (
+                                                        <div className="p-12 text-center text-teal font-medium">Loading Process Defect Summary...</div>
+                                                    ) : lwclCallNo ? (
+                                                        <Level4ReportTable data={level4Data} />
+                                                    ) : (
+                                                        <div className="p-12 text-center text-slate-400">
+                                                            Please select a <strong>Call Number</strong> from the dropdown above to view the report details.
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )
                                         )}
 
                                         {activeReport === 'mpia' && (
-                                            <div className={`prof-card animate-up ${batchReportData ? 'no-print' : ''}`} style={{ padding: drilldownManufacturer ? '0' : '15px' }}>
-                                                {drilldownManufacturer ? (
-                                                    <MpiaDrillDown
-                                                        data={drilldownData}
-                                                        manufacturer={drilldownManufacturer}
-                                                        loading={isDrilldownLoading}
-                                                        onBack={() => setDrilldownManufacturer(null)}
-                                                    />
-                                                ) : (
-                                                    <>
-                                                        <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                            <span>Manufacture Process Inspection Analysis</span>
-                                                            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                                                                <ExportButton
-                                                                    label="Download Summary"
-                                                                    onClick={() => downloadExcel(
-                                                                        displayMpiaData,
-                                                                        [
-                                                                            { label: 'Manufacture', key: 'manufacture' },
-                                                                            { label: 'Total Inspected', key: 'totalInspected' },
-                                                                            { label: 'Total Accepted', key: 'totalAccepted' },
-                                                                            { label: 'Total Rejected', key: 'totalRejected' },
-                                                                            { label: 'Rejection %', key: 'rejectionPercent' }
-                                                                        ],
-                                                                        'Manufacture_Process_Inspection_Analysis_Summary'
-                                                                    )}
-                                                                />
-                                                                <ExportButton
-                                                                    label={isPreparingBatchPdf ? `Preparing (${batchProgress}/${mpiaData.length})...` : "Batch PDF Report"}
-                                                                    disabled={isPreparingBatchPdf}
-                                                                    onClick={async () => {
-                                                                        if (!mpiaData || mpiaData.length === 0) {
-                                                                            alert("No manufacturers found to process.");
-                                                                            return;
-                                                                        }
-                                                                        try {
-                                                                            setBatchProgress(0);
-                                                                            setIsPreparingBatchPdf(true);
-                                                                            const end = new Date().toISOString().split('T')[0];
-                                                                            const start = new Date(new Date().setFullYear(new Date().getFullYear() - 1)).toISOString().split('T')[0];
+                                            isSleeper ? (
+                                                <div className="prof-card animate-up p-8 text-center">
+                                                    <div style={{ fontSize: '3rem' }}>⚙️</div>
+                                                    <h3 className="mt-4 text-xl font-bold">Sleeper MPIA</h3>
+                                                    <p className="text-slate-500">Manufacture Process Inspection Analysis for Sleepers is in preparation.</p>
+                                                </div>
+                                            ) : (
+                                                <div className={`prof-card animate-up ${batchReportData ? 'no-print' : ''}`} style={{ padding: drilldownManufacturer ? '0' : '15px' }}>
+                                                    {drilldownManufacturer ? (
+                                                        <MpiaDrillDown
+                                                            data={drilldownData}
+                                                            manufacturer={drilldownManufacturer}
+                                                            loading={isDrilldownLoading}
+                                                            onBack={() => setDrilldownManufacturer(null)}
+                                                        />
+                                                    ) : (
+                                                        <>
+                                                            <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                <span>Manufacture Process Inspection Analysis</span>
+                                                                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                                                    <ExportButton
+                                                                        label="Download Summary"
+                                                                        onClick={() => downloadExcel(
+                                                                            displayMpiaData,
+                                                                            [
+                                                                                { label: 'Manufacture', key: 'manufacture' },
+                                                                                { label: 'Total Inspected', key: 'totalInspected' },
+                                                                                { label: 'Total Accepted', key: 'totalAccepted' },
+                                                                                { label: 'Total Rejected', key: 'totalRejected' },
+                                                                                { label: 'Rejection %', key: 'rejectionPercent' }
+                                                                            ],
+                                                                            'Manufacture_Process_Inspection_Analysis_Summary'
+                                                                        )}
+                                                                    />
+                                                                    <ExportButton
+                                                                        label={isPreparingBatchPdf ? `Preparing (${batchProgress}/${mpiaData.length})...` : "Batch PDF Report"}
+                                                                        disabled={isPreparingBatchPdf}
+                                                                        onClick={async () => {
+                                                                            if (!mpiaData || mpiaData.length === 0) {
+                                                                                alert("No manufacturers found to process.");
+                                                                                return;
+                                                                            }
+                                                                            try {
+                                                                                setBatchProgress(0);
+                                                                                setIsPreparingBatchPdf(true);
+                                                                                const end = new Date().toISOString().split('T')[0];
+                                                                                const start = new Date(new Date().setFullYear(new Date().getFullYear() - 1)).toISOString().split('T')[0];
 
-                                                                            const results = await Promise.all(mpiaData.map(async (m) => {
-                                                                                try {
-                                                                                    const res = await reportService.getCompanyMonthWiseData({
-                                                                                        companyName: m.manufacture,
-                                                                                        startDate: start,
-                                                                                        endDate: end,
-                                                                                        page: 0,
-                                                                                        size: 13
-                                                                                    });
-                                                                                    const data = res.responseData?.content || res.content || res || [];
-                                                                                    setBatchProgress(prev => prev + 1);
-                                                                                    return { manufacturer: m.manufacture, data: Array.isArray(data) ? data : [] };
-                                                                                } catch (e) {
-                                                                                    return { manufacturer: m.manufacture, data: [] };
-                                                                                }
-                                                                            }));
+                                                                                const results = await Promise.all(mpiaData.map(async (m) => {
+                                                                                    try {
+                                                                                        const res = await reportService.getCompanyMonthWiseData({
+                                                                                            companyName: m.manufacture,
+                                                                                            startDate: start,
+                                                                                            endDate: end,
+                                                                                            page: 0,
+                                                                                            size: 13
+                                                                                        });
+                                                                                        const data = res.responseData?.content || res.content || res || [];
+                                                                                        setBatchProgress(prev => prev + 1);
+                                                                                        return { manufacturer: m.manufacture, data: Array.isArray(data) ? data : [] };
+                                                                                    } catch (e) {
+                                                                                        return { manufacturer: m.manufacture, data: [] };
+                                                                                    }
+                                                                                }));
 
-                                                                            setBatchReportData(results);
-                                                                        } catch (err) {
-                                                                            setIsPreparingBatchPdf(false);
-                                                                            alert("Failed to prepare batch PDF data.");
-                                                                        }
-                                                                    }}
-                                                                />
-                                                                <input type="text" placeholder="Search..." className="prof-search" value={mpiaSearch} onChange={(e) => setMpiaSearch(e.target.value)} />
+                                                                                setBatchReportData(results);
+                                                                            } catch (err) {
+                                                                                setIsPreparingBatchPdf(false);
+                                                                                alert("Failed to prepare batch PDF data.");
+                                                                            }
+                                                                        }}
+                                                                    />
+                                                                    <input type="text" placeholder="Search..." className="prof-search" value={mpiaSearch} onChange={(e) => setMpiaSearch(e.target.value)} />
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                        <div className="table-responsive">
-                                                            <table className="prof-table">
-                                                                <thead>
-                                                                    <tr className="sortable-header">
-                                                                        <th onClick={() => handleMpiaSort('manufacture')}>Manufacture {renderSortIcon('manufacture', mpiaSort)}</th>
-                                                                        <th className="text-right" onClick={() => handleMpiaSort('totalInspected')}>Total Inspected {renderSortIcon('totalInspected', mpiaSort)}</th>
-                                                                        <th className="text-right" onClick={() => handleMpiaSort('totalAccepted')}>Total Accepted {renderSortIcon('totalAccepted', mpiaSort)}</th>
-                                                                        <th className="text-right" onClick={() => handleMpiaSort('totalRejected')}>Total Rejected {renderSortIcon('totalRejected', mpiaSort)}</th>
-                                                                        <th className="text-right" onClick={() => handleMpiaSort('rejectionPercent')}>Rejection % {renderSortIcon('rejectionPercent', mpiaSort)}</th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody>
-                                                                    {displayMpiaData.map((row, idx) => (
-                                                                        <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
-                                                                            <td
-                                                                                className="font-bold text-emerald-800 cursor-pointer hover:underline"
-                                                                                onClick={() => setDrilldownManufacturer(row.manufacture)}
-                                                                            >
-                                                                                {row.manufacture}
-                                                                            </td>
-                                                                            <td className="text-right">{row.totalInspected?.toLocaleString()}</td>
-                                                                            <td className="text-right" style={{ color: '#16a34a' }}>{row.totalAccepted?.toLocaleString()}</td>
-                                                                            <td className="text-right" style={{ color: '#dc2626' }}>{row.totalRejected?.toLocaleString()}</td>
-                                                                            <td className="text-right">
-                                                                                <span className="prof-badge" style={{ background: '#fff7ed', color: '#9a3412', fontWeight: 'bold' }}>
-                                                                                    {row.rejectionPercent?.toFixed(2)}%
-                                                                                </span>
-                                                                            </td>
+                                                            <div className="table-responsive">
+                                                                <table className="prof-table">
+                                                                    <thead>
+                                                                        <tr className="sortable-header">
+                                                                            <th onClick={() => handleMpiaSort('manufacture')}>Manufacture {renderSortIcon('manufacture', mpiaSort)}</th>
+                                                                            <th className="text-right" onClick={() => handleMpiaSort('totalInspected')}>Total Inspected {renderSortIcon('totalInspected', mpiaSort)}</th>
+                                                                            <th className="text-right" onClick={() => handleMpiaSort('totalAccepted')}>Total Accepted {renderSortIcon('totalAccepted', mpiaSort)}</th>
+                                                                            <th className="text-right" onClick={() => handleMpiaSort('totalRejected')}>Total Rejected {renderSortIcon('totalRejected', mpiaSort)}</th>
+                                                                            <th className="text-right" onClick={() => handleMpiaSort('rejectionPercent')}>Rejection % {renderSortIcon('rejectionPercent', mpiaSort)}</th>
                                                                         </tr>
-                                                                    ))}
-                                                                </tbody>
-                                                            </table>
-                                                        </div>
-                                                        <div className="mt-4">
-                                                            <Pagination
-                                                                currentPage={mpiaPage} totalPages={mpiaPagination.totalPages}
-                                                                start={mpiaPage * mpiaRowsPerPage} end={Math.min((mpiaPage + 1) * mpiaRowsPerPage, mpiaPagination.totalElements)}
-                                                                totalCount={mpiaPagination.totalElements} onPageChange={setMpiaPage}
-                                                                rows={mpiaRowsPerPage} onRowsChange={setMpiaRowsPerPage}
-                                                            />
-                                                        </div>
-                                                    </>
-                                                )}
-                                            </div>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        {displayMpiaData.map((row, idx) => (
+                                                                            <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
+                                                                                <td
+                                                                                    className="font-bold text-emerald-800 cursor-pointer hover:underline"
+                                                                                    onClick={() => setDrilldownManufacturer(row.manufacture)}
+                                                                                >
+                                                                                    {row.manufacture}
+                                                                                </td>
+                                                                                <td className="text-right">{row.totalInspected?.toLocaleString()}</td>
+                                                                                <td className="text-right" style={{ color: '#16a34a' }}>{row.totalAccepted?.toLocaleString()}</td>
+                                                                                <td className="text-right" style={{ color: '#dc2626' }}>{row.totalRejected?.toLocaleString()}</td>
+                                                                                <td className="text-right">
+                                                                                    <span className="prof-badge" style={{ background: '#fff7ed', color: '#9a3412', fontWeight: 'bold' }}>
+                                                                                        {row.rejectionPercent?.toFixed(2)}%
+                                                                                    </span>
+                                                                                </td>
+                                                                            </tr>
+                                                                        ))}
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                            <div className="mt-4">
+                                                                <Pagination
+                                                                    currentPage={mpiaPage} totalPages={mpiaPagination.totalPages}
+                                                                    start={mpiaPage * mpiaRowsPerPage} end={Math.min((mpiaPage + 1) * mpiaRowsPerPage, mpiaPagination.totalElements)}
+                                                                    totalCount={mpiaPagination.totalElements} onPageChange={setMpiaPage}
+                                                                    rows={mpiaRowsPerPage} onRowsChange={setMpiaRowsPerPage}
+                                                                />
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            )
                                         )}
 
 
@@ -1227,7 +1266,7 @@ const ProfessionalCardSection = ({
                             return null;
                     }
                 })()}
-            </div>
+            </div >
         );
     };
 

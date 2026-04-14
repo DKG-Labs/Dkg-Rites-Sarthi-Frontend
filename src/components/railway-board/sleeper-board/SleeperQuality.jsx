@@ -1,7 +1,7 @@
 import React from 'react';
 import {
     PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, ComposedChart, Line, LabelList
+    Bar, XAxis, YAxis, CartesianGrid, ComposedChart, Line, LabelList
 } from 'recharts';
 import './SleeperSummary.css'; // Reusing some base styles
 

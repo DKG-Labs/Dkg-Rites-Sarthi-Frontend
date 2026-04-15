@@ -11,7 +11,9 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
         date: globalConfig?.castingDate || new Date().toISOString().split('T')[0],
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
         batchNo: globalConfig?.batchNo || '',
-        ca1: '', ca2: '', fa: '', cement: '', water: '', admixture: ''
+        ca1: '', ca2: '', fa: '', cement: '', water: '', admixture: '',
+        ca1Set: '', ca2Set: '', faSet: '', cementSet: '', waterSet: '', admixtureSet: '',
+        isSameAsAdjusted: false
     };
 
     const [formData, setFormData] = useState(defaultFormData);
@@ -58,8 +60,9 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
 
 
 
-    const getFieldValidation = (field, value, limit) => {
+    const getFieldValidation = (field, value) => {
         if (!value) return false;
+        const limit = (field === 'cement') ? 0.02 : 0.03;
         const selectedBatch = batches.find(b => String(b.batchNo) === String(formData.batchNo)) || 
                              recentBatches.find(b => String(b.batchNo) === String(formData.batchNo));
         if (selectedBatch?.adjustedWeights) {
@@ -76,58 +79,44 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
         const { name, value, type, checked } = e.target;
         const val = type === 'checkbox' ? checked : value;
         setFormData(prev => ({ ...prev, [name]: val }));
+    };
 
-        if (name === 'batchNo' && value) {
-            // Check if we need to fetch details for this batch to auto-fill limits or baselines
-            const recentMatch = recentBatches.find(b => String(b.batchNo) === String(value));
-            const existingBatch = batches.find(b => String(b.batchNo) === String(value));
-            
-            if (recentMatch && !existingBatch?.adjustedWeights) {
-                try {
-                    const res = await apiService.getMoistureAnalysisById(recentMatch.id);
-                    const detail = res?.responseData || res;
-                    if (detail) {
-                        setFormData(prev => ({
-                            ...prev,
-                            ca1: detail.wtAdoptedCa1 || '',
-                            ca2: detail.wtAdoptedCa2 || '',
-                            fa: detail.wtAdoptedFa || '',
-                            cement: detail.actualCement || detail.designCement || '',
-                            water: detail.adjustedWaterWt || detail.actualWater || '',
-                            admixture: detail.actualAdmix || detail.designAdmix || 1.44
-                        }));
-                        
-                        // We also temporarily push this into 'batches' context so that the onSave validation passes
-                        const artificialBatch = {
-                            batchNo: String(value),
-                            adjustedWeights: {
-                                ca1: detail.wtAdoptedCa1 || 0,
-                                ca2: detail.wtAdoptedCa2 || 0,
-                                fa: detail.wtAdoptedFa || 0,
-                                cement: detail.actualCement || detail.designCement || 0,
-                                water: detail.adjustedWaterWt || detail.actualWater || 0,
-                                admixture: detail.actualAdmix || detail.designAdmix || 1.44
-                            }
-                        };
-                        recentMatch.adjustedWeights = artificialBatch.adjustedWeights; // Store it back to recentBatches as cache
+    // Automatically autofill actual values AND store set values from moisture adjusted weights
+    useEffect(() => {
+        if (formData.batchNo) {
+            const batchToUse = batches.find(b => String(b.batchNo) === String(formData.batchNo)) || 
+                             recentBatches.find(b => String(b.batchNo) === String(formData.batchNo));
+            if (batchToUse?.adjustedWeights) {
+                const adj = batchToUse.adjustedWeights;
+                
+                // Only autofill if the current fields are empty so we don't overwrite user edits
+                // user edits can be modified AFTER auto-filling
+                setFormData(prev => {
+                    const nextSt = { ...prev };
+                    
+                    // Store set values
+                    nextSt.ca1Set = adj.ca1 || '';
+                    nextSt.ca2Set = adj.ca2 || '';
+                    nextSt.faSet = adj.fa || '';
+                    nextSt.cementSet = adj.cement || '';
+                    nextSt.waterSet = adj.water || '';
+                    nextSt.admixtureSet = adj.admixture || '';
+
+                    // Autofill actual values if empty or if 'isSameAsAdjusted' triggered it
+                    if (prev.isSameAsAdjusted || (!prev.ca1 && !prev.ca2 && !prev.cement)) {
+                        nextSt.ca1 = adj.ca1 || '';
+                        nextSt.ca2 = adj.ca2 || '';
+                        nextSt.fa = adj.fa || '';
+                        nextSt.cement = adj.cement || '';
+                        nextSt.water = adj.water || '';
+                        nextSt.admixture = adj.admixture || '';
                     }
-                } catch (err) {
-                    console.error("Failed to fetch detailed moisture info for batch", value, err);
-                }
-            } else if (existingBatch?.adjustedWeights) {
-                // Auto-fill from existing batch
-                setFormData(prev => ({
-                    ...prev,
-                    ca1: existingBatch.adjustedWeights.ca1 || '',
-                    ca2: existingBatch.adjustedWeights.ca2 || '',
-                    fa: existingBatch.adjustedWeights.fa || '',
-                    cement: existingBatch.adjustedWeights.cement || '',
-                    water: existingBatch.adjustedWeights.water || '',
-                    admixture: existingBatch.adjustedWeights.admixture || ''
-                }));
+
+                    return nextSt;
+                });
             }
         }
-    };
+    }, [formData.batchNo, formData.isSameAsAdjusted, batches, recentBatches]);
 
     const handleEdit = async (record) => {
         try {
@@ -168,7 +157,13 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
                 fa: fetchedData.faActual || fetchedData.fa || '',
                 cement: fetchedData.cementActual || fetchedData.cement || '',
                 water: fetchedData.waterActual || fetchedData.water || '',
-                admixture: fetchedData.admixtureActual || fetchedData.admixture || ''
+                admixture: fetchedData.admixtureActual || fetchedData.admixture || '',
+                ca1Set: fetchedData.ca1Set || '',
+                ca2Set: fetchedData.ca2Set || '',
+                faSet: fetchedData.faSet || '',
+                cementSet: fetchedData.cementSet || '',
+                waterSet: fetchedData.waterSet || '',
+                admixtureSet: fetchedData.admixtureSet || '',
             });
             setEditingId(fetchedData.id);
             // Attach parent ID to form context if available
@@ -254,12 +249,12 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
             timestamp: new Date().toISOString(),
             location: activeContainer?.name || 'N/A',
             // Store Set values for later display in the log
-            ca1Set: adj.ca1 || 0,
-            ca2Set: adj.ca2 || 0,
-            faSet: adj.fa || 0,
-            cementSet: adj.cement || 0,
-            waterSet: adj.water || 0,
-            admixtureSet: adj.admixture || 0,
+            ca1Set: formData.ca1Set || adj.ca1 || 0,
+            ca2Set: formData.ca2Set || adj.ca2 || 0,
+            faSet: formData.faSet || adj.fa || 0,
+            cementSet: formData.cementSet || adj.cement || 0,
+            waterSet: formData.waterSet || adj.water || 0,
+            admixtureSet: formData.admixtureSet || adj.admixture || 0,
             total: totalWeight
         };
 
@@ -291,7 +286,14 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
 
                         <div className="form-field">
                             <label htmlFor="manual-date" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>Date</label>
-                            <input id="manual-date" name="date" type="text" readOnly value={formData.date ? formData.date.split('-').reverse().join('/') : ''} style={{ height: small ? '28px' : '32px', fontSize: small ? '0.75rem' : '0.8rem', background: '#f8fafc' }} />
+                            <input 
+                                id="manual-date" 
+                                name="date" 
+                                type="text" 
+                                readOnly 
+                                value={formData.date ? formData.date.split('-').reverse().join('/') : ''} 
+                                style={{ height: small ? '28px' : '32px', fontSize: small ? '0.75rem' : '0.8rem', background: '#f1f5f9', color: '#64748b', border: '1.5px solid #e2e8f0', fontWeight: '600' }} 
+                            />
                         </div>
                         <div className="form-field">
                             <label htmlFor="manual-time" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>Time</label>
@@ -299,20 +301,61 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
                         </div>
                         <div className="form-field">
                             <label htmlFor="manual-batch" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>Batch No.</label>
-                            <select id="manual-batch" name="batchNo" value={formData.batchNo} onChange={handleChange} style={{ height: small ? '28px' : '32px', fontSize: small ? '0.75rem' : '0.8rem' }}>
-                                <option value="">-- Select --</option>
-                                {(() => {
-                                    const allBatches = [...batches, ...recentBatches];
-                                    const uniqueBatches = Array.from(new Set(allBatches.map(b => String(b.batchNo)))).filter(Boolean);
-                                    return uniqueBatches.map(bNo => <option key={bNo} value={bNo}>{bNo}</option>);
-                                })()}
-                            </select>
+                            <input 
+                                id="manual-batch" 
+                                name="batchNo" 
+                                type="text" 
+                                readOnly 
+                                value={formData.batchNo} 
+                                style={{ height: small ? '28px' : '32px', fontSize: small ? '0.75rem' : '0.8rem', background: '#f1f5f9', fontWeight: '800', border: '1.5px solid #cbd5e1', color: '#1e293b' }} 
+                            />
+                        </div>
+                        <div className="form-field" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <label style={{ fontSize: '10px', color: '#64748b', visibility: 'hidden' }}>-</label>
+                            <div 
+                                onClick={() => handleChange({ target: { name: 'isSameAsAdjusted', type: 'checkbox', checked: !formData.isSameAsAdjusted } })}
+                                style={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    gap: '10px', 
+                                    height: small ? '28px' : '32px',
+                                    cursor: 'pointer',
+                                    userSelect: 'none'
+                                }}
+                            >
+                                <div style={{ 
+                                    width: '18px', 
+                                    height: '18px', 
+                                    borderRadius: '4px', 
+                                    border: formData.isSameAsAdjusted ? 'none' : '2px solid #cbd5e1',
+                                    background: formData.isSameAsAdjusted ? '#3b82f6' : 'transparent',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    boxShadow: formData.isSameAsAdjusted ? '0 2px 4px rgba(59, 130, 246, 0.3)' : 'none'
+                                }}>
+                                    {formData.isSameAsAdjusted && (
+                                        <svg width="10" height="10" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M2.5 6L5 8.5L9.5 3.5" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                        </svg>
+                                    )}
+                                </div>
+                                <span style={{ 
+                                    fontSize: '9px', 
+                                    fontWeight: '900', 
+                                    color: formData.isSameAsAdjusted ? '#1e40af' : '#64748b',
+                                    letterSpacing: '0.4px'
+                                }}>
+                                    {formData.isSameAsAdjusted ? 'ADOPTED ADJUSTED' : 'ADOPT ADJUSTED'}
+                                </span>
+                            </div>
                         </div>
 
 
 
                         <div className="form-field">
-                            <label htmlFor="manual-ca1" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>CA1 (±3%) - Actual Wt. (Kg)</label>
+                            <label htmlFor="manual-ca1" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>CA1 (±3%)</label>
                             <input 
                                 id="manual-ca1" 
                                 type="number" 
@@ -323,12 +366,12 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
                                 style={{ 
                                     height: small ? '28px' : '32px', 
                                     fontSize: small ? '0.75rem' : '0.8rem',
-                                    background: getFieldValidation('ca1', formData.ca1, 0.03) ? '#fecaca' : '#fff'
+                                    background: getFieldValidation('ca1', formData.ca1) ? '#fecaca' : '#fff'
                                 }} 
                             />
                         </div>
                         <div className="form-field">
-                            <label htmlFor="manual-ca2" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>CA2 (±3%) - Actual Wt. (Kg)</label>
+                            <label htmlFor="manual-ca2" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>CA2 (±3%)</label>
                             <input 
                                 id="manual-ca2" 
                                 type="number" 
@@ -339,28 +382,28 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
                                 style={{ 
                                     height: small ? '28px' : '32px', 
                                     fontSize: small ? '0.75rem' : '0.8rem',
-                                    background: getFieldValidation('ca2', formData.ca2, 0.03) ? '#fecaca' : '#fff'
+                                    background: getFieldValidation('ca2', formData.ca2) ? '#fecaca' : '#fff'
                                 }} 
                             />
                         </div>
                         <div className="form-field">
-                            <label htmlFor="manual-fa" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>FA (±3%) - Actual Wt. (Kg)</label>
+                            <label htmlFor="manual-fa" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>SAND (±3%)</label>
                             <input 
                                 id="manual-fa" 
                                 type="number" 
                                 name="fa" 
                                 value={formData.fa} 
                                 onChange={handleChange} 
-                                placeholder="Sand Kgs" 
+                                placeholder="Kgs" 
                                 style={{ 
                                     height: small ? '28px' : '32px', 
                                     fontSize: small ? '0.75rem' : '0.8rem',
-                                    background: getFieldValidation('fa', formData.fa, 0.03) ? '#fecaca' : '#fff'
+                                    background: getFieldValidation('fa', formData.fa) ? '#fecaca' : '#fff'
                                 }} 
                             />
                         </div>
                         <div className="form-field">
-                            <label htmlFor="manual-cement" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>Cement (±2%) - Actual Wt. (Kg)</label>
+                            <label htmlFor="manual-cement" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>CEMENT (±2%)</label>
                             <input 
                                 id="manual-cement" 
                                 type="number" 
@@ -371,28 +414,28 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
                                 style={{ 
                                     height: small ? '28px' : '32px', 
                                     fontSize: small ? '0.75rem' : '0.8rem',
-                                    background: getFieldValidation('cement', formData.cement, 0.02) ? '#fecaca' : '#fff'
+                                    background: getFieldValidation('cement', formData.cement) ? '#fecaca' : '#fff'
                                 }} 
                             />
                         </div>
                         <div className="form-field">
-                            <label htmlFor="manual-water" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>Water (±3%) - Actual (L)</label>
+                            <label htmlFor="manual-water" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>WATER (±3%)</label>
                             <input 
                                 id="manual-water" 
                                 type="number" 
                                 name="water" 
                                 value={formData.water} 
                                 onChange={handleChange} 
-                                placeholder="Ltrs" 
+                                placeholder="Kgs" 
                                 style={{ 
                                     height: small ? '28px' : '32px', 
                                     fontSize: small ? '0.75rem' : '0.8rem',
-                                    background: getFieldValidation('water', formData.water, 0.03) ? '#fecaca' : '#fff'
+                                    background: getFieldValidation('water', formData.water) ? '#fecaca' : '#fff'
                                 }} 
                             />
                         </div>
                         <div className="form-field">
-                            <label htmlFor="manual-admix" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>Admix (±3%) - Actual Wt. (Kg)</label>
+                            <label htmlFor="manual-admix" style={{ fontSize: small ? '0.65rem' : '0.725rem' }}>ADMIX (±3%)</label>
                             <input 
                                 id="manual-admix" 
                                 type="number" 
@@ -403,7 +446,7 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
                                 style={{ 
                                     height: small ? '28px' : '32px', 
                                     fontSize: small ? '0.75rem' : '0.8rem',
-                                    background: getFieldValidation('admixture', formData.admixture, 0.03) ? '#fecaca' : '#fff'
+                                    background: getFieldValidation('admixture', formData.admixture) ? '#fecaca' : '#fff'
                                 }} 
                             />
                         </div>
@@ -452,108 +495,94 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
                         const renderTable = (recordsSubset, title, groupColor) => (
                             <div style={{ marginBottom: '2.5rem' }}>
                                 <div className="table-responsive" style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', overflowX: 'auto' }}>
-                                    <table className="ui-table" style={{ borderCollapse: 'collapse', minWidth: '1200px' }}>
+                                    <table className="ui-table" style={{ borderCollapse: 'collapse', minWidth: '950px', width: '100%' }}>
                                         <thead>
                                             <tr>
-                                                <th rowSpan="2" style={{ fontSize: '10px' }}>S.No</th>
-                                                <th rowSpan="2" style={{ fontSize: '10px' }}>Date</th>
-                                                <th rowSpan="2" style={{ fontSize: '10px' }}>Time</th>
-                                                <th rowSpan="2" style={{ fontSize: '10px' }}>Batch</th>
-                                                <th colSpan="2" style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '10px' }}>20MM (Kg)</th>
-                                                <th colSpan="2" style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '10px' }}>10MM (Kg)</th>
-                                                <th colSpan="2" style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '10px' }}>SAND (Kg)</th>
-                                                <th colSpan="2" style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '10px' }}>CEMENT (Kg)</th>
-                                                <th colSpan="2" style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '10px' }}>WATER (L)</th>
-                                                <th colSpan="2" style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '10px' }}>ADMIX (Kg)</th>
-                                                <th rowSpan="2" style={{ fontSize: '10px' }}>Total</th>
-                                                <th rowSpan="2" style={{ fontSize: '10px' }}>Sand/Sensor</th>
-                                                <th rowSpan="2" style={{ fontSize: '10px' }}>Remarks</th>
-                                                <th rowSpan="2" style={{ fontSize: '10px' }}>Source</th>
-                                                <th rowSpan="2" style={{ textAlign: 'center', fontSize: '10px' }}>Actions</th>
+                                                <th rowSpan="2" style={{ fontSize: '9px', padding: '4px' }}>S.No</th>
+                                                <th rowSpan="2" style={{ fontSize: '9px', padding: '4px' }}>Date</th>
+                                                <th rowSpan="2" style={{ fontSize: '9px', padding: '4px' }}>Time</th>
+                                                <th rowSpan="2" style={{ fontSize: '9px', padding: '4px' }}>Batch</th>
+                                                <th colSpan="2" style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '9px', padding: '4px' }}>20mm</th>
+                                                <th colSpan="2" style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '9px', padding: '4px' }}>10mm</th>
+                                                <th colSpan="2" style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '9px', padding: '4px' }}>SAND</th>
+                                                <th colSpan="2" style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '9px', padding: '4px' }}>CEMENT</th>
+                                                <th colSpan="2" style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '9px', padding: '4px' }}>WATER</th>
+                                                <th colSpan="2" style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '9px', padding: '4px' }}>ADMIX</th>
+                                                <th rowSpan="2" style={{ fontSize: '9px', padding: '4px' }}>Total</th>
+                                                <th rowSpan="2" style={{ fontSize: '9px', padding: '4px' }}>Source</th>
+                                                <th rowSpan="2" style={{ textAlign: 'center', fontSize: '9px', padding: '4px' }}>Actions</th>
                                             </tr>
                                             <tr>
-                                                <th style={{ fontSize: '9px', padding: '4px' }}>Set</th>
-                                                <th style={{ fontSize: '9px', padding: '4px' }}>Actual</th>
-                                                <th style={{ fontSize: '9px', padding: '4px' }}>Set</th>
-                                                <th style={{ fontSize: '9px', padding: '4px' }}>Actual</th>
-                                                <th style={{ fontSize: '9px', padding: '4px' }}>Set</th>
-                                                <th style={{ fontSize: '9px', padding: '4px' }}>Actual</th>
-                                                <th style={{ fontSize: '9px', padding: '4px' }}>Set</th>
-                                                <th style={{ fontSize: '9px', padding: '4px' }}>Actual</th>
-                                                <th style={{ fontSize: '9px', padding: '4px' }}>Set</th>
-                                                <th style={{ fontSize: '9px', padding: '4px' }}>Actual</th>
-                                                <th style={{ fontSize: '9px', padding: '4px' }}>Set</th>
-                                                <th style={{ fontSize: '9px', padding: '4px' }}>Actual</th>
+                                                <th style={{ fontSize: '8px', padding: '2px' }}>Set</th>
+                                                <th style={{ fontSize: '8px', padding: '2px' }}>Act</th>
+                                                <th style={{ fontSize: '8px', padding: '2px' }}>Set</th>
+                                                <th style={{ fontSize: '8px', padding: '2px' }}>Act</th>
+                                                <th style={{ fontSize: '8px', padding: '2px' }}>Set</th>
+                                                <th style={{ fontSize: '8px', padding: '2px' }}>Act</th>
+                                                <th style={{ fontSize: '8px', padding: '2px' }}>Set</th>
+                                                <th style={{ fontSize: '8px', padding: '2px' }}>Act</th>
+                                                <th style={{ fontSize: '8px', padding: '2px' }}>Set</th>
+                                                <th style={{ fontSize: '8px', padding: '2px' }}>Act</th>
+                                                <th style={{ fontSize: '8px', padding: '2px' }}>Set</th>
+                                                <th style={{ fontSize: '8px', padding: '2px' }}>Act</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {recordsSubset.map((record, idx) => (
                                                  record.isHeader ? (
                                                      <tr key={record.id} style={{ background: '#f8fafc', borderLeft: '4px solid #3b82f6' }}>
-                                                         <td style={{ fontSize: '11px' }}>{idx + 1}</td>
-                                                         <td style={{ fontSize: '11px' }}>{record.date}</td>
-                                                         <td style={{ fontSize: '11px' }}>{record.time}</td>
-                                                         <td colSpan="13" style={{ fontSize: '11px', fontWeight: '700', color: '#1e3a8a' }}>
+                                                         <td style={{ fontSize: '10px', padding: '4px' }}>{idx + 1}</td>
+                                                         <td style={{ fontSize: '10px', padding: '4px' }}>{record.date}</td>
+                                                         <td style={{ fontSize: '10px', padding: '4px' }}>{record.time}</td>
+                                                         <td colSpan="13" style={{ fontSize: '10px', fontWeight: '700', color: '#1e3a8a', padding: '4px' }}>
                                                              SESSION START: {record.remarks}
                                                          </td>
-                                                         <td style={{ fontSize: '11px' }}>
-                                                             <div style={{ fontSize: '9px' }}>{record.sandType}</div>
-                                                             <div style={{ fontSize: '8px', color: '#64748b' }}>{record.sensorStatus}</div>
-                                                         </td>
-                                                         <td style={{ fontSize: '10px', color: '#64748b', fontStyle: 'italic' }}>-</td>
-                                                         <td>
-                                                             <span className="status-pill session" style={{ fontSize: '9px', background: '#e0f2fe', color: '#0369a1' }}>
+                                                         <td style={{ padding: '4px' }}>
+                                                             <span className="status-pill session" style={{ fontSize: '8px', background: '#e0f2fe', color: '#0369a1', padding: '2px 4px' }}>
                                                                  {record.source}
                                                              </span>
                                                          </td>
-                                                         <td style={{ textAlign: 'center' }}>-</td>
+                                                         <td style={{ textAlign: 'center', padding: '4px' }}>-</td>
                                                      </tr>
                                                  ) : (
                                                      <tr key={record.id} className="hover-row">
-                                                         <td style={{ fontSize: '11px' }}>{idx + 1}</td>
-                                                         <td style={{ fontSize: '11px' }}>{record.date ? (record.date.includes('-') ? record.date.split('-').reverse().join('/') : record.date) : ''}</td>
-                                                         <td style={{ fontSize: '11px' }}>{record.time}</td>
-                                                         <td style={{ fontSize: '11px' }}><strong>{record.batchNo}</strong></td>
-                                                         
-                                                         <td style={{ fontSize: '11px', color: '#64748b' }}>{record.ca1Set || '-'}</td>
-                                                         <td style={{ fontSize: '11px' }}>{record.ca1 || record.ca1Actual || '-'}</td>
-                                                         
-                                                         <td style={{ fontSize: '11px', color: '#64748b' }}>{record.ca2Set || '-'}</td>
-                                                         <td style={{ fontSize: '11px' }}>{record.ca2 || record.ca2Actual || '-'}</td>
-                                                         
-                                                         <td style={{ fontSize: '11px', color: '#64748b' }}>{record.faSet || '-'}</td>
-                                                         <td style={{ fontSize: '11px' }}>{record.fa || record.faActual || '-'}</td>
-                                                         
-                                                         <td style={{ fontSize: '11px', color: '#64748b' }}>{record.cementSet || '-'}</td>
-                                                         <td style={{ fontSize: '11px', fontWeight: '700' }}>{record.cement || record.cementActual || '-'}</td>
-                                                         
-                                                         <td style={{ fontSize: '11px', color: '#64748b' }}>{record.waterSet || '-'}</td>
-                                                         <td style={{ fontSize: '11px' }}>{record.water || record.waterActual || '-'}</td>
-                                                         
-                                                         <td style={{ fontSize: '11px', color: '#64748b' }}>{record.admixtureSet || '-'}</td>
-                                                         <td style={{ fontSize: '11px' }}>{record.admixture || record.admixtureActual || '-'}</td>
-                                                         
-                                                         <td style={{ fontSize: '11px', fontWeight: '800' }}>{record.total ? parseFloat(record.total).toFixed(1) : '-'}</td>
-                                                         
-                                                         <td style={{ fontSize: '11px' }}>
-                                                            <div style={{ fontSize: '9px' }}>{record.sandType || '-'}</div>
-                                                            <div style={{ fontSize: '8px', color: '#64748b' }}>{record.sensorStatus || '-'}</div>
-                                                         </td>
-                                                         <td style={{ fontSize: '10px', color: '#64748b', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                            {record.remarks || '-'}
-                                                         </td>
-                                                         <td>
-                                                             <span className={`status-pill ${record.source?.toLowerCase().includes('scada') ? 'witnessed' : 'manual'}`} style={{ fontSize: '9px' }}>
-                                                                 {record.source}
-                                                             </span>
-                                                         </td>
-                                                         <td style={{ textAlign: 'center' }}>
-                                                             <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                                                                 <button onClick={() => handleEdit(record)} className="btn-action mini" style={{ background: '#3b82f6', color: '#fff', fontSize: '9px', padding: '2px 8px' }}>Edit</button>
-                                                                 <button onClick={() => onDelete(record.id)} className="btn-action danger mini" style={{ background: '#ef4444', color: '#fff', fontSize: '9px', padding: '2px 8px' }}>Del</button>
-                                                             </div>
-                                                         </td>
-                                                     </tr>
+                                                          <td style={{ fontSize: '10px', padding: '4px' }}>{idx + 1}</td>
+                                                          <td style={{ fontSize: '10px', padding: '4px' }}>{record.date ? (record.date.includes('-') ? record.date.split('-').reverse().join('/') : record.date) : ''}</td>
+                                                          <td style={{ fontSize: '10px', padding: '4px' }}>{record.time}</td>
+                                                          <td style={{ fontSize: '10px', padding: '4px' }}><strong>{record.batchNo}</strong></td>
+                                                          
+                                                          <td style={{ fontSize: '10px', color: '#64748b', padding: '4px' }}>{record.ca1Set ?? '-'}</td>
+                                                          <td style={{ fontSize: '10px', padding: '4px' }}>{record.ca1 ?? record.ca1Actual ?? '-'}</td>
+                                                          
+                                                          <td style={{ fontSize: '10px', color: '#64748b', padding: '4px' }}>{record.ca2Set ?? '-'}</td>
+                                                          <td style={{ fontSize: '10px', padding: '4px' }}>{record.ca2 ?? record.ca2Actual ?? '-'}</td>
+                                                          
+                                                          <td style={{ fontSize: '10px', color: '#64748b', padding: '4px' }}>{record.faSet ?? '-'}</td>
+                                                          <td style={{ fontSize: '10px', padding: '4px' }}>{record.fa ?? record.faActual ?? '-'}</td>
+                                                          
+                                                          <td style={{ fontSize: '10px', color: '#64748b', padding: '4px' }}>{record.cementSet ?? '-'}</td>
+                                                          <td style={{ fontSize: '10px', fontWeight: '700', padding: '4px' }}>{record.cement ?? record.cementActual ?? '-'}</td>
+                                                          
+                                                          <td style={{ fontSize: '10px', color: '#64748b', padding: '4px' }}>{record.waterSet ?? '-'}</td>
+                                                          <td style={{ fontSize: '10px', padding: '4px' }}>{record.water ?? record.waterActual ?? '-'}</td>
+                                                          
+                                                          <td style={{ fontSize: '10px', color: '#64748b', padding: '4px' }}>{record.admixtureSet ?? '-'}</td>
+                                                          <td style={{ fontSize: '10px', padding: '4px' }}>{record.admixture ?? record.admixtureActual ?? '-'}</td>
+                                                          
+                                                          <td style={{ fontSize: '10px', fontWeight: '800', padding: '4px' }}>{record.total ? parseFloat(record.total).toFixed(1) : '-'}</td>
+                                                          
+                                                          <td style={{ padding: '4px' }}>
+                                                              <span className={`status-pill ${record.source?.toLowerCase().includes('scada') ? 'witnessed' : 'manual'}`} style={{ fontSize: '8px', padding: '2px 4px' }}>
+                                                                  {record.source}
+                                                              </span>
+                                                          </td>
+                                                          <td style={{ textAlign: 'center', padding: '4px' }}>
+                                                              <div style={{ display: 'flex', gap: '2px', justifyContent: 'center' }}>
+                                                                  <button onClick={() => handleEdit(record)} className="btn-action mini" style={{ background: '#3b82f6', color: '#fff', fontSize: '8px', padding: '2px 4px' }}>Edit</button>
+                                                                  <button onClick={() => onDelete(record.id)} className="btn-action danger mini" style={{ background: '#ef4444', color: '#fff', fontSize: '8px', padding: '2px 4px' }}>Del</button>
+                                                              </div>
+                                                          </td>
+                                                      </tr>
                                                  )
                                             ))}
                                         </tbody>

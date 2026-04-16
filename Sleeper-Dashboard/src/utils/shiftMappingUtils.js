@@ -52,7 +52,10 @@ export const mapCompactionRecords = (responseData) => {
     if (!responseData) return [];
     const flattenedRecords = [];
     responseData.forEach(batchRecord => {
-        const { batchNo, sleeperType, entryDate, shift, location, vendorCode, plantId } = batchRecord;
+        const { batchNo, sleeperType, entryDate, shift, location, vendorCode, plantId, time } = batchRecord;
+        const formattedTime = (time && typeof time === 'object') 
+            ? `${String(time.hour).padStart(2, '0')}:${String(time.minute).padStart(2, '0')}` 
+            : (time || '');
 
         (batchRecord.manualRecords || []).forEach(m => {
             flattenedRecords.push({
@@ -60,6 +63,7 @@ export const mapCompactionRecords = (responseData) => {
                 batchNo,
                 parentId: batchRecord.id,
                 date: entryDate,
+                time: m.time || formattedTime,
                 shift,
                 location,
                 vendorCode,
@@ -75,6 +79,7 @@ export const mapCompactionRecords = (responseData) => {
                 batchNo,
                 parentId: batchRecord.id,
                 date: entryDate,
+                time: s.time || formattedTime,
                 shift,
                 location,
                 vendorCode,

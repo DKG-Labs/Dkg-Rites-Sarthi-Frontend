@@ -858,6 +858,43 @@ export const getSgciInsertAuditByRequestId = async (requestId) => {
   }
 };
 
+export const getSgciInsertAuditById = async (id) => {
+  try {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_BASE_URL}/sgci-insert-audit/${id}`, {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) {
+      if (response.status === 404) return null;
+      throw new Error('Failed to fetch SGCI Insert Audit record by ID');
+    }
+    const result = await response.json();
+    return result.responseData || result;
+  } catch (error) {
+    console.error('Error fetching SGCI Audit Details by ID:', error);
+    return null;
+  }
+};
+
+export const deleteSgciInsertAudit = async (id) => {
+  try {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_BASE_URL}/sgci-insert-audit/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) {
+      throw new Error('Failed to delete SGCI Insert Audit record');
+    }
+    const result = await response.json();
+    return result.responseData || result;
+  } catch (error) {
+    console.error('Error deleting SGCI Audit record:', error);
+    throw error;
+  }
+};
+
 /**
  * Save Water Cube Test Result
  * @param {Object} data - Test data record
@@ -911,6 +948,33 @@ export const getWaterCubeTestResultsByUser = async (userId) => {
     return result.responseData || result;
   } catch (error) {
     console.error('Error fetching Water Cube Test Results:', error);
+    return [];
+  }
+};
+
+/**
+ * Get Batch Numbers for Compaction filtered by plantId and createdBy
+ */
+export const getBatchNosForCompaction = async (params) => {
+  try {
+    const token = localStorage.getItem('authToken');
+    const query = new URLSearchParams(params).toString();
+    const response = await fetch(`${API_BASE_URL}/batch-weighment/batchNosForCompaction?${query}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch batch numbers for compaction');
+    }
+
+    const data = await response.json();
+    return data.responseData || [];
+  } catch (error) {
+    console.error('Error fetching batch numbers for compaction:', error);
     return [];
   }
 };

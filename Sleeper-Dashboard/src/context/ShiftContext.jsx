@@ -259,6 +259,8 @@ export const ShiftProvider = ({ children }) => {
             date: formattedDate
         };
 
+        console.log("Calling getCompactionTodayRecord with params:", params);
+
         try {
             const res = await apiService.getCompactionTodayRecord(params);
             if (res?.responseData) {

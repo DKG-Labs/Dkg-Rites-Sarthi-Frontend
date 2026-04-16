@@ -88,13 +88,13 @@ export default function CrushingImpactAbrasion10mm({ onSave, onCancel, inventory
         }
     }, [iMouldWt, iMouldSampleWt, iPassingWt, setValue]);
 
-    // Abrasion Calculations (A = (B - C) * 100 / C)
+    // Abrasion Calculations (A = {(B-C)/B} * 100)
     useEffect(() => {
         if (aSampleWt && aCoarserWt) {
             const B = Number(aSampleWt);
             const C = Number(aCoarserWt);
-            if (C > 0) {
-                const val = ((B - C) * 100) / C;
+            if (B > 0) {
+                const val = ((B - C) / B) * 100;
                 setValue("abrasionValue", val.toFixed(2));
                 setValue("abrasionResult", val <= 30 ? "Satisfactory" : "Unsatisfactory");
             }
@@ -255,7 +255,7 @@ export default function CrushingImpactAbrasion10mm({ onSave, onCancel, inventory
                                 <input type="number" step="0.01" {...register("abrasionSampleWt", { required: "Required" })} />
                             </div>
                             <div className="input-group">
-                                <label>Weight Coarser than 1.7mm (gms) [C] <span className="required">*</span></label>
+                                <label>Weight of material Coarser then 1.7 mm Size (gms) [C] <span className="required">*</span></label>
                                 <input type="number" step="0.01" {...register("abrasionCoarserWt", { required: "Required" })} />
                             </div>
                             <div className="input-group">

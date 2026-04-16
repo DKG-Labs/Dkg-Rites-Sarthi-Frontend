@@ -57,7 +57,9 @@ const MomentOfResistance = () => {
             const testData = testResponse?.responseData || testResponse || [];
 
             // Map Verified Batches
-            const mappedVerified = vData.map(item => ({
+            const mappedVerified = vData
+                .filter(item => item.plantId === params.plantId)
+                .map(item => ({
                 id: item.id,
                 batchNo: item.batchNumber,
                 sleeperType: item.mixDesignReference || 'N/A',
@@ -70,7 +72,10 @@ const MomentOfResistance = () => {
             }));
 
             // Map Declared Records (Pending Results)
-            const mappedDeclared = mrData.filter(item => !item.testResult || item.testResult === 'Pending').map(item => ({
+            const mappedDeclared = mrData
+                .filter(item => item.plantId === params.plantId)
+                .filter(item => !item.testResult || item.testResult === 'Pending')
+                .map(item => ({
                 ...item,
                 batchNo: item.batchNumber,
                 sleeperType: item.sleeperType,
@@ -82,7 +87,9 @@ const MomentOfResistance = () => {
             }));
 
             // Map Completed Tests (Historical)
-            const mappedHistorical = testData.map(item => ({
+            const mappedHistorical = testData
+                .filter(item => item.plantId === params.plantId)
+                .map(item => ({
                 ...item,
                 batchNo: item.batchNumber,
                 sleeperType: item.sleeperType,
@@ -250,13 +257,18 @@ const MomentOfResistance = () => {
         }
     ];
 
-    const handleDeleteRecord = async (id) => {
-        if (!window.confirm("Are you sure you want to delete this MR record?")) return;
+    const handleDeleteLog = async (id, isTest) => {
+        if (!window.confirm(`Are you sure you want to delete this ${isTest ? 'test result' : 'sample declaration'}?`)) return;
         setLoading(true);
         try {
-            await apiService.deleteMRRecord(id);
+            if (isTest) {
+                await apiService.deleteMRTest(id);
+            } else {
+                await apiService.deleteMRRecord(id);
+            }
             toast.success("Record deleted successfully");
             await fetchMRData();
+            setShowViewModal(false);
         } catch (error) {
             console.error("Failed to delete MR record:", error);
             toast.error("Failed to delete record.");
@@ -287,36 +299,15 @@ const MomentOfResistance = () => {
         {
             key: 'actions',
             label: 'Actions',
-            render: (_, row) => {
-                const canEdit = isActionable(row.createdDate);
-                return (
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <button 
-                            className="btn-verify" 
-                            style={{ fontSize: '10px', padding: '6px 10px', whiteSpace: 'nowrap' }} 
-                            onClick={() => { setSelectedBatch(row); setShowTestModal(true); }}
-                        >
-                            Enter Test Details
-                        </button>
-                        <button 
-                            className="btn-save" 
-                            style={{ fontSize: '10px', padding: '6px 10px', opacity: canEdit ? 1 : 0.5, whiteSpace: 'nowrap' }} 
-                            disabled={!canEdit}
-                            onClick={() => { setSelectedBatch(row); setShowDeclareModal(true); }}
-                        >
-                            Modify
-                        </button>
-                        <button 
-                            className="btn-save" 
-                            style={{ fontSize: '10px', padding: '6px 10px', background: '#fee2e2', color: '#dc2626', border: '1px solid #fecaca', opacity: canEdit ? 1 : 0.5, whiteSpace: 'nowrap' }} 
-                            disabled={!canEdit}
-                            onClick={() => handleDeleteRecord(row.id)}
-                        >
-                            Delete
-                        </button>
-                    </div>
-                );
-            }
+            render: (_, row) => (
+                <button 
+                    className="btn-verify" 
+                    style={{ fontSize: '10px', padding: '6px 14px' }} 
+                    onClick={() => { setSelectedBatch(row); setShowViewModal(true); }}
+                >
+                    View Details
+                </button>
+            )
         }
     ];
 
@@ -330,29 +321,15 @@ const MomentOfResistance = () => {
         {
             key: 'actions',
             label: 'Actions',
-            render: (_, row) => {
-                const canEdit = isActionable(row.createdDate);
-                return (
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <button 
-                            className="btn-save" 
-                            style={{ fontSize: '10px', padding: '6px 10px', opacity: canEdit ? 1 : 0.5, whiteSpace: 'nowrap' }} 
-                            disabled={!canEdit}
-                            onClick={() => { setSelectedBatch(row); setShowTestModal(true); }}
-                        >
-                            Modify
-                        </button>
-                        <button 
-                            className="btn-save" 
-                            style={{ fontSize: '10px', padding: '6px 10px', background: '#fee2e2', color: '#dc2626', border: '1px solid #fecaca', opacity: canEdit ? 1 : 0.5, whiteSpace: 'nowrap' }} 
-                            disabled={!canEdit}
-                            onClick={() => handleDeleteTest(row.id)}
-                        >
-                            Delete
-                        </button>
-                    </div>
-                );
-            }
+            render: (_, row) => (
+                <button 
+                    className="btn-verify" 
+                    style={{ fontSize: '10px', padding: '6px 14px' }} 
+                    onClick={() => { setSelectedBatch(row); setShowViewModal(true); }}
+                >
+                    View Details
+                </button>
+            )
         }
     ];
 
@@ -453,6 +430,26 @@ const MomentOfResistance = () => {
                     </div>
                 )}
             </div>
+
+            {showViewModal && (
+                <MRDetailsModal
+                    batch={selectedBatch}
+                    onClose={() => setShowViewModal(false)}
+                    onModify={() => {
+                        setShowViewModal(false);
+                        if (selectedBatch.isTestRecord) {
+                            setShowTestModal(true);
+                        } else {
+                            setShowDeclareModal(true);
+                        }
+                    }}
+                    onDelete={(id) => handleDeleteLog(id, selectedBatch.isTestRecord)}
+                    onEnterTest={() => {
+                        setShowViewModal(false);
+                        setShowTestModal(true);
+                    }}
+                />
+            )}
 
             {showDeclareModal && (
                 <DeclareSampleModal
@@ -656,6 +653,68 @@ const TestDetailsModal = ({ batch, onClose, onSave }) => {
                     <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
                         <button className="btn-verify" style={{ flex: 1 }} onClick={() => onSave(batch, { results: manualResults, result: calculateResult() })}>Confirm results: {calculateResult()}</button>
                         <button className="btn-save" style={{ flex: 1, background: '#f1f5f9', color: '#475569', border: 'none' }} onClick={onClose}>Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const MRDetailsModal = ({ batch, onClose, onModify, onEnterTest, onDelete }) => {
+    if (!batch) return null;
+
+    const createdTime = batch.createdDate ? new Date(batch.createdDate) : new Date();
+    const diffMs = Date.now() - createdTime.getTime();
+    const hoursPassed = diffMs / (1000 * 60 * 60);
+    const canModifyOrDelete = hoursPassed <= 8;
+
+    const details = [
+        { label: 'Batch No', value: batch.batchNo },
+        { label: 'Sleeper Type', value: batch.sleeperType },
+        { label: 'Casting Date', value: batch.castingDate },
+        { label: 'Sleeper Info', value: batch.isTestRecord ? `${batch.benchNumber}${batch.sleeperNo}` : batch.declaredSamples?.map(s => `${s.bench}${s.no}`).join(', ') },
+        { label: 'Log Created', value: `${createdTime.toLocaleDateString('en-GB')} ${createdTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` }
+    ];
+
+    return (
+        <div className="form-modal-overlay" onClick={onClose}>
+            <div className="form-modal-container" onClick={e => e.stopPropagation()} style={{ maxWidth: '450px' }}>
+                <div className="form-modal-header">
+                    <span className="form-modal-header-title">MR Test Details</span>
+                    <button className="form-modal-close" onClick={onClose}>×</button>
+                </div>
+                <div className="form-modal-body">
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: '24px' }}>
+                        {details.map((detail, idx) => (
+                            <div key={idx} style={{ padding: '12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '800', textTransform: 'uppercase' }}>{detail.label}</div>
+                                <div style={{ fontSize: '14px', fontWeight: '800', color: '#13343b' }}>{detail.value}</div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                        <button
+                            className="btn-save"
+                            style={{ flex: 1, background: canModifyOrDelete ? '#f1f5f9' : '#f8fafc', color: canModifyOrDelete ? '#64748b' : '#cbd5e1', cursor: canModifyOrDelete ? 'pointer' : 'not-allowed' }}
+                            disabled={!canModifyOrDelete}
+                            onClick={onModify}
+                        >
+                            Modify
+                        </button>
+                        <button
+                            className="btn-delete"
+                            style={{ flex: 1, background: canModifyOrDelete ? '#fee2e2' : '#f8fafc', color: canModifyOrDelete ? '#dc2626' : '#94a3b8', cursor: canModifyOrDelete ? 'pointer' : 'not-allowed' }}
+                            disabled={!canModifyOrDelete}
+                            onClick={() => onDelete(batch.id)}
+                        >
+                            Delete
+                        </button>
+                        {!batch.isTestRecord && (
+                            <button className="btn-verify" style={{ flex: 1.5 }} onClick={onEnterTest}>
+                                Enter Test Details
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>

@@ -79,7 +79,7 @@ export const WaterCubeStats = () => {
 const WaterCubeTesting = () => {
     const [activeTab, setActiveTab] = useState('pending'); // 'declaration', 'pending', 'done'
     const [isModifying, setIsModifying] = useState(false);
-    const { selectedShift, dutyLocation } = useShift();
+    const { selectedShift, dutyLocation, dutyUnit, vendorCode } = useShift();
     
     // Live Data State
     const [pendingDeclarations, setPendingDeclarations] = useState([]);
@@ -116,6 +116,7 @@ const WaterCubeTesting = () => {
             const data = await getProductionDeclarations();
             if (data && data.length > 0) {
                 const mappedData = data
+                    .filter(d => d.plantId === (dutyUnit || localStorage.getItem('dutyUnit')))
                     .map(d => ({
                         id: d.id,
                         batchNo: d.batchNumber || 'N/A',
@@ -164,7 +165,7 @@ const WaterCubeTesting = () => {
             if (data && data.length > 0) {
                 const mappedData = data
                     .filter(d => !completedTestIds.has(d.id))
-
+                    .filter(d => d.plantId === (dutyUnit || localStorage.getItem('dutyUnit')))
                     .map(d => ({
                     id: d.id,
                     productionDeclarationId: d.productionDeclarationId,
@@ -210,6 +211,8 @@ const WaterCubeTesting = () => {
                 productionDeclarationId: selectedBatch.id,
                 castingDate: formData.castingDate,
                 batchNumber: formData.batchNo,
+                plantId: dutyUnit || localStorage.getItem('dutyUnit'),
+                vendorCode: vendorCode || localStorage.getItem('vendorCode'),
                 shift: selectedShift || 'General',
                 lineNo: dutyLocation || 'N/A',
                 concreteGrade: formData.grade,
@@ -264,7 +267,9 @@ const WaterCubeTesting = () => {
                 try {
                     const results = await getWaterCubeTestResultsByUser(currentUser.userId);
                     if (results && results.length > 0) {
-                        const mapped = results.map(r => ({
+                        const mapped = results
+                            .filter(r => r.plantId === (dutyUnit || localStorage.getItem('dutyUnit')))
+                            .map(r => ({
                             batchNo: r.batchNumber,
                             castingDate: r.castingDate,
                             testDate: r.createdDate ? new Date(r.createdDate).toISOString().split('T')[0] : '',
@@ -306,6 +311,8 @@ const WaterCubeTesting = () => {
                 productionDeclarationId: selectedBatch.productionDeclarationId,
                 waterCubeSampleDeclarationId: selectedBatch.id,
                 batchNumber: selectedBatch.batchNo,
+                plantId: dutyUnit || localStorage.getItem('dutyUnit'),
+                vendorCode: vendorCode || localStorage.getItem('vendorCode'),
                 concreteGrade: selectedBatch.grade,
                 castingDate: selectedBatch.castingDate,
                 shift: selectedBatch.shift || 'General',
@@ -427,7 +434,7 @@ const WaterCubeTesting = () => {
             key: 'actions',
             label: 'Actions',
             render: (_, row) => {
-                const canModify = (new Date() - new Date(row.declarationTime)) < (24 * 60 * 60 * 1000);
+                const canModify = (new Date() - new Date(row.raw?.createdDate || row.declarationTime)) < (8 * 60 * 60 * 1000);
                 const isEligible = checkEligibility(row.castingDate);
                 return (
                     <div style={{ display: 'flex', gap: '8px' }}>
@@ -436,7 +443,7 @@ const WaterCubeTesting = () => {
                             style={{ fontSize: '10px', padding: '4px 10px', background: '#f8fafc', border: '1px solid #e2e8f0', color: '#475569' }}
                             onClick={() => { setSelectedBatch(row); setShowTestModal(true); }}
                         >
-                            Open Details
+                            View Details
                         </button>
                         {canModify && (
                             <button
@@ -603,10 +610,14 @@ const WaterCubeTesting = () => {
                 <TestDetailPopup
                     batch={selectedBatch}
                     onClose={() => setShowTestModal(false)}
+                    onDelete={(id) => {
+                        handleDeleteSample(id);
+                        setShowTestModal(false);
+                    }}
                     onModify={() => {
                         setIsModifying(true);
                         setShowTestModal(false);
-                        setShowDeclareModal(true);
+                        setIsSampleModalOpen(true);
                     }}
                     onSaveTest={() => {
                         setShowTestModal(false);
@@ -787,9 +798,9 @@ const SampleDeclarationModal = ({ batch, isModifying, onClose, onSave }) => {
     );
 };
 
-const TestDetailPopup = ({ batch, onClose, onModify, onSaveTest }) => {
+const TestDetailPopup = ({ batch, onClose, onModify, onSaveTest, onDelete }) => {
     const isEligible = checkEligibility(batch.castingDate);
-    const canModify = (new Date() - new Date(batch.declarationTime)) < (24 * 60 * 60 * 1000);
+    const canModify = (new Date() - new Date(batch.raw?.createdDate || batch.declarationTime || Date.now())) < (8 * 60 * 60 * 1000);
 
     return (
         <div className="form-modal-overlay" onClick={onClose}>
@@ -832,18 +843,34 @@ const TestDetailPopup = ({ batch, onClose, onModify, onSaveTest }) => {
                             </div>
                         )}
 
-                        <div style={{ display: 'flex', gap: '12px' }}>
-                            <button
-                                className="btn-save"
-                                style={{ flex: 1, background: canModify ? '#f8fafc' : '#f1f5f9', color: canModify ? '#475569' : '#94a3b8', border: '1px solid #e2e8f0', cursor: canModify ? 'pointer' : 'not-allowed' }}
-                                disabled={!canModify}
-                                onClick={onModify}
-                            >
-                                Modify Sample Details
-                            </button>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '12px' }}>
+                            <div style={{ display: 'flex', gap: '12px' }}>
+                                <button
+                                    className="btn-save"
+                                    style={{ flex: 1, background: canModify ? '#f8fafc' : '#f1f5f9', color: canModify ? '#475569' : '#94a3b8', border: '1px solid #e2e8f0', cursor: canModify ? 'pointer' : 'not-allowed', fontSize: '11px' }}
+                                    disabled={!canModify}
+                                    onClick={onModify}
+                                >
+                                    Modify Details
+                                </button>
+                                {canModify && (
+                                    <button
+                                        className="btn-delete"
+                                        style={{ flex: 1, padding: '10px', fontSize: '11px' }}
+                                        onClick={() => {
+                                            if (window.confirm("Delete this declaration?")) {
+                                                // We need to pass the delete handler here or use parent's
+                                                onDelete && onDelete(batch.id);
+                                            }
+                                        }}
+                                    >
+                                        Delete
+                                    </button>
+                                )}
+                            </div>
                             <button
                                 className="btn-verify"
-                                style={{ flex: 1, opacity: isEligible ? 1 : 0.5, cursor: isEligible ? 'pointer' : 'not-allowed' }}
+                                style={{ opacity: isEligible ? 1 : 0.5, cursor: isEligible ? 'pointer' : 'not-allowed', fontSize: '11px' }}
                                 disabled={!isEligible}
                                 onClick={onSaveTest}
                             >

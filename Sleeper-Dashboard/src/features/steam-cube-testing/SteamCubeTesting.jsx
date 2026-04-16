@@ -63,7 +63,10 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
             const testedRes = await apiService.steamCubeResults.getResults(params);
 
             // Process Declared Samples
-            const declared = (declaredRes?.responseData || []).map(r => ({
+            const activePlantId = dutyUnit || localStorage.getItem('dutyUnit');
+            const declared = (declaredRes?.responseData || [])
+                .filter(r => r.plantId === activePlantId)
+                .map(r => ({
                 ...r,
                 status: 'Testing Pending',
                 isTested: false,
@@ -73,7 +76,9 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
             }));
 
             // Process Tested Results
-            const tested = (testedRes?.responseData || []).map(r => ({
+            const tested = (testedRes?.responseData || [])
+                .filter(r => r.plantId === activePlantId)
+                .map(r => ({
                 ...r,
                 status: 'Completed',
                 isTested: true,
@@ -711,7 +716,7 @@ const SteamCubeDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelet
                             }} 
                             disabled={!canModifyOrDelete}
                             onClick={() => onDelete(sample.id)}
-                            title={!canModifyOrDelete ? "Deletions only allowed within 24 hours" : ""}
+                            title={!canModifyOrDelete ? "Deletions only allowed within 8 hours" : ""}
                         >
                             Delete
                         </button>

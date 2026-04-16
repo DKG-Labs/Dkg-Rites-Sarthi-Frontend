@@ -3,8 +3,10 @@ import EnhancedDataTable from '../../../components/common/EnhancedDataTable';
 import CollapsibleSection from '../../../components/common/CollapsibleSection';
 import TrendChart from '../../../components/common/TrendChart';
 import { apiService } from '../../../services/api';
+import { useShift } from '../../../context/ShiftContext';
 
 const ModulusOfRupture = () => {
+    const { dutyUnit, vendorCode, selectedShift, userId, dutyDate } = useShift();
     const [viewMode, setViewMode] = useState('statistics'); // 'statistics', 'declared', 'tested'
     const [showDeclareModal, setShowDeclareModal] = useState(false);
     const [showTestModal, setShowTestModal] = useState(false);
@@ -19,13 +21,19 @@ const ModulusOfRupture = () => {
     const fetchData = async () => {
         try {
             setLoading(true);
+            const activePlantId = dutyUnit || localStorage.getItem('dutyUnit');
             const [samplesRes, testsRes] = await Promise.all([
                 apiService.getAllMORSamples(),
                 apiService.getAllMORTests()
             ]);
 
-            setDeclaredSamples(samplesRes.responseData || []);
-            setTestedSamples(testsRes.responseData || []);
+            const filteredSamples = (samplesRes.responseData || [])
+                .filter(s => s.plantId === activePlantId);
+            const filteredTests = (testsRes.responseData || [])
+                .filter(t => t.plantId === activePlantId);
+
+            setDeclaredSamples(filteredSamples);
+            setTestedSamples(filteredTests);
         } catch (error) {
             console.error('Failed to fetch MOR data:', error);
         } finally {
@@ -90,12 +98,16 @@ const ModulusOfRupture = () => {
             if (isModifying) {
                 await apiService.updateMORSample(selectedSample.id, {
                     ...formData,
-                    updatedBy: parseInt(localStorage.getItem('userId') || '118', 10)
+                    plantId: dutyUnit || localStorage.getItem('dutyUnit'),
+                    vendorCode: vendorCode || localStorage.getItem('vendorCode'),
+                    updatedBy: parseInt(userId || localStorage.getItem('userId') || '118', 10)
                 });
             } else {
                 await apiService.createMORSample({
                     ...formData,
-                    createdBy: parseInt(localStorage.getItem('userId') || '118', 10)
+                    plantId: dutyUnit || localStorage.getItem('dutyUnit'),
+                    vendorCode: vendorCode || localStorage.getItem('vendorCode'),
+                    createdBy: parseInt(userId || localStorage.getItem('userId') || '118', 10)
                 });
             }
             setShowDeclareModal(false);
@@ -113,7 +125,9 @@ const ModulusOfRupture = () => {
             await apiService.createMORTest({
                 ...testData,
                 morSampleId: selectedSample.id,
-                createdBy: parseInt(localStorage.getItem('userId') || '118', 10)
+                plantId: dutyUnit || localStorage.getItem('dutyUnit'),
+                vendorCode: vendorCode || localStorage.getItem('vendorCode'),
+                createdBy: parseInt(userId || localStorage.getItem('userId') || '118', 10)
             });
             setShowTestModal(false);
             fetchData();
@@ -129,11 +143,33 @@ const ModulusOfRupture = () => {
         return declaredSamples.filter(s => !testedSamples.some(t => t.morSampleId === s.id));
     }, [declaredSamples, testedSamples]);
 
-    const isWithinHour = (dateString) => {
-        if (!dateString) return false;
+    const isActionable = (dateString) => {
+        if (!dateString) return true;
         const diff = Date.now() - new Date(dateString).getTime();
-        return diff < (60 * 60 * 1000);
+        return diff < (8 * 60 * 60 * 1000);
     };
+
+    const handleDeleteRecord = async (id, isTest) => {
+        if (!window.confirm(`Are you sure you want to delete this ${isTest ? 'test record' : 'sample declaration'}?`)) return;
+        setLoading(true);
+        try {
+            if (isTest) {
+                await apiService.deleteMORTest(id);
+            } else {
+                await apiService.deleteMORSample(id);
+            }
+            alert('Record deleted successfully');
+            fetchData();
+            setShowViewModal(false);
+        } catch (error) {
+            console.error('Failed to delete MOR record:', error);
+            alert('Delete failed.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const [showViewModal, setShowViewModal] = useState(false);
 
     const isAgedForTesting = (samplingDate) => {
         if (!samplingDate) return false;
@@ -153,18 +189,13 @@ const ModulusOfRupture = () => {
             key: 'actions',
             label: 'Actions',
             render: (_, row) => (
-                <div style={{ display: 'flex', gap: '8px' }}>
-                    {isWithinHour(row.createdDate) && (
-                        <button className="btn-save" style={{ fontSize: '10px', padding: '4px 8px' }} onClick={() => handleModifySample(row)}>Modify</button>
-                    )}
-                    <button
-                        className="btn-verify"
-                        style={{ fontSize: '10px', padding: '4px 8px' }}
-                        onClick={() => handleEnterTestDetails(row)}
-                    >
-                        Enter Test Details
-                    </button>
-                </div>
+                <button 
+                    className="btn-verify" 
+                    style={{ fontSize: '10px', padding: '6px 14px' }} 
+                    onClick={() => { setSelectedSample(row); setShowViewModal(true); }}
+                >
+                    View Details
+                </button>
             )
         }
     ];
@@ -191,11 +222,17 @@ const ModulusOfRupture = () => {
             key: 'actions',
             label: 'Actions',
             render: (_, row) => (
-                isWithinHour(row.createdDate) ? (
-                    <button className="btn-save" style={{ fontSize: '10px', padding: '4px 8px' }}>Edit</button>
-                ) : (
-                    <span style={{ fontSize: '10px', color: '#94a3b8' }}>Locked</span>
-                )
+                <button 
+                    className="btn-verify" 
+                    style={{ fontSize: '10px', padding: '6px 14px' }} 
+                    onClick={() => { 
+                        const sample = declaredSamples.find(s => s.id === row.morSampleId);
+                        setSelectedSample({ ...row, ...sample, isTestRecord: true }); 
+                        setShowViewModal(true); 
+                    }}
+                >
+                    View Details
+                </button>
             )
         }
     ];
@@ -298,6 +335,26 @@ const ModulusOfRupture = () => {
                     </div>
                 )}
             </div>
+
+            {showViewModal && (
+                <MORDetailsModal
+                    sample={selectedSample}
+                    onClose={() => setShowViewModal(false)}
+                    onModify={() => {
+                        setShowViewModal(false);
+                        if (selectedSample.isTestRecord) {
+                            setShowTestModal(true);
+                        } else {
+                            setShowDeclareModal(true);
+                        }
+                    }}
+                    onDelete={(id) => handleDeleteRecord(id, selectedSample.isTestRecord)}
+                    onEnterTest={() => {
+                        setShowViewModal(false);
+                        setShowTestModal(true);
+                    }}
+                />
+            )}
 
             {showDeclareModal && (
                 <MORSampleDeclarationModal
@@ -481,6 +538,66 @@ const MORTestDetailsModal = ({ sample, onClose, onSave, saving }) => {
                             onSave({ ...testData, result });
                         }}>{saving ? 'Saving...' : 'Save Test Results'}</button>
                         <button className="btn-save" style={{ flex: '1 1 200px', background: '#f1f5f9', color: '#64748b', border: 'none' }} onClick={onClose}>Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const MORDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelete }) => {
+    if (!sample) return null;
+
+    const createdTime = sample.createdDate ? new Date(sample.createdDate) : new Date();
+    const canModifyOrDelete = (Date.now() - createdTime.getTime()) <= (8 * 60 * 60 * 1000);
+
+    const details = [
+        { label: 'Sample ID', value: sample.sampleIdentificationNumber },
+        { label: 'Grade', value: sample.concreteGrade },
+        { label: 'Shed/Line', value: sample.shedLine },
+        { label: 'Sampling Date', value: sample.samplingDate },
+        { label: 'Log Created', value: `${createdTime.toLocaleDateString('en-GB')} ${createdTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` }
+    ];
+
+    return (
+        <div className="form-modal-overlay" onClick={onClose}>
+            <div className="form-modal-container" onClick={e => e.stopPropagation()} style={{ maxWidth: '450px' }}>
+                <div className="form-modal-header">
+                    <span className="form-modal-header-title">MOR Test Details</span>
+                    <button className="form-modal-close" onClick={onClose}>×</button>
+                </div>
+                <div className="form-modal-body">
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: '24px' }}>
+                        {details.map((detail, idx) => (
+                            <div key={idx} style={{ padding: '12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '800', textTransform: 'uppercase' }}>{detail.label}</div>
+                                <div style={{ fontSize: '14px', fontWeight: '800', color: '#13343b' }}>{detail.value}</div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                        <button
+                            className="btn-save"
+                            style={{ flex: 1, background: canModifyOrDelete ? '#f1f5f9' : '#f8fafc', color: canModifyOrDelete ? '#64748b' : '#cbd5e1', cursor: canModifyOrDelete ? 'pointer' : 'not-allowed' }}
+                            disabled={!canModifyOrDelete}
+                            onClick={onModify}
+                        >
+                            Modify
+                        </button>
+                        <button
+                            className="btn-delete"
+                            style={{ flex: 1, background: canModifyOrDelete ? '#fee2e2' : '#f8fafc', color: canModifyOrDelete ? '#dc2626' : '#94a3b8', cursor: canModifyOrDelete ? 'pointer' : 'not-allowed' }}
+                            disabled={!canModifyOrDelete}
+                            onClick={() => onDelete(sample.id)}
+                        >
+                            Delete
+                        </button>
+                        {!sample.isTestRecord && (
+                            <button className="btn-verify" style={{ flex: 1.5 }} onClick={onEnterTest}>
+                                Enter Test Details
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>

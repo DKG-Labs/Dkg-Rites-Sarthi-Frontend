@@ -1,8 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import EnhancedDataTable from '../../../components/common/EnhancedDataTable';
 import { apiService } from '../../../services/api';
+import { useShift } from '../../../context/ShiftContext';
 
 const MomentOfFailure = () => {
+    const { dutyUnit, vendorCode, selectedShift, userId, dutyDate } = useShift();
     const [viewMode, setViewMode] = useState('statistics'); // 'statistics', 'declared', 'tested'
     const [showDeclareModal, setShowDeclareModal] = useState(false);
     const [showTestModal, setShowTestModal] = useState(false);
@@ -18,13 +20,19 @@ const MomentOfFailure = () => {
     const fetchData = async () => {
         try {
             setLoading(true);
+            const activePlantId = dutyUnit || localStorage.getItem('dutyUnit');
             const [samplesRes, testsRes] = await Promise.all([
                 apiService.getAllMFSamples(),
                 apiService.getAllMFTests()
             ]);
 
-            setDeclaredSamples(samplesRes.responseData || []);
-            setTestedSamples(testsRes.responseData || []);
+            const filteredSamples = (samplesRes.responseData || [])
+                .filter(s => s.plantId === activePlantId);
+            const filteredTests = (testsRes.responseData || [])
+                .filter(t => t.plantId === activePlantId);
+
+            setDeclaredSamples(filteredSamples);
+            setTestedSamples(filteredTests);
         } catch (error) {
             console.error('Failed to fetch MF data:', error);
         } finally {
@@ -90,12 +98,16 @@ const MomentOfFailure = () => {
             if (isModifying) {
                 await apiService.updateMFSample(selectedSample.id, {
                     ...formData,
-                    updatedBy: parseInt(localStorage.getItem('userId') || '118', 10)
+                    plantId: dutyUnit || localStorage.getItem('dutyUnit'),
+                    vendorCode: vendorCode || localStorage.getItem('vendorCode'),
+                    updatedBy: parseInt(userId || localStorage.getItem('userId') || '118', 10)
                 });
             } else {
                 await apiService.createMFSample({
                     ...formData,
-                    createdBy: parseInt(localStorage.getItem('userId') || '118', 10)
+                    plantId: dutyUnit || localStorage.getItem('dutyUnit'),
+                    vendorCode: vendorCode || localStorage.getItem('vendorCode'),
+                    createdBy: parseInt(userId || localStorage.getItem('userId') || '118', 10)
                 });
             }
             setShowDeclareModal(false);
@@ -113,7 +125,9 @@ const MomentOfFailure = () => {
             await apiService.createMFTest({
                 ...testData,
                 modulusOfFailureId: selectedSample.id,
-                createdBy: parseInt(localStorage.getItem('userId') || '118', 10)
+                plantId: dutyUnit || localStorage.getItem('dutyUnit'),
+                vendorCode: vendorCode || localStorage.getItem('vendorCode'),
+                createdBy: parseInt(userId || localStorage.getItem('userId') || '118', 10)
             });
             setShowTestModal(false);
             fetchData();
@@ -124,11 +138,33 @@ const MomentOfFailure = () => {
         }
     };
 
-    const isWithinHour = (dateString) => {
-        if (!dateString) return false;
+    const isActionable = (dateString) => {
+        if (!dateString) return true;
         const diff = Date.now() - new Date(dateString).getTime();
-        return diff < (60 * 60 * 1000);
+        return diff < (8 * 60 * 60 * 1000);
     };
+
+    const handleDeleteRecord = async (id, isTest) => {
+        if (!window.confirm(`Are you sure you want to delete this ${isTest ? 'test record' : 'sample declaration'}?`)) return;
+        setLoading(true);
+        try {
+            if (isTest) {
+                await apiService.deleteMFTest(id);
+            } else {
+                await apiService.deleteMFSample(id);
+            }
+            alert('Record deleted successfully');
+            fetchData();
+            setShowViewModal(false);
+        } catch (error) {
+            console.error('Failed to delete MF record:', error);
+            alert('Delete failed.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const [showViewModal, setShowViewModal] = useState(false);
 
     const columnsDeclared = [
         { key: 'samplingDate', label: 'Date of Sampling' },
@@ -142,19 +178,15 @@ const MomentOfFailure = () => {
         {
             key: 'actions',
             label: 'Actions',
-            render: (_, row) => {
-                const isTested = testedSamples.some(t => t.modulusOfFailureId === row.id);
-                if (isTested) return <span style={{ color: '#059669', fontSize: '10px', fontWeight: '700' }}>✓ TESTED</span>;
-
-                return (
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                        {isWithinHour(row.createdDate) && (
-                            <button className="btn-save" style={{ fontSize: '10px', padding: '4px 8px' }} onClick={() => handleModifySample(row)}>Modify</button>
-                        )}
-                        <button className="btn-verify" style={{ fontSize: '10px', padding: '4px 8px' }} onClick={() => handleEnterTestDetails(row)}>Enter Test Details</button>
-                    </div>
-                );
-            }
+            render: (_, row) => (
+                <button 
+                    className="btn-verify" 
+                    style={{ fontSize: '10px', padding: '6px 14px' }} 
+                    onClick={() => { setSelectedSample(row); setShowViewModal(true); }}
+                >
+                    View Details
+                </button>
+            )
         }
     ];
 
@@ -184,11 +216,17 @@ const MomentOfFailure = () => {
             key: 'actions',
             label: 'Actions',
             render: (_, row) => (
-                isWithinHour(row.createdDate) ? (
-                    <button className="btn-save" style={{ fontSize: '10px', padding: '4px 8px' }}>Edit</button>
-                ) : (
-                    <span style={{ fontSize: '10px', color: '#94a3b8' }}>Locked</span>
-                )
+                <button 
+                    className="btn-verify" 
+                    style={{ fontSize: '10px', padding: '6px 14px' }} 
+                    onClick={() => { 
+                        const sample = declaredSamples.find(s => s.id === row.modulusOfFailureId);
+                        setSelectedSample({ ...row, ...sample, isTestRecord: true }); 
+                        setShowViewModal(true); 
+                    }}
+                >
+                    View Details
+                </button>
             )
         }
     ];
@@ -309,6 +347,27 @@ const MomentOfFailure = () => {
                     </div>
                 )}
             </div>
+
+            {showViewModal && (
+                <MFDetailsModal
+                    sample={selectedSample}
+                    onClose={() => setShowViewModal(false)}
+                    onModify={() => {
+                        setShowViewModal(false);
+                        if (selectedSample.isTestRecord) {
+                            // Logic for testing details modify if needed, for now just show modal
+                            setShowTestModal(true);
+                        } else {
+                            setShowDeclareModal(true);
+                        }
+                    }}
+                    onDelete={(id) => handleDeleteRecord(id, selectedSample.isTestRecord)}
+                    onEnterTest={() => {
+                        setShowViewModal(false);
+                        setShowTestModal(true);
+                    }}
+                />
+            )}
 
             {showDeclareModal && (
                 <MFSampleDeclarationModal
@@ -537,6 +596,66 @@ const MFTestDetailsModal = ({ sample, onClose, onSave, saving }) => {
                     <div style={{ display: 'flex', gap: '12px', marginTop: '32px' }}>
                         <button className="btn-verify" disabled={saving} style={{ flex: 1 }} onClick={() => onSave({ ...testData, result })}>{saving ? 'Saving...' : 'Save & Finalize Test'}</button>
                         <button className="btn-save" style={{ flex: 1, background: '#f1f5f9', color: '#64748b', border: 'none' }} onClick={onClose}>Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const MFDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelete }) => {
+    if (!sample) return null;
+
+    const createdTime = sample.createdDate ? new Date(sample.createdDate) : new Date();
+    const canModifyOrDelete = (Date.now() - createdTime.getTime()) <= (8 * 60 * 60 * 1000);
+
+    const details = [
+        { label: 'Batch No', value: sample.batchNo },
+        { label: 'Sleeper Type', value: sample.sleeperType },
+        { label: 'Casting Date', value: sample.castingDate },
+        { label: 'Sample ID', value: sample.sampleIdentification },
+        { label: 'Log Created', value: `${createdTime.toLocaleDateString('en-GB')} ${createdTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` }
+    ];
+
+    return (
+        <div className="form-modal-overlay" onClick={onClose}>
+            <div className="form-modal-container" onClick={e => e.stopPropagation()} style={{ maxWidth: '450px' }}>
+                <div className="form-modal-header">
+                    <span className="form-modal-header-title">MF Test Details</span>
+                    <button className="form-modal-close" onClick={onClose}>×</button>
+                </div>
+                <div className="form-modal-body">
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: '24px' }}>
+                        {details.map((detail, idx) => (
+                            <div key={idx} style={{ padding: '12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '800', textTransform: 'uppercase' }}>{detail.label}</div>
+                                <div style={{ fontSize: '14px', fontWeight: '800', color: '#13343b' }}>{detail.value}</div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                        <button
+                            className="btn-save"
+                            style={{ flex: 1, background: canModifyOrDelete ? '#f1f5f9' : '#f8fafc', color: canModifyOrDelete ? '#64748b' : '#cbd5e1', cursor: canModifyOrDelete ? 'pointer' : 'not-allowed' }}
+                            disabled={!canModifyOrDelete}
+                            onClick={onModify}
+                        >
+                            Modify
+                        </button>
+                        <button
+                            className="btn-delete"
+                            style={{ flex: 1, background: canModifyOrDelete ? '#fee2e2' : '#f8fafc', color: canModifyOrDelete ? '#dc2626' : '#94a3b8', cursor: canModifyOrDelete ? 'pointer' : 'not-allowed' }}
+                            disabled={!canModifyOrDelete}
+                            onClick={() => onDelete(sample.id)}
+                        >
+                            Delete
+                        </button>
+                        {!sample.isTestRecord && (
+                            <button className="btn-verify" style={{ flex: 1.5 }} onClick={onEnterTest}>
+                                Enter Test Details
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>

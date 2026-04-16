@@ -88,14 +88,26 @@ const CompactionConcrete = ({
         fetchLocations();
     }, [dutyUnit, vendorId]);
 
-    // Fetch batch numbers for compaction (filtered by plant and user)
+    // Fetch batch numbers for compaction (filtered by plant, user, and date)
     useEffect(() => {
         const fetchBatches = async () => {
             const pId = dutyUnit || localStorage.getItem('dutyUnit');
             const uId = userId || localStorage.getItem('userId');
+            
+            // Format dutyDate to DD/MM/YYYY
+            const dObj = new Date(dutyDate || new Date());
+            const d = String(dObj.getDate()).padStart(2, '0');
+            const m = String(dObj.getMonth() + 1).padStart(2, '0');
+            const y = dObj.getFullYear();
+            const formattedDate = `${d}/${m}/${y}`;
+
             if (pId && uId) {
                 try {
-                    const data = await getBatchNosForCompaction({ plantId: pId, createdBy: uId });
+                    const data = await getBatchNosForCompaction({ 
+                        plantId: pId, 
+                        createdBy: uId,
+                        date: formattedDate 
+                    });
                     setBatchOptions(data || []);
                 } catch (err) {
                     console.error("Error fetching batch numbers for compaction:", err);
@@ -103,7 +115,7 @@ const CompactionConcrete = ({
             }
         };
         fetchBatches();
-    }, [dutyUnit, userId, showForm]); // Refresh batches when form opens or user/plant changes
+    }, [dutyUnit, userId, dutyDate, showForm]); // Added dutyDate to dependencies
 
     // Mock SCADA Data 
     const [scadaRecords, setScadaRecords] = useState([

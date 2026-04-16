@@ -170,9 +170,22 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                 setSessionEntries(entryToEdit ? [entryToEdit] : []);
             } else {
                 setSessionEntries([]);
+                setManualForm({
+                    date: formatToIST(null, 'iso_date'),
+                    batchNo: '', 
+                    chamberNo: '', 
+                    benches: '', 
+                    minConstTemp: '', 
+                    maxConstTemp: '',
+                    location: activeContainer?.name || availableLocations[0] || '',
+                    dateOfCasting: dutyDate || formatToIST(null, 'iso_date'),
+                    grade: 'M60'
+                });
+                setSelectedBatch('');
+                setSelectedChamber('');
             }
         }
-    }, [showForm, editingId]);
+    }, [showForm, editingId, dutyDate, activeContainer, availableLocations]);
 
     // Fetch Steam Curing data on mount
     useEffect(() => {
@@ -412,6 +425,7 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
             status: (cycle.constant?.tempMin >= 55 && cycle.constant?.tempMax <= 60) ? 'OK' : 'NOT OK'
         };
         setEntries(prev => [newEntry, ...prev]);
+        setSessionEntries(prev => [newEntry, ...prev]);
         setScadaCycles(prev => prev.filter(c => c.id !== cycle.id));
         alert(`Cycle for Batch ${cycle.batchNo} / Chamber ${cycle.chamberNo} witnessed and added to session.`);
     };
@@ -578,10 +592,10 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
         }
         setIsSaving(true);
         try {
-            // Use the string batch number for filtering entries to ensure matches regardless of ID vs Number
-            const batchRecords = entries.filter(e => String(e.batchNo) === String(batchNoStr));
+            // Use sessionEntries instead of entries to ensure only current form data is saved
+            const batchRecords = sessionEntries.filter(e => String(e.batchNo) === String(batchNoStr));
             
-            console.log(`Saving batch ${batchNoStr}. Found ${batchRecords.length} records.`, batchRecords);
+            console.log(`Saving batch ${batchNoStr} from current session. Found ${batchRecords.length} records.`, batchRecords);
 
             const manualRecords = batchRecords
                 .filter(e => e.source === 'Manual')
@@ -879,7 +893,7 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                                         >
                                             <option value="">Select Chamber</option>
                                             {availableChambers.map(ch => (
-                                                <option key={ch} value={ch}>Chamber {ch}</option>
+                                                <option key={ch} value={ch}>{ch}</option>
                                             ))}
                                         </select>
                                     )}

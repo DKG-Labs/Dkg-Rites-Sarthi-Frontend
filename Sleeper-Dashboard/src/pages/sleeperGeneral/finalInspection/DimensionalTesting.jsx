@@ -227,7 +227,7 @@ const DimensionalTesting = ({ type }) => {
                         ) : (
                             <EnhancedDataTable 
                                 columns={columns} 
-                                data={batches.filter(b => Number(b.testedPercentage) < 100)} 
+                                data={batches.filter(b => b.testingStatus !== 'Completed' && Number(b.testedPercentage) < 100)} 
                                 selectable={false} 
                             />
                         )}
@@ -240,7 +240,7 @@ const DimensionalTesting = ({ type }) => {
                         <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#059669' }}></div>
-                                <h4 style={{ margin: 0, color: '#1e293b', fontSize: '15px' }}>Completed Inspection Logs (100%)</h4>
+                                <h4 style={{ margin: 0, color: '#1e293b', fontSize: '15px' }}>Completed Inspection Logs</h4>
                             </div>
                             <div style={{ fontSize: '11px', color: '#059669', background: '#ecfdf5', padding: '4px 10px', borderRadius: '4px', fontWeight: '700' }}>
                                 ✓ Fully Verified
@@ -251,7 +251,7 @@ const DimensionalTesting = ({ type }) => {
                         ) : (
                             <EnhancedDataTable 
                                 columns={columns} 
-                                data={batches.filter(b => Number(b.testedPercentage) >= 100)} 
+                                data={batches.filter(b => b.testingStatus === 'Completed' || Number(b.testedPercentage) >= 100)} 
                                 selectable={false} 
                             />
                         )}

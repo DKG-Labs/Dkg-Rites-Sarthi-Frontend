@@ -103,7 +103,7 @@ export default function SoundnessTestForm({ onSave, onCancel, inventoryData = []
                     <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '1.5rem' }}>
                         <div className="input-group">
                             <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#475569' }}>Date of Testing <span className="required" style={{ color: 'red' }}>*</span></label>
-                            <input type="date" {...register("testDate", { required: "Required" })} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                            <input type="date" {...register("testDate", { required: "Required" })} style={{ width: '100%', padding: '10px', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
                         </div>
 
                         <div className="input-group">
@@ -113,20 +113,20 @@ export default function SoundnessTestForm({ onSave, onCancel, inventoryData = []
                                     type="text"
                                     readOnly
                                     className="readOnly"
-                                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc' }}
+                                    style={{ width: '100%', padding: '10px', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', boxSizing: 'border-box' }}
                                     {...register("consignmentNo")}
                                 />
                             ) : initialType === "Periodic" ? (
                                 <input
                                     type="text"
                                     placeholder="Enter Consignment No"
-                                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                                    style={{ width: '100%', padding: '10px', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
                                     {...register("consignmentNo", { required: "Required" })}
                                 />
                             ) : (
                                 <select
                                     {...register("consignmentNo", { required: "Required" })}
-                                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                                    style={{ width: '100%', padding: '10px', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
                                 >
                                     <option value="">-- Select --</option>
                                     {inventoryData.map((c, i) => (
@@ -140,7 +140,7 @@ export default function SoundnessTestForm({ onSave, onCancel, inventoryData = []
                     <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '1.5rem' }}>
                         <div className="input-group">
                             <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#475569' }}>Material Type <span className="required" style={{ color: 'red' }}>*</span></label>
-                            <select {...register("materialType", { required: "Required" })} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                            <select {...register("materialType", { required: "Required" })} style={{ width: '100%', padding: '10px', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}>
                                 <option value="">-- Select --</option>
                                 <option value="Fine Aggregate">Fine Aggregate</option>
                                 <option value="Coarse Aggregate">Coarse Aggregate</option>
@@ -154,7 +154,7 @@ export default function SoundnessTestForm({ onSave, onCancel, inventoryData = []
                     <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
                         <div className="input-group">
                             <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#475569' }}>Test Method <span className="required" style={{ color: 'red' }}>*</span></label>
-                            <select {...register("method", { required: "Required" })} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                            <select {...register("method", { required: "Required" })} style={{ width: '100%', padding: '10px', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}>
                                 <option value="">-- Select --</option>
                                 <option value="Sodium Sulphate">Sodium Sulphate</option>
                                 <option value="Magnesium Sulphate">Magnesium Sulphate</option>
@@ -163,7 +163,7 @@ export default function SoundnessTestForm({ onSave, onCancel, inventoryData = []
 
                         <div className="input-group">
                             <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#475569' }}>No. of Cycles</label>
-                            <input type="number" {...register("cycles")} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                            <input type="number" {...register("cycles")} style={{ width: '100%', padding: '10px', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
                         </div>
                     </div>
 
@@ -172,27 +172,27 @@ export default function SoundnessTestForm({ onSave, onCancel, inventoryData = []
                     <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
                         <div className="input-group">
                             <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#475569' }}>Initial Weight of Sample (gms) <span className="required" style={{ color: 'red' }}>*</span></label>
-                            <input type="number" step="0.01" {...register("initialWt", { required: "Required" })} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                            <input type="number" step="0.01" {...register("initialWt", { required: "Required" })} style={{ width: '100%', padding: '10px', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
                         </div>
 
                         <div className="input-group">
                             <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#475569' }}>Weight after test (gms) <span className="required" style={{ color: 'red' }}>*</span></label>
-                            <input type="number" step="0.01" {...register("finalWt", { required: "Required" })} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                            <input type="number" step="0.01" {...register("finalWt", { required: "Required" })} style={{ width: '100%', padding: '10px', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
                         </div>
 
                         <div className="input-group">
                             <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#475569' }}>Loss in Weight (gms)</label>
-                            <input type="number" readOnly className="readOnly" {...register("lossWt")} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f1f5f9' }} />
+                            <input type="number" readOnly className="readOnly" {...register("lossWt")} style={{ width: '100%', padding: '10px', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f1f5f9', boxSizing: 'border-box' }} />
                         </div>
 
                         <div className="input-group">
                             <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#475569' }}>Percentage Loss (%)</label>
-                            <input type="number" readOnly className="readOnly" {...register("lossPercent")} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f1f5f9', fontWeight: '700' }} />
+                            <input type="number" readOnly className="readOnly" {...register("lossPercent")} style={{ width: '100%', padding: '10px', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f1f5f9', fontWeight: '700', boxSizing: 'border-box' }} />
                         </div>
 
                         <div className="input-group">
                             <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#475569' }}>Result</label>
-                            <input type="text" readOnly className="readOnly" {...register("result")} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f0fdf4', color: '#166534', fontWeight: '700' }} />
+                            <input type="text" readOnly className="readOnly" {...register("result")} style={{ width: '100%', padding: '10px', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f0fdf4', color: '#166534', fontWeight: '700', boxSizing: 'border-box' }} />
                         </div>
                     </div>
 

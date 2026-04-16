@@ -71,6 +71,9 @@ const BatchEntryForm = ({
                 vendorCode: vendorCode || localStorage.getItem('vendorCode'),
                 plantId: dutyUnit || localStorage.getItem('dutyUnit'),
                 shift: selectedShift || localStorage.getItem('selectedShift'),
+                location: sensorConfig.location || activeContainer?.name || null,
+                batchNumber: sensorConfig.batchNo ? String(sensorConfig.batchNo) : null,
+                moistureAnalysis: sensorConfig.moistureAnalysis || null,
                 batchDetails: activeBatchDeclarations.map(d => ({
                     id: (typeof d.id === 'number' && d.id < 1000000) ? d.id : 0,
                     batchNo: String(d.batchNo || "0"),

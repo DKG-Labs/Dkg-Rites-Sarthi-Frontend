@@ -268,6 +268,7 @@ export const apiService = {
 
     getProductionDeclarationRecordById: (id) => api.get(`/production-declaration/${id}`),
     getVerifiedProductionDeclarations: () => api.get('/production-declaration/verified-declarations'),
+    getAllVerifedWaterBatchs: (params = {}) => api.get('/production-declaration/getAllVerifedWaterBatchs', { params }),
     getAllProductionBatches: (vendorId, castingDate, plantId, productionUnit) =>
         api.get('/production-declaration/getAll/batches', {
             params: { vendorId, castingDate, plantId, productionUnit }
@@ -297,6 +298,22 @@ export const apiService = {
     submitInspectionCall: (payload) => api.post('/FinalInspectionController/submit-inspection-call', payload),
     getInspectionCalls: (userId) => api.get(`/FinalInspectionController/inspection-calls?userId=${userId}`),
     getCompletedBatches: (sleeperType, userId) => api.get(`/FinalInspectionController/completed-batches?sleeperType=${sleeperType}&userId=${userId}`),
+
+    // ================= Moment of Resistance (MR) =================
+    createMRRecord: (payload) => api.post('/moment-of-resistance/create', payload),
+    updateMRRecord: (id, payload) => api.put(`/moment-of-resistance/update/${id}`, payload),
+    getMRRecordById: (id) => api.get(`/moment-of-resistance/${id}`),
+    getMRTodayRecords: (params) => api.get('/moment-of-resistance/mrTodayRecord', { params }),
+    getAllMRRecords: () => getWithCache('/moment-of-resistance/all'),
+    deleteMRRecord: (id) => api.delete(`/moment-of-resistance/delete/${id}`),
+
+    // ================= Moment of Resistance Testing (MR Testing) =================
+    createMRTest: (payload) => api.post('/mr-testing/create', payload),
+    updateMRTest: (id, payload) => api.put(`/mr-testing/update/${id}`, payload),
+    getMRTestById: (id) => api.get(`/mr-testing/${id}`),
+    getMRTestTodayRecords: (params) => api.get('/mr-testing/mrTestTodayRecord', { params }),
+    getAllMRTests: () => getWithCache('/mr-testing/all'),
+    deleteMRTest: (id) => api.delete(`/mr-testing/delete/${id}`),
 
     // ================= Modulus of Rupture (MOR) =================
     // Sample Declaration

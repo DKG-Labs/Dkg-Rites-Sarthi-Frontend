@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { apiService } from '../../services/api';
 import './CompactionConcrete.css';
 import { useShift } from '../../context/ShiftContext';
+import { getBatchNosForCompaction } from '../../services/workflowService';
 
 const CompactionSubCard = ({ id, title, color, statusDetail, isActive, onClick }) => {
     const label = id === 'stats' ? 'ANALYSIS' : id === 'witnessed' ? 'HISTORY' : 'SCADA';
@@ -50,6 +51,7 @@ const CompactionConcrete = ({
     const [selectedBatch, setSelectedBatch] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [fetchedLocations, setFetchedLocations] = useState([]);
+    const [batchOptions, setBatchOptions] = useState([]);
     
     // Track records added in CURRENT form session
     const [sessionRecords, setSessionRecords] = useState([]);
@@ -85,6 +87,23 @@ const CompactionConcrete = ({
         };
         fetchLocations();
     }, [dutyUnit, vendorId]);
+
+    // Fetch batch numbers for compaction (filtered by plant and user)
+    useEffect(() => {
+        const fetchBatches = async () => {
+            const pId = dutyUnit || localStorage.getItem('dutyUnit');
+            const uId = userId || localStorage.getItem('userId');
+            if (pId && uId) {
+                try {
+                    const data = await getBatchNosForCompaction({ plantId: pId, createdBy: uId });
+                    setBatchOptions(data || []);
+                } catch (err) {
+                    console.error("Error fetching batch numbers for compaction:", err);
+                }
+            }
+        };
+        fetchBatches();
+    }, [dutyUnit, userId, showForm]); // Refresh batches when form opens or user/plant changes
 
     // Mock SCADA Data 
     const [scadaRecords, setScadaRecords] = useState([
@@ -173,8 +192,22 @@ const CompactionConcrete = ({
     };
 
     const handleDelete = (id) => {
-        if (window.confirm('Are you sure you want to delete this record?')) {
+        if (window.confirm('Are you sure you want to remove this record from the current session?')) {
             setSessionRecords(prev => prev.filter(e => e.id !== id));
+        }
+    };
+
+    const handleDeleteLog = async (parentId) => {
+        if (!parentId) return;
+        if (window.confirm('Are you sure you want to delete this batch record? This will remove all associated logs for this session.')) {
+            try {
+                await apiService.deleteCompaction(parentId);
+                if (fetchCompaction) await fetchCompaction();
+                alert("Deleted successfully");
+            } catch (err) {
+                console.error("Delete failed:", err);
+                alert("Failed to delete record: " + err.message);
+            }
         }
     };
 
@@ -193,6 +226,7 @@ const CompactionConcrete = ({
             const [y, m, d] = manualForm.dateOfCasting.split('-');
             const formattedDate = `${d}/${m}/${y}`;
 
+            const now = new Date();
             const payload = {
                 batchNo: String(manualForm.batchNo),
                 sleeperType: "RT-8746", 
@@ -200,6 +234,7 @@ const CompactionConcrete = ({
                 date: formattedDate,
                 location: manualForm.location,
                 locationType: manualForm.location.toLowerCase().includes('shed') ? 'Shed' : 'Line',
+                time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }),
                 vendorCode: vendorCode || localStorage.getItem('vendorCode'),
                 plantId: dutyUnit || localStorage.getItem('dutyUnit'),
                 shift: selectedShift || localStorage.getItem('selectedShift'),
@@ -226,7 +261,8 @@ const CompactionConcrete = ({
             };
 
             await apiService.createCompaction(payload);
-            if (fetchCompaction) await fetchCompaction();
+            const refresh = fetchCompaction || propsFetchCompaction || loadShiftData;
+            if (refresh) await refresh();
             setShowForm(false);
             setSessionRecords([]);
             alert("Compaction session saved successfully.");
@@ -364,7 +400,15 @@ const CompactionConcrete = ({
                                         style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px' }}
                                     >
                                         <option value="">-- Select Batch --</option>
-                                        {filteredBatchesForForm.map(b => <option key={b.id} value={b.batchNo}>{b.batchNo}</option>)}
+                                        {/* Use new batchOptions from API */}
+                                        {batchOptions
+                                            .filter(b => b.batchNumber) // Only show non-null batch numbers
+                                            .map(b => <option key={b.id} value={b.batchNumber}>{b.batchNumber}</option>)
+                                        }
+                                        {/* Fallback to context batches if API returned nothing */}
+                                        {batchOptions.length === 0 && filteredBatchesForForm.map(b => (
+                                            <option key={b.id} value={b.batchNo}>{b.batchNo}</option>
+                                        ))}
                                     </select>
                                 </div>
                             </div>
@@ -594,7 +638,7 @@ const CompactionConcrete = ({
                                     <div className="table-outer-wrapper" style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                                         <div className="table-responsive">
                                             <table className="ui-table">
-                                                <thead><tr><th>Location</th><th>Shift</th><th>Source</th><th>Date</th><th>Time</th><th>Batch</th><th>Bench</th><th>Type</th><th>RPM Range</th><th>Dur Range</th></tr></thead>
+                                                <thead><tr><th>Location</th><th>Shift</th><th>Source</th><th>Date</th><th>Time</th><th>Batch</th><th>Bench</th><th>Type</th><th>RPM Range</th><th>Dur Range</th><th>Actions</th></tr></thead>
                                                 <tbody>
                                                     {recordsSubset.map(e => (
                                                         <tr key={e.id}>
@@ -603,6 +647,14 @@ const CompactionConcrete = ({
                                                             <td><span className={`status-pill ${e.source === 'Manual' ? 'manual' : 'witnessed'}`}>{e.source}</span></td>
                                                             <td>{e.date && e.date.includes('-') ? e.date.split('-').reverse().join('/') : (e.date || '—')}</td>
                                                             <td>{e.time}</td><td>{e.batchNo}</td><td><strong>{e.benchNo}</strong></td><td>{e.sleeperType || '—'}</td><td>{e.minRpm}-{e.maxRpm}</td><td>{e.duration}s</td>
+                                                            <td>
+                                                                <button 
+                                                                    className="btn-action mini danger" 
+                                                                    onClick={() => handleDeleteLog(e.parentId)}
+                                                                >
+                                                                    Delete
+                                                                </button>
+                                                            </td>
                                                         </tr>
                                                     ))}
                                                 </tbody>

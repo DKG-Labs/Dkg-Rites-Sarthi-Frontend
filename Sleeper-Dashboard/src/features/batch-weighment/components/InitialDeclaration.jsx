@@ -14,7 +14,8 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
         sandType: '',
         location: '',
         castingDate: new Date().toISOString().split('T')[0],
-        batchNo: ''
+        batchNo: '',
+        moistureAnalysis: null
     });
 
     const [batches, setBatches] = useState([]);
@@ -78,6 +79,12 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
     const handleMoistureReportSelect = async (e) => {
         const id = e.target.value;
         setSelectedMoistureReportId(id);
+        
+        setSensors(prev => ({
+            ...prev,
+            moistureAnalysis: id ? String(id) : null
+        }));
+
         if (!id) {
             setBatches([]);
             return;
@@ -201,6 +208,9 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
                 vendorCode: vendorCode || localStorage.getItem('vendorCode'),
                 plantId: dutyUnit || localStorage.getItem('dutyUnit'),
                 shift: selectedShift || localStorage.getItem('selectedShift'),
+                location: sensors.location || activeContainer?.name || null,
+                batchNumber: sensors.batchNo ? String(sensors.batchNo) : null,
+                moistureAnalysis: sensors.moistureAnalysis || null,
                 batchDetails: batches.map(b => ({
                     batchNo: String(sensors.batchNo || b.batchNo || "0"),
                     proportionStatus: b.proportionMatch || "OK",

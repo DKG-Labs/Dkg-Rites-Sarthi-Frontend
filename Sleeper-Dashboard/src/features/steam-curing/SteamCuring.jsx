@@ -416,10 +416,25 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
         alert(`Cycle for Batch ${cycle.batchNo} / Chamber ${cycle.chamberNo} witnessed and added to session.`);
     };
 
-    const handleDelete = async (id) => {
+    const handleDelete = async (entry) => {
         if (window.confirm('Are you sure you want to delete this record?')) {
-            setEntries(prev => prev.filter(e => e.id !== id));
-            setSessionEntries(prev => prev.filter(e => e.id !== id));
+            try {
+                // Determine the backend ID. In mapSteamCuringRecords, parentId is the SteamCuring entity ID.
+                const backendId = entry.parentId || entry.id;
+                
+                if (backendId && !isNaN(Number(backendId))) {
+                    await apiService.deleteSteamCuring(backendId);
+                    alert('Record deleted successfully from server.');
+                }
+
+                setEntries(prev => prev.filter(e => e.id !== entry.id));
+                setSessionEntries(prev => prev.filter(e => e.id !== entry.id));
+                
+                if (fetchSteamCuring) fetchSteamCuring();
+            } catch (error) {
+                console.error('Delete failed:', error);
+                alert(`Failed to delete record: ${error.message}`);
+            }
         }
     };
 
@@ -982,7 +997,7 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                                             <td>
                                                 <div style={{ display: 'flex', gap: '8px' }}>
                                                     {e.source === 'Manual' && <button className="btn-action" onClick={() => handleEdit(e)}>Edit</button>}
-                                                    <button className="btn-action" style={{ background: '#fee2e2', color: '#ef4444', border: 'none' }} onClick={() => handleDelete(e.id)}>Delete</button>
+                                                    <button className="btn-action" style={{ background: '#fee2e2', color: '#ef4444', border: 'none' }} onClick={() => handleDelete(e)}>Delete</button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -1048,7 +1063,7 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                                             <td>
                                                 <div style={{ display: 'flex', gap: '8px' }}>
                                                     {e.source === 'Manual' && <button className="btn-action" onClick={() => handleEdit(e)}>Edit</button>}
-                                                    {!e.isHeader && <button className="btn-action" style={{ background: '#fee2e2', color: '#ef4444', border: 'none' }} onClick={() => handleDelete(e.id)}>Delete</button>}
+                                                    {!e.isHeader && <button className="btn-action" style={{ background: '#fee2e2', color: '#ef4444', border: 'none' }} onClick={() => handleDelete(e)}>Delete</button>}
                                                 </div>
                                             </td>
                                         </tr>

@@ -1,13 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import EnhancedDataTable from '../../../components/common/EnhancedDataTable';
-
-const MOCK_BATCHES = [
-    { batchNo: 'B-701', sleeperType: 'RT-1234', castingDate: '2026-01-20', waterCubeStatus: 'Completed', mrSamplesNeeded: 1, mrTestType: 'Fresh', status: 'Pending Declaration' },
-    { batchNo: 'B-702', sleeperType: 'RT-5678', castingDate: '2026-01-21', waterCubeStatus: 'Completed', mrSamplesNeeded: 2, mrTestType: 'Fresh', status: 'Pending Declaration' },
-    { batchNo: 'B-703', sleeperType: 'RT-9012', castingDate: '2026-01-22', waterCubeStatus: 'Not Completed', mrSamplesNeeded: 0, mrTestType: 'Fresh', status: 'Pending Declaration' },
-    { batchNo: 'B-695', sleeperType: 'RT-1234', castingDate: '2026-01-15', waterCubeStatus: 'Completed', mrSamplesNeeded: 2, mrTestType: 'Retest', status: 'Pending Declaration' },
-    { batchNo: 'B-680', sleeperType: 'RT-5678', castingDate: '2026-01-10', waterCubeStatus: 'Rejected', mrSamplesNeeded: 0, mrTestType: 'N/A', status: 'Water Cube Testing – Rejected' },
-];
+import { useShift } from '../../../context/ShiftContext';
+import { apiService } from '../../../services/api';
+import { useToast } from '../../../context/ToastContext';
+import { formatToIST } from '../../../utils/helpers';
 
 const DESIRED_VALUES = {
     centreTop: 450,
@@ -16,41 +12,207 @@ const DESIRED_VALUES = {
 };
 
 const MomentOfResistance = () => {
+    const { vendorCode, dutyUnit, selectedShift, dutyDate, userId } = useShift();
+    const toast = useToast();
     const [activeTab, setActiveTab] = useState('declaration');
-    const [batches, setBatches] = useState(MOCK_BATCHES);
+    const [batches, setBatches] = useState([]);
+    const [declaredRecords, setDeclaredRecords] = useState([]);
+    const [historicalTests, setHistoricalTests] = useState([]);
+    const [loading, setLoading] = useState(false);
     const [showDeclareModal, setShowDeclareModal] = useState(false);
     const [showTestModal, setShowTestModal] = useState(false);
     const [selectedBatch, setSelectedBatch] = useState(null);
 
+    const getCommonParams = useCallback(() => {
+        const dateObj = new Date(dutyDate || new Date());
+        const d = String(dateObj.getDate()).padStart(2, '0');
+        const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const y = dateObj.getFullYear();
+        const formattedDate = `${d}/${m}/${y}`;
+
+        return {
+            plantId: dutyUnit || localStorage.getItem('dutyUnit'),
+            vendorCode: vendorCode || localStorage.getItem('vendorCode'),
+            shift: selectedShift || localStorage.getItem('selectedShift'),
+            createdBy: userId || localStorage.getItem('userId'),
+            date: formattedDate
+        };
+    }, [dutyDate, dutyUnit, vendorCode, selectedShift, userId]);
+
+    const fetchMRData = useCallback(async () => {
+        setLoading(true);
+        try {
+            const params = getCommonParams();
+
+            // 1. Fetch Verified Water Batches (Potential Declarations)
+            const vResponse = await apiService.getAllVerifedWaterBatchs(params);
+            const vData = vResponse?.responseData || vResponse || [];
+            
+            // 2. Fetch Declared MR Records (Pending Testing)
+            const mrResponse = await apiService.getMRTodayRecords(params);
+            const mrData = mrResponse?.responseData || mrResponse || [];
+
+            // 3. Fetch Completed MR Tests (Historical)
+            const testResponse = await apiService.getMRTestTodayRecords(params);
+            const testData = testResponse?.responseData || testResponse || [];
+
+            // Map Verified Batches
+            const mappedVerified = vData.map(item => ({
+                id: item.id,
+                batchNo: item.batchNumber,
+                sleeperType: item.mixDesignReference || 'N/A',
+                castingDate: item.castingDate,
+                waterCubeStatus: item.waterCubeTestStatus ? 'Completed' : 'Not Completed',
+                mrSamplesNeeded: 1, 
+                mrTestType: 'Fresh',
+                status: 'Pending Declaration',
+                originalData: item
+            }));
+
+            // Map Declared Records (Pending Results)
+            const mappedDeclared = mrData.filter(item => !item.testResult || item.testResult === 'Pending').map(item => ({
+                ...item,
+                batchNo: item.batchNumber,
+                sleeperType: item.sleeperType,
+                declaredSamples: [{ bench: item.benchNumber, no: item.sleeperNo }],
+                castingDate: item.createdDate?.split('T')[0], 
+                status: 'Testing Pending',
+                mrTestType: 'Fresh',
+                isTestRecord: false
+            }));
+
+            // Map Completed Tests (Historical)
+            const mappedHistorical = testData.map(item => ({
+                ...item,
+                batchNo: item.batchNumber,
+                sleeperType: item.sleeperType,
+                declaredSamples: [{ bench: item.benchNumber || 'N/A', no: item.sleeperNo || '' }],
+                castingDate: item.castingDate,
+                dateOfTesting: item.createdDate?.split('T')[0],
+                status: 'Pass',
+                isTestRecord: true
+            }));
+            
+            setBatches(mappedVerified);
+            setDeclaredRecords(mappedDeclared);
+            setHistoricalTests(mappedHistorical);
+        } catch (error) {
+            console.error("Failed to fetch MR data:", error);
+            toast.error("Error fetching MR data.");
+        } finally {
+            setLoading(false);
+        }
+    }, [getCommonParams, toast]);
+
+    useEffect(() => {
+        fetchMRData();
+    }, [fetchMRData]);
+
     // Filtered lists for tabs
     const declarationList = useMemo(() => batches.filter(b => b.status === 'Pending Declaration' && b.waterCubeStatus !== 'Rejected'), [batches]);
-    const testingList = useMemo(() => batches.filter(b => b.status === 'Testing Pending'), [batches]);
-    const historicalList = useMemo(() => batches.filter(b => ['Pass', 'Fail', 'Water Cube Testing – Rejected'].includes(b.status)), [batches]);
+    const testingList = useMemo(() => declaredRecords, [declaredRecords]);
+    const historicalList = useMemo(() => historicalTests, [historicalTests]);
 
-    const handleDeclareSamples = (batch, samples) => {
-        setBatches(prev => prev.map(b =>
-            (b.batchNo === batch.batchNo && b.sleeperType === batch.sleeperType)
-                ? { ...b, status: 'Testing Pending', declaredSamples: samples, declarationTime: new Date().toISOString() }
-                : b
-        ));
-        setShowDeclareModal(false);
+    const handleDeclareSamples = async (batch, samples) => {
+        setLoading(true);
+        try {
+            const currentUserId = parseInt(userId || localStorage.getItem('userId'), 10) || 0;
+            const params = getCommonParams();
+
+            if (batch.id && batch.status === 'Testing Pending') {
+                // UPDATE if existing record
+                const payload = {
+                    batchNumber: String(batch.batchNumber),
+                    sleeperType: batch.sleeperType,
+                    benchNumber: String(samples[0].bench),
+                    sleeperNo: samples[0].no,
+                    testResult: batch.testResult || 'Pending',
+                    remarks: batch.remarks || 'Declaration Updated',
+                    vendorCode: params.vendorCode,
+                    plantId: params.plantId,
+                    shift: params.shift,
+                    createdBy: batch.createdBy || currentUserId,
+                    updatedBy: currentUserId
+                };
+                await apiService.updateMRRecord(batch.id, payload);
+                toast.success("Declaration updated successfully!");
+            } else {
+                // CREATE for each sample
+                const promises = samples.map(s => {
+                    const payload = {
+                        batchNumber: String(batch.batchNo),
+                        sleeperType: batch.sleeperType,
+                        benchNumber: String(s.bench),
+                        sleeperNo: s.no,
+                        testResult: 'Pending',
+                        remarks: 'Declared for MR Testing',
+                        vendorCode: params.vendorCode,
+                        plantId: params.plantId,
+                        shift: params.shift,
+                        createdBy: currentUserId,
+                        updatedBy: currentUserId
+                    };
+                    return apiService.createMRRecord(payload);
+                });
+
+                await Promise.all(promises);
+                toast.success("Samples declared successfully!");
+            }
+            
+            setActiveTab('testing');
+            await fetchMRData();
+            setShowDeclareModal(false);
+        } catch (error) {
+            console.error("Failed to declare MR samples:", error);
+            toast.error("Failed to save declaration.");
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const handleSaveTestResults = (batch, results) => {
-        const isRetestNeeded = results.result === 'Retest';
+    const handleSaveTestResults = async (record, results) => {
+        setLoading(true);
+        try {
+            const currentUserId = parseInt(userId || localStorage.getItem('userId'), 10) || 0;
+            const params = getCommonParams();
 
-        setBatches(prev => prev.map(b =>
-            (b.batchNo === batch.batchNo && b.sleeperType === batch.sleeperType)
-                ? {
-                    ...b,
-                    status: isRetestNeeded ? 'Pending Declaration' : results.result,
-                    mrTestType: isRetestNeeded ? 'Retest' : b.mrTestType,
-                    testResults: results,
-                    testingTime: new Date().toISOString()
-                }
-                : b
-        ));
-        setShowTestModal(false);
+            const payload = {
+                batchNumber: String(record.batchNo),
+                sleeperType: record.sleeperType,
+                castingDate: record.castingDate || params.date,
+                vendorCode: params.vendorCode,
+                plantId: params.plantId,
+                shift: params.shift,
+                createdBy: record.createdBy || currentUserId,
+                updatedBy: currentUserId,
+                monmentOfResistanceId: record.monmentOfResistanceId || record.id,
+                details: results.results.map(r => ({
+                    dataType: r.isScada ? 'SCADA' : 'MANUAL',
+                    ct: parseFloat(r.ct) || 0,
+                    cb: parseFloat(r.cb) || 0,
+                    rs: parseFloat(r.rs) || 0
+                }))
+            };
+
+            if (record.isTestRecord) {
+                // UPDATE existing test entry in history
+                await apiService.updateMRTest(record.id, payload);
+                toast.success("Test record updated successfully!");
+            } else {
+                // CREATE new test entry
+                await apiService.createMRTest(payload);
+                toast.success("Test results saved successfully!");
+            }
+
+            setActiveTab('historical');
+            await fetchMRData();
+            setShowTestModal(false);
+        } catch (error) {
+            console.error("Failed to save MR test results:", error);
+            toast.error("Failed to save test results.");
+        } finally {
+            setLoading(false);
+        }
     };
 
     const columnsDeclaration = [
@@ -88,6 +250,31 @@ const MomentOfResistance = () => {
         }
     ];
 
+    const handleDeleteRecord = async (id) => {
+        if (!window.confirm("Are you sure you want to delete this MR record?")) return;
+        setLoading(true);
+        try {
+            await apiService.deleteMRRecord(id);
+            toast.success("Record deleted successfully");
+            await fetchMRData();
+        } catch (error) {
+            console.error("Failed to delete MR record:", error);
+            toast.error("Failed to delete record.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const [showViewModal, setShowViewModal] = useState(false); // No longer purely used by button, but keeping for state consistency if needed or remove
+
+    const isActionable = (createdDate) => {
+        if (!createdDate) return true;
+        const created = new Date(createdDate);
+        const now = new Date();
+        const diffHours = (now - created) / (1000 * 60 * 60);
+        return diffHours <= 8;
+    };
+
     const columnsTesting = [
         { key: 'batchNo', label: 'Batch Number' },
         { key: 'sleeperType', label: 'Sleeper Type' },
@@ -101,13 +288,32 @@ const MomentOfResistance = () => {
             key: 'actions',
             label: 'Actions',
             render: (_, row) => {
-                const canModify = (new Date() - new Date(row.declarationTime)) < (60 * 60 * 1000);
+                const canEdit = isActionable(row.createdDate);
                 return (
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                        {canModify && (
-                            <button className="btn-save" style={{ fontSize: '10px', padding: '4px 8px' }} onClick={() => { setSelectedBatch(row); setShowDeclareModal(true); }}>Modify</button>
-                        )}
-                        <button className="btn-verify" onClick={() => { setSelectedBatch(row); setShowTestModal(true); }}>Enter Test Details</button>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <button 
+                            className="btn-verify" 
+                            style={{ fontSize: '10px', padding: '6px 10px', whiteSpace: 'nowrap' }} 
+                            onClick={() => { setSelectedBatch(row); setShowTestModal(true); }}
+                        >
+                            Enter Test Details
+                        </button>
+                        <button 
+                            className="btn-save" 
+                            style={{ fontSize: '10px', padding: '6px 10px', opacity: canEdit ? 1 : 0.5, whiteSpace: 'nowrap' }} 
+                            disabled={!canEdit}
+                            onClick={() => { setSelectedBatch(row); setShowDeclareModal(true); }}
+                        >
+                            Modify
+                        </button>
+                        <button 
+                            className="btn-save" 
+                            style={{ fontSize: '10px', padding: '6px 10px', background: '#fee2e2', color: '#dc2626', border: '1px solid #fecaca', opacity: canEdit ? 1 : 0.5, whiteSpace: 'nowrap' }} 
+                            disabled={!canEdit}
+                            onClick={() => handleDeleteRecord(row.id)}
+                        >
+                            Delete
+                        </button>
                     </div>
                 );
             }
@@ -117,21 +323,53 @@ const MomentOfResistance = () => {
     const columnsHistorical = [
         { key: 'batchNo', label: 'Batch Number' },
         { key: 'sleeperType', label: 'Sleeper Type' },
-        {
-            key: 'declaredSamples',
-            label: 'Sleeper Number',
-            render: (val) => val?.map(s => `${s.bench}${s.no}`).join(', ')
-        },
+        { key: 'benchNumber', label: 'Bench Number' },
+        { key: 'sleeperNo', label: 'Sleeper No.' },
         { key: 'castingDate', label: 'Date of Casting' },
-        { key: 'testingTime', label: 'Date of Testing', render: (val) => val?.split('T')[0] },
+        { key: 'dateOfTesting', label: 'Date of Testing' },
         {
-            key: 'status',
-            label: 'Result',
-            render: (val) => (
-                <span style={{ fontWeight: '700', color: val === 'Pass' ? '#059669' : '#dc2626' }}>{val}</span>
-            )
+            key: 'actions',
+            label: 'Actions',
+            render: (_, row) => {
+                const canEdit = isActionable(row.createdDate);
+                return (
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <button 
+                            className="btn-save" 
+                            style={{ fontSize: '10px', padding: '6px 10px', opacity: canEdit ? 1 : 0.5, whiteSpace: 'nowrap' }} 
+                            disabled={!canEdit}
+                            onClick={() => { setSelectedBatch(row); setShowTestModal(true); }}
+                        >
+                            Modify
+                        </button>
+                        <button 
+                            className="btn-save" 
+                            style={{ fontSize: '10px', padding: '6px 10px', background: '#fee2e2', color: '#dc2626', border: '1px solid #fecaca', opacity: canEdit ? 1 : 0.5, whiteSpace: 'nowrap' }} 
+                            disabled={!canEdit}
+                            onClick={() => handleDeleteTest(row.id)}
+                        >
+                            Delete
+                        </button>
+                    </div>
+                );
+            }
         }
     ];
+
+    const handleDeleteTest = async (id) => {
+        if (!window.confirm("Are you sure you want to delete this test result?")) return;
+        setLoading(true);
+        try {
+            await apiService.deleteMRTest(id);
+            toast.success("Test record deleted");
+            await fetchMRData();
+        } catch (error) {
+            console.error("Failed to delete MR test:", error);
+            toast.error("Failed to delete record.");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <div className="mr-module cement-forms-scope">
@@ -185,10 +423,17 @@ const MomentOfResistance = () => {
             <div className="tab-content">
                 {activeTab === 'declaration' && (
                     <div className="section-card">
-                        <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between' }}>
+                        <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <h4 style={{ margin: 0, color: '#475569' }}>Pending MR Sample Declaration</h4>
+                            <button 
+                                className="toggle-btn mini" 
+                                onClick={fetchMRData}
+                                disabled={loading}
+                            >
+                                {loading ? 'Refreshing...' : '↻ Refresh Data'}
+                            </button>
                         </div>
-                        <EnhancedDataTable columns={columnsDeclaration} data={declarationList} />
+                        <EnhancedDataTable columns={columnsDeclaration} data={declarationList} loading={loading} />
                     </div>
                 )}
                 {activeTab === 'testing' && (
@@ -214,6 +459,7 @@ const MomentOfResistance = () => {
                     batch={selectedBatch}
                     onClose={() => setShowDeclareModal(false)}
                     onSave={handleDeclareSamples}
+                    isEdit={selectedBatch?.status === 'Testing Pending'}
                 />
             )}
 
@@ -228,9 +474,11 @@ const MomentOfResistance = () => {
     );
 };
 
-const DeclareSampleModal = ({ batch, onClose, onSave }) => {
+const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
     const [samples, setSamples] = useState(
-        Array.from({ length: batch.mrSamplesNeeded || 1 }, () => ({ bench: '', no: '' }))
+        isEdit 
+            ? batch.declaredSamples 
+            : Array.from({ length: batch.mrSamplesNeeded || 1 }, () => ({ bench: '', no: '' }))
     );
 
     const handleUpdate = (idx, field, val) => {
@@ -289,10 +537,18 @@ const DeclareSampleModal = ({ batch, onClose, onSave }) => {
 };
 
 const TestDetailsModal = ({ batch, onClose, onSave }) => {
-    const [manualResults, setManualResults] = useState(
-        batch.declaredSamples.map(s => ({ ...s, ct: '', cb: '', rs: '', date: new Date().toISOString().split('T')[0] }))
-    );
-    const [witnessed, setWitnessed] = useState(batch.declaredSamples.map(() => false));
+    const [manualResults, setManualResults] = useState(() => {
+        if (batch.details && batch.details.length > 0) {
+            return batch.details.map(d => ({
+                ...d,
+                bench: batch.benchNumber,
+                no: batch.sleeperNo,
+                isScada: d.dataType === 'SCADA'
+            }));
+        }
+        return batch.declaredSamples.map(s => ({ ...s, ct: '', cb: '', rs: '', date: new Date().toISOString().split('T')[0] }));
+    });
+    const [witnessed, setWitnessed] = useState(manualResults.map(r => !!r.isScada));
 
     const mockScadaData = useMemo(() => {
         return batch.declaredSamples.map(() => ({
@@ -304,7 +560,13 @@ const TestDetailsModal = ({ batch, onClose, onSave }) => {
 
     const handleWitness = (idx) => {
         const updatedManual = [...manualResults];
-        updatedManual[idx] = { ...updatedManual[idx], ct: mockScadaData[idx].ct, cb: mockScadaData[idx].cb, rs: mockScadaData[idx].rs };
+        updatedManual[idx] = { 
+            ...updatedManual[idx], 
+            ct: mockScadaData[idx].ct, 
+            cb: mockScadaData[idx].cb, 
+            rs: mockScadaData[idx].rs,
+            isScada: true 
+        };
         setManualResults(updatedManual);
 
         const updatedWitnessed = [...witnessed];

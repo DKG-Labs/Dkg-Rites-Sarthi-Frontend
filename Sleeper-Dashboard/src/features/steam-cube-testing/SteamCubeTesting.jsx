@@ -67,7 +67,8 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
                 ...r,
                 status: 'Testing Pending',
                 isTested: false,
-                createdAt: r.createdTime ? new Date(`${DateUtils.formatFromBackend(r.entryDate || r.castingDate)}T${r.createdTime}`) : new Date(),
+                // Use backend createdDate if available (Date & time of Log)
+                createdAt: r.createdDate || r.updatedDate || new Date(),
                 castingDate: DateUtils.formatFromBackend(r.castingDate)
             }));
 
@@ -76,10 +77,10 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
                 ...r,
                 status: 'Completed',
                 isTested: true,
-                createdAt: r.createdTime ? new Date(`${DateUtils.formatFromBackend(r.dateOfCasting)}T${r.lbcTime || '00:00'}`) : new Date(),
+                // Use backend createdDate if available (Date & time of Log)
+                createdAt: r.createdDate || r.updatedDate || new Date(),
                 castingDate: DateUtils.formatFromBackend(r.dateOfCasting),
                 testDate: r.cubeDetails?.[0]?.dateOfTesting ? DateUtils.formatFromBackend(r.cubeDetails[0].dateOfTesting) : null,
-                // Map new cubeDetails to old cubeResults format if UI expects it, or update UI
                 cubeResults: (r.cubeDetails || []).map(cd => ({
                     cubeCode: cd.cubeNo,
                     strength: cd.strength,
@@ -130,13 +131,13 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
     };
 
     const handleModifySample = async (sample) => {
-        // Enforce 24-hour restriction for modification
-        const declarationTime = new Date(sample.castingDate + 'T' + (sample.lbcTime || '00:00'));
-        const diffMs = Date.now() - declarationTime.getTime();
+        // Enforce 8-hour restriction for modification starting from Log time (createdAt)
+        const logTime = new Date(sample.createdAt);
+        const diffMs = Date.now() - logTime.getTime();
         const hoursPassed = diffMs / (1000 * 60 * 60);
 
-        if (hoursPassed > 24) {
-            alert("This record is more than 24 hours old and cannot be modified.");
+        if (hoursPassed > 8) {
+            alert("This record is more than 8 hours old and cannot be modified.");
             return;
         }
 
@@ -269,34 +270,52 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
     const handleDeleteTest = async (id, sampleData) => {
         if (!id) return;
 
-        // Check 24-hour window based on creation time
+        // Check 8-hour window based on log creation time
         const diffMs = Date.now() - new Date(sampleData.createdAt).getTime();
         const hoursPassed = diffMs / (1000 * 60 * 60);
 
-        if (hoursPassed > 24) {
-            alert("This action is only allowed within 24 hours of log creation.");
+        if (hoursPassed > 8) {
+            alert("This action is only allowed within 8 hours of log creation.");
             return;
         }
 
-        const msg = sampleData.isTested 
-            ? "Are you sure you want to remove this test result and move it back to 'Pending'?" 
+        const isResultDeletion = !!sampleData.isTested;
+        const msg = isResultDeletion 
+            ? "Are you sure you want to remove this test result? The sample will move back to 'Testing Pending' table." 
             : "Are you sure you want to delete this sample declaration?";
 
         if (window.confirm(msg)) {
             try {
-                if (sampleData.isTested) {
-                    // Delete test result - this moves it back to pending declaration internally or just removes the test record
+                if (isResultDeletion) {
+                    // Delete test result — this should restore the declaration's status on the backend
                     await apiService.steamCubeResults.delete(id);
+                    
+                    // Immediate UI feedback: update local state before refreshing
+                    setTestedRecords(prev => prev.filter(r => r.id !== id));
+                    
+                    // Re-construct the pending record from the tested ones to show it immediately
+                    const restoredSample = {
+                        ...sampleData,
+                        id: sampleData.steamCubeId || id,
+                        status: 'Testing Pending',
+                        isTested: false,
+                        cubeResults: [] // Clear results
+                    };
+                    setDeclaredSamples(prev => [restoredSample, ...prev]);
+                    
+                    alert('Test result removed. The record has been moved back to the Pending list.');
                 } else {
                     // Hard delete for sample declaration
                     await apiService.deleteSteamCube(id);
+                    setDeclaredSamples(prev => prev.filter(s => s.id !== id));
+                    alert('Sample declaration deleted successfully.');
                 }
                 
-                alert('Action success.');
+                // Final sync with backend
                 loadData();
             } catch (error) {
                 console.error('Error in delete action:', error);
-                alert('Failed: ' + error.message);
+                alert('Failed to complete action: ' + error.message);
             }
         }
     };
@@ -646,7 +665,7 @@ const SteamCubeDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelet
     const createdTime = sample.createdAt ? new Date(sample.createdAt) : new Date();
     const diffMs = Date.now() - createdTime.getTime();
     const hoursPassed = diffMs / (1000 * 60 * 60);
-    const canModifyOrDelete = hoursPassed <= 24;
+    const canModifyOrDelete = hoursPassed <= 8;
 
     const summaryDetails = sample.isTested ? [
         { label: 'Avg Strength', value: `${parseFloat(sample.avgStrength || 0).toFixed(2)} N/mm²` },
@@ -707,7 +726,7 @@ const SteamCubeDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelet
                             }} 
                             disabled={!canModifyOrDelete}
                             onClick={onModify}
-                            title={!canModifyOrDelete ? "Modifications only allowed within 24 hours" : ""}
+                            title={!canModifyOrDelete ? "Modifications only allowed within 8 hours" : ""}
                         >
                             Modify
                         </button>
@@ -847,6 +866,21 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
             cubes: formData.cubes.filter((_, i) => i !== index),
             otherBenches: formData.otherBenches.filter((_, i) => i !== index)
         });
+    };
+
+    const handleLocalSave = () => {
+        if (!formData.cubes || formData.cubes.length === 0) {
+            alert("add atleast one cube for testing");
+            return;
+        }
+
+        // New requirement: Minimum 3 cubes for Line casting
+        if (formData.lineNo && formData.cubes.length < 3) {
+            alert("add atleast 3 cubes for testing in case of line");
+            return;
+        }
+
+        onSave(formData);
     };
 
     // Removal of selectedContainerId as it was tied to the old containers list which is no longer used.
@@ -1057,8 +1091,8 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
                         <button
                             className="btn-verify"
                             style={{ padding: '8px 24px', fontSize: '12px', height: '36px', width: 'auto' }}
-                            onClick={() => onSave(formData)}
-                            disabled={!formData.batchNo || !formData.concreteGrade || formData.cubes.length === 0 || (formData.shedNo && !formData.chamberNo)}
+                            onClick={handleLocalSave}
+                            disabled={!formData.batchNo || !formData.concreteGrade || (formData.shedNo && !formData.chamberNo)}
                         >
                             {isModifying ? 'Update Declaration' : 'Save Declaration'}
                         </button>

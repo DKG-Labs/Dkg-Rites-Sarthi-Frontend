@@ -10,6 +10,12 @@
     gap: 1.5rem;
 }
 
+.sleeper-summary-container .g4 {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+}
+
 .sleeper-summary-container .g2-charts {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -42,4 +48,45 @@
     border-top: 1px dashed #e2e8f0;
     padding-top: 1.5rem;
     font-weight: 500;
+}
+
+/* Print Handling */
+@media screen {
+    .mpia-batch-print-viewport {
+        display: none !important;
+    }
+}
+
+@media print {
+    .no-print {
+        display: none !important;
+    }
+
+    .mpia-batch-print-viewport {
+        display: block !important;
+        position: static !important;
+        width: 100% !important;
+        background: white !important;
+        visibility: visible !important;
+    }
+
+    .mpia-batch-print-viewport *,
+    .mpia-batch-print-viewport .print-container,
+    .mpia-batch-print-viewport .print-container * {
+        visibility: visible !important;
+    }
+
+    .mpia-batch-print-viewport .print-container {
+        page-break-after: always !important;
+        break-after: page !important;
+        display: block !important;
+        position: relative !important;
+        box-shadow: none !important;
+        border: none !important;
+    }
+
+    .mpia-batch-print-viewport .print-container:last-child {
+        page-break-after: auto !important;
+        break-after: auto !important;
+    }
 }

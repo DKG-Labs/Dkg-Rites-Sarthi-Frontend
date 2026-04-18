@@ -48,6 +48,18 @@ const CompactionConcrete = ({
     const showForm = propsShowForm !== undefined ? propsShowForm : localShowForm;
     const setShowForm = propsSetShowForm !== undefined ? propsSetShowForm : setLocalShowForm;
 
+    const [manualForm, setManualForm] = useState({
+        dateOfCasting: dutyDate || new Date().toISOString().split('T')[0],
+        location: activeContainer?.name || (containers[0]?.name || 'Line I'),
+        batchNo: '',
+        benchNo: '',
+        timeOfCasting: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+        minRpm: '',
+        maxRpm: '',
+        minDuration: '',
+        maxDuration: '',
+    });
+
     const [selectedBatch, setSelectedBatch] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [fetchedLocations, setFetchedLocations] = useState([]);
@@ -88,25 +100,18 @@ const CompactionConcrete = ({
         fetchLocations();
     }, [dutyUnit, vendorId]);
 
-    // Fetch batch numbers for compaction (filtered by plant, user, and date)
+    // Fetch batch numbers for compaction (filtered by date and location)
     useEffect(() => {
         const fetchBatches = async () => {
-            const pId = dutyUnit || localStorage.getItem('dutyUnit');
-            const uId = userId || localStorage.getItem('userId');
-            
-            // Format dutyDate to DD/MM/YYYY
-            const dObj = new Date(dutyDate || new Date());
-            const d = String(dObj.getDate()).padStart(2, '0');
-            const m = String(dObj.getMonth() + 1).padStart(2, '0');
-            const y = dObj.getFullYear();
-            const formattedDate = `${d}/${m}/${y}`;
+            // Using ISO format YYYY-MM-DD as observed in API curl
+            const dateToUse = manualForm.dateOfCasting || dutyDate || new Date().toISOString().split('T')[0];
+            const locationToUse = manualForm.location;
 
-            if (pId && uId) {
+            if (dateToUse && locationToUse) {
                 try {
                     const data = await getBatchNosForCompaction({ 
-                        plantId: pId, 
-                        createdBy: uId,
-                        date: formattedDate 
+                        entryDate: dateToUse, 
+                        location: locationToUse
                     });
                     setBatchOptions(data || []);
                 } catch (err) {
@@ -115,7 +120,7 @@ const CompactionConcrete = ({
             }
         };
         fetchBatches();
-    }, [dutyUnit, userId, dutyDate, showForm]); // Added dutyDate to dependencies
+    }, [dutyDate, manualForm.dateOfCasting, manualForm.location, showForm]);
 
     // Mock SCADA Data 
     const [scadaRecords, setScadaRecords] = useState([
@@ -123,17 +128,7 @@ const CompactionConcrete = ({
         { id: 102, time: '10:18', batchNo: '615', benchNo: '13', v1_rpm: 8850, v1_dur: 40, v2_rpm: 9200, v2_dur: 42, v3_rpm: 9050, v3_dur: 45, v4_rpm: 8900, v4_dur: 41, v5_rpm: 9100, v5_dur: 44, v6_rpm: 8870, v6_dur: 43, v7_rpm: 9020, v7_dur: 46, v8_rpm: 8950, v8_dur: 44 },
     ]);
 
-    const [manualForm, setManualForm] = useState({
-        dateOfCasting: dutyDate || new Date().toISOString().split('T')[0],
-        location: activeContainer?.name || (containers[0]?.name || 'Line I'),
-        batchNo: '',
-        benchNo: '',
-        timeOfCasting: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
-        minRpm: '',
-        maxRpm: '',
-        minDuration: '',
-        maxDuration: '',
-    });
+
 
     const [editingId, setEditingId] = useState(null);
 

@@ -249,8 +249,9 @@ export default function CrushingImpactAbrasion20mm({ onSave, onCancel, inventory
                                 <input type="number" step="0.01" {...register("abrasionSampleWt", { required: "Required" })} />
                             </div>
                             <div className="input-group">
-                                <label>Weight of material Coarser then 1.7 mm Size (gms) [C] <span className="required">*</span></label>
+                                <label>Weight of material Coarser than 1.7 mm Size (gms) [C] <span className="required">*</span></label>
                                 <input type="number" step="0.01" {...register("abrasionCoarserWt", { required: "Required" })} />
+                                <span className="hint-text" style={{ fontSize: '10px', color: '#64748b' }}>Formula: (B - C) / B × 100</span>
                             </div>
                             <div className="input-group">
                                 <label>Aggregate Abrasion Value (%) [A]</label>

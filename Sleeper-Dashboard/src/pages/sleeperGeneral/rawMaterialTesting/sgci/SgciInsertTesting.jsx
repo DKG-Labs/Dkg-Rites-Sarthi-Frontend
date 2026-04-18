@@ -420,13 +420,6 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
             <div className="content-title-row" style={{ marginBottom: '24px' }}>
                 <h2 style={{ margin: 0 }}>SGCI Insert Audit Report</h2>
                 <div style={{ display: 'flex', gap: '12px' }}>
-                    <button className="toggle-btn mini" onClick={() => { 
-                        reset(); 
-                        setActiveRequestId(null);
-                        setEditId(null);
-                        setIsPeriodic(true);
-                        setShowForm(true); 
-                    }}>+ Add New (Periodic)</button>
                     <button className="toggle-btn secondary mini" onClick={onBack}>Back to Dashboard</button>
                 </div>
             </div>

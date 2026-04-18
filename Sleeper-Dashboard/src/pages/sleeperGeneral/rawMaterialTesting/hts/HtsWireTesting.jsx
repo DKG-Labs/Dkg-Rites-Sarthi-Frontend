@@ -272,13 +272,6 @@ const HtsWireTesting = ({ onBack, inventoryData = [] }) => {
             <div className="content-title-row" style={{ marginBottom: '24px' }}>
                 <h2 style={{ margin: 0 }}>HTS Wire Testing (Daily)</h2>
                 <div style={{ display: 'flex', gap: '12px' }}>
-                    <button className="toggle-btn mini" onClick={() => { 
-                        reset(); 
-                        setActiveRequestId(null);
-                        setEditId(null);
-                        setIsPeriodic(true);
-                        setShowForm(true); 
-                    }}>+ Add New (Periodic)</button>
                     <button className="toggle-btn secondary mini" onClick={onBack}>Back to Dashboard</button>
                 </div>
             </div>
@@ -327,13 +320,6 @@ const HtsWireTesting = ({ onBack, inventoryData = [] }) => {
                     <div className="table-outer-wrapper fade-in">
                         <div className="content-title-row" style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', marginBottom: 0 }}>
                             <h4 style={{ margin: 0 }}>HTS Quality Logs</h4>
-                            <button className="toggle-btn mini" onClick={() => { 
-                                reset(); 
-                                setActiveRequestId(null);
-                                setEditId(null);
-                                setIsPeriodic(true);
-                                setShowForm(true); 
-                            }}>+ Add New (Periodic)</button>
                         </div>
                         <EnhancedDataTable columns={historyColumns} data={history} emptyMessage="No HTS test records found." />
                     </div>

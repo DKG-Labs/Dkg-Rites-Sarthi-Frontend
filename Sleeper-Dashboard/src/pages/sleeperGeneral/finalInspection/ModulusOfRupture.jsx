@@ -27,10 +27,11 @@ const ModulusOfRupture = () => {
                 apiService.getAllMORTests()
             ]);
 
+            const currentUserId = parseInt(userId || localStorage.getItem('userId') || '0', 10);
             const filteredSamples = (samplesRes.responseData || [])
-                .filter(s => s.plantId === activePlantId);
+                .filter(s => s.plantId === activePlantId && s.createdBy === currentUserId);
             const filteredTests = (testsRes.responseData || [])
-                .filter(t => t.plantId === activePlantId);
+                .filter(t => t.plantId === activePlantId && t.createdBy === currentUserId);
 
             setDeclaredSamples(filteredSamples);
             setTestedSamples(filteredTests);
@@ -100,6 +101,7 @@ const ModulusOfRupture = () => {
                     ...formData,
                     plantId: dutyUnit || localStorage.getItem('dutyUnit'),
                     vendorCode: vendorCode || localStorage.getItem('vendorCode'),
+                    shift: selectedShift || 'General',
                     updatedBy: parseInt(userId || localStorage.getItem('userId') || '118', 10)
                 });
             } else {
@@ -107,6 +109,7 @@ const ModulusOfRupture = () => {
                     ...formData,
                     plantId: dutyUnit || localStorage.getItem('dutyUnit'),
                     vendorCode: vendorCode || localStorage.getItem('vendorCode'),
+                    shift: selectedShift || 'General',
                     createdBy: parseInt(userId || localStorage.getItem('userId') || '118', 10)
                 });
             }
@@ -122,13 +125,23 @@ const ModulusOfRupture = () => {
     const saveTestDetails = async (testData) => {
         try {
             setLoading(true);
-            await apiService.createMORTest({
+            const payload = {
                 ...testData,
-                morSampleId: selectedSample.id,
+                morSampleId: selectedSample.morSampleId || selectedSample.id,
                 plantId: dutyUnit || localStorage.getItem('dutyUnit'),
                 vendorCode: vendorCode || localStorage.getItem('vendorCode'),
-                createdBy: parseInt(userId || localStorage.getItem('userId') || '118', 10)
-            });
+                shift: selectedShift || 'General',
+                createdBy: parseInt(userId || localStorage.getItem('userId') || '118', 10),
+                samplingDate: selectedSample.samplingDate,
+                concreteGrade: selectedSample.concreteGrade,
+                sampleIdentificationNumber: selectedSample.sampleIdentificationNumber
+            };
+
+            if (selectedSample.isTestRecord) {
+                await apiService.updateMORTest(selectedSample.testId, payload);
+            } else {
+                await apiService.createMORTest(payload);
+            }
             setShowTestModal(false);
             fetchData();
         } catch (error) {
@@ -155,10 +168,13 @@ const ModulusOfRupture = () => {
         try {
             if (isTest) {
                 await apiService.deleteMORTest(id);
+                alert('Test record deleted. Sample is now pending again.');
+                setViewMode('declared');
             } else {
                 await apiService.deleteMORSample(id);
+                alert('Sample declaration deleted successfully.');
+                setViewMode('declared');
             }
-            alert('Record deleted successfully');
             fetchData();
             setShowViewModal(false);
         } catch (error) {
@@ -202,21 +218,23 @@ const ModulusOfRupture = () => {
 
     const columnsTested = [
         { key: 'samplingDate', label: 'Date of Sampling', render: (_, row) => {
-            const sample = declaredSamples.find(s => s.id === row.morSampleId);
-            return sample ? sample.samplingDate : '-';
+            const val = row.samplingDate || declaredSamples.find(s => s.id === row.morSampleId)?.samplingDate;
+            return val || '-';
         }},
         { key: 'testingDate', label: 'Date of Testing' },
         { key: 'sampleIdentificationNumber', label: 'Sample ID', render: (_, row) => {
-            const sample = declaredSamples.find(s => s.id === row.morSampleId);
-            return sample ? sample.sampleIdentificationNumber : '-';
+            const val = row.sampleIdentificationNumber || declaredSamples.find(s => s.id === row.morSampleId)?.sampleIdentificationNumber;
+            return val || '-';
         }},
-        { key: 'concreteGrade', label: 'Concrete Grade', render: (_, row) => {
-            const sample = declaredSamples.find(s => s.id === row.morSampleId);
-            return sample ? sample.concreteGrade : '-';
+        { key: 'concreteGrade', label: 'Grade', render: (_, row) => {
+            const val = row.concreteGrade || declaredSamples.find(s => s.id === row.morSampleId)?.concreteGrade;
+            return val || '-';
         }},
-        { key: 'strength', label: 'Strength' },
+        { key: 'weight', label: 'Weight (Kg)' },
+        { key: 'loadKn', label: 'Load (N)' },
+        { key: 'strength', label: 'Strength (N/mm²)' },
         { key: 'result', label: 'Result', render: (val) => (
-            <span style={{ color: (val || '').toLowerCase() === 'pass' ? '#059669' : '#dc2626', fontWeight: '700' }}>{val || 'FAIL'}</span>
+            <span style={{ color: (val || '').toLowerCase() === 'pass' ? '#059669' : '#dc2626', fontWeight: '800', fontSize: '11px' }}>{val || 'FAIL'}</span>
         )},
         {
             key: 'actions',
@@ -226,8 +244,8 @@ const ModulusOfRupture = () => {
                     className="btn-verify" 
                     style={{ fontSize: '10px', padding: '6px 14px' }} 
                     onClick={() => { 
-                        const sample = declaredSamples.find(s => s.id === row.morSampleId);
-                        setSelectedSample({ ...row, ...sample, isTestRecord: true }); 
+                        const sampleInfo = declaredSamples.find(s => s.id === row.morSampleId);
+                        setSelectedSample({ ...sampleInfo, ...row, testId: row.id, morSampleId: row.morSampleId, isTestRecord: true }); 
                         setShowViewModal(true); 
                     }}
                 >
@@ -343,8 +361,10 @@ const ModulusOfRupture = () => {
                     onModify={() => {
                         setShowViewModal(false);
                         if (selectedSample.isTestRecord) {
+                            // Currently we don't have isModifying for tests modeled, but we'll open the modal
                             setShowTestModal(true);
                         } else {
+                            setIsModifying(true);
                             setShowDeclareModal(true);
                         }
                     }}
@@ -464,11 +484,11 @@ const MORSampleDeclarationModal = ({ sample, isModifying, onClose, onSave, savin
 
 const MORTestDetailsModal = ({ sample, onClose, onSave, saving }) => {
     const [testData, setTestData] = useState({
-        testingDate: new Date().toISOString().split('T')[0],
-        weight: '',
-        loadKn: '', // Representing "Load A (Newton)"
-        strength: '', // Representing "Strength C (N/mm²)"
-        remarks: ''
+        testingDate: sample.testingDate || new Date().toISOString().split('T')[0],
+        weight: sample.weight || '',
+        loadKn: sample.loadKn || '', // Representing "Load A (Newton)"
+        strength: sample.strength || '', // Representing "Strength C (N/mm²)"
+        remarks: sample.remarks || ''
     });
 
     let result = 'PENDING';
@@ -554,8 +574,15 @@ const MORDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelete }) =
     const details = [
         { label: 'Sample ID', value: sample.sampleIdentificationNumber },
         { label: 'Grade', value: sample.concreteGrade },
-        { label: 'Shed/Line', value: sample.shedLine },
+        { label: 'Shed/Line', value: sample.shedLine || '-' },
         { label: 'Sampling Date', value: sample.samplingDate },
+        ...(sample.isTestRecord ? [
+            { label: 'Testing Date', value: sample.testingDate },
+            { label: 'Weight', value: `${sample.weight} Kg` },
+            { label: 'Load', value: `${sample.loadKn} N` },
+            { label: 'Strength', value: `${sample.strength} N/mm²` },
+            { label: 'Result', value: sample.result }
+        ] : []),
         { label: 'Log Created', value: `${createdTime.toLocaleDateString('en-GB')} ${createdTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` }
     ];
 
@@ -576,28 +603,54 @@ const MORDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelete }) =
                         ))}
                     </div>
 
-                    <div style={{ display: 'flex', gap: '12px' }}>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
+                        {!sample.isTestRecord ? (
+                            <button 
+                                className="btn-verify" 
+                                style={{ flex: '1 1 120px', borderRadius: '25px', padding: '10px' }} 
+                                onClick={onEnterTest}
+                            >
+                                Enter Test Details
+                            </button>
+                        ) : null}
+                        
                         <button
                             className="btn-save"
-                            style={{ flex: 1, background: canModifyOrDelete ? '#f1f5f9' : '#f8fafc', color: canModifyOrDelete ? '#64748b' : '#cbd5e1', cursor: canModifyOrDelete ? 'pointer' : 'not-allowed' }}
+                            style={{ 
+                                flex: '1 1 80px', 
+                                background: '#f8fafc', 
+                                border: '1px solid #e2e8f0', 
+                                color: '#475569', 
+                                borderRadius: '25px',
+                                opacity: canModifyOrDelete ? 1 : 0.6,
+                                padding: '10px',
+                                cursor: canModifyOrDelete ? 'pointer' : 'not-allowed',
+                                fontWeight: '700'
+                            }}
                             disabled={!canModifyOrDelete}
                             onClick={onModify}
                         >
                             Modify
                         </button>
+                        
                         <button
-                            className="btn-delete"
-                            style={{ flex: 1, background: canModifyOrDelete ? '#fee2e2' : '#f8fafc', color: canModifyOrDelete ? '#dc2626' : '#94a3b8', cursor: canModifyOrDelete ? 'pointer' : 'not-allowed' }}
+                            className="btn-save"
+                            style={{ 
+                                flex: '1 1 80px', 
+                                background: '#f8fafc', 
+                                border: '1px solid #e2e8f0', 
+                                color: '#475569', 
+                                borderRadius: '25px',
+                                opacity: canModifyOrDelete ? 1 : 0.6,
+                                padding: '10px',
+                                cursor: canModifyOrDelete ? 'pointer' : 'not-allowed',
+                                fontWeight: '700'
+                            }}
                             disabled={!canModifyOrDelete}
                             onClick={() => onDelete(sample.id)}
                         >
                             Delete
                         </button>
-                        {!sample.isTestRecord && (
-                            <button className="btn-verify" style={{ flex: 1.5 }} onClick={onEnterTest}>
-                                Enter Test Details
-                            </button>
-                        )}
                     </div>
                 </div>
             </div>

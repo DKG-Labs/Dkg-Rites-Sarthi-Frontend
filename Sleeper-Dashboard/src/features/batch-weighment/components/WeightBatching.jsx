@@ -111,23 +111,10 @@ const WeightBatching = ({ onWitness, batches = [], selectedBatchNo }) => {
 
     return (
         <div className="scada-monitoring">
-            <div className="filter-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
-                {!selectedBatchNo && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <label style={{ fontWeight: '600', color: '#64748b' }}>Select Batch:</label>
-                        <select
-                            value={activeBatch}
-                            onChange={(e) => setLocalBatch(e.target.value)}
-                            style={{ padding: '0.4rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none' }}
-                        >
-                            <option value="">-- Select --</option>
-                            {batches.map(b => <option key={b.id} value={b.batchNo}>{b.batchNo}</option>)}
-                        </select>
-                    </div>
-                )}
-                <div className="status-indicator" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#3b82f6', fontSize: '0.8rem', fontWeight: '600', marginLeft: selectedBatchNo ? '0' : 'auto' }}>
+            <div className="filter-bar" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '1rem' }}>
+                <div className="status-indicator" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#3b82f6', fontSize: '0.8rem', fontWeight: '600' }}>
                     <span className="pulse-dot" style={{ width: '8px', height: '8px', background: '#3b82f6', borderRadius: '50%' }}></span>
-                    Synchronizing with Plant SCADA...
+                    Synchronizing with Plant SCADA for Batch #{activeBatch || 'N/A'}...
                 </div>
             </div>
 

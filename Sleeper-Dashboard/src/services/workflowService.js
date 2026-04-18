@@ -953,6 +953,87 @@ export const getWaterCubeTestResultsByUser = async (userId) => {
 };
 
 /**
+ * Get all Water Cube Test Results
+ * @returns {Promise<Array>} List of all records
+ */
+export const getAllWaterCubeTests = async () => {
+  try {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_BASE_URL}/water-cube-sample/getAllTests`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch all Water Cube tests');
+    }
+
+    const result = await response.json();
+    return result.responseData || result;
+  } catch (error) {
+    console.error('Error fetching all Water Cube tests:', error);
+    return [];
+  }
+};
+
+/**
+ * Delete Water Cube Test Result
+ * @param {number|string} id - Test ID
+ * @returns {Promise<void>}
+ */
+export const deleteWaterCubeTest = async (id) => {
+  try {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_BASE_URL}/water-cube-sample/testDelete/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to delete Water Cube Test');
+    }
+  } catch (error) {
+    console.error('Error deleting Water Cube Test:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update Water Cube Test Result
+ * @param {Object} data - Updated test data
+ * @param {number|string} id - Test ID
+ * @returns {Promise<Object>} Saved record
+ */
+export const updateWaterCubeTest = async (data, id) => {
+  try {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_BASE_URL}/water-cube-sample/updateTest/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update Water Cube test result');
+    }
+
+    const result = await response.json();
+    return result.responseData || result;
+  } catch (error) {
+    console.error('Error updating Water Cube test result:', error);
+    throw error;
+  }
+};
+
+/**
  * Get Batch Numbers for Compaction filtered by plantId and createdBy
  */
 export const getBatchNosForCompaction = async (params) => {

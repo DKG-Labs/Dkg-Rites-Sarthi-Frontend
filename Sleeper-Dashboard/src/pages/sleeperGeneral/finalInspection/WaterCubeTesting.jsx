@@ -7,7 +7,10 @@ import {
     getWaterCubeSamples, 
     deleteWaterCubeSample,
     saveWaterCubeTestResult,
-    getWaterCubeTestResultsByUser
+    getWaterCubeTestResultsByUser,
+    getAllWaterCubeTests,
+    deleteWaterCubeTest,
+    updateWaterCubeTest
 } from '../../../services/workflowService';
 import { getStoredUser } from '../../../services/authService';
 import { useShift } from '../../../context/ShiftContext';
@@ -174,8 +177,8 @@ const WaterCubeTesting = () => {
                     castingDate: d.castingDate,
                     shift: d.shift,
                     lineNo: d.lineNo,
-                    sample1Raw: d.details?.filter(det => det.sampleNumber === 1).map(det => ({ bench: det.benchNumber, seq: det.sequence })) || [],
-                    sample2Raw: d.details?.filter(det => det.sampleNumber === 2).map(det => ({ bench: det.benchNumber, seq: det.sequence })) || [],
+                    sample1Raw: d.details?.filter(det => det.sampleNumber === 1).sort((a,b) => a.cubeNumber - b.cubeNumber).map(det => ({ id: det.id, bench: det.benchNumber, seq: det.sequence })) || [],
+                    sample2Raw: d.details?.filter(det => det.sampleNumber === 2).sort((a,b) => a.cubeNumber - b.cubeNumber).map(det => ({ id: det.id, bench: det.benchNumber, seq: det.sequence })) || [],
                     sample1: d.details?.filter(det => det.sampleNumber === 1).map(det => `${det.benchNumber}${det.sequence}`) || [],
                     sample2: d.details?.filter(det => det.sampleNumber === 2).map(det => `${det.benchNumber}${det.sequence}`) || [],
                     status: 'Testing Pending',
@@ -217,8 +220,8 @@ const WaterCubeTesting = () => {
                 lineNo: dutyLocation || 'N/A',
                 concreteGrade: formData.grade,
                 details: [
-                    ...formData.sample1Raw.map((c, i) => ({ sampleNumber: 1, cubeNumber: i + 1, benchNumber: c.bench, sequence: c.seq })),
-                    ...formData.sample2Raw.map((c, i) => ({ sampleNumber: 2, cubeNumber: i + 1, benchNumber: c.bench, sequence: c.seq }))
+                    ...formData.sample1Raw.map((c, i) => ({ id: c.id || 0, sampleNumber: 1, cubeNumber: i + 1, benchNumber: c.bench, sequence: c.seq })),
+                    ...formData.sample2Raw.map((c, i) => ({ id: c.id || 0, sampleNumber: 2, cubeNumber: i + 1, benchNumber: c.bench, sequence: c.seq }))
                 ],
                 createdBy: currentUserId
             };
@@ -258,33 +261,38 @@ const WaterCubeTesting = () => {
     const [showTestModal, setShowTestModal] = useState(false);
     const [showTestForm, setShowTestForm] = useState(false);
     const [doneTests, setDoneTests] = useState([]);
+    const [isModifyingTest, setIsModifyingTest] = useState(false);
+    const [selectedTestRecord, setSelectedTestRecord] = useState(null);
 
     // Fetch done tests on mount or when active tab changes
-    useEffect(() => {
-        const fetchDoneTests = async () => {
-            const currentUser = getStoredUser();
-            if (currentUser?.userId) {
-                try {
-                    const results = await getWaterCubeTestResultsByUser(currentUser.userId);
-                    if (results && results.length > 0) {
-                        const mapped = results
-                            .filter(r => r.plantId === (dutyUnit || localStorage.getItem('dutyUnit')))
-                            .map(r => ({
-                            batchNo: r.batchNumber,
-                            castingDate: r.castingDate,
-                            testDate: r.createdDate ? new Date(r.createdDate).toISOString().split('T')[0] : '',
-                            sample1Results: r.details?.filter(d => d.sampleNumber === 1).map(d => d.strengthNmm2) || [],
-                            sample2Results: r.details?.filter(d => d.sampleNumber === 2).map(d => d.strengthNmm2) || [],
-                            avgStrength: r.avgX,
-                            status: r.finalTestResult
-                        }));
-                        setDoneTests(mapped);
-                    }
-                } catch (error) {
-                    console.error("Failed to fetch done tests:", error);
-                }
+    const fetchDoneTests = async () => {
+        try {
+            const results = await getAllWaterCubeTests();
+            if (results && results.length > 0) {
+                const mapped = results
+                    .filter(r => r.plantId === (dutyUnit || localStorage.getItem('dutyUnit')))
+                    .map(r => ({
+                        ...r,
+                        batchNo: r.batchNumber,
+                        castingDate: r.castingDate,
+                        testDate: r.createdDate ? new Date(r.createdDate).toISOString().split('T')[0] : '',
+                        sample1Results: r.details?.filter(d => d.sampleNumber === 1).map(d => d.strengthNmm2) || [],
+                        sample2Results: r.details?.filter(d => d.sampleNumber === 2).map(d => d.strengthNmm2) || [],
+                        avgStrength: r.avgX,
+                        status: r.finalTestResult,
+                        raw: r
+                    }));
+                setDoneTests(mapped);
+            } else {
+                setDoneTests([]);
             }
-        };
+        } catch (error) {
+            console.error("Failed to fetch done tests:", error);
+            setDoneTests([]);
+        }
+    };
+
+    useEffect(() => {
         fetchDoneTests();
     }, [activeTab]);
 
@@ -345,12 +353,15 @@ const WaterCubeTesting = () => {
                 }))
             };
 
-            await saveWaterCubeTestResult(payload);
-            alert("Test results saved successfully!");
+            await (isModifyingTest ? updateWaterCubeTest(payload, selectedTestRecord.id) : saveWaterCubeTestResult(payload));
+            alert(`Test results ${isModifyingTest ? 'updated' : 'saved'} successfully!`);
 
             setShowTestForm(false);
+            setIsModifyingTest(false);
+            setSelectedTestRecord(null);
             setActiveTab('done');
             fetchActiveDeclarations(); // Refresh the active list
+            fetchDoneTests();
         } catch (error) {
             console.error("Error saving test data:", error);
             alert("Failed to save test results.");
@@ -445,15 +456,6 @@ const WaterCubeTesting = () => {
                         >
                             View Details
                         </button>
-                        {canModify && (
-                            <button
-                                className="btn-delete"
-                                style={{ fontSize: '10px', padding: '4px 10px', background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626' }}
-                                onClick={() => handleDeleteSample(row.id)}
-                            >
-                                Delete
-                            </button>
-                        )}
                     </div>
                 );
             }
@@ -586,6 +588,38 @@ const WaterCubeTesting = () => {
                                             {val}
                                         </span>
                                     )
+                                },
+                                {
+                                    key: 'actions',
+                                    label: 'Actions',
+                                    render: (_, row) => (
+                                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                                            <button
+                                                className="btn-save"
+                                                style={{ fontSize: '10px', padding: '4px 8px', background: '#f8fafc', border: '1px solid #e2e8f0', color: '#475569' }}
+                                                onClick={() => {
+                                                    const mockBatchObj = {
+                                                        id: row.waterCubeSampleDeclarationId,
+                                                        productionDeclarationId: row.productionDeclarationId,
+                                                        batchNo: row.batchNumber,
+                                                        grade: row.concreteGrade,
+                                                        castingDate: row.castingDate,
+                                                        shift: row.shift,
+                                                        lineNo: row.lineNo,
+                                                        sample1: row.details?.filter(d => d.sampleNumber === 1).map(d => d.cubeId) || [],
+                                                        sample2: row.details?.filter(d => d.sampleNumber === 2).map(d => d.cubeId) || [],
+                                                        isTested: true, // Mark it as tested
+                                                        raw: row 
+                                                    };
+                                                    setSelectedBatch(mockBatchObj);
+                                                    setSelectedTestRecord(row);
+                                                    setShowTestModal(true);
+                                                }}
+                                            >
+                                                View Details
+                                            </button>
+                                        </div>
+                                    )
                                 }
                             ]}
                             data={doneTests}
@@ -621,7 +655,20 @@ const WaterCubeTesting = () => {
                     }}
                     onSaveTest={() => {
                         setShowTestModal(false);
+                        setIsModifyingTest(selectedBatch?.isTested);
+                        setSelectedTestRecord(selectedBatch?.isTested ? selectedBatch.raw : null);
                         setShowTestForm(true);
+                    }}
+                    onDeleteTest={async (id) => {
+                        try {
+                            await deleteWaterCubeTest(id);
+                            alert("Test record deleted successfully.");
+                            fetchDoneTests();
+                            fetchActiveDeclarations();
+                            setShowTestModal(false);
+                        } catch (err) {
+                            alert("Failed to delete test record.");
+                        }
                     }}
                 />
             )}
@@ -637,6 +684,7 @@ const WaterCubeTesting = () => {
                         <div className="form-modal-body" style={{ maxHeight: '85vh', overflowY: 'auto' }}>
                             <WaterCuredCubeForm
                                 batch={selectedBatch}
+                                preFillData={selectedTestRecord}
                                 onSave={handleSaveTestData}
                                 onCancel={() => setShowTestForm(false)}
                             />
@@ -798,9 +846,12 @@ const SampleDeclarationModal = ({ batch, isModifying, onClose, onSave }) => {
     );
 };
 
-const TestDetailPopup = ({ batch, onClose, onModify, onSaveTest, onDelete }) => {
+const TestDetailPopup = ({ batch, onClose, onModify, onSaveTest, onDelete, onDeleteTest }) => {
     const isEligible = checkEligibility(batch.castingDate);
-    const canModify = (new Date() - new Date(batch.raw?.createdDate || batch.declarationTime || Date.now())) < (8 * 60 * 60 * 1000);
+    // 8 hour restriction logic
+    const createdTime = new Date(batch.raw?.updatedDate || batch.raw?.createdDate || Date.now());
+    const hoursElapsed = (new Date() - createdTime) / (1000 * 60 * 60);
+    const canModifyOrDelete = hoursElapsed < 8;
 
     return (
         <div className="form-modal-overlay" onClick={onClose}>
@@ -843,40 +894,87 @@ const TestDetailPopup = ({ batch, onClose, onModify, onSaveTest, onDelete }) => 
                             </div>
                         )}
 
-                        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '12px' }}>
-                            <div style={{ display: 'flex', gap: '12px' }}>
+                        <div style={{ display: 'flex', gap: '8px', marginTop: '20px', flexWrap: 'wrap' }}>
+                            {!batch.isTested && (
                                 <button
-                                    className="btn-save"
-                                    style={{ flex: 1, background: canModify ? '#f8fafc' : '#f1f5f9', color: canModify ? '#475569' : '#94a3b8', border: '1px solid #e2e8f0', cursor: canModify ? 'pointer' : 'not-allowed', fontSize: '11px' }}
-                                    disabled={!canModify}
-                                    onClick={onModify}
+                                    className="btn-verify"
+                                    style={{ 
+                                        opacity: isEligible ? 1 : 0.5, 
+                                        cursor: isEligible ? 'pointer' : 'not-allowed', 
+                                        flex: 1, 
+                                        padding: '12px 24px',
+                                        fontSize: '13px',
+                                        fontWeight: '600',
+                                        borderRadius: '25px',
+                                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                                        minWidth: '120px',
+                                        transition: 'all 0.2s'
+                                    }}
+                                    disabled={!isEligible}
+                                    onClick={onSaveTest}
                                 >
-                                    Modify Details
+                                    Enter Test Detail
                                 </button>
-                                {canModify && (
-                                    <button
-                                        className="btn-delete"
-                                        style={{ flex: 1, padding: '10px', fontSize: '11px' }}
-                                        onClick={() => {
-                                            if (window.confirm("Delete this declaration?")) {
-                                                // We need to pass the delete handler here or use parent's
-                                                onDelete && onDelete(batch.id);
-                                            }
-                                        }}
-                                    >
-                                        Delete
-                                    </button>
-                                )}
-                            </div>
-                            <button
-                                className="btn-verify"
-                                style={{ opacity: isEligible ? 1 : 0.5, cursor: isEligible ? 'pointer' : 'not-allowed', fontSize: '11px' }}
-                                disabled={!isEligible}
-                                onClick={onSaveTest}
+                            )}
+                            
+                             <button
+                                className="btn-save"
+                                style={{ 
+                                    opacity: canModifyOrDelete ? 1 : 0.5, 
+                                    cursor: canModifyOrDelete ? 'pointer' : 'not-allowed',
+                                    background: '#fff',
+                                    border: '1px solid #e2e8f0',
+                                    color: '#475569',
+                                    flex: 1,
+                                    padding: '12px 24px',
+                                    fontSize: '13px',
+                                    fontWeight: '600',
+                                    borderRadius: '25px',
+                                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                                    minWidth: '100px',
+                                    transition: 'all 0.2s'
+                                }}
+                                disabled={!canModifyOrDelete}
+                                onClick={onModify}
                             >
-                                Save Test Details
+                                Modify {!canModifyOrDelete && ' (Exp.)'}
                             </button>
-                        </div>
+                            <button
+                                className="btn-delete"
+                                style={{ 
+                                    opacity: canModifyOrDelete ? 1 : 0.5, 
+                                    cursor: canModifyOrDelete ? 'pointer' : 'not-allowed',
+                                    background: '#fff',
+                                    border: '1px solid #e2e8f0',
+                                    color: '#475569',
+                                    flex: 1,
+                                    padding: '12px 24px',
+                                    fontSize: '13px',
+                                    fontWeight: '600',
+                                    borderRadius: '25px',
+                                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                                    minWidth: '100px',
+                                    transition: 'all 0.2s'
+                                }}
+                                disabled={!canModifyOrDelete}
+                                onClick={() => {
+                                    if (window.confirm("Delete this record? The sample will return to the previous stage.")) {
+                                        if (batch.isTested) {
+                                            onDeleteTest && onDeleteTest(batch.raw.id);
+                                        } else {
+                                            onDelete && onDelete(batch.id);
+                                        }
+                                    }
+                                }}
+                            >
+                                Delete {!canModifyOrDelete && ' (Exp.)'}
+                            </button>
+                        </div>           
+                            {!canModifyOrDelete && (
+                                <p style={{ fontSize: '10px', color: '#94a3b8', margin: '8px 0 0 0', textAlign: 'center' }}>
+                                    Note: Modify and Delete are only available for 8 hours after declaration.
+                                </p>
+                            )}
                     </div>
                 </div>
             </div>

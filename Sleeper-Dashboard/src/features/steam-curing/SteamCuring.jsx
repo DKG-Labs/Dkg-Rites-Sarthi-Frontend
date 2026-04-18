@@ -550,6 +550,19 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                             }
                             return m;
                         });
+
+                        if (batchData.scadaRecords) {
+                            batchData.scadaRecords = batchData.scadaRecords.map(s => {
+                                if (s.time && typeof s.time === 'object') {
+                                    const h = String(s.time.hour || 0).padStart(2, '0');
+                                    const min = String(s.time.minute || 0).padStart(2, '0');
+                                    const sec = String(s.time.second || 0).padStart(2, '0');
+                                    return { ...s, time: `${h}:${min}:${sec}` };
+                                }
+                                return s;
+                            });
+                        }
+
                         await apiService.updateSteamCuring(editParentId, batchData);
                     }
                 }

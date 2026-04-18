@@ -129,7 +129,7 @@ const MomentOfResistance = () => {
             if (batch.id && batch.status === 'Testing Pending') {
                 // UPDATE if existing record
                 const payload = {
-                    batchNumber: String(batch.batchNumber),
+                    batchNumber: String(batch.batchNumber || batch.batchNo),
                     sleeperType: batch.sleeperType,
                     benchNumber: String(samples[0].bench),
                     sleeperNo: samples[0].no,
@@ -262,11 +262,16 @@ const MomentOfResistance = () => {
         setLoading(true);
         try {
             if (isTest) {
+                // If deleting a test, call the MR Record update to reset status
+                // OR delete the test record and the item should reappear if backend links it
                 await apiService.deleteMRTest(id);
+                toast.success("Test record deleted. Sample is now pending result again.");
+                setActiveTab('testing');
             } else {
                 await apiService.deleteMRRecord(id);
+                toast.success("Declaration deleted. Batch is now pending declaration.");
+                setActiveTab('declaration');
             }
-            toast.success("Record deleted successfully");
             await fetchMRData();
             setShowViewModal(false);
         } catch (error) {
@@ -693,28 +698,54 @@ const MRDetailsModal = ({ batch, onClose, onModify, onEnterTest, onDelete }) => 
                         ))}
                     </div>
 
-                    <div style={{ display: 'flex', gap: '12px' }}>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
+                        {!batch.isTestRecord ? (
+                            <button 
+                                className="btn-verify" 
+                                style={{ flex: '1 1 120px', borderRadius: '25px', padding: '10px' }} 
+                                onClick={onEnterTest}
+                            >
+                                Enter Test Details
+                            </button>
+                        ) : null}
+                        
                         <button
                             className="btn-save"
-                            style={{ flex: 1, background: canModifyOrDelete ? '#f1f5f9' : '#f8fafc', color: canModifyOrDelete ? '#64748b' : '#cbd5e1', cursor: canModifyOrDelete ? 'pointer' : 'not-allowed' }}
+                            style={{ 
+                                flex: '1 1 80px', 
+                                background: '#f8fafc', 
+                                border: '1px solid #e2e8f0', 
+                                color: '#475569', 
+                                borderRadius: '25px',
+                                opacity: canModifyOrDelete ? 1 : 0.6,
+                                padding: '10px',
+                                cursor: canModifyOrDelete ? 'pointer' : 'not-allowed',
+                                fontWeight: '700'
+                            }}
                             disabled={!canModifyOrDelete}
                             onClick={onModify}
                         >
                             Modify
                         </button>
+                        
                         <button
-                            className="btn-delete"
-                            style={{ flex: 1, background: canModifyOrDelete ? '#fee2e2' : '#f8fafc', color: canModifyOrDelete ? '#dc2626' : '#94a3b8', cursor: canModifyOrDelete ? 'pointer' : 'not-allowed' }}
+                            className="btn-save"
+                            style={{ 
+                                flex: '1 1 80px', 
+                                background: '#f8fafc', 
+                                border: '1px solid #e2e8f0', 
+                                color: '#475569', 
+                                borderRadius: '25px',
+                                opacity: canModifyOrDelete ? 1 : 0.6,
+                                padding: '10px',
+                                cursor: canModifyOrDelete ? 'pointer' : 'not-allowed',
+                                fontWeight: '700'
+                            }}
                             disabled={!canModifyOrDelete}
                             onClick={() => onDelete(batch.id)}
                         >
                             Delete
                         </button>
-                        {!batch.isTestRecord && (
-                            <button className="btn-verify" style={{ flex: 1.5 }} onClick={onEnterTest}>
-                                Enter Test Details
-                            </button>
-                        )}
                     </div>
                 </div>
             </div>

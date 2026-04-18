@@ -44,15 +44,15 @@ const SleeperQuality = ({ qualityData }) => {
                 {/* Defect Distribution Pie Chart */}
                 <div className="prof-card">
                     <h3 className="card-title-sm">Defect Distribution Analysis</h3>
-                    <div style={{ width: '100%', height: 400 }}>
+                    <div style={{ width: '100%', height: 320 }}>
                         <ResponsiveContainer>
                             <PieChart>
                                 <Pie
                                     data={defectDistributionData}
                                     cx="50%"
                                     cy="50%"
-                                    innerRadius={80}
-                                    outerRadius={120}
+                                    innerRadius={50}
+                                    outerRadius={80}
                                     paddingAngle={5}
                                     dataKey="value"
                                     label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
@@ -75,15 +75,15 @@ const SleeperQuality = ({ qualityData }) => {
                     <h3 className="card-title-sm">Pareto Analysis (Defect Types)</h3>
                     <div style={{ width: '100%', height: 400 }}>
                         <ResponsiveContainer>
-                            <ComposedChart data={paretoWithPercentage} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                            <ComposedChart data={paretoWithPercentage} margin={{ top: 20, right: 30, left: 20, bottom: 100 }}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                 <XAxis
                                     dataKey="name"
                                     angle={-45}
                                     textAnchor="end"
                                     interval={0}
-                                    height={80}
-                                    tick={{ fontSize: 11, fontWeight: 500, fill: '#64748b' }}
+                                    height={100}
+                                    tick={{ fontSize: 8, fontWeight: 500, fill: '#64748b', dy: 40 }}
                                 />
                                 <YAxis
                                     yAxisId="left"
@@ -118,14 +118,7 @@ const SleeperQuality = ({ qualityData }) => {
                 </div>
             </div>
 
-            <div className="prof-card">
-                <h3 className="card-title-sm">Quarterly Quality Index</h3>
-                <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
-                    <p style={{ color: '#64748b', fontSize: '14px', textAlign: 'center', margin: 0 }}>
-                        Trend analysis for <strong>Water Cured Cube Strength</strong> and <strong>Modulus of Resistance</strong> (MR) will be plotted here after more data points are collected.
-                    </p>
-                </div>
-            </div>
+
         </div>
     );
 };

@@ -486,6 +486,28 @@ const getCementDataByRequestId = async (endpoint, requestId) => {
     }
 };
 
+const getDataById = async (endpoint, id) => {
+    try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${API_BASE_URL}/${endpoint}/${id}`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) return null;
+        const data = await response.json();
+        return data.responseData || data;
+    } catch (error) {
+        console.error(`Error fetching ${endpoint} by id:`, error);
+        return null;
+    }
+};
+
+export const getCement7DayStrengthById = (id) => getDataById('cement-7-day-strength', id);
+export const getCementNormalConsistencyById = (id) => getDataById('cement-normal-consistency', id);
+export const getCementSpecificSurfaceById = (id) => getDataById('cement-specific-surface', id);
+export const getCementSettingTimeById = (id) => getDataById('cement-setting-time', id);
+export const getCementFinenessById = (id) => getDataById('cement-fineness', id);
+
 export const getCement7DayStrengthByReqId = (reqId) => getCementDataByRequestId('cement-7-day-strength', reqId);
 export const getCementNormalConsistencyByReqId = (reqId) => getCementDataByRequestId('cement-normal-consistency', reqId);
 export const getCementSpecificSurfaceByReqId = (reqId) => getCementDataByRequestId('cement-specific-surface', reqId);
@@ -662,6 +684,14 @@ export const getAggregateBulkStatus = async (requestIds) => {
     return {};
   }
 };
+
+export const getAggregate10mmQualityById = (id) => getDataById('aggregate-10mm-quality', id);
+export const getAggregate20mmQualityById = (id) => getDataById('aggregate-20mm-quality', id);
+export const getAggregateFlakinessById = (id) => getDataById('aggregate-flakiness', id);
+export const getAggregateFlakinessElongationById = getAggregateFlakinessById;
+export const getAggregateGranulometricById = (id) => getDataById('aggregate-granulometric', id);
+export const getAggregateGranulometricCurveById = getAggregateGranulometricById;
+export const getAggregateSoundnessById = (id) => getDataById('aggregate-soundness', id);
 
 export const getAggregate10mmQualityByReqId = async (requestId) => {
   try {
@@ -1058,4 +1088,58 @@ export const getBatchNosForCompaction = async (params) => {
     console.error('Error fetching batch numbers for compaction:', error);
     return [];
   }
+};
+
+/**
+ * Generic Fetch for Periodic Testing Data
+ */
+const getPeriodicData = async (endpoint) => {
+    try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${API_BASE_URL}/${endpoint}/periodic`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        if (!response.ok) throw new Error(`Failed to fetch periodic ${endpoint}`);
+        const data = await response.json();
+        return data.responseData || data;
+    } catch (error) {
+        console.error(`Error fetching periodic ${endpoint}:`, error);
+        return [];
+    }
+};
+
+// Cement Periodic Fetchers
+export const getPeriodicCement7DayStrength = () => getPeriodicData('cement-7-day-strength');
+export const getPeriodicCementNormalConsistency = () => getPeriodicData('cement-normal-consistency');
+export const getPeriodicCementSpecificSurface = () => getPeriodicData('cement-specific-surface');
+export const getPeriodicCementSettingTime = () => getPeriodicData('cement-setting-time');
+export const getPeriodicCementFineness = () => getPeriodicData('cement-fineness');
+
+// Aggregate Periodic Fetchers
+export const getPeriodicAggregate10mmQuality = () => getPeriodicData('aggregate-10mm-quality');
+export const getPeriodicAggregate20mmQuality = () => getPeriodicData('aggregate-20mm-quality');
+export const getPeriodicAggregateFlakiness = () => getPeriodicData('aggregate-flakiness');
+export const getPeriodicAggregateGranulometric = () => getPeriodicData('aggregate-granulometric');
+export const getPeriodicAggregateSoundness = () => getPeriodicData('aggregate-soundness');
+
+/**
+ * Generic Delete for Periodic Records
+ */
+export const deletePeriodicRecord = async (endpoint, id) => {
+    try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${API_BASE_URL}/${endpoint}/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error('Failed to delete record');
+        return true;
+    } catch (error) {
+        console.error('Error deleting periodic record:', error);
+        throw error;
+    }
 };

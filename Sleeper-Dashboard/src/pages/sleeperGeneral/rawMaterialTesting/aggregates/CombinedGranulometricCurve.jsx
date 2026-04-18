@@ -1,13 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useShift } from "../../../../context/ShiftContext";
 import { useToast } from "../../../../context/ToastContext";
-import { saveAggregateGranulometric, getAggregateGranulometricByReqId } from "../../../../services/workflowService";
+import { saveAggregateGranulometric, getAggregateGranulometricByReqId, getAggregateGranulometricCurveById } from "../../../../services/workflowService";
 import TrendChart from "../../../../components/common/TrendChart";
 
-const SieveTable = ({ title, sectionType, sieveSizes, sampleWeight, onDataChange }) => {
-    // Only store the raw weights in state
-    const [weights, setWeights] = useState(Array(sieveSizes.length).fill(0));
-
+const SieveTable = ({ title, sectionType, sieveSizes, sampleWeight, weights, onWtChange }) => {
     // Derive the calculated values on every render
     const rows = React.useMemo(() => {
         let cumulative = 0;
@@ -32,17 +29,6 @@ const SieveTable = ({ title, sectionType, sieveSizes, sampleWeight, onDataChange
         });
     }, [weights, sampleWeight, sieveSizes]);
 
-    const handleWtChange = (idx, val) => {
-        const newWeights = [...weights];
-        newWeights[idx] = Number(val) || 0;
-        setWeights(newWeights);
-    };
-
-    // Notify parent of % passing changes
-    useEffect(() => {
-        onDataChange(rows.map(r => r.pctPassing));
-    }, [rows, onDataChange]);
-
     return (
         <div style={{ marginBottom: '2rem' }}>
             <div className="section-title" style={{ background: 'white', border: '1px solid #e2e8f0', padding: '10px 16px', borderRadius: '8px', color: '#101828', fontWeight: 700, marginBottom: '0.5rem', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
@@ -63,7 +49,7 @@ const SieveTable = ({ title, sectionType, sieveSizes, sampleWeight, onDataChange
                         {rows.map((row, idx) => (
                             <tr key={idx}>
                                 <td data-label="Sieve Size" style={{ fontWeight: 600 }}>{row.sieveSize}</td>
-                                <td data-label="Wt. Retained (gms)"><input type="number" min="0" step="0.01" value={row.wtRetained || ''} onChange={(e) => handleWtChange(idx, e.target.value)} /></td>
+                                <td data-label="Wt. Retained (gms)"><input type="number" min="0" step="0.01" value={row.wtRetained || ''} onChange={(e) => onWtChange(idx, e.target.value)} /></td>
                                 <td data-label="Cumm. Wt. Retained" className="readOnly">{row.cummWtRetained.toFixed(2)}</td>
                                 <td data-label="% Retained" className="readOnly">{row.pctRetained.toFixed(2)}%</td>
                                 <td data-label="% Passing" className="readOnly">{row.pctPassing.toFixed(2)}%</td>
@@ -76,7 +62,7 @@ const SieveTable = ({ title, sectionType, sieveSizes, sampleWeight, onDataChange
     );
 };
 
-export default function CombinedGranulometricCurve({ onSave, onCancel, inventoryData = [], initialType = "New Inventory", activeRequestId, editData }) {
+export default function CombinedGranulometricCurve({ onSave, onCancel, inventoryData = [], initialType = "New Inventory", activeRequestId, editId, editData }) {
     const { selectedShift, dutyLocation, dutyDate } = useShift();
     const toast = useToast();
     const sieveSizes = [
@@ -97,36 +83,98 @@ export default function CombinedGranulometricCurve({ onSave, onCancel, inventory
     const [mixCA2, setMixCA2] = useState("");
     const [mixFA, setMixFA] = useState("");
 
-    // % Passing arrays from SieveTables
-    const [pctPassingCA1, setPctPassingCA1] = useState(Array(8).fill(100));
-    const [pctPassingCA2, setPctPassingCA2] = useState(Array(8).fill(100));
-    const [pctPassingFA, setPctPassingFA] = useState(Array(8).fill(100));
+    // Weights per section
+    const [weightsCA1, setWeightsCA1] = useState(Array(8).fill(0));
+    const [weightsCA2, setWeightsCA2] = useState(Array(8).fill(0));
+    const [weightsFA, setWeightsFA] = useState(Array(8).fill(0));
 
     // Grading Ranges manually defined or fetched
     const [limits, setLimits] = useState(sieveSizes.map(() => ({ lower: 0, upper: 100 })));
 
     const [submitting, setSubmitting] = useState(false);
-    const [editId, setEditId] = useState(null);
+    const [editIdState, setEditIdState] = useState(editId || null);
 
     useEffect(() => {
+        if (editId) setEditIdState(editId);
+    }, [editId]);
+
+    // Helper to map weights back from observations
+    const mapObsToWeights = (obs, sizeList) => sizeList.map(size => {
+        const match = obs.find(o => o.sieveSize === size);
+        return match ? match.wtRetained : 0;
+    });
+
+    useEffect(() => {
+        console.log("GranulometricForm Props:", { initialType, editId, editData });
+
+        const handleRecord = (record) => {
+            if (!record) return;
+            console.log("Processing Granulometric Record:", record);
+            if (record.id) setEditIdState(record.id);
+            setConsignmentNo(record.consignmentNo || record.consignment || consignmentNo);
+            setTestDate(record.testDate ? record.testDate.substring(0, 10) : new Date().toISOString().split('T')[0]);
+            setMixCA1(record.mixCa1 || record.mixCA1 || "");
+            setMixCA2(record.mixCa2 || record.mixCA2 || "");
+            setMixFA(record.mixFa || record.mixFA || "");
+            setWtCA1(record.wtCa1 || record.wtCA1 || "");
+            setWtCA2(record.wtCa2 || record.wtCA2 || "");
+            setWtFA(record.wtFa || record.wtFA || "");
+
+            if (record.observations && record.observations.length > 0) {
+                setWeightsCA1(mapObsToWeights(record.observations.filter(o => o.sectionType === 'CA1'), sieveSizes));
+                setWeightsCA2(mapObsToWeights(record.observations.filter(o => o.sectionType === 'CA2'), sieveSizes));
+                setWeightsFA(mapObsToWeights(record.observations.filter(o => o.sectionType === 'FA'), sieveSizes));
+            } else if (record.formEntries) {
+                const relevantEntry = record.formEntries[4];
+                if (relevantEntry && relevantEntry.observations) {
+                    setWeightsCA1(mapObsToWeights(relevantEntry.observations.filter(o => o.sectionType === 'CA1'), sieveSizes));
+                    setWeightsCA2(mapObsToWeights(relevantEntry.observations.filter(o => o.sectionType === 'CA2'), sieveSizes));
+                    setWeightsFA(mapObsToWeights(relevantEntry.observations.filter(o => o.sectionType === 'FA'), sieveSizes));
+                }
+            }
+        };
+
         if (activeRequestId) {
             const row = inventoryData.find(i => i.requestId === activeRequestId);
             if (row) setConsignmentNo(row.consignmentNo);
 
             getAggregateGranulometricByReqId(activeRequestId).then(record => {
-                if (record && record.id) {
-                    setEditId(record.id);
-                    setTestDate(record.testDate ? record.testDate.substring(0, 10) : new Date().toISOString().split('T')[0]);
-                }
+                if (record) handleRecord(record);
             });
+        } else if (initialType === "Periodic" && (editId || editData)) {
+            // Priority 1: Immediate population (Props)
+            if (editData && (editData.consignmentNo || editData.mixCa1 || editData.wtCa1)) {
+                handleRecord(editData);
+            }
+            // Priority 2: Backend Sync (Latest from DB)
+            if (editId) {
+                getAggregateGranulometricCurveById(editId).then(record => {
+                    if (record) handleRecord(record);
+                });
+            }
         }
-    }, [activeRequestId, inventoryData]);
+    }, [activeRequestId, editId, editData, initialType, inventoryData]);
 
     const handleLimitChange = (idx, field, val) => {
         const newLimits = [...limits];
         newLimits[idx][field] = Number(val);
         setLimits(newLimits);
     };
+
+    // Calculate percent passing for each section
+    const getPctPassing = (sectionWeights, sampleWt) => {
+        const A = Number(sampleWt) > 0 ? Number(sampleWt) : 0;
+        let cumulative = 0;
+        return sectionWeights.map(wt => {
+            cumulative += Number(wt);
+            const pctRetained = A > 0 ? (cumulative / A) * 100 : 0;
+            return A > 0 ? Math.max(0, 100 - pctRetained) : 100;
+        });
+    };
+
+    const pctPassingCA1 = getPctPassing(weightsCA1, wtCA1);
+    const pctPassingCA2 = getPctPassing(weightsCA2, wtCA2);
+    const pctPassingFA = getPctPassing(weightsFA, wtFA);
 
     // Calculate Combined Data for Graph
     const combinedGraphData = sieveSizes.map((size, idx) => {
@@ -156,12 +204,41 @@ export default function CombinedGranulometricCurve({ onSave, onCancel, inventory
 
         setSubmitting(true);
         try {
+            const generateObs = (sectionType, sectionWeights, sampleWt, sectionPctPassing) => {
+                const A = Number(sampleWt) > 0 ? Number(sampleWt) : 0;
+                let cumulative = 0;
+                return sieveSizes.map((size, idx) => {
+                    const wtRetained = Number(sectionWeights[idx]) || 0;
+                    cumulative += wtRetained;
+                    const pctRetained = A > 0 ? (cumulative / A) * 100 : 0;
+                    return {
+                        sectionType,
+                        sieveSize: size,
+                        wtRetained,
+                        cummWtRetained: cumulative,
+                        pctRetained,
+                        pctPassing: sectionPctPassing[idx]
+                    };
+                });
+            };
+
+            const obs = [
+                ...generateObs('CA1', weightsCA1, wtCA1, pctPassingCA1),
+                ...generateObs('CA2', weightsCA2, wtCA2, pctPassingCA2),
+                ...generateObs('FA', weightsFA, wtFA, pctPassingFA)
+            ];
+
             const payload = {
                 testDate,
                 consignmentNo,
-                sampleWeights: { CA1: wtCA1, CA2: wtCA2, FA: wtFA },
-                mixProportions: { CA1: mixCA1, CA2: mixCA2, FA: mixFA },
-                combinedPassing: combinedGraphData.map(d => d.combined),
+                typeOfTesting: activeRequestId ? "New Inventory" : "Periodic",
+                mixCa1: Number(mixCA1),
+                mixCa2: Number(mixCA2),
+                mixFa: Number(mixFA),
+                wtCa1: Number(wtCA1),
+                wtCa2: Number(wtCA2),
+                wtFa: Number(wtFA),
+                observations: obs,
                 shift: selectedShift || 'General',
                 lineNo: dutyLocation || 'N/A',
                 dateOfInspection: dutyDate || new Date().toISOString().split('T')[0],
@@ -169,8 +246,8 @@ export default function CombinedGranulometricCurve({ onSave, onCancel, inventory
                 createdBy: parseInt(localStorage.getItem('userId') || '1', 10)
             };
 
-            await saveAggregateGranulometric(payload, editId);
-            toast.success(`Granulometric report ${editId ? 'updated' : 'saved'}!`);
+            await saveAggregateGranulometric(payload, editIdState);
+            toast.success(`Granulometric report ${editIdState ? 'updated' : 'saved'}!`);
             onSave && onSave(payload);
         } catch (error) {
             console.error("Error saving granulometric data:", error);
@@ -208,6 +285,7 @@ export default function CombinedGranulometricCurve({ onSave, onCancel, inventory
                                         {inventoryData.map((c, i) => (
                                             <option key={i} value={c.consignmentNo}>{c.consignmentNo} ({c.vendor})</option>
                                         ))}
+                                        <option value="PERIODIC">-- Periodic Testing --</option>
                                     </select>
                                 )}
                             </div>
@@ -230,9 +308,42 @@ export default function CombinedGranulometricCurve({ onSave, onCancel, inventory
                         </div>
                     </div>
 
-                    <SieveTable title="🟡 SUB-SECTION 1: CA1" sectionType="CA1" sieveSizes={sieveSizes} sampleWeight={Number(wtCA1)} onDataChange={setPctPassingCA1} />
-                    <SieveTable title="🟡 SUB-SECTION 2: CA2" sectionType="CA2" sieveSizes={sieveSizes} sampleWeight={Number(wtCA2)} onDataChange={setPctPassingCA2} />
-                    <SieveTable title="🟡 SUB-SECTION 3: FA (Fine Aggregate)" sectionType="FA" sieveSizes={sieveSizes} sampleWeight={Number(wtFA)} onDataChange={setPctPassingFA} />
+                    <SieveTable 
+                        title="🟡 SUB-SECTION 1: CA1" 
+                        sectionType="CA1" 
+                        sieveSizes={sieveSizes} 
+                        sampleWeight={wtCA1} 
+                        weights={weightsCA1}
+                        onWtChange={(idx, val) => {
+                            const newWeights = [...weightsCA1];
+                            newWeights[idx] = Number(val);
+                            setWeightsCA1(newWeights);
+                        }}
+                    />
+                    <SieveTable 
+                        title="🟡 SUB-SECTION 2: CA2" 
+                        sectionType="CA2" 
+                        sieveSizes={sieveSizes} 
+                        sampleWeight={wtCA2} 
+                        weights={weightsCA2}
+                        onWtChange={(idx, val) => {
+                            const newWeights = [...weightsCA2];
+                            newWeights[idx] = Number(val);
+                            setWeightsCA2(newWeights);
+                        }}
+                    />
+                    <SieveTable 
+                        title="🟡 SUB-SECTION 3: FA (Fine Aggregate)" 
+                        sectionType="FA" 
+                        sieveSizes={sieveSizes} 
+                        sampleWeight={wtFA} 
+                        weights={weightsFA}
+                        onWtChange={(idx, val) => {
+                            const newWeights = [...weightsFA];
+                            newWeights[idx] = Number(val);
+                            setWeightsFA(newWeights);
+                        }}
+                    />
 
                     <div className="section-title" style={{ background: 'white', border: '1px solid #e2e8f0', padding: '10px 16px', borderRadius: '8px', color: '#101828', fontWeight: 700, marginBottom: '0.5rem', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
                         🟡 SUB-SECTION 4: COMBINED PASSING TABLE
@@ -317,7 +428,7 @@ export default function CombinedGranulometricCurve({ onSave, onCancel, inventory
 
                     <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
                         <button type="submit" className="btn-save" style={{ minWidth: '200px' }} disabled={submitting}>
-                            {submitting ? 'Saving...' : 'Submit Curve Report'}
+                            {submitting ? 'Saving...' : editIdState ? 'Update Curve Report' : 'Submit Curve Report'}
                         </button>
                         {onCancel && <button type="button" onClick={onCancel} className="btn-save" style={{ background: '#f1f5f9', color: '#64748b', border: 'none', minWidth: '120px' }} disabled={submitting}>Cancel</button>}
                     </div>

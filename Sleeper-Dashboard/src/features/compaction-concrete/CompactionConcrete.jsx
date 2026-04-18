@@ -11,8 +11,17 @@ const CompactionSubCard = ({ id, title, color, statusDetail, isActive, onClick }
             className={`compaction-sub-card ${isActive ? 'active' : ''}`}
             onClick={onClick}
             style={{
-                borderTop: `4px solid ${color}`,
-                borderColor: isActive ? color : '#e2e8f0',
+                borderWidth: '0px',
+                borderStyle: 'solid',
+                borderTopWidth: '4px',
+                borderTopColor: color,
+                borderRightWidth: '1px',
+                borderBottomWidth: '1px',
+                borderLeftWidth: '1px',
+                borderRightColor: isActive ? color : '#e2e8f0',
+                borderBottomColor: isActive ? color : '#e2e8f0',
+                borderLeftColor: isActive ? color : '#e2e8f0',
+                borderRadius: '12px',
                 '--active-color': color
             }}
         >

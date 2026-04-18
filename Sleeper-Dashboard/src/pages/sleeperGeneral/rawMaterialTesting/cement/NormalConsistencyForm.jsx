@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useShift } from "../../../../context/ShiftContext";
 import { useToast } from "../../../../context/ToastContext";
 import { getStoredUser } from "../../../../services/authService";
-import { saveCementNormalConsistency, getCementNormalConsistencyByReqId } from "../../../../services/workflowService";
+import { saveCementNormalConsistency, getCementNormalConsistencyByReqId, getCementNormalConsistencyById } from "../../../../services/workflowService";
 
 
 const emptyRow = {
@@ -13,7 +13,7 @@ const emptyRow = {
     needle: "",
 };
 
-export default function NormalConsistencyForm({ onSave, onCancel, inventoryData = [], initialType = "New Inventory", activeRequestId, editData, onValueChange }) {
+export default function NormalConsistencyForm({ onSave, onCancel, inventoryData = [], initialType = "New Inventory", activeRequestId, editId, editData, onValueChange }) {
     const { selectedShift, dutyDate, dutyLocation } = useShift();
     const toast = useToast();
     const user = getStoredUser();
@@ -49,44 +49,22 @@ export default function NormalConsistencyForm({ onSave, onCancel, inventoryData 
     const [normalConsistency, setNormalConsistency] = useState("");
     const [qtyOfWater, setQtyOfWater] = useState("");
     const [water85, setWater85] = useState("");
-    const [editId, setEditId] = useState(null);
+    const [editIdState, setEditIdState] = useState(editId || null);
 
     useEffect(() => {
-        if (activeRequestId) {
-            getCementNormalConsistencyByReqId(activeRequestId).then(record => {
-                if (record && record.id) {
-                    setEditId(record.id);
-                    setHeader(prev => ({
-                        ...prev,
-                        typeOfTesting: record.typeOfTesting || prev.typeOfTesting,
-                        consignmentNo: record.consignmentNo || prev.consignmentNo,
-                        roomTemp: record.roomTemp || prev.roomTemp,
-                        sampleWeight: record.sampleWeight || prev.sampleWeight
-                    }));
-                    if (record.observations && record.observations.length > 0) {
-                        const mapped = record.observations.map(o => ({
-                            percent: o.percentWaterAdded || "",
-                            volume: o.volume || "",
-                            addTime: o.timeOfAdding ? o.timeOfAdding.substring(0, 5) : "",
-                            readTime: o.readingTime ? o.readingTime.substring(0, 5) : "",
-                            needle: o.needleReading || ""
-                        }));
-                        const totalMap = mapped.length < 4 
-                            ? [...mapped, ...Array(4 - mapped.length).fill({ ...emptyRow })] 
-                            : mapped;
-                        setRows(totalMap);
-                    }
-                }
-            });
-        } else if (initialType === "Periodic" && editData) {
-            const record = editData;
-            setEditId(record.id);
+        if (editId) setEditIdState(editId);
+    }, [editId]);
+
+    useEffect(() => {
+        console.log("NormalConsistencyForm Props:", { initialType, editId, editData });
+        const handleRecord = (record) => {
+            if (!record) return;
             setHeader(prev => ({
                 ...prev,
-                typeOfTesting: "Periodic",
-                consignmentNo: record.consignmentNo || "",
-                roomTemp: record.roomTemp || "",
-                sampleWeight: record.sampleWeight || 400
+                typeOfTesting: record.typeOfTesting || prev.typeOfTesting,
+                consignmentNo: record.consignmentNo || record.consignment || prev.consignmentNo,
+                roomTemp: record.roomTemp || record.temp || prev.roomTemp,
+                sampleWeight: record.sampleWeight || record.weight || 400
             }));
             if (record.observations && record.observations.length > 0) {
                 const mapped = record.observations.map(o => ({
@@ -101,8 +79,29 @@ export default function NormalConsistencyForm({ onSave, onCancel, inventoryData 
                     : mapped;
                 setRows(totalMap);
             }
+        };
+
+        if (activeRequestId) {
+            getCementNormalConsistencyByReqId(activeRequestId).then(record => {
+                if (record && (record.id || record.consignmentNo)) {
+                    setEditIdState(record.id || null);
+                    handleRecord(record);
+                }
+            });
+        } else if (initialType === "Periodic" && (editId || editData)) {
+            // Priority 1: Use pre-loaded editData immediately
+            if (editData && (editData.observations || editData.consignmentNo)) {
+                handleRecord(editData);
+            }
+            
+            // Priority 2: Fetch full record by ID as fallback/sync
+            if (editId) {
+                getCementNormalConsistencyById(editId).then(record => {
+                    if (record) handleRecord(record);
+                });
+            }
         }
-    }, [activeRequestId, editData, initialType]);
+    }, [activeRequestId, editId, editData, initialType]);
 
     // handle table input
     const updateRow = (index, field, value) => {
@@ -174,8 +173,8 @@ export default function NormalConsistencyForm({ onSave, onCancel, inventoryData 
                     }))
             };
 
-            await saveCementNormalConsistency(payload, editId);
-            toast.success(`Cement Normal Consistency record ${editId ? 'updated' : 'saved'} successfully!`);
+            await saveCementNormalConsistency(payload, editIdState);
+            toast.success(`Cement Normal Consistency record ${editIdState ? 'updated' : 'saved'} successfully!`);
             if (onSave) onSave(payload);
         } catch (error) {
             console.error("Save failed:", error);
@@ -351,7 +350,7 @@ export default function NormalConsistencyForm({ onSave, onCancel, inventoryData 
 
                 <div className="btn-group" style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
                     <button type="submit" className="btn-save" disabled={loading}>
-                        {loading ? "Saving..." : editId ? "Update Test Report" : "Submit Test Report"}
+                        {loading ? "Saving..." : editIdState ? "Update Test Report" : "Submit Test Report"}
                     </button>
                     <button type="button" className="btn-save" style={{ background: '#64748b' }} onClick={onCancel}>
                         Cancel

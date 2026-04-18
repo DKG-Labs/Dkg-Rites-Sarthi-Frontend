@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useShift } from "../../../../context/ShiftContext";
 import { useToast } from "../../../../context/ToastContext";
-import { saveAggregateFlakiness, getAggregateFlakinessByReqId } from "../../../../services/workflowService";
+import { saveAggregateFlakiness, getAggregateFlakinessByReqId, getAggregateFlakinessElongationById } from "../../../../services/workflowService";
 
 const FlakinessTable = ({ title, category, sieveData, initialRows, onDataChange }) => {
     const [rows, setRows] = useState(sieveData.map(s => ({
@@ -97,7 +97,7 @@ const FlakinessTable = ({ title, category, sieveData, initialRows, onDataChange 
     );
 };
 
-export default function CombinedFlakinessElongation({ onSave, onCancel, inventoryData = [], initialType = "New Inventory", activeRequestId, editData }) {
+export default function CombinedFlakinessElongation({ onSave, onCancel, inventoryData = [], initialType = "New Inventory", activeRequestId, editId, editData }) {
     const { selectedShift, dutyLocation, dutyDate } = useShift();
     const toast = useToast();
     const [testDate, setTestDate] = useState(new Date().toISOString().split('T')[0]);
@@ -106,26 +106,51 @@ export default function CombinedFlakinessElongation({ onSave, onCancel, inventor
     const [data10, setData10] = useState({ rows: [] });
     const [initRows20, setInitRows20] = useState([]);
     const [initRows10, setInitRows10] = useState([]);
-    const [editId, setEditId] = useState(null);
-    const [submitting, setSubmitting] = useState(false);
+    const [editIdState, setEditIdState] = useState(editId || null);
 
     useEffect(() => {
+        console.log("FlakinessForm Props:", { initialType, editId, editData });
+        
+        const handleRecord = (record) => {
+            if (!record) return;
+            console.log("Processing Flakiness Record:", record);
+            if (record.id) setEditIdState(record.id);
+            setConsignmentNo(record.consignmentNo || record.consignment || consignmentNo);
+            setTestDate(record.testDate ? record.testDate.substring(0, 10) : new Date().toISOString().split('T')[0]);
+            
+            if (record.observations && record.observations.length > 0) {
+                setInitRows20(record.observations.filter(o => o.category === '20mm'));
+                setInitRows10(record.observations.filter(o => o.category === '10mm'));
+            } else if (record.formEntries) {
+                // Handle case where we might be passing the consolidated row
+                const relevantEntry = record.formEntries[3];
+                if (relevantEntry && relevantEntry.observations) {
+                    setInitRows20(relevantEntry.observations.filter(o => o.category === '20mm'));
+                    setInitRows10(relevantEntry.observations.filter(o => o.category === '10mm'));
+                }
+            }
+        };
+
         if (activeRequestId) {
             const row = inventoryData.find(i => i.requestId === activeRequestId);
             if (row) setConsignmentNo(row.consignmentNo);
-
+            
             getAggregateFlakinessByReqId(activeRequestId).then(record => {
-                if (record && record.id) {
-                    setEditId(record.id);
-                    setTestDate(record.testDate ? record.testDate.substring(0, 10) : new Date().toISOString().split('T')[0]);
-                    if (record.observations && record.observations.length > 0) {
-                        setInitRows20(record.observations.filter(o => o.category === '20mm'));
-                        setInitRows10(record.observations.filter(o => o.category === '10mm'));
-                    }
-                }
+                if (record) handleRecord(record);
             });
+        } else if (initialType === "Periodic" && (editId || editData)) {
+            // Priority 1: Immediate data (props)
+            if (editData && (editData.consignmentNo || editData.combinedIndex || editData.combinedIndex20mm)) {
+                handleRecord(editData);
+            }
+            // Priority 2: Sync with latest from DB
+            if (editId) {
+                getAggregateFlakinessElongationById(editId).then(record => {
+                    if (record) handleRecord(record);
+                });
+            }
         }
-    }, [activeRequestId, inventoryData]);
+    }, [activeRequestId, editId, editData, initialType, inventoryData]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -151,8 +176,8 @@ export default function CombinedFlakinessElongation({ onSave, onCancel, inventor
                 createdBy: parseInt(localStorage.getItem('userId') || '1', 10)
             };
 
-            await saveAggregateFlakiness(payload, editId);
-            toast.success(`Flakiness & Elongation report ${editId ? 'updated' : 'saved'} successfully!`);
+            await saveAggregateFlakiness(payload, editIdState);
+            toast.success(`Flakiness & Elongation report ${editIdState ? 'updated' : 'saved'} successfully!`);
             setConsignmentNo("");
             onSave && onSave(payload);
         } catch (error) {
@@ -236,7 +261,7 @@ export default function CombinedFlakinessElongation({ onSave, onCancel, inventor
 
                     <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem' }}>
                         <button type="submit" className="btn-save" disabled={submitting}>
-                            {submitting ? 'Saving...' : editId ? 'Update Test Report' : 'Submit Test Report'}
+                            {submitting ? 'Saving...' : editIdState ? 'Update Test Report' : 'Submit Test Report'}
                         </button>
                         {onCancel && <button type="button" onClick={onCancel} className="btn-save" style={{ background: '#64748b' }} disabled={submitting}>Cancel</button>}
                     </div>

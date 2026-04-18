@@ -2,13 +2,13 @@ import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useShift } from "../../../../context/ShiftContext";
 import { useToast } from "../../../../context/ToastContext";
-import { saveAggregate10mmQuality, getAggregate10mmQualityByReqId } from "../../../../services/workflowService";
+import { saveAggregate10mmQuality, getAggregate10mmQualityByReqId, getAggregate10mmQualityById } from "../../../../services/workflowService";
 
-export default function CrushingImpactAbrasion10mm({ onSave, onCancel, inventoryData = [], initialType = "New Inventory", activeRequestId, editData }) {
+export default function CrushingImpactAbrasion10mm({ onSave, onCancel, inventoryData = [], initialType = "New Inventory", activeRequestId, editId, editData }) {
     const { selectedShift, dutyDate, dutyLocation } = useShift();
     const toast = useToast();
     const [submitting, setSubmitting] = useState(false);
-    const [editId, setEditId] = useState(null);
+    const [editIdState, setEditIdState] = useState(editId || null);
 
     const { register, watch, setValue, handleSubmit, reset, formState: { errors } } = useForm({
         defaultValues: {
@@ -18,28 +18,40 @@ export default function CrushingImpactAbrasion10mm({ onSave, onCancel, inventory
     });
 
     useEffect(() => {
+        console.log("Crushing10mmForm Props:", { initialType, editId, editData });
+        
+        const handleRecord = (record) => {
+            if (!record) return;
+            console.log("Processing Crushing 10mm Record:", record);
+            if (record.id) setEditIdState(record.id);
+            reset({
+                ...record,
+                typeOfTesting: record.typeOfTesting || "Periodic",
+                consignmentNo: record.consignmentNo || record.consignment || watch("consignmentNo"),
+                testDate: record.testDate ? record.testDate.substring(0, 10) : new Date().toISOString().split('T')[0]
+            });
+        };
+
         if (activeRequestId) {
             const row = inventoryData.find(i => i.requestId === activeRequestId);
-            if (row) {
-                setValue("consignmentNo", row.consignmentNo);
-            }
+            if (row) setValue("consignmentNo", row.consignmentNo);
+            
             getAggregate10mmQualityByReqId(activeRequestId).then(record => {
-                if (record && record.id) {
-                    setEditId(record.id);
-                    reset({
-                        ...record,
-                        testDate: record.testDate ? record.testDate.substring(0, 10) : new Date().toISOString().split('T')[0]
-                    });
-                }
+                if (record) handleRecord(record);
             });
-        } else if (initialType === "Periodic" && editData) {
-            setEditId(editData.id);
-            reset({
-                ...editData,
-                testDate: editData.testDate ? editData.testDate.substring(0, 10) : new Date().toISOString().split('T')[0]
-            });
+        } else if (initialType === "Periodic" && (editId || editData)) {
+            // Priority 1: Immediate data (props)
+            if (editData && (editData.consignmentNo || editData.crushingValue)) {
+                handleRecord(editData);
+            }
+            // Priority 2: Sync with latest from DB
+            if (editId) {
+                getAggregate10mmQualityById(editId).then(record => {
+                    if (record) handleRecord(record);
+                });
+            }
         }
-    }, [activeRequestId, inventoryData, reset, setValue, initialType, editData]);
+    }, [activeRequestId, editId, editData, initialType, reset, setValue, inventoryData]);
 
     // Sections toggle state
     const [expanded, setExpanded] = useState({
@@ -113,8 +125,8 @@ export default function CrushingImpactAbrasion10mm({ onSave, onCancel, inventory
                 createdBy: parseInt(localStorage.getItem('userId') || '1', 10)
             };
 
-            await saveAggregate10mmQuality(payload, editId);
-            toast.success(`Test Report for 10mm Quality ${editId ? 'updated' : 'saved'} successfully!`);
+            await saveAggregate10mmQuality(payload, editIdState);
+            toast.success(`Test Report for 10mm Quality ${editIdState ? 'updated' : 'saved'} successfully!`);
             reset();
             onSave && onSave(payload);
         } catch (error) {
@@ -272,7 +284,7 @@ export default function CrushingImpactAbrasion10mm({ onSave, onCancel, inventory
 
                     <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem' }}>
                         <button type="submit" className="btn-save" disabled={submitting}>
-                            {submitting ? 'Saving...' : editId ? 'Update Test Report' : 'Submit Test Report'}
+                            {submitting ? 'Saving...' : editIdState ? 'Update Test Report' : 'Submit Test Report'}
                         </button>
                         {onCancel && <button type="button" onClick={onCancel} className="btn-save" style={{ background: '#64748b' }} disabled={submitting}>Cancel</button>}
                     </div>

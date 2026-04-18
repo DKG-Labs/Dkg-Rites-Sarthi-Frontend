@@ -152,8 +152,8 @@ export const MOCK_INVENTORY = {
 };
 
 export const MOCK_CEMENT_HISTORY = [
-    { id: 1, testDate: '2025-12-25', testType: 'Periodic', consignmentNo: 'CON-0950', lotNo: 'LOT-X1', surface: '320', initialSetting: '145', finalSetting: '280', consistency: '28%', soundness: '0.5' },
-    { id: 2, testDate: '2026-01-02', testType: 'New Inventory', consignmentNo: 'CON-1001', lotNo: 'LOT-Z5', surface: '315', initialSetting: '155', finalSetting: '295', consistency: '27.5%', soundness: '0.8' },
+    { id: 1, requestId: 'REQ-C-100', testDate: '2025-12-25', testType: 'Periodic', consignmentNo: 'CON-0950', lotNo: 'LOT-X1', surface: '320', initialSetting: '145', finalSetting: '280', consistency: '28%', soundness: '0.5' },
+    { id: 2, requestId: 'REQ-C-101', testDate: '2026-01-02', testType: 'New Inventory', consignmentNo: 'CON-1001', lotNo: 'LOT-Z5', surface: '315', initialSetting: '155', finalSetting: '295', consistency: '27.5%', soundness: '0.8' },
 ];
 
 export const MOCK_AGGREGATES_HISTORY = [

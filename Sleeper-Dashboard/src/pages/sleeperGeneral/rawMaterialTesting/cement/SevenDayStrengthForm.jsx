@@ -2,9 +2,9 @@ import React, { useState, useEffect } from "react";
 import { useShift } from "../../../../context/ShiftContext";
 import { useToast } from "../../../../context/ToastContext";
 import { getStoredUser } from "../../../../services/authService";
-import { saveCement7DayStrength, getCement7DayStrengthByReqId } from "../../../../services/workflowService";
+import { saveCement7DayStrength, getCement7DayStrengthByReqId, getCement7DayStrengthById } from "../../../../services/workflowService";
 
-export default function SevenDayStrengthForm({ onSave, onCancel, inventoryData = [], initialType = "New Inventory", activeRequestId, sharedNC, editData }) {
+export default function SevenDayStrengthForm({ onSave, onCancel, inventoryData = [], initialType = "New Inventory", activeRequestId, sharedNC, editId, editData }) {
     const { selectedShift, dutyDate, dutyLocation } = useShift();
     const toast = useToast();
     const user = getStoredUser();
@@ -30,7 +30,11 @@ export default function SevenDayStrengthForm({ onSave, onCancel, inventoryData =
         soundness: "",
         soundnessResult: ""
     });
-    const [editId, setEditId] = useState(null);
+    const [editIdState, setEditIdState] = useState(editId || null);
+
+    useEffect(() => {
+        if (editId) setEditIdState(editId);
+    }, [editId]);
 
     // Auto-fetch Normal Consistency if available
     useEffect(() => {
@@ -40,6 +44,7 @@ export default function SevenDayStrengthForm({ onSave, onCancel, inventoryData =
     }, [sharedNC]);
 
     useEffect(() => {
+        console.log("SevenDayStrengthForm Props:", { initialType, editId, editData });
         const formatFromISO = (d) => {
             if (!d) return "";
             if (d.includes('-') && d.split('-')[0].length === 4) {
@@ -49,64 +54,53 @@ export default function SevenDayStrengthForm({ onSave, onCancel, inventoryData =
             return d;
         };
 
-        if (activeRequestId) {
-            const row = inventoryData.find(i => i.requestId === activeRequestId);
-            if (row && !form.consignmentNo) {
-                setForm(prev => ({ ...prev, consignmentNo: row.consignmentNo }));
-            }
-            getCement7DayStrengthByReqId(activeRequestId).then(record => {
-                if (record && record.id) {
-                    setEditId(record.id);
-                    setForm(prev => ({
-                        ...prev,
-                        typeOfTesting: record.typeOfTesting || prev.typeOfTesting,
-                        consignmentNo: record.consignmentNo || prev.consignmentNo,
-                        roomTemp: record.roomTemp || prev.roomTemp,
-                        normalConsistency: record.normalConsistency || prev.normalConsistency,
-                        waterRequired: record.waterRequired || prev.waterRequired,
-                        area: record.area || prev.area || 4984,
-                        avgStrength: record.avgStrength || prev.avgStrength,
-                        isValidTest: record.isValidTest !== undefined ? record.isValidTest : prev.isValidTest,
-                        cubeResult: record.cubeResult || prev.cubeResult,
-                        soundness: record.soundness || prev.soundness,
-                        soundnessResult: record.soundnessResult || prev.soundnessResult,
-                        cubes: record.cubes && record.cubes.length > 0 ? record.cubes.map(c => ({
-                            castDate: formatFromISO(c.castDate),
-                            castTime: c.castTime ? c.castTime.substring(0, 5) : "",
-                            testDate: formatFromISO(c.testDate),
-                            testTime: c.testTime ? c.testTime.substring(0, 5) : "",
-                            loadNewton: c.loadNewton || (c.loadKn ? c.loadKn * 1000 : ""),
-                            strength: c.strengthNmm2 || ""
-                        })) : prev.cubes
-                    }));
-                }
-            });
-        } else if (initialType === "Periodic" && editData) {
-            setEditId(editData.id);
+        const handleRecord = (record) => {
+            if (!record) return;
             setForm(prev => ({
                 ...prev,
-                typeOfTesting: "Periodic",
-                consignmentNo: editData.consignmentNo || "",
-                roomTemp: editData.roomTemp || "",
-                normalConsistency: editData.normalConsistency || "",
-                waterRequired: editData.waterRequired || "",
-                area: editData.area || 4984,
-                avgStrength: editData.avgStrength || "",
-                isValidTest: editData.isValidTest !== undefined ? editData.isValidTest : true,
-                cubeResult: editData.cubeResult || "",
-                soundness: editData.soundness || "",
-                soundnessResult: editData.soundnessResult || "",
-                cubes: (editData.cubes && editData.cubes.length > 0) ? editData.cubes.map(c => ({
+                typeOfTesting: record.typeOfTesting || prev.typeOfTesting,
+                consignmentNo: record.consignmentNo || record.consignment || prev.consignmentNo,
+                roomTemp: record.roomTemp || record.temp || prev.roomTemp,
+                normalConsistency: record.normalConsistency || prev.normalConsistency,
+                waterRequired: record.waterRequired || prev.waterRequired,
+                area: record.area || prev.area || 4984,
+                avgStrength: record.avgStrength || prev.avgStrength,
+                isValidTest: record.isValidTest !== undefined ? record.isValidTest : prev.isValidTest,
+                cubeResult: record.cubeResult || prev.cubeResult,
+                soundness: record.soundness || prev.soundness,
+                soundnessResult: record.soundnessResult || prev.soundnessResult,
+                cubes: record.cubes && record.cubes.length > 0 ? record.cubes.map(c => ({
                     castDate: formatFromISO(c.castDate),
                     castTime: c.castTime ? c.castTime.substring(0, 5) : "",
                     testDate: formatFromISO(c.testDate),
                     testTime: c.testTime ? c.testTime.substring(0, 5) : "",
-                    loadNewton: c.loadNewton || "",
-                    strength: c.strength || ""
+                    loadNewton: c.loadNewton || (c.loadKn ? c.loadKn * 1000 : ""),
+                    strength: c.strengthNmm2 || ""
                 })) : prev.cubes
             }));
+        };
+
+        if (activeRequestId) {
+            getCement7DayStrengthByReqId(activeRequestId).then(record => {
+                if (record && (record.id || record.consignmentNo)) {
+                    setEditIdState(record.id || null);
+                    handleRecord(record);
+                }
+            });
+        } else if (initialType === "Periodic" && (editId || editData)) {
+            // Priority 1: Use pre-loaded data
+            if (editData && (editData.consignmentNo || editData.avgStrength || editData.cubeResult)) {
+                handleRecord(editData);
+            }
+            
+            // Priority 2: Fetch by ID
+            if (editId) {
+                getCement7DayStrengthById(editId).then(record => {
+                    if (record) handleRecord(record);
+                });
+            }
         }
-    }, [activeRequestId, inventoryData, editData, initialType]);
+    }, [activeRequestId, editId, editData, initialType]);
 
     // Auto calculate water required
     useEffect(() => {
@@ -207,9 +201,9 @@ export default function SevenDayStrengthForm({ onSave, onCancel, inventoryData =
                 }))
             };
 
-            await saveCement7DayStrength(payload, editId);
+            await saveCement7DayStrength(payload, editIdState);
 
-            toast.success(`Cement 7-Day Strength record ${editId ? 'updated' : 'saved'} successfully!`);
+            toast.success(`Cement 7-Day Strength record ${editIdState ? 'updated' : 'saved'} successfully!`);
             if (onSave) onSave(payload);
         } catch (error) {
             console.error("Save failed:", error);
@@ -417,7 +411,7 @@ export default function SevenDayStrengthForm({ onSave, onCancel, inventoryData =
 
                 <div className="btn-group" style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
                     <button type="submit" className="btn-save" disabled={loading}>
-                        {loading ? "Saving..." : editId ? "Update Inspection Report" : "Save Inspection Report"}
+                        {loading ? "Saving..." : editIdState ? "Update Inspection Report" : "Save Inspection Report"}
                     </button>
                     <button type="button" className="btn-save" style={{ background: '#64748b' }} onClick={onCancel}>
                         Cancel

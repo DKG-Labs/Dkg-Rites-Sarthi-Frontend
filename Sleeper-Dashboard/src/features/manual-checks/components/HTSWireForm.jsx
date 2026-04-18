@@ -431,7 +431,8 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
                         fontWeight: '800',
                         color: formData.status === 'OK' ? '#059669' : formData.status === 'Not OK' ? '#dc2626' : '#64748b',
                         fontSize: '13px',
-                        border: '1px solid',
+                        borderWidth: '1px',
+                        borderStyle: 'solid',
                         borderColor: formData.status === 'OK' ? '#10b981' : formData.status === 'Not OK' ? '#ef4444' : '#e2e8f0',
                         textAlign: 'center'
                     }}>

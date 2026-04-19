@@ -26,6 +26,7 @@ export default function CrushingImpactAbrasion20mm({ onSave, onCancel, inventory
             if (record.id) setEditIdState(record.id);
             reset({
                 ...record,
+                abrasionCoarserWt: record.abrasionPassingWt, // Map DB value back to frontend field
                 typeOfTesting: record.typeOfTesting || "Periodic",
                 consignmentNo: record.consignmentNo || record.consignment || watch("consignmentNo"),
                 testDate: record.testDate ? record.testDate.substring(0, 10) : new Date().toISOString().split('T')[0]
@@ -37,7 +38,11 @@ export default function CrushingImpactAbrasion20mm({ onSave, onCancel, inventory
             if (row) setValue("consignmentNo", row.consignmentNo);
             
             getAggregate20mmQualityByReqId(activeRequestId).then(record => {
-                if (record) handleRecord(record);
+                if (record && (record.id || record.consignmentNo)) {
+                    handleRecord(record);
+                } else {
+                    toast.info("No previous 20mm Quality data found. You can start entering new test results.");
+                }
             });
         } else if (initialType === "Periodic" && (editId || editData)) {
             // Priority 1: Immediate data (props)
@@ -47,7 +52,11 @@ export default function CrushingImpactAbrasion20mm({ onSave, onCancel, inventory
             // Priority 2: Sync with latest from DB
             if (editId) {
                 getAggregate20mmQualityById(editId).then(record => {
-                    if (record) handleRecord(record);
+                    if (record) {
+                        handleRecord(record);
+                    } else {
+                        toast.info("No existing record found in history for this test.");
+                    }
                 });
             }
         }
@@ -116,22 +125,23 @@ export default function CrushingImpactAbrasion20mm({ onSave, onCancel, inventory
     const onSubmit = async (formData) => {
         setSubmitting(true);
         try {
-            const payload = {
-                ...formData,
-                shift: selectedShift || 'General',
-                lineNo: dutyLocation || 'N/A',
-                dateOfInspection: dutyDate,
-                requestId: activeRequestId || null,
-                createdBy: parseInt(localStorage.getItem('userId') || '1', 10)
-            };
+            const payload = { ...formData };
+            payload.shift = selectedShift || 'General';
+            payload.lineNo = dutyLocation || 'N/A';
+            payload.dateOfInspection = dutyDate;
+            payload.requestId = activeRequestId || null;
+            payload.createdBy = parseInt(localStorage.getItem('userId') || '1', 10);
+            if (formData.abrasionCoarserWt !== undefined && formData.abrasionCoarserWt !== null && formData.abrasionCoarserWt !== "") {
+                payload.abrasionPassingWt = parseFloat(formData.abrasionCoarserWt);
+            }
 
-            await saveAggregate20mmQuality(payload, editIdState);
+            const resultSaved = await saveAggregate20mmQuality(payload, editIdState);
+            if (onSave) onSave(resultSaved || payload);
+            
             toast.success(`Test Report for 20mm Quality ${editIdState ? 'updated' : 'saved'} successfully!`);
-            reset();
-            onSave && onSave(payload);
         } catch (error) {
             console.error("Error saving 20mm quality data:", error);
-            toast.error("Failed to save 20mm Quality report. Please try again.");
+            toast.error(error.message || "Failed to save 20mm Quality report. Please try again.");
         } finally {
             setSubmitting(false);
         }

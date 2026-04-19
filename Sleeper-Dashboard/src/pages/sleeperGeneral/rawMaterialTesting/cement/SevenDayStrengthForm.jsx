@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useShift } from "../../../../context/ShiftContext";
 import { useToast } from "../../../../context/ToastContext";
 import { getStoredUser } from "../../../../services/authService";
@@ -8,6 +8,7 @@ export default function SevenDayStrengthForm({ onSave, onCancel, inventoryData =
     const { selectedShift, dutyDate, dutyLocation } = useShift();
     const toast = useToast();
     const user = getStoredUser();
+    const hasNotifiedRef = useRef(false);
 
     const [loading, setLoading] = useState(false);
     const [form, setForm] = useState({
@@ -85,6 +86,9 @@ export default function SevenDayStrengthForm({ onSave, onCancel, inventoryData =
                 if (record && (record.id || record.consignmentNo)) {
                     setEditIdState(record.id || null);
                     handleRecord(record);
+                } else if (!hasNotifiedRef.current) {
+                    toast.info("No previous 7-Day Strength data found. You can start entering new test results.");
+                    hasNotifiedRef.current = true;
                 }
             });
         } else if (initialType === "Periodic" && (editId || editData)) {
@@ -96,7 +100,11 @@ export default function SevenDayStrengthForm({ onSave, onCancel, inventoryData =
             // Priority 2: Fetch by ID
             if (editId) {
                 getCement7DayStrengthById(editId).then(record => {
-                    if (record) handleRecord(record);
+                    if (record) {
+                        handleRecord(record);
+                    } else {
+                        toast.info("No existing record found in history for this test.");
+                    }
                 });
             }
         }
@@ -173,7 +181,7 @@ export default function SevenDayStrengthForm({ onSave, onCancel, inventoryData =
             };
 
             const payload = {
-                testDate: new Date().toISOString().split('T')[0],
+                testDate: form.testDate || new Date().toISOString().split('T')[0],
                 typeOfTesting: form.typeOfTesting,
                 consignmentNo: form.consignmentNo,
                 roomTemp: parseFloat(form.roomTemp),
@@ -201,13 +209,13 @@ export default function SevenDayStrengthForm({ onSave, onCancel, inventoryData =
                 }))
             };
 
-            await saveCement7DayStrength(payload, editIdState);
+            const resultSaved = await saveCement7DayStrength(payload, editIdState);
+            if (onSave) onSave(resultSaved || payload);
 
             toast.success(`Cement 7-Day Strength record ${editIdState ? 'updated' : 'saved'} successfully!`);
-            if (onSave) onSave(payload);
         } catch (error) {
             console.error("Save failed:", error);
-            toast.error("Error saving record. Please check console.");
+            toast.error(error.message || "Unable to save test record. Please try again.");
         } finally {
             setLoading(false);
         }

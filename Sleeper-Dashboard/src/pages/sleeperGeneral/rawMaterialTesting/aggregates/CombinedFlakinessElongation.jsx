@@ -107,6 +107,7 @@ export default function CombinedFlakinessElongation({ onSave, onCancel, inventor
     const [initRows20, setInitRows20] = useState([]);
     const [initRows10, setInitRows10] = useState([]);
     const [editIdState, setEditIdState] = useState(editId || null);
+    const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
         console.log("FlakinessForm Props:", { initialType, editId, editData });
@@ -136,7 +137,11 @@ export default function CombinedFlakinessElongation({ onSave, onCancel, inventor
             if (row) setConsignmentNo(row.consignmentNo);
             
             getAggregateFlakinessByReqId(activeRequestId).then(record => {
-                if (record) handleRecord(record);
+                if (record && (record.id || record.consignmentNo)) {
+                    handleRecord(record);
+                } else {
+                    toast.info("No previous Flakiness & Elongation data found. You can start entering new test results.");
+                }
             });
         } else if (initialType === "Periodic" && (editId || editData)) {
             // Priority 1: Immediate data (props)
@@ -146,7 +151,11 @@ export default function CombinedFlakinessElongation({ onSave, onCancel, inventor
             // Priority 2: Sync with latest from DB
             if (editId) {
                 getAggregateFlakinessElongationById(editId).then(record => {
-                    if (record) handleRecord(record);
+                    if (record) {
+                        handleRecord(record);
+                    } else {
+                        toast.info("No existing record found in history for this test.");
+                    }
                 });
             }
         }
@@ -176,13 +185,13 @@ export default function CombinedFlakinessElongation({ onSave, onCancel, inventor
                 createdBy: parseInt(localStorage.getItem('userId') || '1', 10)
             };
 
-            await saveAggregateFlakiness(payload, editIdState);
+            const resultSaved = await saveAggregateFlakiness(payload, editIdState);
+            if (onSave) onSave(resultSaved || payload);
+            
             toast.success(`Flakiness & Elongation report ${editIdState ? 'updated' : 'saved'} successfully!`);
-            setConsignmentNo("");
-            onSave && onSave(payload);
         } catch (error) {
             console.error("Error saving flakiness data:", error);
-            toast.error("Failed to save Flakiness report.");
+            toast.error(error.message || "Failed to save Flakiness report.");
         } finally {
             setSubmitting(false);
         }

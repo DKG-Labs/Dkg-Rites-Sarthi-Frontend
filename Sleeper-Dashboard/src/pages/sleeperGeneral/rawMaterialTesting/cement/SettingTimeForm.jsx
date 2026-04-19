@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useShift } from "../../../../context/ShiftContext";
 import { useToast } from "../../../../context/ToastContext";
 import { getStoredUser } from "../../../../services/authService";
@@ -10,6 +10,7 @@ export default function SettingTimeForm({ onSave, onCancel, inventoryData = [], 
     const { selectedShift, dutyDate, dutyLocation } = useShift();
     const toast = useToast();
     const user = getStoredUser();
+    const hasNotifiedRef = useRef(false);
 
     const [loading, setLoading] = useState(false);
     const [header, setHeader] = useState({
@@ -74,6 +75,9 @@ export default function SettingTimeForm({ onSave, onCancel, inventoryData = [], 
                 if (record && (record.id || record.consignmentNo)) {
                     setEditIdState(record.id || null);
                     handleRecord(record);
+                } else if (!hasNotifiedRef.current) {
+                    toast.info("No previous Setting Time data found. You can start entering new test results.");
+                    hasNotifiedRef.current = true;
                 }
             });
         } else if (initialType === "Periodic" && (editId || editData)) {
@@ -85,7 +89,11 @@ export default function SettingTimeForm({ onSave, onCancel, inventoryData = [], 
             // Priority 2: Fetch by ID
             if (editId) {
                 getCementSettingTimeById(editId).then(record => {
-                    if (record) handleRecord(record);
+                    if (record) {
+                        handleRecord(record);
+                    } else {
+                        toast.info("No existing record found in history for this test.");
+                    }
                 });
             }
         }
@@ -147,7 +155,7 @@ export default function SettingTimeForm({ onSave, onCancel, inventoryData = [], 
         setLoading(true);
         try {
             const payload = {
-                testDate: new Date().toISOString().split('T')[0],
+                testDate: header.testDate || new Date().toISOString().split('T')[0],
                 typeOfTesting: header.type,
                 consignmentNo: header.consignment,
                 roomTemp: parseFloat(header.temp),
@@ -173,12 +181,13 @@ export default function SettingTimeForm({ onSave, onCancel, inventoryData = [], 
                     }))
             };
 
-            await saveCementSettingTime(payload, editIdState);
+            const resultSaved = await saveCementSettingTime(payload, editIdState);
+            if (onSave) onSave(resultSaved || header.consignment);
+            
             toast.success(`Setting Time Test record ${editIdState ? 'updated' : 'saved'} successfully!`);
-            if (onSave) onSave(header.consignment);
         } catch (error) {
             console.error("Save failed:", error);
-            toast.error("Error saving record. Please check console.");
+            toast.error(error.message || "Unable to save test record. Please try again.");
         } finally {
             setLoading(false);
         }

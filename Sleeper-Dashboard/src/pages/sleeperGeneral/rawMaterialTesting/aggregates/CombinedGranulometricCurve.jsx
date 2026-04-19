@@ -139,7 +139,11 @@ export default function CombinedGranulometricCurve({ onSave, onCancel, inventory
             if (row) setConsignmentNo(row.consignmentNo);
 
             getAggregateGranulometricByReqId(activeRequestId).then(record => {
-                if (record) handleRecord(record);
+                if (record && (record.id || record.consignmentNo)) {
+                    handleRecord(record);
+                } else {
+                    toast.info("No previous Granulometric data found. You can start entering new test results.");
+                }
             });
         } else if (initialType === "Periodic" && (editId || editData)) {
             // Priority 1: Immediate population (Props)
@@ -149,7 +153,11 @@ export default function CombinedGranulometricCurve({ onSave, onCancel, inventory
             // Priority 2: Backend Sync (Latest from DB)
             if (editId) {
                 getAggregateGranulometricCurveById(editId).then(record => {
-                    if (record) handleRecord(record);
+                    if (record) {
+                        handleRecord(record);
+                    } else {
+                        toast.info("No existing record found in history for this test.");
+                    }
                 });
             }
         }
@@ -246,12 +254,13 @@ export default function CombinedGranulometricCurve({ onSave, onCancel, inventory
                 createdBy: parseInt(localStorage.getItem('userId') || '1', 10)
             };
 
-            await saveAggregateGranulometric(payload, editIdState);
+            const resultSaved = await saveAggregateGranulometric(payload, editIdState);
+            if (onSave) onSave(resultSaved || payload);
+            
             toast.success(`Granulometric report ${editIdState ? 'updated' : 'saved'}!`);
-            onSave && onSave(payload);
         } catch (error) {
             console.error("Error saving granulometric data:", error);
-            toast.error("Failed to save Granulometric report.");
+            toast.error(error.message || "Failed to save Granulometric report.");
         } finally {
             setSubmitting(false);
         }

@@ -92,7 +92,13 @@ const HtsWireTesting = ({ onBack, inventoryData = [] }) => {
                         setHistory(prev => {
                             const existingIds = new Set(prev.map(p => p.id));
                             const newRecords = fetchedHistory.filter(f => !existingIds.has(f.id));
-                            return [...newRecords, ...prev];
+                            const combined = [...newRecords, ...prev];
+                            return combined.sort((a,b) => {
+                                const dateA = new Date(a.testDate || 0);
+                                const dateB = new Date(b.testDate || 0);
+                                if (dateB - dateA !== 0) return dateB - dateA;
+                                return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+                            });
                         });
                     }
                 }
@@ -124,10 +130,12 @@ const HtsWireTesting = ({ onBack, inventoryData = [] }) => {
                         ...record,
                         testDate: record.testDate ? record.testDate.substring(0, 10) : new Date().toISOString().split('T')[0]
                     });
+                } else {
+                    toast.info("No previous HTS Wire test data found for this request. You can start entering new results.");
                 }
             });
         }
-    }, [activeRequestId, reset]);
+    }, [activeRequestId, reset, toast]);
 
     // Removed coilNo watch and useEffect
 
@@ -151,23 +159,27 @@ const HtsWireTesting = ({ onBack, inventoryData = [] }) => {
 
             await saveHtsWireDailyTest(payload, editId);
             toast.success(`HTS Wire daily test result ${editId ? 'updated' : 'saved'} successfully!`);
-            // In real app re-fetch history
-        } catch (error) {
-            console.error("Error saving HTS wire test:", error);
-            toast.error("Failed to save HTS wire test result.");
-        } finally {
+            
             setShowForm(false);
             reset();
             setActiveRequestId(null);
             setEditId(null);
             setIsPeriodic(false);
             setRefreshTrigger(prev => prev + 1);
+        } catch (error) {
+            console.error("Error saving HTS wire test:", error);
+            toast.error(error.message || "Failed to save HTS wire test result.");
         }
     };
 
     const handleDelete = (id) => {
-        if (window.confirm('Delete this record?')) {
-            setHistory(prev => prev.filter(h => h.id !== id));
+        if (window.confirm('Are you sure you want to delete this test record?')) {
+            try {
+                setHistory(prev => prev.filter(h => h.id !== id));
+                toast.success("Record removed from local history list.");
+            } catch (error) {
+                toast.error("Failed to delete record.");
+            }
         }
     };
 

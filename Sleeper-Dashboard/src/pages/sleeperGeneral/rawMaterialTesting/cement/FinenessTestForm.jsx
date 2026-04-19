@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useShift } from "../../../../context/ShiftContext";
 import { useToast } from "../../../../context/ToastContext";
 import { getStoredUser } from "../../../../services/authService";
@@ -8,6 +8,7 @@ export default function FinenessTestForm({ onSave, onCancel, inventoryData = [],
     const { selectedShift, dutyDate, dutyLocation } = useShift();
     const toast = useToast();
     const user = getStoredUser();
+    const hasNotifiedRef = useRef(false);
 
     const [loading, setLoading] = useState(false);
     const [header, setHeader] = useState({
@@ -55,6 +56,9 @@ export default function FinenessTestForm({ onSave, onCancel, inventoryData = [],
                 if (record && (record.id || record.consignmentNo)) {
                     setEditIdState(record.id || null);
                     handleRecord(record);
+                } else if (!hasNotifiedRef.current) {
+                    toast.info("No previous Fineness data found. You can start entering new test results.");
+                    hasNotifiedRef.current = true;
                 }
             });
         } else if (initialType === "Periodic" && (editId || editData)) {
@@ -66,7 +70,11 @@ export default function FinenessTestForm({ onSave, onCancel, inventoryData = [],
             // Second Priority: Fetch by ID
             if (editId) {
                 getCementFinenessById(editId).then(record => {
-                    if (record) handleRecord(record);
+                    if (record) {
+                        handleRecord(record);
+                    } else {
+                        toast.info("No existing record found in history for this test.");
+                    }
                 });
             }
         }
@@ -123,7 +131,7 @@ export default function FinenessTestForm({ onSave, onCancel, inventoryData = [],
         setLoading(true);
         try {
             const payload = {
-                testDate: new Date().toISOString().split('T')[0],
+                testDate: header.testDate || new Date().toISOString().split('T')[0],
                 typeOfTesting: header.typeOfTesting,
                 consignmentNo: header.consignmentNo,
                 sampleWeightW1: parseFloat(header.sampleWt),
@@ -140,12 +148,13 @@ export default function FinenessTestForm({ onSave, onCancel, inventoryData = [],
                 createdBy: user?.userId || 0
             };
 
-            await saveCementFineness(payload, editIdState);
+            const resultSaved = await saveCementFineness(payload, editIdState);
+            if (onSave) onSave(resultSaved || payload);
+            
             toast.success(`Cement Fineness Test record ${editIdState ? 'updated' : 'saved'} successfully!`);
-            if (onSave) onSave(payload);
         } catch (error) {
             console.error("Save failed:", error);
-            toast.error("Error saving record. Please check console.");
+            toast.error(error.message || "Unable to save test record. Please try again.");
         } finally {
             setLoading(false);
         }

@@ -19,6 +19,7 @@ import {
     getPeriodicCementFineness,
     deletePeriodicRecord
 } from '../../../../services/workflowService';
+import { useToast } from '../../../../context/ToastContext';
 import CollectionAwaitingInspection from '../../../../components/CollectionAwaitingInspection';
 import TrendChart from '../../../../components/common/TrendChart';
 import './CementForms.css';
@@ -51,9 +52,19 @@ const SubCard = ({ id, title, color, count, label, isActive, onClick }) => (
     </div>
 );
 
+const CEMENT_TABS = [
+    { id: 2, label: 'Normal Consistency' },
+    { id: 3, label: 'Specific Surface' },
+    { id: 4, label: 'Setting Time' },
+    { id: 5, label: 'Fineness Test' },
+    { id: 1, label: '7 Day Strength' }
+];
+
 const CementTesting = ({ onBack, inventoryData = [] }) => {
+    const toast = useToast();
     const [viewMode, setViewMode] = useState('new-stocks'); // Default to new stocks
     const [showForm, setShowForm] = useState(false);
+    
     const [activeFormSection, setActiveFormSection] = useState(1);
     const [initialType, setInitialType] = useState("New Inventory");
     const [cementHistory, setCementHistory] = useState(MOCK_CEMENT_HISTORY.filter(h => h.testType !== 'Periodic').map(item => ({
@@ -104,7 +115,14 @@ const CementTesting = ({ onBack, inventoryData = [] }) => {
                     setCementHistory(prev => {
                         const existingIds = new Set(prev.map(p => p.id));
                         const newRecords = fetchedHistory.filter(f => !existingIds.has(f.id));
-                        return [...newRecords, ...prev];
+                        const combined = [...newRecords, ...prev];
+                        // Sort by testDate DESC, then createdAt DESC
+                        return combined.sort((a,b) => {
+                            const dateA = new Date(a.testDate || 0);
+                            const dateB = new Date(b.testDate || 0);
+                            if (dateB - dateA !== 0) return dateB - dateA;
+                            return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+                        });
                     });
                 }
             }
@@ -146,11 +164,21 @@ const CementTesting = ({ onBack, inventoryData = [] }) => {
                         console.log(`Consolidation [${key}] - Source ${sourceId}: Set ID ${item.id}`);
                         
                         // Map summary fields
-                        if (sourceId === 1) consolidated[key].strength = item.cubeResult || item.strength7Day || '-';
-                        if (sourceId === 2) consolidated[key].consistency = item.normalConsistency || item.consistency || '-';
-                        if (sourceId === 3) consolidated[key].surface = item.specificSurfaceInfo || item.surfaceArea || '-';
+                        if (sourceId === 1) consolidated[key].strength = item.cubeResult || item.avgStrength || '-';
+                        if (sourceId === 2) {
+                            // First try direct field, then fallback to calculating from observations
+                            const directVal = item.normalConsistency;
+                            if (directVal) {
+                                consolidated[key].consistency = directVal;
+                            } else if (item.observations && item.observations.length > 0) {
+                                // Find the observation where needle reading is 5-7mm
+                                const target = item.observations.find(o => o.needleReading >= 5 && o.needleReading <= 7);
+                                if (target) consolidated[key].consistency = target.percentWaterAdded;
+                            }
+                        }
+                        if (sourceId === 3) consolidated[key].surface = item.specificSurfaceFm || item.specificSurfaceInfo || '-';
                         if (sourceId === 4) consolidated[key].settingTime = `${item.initialSettingTime || '-'}/${item.finalSettingTime || '-'}`;
-                        if (sourceId === 5) consolidated[key].fineness = item.finenessPercentage || '-';
+                        if (sourceId === 5) consolidated[key].fineness = item.percentageFineness || item.finenessPercentage || '-';
                     });
                 };
 
@@ -160,7 +188,13 @@ const CementTesting = ({ onBack, inventoryData = [] }) => {
                 processList(setting, 4);processList(fineness, 5);
 
                 console.log("Final Consolidated Periodic Data:", consolidated);
-                setPeriodicHistory(Object.values(consolidated).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)));
+                const sorted = Object.values(consolidated).sort((a,b) => {
+                    const dateA = new Date(a.testDate || 0);
+                    const dateB = new Date(b.testDate || 0);
+                    if (dateB - dateA !== 0) return dateB - dateA;
+                    return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+                });
+                setPeriodicHistory(sorted);
             } catch (err) {
                 console.error("Failed to fetch periodic data:", err);
             }
@@ -215,7 +249,15 @@ const CementTesting = ({ onBack, inventoryData = [] }) => {
             if (completedSectionId === 1) updatedData.strength = savedData?.cubeResult || savedData?.strength7Day || savedData?.strength || '-';
 
             if (currentRecord && currentRecord.id) {
-                setPeriodicHistory(prev => prev.map(r => r.id === currentRecord.id ? { ...r, ...updatedData } : r));
+                setPeriodicHistory(prev => {
+                    const updated = prev.map(r => r.id === currentRecord.id ? { ...r, ...updatedData } : r);
+                    return updated.sort((a,b) => {
+                        const dateA = new Date(a.testDate || 0);
+                        const dateB = new Date(b.testDate || 0);
+                        if (dateB - dateA !== 0) return dateB - dateA;
+                        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+                    });
+                });
                 setEditItem({ ...currentRecord, ...updatedData });
             } else {
                 const newRecord = {
@@ -224,18 +266,36 @@ const CementTesting = ({ onBack, inventoryData = [] }) => {
                     surface: '-', consistency: '-', settingTime: '-', fineness: '-', strength: '-',
                     ...updatedData
                 };
-                setPeriodicHistory(prev => [newRecord, ...prev]);
+                setPeriodicHistory(prev => {
+                    const combined = [newRecord, ...prev];
+                    return combined.sort((a,b) => {
+                        const dateA = new Date(a.testDate || 0);
+                        const dateB = new Date(b.testDate || 0);
+                        if (dateB - dateA !== 0) return dateB - dateA;
+                        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+                    });
+                });
                 setEditItem(newRecord);
             }
         }
+ 
+        // Route to next section or close if last
+        const sectionId = Number(completedSectionId);
+        const currentIndex = CEMENT_TABS.findIndex(s => s.id === sectionId);
+        
+        console.log(`Cement Save Triggered - Section: ${completedSectionId} (Mapped ID: ${sectionId}), Index: ${currentIndex}`);
 
-        const currentIndex = sections.findIndex(s => s.id === completedSectionId);
-        if (currentIndex !== -1 && currentIndex < sections.length - 1) {
-            setActiveFormSection(sections[currentIndex + 1].id);
-        } else {
+        if (currentIndex !== -1 && currentIndex < CEMENT_TABS.length - 1) {
+            const nextSectionId = CEMENT_TABS[currentIndex + 1].id;
+            console.log(`Routing from cement section ${sectionId} to ${nextSectionId}`);
+            setActiveFormSection(nextSectionId);
+        } else if (currentIndex !== -1) {
+            console.log(`Final cement section ${sectionId} completed. Closing form.`);
             setShowForm(false);
             setEditItem(null);
             setInitialType("New Inventory");
+        } else {
+            console.warn(`Could not determine next section for cement sectionId: ${completedSectionId}. Staying on current section.`);
         }
     };
 
@@ -262,16 +322,16 @@ const CementTesting = ({ onBack, inventoryData = [] }) => {
                     
                     await Promise.all(deletePromises);
                     setPeriodicHistory(prev => prev.filter(h => h.id !== row.id));
-                    alert("Record deleted successfully.");
+                    toast.success("Periodic test record deleted successfully.");
                 } else {
                     // For New Inventory, we usually don't delete the workflow call here, 
                     // but if it's a test record delete logic:
                     setCementHistory(prev => prev.filter(item => item.id !== row.id));
-                    alert("Record removed from history list.");
+                    toast.info("Record removed from local history view.");
                 }
             } catch (err) {
                 console.error("Deletion error:", err);
-                alert("Failed to delete record. Please try again.");
+                toast.error(err.message || "Failed to delete record. Please try again.");
             }
         }
     };
@@ -503,13 +563,6 @@ const CementTesting = ({ onBack, inventoryData = [] }) => {
         }
     };
 
-    const tabLabels = [
-        { id: 2, label: 'Normal Consistency' },
-        { id: 3, label: 'Specific Surface' },
-        { id: 4, label: 'Setting Time' },
-        { id: 5, label: 'Fineness Test' },
-        { id: 1, label: '7 Day Strength' }
-    ];
 
     return (
         <div className="cement-testing-root cement-forms-scope fade-in">
@@ -624,7 +677,7 @@ const CementTesting = ({ onBack, inventoryData = [] }) => {
 
                         <div style={{ background: '#ffffff', padding: '12px 24px', borderBottom: '1px solid #e5e7eb' }}>
                             <div className="nav-tabs" style={{ marginBottom: 0, borderBottom: 'none' }}>
-                                {tabLabels.map(s => (
+                                {CEMENT_TABS.map(s => (
                                     <button
                                         key={s.id}
                                         className={`nav-tab ${activeFormSection === s.id ? 'active' : ''}`}

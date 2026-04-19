@@ -7,6 +7,7 @@ import WaterTesting from './water/WaterTesting';
 import AdmixtureTesting from './admixture/AdmixtureTesting';
 import { getAllCompletedCalls } from '../../../services/workflowService';
 import { useShift } from '../../../context/ShiftContext';
+import { useToast } from '../../../context/ToastContext';
 
 const RawMaterialDashboard = () => {
     const { userId } = useShift();
@@ -15,6 +16,7 @@ const RawMaterialDashboard = () => {
     const [completedCalls, setCompletedCalls] = useState([]);
     const [enrichedData, setEnrichedData] = useState({}); // { requestId: details }
     const [loading, setLoading] = useState(true);
+    const toast = useToast();
 
     useEffect(() => {
         const fetchData = async () => {
@@ -37,9 +39,14 @@ const RawMaterialDashboard = () => {
                         };
                         const type = typeMap[call.moduleId];
                         if (type) {
-                            const details = await import('../../../services/workflowService').then(m => m.getMaterialDetail(type, call.requestId));
-                            if (details) {
-                                detailsMap[call.requestId] = details;
+                            try {
+                                const details = await import('../../../services/workflowService').then(m => m.getMaterialDetail(type, call.requestId));
+                                if (details) {
+                                    detailsMap[call.requestId] = details;
+                                }
+                            } catch (err) {
+                                console.error(`Error fetching detail for requestId ${call.requestId} (type: ${type}):`, err);
+                                // Continue with other requests
                             }
                         }
                     }
@@ -49,12 +56,13 @@ const RawMaterialDashboard = () => {
                 setEnrichedData(detailsMap);
             } catch (err) {
                 console.error("Failed to fetch calls:", err);
+                toast.error("Failed to load raw material testing data. Please try again later.");
             } finally {
                 setLoading(false);
             }
         };
         fetchData();
-    }, []);
+    }, [effectiveUserId]); // Removed toast to prevent re-fetch on every notification
 
     // Filter logic based on user requirements:
     // 1. Module ID must match (Cement: 6, Aggregates: 8, HTS: 5, SGCI: 9, Water: 10)
@@ -82,12 +90,13 @@ const RawMaterialDashboard = () => {
         { id: 'aggregates', title: 'Aggregate Testing', subtitle: 'Periodic & New Batch', moduleId: 8 },
         { id: 'hts-wire', title: 'HTS Wire Testing', subtitle: 'Daily mandatory', moduleId: 5 },
         { id: 'sgci', title: 'SGCI Insert Testing', subtitle: 'Weekly summary', moduleId: 9 },
-        // { id: 'admixture', title: 'Admixture Testing', subtitle: 'Batch verification', moduleId: 7 },
+        { id: 'admixture', title: 'Admixture Testing', subtitle: 'Batch verification', moduleId: 7 },
         { id: 'water', title: 'Water Testing', subtitle: 'PH & TDS monthly', moduleId: 10 }
     ];
 
     const renderContent = () => {
-        if (loading) return <div className="loading-state">Loading testing data...</div>;
+        // Only show fullscreen loading if no material is selected and we are loading
+        if (loading && !selectedMaterial) return <div className="loading-state">Loading testing data...</div>;
 
         switch (selectedMaterial) {
             case 'cement': 
@@ -110,11 +119,11 @@ const RawMaterialDashboard = () => {
                     onBack={() => setSelectedMaterial(null)} 
                     inventoryData={filterCalls(9)} 
                 />;
-            /* case 'admixture':
+            case 'admixture':
                 return <AdmixtureTesting
                     onBack={() => setSelectedMaterial(null)}
                     inventoryData={filterCalls(7)}
-                />; */
+                />;
             case 'water': 
                 return <WaterTesting 
                     onBack={() => setSelectedMaterial(null)} 

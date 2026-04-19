@@ -6,6 +6,48 @@
 import { API_BASE_URL } from './api';
 
 /**
+ * Standardizes API response handling for both HTTP and business-level errors.
+ * Throws a user-friendly error if the backend reports a failure.
+ */
+const handleRawResponse = async (response, fallbackMsg = "System encountered an error") => {
+  if (!response.ok) {
+    // Attempt to extract structured error message from JSON
+    let errorMessage = fallbackMsg;
+    try {
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        const errJson = await response.json();
+        errorMessage = errJson.responseStatus?.message || errJson.message || fallbackMsg;
+      } else {
+        // Handle non-JSON errors (e.g. 500 Internal Server Error page)
+        console.warn(`Server returned non-JSON error (${response.status}): ${response.statusText}`);
+        errorMessage = `${fallbackMsg} (Server Error ${response.status})`;
+      }
+    } catch (e) {
+      console.error("Error parsing error response:", e);
+    }
+    throw new Error(errorMessage);
+  }
+
+  // Handle successful response (200 OK)
+  let json;
+  try {
+    json = await response.json();
+  } catch (e) {
+    console.error("Error parsing success response JSON:", e);
+    throw new Error("Unable to parse server response. Please contact support.");
+  }
+  
+  // Check for business-level errors embedded in success response
+  if (json.responseStatus && (json.responseStatus.errorType === 'error' || (json.responseStatus.statusCode !== 0 && json.responseStatus.statusCode !== 200))) {
+    throw new Error(json.responseStatus.message || fallbackMsg);
+  }
+
+  // return actual data
+  return json.responseData !== undefined ? json.responseData : json;
+};
+
+/**
  * Fetch all completed workflow calls
  * @returns {Promise<Array>} List of completed workflow transitions
  */
@@ -300,24 +342,13 @@ export const deleteWaterCubeSample = async (id) => {
 export const saveCement7DayStrength = async (data, id = null) => {
   try {
     const token = localStorage.getItem('authToken');
-    const url = id 
-        ? `${API_BASE_URL}/cement-7-day-strength/${id}` 
-        : `${API_BASE_URL}/cement-7-day-strength`;
+    const url = id ? `${API_BASE_URL}/cement-7-day-strength/${id}` : `${API_BASE_URL}/cement-7-day-strength`;
     const response = await fetch(url, {
       method: id ? 'PUT' : 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify(data)
     });
-
-    if (!response.ok) {
-      throw new Error('Failed to save 7 Day Strength record');
-    }
-
-    const result = await response.json();
-    return result.responseData || result;
+    return await handleRawResponse(response, 'Failed to save 7 Day Strength record');
   } catch (error) {
     console.error('Error saving 7 Day Strength:', error);
     throw error;
@@ -331,24 +362,13 @@ export const saveCement7DayStrength = async (data, id = null) => {
 export const saveCementNormalConsistency = async (data, id = null) => {
   try {
     const token = localStorage.getItem('authToken');
-    const url = id 
-        ? `${API_BASE_URL}/cement-normal-consistency/${id}` 
-        : `${API_BASE_URL}/cement-normal-consistency`;
+    const url = id ? `${API_BASE_URL}/cement-normal-consistency/${id}` : `${API_BASE_URL}/cement-normal-consistency`;
     const response = await fetch(url, {
       method: id ? 'PUT' : 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify(data)
     });
-
-    if (!response.ok) {
-      throw new Error('Failed to save Normal Consistency record');
-    }
-
-    const result = await response.json();
-    return result.responseData || result;
+    return await handleRawResponse(response, 'Failed to save Normal Consistency record');
   } catch (error) {
     console.error('Error saving Normal Consistency:', error);
     throw error;
@@ -363,24 +383,13 @@ export const saveCementNormalConsistency = async (data, id = null) => {
 export const saveCementSpecificSurface = async (data, id = null) => {
   try {
     const token = localStorage.getItem('authToken');
-    const url = id 
-        ? `${API_BASE_URL}/cement-specific-surface/${id}` 
-        : `${API_BASE_URL}/cement-specific-surface`;
+    const url = id ? `${API_BASE_URL}/cement-specific-surface/${id}` : `${API_BASE_URL}/cement-specific-surface`;
     const response = await fetch(url, {
       method: id ? 'PUT' : 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify(data)
     });
-
-    if (!response.ok) {
-      throw new Error('Failed to save Specific Surface record');
-    }
-
-    const result = await response.json();
-    return result.responseData || result;
+    return await handleRawResponse(response, 'Failed to save Specific Surface record');
   } catch (error) {
     console.error('Error saving Specific Surface:', error);
     throw error;
@@ -406,13 +415,7 @@ export const saveCementSettingTime = async (data, id = null) => {
       },
       body: JSON.stringify(data)
     });
-
-    if (!response.ok) {
-      throw new Error('Failed to save Setting Time record');
-    }
-
-    const result = await response.json();
-    return result.responseData || result;
+    return await handleRawResponse(response, 'Failed to save Setting Time record');
   } catch (error) {
     console.error('Error saving Setting Time:', error);
     throw error;
@@ -438,13 +441,7 @@ export const saveCementFineness = async (data, id = null) => {
       },
       body: JSON.stringify(data)
     });
-    
-    if (!response.ok) {
-      throw new Error('Failed to save Fineness record');
-    }
-
-    const result = await response.json();
-    return result.responseData || result;
+    return await handleRawResponse(response, 'Failed to save Fineness record');
   } catch (error) {
     console.error('Error saving Fineness:', error);
     throw error;
@@ -478,10 +475,15 @@ const getCementDataByRequestId = async (endpoint, requestId) => {
             method: 'GET',
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (!response.ok) return null;
-        const data = await response.json();
-        return data.responseData || data;
+        // We return null if business error here to avoid crashing UI when data just doesn't exist yet
+        try {
+            return await handleRawResponse(response, `Failed to fetch ${endpoint} by request ID`);
+        } catch (err) {
+            console.log(`No existing record for ${endpoint}:`, err.message);
+            return null;
+        }
     } catch (error) {
+        console.error(`Error fetching ${endpoint} by request ID:`, error);
         return null;
     }
 };
@@ -525,19 +527,10 @@ export const saveAggregate10mmQuality = async (data, id = null) => {
     const url = id ? `${API_BASE_URL}/aggregate-10mm-quality/${id}` : `${API_BASE_URL}/aggregate-10mm-quality`;
     const response = await fetch(url, {
       method: id ? 'PUT' : 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify(data)
     });
-
-    if (!response.ok) {
-      throw new Error('Failed to save 10mm Quality record');
-    }
-
-    const result = await response.json();
-    return result.responseData || result;
+    return await handleRawResponse(response, 'Failed to save 10mm Quality record');
   } catch (error) {
     console.error('Error saving 10mm Quality:', error);
     throw error;
@@ -555,19 +548,10 @@ export const saveAggregate20mmQuality = async (data, id = null) => {
     const url = id ? `${API_BASE_URL}/aggregate-20mm-quality/${id}` : `${API_BASE_URL}/aggregate-20mm-quality`;
     const response = await fetch(url, {
       method: id ? 'PUT' : 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify(data)
     });
-
-    if (!response.ok) {
-      throw new Error('Failed to save 20mm Quality record');
-    }
-
-    const result = await response.json();
-    return result.responseData || result;
+    return await handleRawResponse(response, 'Failed to save 20mm Quality record');
   } catch (error) {
     console.error('Error saving 20mm Quality:', error);
     throw error;
@@ -591,13 +575,7 @@ export const saveAggregateFlakiness = async (data, id = null) => {
       },
       body: JSON.stringify(data)
     });
-
-    if (!response.ok) {
-      throw new Error('Failed to save Flakiness record');
-    }
-
-    const result = await response.json();
-    return result.responseData || result;
+    return await handleRawResponse(response, 'Failed to save Flakiness record');
   } catch (error) {
     console.error('Error saving Flakiness:', error);
     throw error;
@@ -615,19 +593,10 @@ export const saveAggregateGranulometric = async (data, id = null) => {
     const url = id ? `${API_BASE_URL}/aggregate-granulometric/${id}` : `${API_BASE_URL}/aggregate-granulometric`;
     const response = await fetch(url, {
       method: id ? 'PUT' : 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify(data)
     });
-
-    if (!response.ok) {
-      throw new Error('Failed to save Granulometric record');
-    }
-
-    const result = await response.json();
-    return result.responseData || result;
+    return await handleRawResponse(response, 'Failed to save Granulometric record');
   } catch (error) {
     console.error('Error saving Granulometric:', error);
     throw error;
@@ -645,19 +614,10 @@ export const saveAggregateSoundness = async (data, id = null) => {
     const url = id ? `${API_BASE_URL}/aggregate-soundness/${id}` : `${API_BASE_URL}/aggregate-soundness`;
     const response = await fetch(url, {
       method: id ? 'PUT' : 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify(data)
     });
-
-    if (!response.ok) {
-      throw new Error('Failed to save Soundness record');
-    }
-
-    const result = await response.json();
-    return result.responseData || result;
+    return await handleRawResponse(response, 'Failed to save Soundness record');
   } catch (error) {
     console.error('Error saving Soundness:', error);
     throw error;
@@ -693,65 +653,29 @@ export const getAggregateGranulometricById = (id) => getDataById('aggregate-gran
 export const getAggregateGranulometricCurveById = getAggregateGranulometricById;
 export const getAggregateSoundnessById = (id) => getDataById('aggregate-soundness', id);
 
-export const getAggregate10mmQualityByReqId = async (requestId) => {
+const getAggregateDataByRequestId = async (endpoint, requestId) => {
   try {
     const token = localStorage.getItem('authToken');
-    const response = await fetch(`${API_BASE_URL}/aggregate-10mm-quality/request/${requestId}`, {
+    const response = await fetch(`${API_BASE_URL}/${endpoint}/request/${requestId}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    if (!response.ok) { if (response.status === 404) return null; throw new Error('Failed to fetch 10mm Quality'); }
-    const result = await response.json();
-    return result.responseData || null;
-  } catch (error) { console.error('Error:', error); return null; }
+    try {
+      return await handleRawResponse(response, `Failed to fetch ${endpoint} by request ID`);
+    } catch (err) {
+      console.log(`No existing record for ${endpoint}:`, err.message);
+      return null;
+    }
+  } catch (error) {
+    console.error(`Error fetching ${endpoint}:`, error);
+    return null;
+  }
 };
 
-export const getAggregate20mmQualityByReqId = async (requestId) => {
-  try {
-    const token = localStorage.getItem('authToken');
-    const response = await fetch(`${API_BASE_URL}/aggregate-20mm-quality/request/${requestId}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (!response.ok) { if (response.status === 404) return null; throw new Error('Failed to fetch 20mm Quality'); }
-    const result = await response.json();
-    return result.responseData || null;
-  } catch (error) { console.error('Error:', error); return null; }
-};
-
-export const getAggregateFlakinessByReqId = async (requestId) => {
-  try {
-    const token = localStorage.getItem('authToken');
-    const response = await fetch(`${API_BASE_URL}/aggregate-flakiness/request/${requestId}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (!response.ok) { if (response.status === 404) return null; throw new Error('Failed to fetch Flakiness'); }
-    const result = await response.json();
-    return result.responseData || null;
-  } catch (error) { console.error('Error:', error); return null; }
-};
-
-export const getAggregateGranulometricByReqId = async (requestId) => {
-  try {
-    const token = localStorage.getItem('authToken');
-    const response = await fetch(`${API_BASE_URL}/aggregate-granulometric/request/${requestId}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (!response.ok) { if (response.status === 404) return null; throw new Error('Failed to fetch Granulometric'); }
-    const result = await response.json();
-    return result.responseData || null;
-  } catch (error) { console.error('Error:', error); return null; }
-};
-
-export const getAggregateSoundnessByReqId = async (requestId) => {
-  try {
-    const token = localStorage.getItem('authToken');
-    const response = await fetch(`${API_BASE_URL}/aggregate-soundness/request/${requestId}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (!response.ok) { if (response.status === 404) return null; throw new Error('Failed to fetch Soundness'); }
-    const result = await response.json();
-    return result.responseData || null;
-  } catch (error) { console.error('Error:', error); return null; }
-};
+export const getAggregate10mmQualityByReqId = (requestId) => getAggregateDataByRequestId('aggregate-10mm-quality', requestId);
+export const getAggregate20mmQualityByReqId = (requestId) => getAggregateDataByRequestId('aggregate-20mm-quality', requestId);
+export const getAggregateFlakinessByReqId = (requestId) => getAggregateDataByRequestId('aggregate-flakiness', requestId);
+export const getAggregateGranulometricByReqId = (requestId) => getAggregateDataByRequestId('aggregate-granulometric', requestId);
+export const getAggregateSoundnessByReqId = (requestId) => getAggregateDataByRequestId('aggregate-soundness', requestId);
 
 /**
  * Save Admixture test result
@@ -769,13 +693,7 @@ export const saveAdmixtureTest = async (data) => {
       },
       body: JSON.stringify(data)
     });
-
-    if (!response.ok) {
-      throw new Error('Failed to save Admixture record');
-    }
-
-    const result = await response.json();
-    return result.responseData || result;
+    return await handleRawResponse(response, 'Failed to save Admixture record');
   } catch (error) {
     console.error('Error saving Admixture:', error);
     throw error;
@@ -803,13 +721,7 @@ export const saveHtsWireDailyTest = async (data, id = null) => {
       },
       body: JSON.stringify(data)
     });
-
-    if (!response.ok) {
-      throw new Error('Failed to save HTS Wire Daily record');
-    }
-
-    const result = await response.json();
-    return result.responseData || result;
+    return await handleRawResponse(response, 'Failed to save HTS Wire Daily record');
   } catch (error) {
     console.error('Error saving HTS Wire:', error);
     throw error;
@@ -823,12 +735,12 @@ export const getHtsWireDailyTestByReqId = async (requestId) => {
       method: 'GET',
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    if (!response.ok) {
-      if (response.status === 404) return null;
-      throw new Error('Failed to fetch HTS Wire Daily test by request ID');
+    try {
+        return await handleRawResponse(response, 'Failed to fetch HTS Wire Daily test by request ID');
+    } catch (err) {
+        console.log("No existing HTS Wire test:", err.message);
+        return null;
     }
-    const result = await response.json();
-    return result.responseData || result;
   } catch (error) {
     console.error('Error fetching HTS wire test:', error);
     return null;
@@ -856,13 +768,7 @@ export const saveSgciInsertAudit = async (data, id = null) => {
       },
       body: JSON.stringify(data)
     });
-
-    if (!response.ok) {
-      throw new Error('Failed to save SGCI Insert Audit record');
-    }
-
-    const result = await response.json();
-    return result.responseData || result;
+    return await handleRawResponse(response, 'Failed to save SGCI Insert Audit record');
   } catch (error) {
     console.error('Error saving SGCI Audit:', error);
     throw error;
@@ -876,12 +782,12 @@ export const getSgciInsertAuditByRequestId = async (requestId) => {
       method: 'GET',
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    if (!response.ok) {
-      if (response.status === 404) return null;
-      throw new Error('Failed to fetch SGCI Insert Audit record by request ID');
+    try {
+        return await handleRawResponse(response, 'Failed to fetch SGCI Insert Audit record by request ID');
+    } catch (err) {
+        console.log("No existing SGCI Audit:", err.message);
+        return null;
     }
-    const result = await response.json();
-    return result.responseData || result;
   } catch (error) {
     console.error('Error fetching SGCI Audit Details:', error);
     return null;
@@ -895,12 +801,12 @@ export const getSgciInsertAuditById = async (id) => {
       method: 'GET',
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    if (!response.ok) {
-      if (response.status === 404) return null;
-      throw new Error('Failed to fetch SGCI Insert Audit record by ID');
+    try {
+        return await handleRawResponse(response, 'Failed to fetch SGCI Insert Audit record by ID');
+    } catch (err) {
+        console.log("Error fetching SGCI by ID:", err.message);
+        return null;
     }
-    const result = await response.json();
-    return result.responseData || result;
   } catch (error) {
     console.error('Error fetching SGCI Audit Details by ID:', error);
     return null;
@@ -914,11 +820,7 @@ export const deleteSgciInsertAudit = async (id) => {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    if (!response.ok) {
-      throw new Error('Failed to delete SGCI Insert Audit record');
-    }
-    const result = await response.json();
-    return result.responseData || result;
+    return await handleRawResponse(response, 'Failed to delete SGCI Insert Audit record');
   } catch (error) {
     console.error('Error deleting SGCI Audit record:', error);
     throw error;
@@ -941,13 +843,7 @@ export const saveWaterCubeTestResult = async (data) => {
       },
       body: JSON.stringify(data)
     });
-
-    if (!response.ok) {
-      throw new Error('Failed to save Water Cube Test Result');
-    }
-
-    const result = await response.json();
-    return result.responseData || result;
+    return await handleRawResponse(response, 'Failed to save Water Cube Test Result');
   } catch (error) {
     console.error('Error saving Water Cube Test Result:', error);
     throw error;

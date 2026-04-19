@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import EnhancedDataTable from '../../../../components/common/EnhancedDataTable';
 import { MOCK_WATER_HISTORY } from '../../../../utils/rawMaterialMockData';
 import TrendChart from '../../../../components/common/TrendChart';
+import { useToast } from '../../../../context/ToastContext';
 import '../cement/CementForms.css';
 
 const SubCard = ({ id, title, color, count, label, isActive, onClick }) => (
@@ -34,12 +35,18 @@ const SubCard = ({ id, title, color, count, label, isActive, onClick }) => (
 );
 
 const WaterTesting = ({ onBack }) => {
-    const [viewMode, setViewMode] = useState('history'); // Default to history
+    const [viewMode, setViewMode] = useState('history');
     const [showForm, setShowForm] = useState(false);
+    const toast = useToast();
     const [history, setHistory] = useState(MOCK_WATER_HISTORY.map(h => ({
         ...h,
         createdAt: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString()
-    })));
+    })).sort((a,b) => {
+        const dateA = new Date(a.testDate || 0);
+        const dateB = new Date(b.testDate || 0);
+        if (dateB - dateA !== 0) return dateB - dateA;
+        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+    }));
 
     // Water dummy data as requested
     const waterSources = [
@@ -66,26 +73,45 @@ const WaterTesting = ({ onBack }) => {
     };
 
     const onSubmit = (data) => {
-        const ph = parseFloat(data.phValue);
-        const tds = parseFloat(data.tdsResult);
-        const isPass = ph >= 6 && ph <= 8 && tds <= 2000;
+        try {
+            const ph = parseFloat(data.phValue);
+            const tds = parseFloat(data.tdsResult);
+            const isPass = ph >= 6 && ph <= 8 && tds <= 2000;
 
-        const newRecord = {
-            id: Date.now(),
-            testDate: data.testDate,
-            createdAt: new Date().toISOString(),
-            ph: ph.toFixed(2),
-            tds: `${tds} ppm`,
-            status: isPass ? 'PASS' : 'FAIL'
-        };
-        setHistory([newRecord, ...history]);
-        setShowForm(false);
-        reset();
+            const newRecord = {
+                id: Date.now(),
+                testDate: data.testDate,
+                createdAt: new Date().toISOString(),
+                ph: ph.toFixed(2),
+                tds: `${tds} ppm`,
+                status: isPass ? 'PASS' : 'FAIL'
+            };
+            setHistory(prev => {
+                const combined = [newRecord, ...prev];
+                return combined.sort((a,b) => {
+                    const dateA = new Date(a.testDate || 0);
+                    const dateB = new Date(b.testDate || 0);
+                    if (dateB - dateA !== 0) return dateB - dateA;
+                    return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+                });
+            });
+            toast.success("Water quality test record saved successfully!");
+            
+            setShowForm(false);
+            reset();
+        } catch (error) {
+            toast.error("Failed to save water test record.");
+        }
     };
 
     const handleDelete = (id) => {
-        if (window.confirm('Delete this record?')) {
-            setHistory(prev => prev.filter(h => h.id !== id));
+        if (window.confirm('Are you sure you want to delete this water test record?')) {
+            try {
+                setHistory(prev => prev.filter(h => h.id !== id));
+                toast.success("Record deleted successfully!");
+            } catch (error) {
+                toast.error("Failed to delete record.");
+            }
         }
     };
 

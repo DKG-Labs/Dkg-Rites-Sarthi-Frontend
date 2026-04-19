@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useShift } from "../../../../context/ShiftContext";
 import { useToast } from "../../../../context/ToastContext";
 import { getStoredUser } from "../../../../services/authService";
@@ -8,6 +8,7 @@ export default function SpecificSurfaceForm({ onSave, onCancel, inventoryData = 
     const { selectedShift, dutyDate, dutyLocation } = useShift();
     const toast = useToast();
     const user = getStoredUser();
+    const hasNotifiedRef = useRef(false);
 
     const [loading, setLoading] = useState(false);
     const [header, setHeader] = useState({
@@ -59,6 +60,9 @@ export default function SpecificSurfaceForm({ onSave, onCancel, inventoryData = 
                 if (record && (record.id || record.consignmentNo)) {
                     setEditIdState(record.id || null);
                     handleRecord(record);
+                } else if (!hasNotifiedRef.current) {
+                    toast.info("No previous Specific Surface data found. You can start entering new test results.");
+                    hasNotifiedRef.current = true;
                 }
             });
         } else if (initialType === "Periodic" && (editId || editData)) {
@@ -70,7 +74,11 @@ export default function SpecificSurfaceForm({ onSave, onCancel, inventoryData = 
             // Secondary priority: Fetch by ID to ensure full record
             if (editId) {
                 getCementSpecificSurfaceById(editId).then(record => {
-                    if (record) handleRecord(record);
+                    if (record) {
+                        handleRecord(record);
+                    } else {
+                        toast.info("No existing record found in history for this test.");
+                    }
                 });
             }
         }
@@ -125,12 +133,13 @@ export default function SpecificSurfaceForm({ onSave, onCancel, inventoryData = 
                 createdBy: user?.userId || 0
             };
 
-            await saveCementSpecificSurface(payload, editIdState);
+            const resultSaved = await saveCementSpecificSurface(payload, editIdState);
+            if (onSave) onSave(resultSaved || payload);
+            
             toast.success(`Specific Surface Test record ${editIdState ? 'updated' : 'saved'} successfully!`);
-            if (onSave) onSave(payload);
         } catch (error) {
             console.error("Save failed:", error);
-            toast.error("Error saving record. Please check console.");
+            toast.error(error.message || "Unable to save test record. Please try again.");
         } finally {
             setLoading(false);
         }

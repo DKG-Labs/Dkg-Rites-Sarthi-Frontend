@@ -37,7 +37,11 @@ export default function SoundnessTestForm({ onSave, onCancel, inventoryData = []
             if (row) setValue("consignmentNo", row.consignmentNo);
             
             getAggregateSoundnessByReqId(activeRequestId).then(record => {
-                if (record) handleRecord(record);
+                if (record && (record.id || record.consignmentNo)) {
+                    handleRecord(record);
+                } else {
+                    toast.info("No previous Soundness data found. You can start entering new test results.");
+                }
             });
         } else if (initialType === "Periodic" && (editId || editData)) {
             // Priority 1: Immediate population (Props)
@@ -47,7 +51,11 @@ export default function SoundnessTestForm({ onSave, onCancel, inventoryData = []
             // Priority 2: Backend Sync (Latest from DB)
             if (editId) {
                 getAggregateSoundnessById(editId).then(record => {
-                    if (record) handleRecord(record);
+                    if (record) {
+                        handleRecord(record);
+                    } else {
+                        toast.info("No existing record found in history for this test.");
+                    }
                 });
             }
         }
@@ -98,13 +106,13 @@ export default function SoundnessTestForm({ onSave, onCancel, inventoryData = []
                 createdBy: parseInt(localStorage.getItem('userId') || '1', 10)
             };
 
-            await saveAggregateSoundness(payload, editIdState);
+            const resultSaved = await saveAggregateSoundness(payload, editIdState);
+            if (onSave) onSave(resultSaved || payload);
+            
             toast.success(`Soundness Test report ${editIdState ? 'updated' : 'saved'} successfully!`);
-            reset();
-            onSave && onSave(payload);
         } catch (error) {
             console.error("Error saving soundness data:", error);
-            toast.error("Failed to save Soundness report.");
+            toast.error(error.message || "Failed to save Soundness report.");
         } finally {
             setSubmitting(false);
         }

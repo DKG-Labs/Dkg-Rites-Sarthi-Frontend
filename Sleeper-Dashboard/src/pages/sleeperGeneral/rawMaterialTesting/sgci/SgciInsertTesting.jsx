@@ -87,7 +87,13 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
                         setHistory(prev => {
                             const existingIds = new Set(prev.map(p => p.id));
                             const newRecords = fetchedHistory.filter(f => !existingIds.has(f.id));
-                            return [...newRecords, ...prev];
+                            const combined = [...newRecords, ...prev];
+                            return combined.sort((a,b) => {
+                                const dateA = new Date(a.testDate || 0);
+                                const dateB = new Date(b.testDate || 0);
+                                if (dateB - dateA !== 0) return dateB - dateA;
+                                return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+                            });
                         });
                     }
                 }
@@ -130,6 +136,8 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
                             ? record.readings 
                             : [{ heatNo: '', patternNo: '', weight: '', dimensionalNotOk: false, hammerNotOk: false, rejectionReason: '', result: 'PASS' }]
                     });
+                } else if (activeRequestId) {
+                    toast.info("No existing audit record found for this consignment. You can start entry from scratch.");
                 }
             });
         }
@@ -211,7 +219,7 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
                 lineNo: dutyLocation || 'N/A',
                 dateOfInspection: dutyDate || new Date().toISOString().split('T')[0],
                 requestId: activeRequestId || 0,
-                createdBy: parseInt(localStorage.getItem('userId') || '1', 10), // Default 
+                createdBy: parseInt(localStorage.getItem('userId') || '1', 10),
                 readings: data.readings
             };
 
@@ -222,18 +230,17 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
             }
 
             await saveSgciInsertAudit(payload, editId);
-            toast.success(`SGCI Insert Audit record ${editId ? 'updated' : 'saved'}!`);
-            // Re-fetch historical logs in real app
-        } catch (error) {
-            console.error("Error saving SGCI audit:", error);
-            toast.error("Failed to save SGCI Insert Audit report.");
-        } finally {
+            toast.success(`SGCI Insert Audit record ${editId ? 'updated' : 'saved'} successfully!`);
+            
             setShowForm(false);
             reset();
             setActiveRequestId(null);
             setEditId(null);
             setIsPeriodic(false);
             setRefreshTrigger(prev => prev + 1);
+        } catch (error) {
+            console.error("Error saving SGCI audit:", error);
+            toast.error(error.message || "Failed to save SGCI Insert Audit report.");
         }
     };
 
@@ -246,7 +253,7 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
                 setRefreshTrigger(prev => prev + 1);
             } catch (error) {
                 console.error("Error deleting record:", error);
-                toast.error("Failed to delete record.");
+                toast.error(error.message || "Failed to delete record.");
             }
         }
     };

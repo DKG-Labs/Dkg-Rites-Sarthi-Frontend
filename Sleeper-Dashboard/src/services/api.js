@@ -102,6 +102,16 @@ export const apiService = {
         saveTestResult: (data) => api.post('/water-cube-sample/save-test-result', data),
         getTestResultsByUser: (userId) => api.get(`/water-cube-sample/test-results/user/${userId}`)
     },
+
+    // ================= Water Quality Testing =================
+    waterQuality: {
+        create: (payload) => api.post('/water-quality', payload),
+        getAll: () => getWithCache('/water-quality'),
+        getById: (id) => api.get(`/water-quality/${id}`),
+        update: (id, payload) => api.put(`/water-quality/${id}`, payload),
+        delete: (id) => api.delete(`/water-quality/${id}`),
+        getByUser: (userId) => api.get(`/water-quality/user/${userId}`)
+    },
     getAllSteamCubes: () => getWithCache('/SteamCube/get-all'),
     getSteamCubeById: (id) => api.get(`/SteamCube/get/${id}`),
     createSteamCube: (payload) => api.post('/SteamCube/create', payload),

@@ -109,11 +109,10 @@ const CompactionConcrete = ({
         fetchLocations();
     }, [dutyUnit, vendorId]);
 
-    // Fetch batch numbers for compaction (filtered by date and location)
+    // Fetch batch numbers for compaction (strictly filtered by date and location)
     useEffect(() => {
         const fetchBatches = async () => {
-            // Using ISO format YYYY-MM-DD as observed in API curl
-            const dateToUse = manualForm.dateOfCasting || dutyDate || new Date().toISOString().split('T')[0];
+            const dateToUse = manualForm.dateOfCasting;
             const locationToUse = manualForm.location;
 
             if (dateToUse && locationToUse) {
@@ -125,11 +124,14 @@ const CompactionConcrete = ({
                     setBatchOptions(data || []);
                 } catch (err) {
                     console.error("Error fetching batch numbers for compaction:", err);
+                    setBatchOptions([]);
                 }
+            } else {
+                setBatchOptions([]);
             }
         };
         fetchBatches();
-    }, [dutyDate, manualForm.dateOfCasting, manualForm.location, showForm]);
+    }, [manualForm.dateOfCasting, manualForm.location, showForm]);
 
     // Mock SCADA Data 
     const [scadaRecords, setScadaRecords] = useState([
@@ -405,7 +407,7 @@ const CompactionConcrete = ({
                                     <input 
                                         type="date" 
                                         value={manualForm.dateOfCasting} 
-                                        onChange={e => setManualForm({ ...manualForm, dateOfCasting: e.target.value })} 
+                                        onChange={e => setManualForm({ ...manualForm, dateOfCasting: e.target.value, batchNo: '' })} 
                                     />
                                 </div>
                                 <div className="form-field">
@@ -413,19 +415,33 @@ const CompactionConcrete = ({
                                     <select
                                         value={manualForm.batchNo}
                                         onChange={e => setManualForm({ ...manualForm, batchNo: e.target.value })}
-                                        style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                                        disabled={!manualForm.location || !manualForm.dateOfCasting}
+                                        style={{ 
+                                            padding: '8px', 
+                                            border: '1px solid #cbd5e1', 
+                                            borderRadius: '6px',
+                                            background: (!manualForm.location || !manualForm.dateOfCasting) ? '#f1f5f9' : '#fff'
+                                        }}
                                     >
-                                        <option value="">-- Select Batch --</option>
-                                        {/* Use new batchOptions from API */}
+                                        <option value="">
+                                            {(!manualForm.location || !manualForm.dateOfCasting) 
+                                                ? '-- Select Loc/Date First --' 
+                                                : '-- Select Available Batch --'}
+                                        </option>
                                         {batchOptions
-                                            .filter(b => b.batchNumber) // Only show non-null batch numbers
-                                            .map(b => <option key={b.id} value={b.batchNumber}>{b.batchNumber}</option>)
+                                            .filter(b => b.batchNumber)
+                                            .map(b => (
+                                                <option key={b.id || b.batchNumber} value={b.batchNumber}>
+                                                    Batch #{b.batchNumber}
+                                                </option>
+                                            ))
                                         }
-                                        {/* Fallback to context batches if API returned nothing */}
-                                        {batchOptions.length === 0 && filteredBatchesForForm.map(b => (
-                                            <option key={b.id} value={b.batchNo}>{b.batchNo}</option>
-                                        ))}
                                     </select>
+                                    {batchOptions.length === 0 && manualForm.location && manualForm.dateOfCasting && (
+                                        <p style={{ margin: '4px 0 0 0', fontSize: '0.65rem', color: '#ef4444', fontWeight: '600' }}>
+                                            No weighment declarations found for this date & location.
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                         </section>

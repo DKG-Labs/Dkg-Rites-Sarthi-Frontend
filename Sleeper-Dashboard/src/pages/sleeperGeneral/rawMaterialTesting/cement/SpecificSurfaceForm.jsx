@@ -4,7 +4,7 @@ import { useToast } from "../../../../context/ToastContext";
 import { getStoredUser } from "../../../../services/authService";
 import { saveCementSpecificSurface, getCementSpecificSurfaceByReqId, getCementSpecificSurfaceById } from "../../../../services/workflowService";
 
-export default function SpecificSurfaceForm({ onSave, onCancel, inventoryData = [], initialType = "New Inventory", activeRequestId, editId, editData }) {
+export default function SpecificSurfaceForm({ onSave, onCancel, inventoryData = [], initialType = "New consignment", activeRequestId, editId, editData }) {
     const { selectedShift, dutyDate, dutyLocation } = useShift();
     const toast = useToast();
     const user = getStoredUser();
@@ -172,7 +172,7 @@ export default function SpecificSurfaceForm({ onSave, onCancel, inventoryData = 
                             required
                         >
                             <option value="">-- Select --</option>
-                            <option value="New Inventory">New Inventory</option>
+                            <option value="New consignment">New consignment</option>
                             <option value="Periodic">Periodic</option>
                         </select>
                     </div>

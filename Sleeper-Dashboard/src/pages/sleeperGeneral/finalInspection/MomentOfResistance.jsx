@@ -482,6 +482,7 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
             ? batch.declaredSamples 
             : Array.from({ length: batch.mrSamplesNeeded || 1 }, () => ({ bench: '', no: '' }))
     );
+    const [isSaving, setIsSaving] = useState(false);
 
     const handleUpdate = (idx, field, val) => {
         const updated = [...samples];
@@ -523,13 +524,25 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
                     ))}
 
                     <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
-                        <button className="btn-verify" style={{ flex: 1 }} onClick={() => {
-                            if (samples.some(s => !s.bench || !s.no)) {
-                                alert("Please provide both Bench Number and Sleeper Number for all samples.");
-                                return;
-                            }
-                            onSave(batch, samples);
-                        }}>Save Declaration</button>
+                        <button 
+                            className="btn-verify" 
+                            style={{ 
+                                flex: 1, 
+                                opacity: isSaving ? 0.7 : 1, 
+                                cursor: isSaving ? 'not-allowed' : 'pointer' 
+                            }} 
+                            disabled={isSaving}
+                            onClick={() => {
+                                if (samples.some(s => !s.bench || !s.no)) {
+                                    alert("Please provide both Bench Number and Sleeper Number for all samples.");
+                                    return;
+                                }
+                                setIsSaving(true);
+                                onSave(batch, samples);
+                            }}
+                        >
+                            {isSaving ? 'Saving...' : 'Save Declaration'}
+                        </button>
                         <button className="btn-save" style={{ flex: 1, background: '#f1f5f9', color: '#475569', border: 'none' }} onClick={onClose}>Cancel</button>
                     </div>
                 </div>
@@ -550,6 +563,7 @@ const TestDetailsModal = ({ batch, onClose, onSave }) => {
         }
         return batch.declaredSamples.map(s => ({ ...s, ct: '', cb: '', rs: '', date: new Date().toISOString().split('T')[0] }));
     });
+    const [isSaving, setIsSaving] = useState(false);
     const [witnessed, setWitnessed] = useState(manualResults.map(r => !!r.isScada));
 
     const mockScadaData = useMemo(() => {
@@ -656,7 +670,21 @@ const TestDetailsModal = ({ batch, onClose, onSave }) => {
                     ))}
 
                     <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
-                        <button className="btn-verify" style={{ flex: 1 }} onClick={() => onSave(batch, { results: manualResults, result: calculateResult() })}>Confirm results: {calculateResult()}</button>
+                        <button 
+                            className="btn-verify" 
+                            style={{ 
+                                flex: 1,
+                                opacity: isSaving ? 0.7 : 1,
+                                cursor: isSaving ? 'not-allowed' : 'pointer'
+                            }} 
+                            disabled={isSaving}
+                            onClick={() => {
+                                setIsSaving(true);
+                                onSave(batch, { results: manualResults, result: calculateResult() });
+                            }}
+                        >
+                            {isSaving ? 'Processing...' : `Confirm results: ${calculateResult()}`}
+                        </button>
                         <button className="btn-save" style={{ flex: 1, background: '#f1f5f9', color: '#475569', border: 'none' }} onClick={onClose}>Cancel</button>
                     </div>
                 </div>

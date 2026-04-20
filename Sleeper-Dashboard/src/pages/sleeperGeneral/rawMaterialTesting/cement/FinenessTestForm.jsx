@@ -4,7 +4,7 @@ import { useToast } from "../../../../context/ToastContext";
 import { getStoredUser } from "../../../../services/authService";
 import { saveCementFineness, getCementFinenessByReqId, getCementFinenessById } from "../../../../services/workflowService";
 
-export default function FinenessTestForm({ onSave, onCancel, inventoryData = [], initialType = "New Inventory", activeRequestId, editId, editData }) {
+export default function FinenessTestForm({ onSave, onCancel, inventoryData = [], initialType = "New consignment", activeRequestId, editId, editData }) {
     const { selectedShift, dutyDate, dutyLocation } = useShift();
     const toast = useToast();
     const user = getStoredUser();

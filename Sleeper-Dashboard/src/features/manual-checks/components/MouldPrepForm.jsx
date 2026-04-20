@@ -154,8 +154,8 @@ const MouldPrepForm = ({ onSave, onCancel, isLongLine, existingEntries = [], ini
             lineShedNo: formData.location || activeContainer?.name || 'N/A',
             preparationDate: formatToBackendDate(formData.dateTime.split('T')[0]),
             preparationTime: formData.dateTime.split('T')[1],
-            batchNo: parseInt(formData.batchNo) || 0,
-            benchNo: parseInt(formData.benchNo) || 0,
+            batchNo: String(formData.batchNo),
+            benchNo: String(formData.benchNo),
             mouldCleaned: formData.mouldCleaned === 'Yes',
             oilApplied: formData.oilApplied === 'Yes',
             remarks: formData.remarks || '',
@@ -218,8 +218,8 @@ const MouldPrepForm = ({ onSave, onCancel, isLongLine, existingEntries = [], ini
                     <label htmlFor="batchNo" style={{ fontSize: '11px', fontWeight: '700' }}>Batch No. <span className="required">*</span></label>
                     <input
                         id="batchNo"
-                        type="number"
-                        placeholder="Batch No"
+                        type="text"
+                        placeholder="e.g. 405A"
                         className="form-input-standard"
                         value={formData.batchNo}
                         onChange={e => handleChange('batchNo', e.target.value)}
@@ -230,7 +230,7 @@ const MouldPrepForm = ({ onSave, onCancel, isLongLine, existingEntries = [], ini
                     <label htmlFor="benchNo" style={{ fontSize: '11px', fontWeight: '700' }}>{fieldLabel} No. <span className="required">*</span></label>
                     <input
                         id="benchNo"
-                        type="number"
+                        type="text"
                         placeholder={`${fieldLabel} No`}
                         className="form-input-standard"
                         value={formData.benchNo}

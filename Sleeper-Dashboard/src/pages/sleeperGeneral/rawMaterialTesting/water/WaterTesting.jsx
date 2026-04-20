@@ -78,9 +78,26 @@ const WaterTesting = ({ onBack }) => {
 
     const canModify = (createdAt) => {
         if (!createdAt) return false;
-        const entryTime = new Date(createdAt).getTime();
-        const now = new Date().getTime();
-        return (now - entryTime) < (60 * 60 * 1000); // 1 hour
+
+        let diffLocal, diffUTC;
+        const now = Date.now();
+
+        // Check if Spring Boot serialized LocalDateTime as an array like [2026, 4, 20, 14, 45, 0]
+        if (Array.isArray(createdAt)) {
+            const [year, month, day, hr = 0, min = 0, sec = 0] = createdAt;
+            diffLocal = Math.abs(now - new Date(year, month - 1, day, hr, min, sec).getTime());
+            diffUTC = Math.abs(now - Date.UTC(year, month - 1, day, hr, min, sec));
+        } else {
+            let dateStr = String(createdAt);
+            diffLocal = Math.abs(now - new Date(dateStr).getTime());
+            // Fake formatting to UTC to see if server meant UTC
+            if (!dateStr.endsWith('Z')) dateStr += 'Z';
+            diffUTC = Math.abs(now - new Date(dateStr).getTime());
+        }
+
+        // Accept whichever interpretation is closer to real-time, solving timezone mismatch from Azure
+        const diff = Math.min(diffLocal, diffUTC);
+        return diff < (60 * 60 * 1000); // 1 hour window
     };
 
     const onSubmit = async (data) => {

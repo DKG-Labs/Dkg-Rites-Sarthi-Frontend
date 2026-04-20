@@ -66,7 +66,7 @@ const CementTesting = ({ onBack, inventoryData = [] }) => {
     const [showForm, setShowForm] = useState(false);
     
     const [activeFormSection, setActiveFormSection] = useState(1);
-    const [initialType, setInitialType] = useState("New Inventory");
+    const [initialType, setInitialType] = useState("New consignment");
     const [cementHistory, setCementHistory] = useState(MOCK_CEMENT_HISTORY.filter(h => h.testType !== 'Periodic').map(item => ({
         ...item,
         createdAt: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString()
@@ -105,7 +105,7 @@ const CementTesting = ({ onBack, inventoryData = [] }) => {
                             consistency: nc?.consistency || '-',
                             soundness: '-', // Placeholder since Soundness API is unlinked
                             fineness: fn?.finenessPercentage || '-',
-                            testType: 'New Inventory',
+                            testType: 'New consignment',
                             createdAt: nc?.createdAt || ss?.createdAt || new Date().toISOString()
                         });
                     }
@@ -293,7 +293,7 @@ const CementTesting = ({ onBack, inventoryData = [] }) => {
             console.log(`Final cement section ${sectionId} completed. Closing form.`);
             setShowForm(false);
             setEditItem(null);
-            setInitialType("New Inventory");
+            setInitialType("New consignment");
         } else {
             console.warn(`Could not determine next section for cement sectionId: ${completedSectionId}. Staying on current section.`);
         }
@@ -324,7 +324,7 @@ const CementTesting = ({ onBack, inventoryData = [] }) => {
                     setPeriodicHistory(prev => prev.filter(h => h.id !== row.id));
                     toast.success("Periodic test record deleted successfully.");
                 } else {
-                    // For New Inventory, we usually don't delete the workflow call here, 
+                    // For "New consignment", we usually don't delete the workflow call here, 
                     // but if it's a test record delete logic:
                     setCementHistory(prev => prev.filter(item => item.id !== row.id));
                     toast.info("Record removed from local history view.");
@@ -371,7 +371,7 @@ const CementTesting = ({ onBack, inventoryData = [] }) => {
                         onClick={() => {
                             setActiveRequestId(row.requestId);
                             setEditItem(null); // Clear periodic state
-                            setInitialType("New Inventory");
+                            setInitialType("New consignment");
                             setActiveFormSection(1);
                             setShowForm(true);
                         }}
@@ -405,7 +405,7 @@ const CementTesting = ({ onBack, inventoryData = [] }) => {
                                 setActiveRequestId(row.requestId);
                                 setEditItem(null); // Clear periodic state
                                 setActiveFormSection(1);
-                                setInitialType("New Inventory");
+                                setInitialType("New consignment");
                                 setShowForm(true);
                             }}
                             title={!editable ? "Action expired (24-hour limit)" : ""}
@@ -601,15 +601,6 @@ const CementTesting = ({ onBack, inventoryData = [] }) => {
                     onClick={() => setViewMode('new-stocks')}
                 />
                 <SubCard
-                    id="history"
-                    title="Historical"
-                    color="#10b981"
-                    count={cementHistory.length}
-                    label="Quality Logs"
-                    isActive={viewMode === 'history'}
-                    onClick={() => setViewMode('history')}
-                />
-                <SubCard
                     id="periodic"
                     title="Periodic Testing"
                     color="#8b5cf6"
@@ -617,6 +608,15 @@ const CementTesting = ({ onBack, inventoryData = [] }) => {
                     label="Periodic Logs"
                     isActive={viewMode === 'periodic'}
                     onClick={() => setViewMode('periodic')}
+                />
+                <SubCard
+                    id="history"
+                    title="Historical"
+                    color="#10b981"
+                    count={cementHistory.length}
+                    label="Quality Logs"
+                    isActive={viewMode === 'history'}
+                    onClick={() => setViewMode('history')}
                 />
             </div>
 

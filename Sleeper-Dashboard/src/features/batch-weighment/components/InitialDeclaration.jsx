@@ -113,6 +113,7 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
                 setBatches([{
                     id: 1, 
                     batchNo: detail.batchNo || report?.batchNo || "",
+                    refBatchNo: detail.batchNo || report?.batchNo || "",
                     parentId: id,
                     setValues: { 
                         ca1: ca1Set, 
@@ -148,6 +149,11 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
             ...prev,
             [name]: value
         }));
+
+        // If batch number is changed in the header, update the underlying batch cards
+        if (name === 'batchNo') {
+            setBatches(prev => prev.map(b => ({ ...b, batchNo: value })));
+        }
     };
 
     const handleBatchChange = (id, section, field, value) => {
@@ -213,6 +219,7 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
                 moistureAnalysis: sensors.moistureAnalysis || null,
                 batchDetails: batches.map(b => ({
                     batchNo: String(sensors.batchNo || b.batchNo || "0"),
+                    refBatchNo: String(b.refBatchNo || b.batchNo || "0"),
                     proportionStatus: b.proportionMatch || "OK",
                     ca1Ref: parseFloat(b.adjustedWeights?.ca1) || 0,
                     ca2Ref: parseFloat(b.adjustedWeights?.ca2) || 0,

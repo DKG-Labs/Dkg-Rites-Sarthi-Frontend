@@ -72,12 +72,10 @@ export default function CrushingImpactAbrasion10mm({ onSave, onCancel, inventory
     const toggle = (section) => setExpanded(prev => ({ ...prev, [section]: !prev[section] }));
 
     // Watch fields for calculations
-    const cMouldWt = watch("crushingMouldWt");
-    const cMouldSampleWt = watch("crushingMouldSampleWt");
+    const cSampleWt = watch("crushingSampleWt");
     const cPassingWt = watch("crushingPassingWt");
 
-    const iMouldWt = watch("impactMouldWt");
-    const iMouldSampleWt = watch("impactMouldSampleWt");
+    const iSampleWt = watch("impactSampleWt");
     const iPassingWt = watch("impactPassingWt");
 
     const aSampleWt = watch("abrasionSampleWt");
@@ -85,29 +83,31 @@ export default function CrushingImpactAbrasion10mm({ onSave, onCancel, inventory
 
     // Crushing Calculations
     useEffect(() => {
-        if (cMouldWt && cMouldSampleWt) {
-            const sampleWt = Number(cMouldSampleWt) - Number(cMouldWt);
-            setValue("crushingSampleWt", sampleWt.toFixed(2));
-            if (cPassingWt && sampleWt > 0) {
-                const val = (Number(cPassingWt) / sampleWt) * 100;
-                setValue("crushingValue", val.toFixed(2));
-                setValue("crushingResult", val <= 30 ? "Satisfactory" : "Unsatisfactory");
-            }
+        const sampleWt = Number(cSampleWt);
+        const passingWt = Number(cPassingWt);
+        if (sampleWt > 0 && passingWt >= 0) {
+            const val = (passingWt / sampleWt) * 100;
+            setValue("crushingValue", val.toFixed(2));
+            setValue("crushingResult", val <= 30 ? "Satisfactory" : "Unsatisfactory");
+        } else {
+            setValue("crushingValue", "");
+            setValue("crushingResult", "");
         }
-    }, [cMouldWt, cMouldSampleWt, cPassingWt, setValue]);
+    }, [cSampleWt, cPassingWt, setValue]);
 
     // Impact Calculations
     useEffect(() => {
-        if (iMouldWt && iMouldSampleWt) {
-            const sampleWt = Number(iMouldSampleWt) - Number(iMouldWt);
-            setValue("impactSampleWt", sampleWt.toFixed(2));
-            if (iPassingWt && sampleWt > 0) {
-                const val = (Number(iPassingWt) / sampleWt) * 100;
-                setValue("impactValue", val.toFixed(2));
-                setValue("impactResult", val <= 30 ? "Satisfactory" : "Unsatisfactory");
-            }
+        const sampleWt = Number(iSampleWt);
+        const passingWt = Number(iPassingWt);
+        if (sampleWt > 0 && passingWt >= 0) {
+            const val = (passingWt / sampleWt) * 100;
+            setValue("impactValue", val.toFixed(2));
+            setValue("impactResult", val <= 30 ? "Satisfactory" : "Unsatisfactory");
+        } else {
+            setValue("impactValue", "");
+            setValue("impactResult", "");
         }
-    }, [iMouldWt, iMouldSampleWt, iPassingWt, setValue]);
+    }, [iSampleWt, iPassingWt, setValue]);
 
     // Abrasion Calculations (A = {(B-C)/B} * 100)
     useEffect(() => {
@@ -205,16 +205,8 @@ export default function CrushingImpactAbrasion10mm({ onSave, onCancel, inventory
                     {expanded.crushing && (
                         <div className="form-grid" style={{ marginTop: '1rem' }}>
                             <div className="input-group">
-                                <label>Weight of Mould (gms) <span className="required">*</span></label>
-                                <input type="number" step="0.01" {...register("crushingMouldWt", { required: "Required" })} />
-                            </div>
-                            <div className="input-group">
-                                <label>Weight of Mould + Sample (gms) <span className="required">*</span></label>
-                                <input type="number" step="0.01" {...register("crushingMouldSampleWt", { required: "Required" })} />
-                            </div>
-                            <div className="input-group">
-                                <label>Weight of Sample (gms)</label>
-                                <input type="number" readOnly className="readOnly" {...register("crushingSampleWt")} />
+                                <label>Weight of Sample (gms) <span className="required">*</span></label>
+                                <input type="number" step="0.01" {...register("crushingSampleWt", { required: "Required" })} />
                             </div>
                             <div className="input-group">
                                 <label>Passing through 1.7mm sieve (gms) <span className="required">*</span></label>
@@ -239,16 +231,8 @@ export default function CrushingImpactAbrasion10mm({ onSave, onCancel, inventory
                     {expanded.impact && (
                         <div className="form-grid" style={{ marginTop: '1rem' }}>
                             <div className="input-group">
-                                <label>Weight of Mould (gms) <span className="required">*</span></label>
-                                <input type="number" step="0.01" {...register("impactMouldWt", { required: "Required" })} />
-                            </div>
-                            <div className="input-group">
-                                <label>Weight of Mould + Sample (gms) <span className="required">*</span></label>
-                                <input type="number" step="0.01" {...register("impactMouldSampleWt", { required: "Required" })} />
-                            </div>
-                            <div className="input-group">
-                                <label>Weight of Sample (gms)</label>
-                                <input type="number" readOnly className="readOnly" {...register("impactSampleWt")} />
+                                <label>Weight of Sample (gms) <span className="required">*</span></label>
+                                <input type="number" step="0.01" {...register("impactSampleWt", { required: "Required" })} />
                             </div>
                             <div className="input-group">
                                 <label>Passing through 2.36mm sieve (gms) <span className="required">*</span></label>

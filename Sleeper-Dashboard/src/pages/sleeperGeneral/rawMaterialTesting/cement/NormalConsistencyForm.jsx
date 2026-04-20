@@ -13,7 +13,7 @@ const emptyRow = {
     needle: "",
 };
 
-export default function NormalConsistencyForm({ onSave, onCancel, inventoryData = [], initialType = "New Inventory", activeRequestId, editId, editData, onValueChange }) {
+export default function NormalConsistencyForm({ onSave, onCancel, inventoryData = [], initialType = "New consignment", activeRequestId, editId, editData, onValueChange }) {
     const { selectedShift, dutyDate, dutyLocation } = useShift();
     const toast = useToast();
     const user = getStoredUser();
@@ -216,7 +216,7 @@ export default function NormalConsistencyForm({ onSave, onCancel, inventoryData 
                             required
                         >
                             <option value="">-- Select --</option>
-                            <option value="New Inventory">New Inventory</option>
+                            <option value="New consignment">New consignment</option>
                             <option value="Periodic">Periodic</option>
                         </select>
                     </div>

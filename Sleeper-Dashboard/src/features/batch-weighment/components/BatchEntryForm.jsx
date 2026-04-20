@@ -234,7 +234,12 @@ const BatchEntryForm = ({
                             </div>
                             {formSections.scada && (
                                 <div style={{ padding: '0 1.5rem 1.5rem 1.5rem', borderTop: '1px solid #fcd34d', paddingTop: '1.5rem' }}>
-                                    <WeightBatching onWitness={handleLocalWitnessSave} batches={activeBatchDeclarations} selectedBatchNo={sensorConfig.batchNo || activeBatchDeclarations[0]?.batchNo || selectedBatchNo} />
+                                    <WeightBatching 
+                                        onWitness={handleLocalWitnessSave} 
+                                        batches={activeBatchDeclarations} 
+                                        searchBatchNo={activeBatchDeclarations[0]?.refBatchNo || sensorConfig.batchNo || selectedBatchNo}
+                                        displayBatchNo={sensorConfig.batchNo || activeBatchDeclarations[0]?.batchNo || selectedBatchNo} 
+                                    />
                                 </div>
                             )}
                         </div>

@@ -237,8 +237,8 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
             lineShedNo: formData.location || activeContainer?.name || 'N/A',
             placementDate: formatToBackendDate(formData.dateTime.split('T')[0]),
             placementTime: formData.dateTime.split('T')[1],
-            batchNo: parseInt(formData.batch) || 0,
-            benchNo: parseInt(formData.gangNo) || 0,
+            batchNo: String(formData.batch),
+            benchNo: String(formData.gangNo),
             sleeperType: formData.sleeperType || 'RT-1234',
             noOfWiresUsed: wiresNum || 0,
             htsWireDiaMm: diaNum || 0,
@@ -312,8 +312,8 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
                     <label htmlFor="batch" style={{ fontSize: '11px', fontWeight: '700' }}>Batch <span className="required">*</span></label>
                     <input
                         id="batch"
-                        type="number"
-                        placeholder="Batch No"
+                        type="text"
+                        placeholder="e.g. 405A"
                         className="form-input-standard"
                         value={formData.batch}
                         onChange={e => handleChange('batch', e.target.value)}
@@ -324,8 +324,7 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
                     <label htmlFor="gangNo" style={{ fontSize: '11px', fontWeight: '700' }}>{fieldLabel} No. <span className="required">*</span></label>
                     <input
                         id="gangNo"
-                        type="number"
-                        min="0"
+                        type="text"
                         placeholder={`${fieldLabel} No`}
                         className="form-input-standard"
                         value={formData.gangNo}

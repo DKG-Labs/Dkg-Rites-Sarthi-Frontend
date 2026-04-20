@@ -68,8 +68,13 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
     const getFieldValidation = (field, value) => {
         if (!value) return false;
         const limit = (field === 'cement') ? 0.02 : 0.03;
-        const selectedBatch = batches.find(b => String(b.batchNo) === String(formData.batchNo)) || 
+        
+        // Prioritize finding the reference batch by moisture analysis ID, then fallback to name matching
+        const selectedBatch = batches.find(b => String(b.parentId) === String(globalConfig?.moistureAnalysis)) || 
+                             batches.find(b => String(b.batchNo) === String(formData.batchNo)) || 
+                             recentBatches.find(b => String(b.id) === String(globalConfig?.moistureAnalysis)) ||
                              recentBatches.find(b => String(b.batchNo) === String(formData.batchNo));
+
         if (selectedBatch?.adjustedWeights) {
             const refVal = parseFloat(selectedBatch.adjustedWeights[field]) || 0;
             const curVal = parseFloat(value) || 0;
@@ -88,9 +93,12 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
 
     // Store set values from moisture adjusted weights (but don't autofill actuals)
     useEffect(() => {
-        if (formData.batchNo) {
-            const batchToUse = batches.find(b => String(b.batchNo) === String(formData.batchNo)) || 
+        if (formData.batchNo || globalConfig?.moistureAnalysis) {
+            const batchToUse = batches.find(b => String(b.parentId) === String(globalConfig?.moistureAnalysis)) || 
+                             batches.find(b => String(b.batchNo) === String(formData.batchNo)) || 
+                             recentBatches.find(b => String(b.id) === String(globalConfig?.moistureAnalysis)) ||
                              recentBatches.find(b => String(b.batchNo) === String(formData.batchNo));
+
             if (batchToUse?.adjustedWeights) {
                 const adj = batchToUse.adjustedWeights;
                 
@@ -202,7 +210,11 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
         }
 
         // --- NEW VALIDATION: Allowed Error Check ---
-        const selectedBatch = batches.find(b => String(b.batchNo) === String(formData.batchNo)) || recentBatches.find(b => String(b.batchNo) === String(formData.batchNo));
+        const selectedBatch = batches.find(b => String(b.parentId) === String(globalConfig?.moistureAnalysis)) || 
+                             batches.find(b => String(b.batchNo) === String(formData.batchNo)) || 
+                             recentBatches.find(b => String(b.id) === String(globalConfig?.moistureAnalysis)) ||
+                             recentBatches.find(b => String(b.batchNo) === String(formData.batchNo));
+
         if (selectedBatch && selectedBatch.adjustedWeights) {
             const adj = selectedBatch.adjustedWeights;
             
@@ -236,8 +248,11 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
         // --- END VALIDATION ---
 
         setSaving(true);
-        // Using batchRef to avoid redeclaration conflict
-        const batchRef = batches.find(b => String(b.batchNo) === String(formData.batchNo)) || recentBatches.find(b => String(b.batchNo) === String(formData.batchNo));
+        // Prioritize moisture analysis ID lookup for the final save
+        const batchRef = batches.find(b => String(b.parentId) === String(globalConfig?.moistureAnalysis)) || 
+                       batches.find(b => String(b.batchNo) === String(formData.batchNo)) || 
+                       recentBatches.find(b => String(b.id) === String(globalConfig?.moistureAnalysis)) ||
+                       recentBatches.find(b => String(b.batchNo) === String(formData.batchNo));
         const adj = batchRef?.adjustedWeights || {};
 
         const record = {
@@ -303,9 +318,10 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
                                 id="manual-batch" 
                                 name="batchNo" 
                                 type="text" 
-                                readOnly 
+                                placeholder="e.g. 405A"
                                 value={formData.batchNo} 
-                                style={{ height: small ? '28px' : '32px', fontSize: small ? '0.75rem' : '0.8rem', background: '#f1f5f9', fontWeight: '800', border: '1.5px solid #cbd5e1', color: '#1e293b' }} 
+                                onChange={handleChange}
+                                style={{ height: small ? '28px' : '32px', fontSize: small ? '0.75rem' : '0.8rem', background: '#fff', fontWeight: '800', border: '1.5px solid #cbd5e1', color: '#1e293b' }} 
                             />
                         </div>
                         <div className="form-field" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>

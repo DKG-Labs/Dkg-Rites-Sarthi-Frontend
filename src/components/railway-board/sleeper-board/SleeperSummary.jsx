@@ -67,12 +67,12 @@ const SleeperSummary = ({ summaryData = {} }) => {
             </div>
 
             {/* KPI Cards Row 2 */}
-            <div className="g4 mb">
-                <div className="prof-card card-spring-green" style={{ textAlign: 'center' }}>
+            <div className="g3 mb">
+                {/* <div className="prof-card card-spring-green" style={{ textAlign: 'center' }}>
                     <div className="kpi-lbl">New Sleepers in Pipeline</div>
                     <div className="kpi-val">{data.newSleepersInPipeline.toLocaleString()}</div>
                     <div className="kpi-sub">Manufactured but not cleared</div>
-                </div>
+                </div> */}
                 <div className="prof-card card-amber" style={{ textAlign: 'center' }}>
                     <div className="kpi-lbl">Sleepers Rejected in Process</div>
                     <div className="kpi-val">{data.sleepersRejectedInProcess.toLocaleString()}</div>

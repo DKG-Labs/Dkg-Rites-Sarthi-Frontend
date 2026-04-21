@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import reportService from '../../../services/reportService';
 import { PieChart, Pie, Cell, Tooltip } from 'recharts';
 import './SleeperSummary.css';
 
@@ -150,11 +151,38 @@ const SleeperReportPage = ({ plantName }) => {
     );
 };
 
-const SleeperMauReport = () => {
+const SleeperMauReport = ({ startDate, endDate }) => {
     const [selectedPlant, setSelectedPlant] = useState(null);
     const [batchReportData, setBatchReportData] = useState(null);
     const [isPreparingBatchPdf, setIsPreparingBatchPdf] = useState(false);
     const [batchProgress, setBatchProgress] = useState(0);
+    const [mauData, setMauData] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+
+    useEffect(() => {
+        const fetchMauData = async () => {
+            if (!startDate || !endDate) return;
+            setLoading(true);
+            try {
+                const response = await reportService.getSleeperMonthlyAnalysis(startDate, endDate);
+                const data = response.responseData || response || [];
+                setMauData(Array.isArray(data) ? data : []);
+            } catch (error) {
+                console.error("Error fetching sleeper MAU data:", error);
+                setMauData([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchMauData();
+    }, [startDate, endDate]);
+
+    // Filtered data based on search
+    const filteredData = mauData.filter(plant =>
+        (plant.plantName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (plant.inspectedBy || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     // Mock Data for the Main Table
     // Excel Export Utility
@@ -175,12 +203,6 @@ const SleeperMauReport = () => {
         link.download = `${filename}_${new Date().toISOString().split('T')[0]}.csv`;
         link.click();
     };
-
-    const mauData = [
-        { id: 1, plantName: 'Patil Industry - Kargi Road', inspectedBy: 'CRIO', production: 25000, acceptance: 24200, processRej: 300, finalRej: 500, rejPct: 3.2 },
-        { id: 2, plantName: 'Patil Industry - Wadiyaram', inspectedBy: 'SRIO', production: 18000, acceptance: 17500, processRej: 200, finalRej: 300, rejPct: 2.8 },
-        { id: 3, plantName: 'Concrete Sleepers India', inspectedBy: 'NRIO', production: 32000, acceptance: 31000, processRej: 400, finalRej: 600, rejPct: 3.1 },
-    ];
 
     // Handle Batch PDF Printing
     useEffect(() => {
@@ -238,46 +260,70 @@ const SleeperMauReport = () => {
                         />
                         <ExportButton
                             label={isPreparingBatchPdf ? `Preparing (${batchProgress}/${mauData.length})...` : "Batch PDF Report"}
-                            disabled={isPreparingBatchPdf}
+                            disabled={isPreparingBatchPdf || mauData.length === 0}
                             variant="green"
                             onClick={handleBatchPrint}
                         />
-                        <input type="text" placeholder="Search Plant..." className="prof-search" style={{ height: '36px', fontSize: '13px' }} />
+                        <input
+                            type="text"
+                            placeholder="Search Plant..."
+                            className="prof-search"
+                            style={{ height: '36px', fontSize: '13px' }}
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
                     </div>
                 </div>
 
                 <div className="table-responsive prof-card">
-                    <table className="prof-table">
-                        <thead>
-                            <tr>
-                                <th>S.NO.</th>
-                                <th>PLANT NAME</th>
-                                <th>INSPECTED BY</th>
-                                <th className="text-right">PRODUCTION (NOS.)</th>
-                                <th className="text-right">ACCEPTANCE (NOS.)</th>
-                                <th className="text-right">PROCESS REJECTION</th>
-                                <th className="text-right">FINAL REJECTION</th>
-                                <th className="text-right">% REJECTION</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {mauData.map((row, idx) => (
-                                <tr key={row.id} className={idx % 2 === 0 ? 'row-odd' : 'row-even'} onClick={() => setSelectedPlant(row)} style={{ cursor: 'pointer' }}>
-                                    <td>{idx + 1}</td>
-                                    <td className="font-bold text-blue-700">{row.plantName}</td>
-                                    <td><span className="prof-badge" style={{ background: '#f0f9ff', color: '#075985' }}>{row.inspectedBy}</span></td>
-                                    <td className="text-right">{row.production.toLocaleString()}</td>
-                                    <td className="text-right text-emerald-600 font-bold">{row.acceptance.toLocaleString()}</td>
-                                    <td className="text-right">{row.processRej.toLocaleString()}</td>
-                                    <td className="text-right">{row.finalRej.toLocaleString()}</td>
-                                    <td className="text-right">
-                                        <span className="prof-badge" style={{ background: '#fff7ed', color: '#9a3412' }}>{row.rejPct}%</span>
-                                    </td>
+                    {loading ? (
+                        <div style={{ padding: '40px', textAlign: 'center', color: '#64748b', fontWeight: '600' }}>
+                            <div className="spinner-small" style={{ margin: '0 auto 10px', width: '24px', height: '24px', border: '3px solid #f3f3f3', borderTop: '3px solid #10b981', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                            Fetching Sleeper Analysis Data...
+                        </div>
+                    ) : (
+                        <table className="prof-table">
+                            <thead>
+                                <tr>
+                                    <th>S.NO.</th>
+                                    <th>PLANT NAME</th>
+                                    <th>INSPECTED BY</th>
+                                    <th className="text-right">PRODUCTION (NOS.)</th>
+                                    <th className="text-right">ACCEPTANCE (NOS.)</th>
+                                    <th className="text-right">PROCESS REJECTION</th>
+                                    <th className="text-right">FINAL REJECTION</th>
+                                    <th className="text-right">% REJECTION</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {filteredData.length > 0 ? (
+                                    filteredData.map((row, idx) => (
+                                        <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'} onClick={() => setSelectedPlant(row)} style={{ cursor: 'pointer' }}>
+                                            <td>{idx + 1}</td>
+                                            <td className="font-bold text-blue-700">{row.plantName}</td>
+                                            <td><span className="prof-badge" style={{ background: '#f0f9ff', color: '#075985' }}>{row.inspectedBy}</span></td>
+                                            <td className="text-right">{(row.production || 0).toLocaleString()}</td>
+                                            <td className="text-right text-emerald-600 font-bold">{(row.acceptance || 0).toLocaleString()}</td>
+                                            <td className="text-right">{(row.processRej || 0).toLocaleString()}</td>
+                                            <td className="text-right">{(row.finalRej || 0).toLocaleString()}</td>
+                                            <td className="text-right">
+                                                <span className="prof-badge" style={{ background: '#fff7ed', color: '#9a3412' }}>{Number(row.rejPct || 0).toFixed(2)}%</span>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan="8" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>No data found for the selected dates.</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    )}
                 </div>
+                {/* CSS for spinner */}
+                <style>{`
+                    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                `}</style>
             </div>
 
             {/* Hidden Batch Print Viewport - Always rendered but hidden by CSS in normal view */}

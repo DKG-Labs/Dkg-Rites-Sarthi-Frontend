@@ -308,8 +308,38 @@ const reportService = {
         return handleResponse(response);
     },
 
-    getSleeperPoCount: async () => {
-        const response = await fetch(`${API_ENDPOINTS.REPORTS}/sleeperPoIssuedCount`, {
+    getDemouldingRejectedCount: async () => {
+        const response = await fetch(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/demoulding-process-rejected-count`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getFinalRejectedCount: async () => {
+        const response = await fetch(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/Final-inspection-rejected-count`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getRejectionPercentage: async () => {
+        const response = await fetch(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/rejection-percentage`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getSleeperMonthlyAnalysis: async (startDate, endDate) => {
+        const formatDate = (dateStr) => {
+            if (!dateStr || !dateStr.includes('-')) return dateStr;
+            const [year, month, day] = dateStr.split('-');
+            return `${day}/${month}/${year}`;
+        };
+
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/monthly-analysis`);
+        url.searchParams.append('startDate', formatDate(startDate));
+        url.searchParams.append('endDate', formatDate(endDate));
+        const response = await fetch(url.toString(), {
             headers: getAuthHeaders(),
         });
         return handleResponse(response);

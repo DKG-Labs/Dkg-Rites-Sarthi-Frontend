@@ -64,6 +64,9 @@ export const API_ENDPOINTS = {
 
     // Reports
     REPORTS: `${API_BASE_URL}/api/reports`,
+
+    // Sleeper Dashboard
+    SLEEPER_DASHBOARD: `${API_BASE_URL}/api/sleeper-dashboard`,
 };
 
 /**

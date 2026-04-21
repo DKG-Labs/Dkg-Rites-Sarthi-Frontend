@@ -1,7 +1,34 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import './SleeperSummary.css';
+import reportService from '../../../services/reportService';
 
 const SleeperSummary = ({ summaryData = {} }) => {
+    const [rejectedInProcess, setRejectedInProcess] = useState(0);
+    const [rejectedInFinal, setRejectedInFinal] = useState(0);
+    const [rejectionPercentage, setRejectionPercentage] = useState(0);
+
+    useEffect(() => {
+        const fetchCounts = async () => {
+            try {
+                // Fetch Demoulding Rejection
+                const demouldingRes = await reportService.getDemouldingRejectedCount();
+                setRejectedInProcess(demouldingRes.responseData || demouldingRes || 0);
+
+                // Fetch Final Inspection Rejection
+                const finalRes = await reportService.getFinalRejectedCount();
+                setRejectedInFinal(finalRes.responseData || finalRes || 0);
+
+                // Fetch Rejection Percentage
+                const rejectionRes = await reportService.getRejectionPercentage();
+                const percentage = rejectionRes.responseData !== undefined ? rejectionRes.responseData : rejectionRes;
+                setRejectionPercentage(Number(percentage || 0));
+            } catch (error) {
+                console.error("Error fetching sleeper rejection metrics:", error);
+            }
+        };
+        fetchCounts();
+    }, []);
+
     // Mock data based on the provided requirements
     const data = {
         poIssued: summaryData.sleeperPoIssued || 0,
@@ -16,9 +43,9 @@ const SleeperSummary = ({ summaryData = {} }) => {
             rmt: 0
         },
         newSleepersInPipeline: summaryData.newSleepersInPipeline || 45000,
-        sleepersRejectedInProcess: summaryData.sleepersRejectedInProcess || 10200,
-        sleepersRejectedInFinal: summaryData.sleepersRejectedInFinal || 12850,
-        rejectionPercentage: summaryData.rejectionPercentage || 1.64
+        sleepersRejectedInProcess: rejectedInProcess,
+        sleepersRejectedInFinal: rejectedInFinal,
+        rejectionPercentage: rejectionPercentage.toFixed(2)
     };
 
     return (

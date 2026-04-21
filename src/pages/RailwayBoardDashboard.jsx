@@ -476,6 +476,8 @@ const RailwayBoardDashboard = () => {
                             activeReportFromParent={activeReport}
                             onReportTabChange={handleReportLink}
                             setSelectedProduct={setSelectedProduct}
+                            fromDate={fromDate}
+                            toDate={toDate}
                         />
                     </div>
 

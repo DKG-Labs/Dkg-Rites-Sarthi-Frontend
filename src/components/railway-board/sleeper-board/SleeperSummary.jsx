@@ -1,24 +1,51 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import './SleeperSummary.css';
+import reportService from '../../../services/reportService';
 
 const SleeperSummary = ({ summaryData = {} }) => {
+    const [rejectedInProcess, setRejectedInProcess] = useState(0);
+    const [rejectedInFinal, setRejectedInFinal] = useState(0);
+    const [rejectionPercentage, setRejectionPercentage] = useState(0);
+
+    useEffect(() => {
+        const fetchCounts = async () => {
+            try {
+                // Fetch Demoulding Rejection
+                const demouldingRes = await reportService.getDemouldingRejectedCount();
+                setRejectedInProcess(demouldingRes.responseData || demouldingRes || 0);
+
+                // Fetch Final Inspection Rejection
+                const finalRes = await reportService.getFinalRejectedCount();
+                setRejectedInFinal(finalRes.responseData || finalRes || 0);
+
+                // Fetch Rejection Percentage
+                const rejectionRes = await reportService.getRejectionPercentage();
+                const percentage = rejectionRes.responseData !== undefined ? rejectionRes.responseData : rejectionRes;
+                setRejectionPercentage(Number(percentage || 0));
+            } catch (error) {
+                console.error("Error fetching sleeper rejection metrics:", error);
+            }
+        };
+        fetchCounts();
+    }, []);
+
     // Mock data based on the provided requirements
     const data = {
-        poIssued: summaryData.poIssued || 124,
+        poIssued: summaryData.sleeperPoIssued || 0,
         poQuantity: {
-            nos: summaryData.poQuantityNos || 49036949,
-            set: summaryData.poQuantitySet || 12500,
-            rmt: summaryData.poQuantityRmt || 18500
+            nos: summaryData.sleeperPoQuantityNos || 0,
+            set: 0,
+            rmt: 0
         },
         finalInspectionQty: {
-            nos: summaryData.finalInspectionQtyNos || 125000,
-            set: summaryData.finalInspectionQtySet || 45000,
-            rmt: summaryData.finalInspectionQtyRmt || 32000
+            nos: 0,
+            set: 0,
+            rmt: 0
         },
         newSleepersInPipeline: summaryData.newSleepersInPipeline || 45000,
-        sleepersRejectedInProcess: summaryData.sleepersRejectedInProcess || 10200,
-        sleepersRejectedInFinal: summaryData.sleepersRejectedInFinal || 12850,
-        rejectionPercentage: summaryData.rejectionPercentage || 1.64
+        sleepersRejectedInProcess: rejectedInProcess,
+        sleepersRejectedInFinal: rejectedInFinal,
+        rejectionPercentage: rejectionPercentage.toFixed(2)
     };
 
     return (

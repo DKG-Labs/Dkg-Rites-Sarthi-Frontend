@@ -95,7 +95,9 @@ const ProfessionalCardSection = ({
     setMpiaPage = () => { },
     mpiaRowsPerPage = 10,
     setMpiaRowsPerPage = () => { },
-    onReportTabChange = () => { }
+    onReportTabChange = () => { },
+    fromDate,
+    toDate
 }) => {
     // Map selectedProduct to summary data keys
     const getSummaryKey = (prod) => {
@@ -1047,7 +1049,7 @@ const ProfessionalCardSection = ({
                                         )}
 
                                         {activeReport === 'mau' && (
-                                            isSleeper ? <SleeperMauReport /> : (
+                                            isSleeper ? <SleeperMauReport startDate={fromDate} endDate={toDate} /> : (
                                                 <div className="prof-card animate-up">
                                                     <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                         <span>Monthly Analysis of Units</span>

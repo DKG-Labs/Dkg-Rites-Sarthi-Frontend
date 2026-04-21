@@ -6,7 +6,7 @@ import { saveCementSettingTime, getCementSettingTimeByReqId, getCementSettingTim
 
 const emptyRow = { time: "", needle: "", spot: "" };
 
-export default function SettingTimeForm({ onSave, onCancel, inventoryData = [], initialType = "New consignment", activeRequestId, sharedNC, editId, editData }) {
+export default function SettingTimeForm({ onSave, onCancel, inventoryData = [], initialType = "New consignment", activeRequestId, activeConsignmentNo, sharedNC, editId, editData }) {
     const { selectedShift, dutyDate, dutyLocation } = useShift();
     const toast = useToast();
     const user = getStoredUser();
@@ -15,7 +15,7 @@ export default function SettingTimeForm({ onSave, onCancel, inventoryData = [], 
     const [loading, setLoading] = useState(false);
     const [header, setHeader] = useState({
         type: initialType,
-        consignment: "",
+        consignment: activeConsignmentNo || "",
         temp: "",
         weight: "400", // Default 400g for setting time
         nc: "",
@@ -46,13 +46,13 @@ export default function SettingTimeForm({ onSave, onCancel, inventoryData = [], 
     }, [sharedNC, header.weight]);
 
     useEffect(() => {
-        console.log("SettingTimeForm Props:", { initialType, editId, editData });
+        console.log("SettingTimeForm Props:", { initialType, editId, editData, activeConsignmentNo });
         const handleRecord = (record) => {
             if (!record) return;
             setHeader(prev => ({
                 ...prev,
                 type: record.typeOfTesting || prev.type,
-                consignment: record.consignmentNo || record.consignment || prev.consignment,
+                consignment: record.consignmentNo || record.consignment || activeConsignmentNo || prev.consignment,
                 temp: record.roomTemp || record.temp || prev.temp,
                 weight: record.weight || prev.weight || "400",
                 nc: record.normalConsistency || prev.nc,
@@ -75,9 +75,14 @@ export default function SettingTimeForm({ onSave, onCancel, inventoryData = [], 
                 if (record && (record.id || record.consignmentNo)) {
                     setEditIdState(record.id || null);
                     handleRecord(record);
-                } else if (!hasNotifiedRef.current) {
-                    toast.info("No previous Setting Time data found. You can start entering new test results.");
-                    hasNotifiedRef.current = true;
+                } else {
+                    if (activeConsignmentNo) {
+                        setHeader(prev => ({ ...prev, consignment: activeConsignmentNo }));
+                    }
+                    if (!hasNotifiedRef.current) {
+                        toast.info("No previous Setting Time data found. You can start entering new test results.");
+                        hasNotifiedRef.current = true;
+                    }
                 }
             });
         } else if (initialType === "Periodic" && (editId || editData)) {

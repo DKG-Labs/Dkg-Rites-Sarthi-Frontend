@@ -590,22 +590,22 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
                                 <div className="cell data-cell calculated-cell">{acRatio}</div>
                                 <div className="cell data-cell calculated-cell">{wcRatio}</div>
                                 <div className="cell data-cell">
-                                    <input id="moisture-actual-cement" name="actualCement" type="number" min="0" step="0.01" value={commonData.userDryCement} onChange={e => handleCommonChange('userDryCement', e.target.value)} placeholder="[M]" aria-label="Actual Cement Weight" />
+                                    <input id="moisture-actual-cement" name="actualCement" type="number" min="0" step="0.01" value={commonData.userDryCement} onChange={e => handleCommonChange('userDryCement', e.target.value)} aria-label="Actual Cement Weight" />
                                 </div>
                                 <div className="cell data-cell">
-                                    <input id="moisture-actual-ca1" name="actualCA1" type="number" step="0.01" value={commonData.userDryCA1} readOnly tabIndex={-1} placeholder="[F]" aria-label="Actual CA1 Weight" style={{ background: '#f8fafc', color: '#64748b' }} />
+                                    <input id="moisture-actual-ca1" name="actualCA1" type="number" step="0.01" value={commonData.userDryCA1} readOnly tabIndex={-1} aria-label="Actual CA1 Weight" style={{ background: '#f8fafc', color: '#64748b' }} />
                                 </div>
                                 <div className="cell data-cell">
-                                    <input id="moisture-actual-ca2" name="actualCA2" type="number" step="0.01" value={commonData.userDryCA2} readOnly tabIndex={-1} placeholder="[G]" aria-label="Actual CA2 Weight" style={{ background: '#f8fafc', color: '#64748b' }} />
+                                    <input id="moisture-actual-ca2" name="actualCA2" type="number" step="0.01" value={commonData.userDryCA2} readOnly tabIndex={-1} aria-label="Actual CA2 Weight" style={{ background: '#f8fafc', color: '#64748b' }} />
                                 </div>
                                 <div className="cell data-cell">
-                                    <input id="moisture-actual-fa" name="actualFA" type="number" step="0.01" value={commonData.userDryFA} readOnly tabIndex={-1} placeholder="[H]" aria-label="Actual FA Weight" style={{ background: '#f8fafc', color: '#64748b' }} />
+                                    <input id="moisture-actual-fa" name="actualFA" type="number" step="0.01" value={commonData.userDryFA} readOnly tabIndex={-1} aria-label="Actual FA Weight" style={{ background: '#f8fafc', color: '#64748b' }} />
                                 </div>
                                 <div className="cell data-cell">
-                                    <input id="moisture-actual-water" name="actualWater" type="number" step="0.01" value={commonData.userDryWater} readOnly tabIndex={-1} placeholder="[I]" aria-label="Actual Water Weight" style={{ background: '#f8fafc', color: '#64748b' }} />
+                                    <input id="moisture-actual-water" name="actualWater" type="number" step="0.01" value={commonData.userDryWater} readOnly tabIndex={-1} aria-label="Actual Water Weight" style={{ background: '#f8fafc', color: '#64748b' }} />
                                 </div>
                                 <div className="cell data-cell">
-                                    <input id="moisture-actual-admix" name="actualAdmix" type="number" step="0.01" value={commonData.userDryAdmix} readOnly tabIndex={-1} placeholder="[J]" aria-label="Actual Admix Weight" style={{ background: '#f8fafc', color: '#64748b' }} />
+                                    <input id="moisture-actual-admix" name="actualAdmix" type="number" step="0.01" value={commonData.userDryAdmix} readOnly tabIndex={-1} aria-label="Actual Admix Weight" style={{ background: '#f8fafc', color: '#64748b' }} />
                                 </div>
                                 <div className="cell data-cell calculated-cell" style={{ fontSize: '0.7rem' }}>
                                     {((parseFloat(commonData.userDryAdmix) / (parseFloat(commonData.userDryCement) || 1)) * 100).toFixed(2)}%

@@ -39,7 +39,9 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
         // Group by Bench
         const groups = {};
         list.forEach(s => {
-            const b = s.benchNo || 'Batch Items';
+            // Derive bench from sleeperNo prefix (e.g., "21" from "21A") if benchNo is missing
+            const derivedBench = s.displayNo ? String(s.displayNo).match(/^\d+/)?.[0] : null;
+            const b = s.benchNo || derivedBench || 'Batch Items';
             if (!groups[b]) groups[b] = [];
             groups[b].push(s);
         });
@@ -55,7 +57,17 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                         <div style={{ fontSize: '9px', fontWeight: '800', color: type === 'rejected' ? '#ef4444' : type === 'passed' ? '#15803d' : '#64748b', textTransform: 'uppercase', marginBottom: '8px', borderBottom: '1px solid currentColor', paddingBottom: '2px', opacity: 0.7 }}>
                             Bench: {bench} ({groups[bench].length})
                         </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        <div 
+                            className="custom-scrollbar"
+                            style={{ 
+                                display: 'flex', 
+                                flexWrap: 'nowrap', 
+                                gap: '6px', 
+                                overflowX: 'auto', 
+                                paddingBottom: '8px',
+                                scrollbarWidth: 'thin'
+                            }}
+                        >
                             {groups[bench]
                                 .sort((a, b) => (a.displayNo || '').toString().localeCompare((b.displayNo || '').toString(), undefined, { numeric: true }))
                                 .map(s => {
@@ -78,7 +90,8 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                                                 padding: '4px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '700', cursor: saving ? 'not-allowed' : 'pointer',
                                                 background: bg, color: fg, border: `1px solid ${border}`,
                                                 boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                                                minWidth: '32px', textAlign: 'center'
+                                                minWidth: '32px', textAlign: 'center',
+                                                flexShrink: 0
                                             }}
                                         >
                                             {s.displayNo}

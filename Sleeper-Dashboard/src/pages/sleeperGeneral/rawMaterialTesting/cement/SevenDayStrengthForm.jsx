@@ -4,7 +4,7 @@ import { useToast } from "../../../../context/ToastContext";
 import { getStoredUser } from "../../../../services/authService";
 import { saveCement7DayStrength, getCement7DayStrengthByReqId, getCement7DayStrengthById } from "../../../../services/workflowService";
 
-export default function SevenDayStrengthForm({ onSave, onCancel, inventoryData = [], initialType = "New consignment", activeRequestId, sharedNC, editId, editData }) {
+export default function SevenDayStrengthForm({ onSave, onCancel, inventoryData = [], initialType = "New consignment", activeRequestId, activeConsignmentNo, sharedNC, editId, editData }) {
     const { selectedShift, dutyDate, dutyLocation } = useShift();
     const toast = useToast();
     const user = getStoredUser();
@@ -13,7 +13,7 @@ export default function SevenDayStrengthForm({ onSave, onCancel, inventoryData =
     const [loading, setLoading] = useState(false);
     const [form, setForm] = useState({
         typeOfTesting: initialType,
-        consignmentNo: "",
+        consignmentNo: activeConsignmentNo || "",
         roomTemp: "",
         normalConsistency: "",
         waterRequired: 0,
@@ -45,7 +45,7 @@ export default function SevenDayStrengthForm({ onSave, onCancel, inventoryData =
     }, [sharedNC]);
 
     useEffect(() => {
-        console.log("SevenDayStrengthForm Props:", { initialType, editId, editData });
+        console.log("SevenDayStrengthForm Props:", { initialType, editId, editData, activeConsignmentNo });
         const formatFromISO = (d) => {
             if (!d) return "";
             if (d.includes('-') && d.split('-')[0].length === 4) {
@@ -60,7 +60,7 @@ export default function SevenDayStrengthForm({ onSave, onCancel, inventoryData =
             setForm(prev => ({
                 ...prev,
                 typeOfTesting: record.typeOfTesting || prev.typeOfTesting,
-                consignmentNo: record.consignmentNo || record.consignment || prev.consignmentNo,
+                consignmentNo: record.consignmentNo || record.consignment || activeConsignmentNo || prev.consignmentNo,
                 roomTemp: record.roomTemp || record.temp || prev.roomTemp,
                 normalConsistency: record.normalConsistency || prev.normalConsistency,
                 waterRequired: record.waterRequired || prev.waterRequired,
@@ -86,9 +86,14 @@ export default function SevenDayStrengthForm({ onSave, onCancel, inventoryData =
                 if (record && (record.id || record.consignmentNo)) {
                     setEditIdState(record.id || null);
                     handleRecord(record);
-                } else if (!hasNotifiedRef.current) {
-                    toast.info("No previous 7-Day Strength data found. You can start entering new test results.");
-                    hasNotifiedRef.current = true;
+                } else {
+                    if (activeConsignmentNo) {
+                        setForm(prev => ({ ...prev, consignmentNo: activeConsignmentNo }));
+                    }
+                    if (!hasNotifiedRef.current) {
+                        toast.info("No previous 7-Day Strength data found. You can start entering new test results.");
+                        hasNotifiedRef.current = true;
+                    }
                 }
             });
         } else if (initialType === "Periodic" && (editId || editData)) {

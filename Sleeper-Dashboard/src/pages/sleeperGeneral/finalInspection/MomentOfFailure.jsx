@@ -276,9 +276,9 @@ const MomentOfFailure = () => {
                 border: '1px solid #e2e8f0'
             }}>
                 {[
-                    { id: 'statistics', label: 'Structural Integrity' },
-                    { id: 'declared', label: 'Moment of Resistance' },
-                    { id: 'tested', label: 'Standard Compliance' }
+                    { id: 'statistics', label: 'Analytics' },
+                    { id: 'declared', label: 'Sample Declared for Testing' },
+                    { id: 'tested', label: 'Testing Completed' }
                 ].map(tab => (
                     <button
                         key={tab.id}

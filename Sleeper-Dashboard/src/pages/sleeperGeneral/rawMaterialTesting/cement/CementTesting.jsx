@@ -496,12 +496,17 @@ const CementTesting = ({ onBack, inventoryData = [] }) => {
     ];
 
     const renderActiveForm = () => {
+        const activeConsignment = activeRequestId 
+            ? pendingStocks.find(s => s.requestId === activeRequestId)
+            : null;
+
         const commonProps = {
             onSave: handleSaveTest,
             onCancel: () => setShowForm(false),
             inventoryData: pendingStocks,
             initialType: initialType,
-            activeRequestId: activeRequestId
+            activeRequestId: activeRequestId,
+            activeConsignmentNo: activeConsignment?.consignmentNo || null
         };
 
         switch (activeFormSection) {

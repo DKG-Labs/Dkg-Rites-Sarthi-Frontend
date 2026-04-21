@@ -199,7 +199,7 @@ const ModulusOfRupture = () => {
     const columnsDeclared = [
         { key: 'samplingDate', label: 'Date of Sampling' },
         { key: 'concreteGrade', label: 'Concrete Grade' },
-        { key: 'shedLine', label: 'Shed/Line No.' },
+        { key: 'location', label: 'Location' },
         { key: 'sampleIdentificationNumber', label: 'Sample ID' },
         {
             key: 'actions',
@@ -274,9 +274,9 @@ const ModulusOfRupture = () => {
                 border: '1px solid #e2e8f0'
             }}>
                 {[
-                    { id: 'statistics', label: 'Statistics' },
-                    { id: 'declared', label: 'Pending Tests' },
-                    { id: 'tested', label: 'Test Log' }
+                    { id: 'statistics', label: 'Analytics' },
+                    { id: 'declared', label: 'Sample Declared for Testing' },
+                    { id: 'tested', label: 'Testing Completed' }
                 ].map(tab => (
                     <button
                         key={tab.id}
@@ -406,17 +406,37 @@ const StatCard = ({ label, value, unit = '', color = '#1e293b' }) => (
 );
 
 const MORSampleDeclarationModal = ({ sample, isModifying, onClose, onSave, saving }) => {
+    const { vendorId, dutyUnit, vendorCode } = useShift();
+    const [locations, setLocations] = useState({});
+
+    useEffect(() => {
+        const fetchLocations = async () => {
+            const vId = vendorId || localStorage.getItem('vendorId');
+            const pId = dutyUnit || localStorage.getItem('dutyUnit');
+            if (!vId || !pId) return;
+            try {
+                const res = await apiService.getPlantSheds(vId, pId);
+                if (res?.responseData) {
+                    setLocations(res.responseData);
+                } else if (res && typeof res === 'object') {
+                    setLocations(res);
+                }
+            } catch (err) {
+                console.error("Failed to fetch locations:", err);
+            }
+        };
+        fetchLocations();
+    }, [vendorId, dutyUnit]);
+
     const [formData, setFormData] = useState(sample ? {
         samplingDate: sample.samplingDate,
         concreteGrade: sample.concreteGrade,
-        plantType: sample.plantType,
-        shedLine: sample.shedLine,
+        location: sample.location || sample.shedLine || `${sample.plantType || ''} - ${sample.shedLine || ''}`.replace(/^- | - $/g, ''),
         sampleIdentificationNumber: sample.sampleIdentificationNumber
     } : {
         samplingDate: new Date().toISOString().split('T')[0],
         concreteGrade: '',
-        plantType: '',
-        shedLine: '',
+        location: '',
         sampleIdentificationNumber: ''
     });
 
@@ -442,23 +462,16 @@ const MORSampleDeclarationModal = ({ sample, isModifying, onClose, onSave, savin
                             </select>
                         </div>
                         <div className="input-group">
-                            <label>Plant Type</label>
-                            <select value={formData.plantType} onChange={e => setFormData({ ...formData, plantType: e.target.value })}>
-                                <option value="">Select Plant</option>
-                                <option>Long Line</option>
-                                <option>Stress Bench</option>
-                                <option>General</option>
-                            </select>
-                        </div>
-                        <div className="input-group">
-                            <label>Shed / Line</label>
-                            <select value={formData.shedLine} onChange={e => setFormData({ ...formData, shedLine: e.target.value })}>
-                                <option value="">Select Shed/Line</option>
-                                <option>Shed 1</option>
-                                <option>Shed 2</option>
-                                <option>Line 1</option>
-                                <option>Line 2</option>
-                                <option>N/A</option>
+                            <label>Location (Plant / Shed)</label>
+                            <select value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })}>
+                                <option value="">Select Location</option>
+                                {Object.entries(locations).map(([plantType, sheds]) => (
+                                    <optgroup key={plantType} label={plantType}>
+                                        {Array.isArray(sheds) && sheds.map(shed => (
+                                            <option key={`${plantType} - ${shed}`} value={`${plantType} - ${shed}`}>{shed}</option>
+                                        ))}
+                                    </optgroup>
+                                ))}
                             </select>
                         </div>
                         <div className="input-group">
@@ -468,11 +481,22 @@ const MORSampleDeclarationModal = ({ sample, isModifying, onClose, onSave, savin
                     </div>
                     <div style={{ display: 'flex', gap: '12px', marginTop: '32px', flexWrap: 'wrap' }}>
                         <button className="btn-verify" disabled={saving} style={{ flex: '1 1 200px' }} onClick={() => {
-                            if (!formData.concreteGrade || !formData.plantType || !formData.shedLine || !formData.sampleIdentificationNumber) {
-                                alert("Please fill in all mandatory fields (Grade, Plant, Shed/Line, and ID).");
+                            if (!formData.concreteGrade || !formData.location || !formData.sampleIdentificationNumber) {
+                                alert("Please fill in all mandatory fields (Grade, Location, and ID).");
                                 return;
                             }
-                            onSave(formData);
+                            // Backend might still expect plantType and shedLine, or we can send location.
+                            // If backend schema isn't changed, we can send location mapped to shedLine, or split it.
+                            // The backend update was requested, so we'll send it as location.
+                            const payload = { ...formData };
+                            if (formData.location.includes(' - ')) {
+                                const parts = formData.location.split(' - ');
+                                payload.plantType = parts[0];
+                                payload.shedLine = parts[1];
+                            } else {
+                                payload.shedLine = formData.location;
+                            }
+                            onSave(payload);
                         }}>{saving ? 'Saving...' : (isModifying ? 'Update Sample' : 'Save Declaration')}</button>
                         <button className="btn-save" style={{ flex: '1 1 200px', background: '#f1f5f9', color: '#64748b', border: 'none' }} onClick={onClose}>Cancel</button>
                     </div>
@@ -574,7 +598,7 @@ const MORDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelete }) =
     const details = [
         { label: 'Sample ID', value: sample.sampleIdentificationNumber },
         { label: 'Grade', value: sample.concreteGrade },
-        { label: 'Shed/Line', value: sample.shedLine || '-' },
+        { label: 'Location', value: sample.location || sample.shedLine || '-' },
         { label: 'Sampling Date', value: sample.samplingDate },
         ...(sample.isTestRecord ? [
             { label: 'Testing Date', value: sample.testingDate },

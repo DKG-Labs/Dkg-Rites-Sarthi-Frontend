@@ -307,6 +307,13 @@ const reportService = {
         });
         return handleResponse(response);
     },
+
+    getSleeperPoCount: async () => {
+        const response = await fetch(`${API_ENDPOINTS.REPORTS}/sleeperPoIssuedCount`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
 };
 
 export default reportService;

@@ -4,16 +4,16 @@ import './SleeperSummary.css';
 const SleeperSummary = ({ summaryData = {} }) => {
     // Mock data based on the provided requirements
     const data = {
-        poIssued: summaryData.poIssued || 124,
+        poIssued: summaryData.sleeperPoIssued || 0,
         poQuantity: {
-            nos: summaryData.poQuantityNos || 49036949,
-            set: summaryData.poQuantitySet || 12500,
-            rmt: summaryData.poQuantityRmt || 18500
+            nos: summaryData.sleeperPoQuantityNos || 0,
+            set: 0,
+            rmt: 0
         },
         finalInspectionQty: {
-            nos: summaryData.finalInspectionQtyNos || 125000,
-            set: summaryData.finalInspectionQtySet || 45000,
-            rmt: summaryData.finalInspectionQtyRmt || 32000
+            nos: 0,
+            set: 0,
+            rmt: 0
         },
         newSleepersInPipeline: summaryData.newSleepersInPipeline || 45000,
         sleepersRejectedInProcess: summaryData.sleepersRejectedInProcess || 10200,

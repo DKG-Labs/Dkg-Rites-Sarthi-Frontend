@@ -251,9 +251,9 @@ const SleeperMauReport = ({ startDate, endDate }) => {
                                     { label: 'Inspected By', key: 'inspectedBy' },
                                     { label: 'Production', key: 'production' },
                                     { label: 'Acceptance', key: 'acceptance' },
-                                    { label: 'Process Rejection', key: 'processRej' },
-                                    { label: 'Final Rejection', key: 'finalRej' },
-                                    { label: '% Rejection', key: 'rejPct' }
+                                    { label: 'Process Rejection', key: 'processRejection' },
+                                    { label: 'Final Rejection', key: 'finalRejection' },
+                                    { label: '% Rejection', key: 'rejectionPercentage' }
                                 ],
                                 'Sleeper_MAU_Summary'
                             )}
@@ -304,10 +304,10 @@ const SleeperMauReport = ({ startDate, endDate }) => {
                                             <td><span className="prof-badge" style={{ background: '#f0f9ff', color: '#075985' }}>{row.inspectedBy}</span></td>
                                             <td className="text-right">{(row.production || 0).toLocaleString()}</td>
                                             <td className="text-right text-emerald-600 font-bold">{(row.acceptance || 0).toLocaleString()}</td>
-                                            <td className="text-right">{(row.processRej || 0).toLocaleString()}</td>
-                                            <td className="text-right">{(row.finalRej || 0).toLocaleString()}</td>
+                                            <td className="text-right">{(row.processRejection || 0).toLocaleString()}</td>
+                                            <td className="text-right">{(row.finalRejection || 0).toLocaleString()}</td>
                                             <td className="text-right">
-                                                <span className="prof-badge" style={{ background: '#fff7ed', color: '#9a3412' }}>{Number(row.rejPct || 0).toFixed(2)}%</span>
+                                                <span className="prof-badge" style={{ background: '#fff7ed', color: '#9a3412' }}>{Number(row.rejectionPercentage || 0).toFixed(2)}%</span>
                                             </td>
                                         </tr>
                                     ))

@@ -221,6 +221,34 @@ export const getProductionDeclarationsByUser = async (userId) => {
 };
 
 /**
+ * Fetch Production Declaration by ID
+ * @param {number|string} id - The declaration ID
+ * @returns {Promise<Object>} The full production declaration object
+ */
+export const getProductionDeclarationById = async (id) => {
+  try {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_BASE_URL}/production-declaration/${id}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch production declaration by ID');
+    }
+
+    const data = await response.json();
+    return data.responseData || data;
+  } catch (error) {
+    console.error('Error fetching production declaration by ID:', error);
+    return null;
+  }
+};
+
+/**
  * Save Water Cube Sample Declaration (Create or Update)
  * @param {Object} data - Declaration data
  * @param {number|string} [id] - Optional ID for update

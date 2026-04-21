@@ -13,7 +13,7 @@ const emptyRow = {
     needle: "",
 };
 
-export default function NormalConsistencyForm({ onSave, onCancel, inventoryData = [], initialType = "New consignment", activeRequestId, editId, editData, onValueChange }) {
+export default function NormalConsistencyForm({ onSave, onCancel, inventoryData = [], initialType = "New consignment", activeRequestId, activeConsignmentNo, editId, editData, onValueChange }) {
     const { selectedShift, dutyDate, dutyLocation } = useShift();
     const toast = useToast();
     const user = getStoredUser();
@@ -22,7 +22,7 @@ export default function NormalConsistencyForm({ onSave, onCancel, inventoryData 
     const [loading, setLoading] = useState(false);
     const [header, setHeader] = useState({
         typeOfTesting: initialType,
-        consignmentNo: "",
+        consignmentNo: activeConsignmentNo || "",
         roomTemp: "",
         sampleWeight: 400
     });
@@ -57,13 +57,13 @@ export default function NormalConsistencyForm({ onSave, onCancel, inventoryData 
     }, [editId]);
 
     useEffect(() => {
-        console.log("NormalConsistencyForm Props:", { initialType, editId, editData });
+        console.log("NormalConsistencyForm Props:", { initialType, editId, editData, activeConsignmentNo });
         const handleRecord = (record) => {
             if (!record) return;
             setHeader(prev => ({
                 ...prev,
                 typeOfTesting: record.typeOfTesting || prev.typeOfTesting,
-                consignmentNo: record.consignmentNo || record.consignment || prev.consignmentNo,
+                consignmentNo: record.consignmentNo || record.consignment || activeConsignmentNo || prev.consignmentNo,
                 roomTemp: record.roomTemp || record.temp || prev.roomTemp,
                 sampleWeight: record.sampleWeight || record.weight || 400
             }));
@@ -87,9 +87,14 @@ export default function NormalConsistencyForm({ onSave, onCancel, inventoryData 
                 if (record && (record.id || record.consignmentNo)) {
                     setEditIdState(record.id || null);
                     handleRecord(record);
-                } else if (!hasNotifiedRef.current) {
-                    toast.info("No previous Normal Consistency data found. You can start entering new test results.");
-                    hasNotifiedRef.current = true;
+                } else {
+                    if (activeConsignmentNo) {
+                        setHeader(prev => ({ ...prev, consignmentNo: activeConsignmentNo }));
+                    }
+                    if (!hasNotifiedRef.current) {
+                        toast.info("No previous Normal Consistency data found. You can start entering new test results.");
+                        hasNotifiedRef.current = true;
+                    }
                 }
             });
         } else if (initialType === "Periodic" && (editId || editData)) {

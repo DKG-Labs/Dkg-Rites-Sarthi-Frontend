@@ -305,6 +305,93 @@ const getStatusDisplay = (status) => {
 };
 
 // ─────────────────────────────────────────────
+//  Sub-component: Record Table
+// ─────────────────────────────────────────────
+const RecordTable = ({ records, moduleId, onView, btnLabel, btnColor }) => {
+    return (
+        <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                <thead>
+                    <tr style={{ background: '#f8fafc' }}>
+                        <th style={thStyle}>#</th>
+                        {MODULE_TABLE_FIELDS[moduleId]?.map(col => (
+                            <th key={col.key} style={thStyle}>{col.label}</th>
+                        ))}
+                        <th style={thStyle}>Status</th>
+                        <th style={thStyle}>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {records.map((row, idx) => {
+                        const { label, bg, color } = getStatusDisplay(row.status);
+                        return (
+                            <tr key={row.workflowTransitionId || idx}
+                                style={{ borderBottom: '1px solid #f1f5f9' }}
+                                onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                                onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+                            >
+                                <td style={tdStyle}>{idx + 1}</td>
+                                {MODULE_TABLE_FIELDS[moduleId]?.map(col => {
+                                    const detail = row.detail || {};
+                                    let rawVal = detail[col.key];
+
+                                    if (col.key === 'manufacturer' || col.label === 'Vendor') {
+                                        rawVal = detail.manufacturer || detail.brand || detail.source || detail.supplierName || '—';
+                                    }
+                                    if (col.key === 'invoiceNo' || col.key === 'invoiceNumber' || col.label === 'Invoice' || col.label === 'Consignment') {
+                                        rawVal = detail.invoiceNo || detail.invoiceNumber || detail.challanNumber || detail.consignmentNo || detail.mtcNo || '—';
+                                    }
+                                    if (col.key === 'dateOfReceipt' || col.label === 'Date' || col.label === 'Arrival Date' || col.label === 'Casting Date') {
+                                        rawVal = detail.dateOfReceipt || detail.receivedDate || detail.arrivalDate || detail.castingDate || detail.createdDate || detail.createdAt || '—';
+                                    }
+
+                                    const isDateValue = typeof rawVal === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(rawVal);
+                                    const formattedVal = isDateValue ? new Date(rawVal).toLocaleDateString('en-GB') : (rawVal ?? '—');
+                                    
+                                    return (
+                                        <td key={col.key} style={tdStyle}>
+                                            {formattedVal}
+                                        </td>
+                                    );
+                                })}
+                                <td style={tdStyle}>
+                                    <span style={{
+                                        background: bg, color: color,
+                                        padding: '3px 10px', borderRadius: '6px',
+                                        fontSize: '11px', fontWeight: '700',
+                                        border: `1px solid ${color}20`
+                                    }}>
+                                        {label}
+                                    </span>
+                                </td>
+                                <td style={tdStyle}>
+                                    <button
+                                        onClick={() => onView(row)}
+                                        style={{
+                                            background: btnColor, color: '#fff',
+                                            border: 'none', borderRadius: '8px',
+                                            padding: '7px 14px', fontSize: '12px',
+                                            fontWeight: '700', cursor: 'pointer',
+                                            display: 'flex', alignItems: 'center', gap: '6px',
+                                            whiteSpace: 'nowrap', transition: 'background 0.15s',
+                                        }}
+                                    >
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                                        </svg>
+                                        {btnLabel}
+                                    </button>
+                                </td>
+                            </tr>
+                        );
+                    })}
+                </tbody>
+            </table>
+        </div>
+    );
+};
+
+// ─────────────────────────────────────────────
 //  Main Dashboard Component
 // ─────────────────────────────────────────────
 
@@ -315,7 +402,7 @@ const IncomingVerificationDashboard = ({ initialGroup = null }) => {
     const [error, setError] = useState(null);
 
     // Records enriched with detail data per module
-    const [enrichedByModule, setEnrichedByModule] = useState({}); // { moduleId: [{...transition, detail, moduleLabel}] }
+    const [enrichedByModule, setEnrichedByModule] = useState({}); // { moduleId: { pending: [], verified: [] } }
 
     const [selectedModuleId, setSelectedModuleId] = useState(null);
     const [detailModal, setDetailModal] = useState(null); // row to show in the detail modal
@@ -330,55 +417,69 @@ const IncomingVerificationDashboard = ({ initialGroup = null }) => {
         setLoading(true);
         setError(null);
         try {
-            const res = await apiService.getAllPendingWorkflowTransitions('IE', effectiveUserId, dutyUnit);
+            // Fetch pending and historical transitions separately as backend doesn't have a combined 'all' endpoint
+            const [pendingRes, completedRes] = await Promise.all([
+                apiService.getAllPendingWorkflowTransitions('IE', effectiveUserId, dutyUnit),
+                apiService.getAllCompletedWorkflowTransitions(effectiveUserId, dutyUnit)
+            ]);
 
-            const rawList = Array.isArray(res)
-                ? res
-                : (Array.isArray(res?.responseData) ? res.responseData : []);
+            const parseRes = (res) => Array.isArray(res) ? res : (Array.isArray(res?.responseData) ? res.responseData : []);
+            const pendingList = parseRes(pendingRes);
+            const verifiedList = parseRes(completedRes);
 
-            // Filter by initialGroup's module IDs AND active plantId (dutyUnit)
+            // Filter modules of interest
             const filteredModuleIds = filteredModules.map(m => m.moduleId);
-            const myFilteredRecords = rawList.filter(r => {
+            const filterByModuleAndPlant = (list) => list.filter(r => {
                 const isCorrectModule = filteredModuleIds.includes(r.moduleId);
-                // Secondary safeguard: Ensure we only show records for the current plant (dutyUnit)
                 const isCorrectPlant = !dutyUnit || r.plantId === dutyUnit;
                 return isCorrectModule && isCorrectPlant;
             });
 
+            const myPending = filterByModuleAndPlant(pendingList);
+            const myVerified = filterByModuleAndPlant(verifiedList);
 
-            // Group by moduleId
+            // Group by moduleId and status
             const grouped = {};
             for (const mod of filteredModules) {
-                grouped[mod.moduleId] = [];
+                grouped[mod.moduleId] = { pending: [], verified: [] };
             }
-            for (const item of myFilteredRecords) {
-                const mid = item.moduleId;
-                if (grouped[mid]) grouped[mid].push(item);
-            }
+            
+            myPending.forEach(item => {
+                if (grouped[item.moduleId]) grouped[item.moduleId].pending.push(item);
+            });
+            myVerified.forEach(item => {
+                if (grouped[item.moduleId]) grouped[item.moduleId].verified.push(item);
+            });
 
             // Fetch detail for each record in parallel
             const enriched = {};
             await Promise.all(
-                Object.entries(grouped).map(async ([modId, items]) => {
+                Object.entries(grouped).map(async ([modId, categories]) => {
                     const numId = Number(modId);
                     const modConf = MODULE_CONFIG.find(m => m.moduleId === numId);
-                    enriched[numId] = await Promise.all(
-                        items.map(async item => {
+                    
+                    const processCategory = async (items) => {
+                        return Promise.all(items.map(async item => {
                             const detail = await fetchRecordDetail(numId, item.requestId);
                             return {
                                 ...item,
                                 detail: detail || {},
                                 moduleLabel: modConf?.label || `Module ${numId}`,
                             };
-                        })
-                    );
+                        }));
+                    };
+
+                    enriched[numId] = {
+                        pending: await processCategory(categories.pending),
+                        verified: await processCategory(categories.verified)
+                    };
                 })
             );
             setEnrichedByModule(enriched);
 
             // Auto-select first module that has records
             if (filteredModules.length > 0 && selectedModuleId === null) {
-                const firstWithRecords = filteredModules.find(m => (enriched[m.moduleId] || []).length > 0);
+                const firstWithRecords = filteredModules.find(m => (enriched[m.moduleId]?.pending || []).length > 0);
                 setSelectedModuleId(firstWithRecords ? firstWithRecords.moduleId : filteredModules[0].moduleId);
             }
         } catch (err) {
@@ -386,7 +487,7 @@ const IncomingVerificationDashboard = ({ initialGroup = null }) => {
         } finally {
             setLoading(false);
         }
-    }, [initialGroup, effectiveUserId]); // eslint-disable-line
+    }, [initialGroup, effectiveUserId, dutyUnit]); // eslint-disable-line
 
     useEffect(() => {
         loadData();
@@ -395,8 +496,11 @@ const IncomingVerificationDashboard = ({ initialGroup = null }) => {
     // Action is now handled inside VerificationDetailModal — kept only for API compatibility
     // loadData is passed to modal's onDone prop
 
-    const totalCount = Object.values(enrichedByModule).reduce((acc, curr) => acc + curr.length, 0);
-    const currentRecords = enrichedByModule[selectedModuleId] || [];
+    const pendingCount = Object.values(enrichedByModule).reduce((acc, curr) => acc + (curr.pending?.length || 0), 0);
+    const verifiedCount = Object.values(enrichedByModule).reduce((acc, curr) => acc + (curr.verified?.length || 0), 0);
+    
+    const currentPending = enrichedByModule[selectedModuleId]?.pending || [];
+    const currentVerified = enrichedByModule[selectedModuleId]?.verified || [];
 
     // ─────────────────────────────────────────────
     //  Render
@@ -436,18 +540,18 @@ const IncomingVerificationDashboard = ({ initialGroup = null }) => {
 
             {/* Summary banner */}
             <div style={{
-                background: totalCount > 0 ? '#fff7ed' : '#f0fdf4',
-                border: `1px solid ${totalCount > 0 ? '#fed7aa' : '#bbf7d0'}`,
+                background: pendingCount > 0 ? '#fff7ed' : '#f0fdf4',
+                border: `1px solid ${pendingCount > 0 ? '#fed7aa' : '#bbf7d0'}`,
                 borderRadius: '12px', padding: '14px 20px',
                 display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px'
             }}>
-                <span style={{ fontSize: '22px' }}>{totalCount > 0 ? '🔔' : '✅'}</span>
+                <span style={{ fontSize: '22px' }}>{pendingCount > 0 ? '🔔' : '✅'}</span>
                 <div>
                     <strong style={{ fontSize: '14px', color: '#1e293b' }}>
-                        {totalCount > 0 ? `${totalCount} record(s) pending your verification` : 'All records verified — no pending items'}
+                        {pendingCount > 0 ? `${pendingCount} record(s) pending your verification` : 'All records verified — no pending items'}
                     </strong>
                     <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
-                        Source: GET ...?roleName=IE&assignedTo={effectiveUserId}{dutyUnit ? `&plantId=${dutyUnit}` : ''}
+                        Verified so far: {verifiedCount} record(s)
                     </div>
                 </div>
             </div>
@@ -477,7 +581,7 @@ const IncomingVerificationDashboard = ({ initialGroup = null }) => {
                         display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '24px'
                     }}>
                         {filteredModules.map(mod => {
-                            const count = (enrichedByModule[mod.moduleId] || []).length;
+                            const count = (enrichedByModule[mod.moduleId]?.pending || []).length;
                             const isActive = selectedModuleId === mod.moduleId;
                             return (
                                 <div
@@ -492,7 +596,7 @@ const IncomingVerificationDashboard = ({ initialGroup = null }) => {
                                     }}
                                 >
                                     <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>
-                                        Module {mod.moduleId}
+                                        {mod.group}
                                     </div>
                                     <div style={{ fontWeight: '700', fontSize: '13px', color: isActive ? mod.color : '#334155' }}>
                                         {mod.label}
@@ -509,7 +613,7 @@ const IncomingVerificationDashboard = ({ initialGroup = null }) => {
                                                 {count} Pending
                                             </span>
                                         ) : (
-                                            <span style={{ fontSize: '10px', color: '#94a3b8' }}>None found</span>
+                                            <span style={{ fontSize: '10px', color: '#94a3b8' }}>All Clear</span>
                                         )}
                                     </div>
                                 </div>
@@ -517,129 +621,76 @@ const IncomingVerificationDashboard = ({ initialGroup = null }) => {
                         })}
                     </div>
 
-                    {/* Selected Module Table */}
                     {selectedModuleId && (
-                        <div style={{
-                            background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0',
-                            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', overflow: 'hidden'
-                        }}>
-                            {/* Table Header */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+                            {/* ── Pending Table ── */}
                             <div style={{
-                                padding: '16px 24px', borderBottom: '1px solid #f1f5f9',
-                                display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                                background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0',
+                                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', overflow: 'hidden'
                             }}>
-                                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#1e293b' }}>
-                                    {MODULE_CONFIG.find(m => m.moduleId === selectedModuleId)?.label} — Pending Records
-                                </h3>
-                                <span style={{ fontSize: '11px', color: '#94a3b8' }}>
-                                    moduleId = {selectedModuleId}
-                                </span>
+                                <div style={{
+                                    padding: '16px 24px', borderBottom: '1px solid #f1f5f9',
+                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                    background: '#fff7ed'
+                                }}>
+                                    <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#c2410c' }}>
+                                        Pending Verification
+                                    </h3>
+                                    <span style={{ fontSize: '10px', fontWeight: '700', color: '#c2410c', background: '#fff', padding: '2px 8px', borderRadius: '4px' }}>
+                                        {currentPending.length} Items
+                                    </span>
+                                </div>
+
+                                {currentPending.length === 0 ? (
+                                    <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                                        <div style={{ fontSize: '24px', marginBottom: '10px' }}>✅</div>
+                                        <strong>No pending records for this module.</strong>
+                                    </div>
+                                ) : (
+                                    <RecordTable 
+                                        records={currentPending} 
+                                        moduleId={selectedModuleId} 
+                                        onView={setDetailModal} 
+                                        btnLabel="Verify"
+                                        btnColor="#0369a1"
+                                    />
+                                )}
                             </div>
 
-                            {currentRecords.length === 0 ? (
-                                <div style={{ padding: '48px', textAlign: 'center', color: '#94a3b8' }}>
-                                    <div style={{ fontSize: '32px', marginBottom: '10px' }}>✅</div>
-                                    <strong>No pending records for this module.</strong>
-                                    <div style={{ fontSize: '12px', marginTop: '4px' }}>All records have been verified or none have been submitted yet.</div>
+                            {/* ── Verified Table ── */}
+                            {(currentVerified.length > 0 || currentPending.length === 0) && (
+                                <div style={{
+                                    background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0',
+                                    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', overflow: 'hidden',
+                                    opacity: currentVerified.length === 0 ? 0.6 : 1
+                                }}>
+                                    <div style={{
+                                        padding: '16px 24px', borderBottom: '1px solid #f1f5f9',
+                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                        background: '#f0fdf4'
+                                    }}>
+                                        <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#166534' }}>
+                                            Verified Records
+                                        </h3>
+                                        <span style={{ fontSize: '10px', fontWeight: '700', color: '#166534', background: '#fff', padding: '2px 8px', borderRadius: '4px' }}>
+                                            {currentVerified.length} Items
+                                        </span>
+                                    </div>
+
+                                    {currentVerified.length === 0 ? (
+                                        <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                                            <strong>No records have been verified yet.</strong>
+                                        </div>
+                                    ) : (
+                                        <RecordTable 
+                                            records={currentVerified} 
+                                            moduleId={selectedModuleId} 
+                                            onView={setDetailModal} 
+                                            btnLabel="View Detail"
+                                            btnColor="#64748b"
+                                        />
+                                    )}
                                 </div>
-                            ) : (
-                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                                    <thead>
-                                        <tr style={{ background: '#f8fafc' }}>
-                                            <th style={thStyle}>#</th>
-                                            {MODULE_TABLE_FIELDS[selectedModuleId]?.map(col => (
-                                                <th key={col.key} style={thStyle}>{col.label}</th>
-                                            ))}
-                                            <th style={thStyle}>Status</th>
-                                            <th style={thStyle}>Details</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {currentRecords.map((row, idx) => {
-                                            return (
-                                                <tr key={row.workflowTransitionId || idx}
-                                                    style={{ borderBottom: '1px solid #f1f5f9' }}
-                                                    onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
-                                                    onMouseLeave={e => e.currentTarget.style.background = '#fff'}
-                                                >
-                                                    <td style={tdStyle}>{idx + 1}</td>
-                                                     {MODULE_TABLE_FIELDS[selectedModuleId]?.map(col => {
-                                                          const detail = row.detail || {};
-                                                          let rawVal = detail[col.key];
-
-                                                          // Strategic fallbacks for 'Vendor' / 'Manufacturer' / 'Source'
-                                                          if (col.key === 'manufacturer' || col.label === 'Vendor') {
-                                                              rawVal = detail.manufacturer || detail.brand || detail.source || detail.supplierName || '—';
-                                                          }
-                                                          // Strategic fallbacks for 'Invoice' / 'Consignment' / 'Challan'
-                                                          if (col.key === 'invoiceNo' || col.key === 'invoiceNumber' || col.label === 'Invoice' || col.label === 'Consignment') {
-                                                              rawVal = detail.invoiceNo || detail.invoiceNumber || detail.challanNumber || detail.consignmentNo || detail.mtcNo || '—';
-                                                          }
-                                                          // Strategic fallbacks for 'Date'
-                                                          if (col.key === 'dateOfReceipt' || col.label === 'Date' || col.label === 'Arrival Date' || col.label === 'Casting Date') {
-                                                              rawVal = detail.dateOfReceipt || detail.receivedDate || detail.arrivalDate || detail.castingDate || detail.createdDate || detail.createdAt || '—';
-                                                          }
-
-                                                          const isDateValue = typeof rawVal === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(rawVal);
-                                                          const formattedVal = isDateValue ? new Date(rawVal).toLocaleDateString('en-GB') : (rawVal ?? '—');
-                                                          
-                                                          return (
-                                                              <td key={col.key} style={tdStyle}>
-                                                                  {formattedVal}
-                                                              </td>
-                                                          );
-                                                      })}
-
-                                                    <td style={tdStyle}>
-                                                        {(() => {
-                                                            const { label, bg, color } = getStatusDisplay(row.status);
-                                                            return (
-                                                                <span style={{
-                                                                    background: bg,
-                                                                    color: color,
-                                                                    padding: '3px 10px',
-                                                                    borderRadius: '6px',
-                                                                    fontSize: '11px',
-                                                                    fontWeight: '700',
-                                                                    border: `1px solid ${color}20`
-                                                                }}>
-                                                                    {label}
-                                                                </span>
-                                                            );
-                                                        })()}
-                                                    </td>
-                                                    <td style={tdStyle}>
-                                                        <button
-                                                            onClick={() => setDetailModal(row)}
-                                                            style={{
-                                                                background: '#0369a1',
-                                                                color: '#fff',
-                                                                border: 'none',
-                                                                borderRadius: '8px',
-                                                                padding: '7px 14px',
-                                                                fontSize: '12px',
-                                                                fontWeight: '700',
-                                                                cursor: 'pointer',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                gap: '6px',
-                                                                whiteSpace: 'nowrap',
-                                                                transition: 'background 0.15s',
-                                                            }}
-                                                            onMouseEnter={e => e.currentTarget.style.background = '#075985'}
-                                                            onMouseLeave={e => e.currentTarget.style.background = '#0369a1'}
-                                                        >
-                                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                                                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-                                                            </svg>
-                                                            View
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
                             )}
                         </div>
                     )}

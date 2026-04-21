@@ -248,6 +248,9 @@ export const apiService = {
     getVerifiedMixDesignIdentifications: () => api.get('/mix-design/verified-identifications'),
     getApprovedMixDesigns: (moduleId = 4, vendorId = '', plantId = '') => api.get(`/mix-design/approvedMixDesign?moduleId=${moduleId}${vendorId ? `&vendorId=${vendorId}` : ''}${plantId ? `&plantId=${plantId}` : ''}`),
 
+    // moduleId=5  PRODUCTION_DECLARATION
+    getProductionDeclarationById: (id) => api.get(`/production-declaration/${id}`),
+
     // moduleId=5  HTS Wire
     getHtsWireRecordById: (id) => api.get(`/hts-wire/${id}`),
 
@@ -281,8 +284,8 @@ export const apiService = {
     getAllProductionSleeperTypes: (batchNo, benchNo, productionUnit) => api.get('/production-declaration/getAll/sleeper-types', { params: { batchNo, benchNo, productionUnit } }),
     getAllProductionSleepers: (batchNo, benchNo, sleeperType, productionUnit) => api.get('/production-declaration/getAll/sleepers', { params: { batchNo, benchNo, sleeperType, productionUnit } }),
 
-    getAllWorkflowTransitions: (roleName = 'IE', userId = '') =>
-        api.get(`/sleeper-workflow/allWorkflowTransition?roleName=${roleName}${userId ? `&assignedTo=${userId}` : ''}`),
+    getAllCompletedWorkflowTransitions: (userId = '', plantId = '') =>
+        api.get(`/sleeper-workflow/allCompletedCalls?roleName=IE${userId ? `&assignedTo=${userId}` : ''}${plantId ? `&plantId=${plantId}` : ''}`),
 
 
     // ================= POI IE Mapping ================= //

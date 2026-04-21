@@ -19,6 +19,7 @@ import MouldBenchCheck from '../../features/mould-bench-check/MouldBenchCheck';
 import SteamCuring from '../../features/steam-curing/SteamCuring';
 import SteamCubeTesting from '../../features/steam-cube-testing/SteamCubeTesting';
 import RawMaterialInventory from '../../features/inventory/RawMaterialInventory';
+import EpoxyTreatedSleepers from './finalInspection/EpoxyTreatedSleepers';
 
 import { apiService } from '../../services/api';
 import './SleeperProcessDuty.css';
@@ -104,6 +105,7 @@ const SleeperProcessDuty = () => {
         { id: 'Steam Curing', title: 'Steam Curing', description: 'Chamber temperature profile logs' },
         { id: 'Mould & Bench Checking', title: 'Mould & Bench Checking', description: 'Asset integrity & dimensional check' },
         { id: 'Steam Cube Testing', title: 'Steam Cube Testing', description: '7-hour & 28-day strength analysis' },
+        { id: 'Epoxy Treated Sleepers', title: 'Epoxy Treated Sleepers', description: 'Digital defect log & tracking' },
         { id: 'Raw Material Inventory', title: 'Inventory Levels', description: 'Daily stock & consumption tracking' }
     ];
 
@@ -279,6 +281,12 @@ const SleeperProcessDuty = () => {
                         />
                     )}
 
+                    {activeTab === 'Epoxy Treated Sleepers' && (
+                        <div style={{ width: '100%', marginTop: '-1rem' }}>
+                            <EpoxyTreatedSleepers />
+                        </div>
+                    )}
+
                     {activeTab === 'Raw Material Inventory' && (
                         <div style={{ width: '100%' }}>
                             <RawMaterialInventory displayMode="inline" />
@@ -385,6 +393,8 @@ const SleeperProcessDuty = () => {
                                 testedRecords={testedRecords}
                                 setTestedRecords={setTestedRecords}
                             />
+                        ) : activeTab === 'Epoxy Treated Sleepers' ? (
+                            <EpoxyTreatedSleepers onBack={() => setDetailView('dashboard')} />
                         ) : activeTab === 'Raw Material Inventory' && (
                             <RawMaterialInventory onBack={() => setDetailView('dashboard')} />
                         )}

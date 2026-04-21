@@ -4,7 +4,7 @@ import { useToast } from "../../../../context/ToastContext";
 import { getStoredUser } from "../../../../services/authService";
 import { saveCementSpecificSurface, getCementSpecificSurfaceByReqId, getCementSpecificSurfaceById } from "../../../../services/workflowService";
 
-export default function SpecificSurfaceForm({ onSave, onCancel, inventoryData = [], initialType = "New consignment", activeRequestId, editId, editData }) {
+export default function SpecificSurfaceForm({ onSave, onCancel, inventoryData = [], initialType = "New consignment", activeRequestId, activeConsignmentNo, editId, editData }) {
     const { selectedShift, dutyDate, dutyLocation } = useShift();
     const toast = useToast();
     const user = getStoredUser();
@@ -13,7 +13,7 @@ export default function SpecificSurfaceForm({ onSave, onCancel, inventoryData = 
     const [loading, setLoading] = useState(false);
     const [header, setHeader] = useState({
         type: initialType,
-        consignment: "",
+        consignment: activeConsignmentNo || "",
         roomTemp: "",
         weight: "",
         standardTime: "",
@@ -36,13 +36,13 @@ export default function SpecificSurfaceForm({ onSave, onCancel, inventoryData = 
     }, [editId]);
 
     useEffect(() => {
-        console.log("SpecificSurfaceForm Props:", { initialType, editId, editData });
+        console.log("SpecificSurfaceForm Props:", { initialType, editId, editData, activeConsignmentNo });
         const handleRecord = (record) => {
             if (!record) return;
             setHeader(prev => ({
                 ...prev,
                 type: record.typeOfTesting || prev.type,
-                consignment: record.consignmentNo || record.consignment || prev.consignment,
+                consignment: record.consignmentNo || record.consignment || activeConsignmentNo || prev.consignment,
                 roomTemp: record.roomTemp || record.temp || prev.roomTemp,
                 weight: record.weight || prev.weight,
                 standardTime: record.standardTimeTs || record.standardTime || prev.standardTime,
@@ -60,9 +60,14 @@ export default function SpecificSurfaceForm({ onSave, onCancel, inventoryData = 
                 if (record && (record.id || record.consignmentNo)) {
                     setEditIdState(record.id || null);
                     handleRecord(record);
-                } else if (!hasNotifiedRef.current) {
-                    toast.info("No previous Specific Surface data found. You can start entering new test results.");
-                    hasNotifiedRef.current = true;
+                } else {
+                    if (activeConsignmentNo) {
+                        setHeader(prev => ({ ...prev, consignment: activeConsignmentNo }));
+                    }
+                    if (!hasNotifiedRef.current) {
+                        toast.info("No previous Specific Surface data found. You can start entering new test results.");
+                        hasNotifiedRef.current = true;
+                    }
                 }
             });
         } else if (initialType === "Periodic" && (editId || editData)) {

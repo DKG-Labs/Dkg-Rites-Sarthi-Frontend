@@ -4,7 +4,7 @@ import { useToast } from "../../../../context/ToastContext";
 import { getStoredUser } from "../../../../services/authService";
 import { saveCementFineness, getCementFinenessByReqId, getCementFinenessById } from "../../../../services/workflowService";
 
-export default function FinenessTestForm({ onSave, onCancel, inventoryData = [], initialType = "New consignment", activeRequestId, editId, editData }) {
+    export default function FinenessTestForm({ onSave, onCancel, inventoryData = [], initialType = "New consignment", activeRequestId, activeConsignmentNo, editId, editData }) {
     const { selectedShift, dutyDate, dutyLocation } = useShift();
     const toast = useToast();
     const user = getStoredUser();
@@ -13,7 +13,7 @@ export default function FinenessTestForm({ onSave, onCancel, inventoryData = [],
     const [loading, setLoading] = useState(false);
     const [header, setHeader] = useState({
         typeOfTesting: initialType,
-        consignmentNo: "",
+        consignmentNo: activeConsignmentNo || "",
         sampleWt: 100,
         residue1: "",
         residue2: "",
@@ -37,13 +37,13 @@ export default function FinenessTestForm({ onSave, onCancel, inventoryData = [],
     }, [editId]);
 
     useEffect(() => {
-        console.log("FinenessTestForm Props:", { initialType, editId, editData });
+        console.log("FinenessTestForm Props:", { initialType, editId, editData, activeConsignmentNo });
         const handleRecord = (record) => {
             if (!record) return;
             setHeader(prev => ({
                 ...prev,
                 typeOfTesting: record.typeOfTesting || prev.typeOfTesting,
-                consignmentNo: record.consignmentNo || record.consignment || prev.consignmentNo,
+                consignmentNo: record.consignmentNo || record.consignment || activeConsignmentNo || prev.consignmentNo,
                 sampleWt: record.sampleWeightW1 || record.sampleWt || 100,
                 residue1: record.residue1 || record.residueWeightW2 || "",
                 residue2: record.residue2 || "",
@@ -56,9 +56,14 @@ export default function FinenessTestForm({ onSave, onCancel, inventoryData = [],
                 if (record && (record.id || record.consignmentNo)) {
                     setEditIdState(record.id || null);
                     handleRecord(record);
-                } else if (!hasNotifiedRef.current) {
-                    toast.info("No previous Fineness data found. You can start entering new test results.");
-                    hasNotifiedRef.current = true;
+                } else {
+                    if (activeConsignmentNo) {
+                        setHeader(prev => ({ ...prev, consignmentNo: activeConsignmentNo }));
+                    }
+                    if (!hasNotifiedRef.current) {
+                        toast.info("No previous Fineness data found. You can start entering new test results.");
+                        hasNotifiedRef.current = true;
+                    }
                 }
             });
         } else if (initialType === "Periodic" && (editId || editData)) {

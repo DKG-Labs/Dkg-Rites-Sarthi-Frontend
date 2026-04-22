@@ -1,126 +1,84 @@
-import React from "react";
+import React from 'react';
 import AnnexureLayout from "./AnnexureLayout";
 import AnnexureHeader from "./AnnexureHeader";
 import AnnexureTable from "./AnnexureTable";
 import AnnexureFooter from "./AnnexureFooter";
+import './InclusionRatingAnnexure.css'; // Reusing common table styles
 
-const applicationHeaderRows = [
+/**
+ * Final Inspection Report - Application & Deflection Annexure
+ */
+
+const appDeflectionHeaderRows = [
   [
-    { label: "S. No", rowSpan: 2 },
-    { label: "Cast Heat No.", rowSpan: 2 },
-    { label: "Colour Code", rowSpan: 2 },
-    { label: "Lot No.", rowSpan: 2 },
-    { label: "Quantity (in nos.)", rowSpan: 2 },
-    { label: "Sample size", rowSpan: 2 },
-    { label: "Application & Deflection test", rowSpan: 2 },
-    { label: "No. of defectives", rowSpan: 2 },
-    { label: "Cumulative No. of defectives", rowSpan: 2 },
-    { label: "Accepted / Not accepted", rowSpan: 2 }
+    { label: "S. No.", rowSpan: 1 },
+    { label: "Cast / Heat No.", rowSpan: 1 },
+    { label: "Colour Code", rowSpan: 1 },
+    { label: "Lot No.", rowSpan: 1 },
+    { label: "Quantity (in nos.)", rowSpan: 1 },
+    { label: "Sample Size", rowSpan: 1 },
+    { label: "No. of Defectives", rowSpan: 1 },
+    { label: "Application & Deflection Test", rowSpan: 1 },
+    { label: "Remarks / Accepted - Rejected", rowSpan: 1 },
+    { label: "Sign. Of Supervisor", rowSpan: 1 }
   ]
 ];
 
-const applicationSampleData = [
-  {
-    heatNo: "H-1201",
-    colour: "Red",
-    lotNo: "LOT-01",
-    qty: 500,
-    sampleSize: 10,
-    testResult: "Satisfactory",
-    defectives: 0,
-    cumulativeDefectives: 0,
-    result: "Accepted"
-  },
-  {
-    heatNo: "H-1202",
-    colour: "Blue",
-    lotNo: "LOT-02",
-    qty: 450,
-    sampleSize: 10,
-    testResult: "Satisfactory",
-    defectives: 0,
-    cumulativeDefectives: 0,
-    result: "Accepted"
-  },
-  {
-    heatNo: "H-1203",
-    colour: "Green",
-    lotNo: "LOT-03",
-    qty: 600,
-    sampleSize: 10,
-    testResult: "Satisfactory",
-    defectives: 0,
-    cumulativeDefectives: 0,
-    result: "Accepted"
-  },
-  {
-    heatNo: "H-1204",
-    colour: "Yellow",
-    lotNo: "LOT-04",
-    qty: 520,
-    sampleSize: 10,
-    testResult: "Satisfactory",
-    defectives: 0,
-    cumulativeDefectives: 0,
-    result: "Accepted"
-  },
-  {
-    heatNo: "H-1205",
-    colour: "White",
-    lotNo: "LOT-05",
-    qty: 480,
-    sampleSize: 10,
-    testResult: "Satisfactory",
-    defectives: 0,
-    cumulativeDefectives: 0,
-    result: "Accepted"
+const ApplicationDeflectionAnnexure = ({ data, selectedCall }) => {
+  // Support both new 'pages' structure and legacy 'rows' fallback
+  const pages = data?.pages || (data?.rows ? data.rows.map(r => ({ ...r })) : []);
+
+  if (!pages || pages.length === 0) {
+    return (
+      <div className="annexure-empty-state" style={{ padding: '2rem', textAlign: 'center' }}>
+        <p>No Application & Deflection data available for this call.</p>
+      </div>
+    );
   }
-];
 
-const ApplicationDeflectionAnnexure = () => {
   return (
-    <AnnexureLayout>
+    <div className="multi-annexure-container">
+      {pages.map((page, index) => (
+        <AnnexureLayout key={index}>
+          <AnnexureHeader
+            selectedCall={selectedCall}
+            pageNo={`${index + 1} of ${pages.length}`}
+            docNo="QA/WR/MECH/610"
+            issueNo="01"
+            effectiveDate="14.10.2025"
+            preparedBy="KJM"
+            checkedBy="CSR"
+            approvedBy="GGM-I/WR"
+            title="Final Inspection Report"
+            subtitle="Test results- Application & Deflection test"
+            annexureNumber="Annexure-X"
+            annexureCode="IRST-31-2025"
+            vendorName={data.vendor}
+            productName={data.productName || selectedCall?.product_type}
+            callNo={data.inspectionCallNo}
+            dateOfInspection={data.dateOfInspection}
+          />
 
-      <AnnexureHeader
-        pageNo="16 of 18"
-        preparedBy="KJM"
-        checkedBy="CSR"
-        approvedBy="GM(I)/WR"
-        title="Final Inspection Report"
-        subtitle="Test results- Application & Deflection test"
-        annexureNumber="Annexure-X"
-        annexureCode="IRST-31-2025"
-      />
+          <AnnexureTable headerRows={appDeflectionHeaderRows}>
+            <tr>
+              <td className="annexure-td data-cell">1</td>
+              <td className="annexure-td data-cell">{page.heatNo || '-'}</td>
+              <td className="annexure-td data-cell">{page.colourCode || '-'}</td>
+              <td className="annexure-td data-cell">{page.lotNo || '-'}</td>
+              <td className="annexure-td data-cell">{page.quantity || '-'}</td>
+              <td className="annexure-td data-cell">{page.sampleSize || '-'}</td>
+              <td className="annexure-td data-cell">{page.noOfDefectives}</td>
+              <td className="annexure-td data-cell">{page.testResult}</td>
+              <td className="annexure-td data-cell" style={{ fontWeight: 'bold' }}>{page.status}</td>
+              <td className="annexure-td data-cell"></td>
+            </tr>
+          </AnnexureTable>
 
-      <AnnexureTable headerRows={applicationHeaderRows}>
-        {applicationSampleData.map((row, index) => (
-          <tr key={index}>
-            <td>{index + 1}</td>
-            <td>{row.heatNo}</td>
-            <td>{row.colour}</td>
-            <td>{row.lotNo}</td>
-            <td>{row.qty}</td>
-            <td>{row.sampleSize}</td>
-            <td>{row.testResult}</td>
-            <td>{row.defectives}</td>
-
-            {/* CUMULATIVE ->SINGLE MERGED CELL */}
-            {index === 0 && (
-              <td rowSpan={applicationSampleData.length}>
-                {row.cumulativeDefectives}
-              </td>
-            )}
-
-            <td>{row.result}</td>
-          </tr>
-        ))}
-      </AnnexureTable>
-
-      <AnnexureFooter />
-
-    </AnnexureLayout>
+          <AnnexureFooter />
+        </AnnexureLayout>
+      ))}
+    </div>
   );
 };
 
 export default ApplicationDeflectionAnnexure;
-

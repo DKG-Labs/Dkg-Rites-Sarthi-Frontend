@@ -8,10 +8,13 @@ import AnnexureHeader from './AnnexureHeader';
  * Annexure-VI for final chemical analysis inspection
  */
 
-const FinalChemicalAnalysisAnnexure = ({ data = [] }) => {
+const FinalChemicalAnalysisAnnexure = ({ data = [], selectedCall }) => {
 
-  // Sample data rows - empty for now, will be populated dynamically in future
-  const sampleRows = data.length > 0 ? data : [
+  // Ensure data is an array - handle both flat array and DTO with rows
+  const processedData = Array.isArray(data) ? data : (data?.rows || []);
+  
+  // Sample data rows - use real data if available, otherwise fallback to placeholders
+  const sampleRows = processedData.length > 0 ? processedData : [
     { sNo: 1, castHeatNo: '', colourCode: '', lotNo: '', quantityEa: '', sampleSize: '', c: '', mn: '', si: '', s: '', p: '', remark: '', acceptedOrRejected: '', signOfSupervisor: '' },
     { sNo: 2, castHeatNo: '', colourCode: '', lotNo: '', quantityEa: '', sampleSize: '', c: '', mn: '', si: '', s: '', p: '', remark: '', acceptedOrRejected: '', signOfSupervisor: '' },
     { sNo: 3, castHeatNo: '', colourCode: '', lotNo: '', quantityEa: '', sampleSize: '', c: '', mn: '', si: '', s: '', p: '', remark: '', acceptedOrRejected: '', signOfSupervisor: '' }
@@ -21,6 +24,7 @@ const FinalChemicalAnalysisAnnexure = ({ data = [] }) => {
     <div className="annexure-template final-chemical-analysis-annexure">
       {/* HEADER SECTION */}
       <AnnexureHeader
+        selectedCall={selectedCall}
         pageNo="12 of 18"
         preparedBy="KJM"
         checkedBy="CSR"
@@ -35,45 +39,61 @@ const FinalChemicalAnalysisAnnexure = ({ data = [] }) => {
       <div className="annexure-table-wrapper">
         <table className="annexure-table final-chemical-table">
           <thead>
-            {/* Row 1: Main headers with rotated text */}
+            {/* Row 1: Main headers and Chemical Element Names */}
             <tr>
-              <th rowSpan="2" className="annexure-th rotated-header"><div className="rotated-text">S. No.</div></th>
-              <th rowSpan="2" className="annexure-th rotated-header"><div className="rotated-text">Cast / Heat No.</div></th>
-              <th rowSpan="2" className="annexure-th rotated-header"><div className="rotated-text">Colour Code</div></th>
-              <th rowSpan="2" className="annexure-th rotated-header"><div className="rotated-text">Lot No.</div></th>
-              <th rowSpan="2" className="annexure-th rotated-header"><div className="rotated-text">Quantity (in Ea. nos)</div></th>
-              <th rowSpan="2" className="annexure-th rotated-header"><div className="rotated-text">Sample size</div></th>
-              <th colSpan="5" className="annexure-th">Parameter<br/>Ladle analysis<br/>Permissible<br/>range over<br/>ladle sample<br/>analysis</th>
-              <th rowSpan="2" className="annexure-th rotated-header"><div className="rotated-text">Remark</div></th>
-              <th rowSpan="2" className="annexure-th rotated-header"><div className="rotated-text">Accepted or Rejected</div></th>
-              <th rowSpan="2" className="annexure-th rotated-header"><div className="rotated-text">Sign of Lab. Supervisor</div></th>
+              <th rowSpan="3" className="annexure-th rotated-header"><div className="rotated-text">S. No.</div></th>
+              <th rowSpan="3" className="annexure-th rotated-header"><div className="rotated-text">Cast / Heat No.</div></th>
+              <th rowSpan="3" className="annexure-th rotated-header"><div className="rotated-text">Colour Code</div></th>
+              <th rowSpan="3" className="annexure-th rotated-header"><div className="rotated-text">Lot No.</div></th>
+              <th rowSpan="3" className="annexure-th rotated-header"><div className="rotated-text">Quantity (in nos.)</div></th>
+              <th rowSpan="3" className="annexure-th rotated-header"><div className="rotated-text">Sample size</div></th>
+              <th className="annexure-th spec-label-cell">Parameter</th>
+              <th className="annexure-th sub-header">% C</th>
+              <th className="annexure-th sub-header">% Mn</th>
+              <th className="annexure-th sub-header">% Si</th>
+              <th className="annexure-th sub-header">% S</th>
+              <th className="annexure-th sub-header">% P</th>
+              <th rowSpan="3" className="annexure-th rotated-header"><div className="rotated-text">Remark</div></th>
+              <th rowSpan="3" className="annexure-th rotated-header"><div className="rotated-text">Accepted or Rejected</div></th>
+              <th rowSpan="3" className="annexure-th rotated-header"><div className="rotated-text">Sign of Lab. Supervisor</div></th>
             </tr>
-            {/* Row 2: Chemical parameters */}
+            {/* Row 2: Ladle Analysis specifications */}
             <tr>
-              <th className="annexure-th sub-header">% C<br/><br/>0.5 to 0.6<br/><br/>± 0.03</th>
-              <th className="annexure-th sub-header">% Mn<br/><br/>0.8 to 1.0<br/><br/>± 0.04</th>
-              <th className="annexure-th sub-header">% Si<br/><br/>1.5 to 2.00<br/><br/>± 0.05</th>
-              <th className="annexure-th sub-header">% S<br/><br/>0.03 max<br/><br/>± 0.005</th>
-              <th className="annexure-th sub-header">% P<br/><br/>0.03 max<br/><br/>± 0.005</th>
+              <th className="annexure-th spec-label-cell">Ladle analysis</th>
+              <th className="annexure-th spec-value">0.5 to 0.6</th>
+              <th className="annexure-th spec-value">0.8 to 1.0</th>
+              <th className="annexure-th spec-value">1.5 to 2.00</th>
+              <th className="annexure-th spec-value">0.03 max</th>
+              <th className="annexure-th spec-value">0.03 max</th>
+            </tr>
+            {/* Row 3: Tolerance specifications */}
+            <tr>
+              <th className="annexure-th spec-label-cell">Permissible range over<br/>ladle sample analysis</th>
+              <th className="annexure-th spec-value">± 0.03</th>
+              <th className="annexure-th spec-value">± 0.04</th>
+              <th className="annexure-th spec-value">± 0.05</th>
+              <th className="annexure-th spec-value">± 0.005</th>
+              <th className="annexure-th spec-value">± 0.005</th>
             </tr>
           </thead>
           <tbody>
             {sampleRows.map((row, index) => (
               <tr key={index}>
-                <td className="annexure-td">{row.sNo}</td>
-                <td className="annexure-td data-cell">{row.castHeatNo}</td>
-                <td className="annexure-td data-cell">{row.colourCode}</td>
-                <td className="annexure-td data-cell">{row.lotNo}</td>
-                <td className="annexure-td data-cell">{row.quantityEa}</td>
-                <td className="annexure-td data-cell">{row.sampleSize}</td>
-                <td className="annexure-td data-cell">{row.c}</td>
-                <td className="annexure-td data-cell">{row.mn}</td>
-                <td className="annexure-td data-cell">{row.si}</td>
-                <td className="annexure-td data-cell">{row.s}</td>
-                <td className="annexure-td data-cell">{row.p}</td>
-                <td className="annexure-td data-cell">{row.remark}</td>
-                <td className="annexure-td data-cell">{row.acceptedOrRejected}</td>
-                <td className="annexure-td data-cell">{row.signOfSupervisor}</td>
+                <td className="annexure-td">{index + 1}</td>
+                <td className="annexure-td data-cell">{row.heatNo || ''}</td>
+                <td className="annexure-td data-cell">{row.colourCode || ''}</td>
+                <td className="annexure-td data-cell">{row.lotNo || ''}</td>
+                <td className="annexure-td data-cell">{row.qtyNo || row.quantity || row.quantityEa || ''}</td>
+                <td className="annexure-td data-cell">{row.sampleSize || ''}</td>
+                <td className="annexure-td empty-cell"></td>
+                <td className="annexure-td data-cell">{row.carbonPercent || ''}</td>
+                <td className="annexure-td data-cell">{row.manganesePercent || ''}</td>
+                <td className="annexure-td data-cell">{row.siliconPercent || ''}</td>
+                <td className="annexure-td data-cell">{row.sulphurPercent || ''}</td>
+                <td className="annexure-td data-cell">{row.phosphorusPercent || ''}</td>
+                <td className="annexure-td data-cell">{row.remarks || ''}</td>
+                <td className="annexure-td data-cell">{row.acceptedOrRejected || ''}</td>
+                <td className="annexure-td data-cell">{row.signOfSupervisor || ''}</td>
               </tr>
             ))}
           </tbody>

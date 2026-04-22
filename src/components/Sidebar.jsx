@@ -26,9 +26,6 @@ const Sidebar = React.memo(({
     if (activeInspectionType === 'final-product') onNav('final-product');
   }, [activeInspectionType, onNav]);
 
-  const handleAnnexuresClick = useCallback(() => {
-    onNav('annexure');
-  }, [onNav]);
 
   return (
     <aside className={`sidebar${isSidebarOpen ? ' open' : ''}${isSidebarCollapsed ? ' collapsed' : ''}`}>
@@ -78,16 +75,10 @@ const Sidebar = React.memo(({
               style={{ opacity: activeInspectionType === 'final-product' ? 1 : 0.5, cursor: activeInspectionType === 'final-product' ? 'pointer' : 'not-allowed' }}
             />
           )}
-          <SidebarNavItem
-            active={currentPage === 'annexure'}
-            onClick={handleAnnexuresClick}
-            icon="📋"
-            text="Annexures"
-            title="Annexures"
-          />
         </ul>
       </nav>
     </aside>
+
   );
 });
 

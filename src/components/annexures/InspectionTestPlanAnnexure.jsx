@@ -7,7 +7,7 @@ import './InspectionTestPlanAnnexure.css';
  * Combines all pages into a single continuous document
  * Pages 1-8 of 18 total pages
  */
-const InspectionTestPlanAnnexure = ({ data = {} }) => {
+const InspectionTestPlanAnnexure = ({ data = {}, selectedCall }) => {
   return (
     <div className="inspection-test-plan-annexure">
       
@@ -16,6 +16,7 @@ const InspectionTestPlanAnnexure = ({ data = {} }) => {
           ======================================== */}
       <div className="itp-page page-1">
         <AnnexureHeader
+          selectedCall={selectedCall}
           pageNo="1 of 18"
           preparedBy="KJM"
           checkedBy="CSR"
@@ -233,6 +234,7 @@ const InspectionTestPlanAnnexure = ({ data = {} }) => {
           ======================================== */}
       <div className="itp-page page-2">
         <AnnexureHeader
+          selectedCall={selectedCall}
           pageNo="2 of 18"
           preparedBy="KJM"
           checkedBy="CSR"
@@ -411,6 +413,7 @@ const InspectionTestPlanAnnexure = ({ data = {} }) => {
           ======================================== */}
       <div className="itp-page page-3">
         <AnnexureHeader
+          selectedCall={selectedCall}
           pageNo="3 of 18"
           preparedBy="KJM"
           checkedBy="CSR"
@@ -535,6 +538,7 @@ const InspectionTestPlanAnnexure = ({ data = {} }) => {
           ======================================== */}
       <div className="itp-page page-4">
         <AnnexureHeader
+          selectedCall={selectedCall}
           pageNo="4 of 18"
           preparedBy="KJM"
           checkedBy="CSR"
@@ -605,6 +609,7 @@ const InspectionTestPlanAnnexure = ({ data = {} }) => {
           ======================================== */}
       <div className="itp-page page-5">
         <AnnexureHeader
+          selectedCall={selectedCall}
           pageNo="5 of 18"
           preparedBy="KJM"
           checkedBy="CSR"
@@ -676,6 +681,7 @@ const InspectionTestPlanAnnexure = ({ data = {} }) => {
           ======================================== */}
       <div className="itp-page page-6">
         <AnnexureHeader
+          selectedCall={selectedCall}
           pageNo="6 of 18"
           preparedBy="KJM"
           checkedBy="CSR"
@@ -807,6 +813,7 @@ const InspectionTestPlanAnnexure = ({ data = {} }) => {
           ======================================== */}
       <div className="itp-page page-7">
         <AnnexureHeader
+          selectedCall={selectedCall}
           pageNo="7 of 18"
           preparedBy="KJM"
           checkedBy="CSR"
@@ -899,6 +906,7 @@ const InspectionTestPlanAnnexure = ({ data = {} }) => {
           ======================================== */}
       <div className="itp-page page-8">
         <AnnexureHeader
+          selectedCall={selectedCall}
           pageNo="8 of 18"
           preparedBy="KJM"
           checkedBy="CSR"

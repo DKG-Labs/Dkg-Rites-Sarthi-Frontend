@@ -4,90 +4,109 @@ import AnnexureHeader from "./AnnexureHeader";
 import AnnexureTable from "./AnnexureTable";
 import AnnexureFooter from "./AnnexureFooter";
 
-
 const weightHeaderRows = [
   [
     { label: "S. No", rowSpan: 2 },
-    { label: "Cast / Heat No.", rowSpan: 2 },
-    { label: "Colour Code", rowSpan: 2 },
-    { label: "Lot No.", rowSpan: 2 },
+    { label: "Cast Heat No.", rowSpan: 2 },
+    { label: "Lot No", rowSpan: 2 },
+    { label: "Colour code", rowSpan: 2 },
     { label: "Quantity (in nos.)", rowSpan: 2 },
-    { label: "Sample Size", rowSpan: 2 },
+    { label: "Sample Size.", rowSpan: 2 },
     {
       label:
-        "Weight (kg)\nERC MK-III: 0.920 ±0.010\nERC MK-V: 1.088 ±0.020",
-      rowSpan: 2,
+        "Weight (kg) ERC MK-III: 0.920 + 0.017 / - 0.016(g) ERC MK-V: 1.088 + 0.020 / - 0.020(g)",
+      colSpan: 10,
     },
-    { label: "No. of Defectives", rowSpan: 2 },
-    { label: "Cumulative No. of Defectives", rowSpan: 2 },
+    { label: "No of Defectives", rowSpan: 2 },
+    { label: "Cumulative No.of Defectives", rowSpan: 2 },
     { label: "Remarks", rowSpan: 2 },
+  ],
+  [
+    { label: "1" }, { label: "2" }, { label: "3" }, { label: "4" },
+    { label: "5" }, { label: "6" }, { label: "7" }, { label: "8" },
+    { label: "9" }, { label: "10" },
   ],
 ];
 
+const WeightTestAnnexure = ({ data, selectedCall }) => {
+  // Logic: Each sampling round gets its own page
+  const reportData = data?.responseData || data || {};
+  const pages = reportData.pages || [];
 
+  if (!pages || pages.length === 0) {
+    return (
+      <div className="annexure-empty-state">
+        <p>No Weight Test data available for this call.</p>
+      </div>
+    );
+  }
 
-const weightTestData = [
-  {
-    heatNo: "H-1501",
-    colour: "Red",
-    lotNo: "LOT-01",
-    qty: 500,
-    sampleSize: 10,
-    weight: "0.921 – 0.928",
-    defectives: 0,
-    cumulative:0,
-    result: "Accepted",
-  },
-  {
-    heatNo: "H-1502",
-    colour: "Blue",
-    lotNo: "LOT-02",
-    qty: 450,
-    sampleSize: 10,
-    weight: "1.086 – 1.094",
-    defectives: 0,
-    cumulative:0,
-    result: "Accepted",
-  },
-];
-
-
-
-const WeightTestAnnexure = () => {
   return (
-    <AnnexureLayout>
+    <>
+      {pages.map((page, pageIdx) => (
+        <AnnexureLayout key={pageIdx}>
+          <AnnexureHeader
+            pageNo={`${pageIdx + 1} of ${pages.length}`}
+            preparedBy="KJM"
+            checkedBy="CSR"
+            approvedBy="GM(I)/WR"
+            title="FINAL INSPECTION REPORT"
+            subtitle="(Weight Test)"
+            annexureNumber="Annexure-XV"
+            annexureCode="IRST-31-2025"
+            manufacturer={reportData.manufacturer}
+            vendor={reportData.vendor}
+            firmName={reportData.vendor} // Added firmName
+            productName={reportData.productName}
+            dateOfInspection={reportData.dateOfInspection}
+          />
 
-      <AnnexureHeader
-        pageNo="18 of 18"
-        preparedBy="KJM"
-        checkedBy="CSR"
-        approvedBy="GM(I)/WR"
-        title="Final Inspection Report"
-        subtitle="Test results- Weight test"
-        annexureNumber="Annexure-XV"
-        annexureCode="IRST-31-2025"
-      />
+          <AnnexureTable headerRows={weightHeaderRows}>
+            {page.rows && page.rows.map((batch, batchIndex) => {
+              const rowSpan = batch.readings?.length || 1;
 
-      <AnnexureTable headerRows={weightHeaderRows}>
-        {weightTestData.map((row, index) => (
-          <tr key={index}>
-            <td>{index + 1}</td>
-            <td>{row.heatNo}</td>
-            <td>{row.colour}</td>
-            <td>{row.lotNo}</td>
-            <td>{row.qty}</td>
-            <td>{row.sampleSize}</td>
-            <td>{row.weight}</td>
-            <td>{row.defectives}</td>
-            <td>{row.cumulative}</td>
-            <td>{row.result}</td>
-          </tr>
-        ))}
-      </AnnexureTable>
+              return batch.readings?.map((readingRow, rowIndex) => (
+                <tr key={`${batchIndex}-${rowIndex}`}>
+                  {/* Left columns: Only render on the first row of a batch */}
+                  {rowIndex === 0 && (
+                    <>
+                      <td rowSpan={rowSpan}>{batchIndex + 1}</td>
+                      <td rowSpan={rowSpan}>{batch.heatNo || '-'}</td>
+                      <td rowSpan={rowSpan}>{batch.lotNo || '-'}</td>
+                      <td rowSpan={rowSpan}>{batch.colourCode || 'N/A'}</td>
+                      <td rowSpan={rowSpan}>{batch.qty || 0}</td>
+                      <td rowSpan={rowSpan}>{batch.sampleSize || 0}</td>
+                    </>
+                  )}
 
-      <AnnexureFooter />
+                  {/* 10 Reading columns */}
+                  {[...Array(10)].map((_, i) => (
+                    <td key={i} style={{ textAlign: 'center', height: '45px', verticalAlign: 'middle' }}>
+                      {readingRow[i] !== undefined ? readingRow[i].toString() : ""}
+                    </td>
+                  ))}
 
-    </AnnexureLayout>
+                  {/* Right columns: Only render on the first row of a batch */}
+                  {rowIndex === 0 && (
+                    <>
+                      <td rowSpan={rowSpan}>{batch.defectives}</td>
+                      <td rowSpan={rowSpan}>{batch.cumulativeDefectives}</td>
+                      <td rowSpan={rowSpan}>
+                        <span className={`status-badge ${batch.status === 'Accepted' ? 'status-ok' : 'status-not-ok'}`}>
+                          {batch.status}
+                        </span>
+                      </td>
+                    </>
+                  )}
+                </tr>
+              ));
+            })}
+          </AnnexureTable>
+
+          <AnnexureFooter />
+        </AnnexureLayout>
+      ))}
+    </>
   );
 };
 

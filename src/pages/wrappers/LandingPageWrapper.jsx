@@ -51,6 +51,9 @@ const LandingPageWrapper = () => {
     } else if (page === 'final-dashboard') {
       console.log('📍 Navigating to FINAL_PRODUCT dashboard');
       navigate(ROUTES.FINAL_PRODUCT);
+    } else if (page === 'annexure') {
+      console.log('📍 Navigating to ANNEXURES page');
+      navigate(ROUTES.ANNEXURES);
     } else {
       console.warn('⚠️ Unknown page:', page);
     }

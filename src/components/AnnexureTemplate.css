@@ -1,12 +1,13 @@
 /* AnnexureTemplate.css - Reusable Annexure Styling */
 
 .annexure-template {
-  background: white;
+  background: #ffffff !important;
   padding: 20px;
   max-width: 100%;
   margin: 0 auto;
   font-family: Arial, sans-serif;
   font-size: 12px;
+  box-shadow: none !important;
 }
 
 /* HEADER SECTION */
@@ -139,6 +140,7 @@
   color: #000;
   font-weight: normal;
   display: block;
+  background: #ffffff !important;
 }
 
 .annexure-code {
@@ -189,21 +191,19 @@
   font-weight: normal;
 }
 
-/* Rotated Headers */
+/* Rotated Headers - Optimized for Screen & dom-to-image */
 .annexure-th.rotated-header {
   height: 140px;
-  white-space: nowrap;
-  position: relative;
-  padding: 4px 2px;
-  vertical-align: bottom;
   width: 35px;
-  max-width: 35px;
+  position: relative;
+  vertical-align: bottom;
+  padding: 4px 2px;
 }
 
 .rotated-text {
   writing-mode: vertical-rl;
   transform: rotate(180deg);
-  font-size: 10px;
+  font-size: 11px;
   white-space: nowrap;
   padding: 4px 0;
   line-height: 1.3;

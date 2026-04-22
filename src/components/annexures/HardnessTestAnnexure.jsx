@@ -26,117 +26,83 @@ const hardnessHeaderRows = [
 ];
 
 
-const sampleData = [
-  {
-    heatNo: "H-1021",
-    colour: "Red",
-    lotNo: "LOT-01",
-    qty: 500,
-    sampleSize: 3,
-
-    samples: [
-      [41, 42, 43, 42, 41, 44, 43, 42, 41, 42],
-      [42, 43, 41, 42, 44, 43, 42, 41, 42, 43],
-      [41, 41, 42, 43, 42, 44, 43, 42, 41, 42]
-    ],
-
-    defectives: 0,
-    cumulative: 0,
-    result: "Accepted"
-  },
-   {
-    heatNo: "H-1022",
-    colour: "Blue",
-    lotNo: "LOT-02",
-    qty: 450,
-    sampleSize: 5,
-
-    samples: [
-      [41, 42, 43, 42, 41, 44, 43, 42, 41, 42],
-      [42, 43, 41, 42, 44, 43, 42, 41, 42, 43],
-      [41, 41, 42, 43, 42, 44, 43, 42, 41, 42],
-      [41, 41, 42, 43, 42, 44, 43, 42, 41, 42],
-      [41, 41, 42, 43, 42, 44, 43, 42, 41, 42]
-    ],
-
-    defectives: 0,
-    cumulative: 0,
-    result: "Accepted"
-  },
-   {
-    heatNo: "H-1023",
-    colour: "Green",
-    lotNo: "LOT-03",
-    qty: 600,
-    sampleSize: 3,
-
-    samples: [
-      [41, 42, 43, 42, 41, 44, 43, 42, 41, 42],
-      [42, 43, 41, 42, 44, 43, 42, 41, 42, 43],
-      [41, 41, 42, 43, 42, 44, 43, 42, 41, 42]
-    ],
-
-    defectives: 0,
-    cumulative: 0,
-    result: "Accepted"
-  },
-];
 
 
-const HardnessTestAnnexure = () => {
+
+const HardnessTestAnnexure = ({ data, selectedCall }) => {
+  // Handle data structure (can be a flat array or the new DTO structure)
+  const reportData = data?.pages || (Array.isArray(data) ? data : []);
+
+  if (reportData.length === 0) {
+    return (
+      <div className="annexure-no-data">
+        <p>No hardness test data available for this call.</p>
+      </div>
+    );
+  }
+
   return (
-    <AnnexureLayout>
+    <div className="multi-annexure-container">
+      {reportData.map((page, pageIdx) => (
+        <AnnexureLayout key={pageIdx}>
+          <AnnexureHeader
+            pageNo={`${pageIdx + 1} of ${reportData.length}`}
+            preparedBy="KJM"
+            checkedBy="CSR"
+            approvedBy="GM(I)/WR"
+            title="Final Inspection Report"
+            subtitle="Test results- Hardness Test"
+            annexureNumber="Annexure-VIII"
+            annexureCode="IRST-31-2025"
+            vendorName={data?.vendorName}
+            firmName={data?.vendorName}
+            productName={data?.productName || selectedCall?.product_type || "ELASTIC RAIL CLIP"}
+          />
 
-      <AnnexureHeader
-        pageNo="14 of 18"
-        preparedBy="KJM"
-        checkedBy="CSR"
-        approvedBy="GM(I)/WR"
-        title="Final Inspection Report"
-        subtitle="Test results- Hardness Test"
-        annexureNumber="Annexure-VIII"
-        annexureCode="IRST-31-2025"
-      />
+          <AnnexureTable headerRows={hardnessHeaderRows}>
+            {page.rows && page.rows.map((batch, batchIndex) => {
+              // batch.readings is a List<List<BigDecimal>>
+              const rowSpan = batch.readings?.length || 1;
 
-  <AnnexureTable headerRows={hardnessHeaderRows}>
-  {sampleData.map((batch, batchIndex) => {
-    const rowSpan = batch.samples.length;
+              return batch.readings?.map((sample, sampleIndex) => (
+                <tr key={`${batchIndex}-${sampleIndex}`}>
+                  {/* LEFT MERGED COLUMNS */}
+                  {sampleIndex === 0 && (
+                    <>
+                      <td rowSpan={rowSpan}>{batchIndex + 1}</td>
+                      <td rowSpan={rowSpan}>{batch.heatNo || page.heatNo}</td>
+                      <td rowSpan={rowSpan}>{batch.colourCode || "N/A"}</td>
+                      <td rowSpan={rowSpan}>{batch.lotNo || page.lotNo}</td>
+                      <td rowSpan={rowSpan}>{batch.qty || page.qtyNo}</td>
+                      <td rowSpan={rowSpan}>{batch.sampleSize}</td>
+                    </>
+                  )}
 
-    return batch.samples.map((sample, sampleIndex) => (
-      <tr key={`${batchIndex}-${sampleIndex}`}>
+                  {/* 10 COLUMNS FOR READINGS */}
+                  {[...Array(10)].map((_, i) => (
+                    <td key={i}>{sample[i] !== undefined ? sample[i] : "-"}</td>
+                  ))}
 
-        {/* LEFT MERGED COLUMNS */}
-        {sampleIndex === 0 && (
-          <>
-            <td rowSpan={rowSpan}>{batchIndex + 1}</td>
-            <td rowSpan={rowSpan}>{batch.heatNo}</td>
-            <td rowSpan={rowSpan}>{batch.colour}</td>
-            <td rowSpan={rowSpan}>{batch.lotNo}</td>
-            <td rowSpan={rowSpan}>{batch.qty}</td>
-            <td rowSpan={rowSpan}>{batch.sampleSize}</td>
-          </>
-        )}
+                  {sampleIndex === 0 && (
+                    <>
+                      <td rowSpan={rowSpan}>{batch.defectives}</td>
+                      <td rowSpan={rowSpan}>{batch.cumulativeDefectives}</td>
+                      <td rowSpan={rowSpan}>{batch.status}</td>
+                    </>
+                  )}
+                </tr>
+              )) || (
+                <tr key={batchIndex}>
+                   <td colSpan={20}>No readings available for this heat</td>
+                </tr>
+              );
+            })}
+          </AnnexureTable>
 
-       
-        {sample.map((value, i) => (
-          <td key={i}>{value}</td>
-        ))}
-
-        {sampleIndex === 0 && (
-          <>
-            <td rowSpan={rowSpan}>{batch.defectives}</td>
-            <td rowSpan={rowSpan}>{batch.cumulative}</td>
-            <td rowSpan={rowSpan}>{batch.result}</td>
-          </>
-        )}
-
-      </tr>
-    ));
-  })}
-</AnnexureTable>
-
-      <AnnexureFooter />
-    </AnnexureLayout>
+          <AnnexureFooter />
+        </AnnexureLayout>
+      ))}
+    </div>
   );
 };
 

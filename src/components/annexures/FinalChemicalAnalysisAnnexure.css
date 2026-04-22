@@ -109,7 +109,7 @@
 
 .final-chemical-table .annexure-th {
   font-size: 9px;
-  padding: 4px 3px;
+  padding: 6px 4px;
   line-height: 1.2;
   font-weight: bold;
   border: 1px solid #000;
@@ -128,13 +128,36 @@
   height: 80px;
 }
 
-/* Sub-header - chemical parameters with multi-line */
+/* Sub-header - chemical parameters */
 .final-chemical-table .sub-header {
-  font-size: 9px;
-  line-height: 1.3;
+  font-size: 10px;
   font-weight: bold;
-  padding: 4px 2px;
-  white-space: pre-line;
+  padding: 6px 2px;
+}
+
+/* Specification Labels Column */
+.final-chemical-table .spec-label-cell {
+  text-align: left;
+  padding-left: 8px;
+  width: 150px;
+  min-width: 150px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+/* Specification Values Header Cells */
+.final-chemical-table .spec-value {
+  font-size: 10px;
+  font-weight: normal;
+  color: #000;
+  padding: 4px;
+}
+
+/* Empty spacer cell in data rows */
+.final-chemical-table .empty-cell {
+  background-color: #f9f9f9;
+  width: 150px;
+  min-width: 150px;
 }
 
 /* Data cells - black text */
@@ -207,57 +230,53 @@
 }
 
 /* Chemical parameter columns - %C, %Mn, %Si, %S, %P */
-.final-chemical-table thead tr:first-child th:nth-child(7) {
-  width: auto;
-}
-
-.final-chemical-table thead tr:nth-child(2) th:nth-child(1),
-.final-chemical-table tbody td:nth-child(7) {
-  width: 60px;
-  min-width: 60px;
-}
-
-.final-chemical-table thead tr:nth-child(2) th:nth-child(2),
+.final-chemical-table thead tr:first-child th:nth-child(8),
 .final-chemical-table tbody td:nth-child(8) {
-  width: 60px;
-  min-width: 60px;
+  width: 65px;
+  min-width: 65px;
 }
 
-.final-chemical-table thead tr:nth-child(2) th:nth-child(3),
+.final-chemical-table thead tr:first-child th:nth-child(9),
 .final-chemical-table tbody td:nth-child(9) {
-  width: 60px;
-  min-width: 60px;
+  width: 65px;
+  min-width: 65px;
 }
 
-.final-chemical-table thead tr:nth-child(2) th:nth-child(4),
+.final-chemical-table thead tr:first-child th:nth-child(10),
 .final-chemical-table tbody td:nth-child(10) {
-  width: 60px;
-  min-width: 60px;
+  width: 65px;
+  min-width: 65px;
 }
 
-.final-chemical-table thead tr:nth-child(2) th:nth-child(5),
+.final-chemical-table thead tr:first-child th:nth-child(11),
 .final-chemical-table tbody td:nth-child(11) {
-  width: 60px;
-  min-width: 60px;
+  width: 65px;
+  min-width: 65px;
+}
+
+.final-chemical-table thead tr:first-child th:nth-child(12),
+.final-chemical-table tbody td:nth-child(12) {
+  width: 65px;
+  min-width: 65px;
 }
 
 /* Remark - rotated */
-.final-chemical-table th:nth-child(8),
-.final-chemical-table td:nth-child(12) {
-  width: 32px;
-  min-width: 32px;
-}
-
-/* Accepted or Rejected - rotated */
-.final-chemical-table th:nth-child(9),
+.final-chemical-table th:nth-child(13),
 .final-chemical-table td:nth-child(13) {
   width: 32px;
   min-width: 32px;
 }
 
-/* Sign of Lab. Supervisor - rotated */
-.final-chemical-table th:nth-child(10),
+/* Accepted or Rejected - rotated */
+.final-chemical-table th:nth-child(14),
 .final-chemical-table td:nth-child(14) {
+  width: 32px;
+  min-width: 32px;
+}
+
+/* Sign of Lab. Supervisor - rotated */
+.final-chemical-table th:nth-child(15),
+.final-chemical-table td:nth-child(15) {
   width: 32px;
   min-width: 32px;
 }

@@ -13,9 +13,9 @@ const mockLogs = [
     { id: 1, batchNo: 'B-101', shedLine: 'Shed 1', castingDate: '2026-04-20', logDate: '2026-04-21T10:00:00', sleepers: ['12A'], remark: 'Minor surface crack' }
 ];
 
-const EpoxyTreatedSleepers = () => {
+const EpoxyTreatedSleepers = ({ onBack, initialShowForm = false }) => {
     const [activeTab, setActiveTab] = useState('summary'); // 'summary' or 'logs'
-    const [showForm, setShowForm] = useState(false);
+    const [showForm, setShowForm] = useState(initialShowForm);
     const [selectedLog, setSelectedLog] = useState(null);
     const [showLogModal, setShowLogModal] = useState(false);
     
@@ -57,13 +57,16 @@ const EpoxyTreatedSleepers = () => {
                 <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0 0' }}>Tracking minor surface defects within 1% limit</p>
             </header>
 
-            <div className="nav-tabs" style={{ marginBottom: '24px', display: 'flex', gap: '8px', background: '#f1f5f9', padding: '6px', borderRadius: '14px', width: 'fit-content' }}>
-                <button className={`nav-tab ${activeTab === 'summary' ? 'active' : ''}`} onClick={() => setActiveTab('summary')} style={{ padding: '10px 24px', borderRadius: '10px', border: 'none', cursor: 'pointer', fontWeight: activeTab === 'summary' ? '800' : '600', background: activeTab === 'summary' ? '#fff' : 'transparent' }}>
-                    Batch Wise ET Status
-                </button>
-                <button className={`nav-tab ${activeTab === 'logs' ? 'active' : ''}`} onClick={() => setActiveTab('logs')} style={{ padding: '10px 24px', borderRadius: '10px', border: 'none', cursor: 'pointer', fontWeight: activeTab === 'logs' ? '800' : '600', background: activeTab === 'logs' ? '#fff' : 'transparent' }}>
-                    ET Logs
-                </button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <div className="nav-tabs" style={{ display: 'flex', gap: '8px', background: '#f1f5f9', padding: '6px', borderRadius: '14px', width: 'fit-content' }}>
+                    <button className={`nav-tab ${activeTab === 'summary' ? 'active' : ''}`} onClick={() => setActiveTab('summary')} style={{ padding: '10px 24px', borderRadius: '10px', border: 'none', cursor: 'pointer', fontWeight: activeTab === 'summary' ? '800' : '600', background: activeTab === 'summary' ? '#fff' : 'transparent' }}>
+                        Batch Wise ET Status
+                    </button>
+                    <button className={`nav-tab ${activeTab === 'logs' ? 'active' : ''}`} onClick={() => setActiveTab('logs')} style={{ padding: '10px 24px', borderRadius: '10px', border: 'none', cursor: 'pointer', fontWeight: activeTab === 'logs' ? '800' : '600', background: activeTab === 'logs' ? '#fff' : 'transparent' }}>
+                        ET Logs
+                    </button>
+                </div>
+                <button className="btn-verify" onClick={() => setShowForm(true)}>+ Add New Entry</button>
             </div>
 
             <div className="tab-content fade-in">
@@ -75,9 +78,6 @@ const EpoxyTreatedSleepers = () => {
 
                 {activeTab === 'logs' && (
                     <div className="section-card">
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
-                            <button className="btn-verify" onClick={() => setShowForm(true)}>+ Add New Entry</button>
-                        </div>
                         <EnhancedDataTable columns={logsColumns} data={logs} />
                     </div>
                 )}

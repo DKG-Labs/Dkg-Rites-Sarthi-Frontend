@@ -565,7 +565,6 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
                                 <div className="cell col-label">FA [C]</div>
                                 <div className="cell col-label">Water [D]</div>
                                 <div className="cell col-label">Admix (Kg/m³) [E]</div>
-                                <div className="cell col-label">Admix (%)</div>
                             </div>
  
                             {/* Row 1: Autofetched (Design) */}
@@ -579,13 +578,12 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
                                 <div className="cell data-cell">{commonData.designValues?.fa}</div>
                                 <div className="cell data-cell">{commonData.designValues?.water}</div>
                                 <div className="cell data-cell">{commonData.designValues?.admix}</div>
-                                <div className="cell data-cell" style={{ color: '#0369a1', fontWeight: '800' }}>{commonData.designValues?.admixPct}%</div>
                             </div>
 
                             {/* Row 2: User Inputs (Manual) */}
                             <div className="comparison-grid-row input-row">
                                 <div className="cell row-label input-text">
-                                    Actual Batch [K={((parseFloat(commonData.userDryCement) || 0) / (parseFloat(commonData.designValues?.cement) || 1)).toFixed(3)}]
+                                    Actual Batch
                                 </div>
                                 <div className="cell data-cell calculated-cell">{acRatio}</div>
                                 <div className="cell data-cell calculated-cell">{wcRatio}</div>
@@ -606,9 +604,6 @@ const MoistureEntryForm = ({ onCancel, onSave, initialData }) => {
                                 </div>
                                 <div className="cell data-cell">
                                     <input id="moisture-actual-admix" name="actualAdmix" type="number" step="0.01" value={commonData.userDryAdmix} readOnly tabIndex={-1} aria-label="Actual Admix Weight" style={{ background: '#f8fafc', color: '#64748b' }} />
-                                </div>
-                                <div className="cell data-cell calculated-cell" style={{ fontSize: '0.7rem' }}>
-                                    {((parseFloat(commonData.userDryAdmix) / (parseFloat(commonData.userDryCement) || 1)) * 100).toFixed(2)}%
                                 </div>
                             </div>
                         </div>

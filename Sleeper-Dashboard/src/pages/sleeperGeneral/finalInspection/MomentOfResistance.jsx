@@ -483,11 +483,50 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
             : Array.from({ length: batch.mrSamplesNeeded || 1 }, () => ({ bench: '', no: '' }))
     );
     const [isSaving, setIsSaving] = useState(false);
+    const [availableSleepers, setAvailableSleepers] = useState([]);
+    const [isLoadingSleepers, setIsLoadingSleepers] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [activeDropdownIdx, setActiveDropdownIdx] = useState(null);
 
-    const handleUpdate = (idx, field, val) => {
+    useEffect(() => {
+        const fetchSleepers = async () => {
+            if (!batch?.id) return;
+            setIsLoadingSleepers(true);
+            try {
+                // Use the provided API to fetch declaration details
+                const response = await apiService.getProductionDeclarationById(batch.id);
+                const data = response?.responseData || response;
+                
+                if (data?.chambers) {
+                    const list = [];
+                    data.chambers.forEach(chamber => {
+                        chamber.benchGroups?.forEach(group => {
+                            group.sleepers?.forEach(sleeper => {
+                                list.push({
+                                    bench: String(group.benchNo),
+                                    no: String(sleeper),
+                                    label: `Bench ${group.benchNo} - Sleeper ${sleeper}`
+                                });
+                            });
+                        });
+                    });
+                    setAvailableSleepers(list);
+                }
+            } catch (error) {
+                console.error("Error fetching sleepers for declaration:", error);
+            } finally {
+                setIsLoadingSleepers(false);
+            }
+        };
+        fetchSleepers();
+    }, [batch]);
+
+    const handleUpdate = (idx, sleeperObj) => {
         const updated = [...samples];
-        updated[idx][field] = val;
+        updated[idx] = { bench: sleeperObj.bench, no: sleeperObj.no };
         setSamples(updated);
+        setActiveDropdownIdx(null);
+        setSearchTerm('');
     };
 
     return (
@@ -505,20 +544,90 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
                         </div>
                     </div>
 
-                    <h4 style={{ fontSize: '13px', color: '#42818c', marginBottom: '16px', fontWeight: '700' }}>Enter Sleeper Details ({batch.mrSamplesNeeded} needed)</h4>
+                    <h4 style={{ fontSize: '13px', color: '#42818c', marginBottom: '16px', fontWeight: '700' }}>
+                        Select Sleeper Details ({batch.mrSamplesNeeded} needed)
+                    </h4>
 
                     {samples.map((s, idx) => (
-                        <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '12px', background: '#fff', padding: '12px', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
-                            <div className="input-group">
-                                <label>Bench Number</label>
-                                <input type="number" value={s.bench} onChange={(e) => handleUpdate(idx, 'bench', e.target.value)} placeholder="e.g. 201" />
-                            </div>
-                            <div className="input-group">
-                                <label>Sleeper No.</label>
-                                <select value={s.no} onChange={(e) => handleUpdate(idx, 'no', e.target.value)}>
-                                    <option value="">Select No.</option>
-                                    {['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map(l => <option key={l} value={l}>{l}</option>)}
-                                </select>
+                        <div key={idx} style={{ 
+                            marginBottom: '16px', background: '#fff', padding: '16px', borderRadius: '12px', 
+                            border: '1px solid #f1f5f9', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' 
+                        }}>
+                            <div className="input-group" style={{ position: 'relative' }}>
+                                <label>Search & Select Sleeper <span className="required">*</span></label>
+                                <div className="searchable-dropdown-wrapper">
+                                    <input 
+                                        type="text" 
+                                        placeholder={isLoadingSleepers ? "Loading sleepers..." : "Type to search sleeper (e.g. 100A)..."}
+                                        value={activeDropdownIdx === idx ? searchTerm : (s.bench ? `Bench ${s.bench} - ${s.no}` : '')}
+                                        onFocus={() => {
+                                            setActiveDropdownIdx(idx);
+                                            setSearchTerm('');
+                                        }}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        style={{ 
+                                            paddingRight: '36px',
+                                            borderColor: activeDropdownIdx === idx ? '#42818c' : '#cbd5e1'
+                                        }}
+                                    />
+                                    <div style={{ 
+                                        position: 'absolute', 
+                                        right: '12px', 
+                                        top: '50%', 
+                                        transform: 'translateY(15%)', // Centering relative to the input, accounting for label space
+                                        color: '#64748b',
+                                        pointerEvents: 'none'
+                                    }}>
+                                        {isLoadingSleepers ? (
+                                            <div className="spinner-mini"></div>
+                                        ) : (
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                                <path d="M6 9l6 6 6-6"/>
+                                            </svg>
+                                        )}
+                                    </div>
+
+                                    {activeDropdownIdx === idx && (
+                                        <div className="dropdown-options-list" style={{
+                                            position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                                            background: 'white', border: '1px solid #cbd5e1', borderRadius: '8px',
+                                            marginTop: '4px', maxHeight: '200px', overflowY: 'auto',
+                                            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+                                        }}>
+                                            {availableSleepers.length === 0 ? (
+                                                <div style={{ padding: '12px', fontSize: '12px', color: '#64748b', textAlign: 'center' }}>
+                                                    {isLoadingSleepers ? 'Fetching sleepers...' : 'No sleepers found for this batch'}
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    {availableSleepers
+                                                        .filter(item => item.label.toLowerCase().includes(searchTerm.toLowerCase()))
+                                                        .slice(0, 50) // Limit for performance
+                                                        .map((item, sIdx) => (
+                                                            <div 
+                                                                key={sIdx} 
+                                                                style={{ 
+                                                                    padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9',
+                                                                    fontSize: '13px', color: '#334155'
+                                                                }}
+                                                                onMouseDown={() => handleUpdate(idx, item)}
+                                                                onMouseEnter={(e) => e.target.style.background = '#f8fafc'}
+                                                                onMouseLeave={(e) => e.target.style.background = 'white'}
+                                                            >
+                                                                {item.label}
+                                                            </div>
+                                                        ))
+                                                    }
+                                                    {availableSleepers.filter(item => item.label.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 && (
+                                                        <div style={{ padding: '12px', textAlign: 'center', fontSize: '12px', color: '#94a3b8' }}>
+                                                            No matches found
+                                                        </div>
+                                                    )}
+                                                </>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     ))}
@@ -528,13 +637,13 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
                             className="btn-verify" 
                             style={{ 
                                 flex: 1, 
-                                opacity: isSaving ? 0.7 : 1, 
-                                cursor: isSaving ? 'not-allowed' : 'pointer' 
+                                opacity: isSaving || isLoadingSleepers ? 0.7 : 1, 
+                                cursor: (isSaving || isLoadingSleepers) ? 'not-allowed' : 'pointer' 
                             }} 
-                            disabled={isSaving}
+                            disabled={isSaving || isLoadingSleepers}
                             onClick={() => {
                                 if (samples.some(s => !s.bench || !s.no)) {
-                                    alert("Please provide both Bench Number and Sleeper Number for all samples.");
+                                    alert("Please select a sleeper for MR testing.");
                                     return;
                                 }
                                 setIsSaving(true);
@@ -547,6 +656,23 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
                     </div>
                 </div>
             </div>
+            <style jsx>{`
+                .dropdown-options-list::-webkit-scrollbar { width: 6px; }
+                .dropdown-options-list::-webkit-scrollbar-track { background: #f1f5f9; }
+                .dropdown-options-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+                .spinner-mini {
+                    width: 14px;
+                    height: 14px;
+                    border: 2px solid #e2e8f0;
+                    border-top: 2px solid #42818c;
+                    border-radius: 50%;
+                    animation: spin 0.8s linear infinite;
+                }
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+            `}</style>
         </div>
     );
 };

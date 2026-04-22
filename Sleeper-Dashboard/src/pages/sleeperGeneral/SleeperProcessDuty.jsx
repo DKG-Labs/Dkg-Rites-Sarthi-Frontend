@@ -394,7 +394,7 @@ const SleeperProcessDuty = () => {
                                 setTestedRecords={setTestedRecords}
                             />
                         ) : activeTab === 'Epoxy Treated Sleepers' ? (
-                            <EpoxyTreatedSleepers onBack={() => setDetailView('dashboard')} />
+                            <EpoxyTreatedSleepers onBack={() => setDetailView('dashboard')} initialShowForm={viewMode === 'entry'} />
                         ) : activeTab === 'Raw Material Inventory' && (
                             <RawMaterialInventory onBack={() => setDetailView('dashboard')} />
                         )}

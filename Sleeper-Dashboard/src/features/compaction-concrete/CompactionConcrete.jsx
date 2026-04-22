@@ -134,10 +134,8 @@ const CompactionConcrete = ({
     }, [manualForm.dateOfCasting, manualForm.location, showForm]);
 
     // Mock SCADA Data 
-    const [scadaRecords, setScadaRecords] = useState([
-        { id: 101, time: '10:15', batchNo: '615', benchNo: '12', v1_rpm: 9000, v1_dur: 42, v2_rpm: 8950, v2_dur: 45, v3_rpm: 9100, v3_dur: 40, v4_rpm: 8800, v4_dur: 48, v5_rpm: 9050, v5_dur: 44, v6_rpm: 8980, v6_dur: 46, v7_rpm: 9120, v7_dur: 43, v8_rpm: 8850, v8_dur: 45 },
-        { id: 102, time: '10:18', batchNo: '615', benchNo: '13', v1_rpm: 8850, v1_dur: 40, v2_rpm: 9200, v2_dur: 42, v3_rpm: 9050, v3_dur: 45, v4_rpm: 8900, v4_dur: 41, v5_rpm: 9100, v5_dur: 44, v6_rpm: 8870, v6_dur: 43, v7_rpm: 9020, v7_dur: 46, v8_rpm: 8950, v8_dur: 44 },
-    ]);
+    // Track SCADA records (real or mock)
+    const [scadaRecords, setScadaRecords] = useState([]);
 
 
 
@@ -472,10 +470,10 @@ const CompactionConcrete = ({
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {scadaRecords.filter(r => !manualForm.batchNo || String(r.batchNo) === String(manualForm.batchNo)).length === 0 ? (
+                                        {(!manualForm.batchNo || scadaRecords.filter(r => String(r.batchNo) === String(manualForm.batchNo)).length === 0) ? (
                                             <tr><td colSpan="19" className="empty-msg">No pending SCADA data found.</td></tr>
                                         ) : (
-                                            scadaRecords.filter(r => !manualForm.batchNo || String(r.batchNo) === String(manualForm.batchNo)).map(r => (
+                                            scadaRecords.filter(r => String(r.batchNo) === String(manualForm.batchNo)).map(r => (
                                                 <tr key={r.id}>
                                                     <td>{r.time}</td>
                                                     <td><strong>{r.benchNo}</strong></td>

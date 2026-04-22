@@ -82,125 +82,127 @@ const CementTesting = ({ onBack, inventoryData = [] }) => {
     const [activeRequestId, setActiveRequestId] = useState(null);
     const [editItem, setEditItem] = useState(null);
 
-    React.useEffect(() => {
-        const fetchStatus = async () => {
-            if (pendingStocks.length > 0) {
-                const reqIds = pendingStocks.map(s => s.requestId);
-                const statuses = await getCementBulkStatus(reqIds);
-                setStatusMap(statuses);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-                const fetchedHistory = [];
-                for (const stock of pendingStocks) {
-                    if (statuses[stock.requestId] === 'Completed') {
-                        const nc = await getCementNormalConsistencyByReqId(stock.requestId);
-                        const ss = await getCementSpecificSurfaceByReqId(stock.requestId);
-                        const fn = await getCementFinenessByReqId(stock.requestId);
-                        fetchedHistory.push({
-                            id: stock.requestId,
-                            requestId: stock.requestId,
-                            testDate: (nc?.testDate || ss?.testDate || fn?.testDate || new Date().toISOString()).substring(0, 10),
-                            consignmentNo: stock.consignmentNo,
-                            lotNo: stock.lotNo || (stock.details?.batchDetails && stock.details.batchDetails[0]?.mtcNo) || 'N/A',
-                            surface: ss?.specificSurfaceInfo || '-',
-                            consistency: nc?.consistency || '-',
-                            soundness: '-', // Placeholder since Soundness API is unlinked
-                            fineness: fn?.finenessPercentage || '-',
-                            testType: 'New consignment',
-                            createdAt: nc?.createdAt || ss?.createdAt || new Date().toISOString()
-                        });
-                    }
-                }
-                
-                if (fetchedHistory.length > 0) {
-                    setCementHistory(prev => {
-                        const existingIds = new Set(prev.map(p => p.id));
-                        const newRecords = fetchedHistory.filter(f => !existingIds.has(f.id));
-                        const combined = [...newRecords, ...prev];
-                        // Sort by testDate DESC, then createdAt DESC
-                        return combined.sort((a,b) => {
-                            const dateA = new Date(a.testDate || 0);
-                            const dateB = new Date(b.testDate || 0);
-                            if (dateB - dateA !== 0) return dateB - dateA;
-                            return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
-                        });
+    const fetchStatus = React.useCallback(async () => {
+        if (pendingStocks.length > 0) {
+            const reqIds = pendingStocks.map(s => s.requestId);
+            const statuses = await getCementBulkStatus(reqIds);
+            setStatusMap(statuses);
+
+            const fetchedHistory = [];
+            for (const stock of pendingStocks) {
+                if (statuses[stock.requestId] === 'Completed') {
+                    const nc = await getCementNormalConsistencyByReqId(stock.requestId);
+                    const ss = await getCementSpecificSurfaceByReqId(stock.requestId);
+                    const fn = await getCementFinenessByReqId(stock.requestId);
+                    fetchedHistory.push({
+                        id: stock.requestId,
+                        requestId: stock.requestId,
+                        testDate: (nc?.testDate || ss?.testDate || fn?.testDate || new Date().toISOString()).substring(0, 10),
+                        consignmentNo: stock.consignmentNo,
+                        lotNo: stock.lotNo || (stock.details?.batchDetails && stock.details.batchDetails[0]?.mtcNo) || 'N/A',
+                        surface: ss?.specificSurfaceInfo || '-',
+                        consistency: nc?.consistency || '-',
+                        soundness: '-', // Placeholder since Soundness API is unlinked
+                        fineness: fn?.finenessPercentage || '-',
+                        testType: 'New consignment',
+                        createdAt: nc?.createdAt || ss?.createdAt || new Date().toISOString()
                     });
                 }
             }
-        };
-        fetchStatus();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+            
+            if (fetchedHistory.length > 0) {
+                setCementHistory(prev => {
+                    const existingIds = new Set(prev.map(p => p.id));
+                    const newRecords = fetchedHistory.filter(f => !existingIds.has(f.id));
+                    const combined = [...newRecords, ...prev];
+                    // Sort by testDate DESC, then createdAt DESC
+                    return combined.sort((a,b) => {
+                        const dateA = new Date(a.testDate || 0);
+                        const dateB = new Date(b.testDate || 0);
+                        if (dateB - dateA !== 0) return dateB - dateA;
+                        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+                    });
+                });
+            }
+        }
     }, [pendingStocks]);
 
     React.useEffect(() => {
-        const fetchPeriodic = async () => {
-            try {
-                const [strength, consistency, surface, setting, fineness] = await Promise.all([
-                    getPeriodicCement7DayStrength(),
-                    getPeriodicCementNormalConsistency(),
-                    getPeriodicCementSpecificSurface(),
-                    getPeriodicCementSettingTime(),
-                    getPeriodicCementFineness()
-                ]);
+        fetchStatus();
+    }, [fetchStatus, refreshTrigger]);
 
-                // Consolidation logic: Group by consignmentNo and testDate
-                const consolidated = {};
+    const fetchPeriodic = React.useCallback(async () => {
+        try {
+            const [strength, consistency, surface, setting, fineness] = await Promise.all([
+                getPeriodicCement7DayStrength(),
+                getPeriodicCementNormalConsistency(),
+                getPeriodicCementSpecificSurface(),
+                getPeriodicCementSettingTime(),
+                getPeriodicCementFineness()
+            ]);
 
-                const processList = (list, sourceId) => {
-                    list.forEach(item => {
-                        const key = `${item.consignmentNo}_${(item.testDate || '').substring(0, 10)}`;
-                        if (!consolidated[key]) {
-                            consolidated[key] = {
-                                id: item.id, // Primary ID for first found record
-                                consignmentNo: item.consignmentNo,
-                                lotNo: item.lotNo || 'N/A',
-                                testDate: item.testDate,
-                                testType: 'Periodic',
-                                createdAt: item.createdAt,
-                                formEntries: {}
-                            };
+            // Consolidation logic: Group by consignmentNo and testDate
+            const consolidated = {};
+
+            const processList = (list, sourceId) => {
+                list.forEach(item => {
+                    const key = `${item.consignmentNo}_${(item.testDate || '').substring(0, 10)}`;
+                    if (!consolidated[key]) {
+                        consolidated[key] = {
+                            id: item.id, // Primary ID for first found record
+                            consignmentNo: item.consignmentNo,
+                            lotNo: item.lotNo || 'N/A',
+                            testDate: item.testDate,
+                            testType: 'Periodic',
+                            createdAt: item.createdAt,
+                            formEntries: {}
+                        };
+                    }
+                    // Store the full item in formEntries by the sourceId for editing
+                    consolidated[key].formEntries[sourceId] = item;
+                    
+                    // Map summary fields
+                    if (sourceId === 1) consolidated[key].strength = item.cubeResult || item.avgStrength || '-';
+                    if (sourceId === 2) {
+                        // First try direct field, then fallback to calculating from observations
+                        const directVal = item.normalConsistency;
+                        if (directVal) {
+                            consolidated[key].consistency = directVal;
+                        } else if (item.observations && item.observations.length > 0) {
+                            // Find the observation where needle reading is 5-7mm
+                            const target = item.observations.find(o => o.needleReading >= 5 && o.needleReading <= 7);
+                            if (target) consolidated[key].consistency = target.percentWaterAdded;
                         }
-                        // Store the full item in formEntries by the sourceId for editing
-                        consolidated[key].formEntries[sourceId] = item;
-                        console.log(`Consolidation [${key}] - Source ${sourceId}: Set ID ${item.id}`);
-                        
-                        // Map summary fields
-                        if (sourceId === 1) consolidated[key].strength = item.cubeResult || item.avgStrength || '-';
-                        if (sourceId === 2) {
-                            // First try direct field, then fallback to calculating from observations
-                            const directVal = item.normalConsistency;
-                            if (directVal) {
-                                consolidated[key].consistency = directVal;
-                            } else if (item.observations && item.observations.length > 0) {
-                                // Find the observation where needle reading is 5-7mm
-                                const target = item.observations.find(o => o.needleReading >= 5 && o.needleReading <= 7);
-                                if (target) consolidated[key].consistency = target.percentWaterAdded;
-                            }
-                        }
-                        if (sourceId === 3) consolidated[key].surface = item.specificSurfaceFm || item.specificSurfaceInfo || '-';
-                        if (sourceId === 4) consolidated[key].settingTime = `${item.initialSettingTime || '-'}/${item.finalSettingTime || '-'}`;
-                        if (sourceId === 5) consolidated[key].fineness = item.percentageFineness || item.finenessPercentage || '-';
-                    });
-                };
-
-                processList(strength, 1);
-                processList(consistency, 2);
-                processList(surface, 3);
-                processList(setting, 4);processList(fineness, 5);
-
-                console.log("Final Consolidated Periodic Data:", consolidated);
-                const sorted = Object.values(consolidated).sort((a,b) => {
-                    const dateA = new Date(a.testDate || 0);
-                    const dateB = new Date(b.testDate || 0);
-                    if (dateB - dateA !== 0) return dateB - dateA;
-                    return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+                    }
+                    if (sourceId === 3) consolidated[key].surface = item.specificSurfaceFm || item.specificSurfaceInfo || '-';
+                    if (sourceId === 4) consolidated[key].settingTime = `${item.initialSettingTime || '-'}/${item.finalSettingTime || '-'}`;
+                    if (sourceId === 5) consolidated[key].fineness = item.percentageFineness || item.finenessPercentage || '-';
                 });
-                setPeriodicHistory(sorted);
-            } catch (err) {
-                console.error("Failed to fetch periodic data:", err);
-            }
-        };
-        fetchPeriodic();
+            };
+
+            processList(strength, 1);
+            processList(consistency, 2);
+            processList(surface, 3);
+            processList(setting, 4);
+            processList(fineness, 5);
+
+            const sorted = Object.values(consolidated).sort((a,b) => {
+                const dateA = new Date(a.testDate || 0);
+                const dateB = new Date(b.testDate || 0);
+                if (dateB - dateA !== 0) return dateB - dateA;
+                return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+            });
+            setPeriodicHistory(sorted);
+        } catch (err) {
+            console.error("Failed to fetch periodic data:", err);
+        }
     }, []);
+
+    React.useEffect(() => {
+        fetchPeriodic();
+    }, [fetchPeriodic, refreshTrigger]);
 
     // Rule: Modify/Delete allowed only for 24 hours from entering
     const canModify = (createdAt) => {
@@ -210,7 +212,10 @@ const CementTesting = ({ onBack, inventoryData = [] }) => {
         return (now - entryTime) < (24 * 60 * 60 * 1000); 
     };
 
-    const handleSaveTest = (completedSectionId, savedData) => {
+    const handleSaveTest = async (completedSectionId, savedData) => {
+        // Trigger a background refresh to ensure sync with backend
+        setRefreshTrigger(prev => prev + 1);
+
         if (initialType === "Periodic") {
             let currentRecord = editItem;
             

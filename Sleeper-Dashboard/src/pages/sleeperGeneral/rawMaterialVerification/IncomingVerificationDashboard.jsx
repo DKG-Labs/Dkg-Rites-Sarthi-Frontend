@@ -406,6 +406,7 @@ const IncomingVerificationDashboard = ({ initialGroup = null }) => {
 
     const [selectedModuleId, setSelectedModuleId] = useState(null);
     const [detailModal, setDetailModal] = useState(null); // row to show in the detail modal
+    const [activeSubTab, setActiveSubTab] = useState('pending'); // 'pending' or 'verified'
 
     // Filter MODULE_CONFIG by initialGroup if provided
     const filteredModules = initialGroup
@@ -622,47 +623,115 @@ const IncomingVerificationDashboard = ({ initialGroup = null }) => {
                     </div>
 
                     {selectedModuleId && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-                            {/* ── Pending Table ── */}
-                            <div style={{
-                                background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0',
-                                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', overflow: 'hidden'
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                            
+                            {/* Toggle Tabs */}
+                            <div style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                background: '#f1f5f9', 
+                                padding: '4px', 
+                                borderRadius: '16px', 
+                                width: 'fit-content',
+                                border: '1px solid #e2e8f0'
                             }}>
-                                <div style={{
-                                    padding: '16px 24px', borderBottom: '1px solid #f1f5f9',
-                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                    background: '#fff7ed'
-                                }}>
-                                    <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#c2410c' }}>
-                                        Pending Verification
-                                    </h3>
-                                    <span style={{ fontSize: '10px', fontWeight: '700', color: '#c2410c', background: '#fff', padding: '2px 8px', borderRadius: '4px' }}>
-                                        {currentPending.length} Items
-                                    </span>
-                                </div>
-
-                                {currentPending.length === 0 ? (
-                                    <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
-                                        <div style={{ fontSize: '24px', marginBottom: '10px' }}>✅</div>
-                                        <strong>No pending records for this module.</strong>
-                                    </div>
-                                ) : (
-                                    <RecordTable 
-                                        records={currentPending} 
-                                        moduleId={selectedModuleId} 
-                                        onView={setDetailModal} 
-                                        btnLabel="Verify"
-                                        btnColor="#0369a1"
-                                    />
-                                )}
+                                <button 
+                                    onClick={() => setActiveSubTab('pending')} 
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '10px',
+                                        padding: '10px 20px',
+                                        borderRadius: '12px',
+                                        border: 'none',
+                                        background: activeSubTab === 'pending' ? '#fff' : 'transparent',
+                                        boxShadow: activeSubTab === 'pending' ? '0 4px 12px rgba(0,0,0,0.08)' : 'none',
+                                        cursor: 'pointer',
+                                        fontWeight: '700',
+                                        color: activeSubTab === 'pending' ? '#1e293b' : '#64748b',
+                                        fontSize: '13px',
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b' }}></div>
+                                    {initialGroup === 'Production Verification' ? 'Pending Declaration' : 'Pending Verification'}
+                                    <span style={{ 
+                                        background: activeSubTab === 'pending' ? '#f1f5f9' : '#e2e8f0', 
+                                        color: '#475569',
+                                        padding: '2px 8px', 
+                                        borderRadius: '8px', 
+                                        fontSize: '11px',
+                                        fontWeight: '800'
+                                    }}>{currentPending.length}</span>
+                                </button>
+                                <button 
+                                    onClick={() => setActiveSubTab('verified')} 
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '10px',
+                                        padding: '10px 20px',
+                                        borderRadius: '12px',
+                                        border: 'none',
+                                        background: activeSubTab === 'verified' ? '#fff' : 'transparent',
+                                        boxShadow: activeSubTab === 'verified' ? '0 4px 12px rgba(0,0,0,0.08)' : 'none',
+                                        cursor: 'pointer',
+                                        fontWeight: '700',
+                                        color: activeSubTab === 'verified' ? '#1e293b' : '#64748b',
+                                        fontSize: '13px',
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981' }}></div>
+                                    {initialGroup === 'Production Verification' ? 'Verified Production' : 'Verified Records'}
+                                    <span style={{ 
+                                        background: activeSubTab === 'verified' ? '#d1fae5' : '#e2e8f0', 
+                                        color: activeSubTab === 'verified' ? '#065f46' : '#475569',
+                                        padding: '2px 8px', 
+                                        borderRadius: '8px', 
+                                        fontSize: '11px',
+                                        fontWeight: '800'
+                                    }}>{currentVerified.length}</span>
+                                </button>
                             </div>
 
-                            {/* ── Verified Table ── */}
-                            {(currentVerified.length > 0 || currentPending.length === 0) && (
+                            {activeSubTab === 'pending' ? (
                                 <div style={{
                                     background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0',
-                                    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', overflow: 'hidden',
-                                    opacity: currentVerified.length === 0 ? 0.6 : 1
+                                    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', overflow: 'hidden'
+                                }}>
+                                    <div style={{
+                                        padding: '16px 24px', borderBottom: '1px solid #f1f5f9',
+                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                        background: '#fff7ed'
+                                    }}>
+                                        <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#c2410c' }}>
+                                            Pending Verification
+                                        </h3>
+                                        <span style={{ fontSize: '10px', fontWeight: '700', color: '#c2410c', background: '#fff', padding: '2px 8px', borderRadius: '4px' }}>
+                                            {currentPending.length} Items
+                                        </span>
+                                    </div>
+
+                                    {currentPending.length === 0 ? (
+                                        <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                                            <div style={{ fontSize: '24px', marginBottom: '10px' }}>✅</div>
+                                            <strong>No pending records for this module.</strong>
+                                        </div>
+                                    ) : (
+                                        <RecordTable 
+                                            records={currentPending} 
+                                            moduleId={selectedModuleId} 
+                                            onView={setDetailModal} 
+                                            btnLabel="Verify"
+                                            btnColor="#0369a1"
+                                        />
+                                    )}
+                                </div>
+                            ) : (
+                                <div style={{
+                                    background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0',
+                                    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', overflow: 'hidden'
                                 }}>
                                     <div style={{
                                         padding: '16px 24px', borderBottom: '1px solid #f1f5f9',

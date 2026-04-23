@@ -357,4 +357,13 @@ export const apiService = {
     createMFTest: (payload) => api.post('/mf-test-details', payload),
     updateMFTest: (id, payload) => api.put(`/mf-test-details/${id}`, payload),
     deleteMFTest: (id) => api.delete(`/mf-test-details/${id}`),
+    
+    // ================= Epoxy Treated Sleepers (ET) =================
+    getAllETLogs: () => api.get('/et'),
+    getETById: (id) => api.get(`/et/${id}`),
+    createETRecord: (payload) => api.post('/et', payload),
+    updateETRecord: (id, payload) => api.put(`/et/${id}`, payload),
+    deleteETRecord: (id) => api.delete(`/et/${id}`),
+    getETBatchSummary: () => api.get('/et/batch-summary'),
+    getEtBatchSleepers: (batchId) => api.get(`/FinalInspectionController/inspection/Etbatch?batchId=${batchId}`),
 };

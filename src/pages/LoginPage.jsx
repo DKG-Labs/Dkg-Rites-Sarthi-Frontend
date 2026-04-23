@@ -56,9 +56,9 @@ const LoginPage = () => {
     if (isAuthenticated()) {
       const currentUser = getStoredUser();
 
-      // Special redirection for Sleeper Process IE (robust check for string or array)
+      // Special redirection for Sleeper roles (Sleeper Process IE or Main IE)
       const roleName = currentUser?.roleName;
-      if (roleName === 'Sleeper Process IE' || (typeof roleName === 'string' && roleName.includes('Sleeper Process IE'))) {
+      if (isSleeperRole(roleName)) {
         window.location.href = '/sleeper/';
         return;
       }
@@ -106,9 +106,9 @@ const LoginPage = () => {
   const handleRoleRedirection = (userData) => {
     storeAuthData(userData);
 
-    // Special redirection for Sleeper Process IE
+    // Special redirection for Sleeper roles
     const roleName = userData.roleName;
-    if (roleName === 'Sleeper Process IE' || (typeof roleName === 'string' && roleName.includes('Sleeper Process IE'))) {
+    if (isSleeperRole(roleName)) {
       window.location.href = '/sleeper/';
       return;
     }
@@ -175,16 +175,17 @@ const LoginPage = () => {
         seenConsolidated.add('RIO Help Desk');
       }
 
-      // Handle Sleeper Process IE
-      if (roles.includes('Sleeper Process IE')) {
+      // Handle Sleeper Roles
+      if (roles.some(r => r === 'Sleeper Process IE' || r === 'Main IE')) {
         options.push({
           id: 'sleeper_option',
           label: 'Sleeper Dashboard',
           description: 'Access Sleeper Process modules',
           icon: '🚄',
-          roleToStore: 'Sleeper Process IE'
+          roleToStore: roles.find(r => r === 'Sleeper Process IE' || r === 'Main IE')
         });
         seenConsolidated.add('Sleeper Process IE');
+        seenConsolidated.add('Main IE');
       }
 
       // Handle any other roles that aren't part of the specific consolidation requirement
@@ -424,6 +425,18 @@ const LoginPage = () => {
         </section>
       </main>
     </div>
+  );
+};
+
+/**
+ * Helper to identify if a role belongs to the Sleeper Dashboard
+ * Added at the bottom for better code readability as requested
+ */
+const isSleeperRole = (role) => {
+  if (!role) return false;
+  const sleeperRoles = ['Sleeper Process IE', 'Main IE'];
+  return sleeperRoles.some(r =>
+    role === r || (typeof role === 'string' && role.includes(r))
   );
 };
 

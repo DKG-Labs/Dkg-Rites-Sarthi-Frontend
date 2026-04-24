@@ -50,21 +50,22 @@
   }
 
   .annexure-layout {
-    position: absolute;
-    left: 0;
-    top: 0;
+    position: relative;
+    /* Changed from absolute to allow multi-page flow */
     width: 100%;
     padding: 0;
     margin: 0;
     page-break-inside: avoid;
-    page-break-after: avoid;
-    transform: scale(0.85);
-    transform-origin: top left;
+    page-break-after: always !important;
+    /* Force each annexure onto a new page */
+    transform: scale(0.95);
+    /* Slightly larger scale for better fit */
+    transform-origin: top center;
   }
 
   @page {
     size: A4 landscape;
-    margin: 8mm;
+    margin: 10mm;
   }
 
   /* Hide navigation and buttons */
@@ -77,21 +78,20 @@
     display: none !important;
   }
 
-  /* Ensure single page */
+  /* Ensure natural width and allowing page breaks */
   .annexure-layout {
-    width: 1100px !important;
-    max-width: 1100px !important;
+    width: 1080px !important;
+    max-width: 1080px !important;
+    page-break-after: always !important;
     page-break-inside: avoid !important;
-    page-break-after: avoid !important;
-    page-break-before: avoid !important;
   }
 
   .annexure-layout table {
-    page-break-inside: avoid !important;
+    page-break-inside: auto !important;
+    /* Allow tables to break if they are long */
   }
 
   .annexure-layout tr {
     page-break-inside: avoid !important;
   }
 }
-

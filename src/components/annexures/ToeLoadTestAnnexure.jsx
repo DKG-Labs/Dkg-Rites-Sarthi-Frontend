@@ -14,7 +14,7 @@ const toeLoadHeaderRows = [
     { label: "Sample size", rowSpan: 2 },
     {
       label:
-        "Toe Load test (ERC MK-III: 850–110 kgs) (ERC MK-V: 1200–1500 kgs)",
+        "Toe Load test (ERC MK-III: 850-1100 kgs) (ERC MK-V: 1200-1500 kgs)",
       colSpan: 10,
     },
     { label: "No. of defectives", rowSpan: 2 },
@@ -28,83 +28,84 @@ const toeLoadHeaderRows = [
   ],
 ];
 
-const toeLoadSampleData = [
-  {
-    heatNo: "H-1301",
-    lotNo: "LOT-01",
-    colour: "Red",
-    qty: 500,
-    sampleSize: 10,
-    toeLoad: [980, 995, 1005, 990, 985, 1000, 995, 990, 1002, 998],
-    defectives: 0,
-    result: "Accepted",
-  },
-  {
-    heatNo: "H-1302",
-    lotNo: "LOT-02",
-    colour: "Blue",
-    qty: 450,
-    sampleSize: 10,
-    toeLoad: [970, 980, 990, 985, 975, 980, 988, 982, 990, 978],
-    defectives: 0,
-    result: "Accepted",
+const ToeLoadTestAnnexure = ({ data, selectedCall }) => {
+  // Logic: Each sampling round gets its own page
+  const reportData = data?.responseData || data || {};
+  const pages = reportData.pages || [];
+
+  if (!pages || pages.length === 0) {
+    return (
+      <div className="annexure-empty-state">
+        <p>No Toe Load Test data available for this call.</p>
+      </div>
+    );
   }
-];
 
-const ToeLoadTestAnnexure = () => {
   return (
-    <AnnexureLayout>
+    <>
+      {pages.map((page, pageIdx) => (
+        <AnnexureLayout key={pageIdx}>
+          <AnnexureHeader
+            pageNo={`${pageIdx + 1} of ${pages.length}`}
+            preparedBy="KJM"
+            checkedBy="CSR"
+            approvedBy="GM(I)/WR"
+            title="Final Inspection Report"
+            subtitle="Test results of - Toe load test"
+            annexureNumber="Annexure-XI"
+            annexureCode="IRST-31-2025"
+            // Pass metadata from the root DTO
+            manufacturer={reportData.manufacturer}
+            vendor={reportData.vendor}
+            firmName={reportData.vendor} // Added firmName
+            productName={reportData.productName}
+            dateOfInspection={reportData.dateOfInspection}
+          />
 
-      <AnnexureHeader
-        pageNo="17 of 18"
-        preparedBy="KJM"
-        checkedBy="CSR"
-        approvedBy="GM(I)/WR"
-        title="Final Inspection Report"
-        subtitle="Test results of - Toe load test"
-        annexureNumber="Annexure-XI"
-        annexureCode="IRST-31-2025"
-      />
+          <AnnexureTable headerRows={toeLoadHeaderRows}>
+            {page.rows && page.rows.map((batch, batchIndex) => {
+              const rowSpan = batch.readings?.length || 1;
 
-      <AnnexureTable headerRows={toeLoadHeaderRows}>
-  {toeLoadSampleData.map((row, batchIndex) =>
-    row.toeLoad.map((value, i) => (
-      <tr key={`${batchIndex}-${i}`}>
+              return batch.readings?.map((readingRow, rowIndex) => (
+                <tr key={`${batchIndex}-${rowIndex}`}>
+                  {/* Left columns: Only render on the first row of a batch */}
+                  {rowIndex === 0 && (
+                    <>
+                      <td rowSpan={rowSpan}>{batchIndex + 1}</td>
+                      <td rowSpan={rowSpan}>{batch.heatNo || '-'}</td>
+                      <td rowSpan={rowSpan}>{batch.lotNo || '-'}</td>
+                      <td rowSpan={rowSpan}>{batch.colourCode || 'N/A'}</td>
+                      <td rowSpan={rowSpan}>{batch.qty || 0}</td>
+                      <td rowSpan={rowSpan}>{batch.sampleSize || 0}</td>
+                    </>
+                  )}
 
-        
-        {i === 0 && (
-          <>
-            <td rowSpan={row.sampleSize}>{batchIndex + 1}</td>
-            <td rowSpan={row.sampleSize}>{row.heatNo}</td>
-            <td rowSpan={row.sampleSize}>{row.lotNo}</td>
-            <td rowSpan={row.sampleSize}>{row.colour}</td>
-            <td rowSpan={row.sampleSize}>{row.qty}</td>
-            <td rowSpan={row.sampleSize}>{row.sampleSize}</td>
-          </>
-        )}
+                  {/* 10 Reading columns */}
+                  {[...Array(10)].map((_, i) => (
+                    <td key={i}>{readingRow[i] !== undefined ? readingRow[i].toString() : ""}</td>
+                  ))}
 
-      
-        {row.toeLoad.map((v, idx) => (
-            <td key={idx}>{v}</td>
-        ))}
+                  {/* Right columns: Only render on the first row of a batch */}
+                  {rowIndex === 0 && (
+                    <>
+                      <td rowSpan={rowSpan}>{batch.defectives}</td>
+                      <td rowSpan={rowSpan}>{batch.cumulativeDefectives}</td>
+                      <td rowSpan={rowSpan}>
+                        <span className={`status-badge ${batch.status === 'Accepted' ? 'status-ok' : 'status-not-ok'}`}>
+                          {batch.status}
+                        </span>
+                      </td>
+                    </>
+                  )}
+                </tr>
+              ));
+            })}
+          </AnnexureTable>
 
-       
-        {i === 0 && (
-          <>
-            <td rowSpan={row.sampleSize}>{row.defectives}</td>
-            <td rowSpan={row.sampleSize}>{row.defectives}</td>
-            <td rowSpan={row.sampleSize}>{row.result}</td>
-          </>
-        )}
-
-      </tr>
-    ))
-  )}
-</AnnexureTable>
-
-      <AnnexureFooter />
-
-    </AnnexureLayout>
+          <AnnexureFooter />
+        </AnnexureLayout>
+      ))}
+    </>
   );
 };
 

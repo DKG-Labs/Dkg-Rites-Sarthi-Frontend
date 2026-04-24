@@ -1,4 +1,5 @@
 import React from 'react';
+import AnnexureHeader from './annexures/AnnexureHeader';
 import './AnnexureTemplate.css';
 
 /**
@@ -24,67 +25,29 @@ const AnnexureTemplate = ({
   tableHeaders = [],
   tableData = [],
   footerData = {},
-  customStyles = {}
+  customStyles = {},
+  selectedCall = null
 }) => {
   return (
     <div className="annexure-template" style={customStyles.container}>
       {/* HEADER SECTION */}
-      <div className="annexure-header">
-        {/* Logo Section */}
-        <div className="annexure-header-logo">
-          <div className="annexure-logo-placeholder">
-            {headerData.logoText || 'RITES'}
-          </div>
-          <div className="annexure-company-name">
-            {headerData.companyName || 'RITES LTD'}
-          </div>
-          <div className="annexure-division">
-            {headerData.division || '(QA DIVISION)'}
-          </div>
-        </div>
-
-        {/* Title Section */}
-        <div className="annexure-header-title">
-          <div className="annexure-main-title">
-            {headerData.mainTitle || 'INSPECTION & TEST PLAN'}
-          </div>
-          <div className="annexure-product-name">
-            {headerData.productName || 'ELASTIC RAIL CLIP MK-III/MK-V'}
-          </div>
-        </div>
-
-        {/* Document Info Section */}
-        <div className="annexure-header-info">
-          <div className="annexure-info-row">
-            <span className="annexure-info-label">DOC. NO:</span>
-            <span className="annexure-info-value">{headerData.docNo || 'QA/WR/MECH'}</span>
-          </div>
-          <div className="annexure-info-row">
-            <span className="annexure-info-label">ISSUE NO:</span>
-            <span className="annexure-info-value">{headerData.issueNo || ''}</span>
-          </div>
-          <div className="annexure-info-row">
-            <span className="annexure-info-label">PAGE NO:</span>
-            <span className="annexure-info-value">{headerData.pageNo || '9 of 18'}</span>
-          </div>
-          <div className="annexure-info-row">
-            <span className="annexure-info-label">EFFECTIVE DATE:</span>
-            <span className="annexure-info-value">{headerData.effectiveDate || ''}</span>
-          </div>
-          <div className="annexure-info-row">
-            <span className="annexure-info-label">PREPARED BY:</span>
-            <span className="annexure-info-value">{headerData.preparedBy || 'KEM'}</span>
-          </div>
-          <div className="annexure-info-row">
-            <span className="annexure-info-label">CHECKED BY:</span>
-            <span className="annexure-info-value">{headerData.checkedBy || 'CSR'}</span>
-          </div>
-          <div className="annexure-info-row">
-            <span className="annexure-info-label">APPROVED BY:</span>
-            <span className="annexure-info-value">{headerData.approvedBy || 'GM(I)/WR'}</span>
-          </div>
-        </div>
-      </div>
+      <AnnexureHeader
+        selectedCall={selectedCall}
+        docNo={headerData.docNo}
+        issueNo={headerData.issueNo}
+        pageNo={headerData.pageNo}
+        effectiveDate={headerData.effectiveDate}
+        preparedBy={headerData.preparedBy}
+        checkedBy={headerData.checkedBy}
+        approvedBy={headerData.approvedBy}
+        title={title || headerData.title}
+        subtitle={subtitle || headerData.subtitle}
+        annexureNumber={annexureNumber || headerData.annexureNumber}
+        annexureCode={annexureCode || headerData.annexureCode}
+        productName={headerData.productName}
+        callNo={headerData.callNo}
+        vendorName={headerData.vendorName}
+      />
 
       {/* TITLE SECTION */}
       <div className="annexure-title-section">

@@ -32,7 +32,7 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
- 
+
 
 }
 
@@ -93,11 +93,10 @@
 /* Section Styles */
 .itp-section {
   /* display: flex; */
-  flex-direction:row;
+  flex-direction: row;
   align-items: center;
   margin-bottom: 4px;
   padding: 0 80px
-  
 }
 
 .itp-section-heading {
@@ -137,7 +136,7 @@
 .itp-note-text {
   margin: 2px 0;
   line-height: 1.3;
-  
+
 }
 
 .itp-note-italic {
@@ -239,7 +238,7 @@
 .sampling-table td {
   padding: 1px 2px;
   line-height: 1.1;
-    font-size: 12px;
+  font-size: 12px;
 
 }
 
@@ -252,7 +251,7 @@
 .other-tests-table {
   margin-top: 4px;
   font-size: 12px;
-    font-size: 12px;
+  font-size: 12px;
 
 }
 
@@ -501,4 +500,3 @@
   margin-top: 0;
   margin-bottom: 2px;
 }
-

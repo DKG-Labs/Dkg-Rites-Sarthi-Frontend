@@ -165,7 +165,7 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
 
   const tabs = [
     { id: 'pending', label: 'List of Calls Pending', description: `${pendingCount} pending` },
-    { id: 'certificates', label: 'Issuance of IC', description: `${completedCount} ready for IC` },
+    { id: 'certificates', label: 'Issuance of IC & Annexures', description: `${completedCount} ready for IC` },
     { id: 'billing', label: 'Billing Stage', description: `${billingCount} in billing` },
     { id: 'completed', label: 'Calls Completed', description: `${completedCount} completed` },
     { id: 'performance', label: 'Performance', description: 'KPI overview' },
@@ -877,7 +877,7 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
   };
 
   return (
-    <div>
+    <div style={{ padding: '20px 40px' }}>
       {/* In-app Notification */}
       <Notification
         message={notification.message}

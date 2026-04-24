@@ -34,46 +34,58 @@ const AnnexureHeader = ({
   annexureNumber = '',
   annexureCode = '',
   additionalInfo = '',
-  note = ''
+  note = '',
+  selectedCall = null,
+  productName = '',
+  callNo = '',
+  extraInfo = null
 }) => {
-  return (
-    <>
-      {/* HEADER TABLE */}
-      <table className="annexure-header-table">
-        <tbody>
-          <tr>
-            {/* LEFT: Logo Cell */}
-            <td className="header-logo-cell">
-              <div className="header-logo-box">
-                <div className="header-logo-placeholder">
-                  <div className="header-logo-text">RITES</div>
+   return (
+     <>
+       {/* HEADER TABLE */}
+       <table className="annexure-header-table">
+         <tbody>
+           <tr>
+             {/* LEFT: Logo Cell */}
+              <td className="header-logo-cell">
+                <div className="header-logo-box">
+                  <img src="/login-assets/riteslogo.png" alt="RITES" className="header-logo-img" />
+                  <div className="header-company-info">
+                    <div className="header-hindi-name">राइट्स लिमिटेड</div>
+                    <div className="header-hindi-division">(गुणवत्ता आश्वासन प्रभाग)</div>
+                    <div className="header-english-info">RITES LTD (QA DIVISION)</div>
+                  </div>
                 </div>
-                <div className="header-company-info">
-                  <div className="header-company-name">RITES LTD</div>
-                  <div className="header-division">(QA DIVISION)</div>
-                </div>
-              </div>
-            </td>
-
-            {/* CENTER: Title Cell */}
-            <td className="header-center-cell">
-              <div className="header-title">INSPECTION & TEST PLAN</div>
-              <div className="header-product">ELASTIC RAIL CLIP MK-III/MK-V</div>
-            </td>
-
-            {/* RIGHT: Document Details Cell */}
-            <td className="header-info-cell">
-              <div className="header-info-line">DOC. NO: {docNo}</div>
-              <div className="header-info-line">ISSUE NO: {issueNo}</div>
-              <div className="header-info-line">PAGE NO: {pageNo}</div>
-              <div className="header-info-line">EFFECTIVE DATE: {effectiveDate}</div>
-              <div className="header-info-line">PREPARED BY: {preparedBy}</div>
-              <div className="header-info-line">CHECKED BY: {checkedBy}</div>
-              <div className="header-info-line">APPROVED BY: {approvedBy}</div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+              </td>
+ 
+             <td className="header-center-cell">
+               <div className="header-title">INSPECTION & TEST PLAN</div>
+               <div className="header-product">{productName || selectedCall?.product_type || 'ELASTIC RAIL CLIP MK-III/MK-V'}</div>
+               
+               {/* New Highlighted Info Box (Yellow part from requirement) */}
+               {extraInfo && (
+                 <div className="header-extra-highlight">
+                   {Object.entries(extraInfo).map(([key, value]) => (
+                     <div key={key} className="extra-item">
+                        <span className="extra-key">{key}:</span>
+                        <span className="extra-value">{value}</span>
+                     </div>
+                   ))}
+                 </div>
+               )}
+             </td>
+ 
+             {/* RIGHT: Document Details Cell */}
+             <td className="header-info-cell">
+               <div className="header-info-line">DOC. NO: {docNo}</div>
+               <div className="header-info-line">ISSUE NO: {issueNo}</div>
+               <div className="header-info-line">PAGE NO: {pageNo}</div>
+               <div className="header-info-line">EFFECTIVE DATE: {effectiveDate}</div>
+               <div className="header-info-line">APPROVED BY: {approvedBy}</div>
+             </td>
+           </tr>
+         </tbody>
+       </table>
 
       {/* TITLE SECTION (if provided) */}
       {title && (
@@ -95,6 +107,7 @@ const AnnexureHeader = ({
           </div>
         </div>
       )}
+
 
       {/* NOTE SECTION (if provided) */}
       {note && (

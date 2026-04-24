@@ -1,19 +1,20 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import DataTable from './DataTable';
 import StatusBadge from './StatusBadge';
+import AnnexureLoader from './annexures/AnnexureLoader';
+
 import Notification from './Notification';
 import { getProductTypeDisplayName, formatDate } from '../utils/helpers';
 import CallsFilterSection from './common/CallsFilterSection';
-import { createStageValidationHandler } from '../utils/stageValidation';
 import { generateRawMaterialCertificate, generateProcessMaterialCertificate, generateFinalProductCertificate, generateFinalCertificate } from '../services/certificateService';
 import { fetchCompletedCallsForIC, getCurrentUserId } from '../services/workflowApiService';
+
+
 
 const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage }) => {
   const [showFilters, setShowFilters] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Call Number');
-  const [selectedRows, setSelectedRows] = useState([]);
-  const [selectionError, setSelectionError] = useState('');
   const [notification, setNotification] = useState({ show: false, message: '', type: '' });
   const [isLoadingCertificate, setIsLoadingCertificate] = useState(false);
   const [completedCalls, setCompletedCalls] = useState([]);
@@ -27,6 +28,7 @@ const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage }) => {
     stage: '',
     callNumbers: []
   });
+
 
   // Helper function to show notifications
   const showNotification = (message, type = 'info') => {
@@ -141,27 +143,14 @@ const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage }) => {
     { key: 'product_type', label: 'Product Type', render: (val) => getProductTypeDisplayName(val) },
     { key: 'requested_date', label: 'Inspection Date', render: (val) => formatDate(val) },
     { key: 'stage', label: 'Stage' },
-    { key: 'status', label: 'IC Status', render: (_val, row) => <StatusBadge status={row.displayStatus || 'IC Pending'} /> },
+    {
+      key: 'status',
+      label: 'IC Status',
+      render: (_val, row) => <StatusBadge status={row.displayStatus || 'IC Pending'} />
+    },
   ];
 
-  const selectedICCalls = filteredCalls.filter(call => selectedRows.includes(call.id));
 
-  // Handler to validate and update selection - prevents selecting calls from different stages
-  const handleSelectionChange = createStageValidationHandler(
-    filteredCalls,
-    selectedRows,
-    setSelectedRows,
-    setSelectionError
-  );
-
-  const handleBulkIssue = () => {
-    console.log('Issue IC for selected:', selectedICCalls.map(call => call.call_no));
-    setSelectedRows([]);
-  };
-
-  const handleBulkView = () => {
-    console.log('View selected IC calls:', selectedICCalls.map(call => call.call_no));
-  };
 
   /**
    * Extract core IC number (call number) from formatted certificate number
@@ -265,13 +254,15 @@ const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage }) => {
   };
 
   /**
-   * Handle View Certificate button click
-   * Fetches certificate data from backend and displays it
+   * Handle View Annexures button click
    */
-  const handleViewCertificate = async (row) => {
-    // Use the same logic as Issue IC
-    await handleIssueIC(row);
+  const handleViewAnnexures = (row) => {
+    if (setSelectedCall) setSelectedCall(row);
+    if (setCurrentPage) setCurrentPage('annexure');
   };
+
+
+
 
   const getICPageForStage = (stage, icNumber) => {
     // First check IC number prefix for EP- (process material)
@@ -290,42 +281,67 @@ const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage }) => {
     return 'ic-rawmaterial'; // default fallback
   };
 
-  const actions = selectedRows.length === 1 ? (row) => (
-    selectedRows.includes(row.id) ? (
-      <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
-        <button
-          className="btn btn-sm btn-primary"
-          onClick={() => handleIssueIC(row)}
-          disabled={isLoadingCertificate}
-        >
-          {isLoadingCertificate ? 'Loading...' : 'Issue IC'}
-        </button>
-
-        <button
-          className="btn btn-sm btn-outline"
-          onClick={() => handleViewCertificate(row)}
-          disabled={isLoadingCertificate}
-        >
-          {isLoadingCertificate ? 'Loading...' : 'View'}
-        </button>
-      </div>
-    ) : null
-  ) : null;
+  const actions = (row) => (
+    <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
+      <button
+        className="btn btn-sm btn-primary"
+        onClick={(e) => {
+          e.stopPropagation();
+          handleIssueIC(row);
+        }}
+        disabled={isLoadingCertificate}
+      >
+        {isLoadingCertificate ? 'Loading...' : 'Issue IC'}
+      </button>
+      <button
+        className="btn btn-sm btn-outline"
+        onClick={(e) => {
+          e.stopPropagation();
+          handleViewAnnexures(row);
+        }}
+        title="View Technical Annexures"
+      >
+        Annexures
+      </button>
+    </div>
+  );
 
   return (
-    <div>
-      <div className="card">
-        <div className="card-header">
-          <h3 className="card-title">Issuance of Inspection Certificate</h3>
-          <p className="card-subtitle">Manage and issue inspection certificates for completed inspections</p>
+    <div style={{ padding: 'var(--space-20) 0' }}>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 'var(--space-24)',
+        flexWrap: 'wrap',
+        gap: 'var(--space-20)'
+      }}>
+        <div style={{ flex: '1', minWidth: '300px' }}>
+          <h2 style={{
+            fontSize: 'var(--font-size-3xl)',
+            fontWeight: '700',
+            marginBottom: 'var(--space-4)',
+            color: 'var(--color-text)'
+          }}>
+            Issuance of IC & Annexures
+          </h2>
+          <p style={{
+            color: 'var(--color-text-secondary)',
+            fontSize: 'var(--font-size-base)',
+            margin: 0,
+            maxWidth: '600px'
+          }}>
+            Manage inspection certificates and track technical annexures for completed calls in one place.
+          </p>
         </div>
       </div>
 
       {/* Loading State */}
       {isLoadingCalls && (
-        <div className="card" style={{ textAlign: 'center', padding: 'var(--space-32)' }}>
-          <p>Loading completed calls...</p>
-        </div>
+        <AnnexureLoader
+          title="Fetching Ready Certificates & Annexures"
+          subtitle="Gathering inspection data for IC issuance and Annexures..."
+        />
       )}
 
       {/* No Data State */}
@@ -354,16 +370,6 @@ const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage }) => {
             handleMultiSelectToggle={handleMultiSelectToggle}
             summaryLabel="IC-ready calls"
           />
-
-          {/* Selection Error Message */}
-          <Notification
-            message={selectionError}
-            type="error"
-            autoClose={true}
-            autoCloseDelay={5000}
-            onClose={() => setSelectionError('')}
-          />
-
           {/* Certificate Generation Notification */}
           {notification.show && (
             <Notification
@@ -375,44 +381,19 @@ const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage }) => {
             />
           )}
 
-          {selectedRows.length > 1 && (
-            <div className="pending-calls-bulk-actions" style={{
-              marginBottom: 'var(--space-16)',
-              padding: 'var(--space-16)',
-              background: 'var(--color-bg-1)',
-              borderRadius: 'var(--radius-base)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
-              <div style={{ fontWeight: 'var(--font-weight-medium)' }}>
-                {selectedRows.length} inspection calls selected
-              </div>
-              <div className="pending-calls-bulk-actions-buttons" style={{ display: 'flex', gap: 'var(--space-12)' }}>
-                <button className="btn btn-secondary" onClick={handleBulkView} style={{ minHeight: '44px' }}>
-                  VIEW SELECTED
-                </button>
-                <button className="btn btn-primary" onClick={handleBulkIssue} style={{ minHeight: '44px' }}>
-                  ISSUE IC FOR ALL
-                </button>
-              </div>
-            </div>
-          )}
-
           <DataTable
             columns={columns}
             data={filteredCalls}
             actions={actions}
-            selectable
-            selectedRows={selectedRows}
-            onSelectionChange={handleSelectionChange}
             initialPageSize={10}
             hidePageSize={true}
           />
         </>
       )}
+
     </div>
   );
 };
+
 
 export default IssuanceOfICTab;

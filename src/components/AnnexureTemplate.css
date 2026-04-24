@@ -166,9 +166,11 @@
   table-layout: auto;
 }
 
+.annexure-table th,
+.annexure-table td,
 .annexure-th,
 .annexure-td {
-  border: 1px solid #000;
+  border: 1px solid #000 !important;
   padding: 7px 4px;
   text-align: center;
   color: #000;

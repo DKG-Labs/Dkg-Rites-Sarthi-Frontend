@@ -73,11 +73,15 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
             }
 
             // Dimensional
-            const dR1 = (parseInt(data.dimGo1) || 0) + (parseInt(data.dimNoGo1) || 0) + (parseInt(data.dimFlat1) || 0);
+            const dR1 = (parseInt(data.dimMainGo1) || 0) + (parseInt(data.dimMainNoGo1) || 0) + 
+                        (parseInt(data.dimFallGo1) || 0) + (parseInt(data.dimFallNoGo1) || 0) + 
+                        (parseInt(data.dimFlatGo1) || 0) + (parseInt(data.dimFlatNoGo1) || 0);
             if (dR1 >= aql.re1) {
               totalRejected += dR1;
             } else if (dR1 > aql.ac1 && !aql.useSingleSampling) {
-              const dR2 = (parseInt(data.dimGo2) || 0) + (parseInt(data.dimNoGo2) || 0) + (parseInt(data.dimFlat2) || 0);
+              const dR2 = (parseInt(data.dimMainGo2) || 0) + (parseInt(data.dimMainNoGo2) || 0) + 
+                          (parseInt(data.dimFallGo2) || 0) + (parseInt(data.dimFallNoGo2) || 0) + 
+                          (parseInt(data.dimFlatGo2) || 0) + (parseInt(data.dimFlatNoGo2) || 0);
               totalRejected += dR1 + dR2;
             } else {
               totalRejected += dR1;
@@ -197,15 +201,20 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
             }
 
             // Dimensional
-            const dR1_ = (parseInt(data.dimGo1) || 0) + (parseInt(data.dimNoGo1) || 0) + (parseInt(data.dimFlat1) || 0);
+            const dR1_ = (parseInt(data.dimMainGo1) || 0) + (parseInt(data.dimMainNoGo1) || 0) + 
+                         (parseInt(data.dimFallGo1) || 0) + (parseInt(data.dimFallNoGo1) || 0) + 
+                         (parseInt(data.dimFlatGo1) || 0) + (parseInt(data.dimFlatNoGo1) || 0);
             if (dR1_ >= aql.re1) {
               totalRejected += dR1_;
             } else if (dR1_ > aql.ac1 && !aql.useSingleSampling) {
-              const dR2_ = (parseInt(data.dimGo2) || 0) + (parseInt(data.dimNoGo2) || 0) + (parseInt(data.dimFlat2) || 0);
+              const dR2_ = (parseInt(data.dimMainGo2) || 0) + (parseInt(data.dimMainNoGo2) || 0) + 
+                           (parseInt(data.dimFallGo2) || 0) + (parseInt(data.dimFallNoGo2) || 0) + 
+                           (parseInt(data.dimFlatGo2) || 0) + (parseInt(data.dimFlatNoGo2) || 0);
               totalRejected += dR1_ + dR2_;
             } else {
               totalRejected += dR1_;
             }
+
           }
         }
       } catch (e) { console.error('Error reading Deflection/App data:', e); }
@@ -434,7 +443,9 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     if (!lotData) return 'Pending';
     // Check if any visual or dimensional data is filled
     const hasVisualData = lotData.visualR1 !== '' || lotData.visualR2 !== '';
-    const hasDimData = lotData.dimGo1 !== '' || lotData.dimNoGo1 !== '' || lotData.dimFlat1 !== '';
+    const hasDimData = lotData.dimMainGo1 !== '' || lotData.dimMainNoGo1 !== '' || 
+                       lotData.dimFallGo1 !== '' || lotData.dimFallNoGo1 !== '' ||
+                       lotData.dimFlatGo1 !== '' || lotData.dimFlatNoGo1 !== '';
 
     if (!hasVisualData && !hasDimData) return 'Pending';
 
@@ -454,14 +465,24 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     }
 
     // Check Dimensional (Sum of Go/NoGo/Flat)
-    const hasDimR1 = lotData.dimGo1 !== '' && lotData.dimNoGo1 !== '' && lotData.dimFlat1 !== '';
-    const dR1 = (parseInt(lotData.dimGo1) || 0) + (parseInt(lotData.dimNoGo1) || 0) + (parseInt(lotData.dimFlat1) || 0);
-    const dR2 = (parseInt(lotData.dimGo2) || 0) + (parseInt(lotData.dimNoGo2) || 0) + (parseInt(lotData.dimFlat2) || 0);
+    const hasDimR1 = lotData.dimMainGo1 !== '' && lotData.dimMainNoGo1 !== '' && 
+                     lotData.dimFallGo1 !== '' && lotData.dimFallNoGo1 !== '' &&
+                     lotData.dimFlatGo1 !== '' && lotData.dimFlatNoGo1 !== '';
+                     
+    const dR1 = (parseInt(lotData.dimMainGo1) || 0) + (parseInt(lotData.dimMainNoGo1) || 0) + 
+                (parseInt(lotData.dimFallGo1) || 0) + (parseInt(lotData.dimFallNoGo1) || 0) + 
+                (parseInt(lotData.dimFlatGo1) || 0) + (parseInt(lotData.dimFlatNoGo1) || 0);
+                
+    const dR2 = (parseInt(lotData.dimMainGo2) || 0) + (parseInt(lotData.dimMainNoGo2) || 0) + 
+                (parseInt(lotData.dimFallGo2) || 0) + (parseInt(lotData.dimFallNoGo2) || 0) + 
+                (parseInt(lotData.dimFlatGo2) || 0) + (parseInt(lotData.dimFlatNoGo2) || 0);
 
     if (hasDimData) {
       if (dR1 >= aql.re1) return 'NOT OK';
       if (dR1 > aql.ac1 && !aql.useSingleSampling) {
-        const hasDimR2 = lotData.dimGo2 !== '' && lotData.dimNoGo2 !== '' && lotData.dimFlat2 !== '';
+        const hasDimR2 = lotData.dimMainGo2 !== '' && lotData.dimMainNoGo2 !== '' && 
+                         lotData.dimFallGo2 !== '' && lotData.dimFallNoGo2 !== '' &&
+                         lotData.dimFlatGo2 !== '' && lotData.dimFlatNoGo2 !== '';
         if (!hasDimR2) return 'Pending'; // 2nd sampling required
         if ((dR1 + dR2) >= aql.cummRej) return 'NOT OK';
       }
@@ -567,14 +588,24 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     }
 
     // 2. Check Dimensional Failures (if stored here)
-    const dimR1 = (parseInt(lotData.dimGo1) || 0) + (parseInt(lotData.dimNoGo1) || 0) + (parseInt(lotData.dimFlat1) || 0);
-    const dimR2 = (parseInt(lotData.dimGo2) || 0) + (parseInt(lotData.dimNoGo2) || 0) + (parseInt(lotData.dimFlat2) || 0);
-    const hasDimR1 = lotData.dimGo1 !== '' && lotData.dimNoGo1 !== '' && lotData.dimFlat1 !== '';
+    const dimR1 = (parseInt(lotData.dimMainGo1) || 0) + (parseInt(lotData.dimMainNoGo1) || 0) + 
+                  (parseInt(lotData.dimFallGo1) || 0) + (parseInt(lotData.dimFallNoGo1) || 0) + 
+                  (parseInt(lotData.dimFlatGo1) || 0) + (parseInt(lotData.dimFlatNoGo1) || 0);
+                  
+    const dimR2 = (parseInt(lotData.dimMainGo2) || 0) + (parseInt(lotData.dimMainNoGo2) || 0) + 
+                  (parseInt(lotData.dimFallGo2) || 0) + (parseInt(lotData.dimFallNoGo2) || 0) + 
+                  (parseInt(lotData.dimFlatGo2) || 0) + (parseInt(lotData.dimFlatNoGo2) || 0);
+                  
+    const hasDimR1 = lotData.dimMainGo1 !== '' && lotData.dimMainNoGo1 !== '' && 
+                     lotData.dimFallGo1 !== '' && lotData.dimFallNoGo1 !== '' &&
+                     lotData.dimFlatGo1 !== '' && lotData.dimFlatNoGo1 !== '';
 
     if (hasDimR1) {
       if (dimR1 >= aql.re1) return 'NOT OK';
       if (dimR1 > aql.ac1 && !aql.useSingleSampling) {
-        const hasDimR2 = lotData.dimGo2 !== '' && lotData.dimNoGo2 !== '' && lotData.dimFlat2 !== '';
+        const hasDimR2 = lotData.dimMainGo2 !== '' && lotData.dimMainNoGo2 !== '' && 
+                         lotData.dimFallGo2 !== '' && lotData.dimFallNoGo2 !== '' &&
+                         lotData.dimFlatGo2 !== '' && lotData.dimFlatNoGo2 !== '';
         if (!hasDimR2) return 'Pending';
         if ((dimR1 + dimR2) >= aql.cummRej) return 'NOT OK';
       }

@@ -4,12 +4,21 @@ import FinalSubmoduleNav from "../components/FinalSubmoduleNav";
 import ExcelImport from "../components/ExcelImport";
 import Pagination from "../components/Pagination";
 import "./FinalHardnessTestPage.css";
+import Notification from "../components/Notification";
+import { normalizeErcType } from "../utils/ercUtils";
 import { getHardnessToeLoadAQL } from "../utils/is2500Calculations";
 import { getHardnessTestsByCall } from "../services/finalInspectionSubmoduleService";
 
 const FinalHardnessTestPage = ({ onBack, onNavigateSubmodule }) => {
   // State for lot selection toggle
   const [activeLotTab, setActiveLotTab] = useState(0);
+
+  // Notification state
+  const [notification, setNotification] = useState({ message: '', type: 'error' });
+  const showNotification = (message, type = 'error') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification({ message: '', type }), 4000);
+  };
 
   // Get live lot data from context
   const { getFpCachedData, selectedCall } = useInspection();
@@ -48,10 +57,29 @@ const FinalHardnessTestPage = ({ onBack, onNavigateSubmodule }) => {
       const lotSize = lot.lotSize || lot.offeredQty || 0;
 
       const aql = getHardnessToeLoadAQL(lotSize);
+      const springType = normalizeErcType(
+        cachedData?.dashboardData?.inspectionCall?.ercType ||
+        cachedData?.inspectionCall?.ercType ||
+        selectedCall?.ercType ||
+        lot.springType ||
+        (() => {
+          try {
+            const storedCache = sessionStorage.getItem('fpDashboardDataCache');
+            if (storedCache) {
+              const cacheData = JSON.parse(storedCache);
+              return cacheData[callNo]?.dashboardData?.inspectionCall?.ercType || 
+                     cacheData[callNo]?.inspectionCall?.ercType;
+            }
+          } catch (e) {}
+          return null;
+        })()
+      );
+
       return {
         lotNo: lotNo,
         heatNo: heatNo,
         quantity: lotSize,
+        springType: springType,
         sampleSize: aql.n1,
         accpNo: aql.ac1,
         rejNo: aql.re1,
@@ -490,6 +518,7 @@ const FinalHardnessTestPage = ({ onBack, onNavigateSubmodule }) => {
                 onImport={(values) =>
                   handleExcelImport(lot.lotNo, values, false)
                 }
+                onNotification={showNotification}
               />
             </div>
 
@@ -546,6 +575,7 @@ const FinalHardnessTestPage = ({ onBack, onNavigateSubmodule }) => {
                     onImport={(values) =>
                       handleExcelImport(lot.lotNo, values, true)
                     }
+                    onNotification={showNotification}
                   />
                 </div>
 
@@ -640,6 +670,12 @@ const FinalHardnessTestPage = ({ onBack, onNavigateSubmodule }) => {
           Save & Continue
         </button>
       </div> */}
+      {/* App notification */}
+      <Notification
+        message={notification.message}
+        type={notification.type}
+        onClose={() => setNotification({ message: '', type: notification.type })}
+      />
     </div>
   );
 };

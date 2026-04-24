@@ -8,6 +8,7 @@ import { getDimensionWeightAQL } from '../utils/is2500Calculations';
 import { getWeightTestsByCall } from '../services/finalInspectionSubmoduleService';
 import { normalizeErcType } from '../utils/ercUtils';
 import "./FinalWeightTestPage.css";
+import Notification from "../components/Notification";
 
 /* Weight Tolerance Table from Excel */
 const TOLERANCE = {
@@ -19,6 +20,13 @@ const TOLERANCE = {
 export default function FinalWeightTestPage({ onBack, onNavigateSubmodule }) {
   // State for lot selection toggle
   const [activeLotTab, setActiveLotTab] = useState(0);
+
+  // Notification state
+  const [notification, setNotification] = useState({ message: '', type: 'error' });
+  const showNotification = (message, type = 'error') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification({ message: '', type }), 4000);
+  };
 
   // Get live lot data from context
   const { getFpCachedData, selectedCall } = useInspection();
@@ -59,7 +67,18 @@ export default function FinalWeightTestPage({ onBack, onNavigateSubmodule }) {
       cachedData?.dashboardData?.inspectionCall?.ercType ||
       cachedData?.inspectionCall?.ercType ||
       selectedCall?.ercType ||
-      lot.springType
+      lot.springType ||
+      (() => {
+        try {
+          const storedCache = sessionStorage.getItem('fpDashboardDataCache');
+          if (storedCache) {
+            const cacheData = JSON.parse(storedCache);
+            return cacheData[callNo]?.dashboardData?.inspectionCall?.ercType || 
+                   cacheData[callNo]?.inspectionCall?.ercType;
+          }
+        } catch (e) {}
+        return null;
+      })()
     );
     const toleranceRange = TOLERANCE[springType] || TOLERANCE["MK-III"];
     return {
@@ -515,6 +534,7 @@ export default function FinalWeightTestPage({ onBack, onNavigateSubmodule }) {
                   sampleSize={lot.sampleSize}
                   valueLabel="Weight (g)"
                   onImport={(values) => handleExcelImport(lot.lotNo, values, false)}
+                  onNotification={showNotification}
                 />
               </div>
               <div className="wt-input-grid">
@@ -562,6 +582,7 @@ export default function FinalWeightTestPage({ onBack, onNavigateSubmodule }) {
                     sampleSize={lot.sampleSize2nd}
                     valueLabel="Weight (g)"
                     onImport={(values) => handleExcelImport(lot.lotNo, values, true)}
+                    onNotification={showNotification}
                   />
                 </div>
                 <div className="wt-input-grid">
@@ -612,6 +633,12 @@ export default function FinalWeightTestPage({ onBack, onNavigateSubmodule }) {
         );
       })}
 
+      {/* App notification */}
+      <Notification
+        message={notification.message}
+        type={notification.type}
+        onClose={() => setNotification({ message: '', type: notification.type })}
+      />
     </div>
   );
 }

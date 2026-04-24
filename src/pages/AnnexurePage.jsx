@@ -92,6 +92,12 @@ const AnnexurePage = ({ onBack }) => {
             data = await annexureService.getFinalToeLoadTest(selectedCall.call_no);
           } else if (typeParam === 'weight-test' && selectedCall?.call_no) {
             data = await annexureService.getFinalWeightTest(selectedCall.call_no);
+          } else if (typeParam === 'dimension-test' && selectedCall?.call_no) {
+            const response = await annexureService.getFinalDimensionalInspection(selectedCall.call_no);
+            data = response?.responseData || response || [];
+          } else if (typeParam === 'final-inspection' && selectedCall?.call_no) {
+             // Annexure-III logic
+             data = await annexureService.getDimensionalCheck(selectedCall.call_no); // Fallback for now if same
           } else if (typeParam === 'inclusion-rating' && selectedCall?.call_no) {
             const response = await annexureService.getFinalInclusion(selectedCall.call_no);
             data = response?.responseData || response || [];

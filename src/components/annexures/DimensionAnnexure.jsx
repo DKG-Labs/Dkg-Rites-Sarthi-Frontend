@@ -2,16 +2,21 @@ import React from 'react';
 import '../AnnexureTemplate.css';
 import './DimensionAnnexure.css';
 import AnnexureHeader from './AnnexureHeader';
-
-/**
- * Dimension Annexure - Test Result Dimension
- * Annexure-II for dimensional inspection
- */
+import AnnexureEmptyState from './AnnexureEmptyState';
 
 const DimensionAnnexure = ({ data, selectedCall }) => {
   // If data is the full response object, extract info and rows
   const response = data || {};
   const reportRows = response.rows || [];
+
+  if (reportRows.length === 0) {
+    return (
+      <AnnexureEmptyState 
+        title="No Dimension Data" 
+        message="Dimensional inspection results for raw material have not been recorded."
+      />
+    );
+  }
 
   // Group metadata for header
   const reportInfo = {

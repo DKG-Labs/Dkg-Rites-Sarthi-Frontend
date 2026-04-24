@@ -125,5 +125,17 @@ export const annexureService = {
             console.error("Error fetching Final Application & Deflection data:", error);
             throw error;
         }
+    },
+
+    getFinalDimensionalInspection: async (callNo) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/annexures/final-dimensional-inspection/${callNo}`, {
+                headers: getAuthHeaders()
+            });
+            return await handleResponse(response);
+        } catch (error) {
+            console.error("Error fetching Final Dimensional Inspection data:", error);
+            throw error;
+        }
     }
 };

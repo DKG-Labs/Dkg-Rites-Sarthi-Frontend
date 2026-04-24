@@ -11,7 +11,7 @@ import './ExcelImport.css';
  * @param {string} valueLabel - Label for the value column (e.g., "Toe Load (N)", "Weight (g)")
  * @param {Function} onImport - Callback with array of values (strings)
  */
-const ExcelImport = ({ templateName = 'template', sampleSize = 10, valueLabel = 'Value', onImport }) => {
+const ExcelImport = ({ templateName = 'template', sampleSize = 10, valueLabel = 'Value', onImport, onNotification }) => {
   const fileInputRef = useRef(null);
 
   /* Generate and download CSV template with exact sample size */
@@ -39,7 +39,8 @@ const ExcelImport = ({ templateName = 'template', sampleSize = 10, valueLabel = 
       const lines = text.split('\n').filter(line => line.trim());
 
       if (lines.length < 2) {
-        alert('Invalid file: No data rows found');
+        if (onNotification) onNotification('Invalid file: No data rows found', 'error');
+        else alert('Invalid file: No data rows found');
         return;
       }
 
@@ -56,10 +57,19 @@ const ExcelImport = ({ templateName = 'template', sampleSize = 10, valueLabel = 
       }
 
       if (onImport) onImport(values);
-      alert(`Successfully imported ${values.filter(v => v !== '').length} values`);
+      
+      const importedCount = values.filter(v => v !== '').length;
+      if (onNotification) {
+        onNotification(`Successfully imported ${importedCount} values`, 'success');
+      } else {
+        alert(`Successfully imported ${importedCount} values`);
+      }
     };
 
-    reader.onerror = () => alert('Error reading file');
+    reader.onerror = () => {
+      if (onNotification) onNotification('Error reading file', 'error');
+      else alert('Error reading file');
+    };
     reader.readAsText(file);
     e.target.value = '';
   };

@@ -1,50 +1,27 @@
 import React from "react";
-import AnnexureLayout from "./AnnexureLayout";
 import AnnexureHeader from "./AnnexureHeader";
-import AnnexureTable from "./AnnexureTable";
 import AnnexureFooter from "./AnnexureFooter";
-
-const toeLoadHeaderRows = [
-  [
-    { label: "S. No", rowSpan: 2 },
-    { label: "Cast Heat No.", rowSpan: 2 },
-    { label: "Lot No.", rowSpan: 2 },
-    { label: "Colour Code", rowSpan: 2 },
-    { label: "Qty. (Nos.)", rowSpan: 2 },
-    { label: "Sample size", rowSpan: 2 },
-    {
-      label:
-        "Toe Load test (ERC MK-III: 850-1100 kgs) (ERC MK-V: 1200-1500 kgs)",
-      colSpan: 10,
-    },
-    { label: "No. of defectives", rowSpan: 2 },
-    { label: "Cumulative No. of defectives", rowSpan: 2 },
-    { label: "Accepted / Not accepted", rowSpan: 2 },
-  ],
-  [
-    { label: "1" }, { label: "2" }, { label: "3" }, { label: "4" },
-    { label: "5" }, { label: "6" }, { label: "7" }, { label: "8" },
-    { label: "9" }, { label: "10" },
-  ],
-];
+import AnnexureEmptyState from "./AnnexureEmptyState";
+import '../AnnexureTemplate.css';
 
 const ToeLoadTestAnnexure = ({ data, selectedCall }) => {
-  // Logic: Each sampling round gets its own page
+  // Each sampling round gets its own page
   const reportData = data?.responseData || data || {};
   const pages = reportData.pages || [];
 
-  if (!pages || pages.length === 0) {
+  if (pages.length === 0) {
     return (
-      <div className="annexure-empty-state">
-        <p>No Toe Load Test data available for this call.</p>
-      </div>
+      <AnnexureEmptyState 
+        title="No Toe Load Test Data" 
+        message="Toe load inspection results have not been recorded for this inspection call."
+      />
     );
   }
 
   return (
-    <>
+    <div className="annexure-template toe-load-test-annexure">
       {pages.map((page, pageIdx) => (
-        <AnnexureLayout key={pageIdx}>
+        <div key={pageIdx} className="annexure-page-wrapper">
           <AnnexureHeader
             pageNo={`${pageIdx + 1} of ${pages.length}`}
             preparedBy="KJM"
@@ -54,58 +31,81 @@ const ToeLoadTestAnnexure = ({ data, selectedCall }) => {
             subtitle="Test results of - Toe load test"
             annexureNumber="Annexure-XI"
             annexureCode="IRST-31-2025"
-            // Pass metadata from the root DTO
+            selectedCall={selectedCall}
             manufacturer={reportData.manufacturer}
             vendor={reportData.vendor}
-            firmName={reportData.vendor} // Added firmName
+            firmName={reportData.vendor}
             productName={reportData.productName}
             dateOfInspection={reportData.dateOfInspection}
           />
 
-          <AnnexureTable headerRows={toeLoadHeaderRows}>
-            {page.rows && page.rows.map((batch, batchIndex) => {
-              const rowSpan = batch.readings?.length || 1;
-
-              return batch.readings?.map((readingRow, rowIndex) => (
-                <tr key={`${batchIndex}-${rowIndex}`}>
-                  {/* Left columns: Only render on the first row of a batch */}
-                  {rowIndex === 0 && (
-                    <>
-                      <td rowSpan={rowSpan}>{batchIndex + 1}</td>
-                      <td rowSpan={rowSpan}>{batch.heatNo || '-'}</td>
-                      <td rowSpan={rowSpan}>{batch.lotNo || '-'}</td>
-                      <td rowSpan={rowSpan}>{batch.colourCode || 'N/A'}</td>
-                      <td rowSpan={rowSpan}>{batch.qty || 0}</td>
-                      <td rowSpan={rowSpan}>{batch.sampleSize || 0}</td>
-                    </>
-                  )}
-
-                  {/* 10 Reading columns */}
-                  {[...Array(10)].map((_, i) => (
-                    <td key={i}>{readingRow[i] !== undefined ? readingRow[i].toString() : ""}</td>
-                  ))}
-
-                  {/* Right columns: Only render on the first row of a batch */}
-                  {rowIndex === 0 && (
-                    <>
-                      <td rowSpan={rowSpan}>{batch.defectives}</td>
-                      <td rowSpan={rowSpan}>{batch.cumulativeDefectives}</td>
-                      <td rowSpan={rowSpan}>
-                        <span className={`status-badge ${batch.status === 'Accepted' ? 'status-ok' : 'status-not-ok'}`}>
-                          {batch.status}
-                        </span>
-                      </td>
-                    </>
-                  )}
+          <div className="annexure-table-container">
+            <table className="annexure-table">
+              <thead>
+                <tr>
+                  <th rowSpan={2} className="annexure-th">S. No</th>
+                  <th rowSpan={2} className="annexure-th">Cast Heat No.</th>
+                  <th rowSpan={2} className="annexure-th">Lot No.</th>
+                  <th rowSpan={2} className="annexure-th">Colour Code</th>
+                  <th rowSpan={2} className="annexure-th">Qty. (Nos.)</th>
+                  <th rowSpan={2} className="annexure-th">Sample size</th>
+                  <th colSpan={10} className="annexure-th">Toe Load test (ERC MK-III: 850-1100 kgs) (ERC MK-V: 1200-1500 kgs)</th>
+                  <th rowSpan={2} className="annexure-th">No. of defectives</th>
+                  <th rowSpan={2} className="annexure-th">Cumulative No. of defectives</th>
+                  <th rowSpan={2} className="annexure-th">Accepted / Not accepted</th>
                 </tr>
-              ));
-            })}
-          </AnnexureTable>
+                <tr>
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
+                    <th key={n} className="annexure-th">{n}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {page.rows?.map((batch, batchIdx) => {
+                  const readings = batch.readings || [[]];
+                  const rowSpan = readings.length || 1;
 
+                  return readings.map((readingRow, rowIndex) => (
+                    <tr key={`${batchIdx}-${rowIndex}`}>
+                      {rowIndex === 0 && (
+                        <>
+                          <td rowSpan={rowSpan} className="annexure-td">{batchIdx + 1}</td>
+                          <td rowSpan={rowSpan} className="annexure-td data-cell">{batch.heatNo || '-'}</td>
+                          <td rowSpan={rowSpan} className="annexure-td data-cell">{batch.lotNo || '-'}</td>
+                          <td rowSpan={rowSpan} className="annexure-td data-cell">{batch.colourCode || 'N/A'}</td>
+                          <td rowSpan={rowSpan} className="annexure-td data-cell">{batch.qty || 0}</td>
+                          <td rowSpan={rowSpan} className="annexure-td data-cell">{batch.sampleSize || 0}</td>
+                        </>
+                      )}
+
+                      {[...Array(10)].map((_, i) => (
+                        <td key={i} className="annexure-td data-cell reading-cell">
+                          {readingRow[i] !== undefined ? readingRow[i].toString() : ""}
+                        </td>
+                      ))}
+
+                      {rowIndex === 0 && (
+                        <>
+                          <td rowSpan={rowSpan} className="annexure-td data-cell">{batch.defectives || 0}</td>
+                          <td rowSpan={rowSpan} className="annexure-td data-cell">{batch.cumulativeDefectives || 0}</td>
+                          <td rowSpan={rowSpan} className="annexure-td data-cell status-cell">
+                            <span className={`status-badge ${batch.status === 'Accepted' ? 'status-ok' : 'status-not-ok'}`}>
+                              {batch.status || 'Accepted'}
+                            </span>
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  ));
+                })}
+              </tbody>
+            </table>
+          </div>
           <AnnexureFooter />
-        </AnnexureLayout>
+          {pageIdx < pages.length - 1 && <div className="page-break" />}
+        </div>
       ))}
-    </>
+    </div>
   );
 };
 

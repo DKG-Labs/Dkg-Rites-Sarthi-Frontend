@@ -1,93 +1,24 @@
-import React, { useRef } from "react";
-import { useReactToPrint } from "react-to-print";
-import AnnexureLayout from "../../components/annexures/AnnexureLayout";
+import React from "react";
 import AnnexureHeader from "../../components/annexures/AnnexureHeader";
-import AnnexureTable from "../../components/annexures/AnnexureTable";
 import AnnexureFooter from "../../components/annexures/AnnexureFooter";
+import AnnexureEmptyState from "../../components/annexures/AnnexureEmptyState";
+import '../../components/annexures/AnnexureTemplate.css';
 
+const HardnessTestAnnexure = ({ data, selectedCall }) => {
+  // Hardness data structure usually has pages
+  const pages = data?.pages || (Array.isArray(data) ? data : []);
 
-const hardnessHeaderRows = [
-  [
-    { label: "S. No", rowSpan: 2 },
-    { label: "Cast Heat No.", rowSpan: 2 },
-    { label: "Colour Code", rowSpan: 2 },
-    { label: "Lot No.", rowSpan: 2 },
-    { label: "Qty. (Nos.)", rowSpan: 2 },
-    { label: "Sample size", rowSpan: 2 },
-    { label: "Hardness value (40–44 HRC)", colSpan: 10 },
-    { label: "No. of defectives", rowSpan: 2 },
-    { label: "Cumulative No. of defectives", rowSpan: 2 },
-    { label: "Accepted / Not accepted", rowSpan: 2 }
-  ],
-  [
-    { label: "1" }, { label: "2" }, { label: "3" }, { label: "4" },
-    { label: "5" }, { label: "6" }, { label: "7" }, { label: "8" },
-    { label: "9" }, { label: "10" }
-  ]
-];
+  if (pages.length === 0) {
+    return (
+      <AnnexureEmptyState 
+        title="No Hardness Test Data" 
+        message="Hardness inspection results (HRC) have not been recorded for this inspection call."
+      />
+    );
+  }
 
-
-const sampleData = [
-  {
-    heatNo: "H-1021",
-    colour: "Red",
-    lotNo: "LOT-01",
-    qty: 500,
-    sampleSize: 3,
-
-    samples: [
-      [41, 42, 43, 42, 41, 44, 43, 42, 41, 42],
-      [42, 43, 41, 42, 44, 43, 42, 41, 42, 43],
-      [41, 41, 42, 43, 42, 44, 43, 42, 41, 42]
-    ],
-
-    defectives: 0,
-    cumulative: 0,
-    result: "Accepted"
-  },
-   {
-    heatNo: "H-1021",
-    colour: "Red",
-    lotNo: "LOT-01",
-    qty: 500,
-    sampleSize: 5,
-
-    samples: [
-      [41, 42, 43, 42, 41, 44, 43, 42, 41, 42],
-      [42, 43, 41, 42, 44, 43, 42, 41, 42, 43],
-      [41, 41, 42, 43, 42, 44, 43, 42, 41, 42],
-        [41, 41, 42, 43, 42, 44, 43, 42, 41, 42],
-          [41, 41, 42, 43, 42, 44, 43, 42, 41, 42]
-    ],
-
-    defectives: 0,
-    cumulative: 0,
-    result: "Accepted"
-  },
-   {
-    heatNo: "H-1021",
-    colour: "Red",
-    lotNo: "LOT-01",
-    qty: 500,
-    sampleSize: 3,
-
-    samples: [
-      [41, 42, 43, 42, 41, 44, 43, 42, 41, 42],
-      [42, 43, 41, 42, 44, 43, 42, 41, 42, 43],
-      [41, 41, 42, 43, 42, 44, 43, 42, 41, 42]
-    ],
-
-    defectives: 0,
-    cumulative: 0,
-    result: "Accepted"
-  },
-];
-
-
-const HardnessTestAnnexure = () => {
   return (
-    <AnnexureLayout>
-
+    <div className="annexure-template hardness-test-annexure">
       <AnnexureHeader
         pageNo="14 of 18"
         preparedBy="KJM"
@@ -97,44 +28,77 @@ const HardnessTestAnnexure = () => {
         subtitle="Test results- Hardness Test"
         annexureNumber="Annexure-VIII"
         annexureCode="IRST-31-2025"
+        selectedCall={selectedCall}
       />
 
-  <AnnexureTable headerRows={hardnessHeaderRows}>
-  {sampleData.map((batch, batchIndex) => {
-    const rowSpan = batch.samples.length;
+      <div className="annexure-table-container">
+        <table className="annexure-table">
+          <thead>
+            <tr>
+              <th rowSpan={2} className="annexure-th">S. No</th>
+              <th rowSpan={2} className="annexure-th">Cast Heat No.</th>
+              <th rowSpan={2} className="annexure-th">Colour Code</th>
+              <th rowSpan={2} className="annexure-th">Lot No.</th>
+              <th rowSpan={2} className="annexure-th">Qty. (Nos.)</th>
+              <th rowSpan={2} className="annexure-th">Sample size</th>
+              <th colSpan={10} className="annexure-th">Hardness value (40–44 HRC)</th>
+              <th rowSpan={2} className="annexure-th">No. of defectives</th>
+              <th rowSpan={2} className="annexure-th">Cumulative No. of defectives</th>
+              <th rowSpan={2} className="annexure-th">Accepted / Not accepted</th>
+            </tr>
+            <tr>
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
+                <th key={n} className="annexure-th">{n}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {pages.map((page, pageIdx) => (
+              <React.Fragment key={pageIdx}>
+                {page.rows?.map((batch, batchIdx) => {
+                  const readings = batch.readings || [];
+                  const rowSpan = readings.length || 1;
 
-    return batch.samples.map((sample, sampleIndex) => (
-      <tr key={`${batchIndex}-${sampleIndex}`}>
+                  return (readings.length > 0 ? readings : [[]]).map((sample, sampleIdx) => (
+                    <tr key={`${pageIdx}-${batchIdx}-${sampleIdx}`}>
+                      {sampleIdx === 0 && (
+                        <>
+                          <td rowSpan={rowSpan} className="annexure-td">{batchIdx + 1}</td>
+                          <td rowSpan={rowSpan} className="annexure-td data-cell">{batch.heatNo}</td>
+                          <td rowSpan={rowSpan} className="annexure-td data-cell">{batch.colourCode || batch.colour || '-'}</td>
+                          <td rowSpan={rowSpan} className="annexure-td data-cell">{batch.lotNo}</td>
+                          <td rowSpan={rowSpan} className="annexure-td data-cell">{batch.qty || batch.quantity}</td>
+                          <td rowSpan={rowSpan} className="annexure-td data-cell">{batch.sampleSize}</td>
+                        </>
+                      )}
 
-        {/* LEFT MERGED COLUMNS */}
-        {sampleIndex === 0 && (
-          <>
-            <td rowSpan={rowSpan}>{batchIndex + 1}</td>
-            <td rowSpan={rowSpan}>{batch.heatNo}</td>
-            <td rowSpan={rowSpan}>{batch.colour}</td>
-            <td rowSpan={rowSpan}>{batch.lotNo}</td>
-            <td rowSpan={rowSpan}>{batch.qty}</td>
-            <td rowSpan={rowSpan}>{batch.sampleSize}</td>
-          </>
-        )}
+                      {/* 10 Reading Columns */}
+                      {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(i => (
+                        <td key={i} className="annexure-td data-cell reading-cell">
+                          {sample && sample[i] !== undefined ? sample[i] : '-'}
+                        </td>
+                      ))}
 
-       
-        {sample.map((value, i) => (
-          <td key={i}>{value}</td>
-        ))}
+                      {sampleIdx === 0 && (
+                        <>
+                          <td rowSpan={rowSpan} className="annexure-td data-cell">{batch.noOfDefectives || batch.defectives || 0}</td>
+                          <td rowSpan={rowSpan} className="annexure-td data-cell">{batch.cumulativeNoOfDefectives || batch.cumulative || 0}</td>
+                          <td rowSpan={rowSpan} className="annexure-td data-cell status-cell">{batch.acceptedOrRejected || batch.result || 'Accepted'}</td>
+                        </>
+                      )}
+                    </tr>
+                  ));
+                })}
+              </React.Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
-        {sampleIndex === 0 && (
-          <>
-            <td rowSpan={rowSpan}>{batch.defectives}</td>
-            <td rowSpan={rowSpan}>{batch.cumulative}</td>
-            <td rowSpan={rowSpan}>{batch.result}</td>
-          </>
-        )}
-
-      </tr>
-    ));
-  })}
-</AnnexureTable>
+      <AnnexureFooter />
+    </div>
+  );
+};
 
 
 

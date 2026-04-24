@@ -130,10 +130,6 @@ const AnnexurePage = ({ onBack }) => {
     setSearchParams({});
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
     setTimeout(() => {
@@ -228,9 +224,6 @@ const AnnexurePage = ({ onBack }) => {
           </div>
 
           <div className="header-actions">
-            <button className="btn-action-outline" onClick={handlePrint} disabled={pdfGenerating}>
-              <span className="action-icon">🖨️</span> Print
-            </button>
             <button className="btn-action-premium" onClick={handleExportPDF} disabled={pdfGenerating}>
               {pdfGenerating ? (
                 <span className="loading-dots">Generating...</span>

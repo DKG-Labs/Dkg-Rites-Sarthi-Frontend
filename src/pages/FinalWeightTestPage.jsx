@@ -96,7 +96,7 @@ export default function FinalWeightTestPage({ onBack, onNavigateSubmodule }) {
       maxWeight: toleranceRange.max,
       weightRange: `${toleranceRange.min}–${toleranceRange.max}`
     };
-  }), [lotsFromVendor, cachedData?.dashboardData?.inspectionCall?.ercType, cachedData?.inspectionCall?.ercType, selectedCall?.ercType]);
+  }), [lotsFromVendor, cachedData?.dashboardData?.inspectionCall?.ercType, cachedData?.inspectionCall?.ercType, selectedCall?.ercType, callNo]);
 
   /* State for all lots */
   const [lotStates, setLotStates] = useState(() => {

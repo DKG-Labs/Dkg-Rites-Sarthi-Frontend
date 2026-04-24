@@ -88,7 +88,7 @@ const FinalHardnessTestPage = ({ onBack, onNavigateSubmodule }) => {
         singleSampling: aql.useSingleSampling || false,
       };
     });
-  }, [lotsFromVendor]);
+  }, [lotsFromVendor, cachedData, callNo, selectedCall?.ercType]);
 
   /* --- Initial Hardness Data Storage --- */
   const [lotData, setLotData] = useState(() => {

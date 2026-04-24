@@ -102,7 +102,7 @@ const FinalToeLoadTestPage = ({ onBack, onNavigateSubmodule }) => {
           singleSampling: aql.useSingleSampling || false
         };
       }),
-    [lotsFromVendor, cachedData, selectedCall]
+    [lotsFromVendor, cachedData, selectedCall, callNo]
   );
 
   /**

@@ -8,6 +8,7 @@ import { getProductTypeDisplayName, formatDate } from '../utils/helpers';
 import CallsFilterSection from './common/CallsFilterSection';
 import { generateRawMaterialCertificate, generateProcessMaterialCertificate, generateFinalProductCertificate, generateFinalCertificate } from '../services/certificateService';
 import { fetchCompletedCallsForIC, getCurrentUserId } from '../services/workflowApiService';
+import { performTransitionAction } from '../services/workflowService';
 
 
 
@@ -61,8 +62,13 @@ const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage }) => {
         }
 
         const fetched = await fetchCompletedCallsForIC(userId);
-        setCompletedCalls(fetched);
-        console.log('✅ Loaded completed calls:', fetched);
+        if (fetched && fetched.error) {
+          showNotification(fetched.errorMsg || 'Failed to load completed calls. Backend might be down.', 'error');
+          setCompletedCalls([]);
+        } else {
+          setCompletedCalls(fetched || []);
+          console.log('✅ Loaded completed calls:', fetched);
+        }
       } catch (error) {
         console.error('❌ Failed to load completed calls:', error);
         showNotification('Failed to load completed calls. Please refresh the page.', 'error');
@@ -146,7 +152,7 @@ const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage }) => {
     {
       key: 'status',
       label: 'IC Status',
-      render: (_val, row) => <StatusBadge status={row.displayStatus || 'IC Pending'} />
+      render: (_val, row) => <StatusBadge status={row.originalStatus === 'GENERATE_IC' ? 'GENERATE_IC' : (row.displayStatus || 'IC Pending')} />
     },
   ];
 
@@ -198,11 +204,26 @@ const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage }) => {
       // Extract core IC number (remove N/ prefix and /RAJK suffix if present)
       const coreIcNumber = extractCoreIcNumber(rawIcNumber);
 
+      // Call workflow API to update status to GENERATE_IC
+      if (row.originalStatus !== 'GENERATE_IC') {
+        try {
+          console.log('🔄 Calling performTransitionAction to update status to GENERATE_IC');
+          await performTransitionAction({
+            workflowTransitionId: row.id || row.transitionId,
+            requestId: row.call_no,
+            action: 'GENERATE_IC',
+            remarks: 'System updated status to GENERATE_IC',
+            actionBy: getCurrentUserId()
+          });
+          // Update the row state locally so it reflects immediately
+          row.originalStatus = 'GENERATE_IC';
+        } catch (workflowErr) {
+          console.error('⚠️ Failed to update workflow status to GENERATE_IC:', workflowErr);
+          // Don't block loading the IC
+        }
+      }
+
       console.log('🔍 Raw IC Number:', rawIcNumber);
-      console.log('🔍 Core IC Number for API:', coreIcNumber);
-      console.log('🔍 Stage:', row.stage);
-      console.log('🔍 Checking if EP prefix:', coreIcNumber?.toUpperCase().startsWith('EP-'));
-      console.log('🔍 Checking if process stage:', row.stage?.toLowerCase().includes('process'));
 
       // Call the appropriate certificate generation API based on IC number prefix or stage
       let certificateData;
@@ -281,18 +302,33 @@ const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage }) => {
     return 'ic-rawmaterial'; // default fallback
   };
 
+
+
   const actions = (row) => (
     <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
-      <button
-        className="btn btn-sm btn-primary"
-        onClick={(e) => {
-          e.stopPropagation();
-          handleIssueIC(row);
-        }}
-        disabled={isLoadingCertificate}
-      >
-        {isLoadingCertificate ? 'Loading...' : 'Issue IC'}
-      </button>
+      {row.originalStatus === 'GENERATE_IC' ? (
+        <button
+          className="btn btn-sm btn-primary"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleIssueIC(row);
+          }}
+          disabled={isLoadingCertificate}
+        >
+          {isLoadingCertificate ? 'Loading...' : 'View IC'}
+        </button>
+      ) : (
+        <button
+          className="btn btn-sm btn-primary"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleIssueIC(row);
+          }}
+          disabled={isLoadingCertificate}
+        >
+          {isLoadingCertificate ? 'Loading...' : 'Issue IC'}
+        </button>
+      )}
       <button
         className="btn btn-sm btn-outline"
         onClick={(e) => {

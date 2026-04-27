@@ -154,7 +154,7 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
           <div className="border-r border-black p-2">
             <div className="h-1.5" />
             <div className="font-semibold text-[10px]">ठेकेदार / Contractor</div>
-            <EditableField isEditing={isEditing} type="textarea" value={contractor} onChange={(val) => onChange("contractor", val)} className="break-words dynamic-text leading-tight" />
+            <EditableField isEditing={false} type="textarea" value={contractor} onChange={(val) => onChange("contractor", val)} className="break-words dynamic-text leading-tight" />
           </div>
           <div className="p-2">
             <div className="h-1.5" />
@@ -163,7 +163,7 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
             <div className="mt-1 font-semibold text-[10px] pt-1">
               निरीक्षण का स्थान / Place of Inspection
             </div>
-            <EditableField isEditing={isEditing} type="textarea" value={placeOfInspection} onChange={(val) => onChange("placeOfInspection", val)} className="break-words dynamic-text leading-tight" />
+            <EditableField isEditing={false} type="textarea" value={placeOfInspection} onChange={(val) => onChange("placeOfInspection", val)} className="break-words dynamic-text leading-tight" />
           </div>
         </div>
 
@@ -174,7 +174,7 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
             <div className="font-semibold text-[10px]">
               संविदा संदर्भ एवं दिनांक (रेलवे) / Contract Ref. & Date (Rly.)
             </div>
-            <EditableField isEditing={isEditing} type="textarea" value={contractRef} onChange={(val) => onChange("contractRef", val)} className="dynamic-text leading-tight" />
+            <EditableField isEditing={false} type="textarea" value={contractRef} onChange={(val) => onChange("contractRef", val)} className="dynamic-text leading-tight" />
             <div className="mt-1 font-semibold text-[10px] pt-1">
               खरीद आदेश सं. एवं दिनांक (ठेकेदार) / PO No. & Date (Contractor)
             </div>
@@ -185,7 +185,7 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
             <div className="font-semibold">
               बिल अदायगी अधिकारी / Bill Paying officer
             </div>
-            <EditableField isEditing={isEditing} value={billPayingOfficer} onChange={(val) => onChange("billPayingOfficer", val)} className="break-words dynamic-text leading-tight" />
+            <EditableField isEditing={false} value={billPayingOfficer} onChange={(val) => onChange("billPayingOfficer", val)} className="break-words dynamic-text leading-tight" />
           </div>
         </div>
         
@@ -200,7 +200,7 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
             <div className="mt-1 font-semibold text-[10px] pt-1">
               प्रेषिती (निर्मित उत्पाद निर्माता) / Consignee (Manufacturer of Finished Product)
             </div>
-            <EditableField isEditing={isEditing} type="textarea" value={consigneeManufacturer} onChange={(val) => onChange("consigneeManufacturer", val)} className="break-words dynamic-text leading-tight" />
+            <EditableField isEditing={false} type="textarea" value={consigneeManufacturer} onChange={(val) => onChange("consigneeManufacturer", val)} className="break-words dynamic-text leading-tight" />
           </div>
           <div className="p-2 text-[10px]">
             <div className="font-semibold pt-1.5">
@@ -235,7 +235,7 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
           <div className="font-semibold text-[10px] pt-1">
             किए गए निरीक्षण/परीक्षण विवरण / Type of inspection/tests conducted:
           </div>
-          <EditableField isEditing={isEditing} type="textarea" value={inspectionType} onChange={(val) => onChange("inspectionType", val)} className="break-words dynamic-text leading-tight" />
+          <EditableField isEditing={false} type="textarea" value={inspectionType} onChange={(val) => onChange("inspectionType", val)} className="break-words dynamic-text leading-tight" />
         </div>
 
         {/* CHP table */}
@@ -266,12 +266,12 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
           </div>
 
           <div className="grid grid-cols-[1.2fr_1fr_1.2fr_0.8fr_1fr_0.8fr] text-left border-b border-black">
-            <EditableField isEditing={isEditing} type="textarea" value={chpClause} onChange={(val) => onChange("chpClause", val)} className="border-r border-black py-1 px-2 break-words dynamic-text" />
-            <EditableField isEditing={isEditing} type="textarea" value={contractChpReq} onChange={(val) => onChange("contractChpReq", val)} className="border-r border-black py-1 px-2 break-words dynamic-text" />
-            <EditableField isEditing={isEditing} type="textarea" value={inspectionDetails} onChange={(val) => onChange("inspectionDetails", val)} className="border-r border-black py-1 px-2 break-words dynamic-text" />
-            <EditableField isEditing={isEditing} type="textarea" value={result} onChange={(val) => onChange("result", val)} className="border-r border-black py-1 px-2 break-words" />
-            <EditableField isEditing={isEditing} type="textarea" value={clearedQty} onChange={(val) => onChange("clearedQty", val)} className="border-r border-black py-1 px-2 break-words" />
-            <EditableField isEditing={isEditing} type="textarea" value={qtyRejected} onChange={(val) => onChange("qtyRejected", val)} className="py-1 px-2 break-words" />
+            <EditableField isEditing={false} type="textarea" value={chpClause} onChange={(val) => onChange("chpClause", val)} className="border-r border-black py-1 px-2 break-words dynamic-text" />
+            <EditableField isEditing={false} type="textarea" value={contractChpReq} onChange={(val) => onChange("contractChpReq", val)} className="border-r border-black py-1 px-2 break-words dynamic-text" />
+            <EditableField isEditing={false} type="textarea" value={inspectionDetails} onChange={(val) => onChange("inspectionDetails", val)} className="border-r border-black py-1 px-2 break-words dynamic-text" />
+            <EditableField isEditing={false} type="textarea" value={result} onChange={(val) => onChange("result", val)} className="border-r border-black py-1 px-2 break-words" />
+            <EditableField isEditing={false} type="textarea" value={clearedQty} onChange={(val) => onChange("clearedQty", val)} className="border-r border-black py-1 px-2 break-words" />
+            <EditableField isEditing={false} type="textarea" value={qtyRejected} onChange={(val) => onChange("qtyRejected", val)} className="py-1 px-2 break-words" />
           </div>
         </div>
 
@@ -285,17 +285,17 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
         <div className="grid grid-cols-3 border-x border-b border-black">
           <div className="border-r border-black p-2">
             <span className="font-semibold">कॉल दिनांक / Date of call: </span>
-            <EditableField isEditing={isEditing} value={callDate} onChange={(val) => onChange("callDate", val)} className="" />
+            <EditableField isEditing={false} value={callDate} onChange={(val) => onChange("callDate", val)} className="" />
           </div>
           <div className="border-r border-black p-2">
             <span className="font-semibold">दौरों की संख्या / No. of visits: </span>
-            <EditableField isEditing={isEditing} value={visitsNo} onChange={(val) => onChange("visitsNo", val)} className="" />
+            <EditableField isEditing={false} value={visitsNo} onChange={(val) => onChange("visitsNo", val)} className="" />
           </div>
           <div className="p-2">
             <span className="font-semibold">
               निरीक्षण की तिथि / Date of inspection:{" "}
             </span>
-            <EditableField isEditing={isEditing} value={inspectionDate} onChange={(val) => onChange("inspectionDate", val)} className="" />
+            <EditableField isEditing={false} value={inspectionDate} onChange={(val) => onChange("inspectionDate", val)} className="" />
           </div>
         </div>
 
@@ -306,17 +306,17 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
               सील/स्टैंपिंग तथा पहचान की विधि / Pattern of sealing/stamping or
               identification
             </div>
-            <EditableField isEditing={isEditing} type="textarea" value={sealingPattern} onChange={(val) => onChange("sealingPattern", val)} className="break-words dynamic-text leading-tight text-[10px]" />
+            <EditableField isEditing={false} type="textarea" value={sealingPattern} onChange={(val) => onChange("sealingPattern", val)} className="break-words dynamic-text leading-tight text-[10px]" />
           </div>
           <div className="border-r border-black p-1">
             <div className="font-semibold text-[10px]">
               सील/स्टैम्प की प्रतिकृति / Facsimile of seal/stamp
             </div>
-            <EditableField isEditing={isEditing} type="textarea" value={sealFacsimile} onChange={(val) => onChange("sealFacsimile", val)} className="break-words leading-tight text-[10px]" />
+            <EditableField isEditing={false} type="textarea" value={sealFacsimile} onChange={(val) => onChange("sealFacsimile", val)} className="break-words leading-tight text-[10px]" />
           </div>
           <div className="p-1 flex flex-col justify-between min-h-[60px]">
             <div className="font-semibold text-[10px]">निरीक्षण अभियंता / Inspecting Engineer</div>
-            <EditableField isEditing={isEditing} value={inspectingEngineer} onChange={(val) => onChange("inspectingEngineer", val)} className="mt-2 text-right font-semibold" />
+            <EditableField isEditing={false} value={inspectingEngineer} onChange={(val) => onChange("inspectingEngineer", val)} className="mt-2 text-right font-semibold" />
           </div>
         </div>
 

@@ -52,6 +52,7 @@ export const API_ENDPOINTS = {
 
     // Certificates
     CERTIFICATES: `${API_BASE_URL}/api/certificate`,
+    CERTIFICATE_STORAGE: `${API_BASE_URL}/api/certificate-storage`,
 
     // Schedule
     SCHEDULE: `${API_BASE_URL}/api/inspection-schedule`,

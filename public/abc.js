@@ -20,9 +20,9 @@ window.abc = async function (xmlRequest, certificateNo, fileName) {
     }
 
     const safeFileName = getSafeFileName(fileName || certificateNo);
-    const notify = (status, message) => {
+    const notify = (status, message, signedData = null) => {
         window.dispatchEvent(new CustomEvent("pki-status", {
-            detail: { status, message }
+            detail: { status, message, signedData, certificateNo, fileName: safeFileName }
         }));
     };
 
@@ -114,7 +114,7 @@ window.abc = async function (xmlRequest, certificateNo, fileName) {
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            notify("success", "Digital Signature Applied Successfully");
+            notify("success", "Digital Signature Applied Successfully", signedData);
         }, 500);
 
     } catch (err) {

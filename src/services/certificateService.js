@@ -250,3 +250,211 @@ export const checkCertificateServiceHealth = async () => {
   }
 };
 
+/**
+ * Upload Signed IC to Azure Blob Storage
+ * @param {Object} payload { icNumber, signedData, fileName, uploadedBy }
+ * @returns {Promise<Object>} Upload response
+ */
+export const uploadSignedCertificate = async (payload) => {
+  try {
+    console.log('🔍 Uploading signed certificate to Azure for IC:', payload.icNumber);
+    
+    // Fallback to dynamic URL if API_ENDPOINTS.CERTIFICATE_STORAGE is not defined
+    const url = API_ENDPOINTS.CERTIFICATE_STORAGE || `${API_ENDPOINTS.CERTIFICATES.replace('/certificate', '/certificate-storage')}`;
+    const response = await fetch(`${url}/upload`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || `Failed to upload certificate: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ Certificate uploaded successfully:', data);
+    return data;
+  } catch (error) {
+    console.error('❌ Error uploading certificate:', error);
+    throw error;
+  }
+};
+
+/**
+ * View/Download Signed IC from Azure Blob Storage
+ * @param {string} icNumber 
+ * @returns {Promise<Object>} { fileName, signedData }
+ */
+export const viewSignedCertificate = async (icNumber) => {
+  try {
+    console.log('🔍 Fetching signed certificate from Azure for IC:', icNumber);
+    
+    const url = API_ENDPOINTS.CERTIFICATE_STORAGE || `${API_ENDPOINTS.CERTIFICATES.replace('/certificate', '/certificate-storage')}`;
+    const encodedIcNumber = encodeURIComponent(icNumber);
+    const response = await fetch(`${url}/view/${encodedIcNumber}`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+         throw new Error('No signed certificate found for this IC.');
+      }
+      const errorText = await response.text();
+      throw new Error(errorText || `Failed to fetch certificate: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ Certificate fetched successfully from Azure');
+    return data;
+  } catch (error) {
+    console.error('❌ Error fetching signed certificate:', error);
+    throw error;
+  }
+};
+
+/**
+ * Check if Signed IC exists in Azure Blob Storage
+ * @param {string} icNumber 
+ * @returns {Promise<boolean>} exists
+ */
+export const checkSignedCertificateExists = async (icNumber) => {
+  try {
+    const url = API_ENDPOINTS.CERTIFICATE_STORAGE || `${API_ENDPOINTS.CERTIFICATES.replace('/certificate', '/certificate-storage')}`;
+    const encodedIcNumber = encodeURIComponent(icNumber);
+    const response = await fetch(`${url}/check/${encodedIcNumber}`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      return false;
+    }
+
+    const data = await response.json();
+    return data.exists;
+  } catch (error) {
+    console.error('❌ Error checking certificate existence:', error);
+    return false;
+  }
+};
+
+
+
+/**
+ * Save or update Rm IC Edit Data
+ * @param {Object} payload 
+ */
+export const saveRmIcEditData = async (payload) => {
+  try {
+    const response = await fetch(`${API_BASE_URL.replace('/api/certificate', '/api/rm-ic-edit')}`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) throw new Error('Failed to save IC edit data');
+    return await response.json();
+  } catch (error) {
+    console.error('Error saving IC edit data:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get Rm IC Edit Data
+ * @param {string} icNumber 
+ */
+export const getRmIcEditData = async (icNumber) => {
+  try {
+    const encodedIcNumber = encodeURIComponent(icNumber);
+    const response = await fetch(`${API_BASE_URL.replace('/api/certificate', '/api/rm-ic-edit')}/${encodedIcNumber}`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    if (response.status === 204) return null; // No content
+    if (!response.ok) throw new Error('Failed to fetch IC edit data');
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching IC edit data:', error);
+    return null;
+  }
+}
+
+/**
+ * Save or update Final IC Edit Data
+ * @param {Object} payload 
+ */
+export const saveFinalIcEditData = async (payload) => {
+  try {
+    const response = await fetch(`${API_BASE_URL.replace('/api/certificate', '/api/final-ic-edit')}`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) throw new Error('Failed to save Final IC edit data');
+    return await response.json();
+  } catch (error) {
+    console.error('Error saving Final IC edit data:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get Final IC Edit Data
+ * @param {string} icNumber 
+ */
+export const getFinalIcEditData = async (icNumber) => {
+  try {
+    const encodedIcNumber = encodeURIComponent(icNumber);
+    const response = await fetch(`${API_BASE_URL.replace('/api/certificate', '/api/final-ic-edit')}/${encodedIcNumber}`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    if (response.status === 204) return null; // No content
+    if (!response.ok) throw new Error('Failed to fetch Final IC edit data');
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching Final IC edit data:', error);
+    return null;
+  }
+};
+
+/**
+ * Save or update Process IC Edit Data
+ * @param {Object} payload 
+ */
+export const saveProcessIcEditData = async (payload) => {
+  try {
+    const response = await fetch(`${API_BASE_URL.replace('/api/certificate', '/api/process-ic-edit')}`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) throw new Error('Failed to save Process IC edit data');
+    return await response.json();
+  } catch (error) {
+    console.error('Error saving Process IC edit data:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get Process IC Edit Data
+ * @param {string} icNumber 
+ */
+export const getProcessIcEditData = async (icNumber) => {
+  try {
+    const encodedIcNumber = encodeURIComponent(icNumber);
+    const response = await fetch(`${API_BASE_URL.replace('/api/certificate', '/api/process-ic-edit')}/${encodedIcNumber}`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    if (response.status === 204) return null; // No content
+    if (!response.ok) throw new Error('Failed to fetch Process IC edit data');
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching Process IC edit data:', error);
+    return null;
+  }
+};

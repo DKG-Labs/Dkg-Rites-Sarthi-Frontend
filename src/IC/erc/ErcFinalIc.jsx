@@ -10,7 +10,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
     contractor = "",
     placeOfInspection = "",
     contractRef = "",
-    contractRefDate = "",
+    maNumberAndDate = "",
     billPayingOfficer = "",
     consignee = "",
     purchasingAuthority = "",
@@ -37,6 +37,13 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
     setNo = "",
   } = data;
 
+  // Allowed fields from Excel specs
+  const allowedFields = [
+    "bookNo", "setNo", "offeredInstNo", "passedInstNo", "maNumberAndDate",
+    "consignee", "purchasingAuthority", "description", 
+    "qtyOfferedPreviously", "qtyPassedPreviously", "qtyStillDue", "trRecDate"
+  ];
+
   // Sanitize certificate number for display
   const displayCertificateNo = (certificateNo || '')
     .replace(/[\uFEFF\u200B]/g, '')
@@ -45,7 +52,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
 
   // Editable field component
   const EditableField = ({ value, fieldName, placeholder = "", className = "", type = "text", disabled = false }) => {
-    if (isEditing) {
+    if (isEditing && allowedFields.includes(fieldName)) {
       if (type === "textarea") {
         return (
           <textarea
@@ -174,9 +181,8 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
             <div className="h-1.5" />
             <div className="font-semibold text-[9px]">संविदा संदर्भ एवं Contract Reference</div>
             <EditableField value={contractRef} fieldName="contractRef" type="textarea" className="dynamic-text text-black font-bold leading-tight" />
-            <div className="font-semibold mt-1 text-[9px] pt-0.5">दिनांक Date</div>
-            <div className="dynamic-text text-black italic font-bold leading-tight">
-              <EditableField value={contractRefDate} fieldName="contractRefDate" placeholder="PO Date" />
+            <div className="dynamic-text text-black italic font-bold leading-tight mt-1">
+              <EditableField value={maNumberAndDate} fieldName="maNumberAndDate" placeholder="MA Number & Date" />
             </div>
           </div>
           <div className="p-2 flex flex-col items-start text-[10px]">

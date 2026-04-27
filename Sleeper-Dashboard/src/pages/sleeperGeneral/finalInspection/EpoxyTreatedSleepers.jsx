@@ -150,6 +150,7 @@ const EpoxyTreatedSleepers = ({ onBack, initialShowForm = false }) => {
             {showForm && (
                 <ETDeclarationForm 
                     initialData={selectedLog}
+                    allLogs={logs}
                     onClose={() => setShowForm(false)} 
                     onSave={handleSave} 
                 />
@@ -170,7 +171,7 @@ const EpoxyTreatedSleepers = ({ onBack, initialShowForm = false }) => {
     );
 };
 
-const ETDeclarationForm = ({ initialData, onClose, onSave }) => {
+const ETDeclarationForm = ({ initialData, allLogs, onClose, onSave }) => {
     const { vendorId, dutyUnit } = useShift();
     const [formData, setFormData] = useState(initialData ? {
         ...initialData,
@@ -252,23 +253,42 @@ const ETDeclarationForm = ({ initialData, onClose, onSave }) => {
                 return;
             }
             setIsLoadingSleepers(true);
+            const alreadyETSleepers = new Set();
+            if (allLogs) {
+                allLogs.forEach(log => {
+                    // Check if log is for the same batch but is not the one we are currently editing
+                    const isSameBatch = String(log.batchId) === String(formData.batchId) || 
+                                      String(log.batchNumber) === String(formData.batchNumber);
+                    if (isSameBatch && log.id !== initialData?.id) {
+                        (log.sleepers || []).forEach(s => alreadyETSleepers.add(s.sleeperNo));
+                    }
+                });
+            }
+
             try {
                 const res = await apiService.getEtBatchSleepers(formData.batchId);
                 const data = res?.responseData || res; // Check both formats
                 
                 if (data) {
-                    // Filter for OK status and map to display format
-                    const okSleepers = (data.sleepers || [])
-                        .filter(s => s.status === 'OK')
-                        .map(s => ({ id: s.sleeperId, no: s.sleeperNo }));
+                    // Show all sleepers whose status is not REJECTED 
+                    // AND not already marked as ET in other logs
+                    const validSleepers = (data.sleepers || [])
+                        .filter(s => {
+                            const status = s.status?.toUpperCase();
+                            const sNo = s.sleeperNo || s.no;
+                            return status !== 'REJECTED' && !alreadyETSleepers.has(sNo);
+                        })
+                        .map(s => ({ 
+                            id: s.sleeperId || s.id || 0, 
+                            no: s.sleeperNo || s.no 
+                        }));
                     
-                    setAvailableSleepers(okSleepers);
+                    setAvailableSleepers(validSleepers);
                     
                     // Auto-fill other fields if they are empty
                     setFormData(prev => ({
                         ...prev,
-                        batchNumber: data.batchNumber || prev.batchNumber,
-                        // dateOfCasting: data.castingDate || prev.dateOfCasting, // keep user input or sync? syncing
+                        batchNumber: data.batchNumber || data.batchNo || prev.batchNumber,
                         sleeperType: data.sleeperType || prev.sleeperType
                     }));
                 }
@@ -331,11 +351,21 @@ const ETDeclarationForm = ({ initialData, onClose, onSave }) => {
                             <label>Select Batch</label>
                             <select 
                                 value={formData.batchId} 
-                                onChange={e => setFormData({ ...formData, batchId: e.target.value })}
+                                onChange={e => {
+                                    const bId = e.target.value;
+                                    const selected = batchesList.find(b => String(b.id || b.batchId) === String(bId));
+                                    setFormData({ 
+                                        ...formData, 
+                                        batchId: bId, 
+                                        batchNumber: selected?.batchNumber || selected?.batchNo || '' 
+                                    });
+                                }}
                             >
                                 <option value="">-- Choose Batch --</option>
                                 {batchesList.map(b => (
-                                    <option key={b.id} value={b.id}>{b.batchNumber} ({b.castingDate})</option>
+                                    <option key={b.id || b.batchId} value={b.id || b.batchId}>
+                                        {b.batchNumber || b.batchNo} ({b.castingDate || b.dateOfCasting})
+                                    </option>
                                 ))}
                             </select>
                         </div>
@@ -430,6 +460,7 @@ const MultiSleeperDropdown = ({ availableSleepers, selectedSleepers, onSelect, i
     const [searchTerm, setSearchTerm] = useState('');
 
     const filtered = availableSleepers.filter(s => 
+        !selectedSleepers.includes(s.no) &&
         s.no.toLowerCase().includes(searchTerm.toLowerCase())
     );
 

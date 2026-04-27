@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import MainLayout from './components/Layout/MainLayout';
 import SleeperProcessDuty from './pages/sleeperGeneral/SleeperProcessDuty';
 import SleeperProcessIEGeneral from './pages/sleeperGeneral/SleeperProcessIEGeneral';
+import AttendingCallDashboard from './pages/sleeperGeneral/finalInspection/AttendingCallDashboard';
 import { ShiftProvider } from './context/ShiftContext';
 import { ToastProvider } from './context/ToastContext';
 import MainDashboard from './pages/ProcessIE/MainDashboard';
@@ -57,6 +58,9 @@ const App = () => {
           case 'MonthlyReport':
             setMainView('Monthly Performance Report');
             break;
+          case 'AttendingCallDashboard':
+            setMainView('Attending the Call Raised');
+            break;
           default:
             setMainView('Main Dashboard');
         }
@@ -78,6 +82,8 @@ const App = () => {
         return <div className="fade-in"><LastShiftReport /></div>;
       case 'Monthly Performance Report':
         return <div className="fade-in"><MonthlyReport /></div>;
+      case 'Attending the Call Raised':
+        return <div className="fade-in"><AttendingCallDashboard /></div>;
       case 'Main Dashboard':
       default:
         return <MainDashboard />;

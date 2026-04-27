@@ -174,6 +174,23 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
         }
     };
 
+    const filteredPendingSleepers = useMemo(() => filteredSleepers.filter(s => s.currentStatus === 'pending'), [filteredSleepers]);
+    const allPendingSelected = useMemo(() => {
+        if (filteredPendingSleepers.length === 0) return false;
+        return filteredPendingSleepers.every(s => selectedSleepers.includes(s.id));
+    }, [filteredPendingSleepers, selectedSleepers]);
+
+    const handleSelectAllPending = (e) => {
+        const checked = e.target.checked;
+        if (checked) {
+            const idsToAdd = filteredPendingSleepers.map(s => s.id);
+            setSelectedSleepers(prev => [...new Set([...prev, ...idsToAdd])]);
+        } else {
+            const idsToRemove = filteredPendingSleepers.map(s => s.id);
+            setSelectedSleepers(prev => prev.filter(id => !idsToRemove.includes(id)));
+        }
+    };
+
     const parametersToCheck = [
         { id: 7, label: 'ToeGap' },
         { id: 10, label: 'Location of Inserts' },
@@ -418,12 +435,21 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
 
                         {/* Column 3: Pending Sleepers */}
                         <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', fontWeight: '700', fontSize: '11px', marginBottom: '15px', borderBottom: '1px solid #e2e8f0', paddingBottom: '4px' }}>
-                                <span>PENDING INSPECTION</span>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#64748b', fontWeight: '700', fontSize: '11px', marginBottom: '15px', borderBottom: '1px solid #e2e8f0', paddingBottom: '4px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <input 
+                                        type="checkbox" 
+                                        checked={allPendingSelected} 
+                                        onChange={handleSelectAllPending}
+                                        title="Select All Pending"
+                                        style={{ cursor: 'pointer', width: '13px', height: '13px' }}
+                                    />
+                                    <span>PENDING INSPECTION</span>
+                                </div>
                                 <span>{displaySleepers.filter(s => s.currentStatus === 'pending').length}</span>
                             </div>
                             <div style={{ height: '300px', overflowY: 'auto', paddingRight: '4px' }} className="custom-scrollbar">
-                                {renderSleeperList(filteredSleepers.filter(s => s.currentStatus === 'pending'), 'pending')}
+                                {renderSleeperList(filteredPendingSleepers, 'pending')}
                             </div>
                         </div>
 

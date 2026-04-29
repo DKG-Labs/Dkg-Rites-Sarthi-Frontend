@@ -14,6 +14,10 @@
       "handle": "filesystem"
     },
     {
+      "src": "/scada-proxy/api/scada/scada",
+      "dest": "http://20.168.13.113:8080/api/scada/scada"
+    },
+    {
       "src": "/sleeper/(.*)",
       "dest": "/sleeper/index.html"
     },

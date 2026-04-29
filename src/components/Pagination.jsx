@@ -10,7 +10,8 @@ const Pagination = ({
   onPageChange,
   rows,
   onRowsChange,
-  theme = 'teal' // teal, blue, orange, slate
+  theme = 'teal', // teal, blue, orange, slate
+  showRows = true
 }) => {
   return (
     <div className={`pg-wrapper pg-theme-${theme}`}>
@@ -21,18 +22,20 @@ const Pagination = ({
       </div>
 
       {/* MIDDLE: Rows Selector */}
-      <div className="pg-rows">
-        Rows:
-        <select
-          value={rows}
-          onChange={(e) => onRowsChange(Number(e.target.value))}
-        >
-          <option value={5}>5</option>
-          <option value={10}>10</option>
-          <option value={15}>15</option>
-          <option value={20}>20</option>
-        </select>
-      </div>
+      {showRows && (
+        <div className="pg-rows">
+          Rows:
+          <select
+            value={rows}
+            onChange={(e) => onRowsChange(Number(e.target.value))}
+          >
+            <option value={5}>5</option>
+            <option value={10}>10</option>
+            <option value={15}>15</option>
+            <option value={20}>20</option>
+          </select>
+        </div>
+      )}
 
       {/* RIGHT: Pagination Buttons */}
       <div className="pg-buttons">

@@ -388,6 +388,9 @@ const RailwayBoardDashboard = () => {
                                 )}
                             </div>
                         )}
+                        <div className={`nav-item ${activeMainCard === 'scada' ? 'active' : ''}`} onClick={() => handleSwitchTab('scada')}>
+                            <i className="fa-solid fa-desktop"></i> {!isSidebarCollapsed && <span>Scada Monitor</span>}
+                        </div>
                         <div className={`nav-item ${activeMainCard === 'feedback' ? 'active' : ''}`} onClick={() => handleSwitchTab('feedback')}>
                             <i className="fa-solid fa-comment-dots"></i> {!isSidebarCollapsed && <span>Feedback</span>}
                         </div>
@@ -408,8 +411,8 @@ const RailwayBoardDashboard = () => {
                         <button className={`sub-tab-btn ${selectedProduct === 'Rail Pad' ? 'active' : ''}`} onClick={() => setSelectedProduct('Rail Pad')}>Rail Pad</button>
                     </div>
 
-                    {/* TOPBAR / FILTERS - Hidden on Dashboard (summary), Quality, Lifecycle, and Feedback tabs */}
-                    {activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && (
+                    {/* TOPBAR / FILTERS - Hidden on Dashboard (summary), Quality, Lifecycle, Feedback, and Scada Monitor tabs */}
+                    {activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'scada' && (
                         <div id="prof-topbar">
                             <label>From</label>
                             <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />

@@ -53,7 +53,7 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
                   console.log('🔄 Calling performTransitionAction to update status to DSC_SIGN_IC');
                   await performTransitionAction({
                       workflowTransitionId: call?.id || call?.transitionId,
-                      requestId: call?.call_no,
+                      requestId: typeof call?.call_no === 'string' && call.call_no.includes('/') ? call.call_no.split('/')[1] : call?.call_no,
                       action: 'DSC_SIGN_IC',
                       remarks: 'Digital signature applied and IC stored in Azure',
                       actionBy: getCurrentUserId()

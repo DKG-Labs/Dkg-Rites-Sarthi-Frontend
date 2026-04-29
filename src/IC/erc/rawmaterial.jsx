@@ -51,13 +51,19 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
               
               try {
                   console.log('🔄 Calling performTransitionAction to update status to DSC_SIGN_IC');
-                  await performTransitionAction({
-                      workflowTransitionId: call?.id || call?.transitionId,
-                      requestId: typeof call?.call_no === 'string' && call.call_no.includes('/') ? call.call_no.split('/')[1] : call?.call_no,
-                      action: 'DSC_SIGN_IC',
-                      remarks: 'Digital signature applied and IC stored in Azure',
-                      actionBy: getCurrentUserId()
-                  });
+                      await performTransitionAction({
+                          workflowTransitionId: call?.id || call?.transitionId,
+                          requestId: typeof call?.call_no === 'string' && call.call_no.includes('/') ? call.call_no.split('/')[1] : call?.call_no,
+                          action: 'DSC_SIGN_IC',
+                          remarks: 'Digital signature applied and IC stored in Azure',
+                          actionBy: getCurrentUserId()
+                      });
+                      
+                      console.log('✅ Workflow status updated. Redirecting to Completed Calls Tab.');
+                      sessionStorage.setItem('ie_landing_active_tab', 'completed');
+                      
+                      // Using window.location to trigger a navigation to the landing page
+                      window.location.href = '/';
               } catch (workflowErr) {
                   console.error('⚠️ Failed to update workflow status to DSC_SIGN_IC:', workflowErr);
               }

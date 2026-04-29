@@ -46,6 +46,12 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
                           remarks: 'Digital signature applied and IC stored in Azure',
                           actionBy: getCurrentUserId()
                       });
+
+                      console.log('✅ Workflow status updated. Redirecting to Completed Calls Tab.');
+                      sessionStorage.setItem('ie_landing_active_tab', 'completed');
+                      
+                      // Using window.location to trigger a navigation to the landing page
+                      window.location.href = '/';
                   } catch (workflowErr) {
                       console.error('⚠️ Failed to update workflow status to DSC_SIGN_IC:', workflowErr);
                   }

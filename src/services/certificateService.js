@@ -292,7 +292,7 @@ export const viewSignedCertificate = async (icNumber) => {
     
     const url = API_ENDPOINTS.CERTIFICATE_STORAGE || `${API_ENDPOINTS.CERTIFICATES.replace('/certificate', '/certificate-storage')}`;
     const encodedIcNumber = encodeURIComponent(icNumber);
-    const response = await fetch(`${url}/view/${encodedIcNumber}`, {
+    const response = await fetch(`${url}/view?icNumber=${encodedIcNumber}`, {
       method: 'GET',
       headers: getAuthHeaders()
     });
@@ -323,7 +323,7 @@ export const checkSignedCertificateExists = async (icNumber) => {
   try {
     const url = API_ENDPOINTS.CERTIFICATE_STORAGE || `${API_ENDPOINTS.CERTIFICATES.replace('/certificate', '/certificate-storage')}`;
     const encodedIcNumber = encodeURIComponent(icNumber);
-    const response = await fetch(`${url}/check/${encodedIcNumber}`, {
+    const response = await fetch(`${url}/check?icNumber=${encodedIcNumber}`, {
       method: 'GET',
       headers: getAuthHeaders()
     });

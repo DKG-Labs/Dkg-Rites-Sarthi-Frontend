@@ -32,7 +32,6 @@
     "integrate": "node scripts/integrate-sleeper.js",
     "dev:sleeper": "cd Sleeper-Dashboard && npm run dev"
   },
-  "proxy": "http://localhost:5173",
   "eslintConfig": {
     "extends": [
       "react-app",

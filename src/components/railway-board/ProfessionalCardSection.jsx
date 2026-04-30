@@ -1847,23 +1847,21 @@ const ScadaMonitor = ({ selectedProduct }) => {
         fetchScadaData();
     }, [manufacturer, unit, line, stage, selectedProduct, currentPage]);
 
-    // Column sequences mapping
-    const COLUMN_ORDER = ['PO_No', 'Heat_Code', 'length', 'sample', 'end', 'time', 'line', 'module', 'plant', 'topic'];
+    // Column sequences mapping - Time is now first, and unwanted columns are excluded
+    const COLUMN_ORDER = ['time', 'PO_No', 'Heat_Code', 'length', 'sample', 'end'];
+    const EXCLUDED_COLUMNS = ['line', 'module', 'plant', 'topic', 'machine', 'host', 'result', 'table'];
+
     const COLUMN_LABELS = {
+        'time': 'Time',
         'PO_No': 'Po',
         'Heat_Code': 'Heat',
         'length': 'Len',
         'sample': 'Sam',
-        'end': 'End',
-        'time': 'Time',
-        'line': 'Line',
-        'module': 'Modul',
-        'plant': 'Plant',
-        'topic': 'Topic'
+        'end': 'End'
     };
 
     const rawKeys = data.length > 0 
-        ? Object.keys(data[0]).filter(key => key !== 'result' && key !== 'table') 
+        ? Object.keys(data[0]).filter(key => !EXCLUDED_COLUMNS.includes(key)) 
         : [];
 
     const columns = [];

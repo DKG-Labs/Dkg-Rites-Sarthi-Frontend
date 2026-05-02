@@ -1848,7 +1848,7 @@ const ScadaMonitor = ({ selectedProduct }) => {
     }, [manufacturer, unit, line, stage, selectedProduct, currentPage]);
 
     // Column sequences mapping - Time is now first, and unwanted columns are excluded
-    const COLUMN_ORDER = ['time', 'PO_No', 'Heat_Code', 'length', 'sample', 'end'];
+    const COLUMN_ORDER = ['time', 'PO_No', 'Heat_Code', 'sample', 'length', 'end'];
     const EXCLUDED_COLUMNS = ['line', 'module', 'plant', 'topic', 'machine', 'host', 'result', 'table'];
 
     const COLUMN_LABELS = {

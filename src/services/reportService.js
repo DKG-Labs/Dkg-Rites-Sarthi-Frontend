@@ -344,6 +344,61 @@ const reportService = {
         });
         return handleResponse(response);
     },
+
+    /**
+     * Get list of companies/manufacturers for Sleeper Dashboard
+     * Hits: /api/sleeper-dashboard/companies
+     */
+    getSleeperCompanies: async () => {
+        const response = await fetch(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/companies`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    /**
+     * Get list of plants for a specific vendor
+     * Hits: /api/sleeper-dashboard/plants?vendorCode={vendorCode}
+     * @param {string} vendorCode 
+     */
+    getSleeperPlants: async (vendorCode) => {
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/plants`);
+        url.searchParams.append('vendorCode', vendorCode);
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    /**
+     * Get list of batches for a specific plant
+     * Hits: /api/sleeper-dashboard/batches?plantId={plantId}
+     * @param {string} plantId 
+     */
+    getSleeperBatches: async (plantId) => {
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/batches`);
+        url.searchParams.append('plantId', plantId);
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    /**
+     * Get Lot Wise Closed Loop Analysis data
+     * Hits: /api/sleeper-dashboard/LifeCycle/LotWise?id={id}&batchId={batchId}
+     * @param {Object} params - { id, batchId }
+     */
+    getSleeperLotWiseAnalysis: async (params) => {
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/LifeCycle/LotWise`);
+        if (params.id) url.searchParams.append('id', params.id);
+        if (params.batchId) url.searchParams.append('batchId', params.batchId);
+        
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
 };
 
 export default reportService;

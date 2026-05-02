@@ -1,9 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import './FinalInspectionScreen.css';
+import { apiService } from '../../../services/api';
+import { getStoredUser } from '../../../services/authService';
 
 const FinalInspectionScreen = ({ call, onBack }) => {
     const [step, setStep] = useState('po-verification'); // 'po-verification' or 'inspection-form'
     const [poVerified, setPoVerified] = useState(false);
+
+    useEffect(() => {
+        // Handle Resuming from Pause or previously initiated steps
+        if (call?.jobStatus === 'PAUSED' || call?.jobStatus === 'pause' || call?.jobStatus === 'PO_VERIFICATION') {
+            setStep('inspection-form');
+            setPoVerified(true);
+            setSectionAStatus('approved');
+            setSectionBStatus('approved');
+        }
+    }, [call]);
     
     // Mock Batch and Sleeper Data
     const [batches, setBatches] = useState([
@@ -81,22 +93,333 @@ const FinalInspectionScreen = ({ call, onBack }) => {
     const [sectionBExpanded, setSectionBExpanded] = useState(false);
     
     const [isSectionBVisible, setIsSectionBVisible] = useState(false);
+    const [summaryData, setSummaryData] = useState(null);
+    const [batchDetails, setBatchDetails] = useState([]);
 
-    const handleSectionAOk = () => {
-        setSectionAStatus('approved');
-        setIsSectionBVisible(true);
-        setSectionBExpanded(true);
-        setSectionAExpanded(false);
+    const formatDateISO = (dateStr) => {
+        if (!dateStr || dateStr === 'N/A') return null;
+        const datePart = dateStr.split('T')[0];
+        const parts = datePart.split(/[-/]/);
+        if (parts.length === 3) {
+            if (parts[0].length === 4) {
+                return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+            }
+            return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        }
+        return datePart;
     };
 
-    const handleSectionBOk = () => {
-        setSectionBStatus('approved');
+    const formatDateDMY = (dateStr) => {
+        if (!dateStr || dateStr === 'N/A') return null;
+        const datePart = dateStr.split('T')[0];
+        const parts = datePart.split(/[-/]/);
+        if (parts.length === 3) {
+            if (parts[0].length === 4) {
+                return `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[0]}`;
+            }
+            return `${parts[0].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[2]}`;
+        }
+        return datePart;
     };
 
-    const handlePoVerify = () => {
-        setPoVerified(true);
-        setStep('inspection-form');
+    const handleSectionAOk = async () => {
+        try {
+            const user = getStoredUser();
+            const payload = {
+                callNo: call.requestId || icForm.callNo,
+                rlyPoNo: poForm.poNo,
+                poDate: formatDateISO(poForm.poDate) + "T00:00:00",
+                poQty: parseInt(poForm.poQty) || 0,
+                vendorName: poForm.vendorName,
+                maNo: poForm.maNo === 'N/A' ? '' : poForm.maNo,
+                maDate: formatDateISO(poForm.maDate),
+                purchasingAuthority: poForm.purchasingAuthority,
+                billPayingOfficer: poForm.billPayingOfficer,
+                plantId: call.plantId || "",
+                vendorCode: call.vendorCode || "",
+                shift: "A",
+                createdBy: Number(user?.userId || 0)
+            };
+
+            await apiService.saveSection1(payload);
+            setSectionAStatus('approved');
+            setIsSectionBVisible(true);
+            setSectionBExpanded(true);
+            setSectionAExpanded(false);
+        } catch (error) {
+            console.error("Error saving Section 1:", error);
+            alert("Failed to save Section 1: " + error.message);
+        }
     };
+
+    const handleSectionBOk = async () => {
+        try {
+            const user = getStoredUser();
+            const payload = {
+                callNo: call.requestId || icForm.callNo,
+                inspectionCallDate: formatDateISO(icForm.callDate) + "T00:00:00",
+                inspectionDesiredDate: formatDateISO(icForm.desiredDate),
+                rlyPoSr: icForm.rlyPoSr,
+                itemDesc: icForm.itemDesc,
+                productType: icForm.productType,
+                typeOfErc: icForm.ercType,
+                poSrQtyUnit: icForm.poSrQty,
+                consignee: icForm.consignee,
+                origDp: formatDateISO(icForm.origDp) + "T00:00:00",
+                extDp: formatDateISO(icForm.extDp) + "T00:00:00",
+                origDpStart: formatDateISO(icForm.origDpStart),
+                stageOfInspection: icForm.stage,
+                callQtyMt: parseInt(icForm.callQty) || 0,
+                placeOfInspection: icForm.place,
+                processIcNumbers: icForm.processIc,
+                remarks: icForm.remarks,
+                plantId: call.plantId || "",
+                vendorCode: call.vendorCode || "",
+                shift: "A",
+                createdBy: Number(user?.userId || 0)
+            };
+
+            await apiService.saveSection2(payload);
+            setSectionBStatus('approved');
+        } catch (error) {
+            console.error("Error saving Section 2:", error);
+            alert("Failed to save Section 2: " + error.message);
+        }
+    };
+
+    const handlePoVerify = async () => {
+        try {
+            const user = getStoredUser();
+            // Call the workflow API to transition to the next state
+            const payload = {
+                workflowTransitionId: call.workflowTransitionId,
+                moduleId: call.moduleId || 0,
+                requestId: call.requestId,
+                action: 'PO_VERIFICATION',
+                remarks: "PO details verified",
+                actionBy: Number(user?.userId || 0)
+            };
+            
+            await apiService.performTransitionAction(payload);
+            
+            setPoVerified(true);
+            setStep('inspection-form');
+        } catch (error) {
+            console.error("Error during PO Verification transition:", error);
+            // Even if it fails, we proceed to allow the user to work
+            setPoVerified(true);
+            setStep('inspection-form');
+        }
+    };
+
+    useEffect(() => {
+        const fetchInspectionData = async () => {
+            if (step === 'inspection-form' && call?.requestId) {
+                const callNo = call.requestId;
+                console.log(`Fetching inspection data for ${callNo}...`);
+                
+                let hasSavedData = false;
+
+                // 1. Try fetching SAVED Inspection Data first
+                try {
+                    const savedHeader = await apiService.getSavedMainIeHeader(callNo);
+                    if (savedHeader && savedHeader.responseData) {
+                        setSummaryData({
+                            ...savedHeader.responseData,
+                            poNo: savedHeader.responseData.rlyPoNo,
+                            poDate: savedHeader.responseData.poDate,
+                            vendorName: savedHeader.responseData.vendorName,
+                            quantityOnOrder: savedHeader.responseData.poQty,
+                            maNo: savedHeader.responseData.maNo,
+                            maDate: savedHeader.responseData.maDate,
+                            totalAccepted: savedHeader.responseData.acceptedQty,
+                            totalRejected: savedHeader.responseData.rejectedQty,
+                            noOfEtSleepers: savedHeader.responseData.etSleepers,
+                            callDate: savedHeader.responseData.callDate
+                        });
+                        hasSavedData = true;
+                    }
+                } catch (err) {
+                    console.log("No saved header found, falling back to initial summary.");
+                }
+
+                try {
+                    const savedBatches = await apiService.getSavedMainIeBatches(callNo);
+                    if (savedBatches && savedBatches.responseData && Array.isArray(savedBatches.responseData) && savedBatches.responseData.length > 0) {
+                        const mappedSaved = savedBatches.responseData.map(b => ({
+                            batchNo: b.batchNo,
+                            dateCasted: b.dateCasted,
+                            qtyCasted: b.casted || 0,
+                            offeredPrev: b.offeredPrev || 0,
+                            offeredNow: b.offeredNow || 0,
+                            passed: b.passed || 0,
+                            rejected: b.rejected || 0,
+                            unoffered: b.unoffered || 0,
+                            // Reconstruct sleeper lists from the DTO arrays
+                            acceptedSleepers: (b.goodSleepers || []).map(s => s.sleeperCode),
+                            rejectedSleepers: (b.rejectedSleepers || []).map(s => s.sleeperCode),
+                            etSleepers: (b.etSleepers || []).map(s => s.sleeperCode),
+                            mfTestedSleepers: (b.mfSleepers || []).map(s => s.sleeperCode),
+                            sleepers: [
+                                ...(b.goodSleepers || []).map(s => s.sleeperCode), 
+                                ...(b.rejectedSleepers || []).map(s => s.sleeperCode)
+                            ]
+                        }));
+                        setBatches(mappedSaved);
+                        hasSavedData = true;
+                    }
+                } catch (err) {
+                    console.log("No saved batches found, falling back to initial batch details.");
+                }
+
+                // 2. If no saved data found, fallback to INITIAL Production Data
+                if (!hasSavedData) {
+                    // Fetch Initial Inspection Call Summary
+                    try {
+                        const summaryResp = await apiService.getInspectionCallSummary(callNo);
+                        if (summaryResp && summaryResp.responseData) {
+                            setSummaryData(summaryResp.responseData);
+                        }
+                    } catch (err) {
+                        console.error("Error fetching initial inspection summary:", err);
+                    }
+
+                    // Fetch Initial Batch-wise details
+                    try {
+                        const batchResp = await apiService.getBatchWiseDetails(callNo);
+                        if (batchResp && batchResp.responseData && Array.isArray(batchResp.responseData)) {
+                            const mappedBatches = batchResp.responseData.map(b => ({
+                                batchNo: b.batchNo,
+                                dateCasted: b.castingDate,
+                                qtyCasted: b.totalSleepersCasted || 0,
+                                offeredPrev: 0,
+                                offeredNow: b.offeredNow || 0,
+                                passed: b.passed || 0,
+                                rejected: b.rejected || 0,
+                                unoffered: b.unoffered || 0,
+                                sleepers: [...(b.acceptedSleepers || []), ...(b.rejectedSleepers || [])],
+                                acceptedSleepers: b.acceptedSleepers || [],
+                                rejectedSleepers: b.rejectedSleepers || [],
+                                etSleepers: b.etSleepers || [],
+                                mfTestedSleepers: []
+                            }));
+                            setBatches(mappedBatches);
+                        }
+                    } catch (err) {
+                        console.error("Error fetching initial batch details:", err);
+                    }
+                }
+            }
+        };
+
+        fetchInspectionData();
+    }, [step, call?.requestId]);
+
+    const handleWorkflowAction = async (actionName) => {
+        try {
+            const user = getStoredUser();
+            const plantId = localStorage.getItem('plantId');
+            
+            // 1. Save Header Details
+            const headerPayload = {
+                rlyPoNo: summaryData?.poNo || poForm.poNo,
+                poDate: formatDateDMY(summaryData?.poDate || poForm.poDate),
+                vendorName: summaryData?.vendorName || poForm.vendorName,
+                callNo: call.requestId,
+                poQty: Number(String(summaryData?.quantityOnOrder || poForm.poQty).replace(/\D/g, '')),
+                maNo: poForm.maNo === 'N/A' ? '' : poForm.maNo,
+                maDate: formatDateDMY(poForm.maDate),
+                qtyOfferedNow: totalOfferedNow,
+                acceptedQty: totalAccepted,
+                rejectedQty: totalRejected,
+                etSleepers: totalEt,
+                callDate: formatDateDMY(summaryData?.callDate || icForm.callDate),
+                noOfBatches: batches.length,
+                shift: icForm.shift || 'Day',
+                plantId: plantId,
+                vendorCode: call.vendorCode || icForm.vendorCode,
+                createdBy: String(user?.userId || ''),
+                updatedBy: String(user?.userId || '')
+            };
+            
+            await apiService.saveMainIeInspectionHeader(headerPayload);
+
+            // 2. Save Batch-wise details (Loop through each batch)
+            for (const batch of batches) {
+                const batchPayload = {
+                    batchNo: batch.batchNo,
+                    callNo: call.requestId,
+                    dateCasted: formatDateDMY(batch.dateCasted),
+                    casted: batch.qtyCasted,
+                    offeredPrev: batch.offeredPrev,
+                    offeredNow: batch.offeredNow,
+                    passed: batch.passed,
+                    rejected: batch.rejected,
+                    totalOffered: totalOfferedNow,
+                    totalAccepted: totalAccepted,
+                    totalRejected: totalRejected,
+                    shift: icForm.shift || 'Day',
+                    plantId: plantId,
+                    vendorCode: call.vendorCode || icForm.vendorCode,
+                    createdBy: String(user?.userId || ''),
+                    updatedBy: String(user?.userId || ''),
+                    goodSleepers: (batch.acceptedSleepers || []).map(s => ({ sleeperCode: s })),
+                    rejectedSleepers: (batch.rejectedSleepers || []).map(s => ({ 
+                        sleeperCode: s, 
+                        reason: 'Rejected', 
+                        type: 'Main IE Rejection' 
+                    })),
+                    etSleepers: (batch.etSleepers || []).map(s => ({ sleeperCode: s })),
+                    mfSleepers: (batch.mfTestedSleepers || []).map(s => ({ sleeperCode: s })),
+                    finalRejections: (batch.rejectedSleepers || []).map(s => ({ 
+                        sleeperCode: s, 
+                        reason: 'Final Rejection', 
+                        type: 'Final' 
+                    }))
+                };
+                await apiService.saveMainIeInspectionBatch(batchPayload);
+            }
+            
+            // 3. Clear local draft on completion
+            if (actionName === 'FINISH') {
+                localStorage.removeItem(`inspection_draft_${call.requestId}`);
+            }
+            
+            onBack(); // Go back to dashboard after saving
+        } catch (error) {
+            console.error(`Error saving inspection data for ${actionName}:`, error);
+            alert(`Failed to save inspection data: ` + (error.response?.data?.message || error.message));
+        }
+    };
+
+    const handleSaveDraft = () => {
+        if (!call?.requestId) return;
+        const draftData = {
+            batches,
+            lastSaved: new Date().toISOString()
+        };
+        localStorage.setItem(`inspection_draft_${call.requestId}`, JSON.stringify(draftData));
+        alert("Draft saved to local storage!");
+        onBack(); // Return to dashboard
+    };
+
+    useEffect(() => {
+        // Load draft if it exists for this call
+        if (call?.requestId) {
+            const savedDraft = localStorage.getItem(`inspection_draft_${call.requestId}`);
+            if (savedDraft) {
+                try {
+                    const draft = JSON.parse(savedDraft);
+                    if (draft && draft.batches) {
+                        setBatches(draft.batches);
+                        console.log("Loaded draft from local storage");
+                    }
+                } catch (e) {
+                    console.error("Error parsing saved draft:", e);
+                }
+            }
+        }
+    }, [call?.requestId]);
 
     const toggleBatchExpand = (batchNo) => {
         setExpandedBatches(prev => ({ ...prev, [batchNo]: !prev[batchNo] }));
@@ -114,10 +437,14 @@ const FinalInspectionScreen = ({ call, onBack }) => {
         setBatches(prev => prev.map(batch => {
             if (batch.batchNo === rejectionEntry.batchNo) {
                 if (batch.rejectedSleepers.includes(rejectionEntry.sleeperNo)) return batch;
+                const newAccepted = batch.acceptedSleepers.filter(s => s !== rejectionEntry.sleeperNo);
+                const newRejected = [...batch.rejectedSleepers, rejectionEntry.sleeperNo];
                 return {
                     ...batch,
-                    rejectedSleepers: [...batch.rejectedSleepers, rejectionEntry.sleeperNo],
-                    passed: batch.offeredNow - (batch.rejectedSleepers.length + 1)
+                    acceptedSleepers: newAccepted,
+                    rejectedSleepers: newRejected,
+                    passed: newAccepted.length,
+                    rejected: newRejected.length
                 };
             }
             return batch;
@@ -126,10 +453,20 @@ const FinalInspectionScreen = ({ call, onBack }) => {
     };
 
     const handleAddEt = () => {
-        if (!etEntry.batchNo || !etEntry.sleeperNo) return;
+        if (!etEntry.batchNo) return;
 
         setBatches(prev => prev.map(batch => {
             if (batch.batchNo === etEntry.batchNo) {
+                // If marking whole batch
+                if (etEntry.sleeperNo === 'ALL') {
+                    // Combine all sleepers into ET list, avoiding duplicates
+                    const allSleepers = [...new Set([...batch.etSleepers, ...batch.sleepers])];
+                    return {
+                        ...batch,
+                        etSleepers: allSleepers
+                    };
+                }
+                
                 if (batch.etSleepers.includes(etEntry.sleeperNo)) return batch;
                 return {
                     ...batch,
@@ -144,10 +481,14 @@ const FinalInspectionScreen = ({ call, onBack }) => {
     const removeRejection = (batchNo, sleeperNo) => {
         setBatches(prev => prev.map(batch => {
             if (batch.batchNo === batchNo) {
+                const newRejected = batch.rejectedSleepers.filter(s => s !== sleeperNo);
+                const newAccepted = [...batch.acceptedSleepers, sleeperNo];
                 return {
                     ...batch,
-                    rejectedSleepers: batch.rejectedSleepers.filter(s => s !== sleeperNo),
-                    passed: batch.offeredNow - (batch.rejectedSleepers.length - 1)
+                    acceptedSleepers: newAccepted,
+                    rejectedSleepers: newRejected,
+                    passed: newAccepted.length,
+                    rejected: newRejected.length
                 };
             }
             return batch;
@@ -385,24 +726,24 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                     <div className="section-title">Section 1: Header Details</div>
                     <div className="summary-grid">
                         <div className="summary-col">
-                            <div className="data-item"><label>RLY + PO_NO:</label> <span>{poForm.poNo}</span></div>
-                            <div className="data-item"><label>PO DATE:</label> <span>{poForm.poDate}</span></div>
-                            <div className="data-item"><label>VENDOR_NAME:</label> <span>{poForm.vendorName}</span></div>
+                            <div className="data-item"><label>RLY + PO_NO:</label> <span>{summaryData?.poNo || poForm.poNo}</span></div>
+                            <div className="data-item"><label>PO DATE:</label> <span>{summaryData?.poDate || poForm.poDate}</span></div>
+                            <div className="data-item"><label>VENDOR_NAME:</label> <span>{summaryData?.vendorName || poForm.vendorName}</span></div>
                         </div>
                         <div className="summary-col">
-                            <div className="data-item"><label>PO_QTY:</label> <span>{poForm.poQty}</span></div>
-                            <div className="data-item"><label>MA_NO:</label> <span>{poForm.maNo}</span></div>
-                            <div className="data-item"><label>MA_DATE:</label> <span>{poForm.maDate}</span></div>
+                            <div className="data-item"><label>PO_QTY:</label> <span>{summaryData?.quantityOnOrder || poForm.poQty}</span></div>
+                            <div className="data-item"><label>MA_NO:</label> <span>{summaryData?.maNo || poForm.maNo}</span></div>
+                            <div className="data-item"><label>MA_DATE:</label> <span>{summaryData?.maDate || poForm.maDate}</span></div>
                         </div>
                         <div className="summary-col">
-                            <div className="data-item highlight"><label>Qty Offered Now:</label> <span>{totalOfferedNow}</span></div>
+                            <div className="data-item highlight"><label>Qty Offered Now:</label> <span>{summaryData?.qtyOfferedNow || totalOfferedNow}</span></div>
                             <div className="data-item success"><label>Accepted:</label> <span>{totalAccepted}</span></div>
                             <div className="data-item danger"><label>Rejected:</label> <span>{totalRejected}</span></div>
                         </div>
                         <div className="summary-col">
                             <div className="data-item warning"><label>ET Sleepers:</label> <span>{totalEt}</span></div>
-                            <div className="data-item"><label>Call Date:</label> <span>{call.date}</span></div>
-                            <div className="data-item"><label>No. of Batches:</label> <span>{batches.length}</span></div>
+                            <div className="data-item"><label>Call Date:</label> <span>{summaryData?.callDate ? new Date(summaryData.callDate).toLocaleDateString() : (call.date || icForm.callDate)}</span></div>
+                            <div className="data-item"><label>No. of Batches:</label> <span>{summaryData?.noOfBatches || batches.length}</span></div>
                         </div>
                     </div>
                 </section>
@@ -507,7 +848,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                             disabled={!rejectionEntry.batchNo}
                                         >
                                             <option value="">Select Sleeper</option>
-                                            {rejectionEntry.batchNo && batches.find(b => b.batchNo === rejectionEntry.batchNo).sleepers.map(s => (
+                                            {rejectionEntry.batchNo && batches.find(b => b.batchNo === rejectionEntry.batchNo).acceptedSleepers.map(s => (
                                                 <option key={s} value={s}>{s}</option>
                                             ))}
                                         </select>
@@ -537,26 +878,14 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                         <label>Batch Number</label>
                                         <select 
                                             value={etEntry.batchNo} 
-                                            onChange={(e) => setEtEntry({...etEntry, batchNo: e.target.value, sleeperNo: ''})}
+                                            onChange={(e) => setEtEntry({...etEntry, batchNo: e.target.value, sleeperNo: 'ALL'})}
                                         >
                                             <option value="">Select Batch</option>
                                             {batches.map(b => <option key={b.batchNo} value={b.batchNo}>{b.batchNo}</option>)}
                                         </select>
                                     </div>
-                                    <div className="field">
-                                        <label>Sleeper Number</label>
-                                        <select 
-                                            value={etEntry.sleeperNo} 
-                                            onChange={(e) => setEtEntry({...etEntry, sleeperNo: e.target.value})}
-                                            disabled={!etEntry.batchNo}
-                                        >
-                                            <option value="">Select Sleeper</option>
-                                            {etEntry.batchNo && batches.find(b => b.batchNo === etEntry.batchNo).sleepers.map(s => (
-                                                <option key={s} value={s}>{s}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <button className="add-btn et" onClick={handleAddEt}>Log ET Status</button>
+                                    {/* Removed Sleeper Selection as per 'just show Add Epoxy batches' request */}
+                                    <button className="add-btn et" onClick={handleAddEt}>Log ET Batch</button>
                                 </div>
                             </div>
                         </div>
@@ -581,10 +910,19 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                     </div>
                     
                     <div className="action-buttons">
-                        <button className="btn secondary">Save Draft</button>
-                        <button className="btn secondary">Pause Inspection</button>
-                        <button className="btn warning">Withheld Inspection</button>
-                        <button className="btn primary">Complete Inspection</button>
+                        <button className="btn secondary" onClick={handleSaveDraft}>Save Draft</button>
+                        {/* Section 4: Summary & Actions (Simplified to Footer Actions) */}
+                        <div className="inspection-footer-actions">
+                            <button className="btn-pause" onClick={() => handleWorkflowAction('PAUSE')}>
+                                PAUSE INSPECTION
+                            </button>
+                            <button className="btn-withheld" onClick={() => handleWorkflowAction('WITHHELD')}>
+                                WITHHELD
+                            </button>
+                            <button className="btn-complete" onClick={() => handleWorkflowAction('FINISH')}>
+                                COMPLETE INSPECTION
+                            </button>
+                        </div>
                     </div>
                 </section>
             </main>

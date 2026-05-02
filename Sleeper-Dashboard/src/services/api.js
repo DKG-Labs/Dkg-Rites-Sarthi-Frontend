@@ -301,6 +301,15 @@ export const apiService = {
     submitInspectionCall: (payload) => api.post('/FinalInspectionController/submit-inspection-call', payload),
     getInspectionCalls: (userId) => api.get(`/FinalInspectionController/inspection-calls?userId=${userId}`),
     getCompletedBatches: (sleeperType, userId) => api.get(`/FinalInspectionController/completed-batches?sleeperType=${sleeperType}&userId=${userId}`),
+    scheduleCall: (payload) => api.post('/FinalCallinspection/scheduleingCall', payload),
+    saveSection1: (payload) => api.post('/FinalCallinspection/section1', payload),
+    saveSection2: (payload) => api.post('/FinalCallinspection/section2', payload),
+    getInspectionCallSummary: (callNo) => api.get(`/main-ie/inspection-call-summary/${callNo}`),
+    getBatchWiseDetails: (callNo) => api.get(`/main-ie/inspection-call/batch-wise/${callNo}`),
+    saveMainIeInspectionBatch: (payload) => api.post('/MainIe-finalcallsleeperInspection', payload),
+    saveMainIeInspectionHeader: (payload) => api.post('/MainIe-finalcallsleeperInspection/finalCallHeader/save', payload),
+    getSavedMainIeHeader: (callNo) => api.get(`/MainIe-finalcallsleeperInspection/finalCallHeader/${callNo}`),
+    getSavedMainIeBatches: (callNo) => api.get(`/MainIe-finalcallsleeperInspection/call-no/${callNo}`),
 
     // ================= Moment of Resistance (MR) =================
     createMRRecord: (payload) => api.post('/moment-of-resistance/create', payload),

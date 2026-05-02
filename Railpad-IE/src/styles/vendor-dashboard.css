@@ -1,0 +1,310 @@
+/* Vendor Dashboard Styles matching Sleeper Vendor UI */
+.vendor-dashboard {
+  padding: 40px;
+  background-color: #f8fafc; /* Adjust to match the light grayish background */
+  font-family: var(--font-primary);
+  min-height: 100vh;
+}
+
+.vendor-header-section {
+  margin-bottom: 24px;
+}
+
+.vendor-title {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 4px 0;
+  letter-spacing: -0.02em;
+}
+
+.vendor-subtitle {
+  font-size: 0.95rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.vendor-cards-panel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 32px;
+}
+
+.vendor-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.vendor-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.vendor-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.vendor-card.active {
+  border: 1px solid #3b82f6; /* Blue border */
+  background-color: #eff6ff; /* Light blue background */
+}
+
+.vendor-card-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 80%; /* Ensure text doesn't overlap the number/icon */
+}
+
+.vendor-card-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.vendor-card.active .vendor-card-title {
+  color: #1d4ed8;
+}
+
+.vendor-card-desc {
+  font-size: 0.725rem;
+  color: #64748b;
+  line-height: 1.3;
+}
+
+.vendor-card.active .vendor-card-desc {
+  color: #3b82f6;
+}
+
+.vendor-card-right {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vendor-section-header {
+  margin-bottom: 24px;
+}
+
+.vendor-section-title {
+  font-size: 1.25rem;
+  font-weight: 700; /* Bold Inventory Overview style */
+  color: #0f172a;
+  margin: 0 0 6px 0;
+}
+
+.vendor-section-subtitle {
+  font-size: 0.9rem;
+  color: #64748b;
+  margin: 0;
+}
+
+/* Action Bar Styles - Search & Export */
+.action-bar-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  padding: 16px;
+  border-radius: 8px 8px 0 0;
+  border: 1px solid #e5e7eb;
+  border-bottom: none;
+}
+
+.search-input-wrapper {
+  position: relative;
+  width: 300px;
+}
+
+.search-input-wrapper .search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+.search-input-wrapper .search-input {
+  width: 100%;
+  padding: 10px 16px 10px 40px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: #374151;
+  height: auto;
+  line-height: normal;
+}
+
+.export-btn {
+  background-color: #2563eb;
+  color: white;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  transition: background-color 0.2s;
+}
+
+.export-btn:hover:not(:disabled) {
+  background-color: #1d4ed8;
+}
+
+.export-btn:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* Table Card styling */
+.table-card {
+  background: transparent;
+  margin-bottom: 24px;
+  border-radius: 8px;
+}
+
+/* Base App/Landing Container */
+.app-container {
+  padding: 40px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+/* Landing Header styling mimicking vendor header */
+.landing-header {
+  margin-bottom: 32px;
+}
+
+.landing-title {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 4px 0;
+  letter-spacing: -0.02em;
+}
+
+.landing-subtitle {
+  font-size: 0.95rem;
+  color: #64748b;
+  margin: 0;
+}
+
+/* Landing Cards matching vendor cards */
+.landing-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.landing-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 24px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.landing-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  transform: translateY(-2px);
+}
+
+.landing-card-icon {
+  font-size: 2rem;
+  margin-bottom: 16px;
+  background: #f8fafc;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.landing-card-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 6px 0;
+}
+
+.landing-card-desc {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin: 0 0 16px 0;
+  flex-grow: 1;
+}
+
+.landing-card-action {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Remove border from TableView table since it's already in the card container */
+.table-container {
+  border: 1px solid #e5e7eb;
+  border-radius: 0 0 8px 8px;
+  background: white;
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* Adjusted table styling for Data Tables */
+.table-container table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table-container th {
+  background: #fdfdfd; 
+  color: #4b5563;
+  font-weight: 600;
+  text-align: left;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.table-container td {
+  padding: 16px;
+  border-bottom: 1px solid #f3f4f6;
+  color: #374151;
+  font-size: 0.875rem;
+}
+
+.table-container tr:hover {
+  background-color: #f9fafb;
+}
+
+/* Disable existing global conflicting styles for this specfic component */
+.table-container table th {
+  text-transform: none; /* remove global text-transform if it existed */
+}

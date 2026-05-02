@@ -63,7 +63,10 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
             const testedRes = await apiService.steamCubeResults.getResults(params);
 
             // Process Declared Samples
-            const declared = (declaredRes?.responseData || []).map(r => ({
+            const activePlantId = dutyUnit || localStorage.getItem('dutyUnit');
+            const declared = (declaredRes?.responseData || [])
+                .filter(r => r.plantId === activePlantId)
+                .map(r => ({
                 ...r,
                 status: 'Testing Pending',
                 isTested: false,
@@ -73,8 +76,11 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
             }));
 
             // Process Tested Results
-            const tested = (testedRes?.responseData || []).map(r => ({
+            const tested = (testedRes?.responseData || [])
+                .filter(r => r.plantId === activePlantId)
+                .map(r => ({
                 ...r,
+                steamCubeId: r.sampleId || r.steamCubeId || r.id, // Ensure we track the declaration ID
                 status: 'Completed',
                 isTested: true,
                 // Use backend createdDate if available (Date & time of Log)
@@ -151,9 +157,10 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
                         ...response.responseData,
                         castingDate: DateUtils.formatFromBackend(response.responseData.castingDate),
                         testDate: DateUtils.formatFromBackend(response.responseData.testDate),
-                        cubeResults: (response.responseData.cubeResults || []).map(cr => ({
+                        cubeResults: (response.responseData.cubeDetails || response.responseData.cubeResults || []).map(cr => ({
                             ...cr,
-                            testDate: DateUtils.formatFromBackend(cr.testDate)
+                            testDate: DateUtils.formatFromBackend(cr.dateOfTesting || cr.testDate),
+                            testTime: cr.time || cr.testTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
                         }))
                     };
                 }
@@ -240,16 +247,18 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
                 plantId: dutyUnit || localStorage.getItem('dutyUnit'),
                 shift: selectedShift || localStorage.getItem('selectedShift'),
                 createdBy: parseInt(userId || localStorage.getItem('userId')) || 0,
+                chamberNo: selectedSample.chamberNo || "",
                 cubeDetails: (testData.cubeResults || []).map(cube => ({
+                    id: cube.id || null, // ensure JPA knows we are updating existing children
                     cubeNo: cube.cubeNo,
                     dateOfTesting: DateUtils.formatToBackend(cube.testDate),
                     time: cube.testTime || "",
-                    ageHours: parseFloat(cube.ageHrs) || 0,
-                    weightKgs: parseFloat(cube.weight) || 0,
-                    loadKn: parseFloat(cube.load) || 0,
+                    ageHours: parseFloat(cube.ageHrs) || parseFloat(cube.ageHours) || 0,
+                    weightKgs: parseFloat(cube.weight) || parseFloat(cube.weightKgs) || 0,
+                    loadKn: parseFloat(cube.load) || parseFloat(cube.loadKn) || 0,
                     strength: parseFloat(cube.strength) || 0
                 })),
-                steamCubeId: parseInt(selectedSample.id) || 0
+                steamCubeId: parseInt(selectedSample.steamCubeId || selectedSample.sampleId || selectedSample.id) || 0
             };
             
             if (isModifying && selectedSample.id) {
@@ -623,8 +632,13 @@ const cardTabStyle = (active, color) => ({
     flex: '1 1 200px',
     padding: '16px 20px',
     background: active ? '#fff' : '#f8fafc',
-    border: `1px solid ${active ? color : '#e2e8f0'}`,
-    borderTop: `4px solid ${color}`,
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderTopWidth: '4px',
+    borderTopColor: color,
+    borderRightColor: active ? color : '#e2e8f0',
+    borderBottomColor: active ? color : '#e2e8f0',
+    borderLeftColor: active ? color : '#e2e8f0',
     borderRadius: '12px',
     display: 'flex',
     flexDirection: 'column',
@@ -711,7 +725,7 @@ const SteamCubeDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelet
                             }} 
                             disabled={!canModifyOrDelete}
                             onClick={() => onDelete(sample.id)}
-                            title={!canModifyOrDelete ? "Deletions only allowed within 24 hours" : ""}
+                            title={!canModifyOrDelete ? "Deletions only allowed within 8 hours" : ""}
                         >
                             Delete
                         </button>
@@ -1117,6 +1131,9 @@ const TestDetailsModal = ({ sample, onClose, onSave, onDelete, isModifying, acti
         testTime: sample.testTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
         cubeResults: sample.cubeResults?.length ? sample.cubeResults.map(cr => ({
             ...cr,
+            weight: cr.weight || cr.weightKgs || '',
+            load: cr.load || cr.loadKn || '',
+            ageHrs: cr.ageHrs || cr.ageHours || '0.0',
             testDate: cr.testDate || new Date().toISOString().split('T')[0],
             testTime: cr.testTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
         })) : (sample.cubes || []).map(cube => ({

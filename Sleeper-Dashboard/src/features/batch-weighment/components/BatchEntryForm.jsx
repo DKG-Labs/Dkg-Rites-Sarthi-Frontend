@@ -50,6 +50,36 @@ const BatchEntryForm = ({
     };
 
     const handleFinalSave = async () => {
+        // --- MANDATORY VALIDATIONS ---
+        
+        // 1. Section 1: Initial Declaration Validation
+        const isSection1Complete = 
+            sensorConfig.batchNo && 
+            sensorConfig.location && 
+            sensorConfig.moistureAnalysis && 
+            sensorConfig.sandType &&
+            sensorConfig.sensorStatus &&
+            sensorConfig.castingDate &&
+            activeBatchDeclarations.length > 0;
+
+        if (!isSection1Complete) {
+            alert("MANDATORY ERROR (Section 1): Please complete the Initial Declaration. You must select Sensor Status, Sand Type, Location, Moisture Analysis, Casting Date, and Batch No.");
+            return;
+        }
+
+        // 2. Section 3 & 4: Manual Verification Validation
+        const hasManualRecords = witnessedRecords.some(r => 
+            sessionRecordIds.includes(r.id) && 
+            r.source?.toLowerCase().includes('manual')
+        );
+
+        if (!hasManualRecords) {
+            alert("MANDATORY ERROR (Section 3 & 4): At least one Manual Verification entry is required to proceed with Confirm & Save.");
+            return;
+        }
+
+        // -----------------------------
+
         setIsSaving(true);
         try {
             const [y, m, d] = (dutyDate || new Date().toISOString().split('T')[0]).split('-');
@@ -204,7 +234,12 @@ const BatchEntryForm = ({
                             </div>
                             {formSections.scada && (
                                 <div style={{ padding: '0 1.5rem 1.5rem 1.5rem', borderTop: '1px solid #fcd34d', paddingTop: '1.5rem' }}>
-                                    <WeightBatching onWitness={handleLocalWitnessSave} batches={activeBatchDeclarations} selectedBatchNo={activeBatchDeclarations[0]?.batchNo || selectedBatchNo} />
+                                    <WeightBatching 
+                                        onWitness={handleLocalWitnessSave} 
+                                        batches={activeBatchDeclarations} 
+                                        searchBatchNo={activeBatchDeclarations[0]?.refBatchNo || sensorConfig.batchNo || selectedBatchNo}
+                                        displayBatchNo={sensorConfig.batchNo || activeBatchDeclarations[0]?.batchNo || selectedBatchNo} 
+                                    />
                                 </div>
                             )}
                         </div>

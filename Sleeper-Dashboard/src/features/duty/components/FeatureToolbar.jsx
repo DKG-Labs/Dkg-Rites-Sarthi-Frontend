@@ -26,7 +26,7 @@ const FeatureToolbar = ({ activeTab, witnessedRecordsCount, setShowBatchEntryFor
                         New Analysis Entry
                     </button>
                 )}
-                {!(activeTab === 'Mould & Bench Checking' || activeTab === 'Manual Checks' || activeTab === 'Steam Cube Testing' || activeTab === 'Batch Weighment' || activeTab === 'Wire Tensioning' || activeTab === 'Compaction of Concrete (Vibrator Report)' || activeTab === 'Steam Curing' || activeTab === 'Moisture Analysis') && (
+                {!(activeTab === 'Mould & Bench Checking' || activeTab === 'Manual Checks' || activeTab === 'Steam Cube Testing' || activeTab === 'Batch Weighment' || activeTab === 'Wire Tensioning' || activeTab === 'Compaction of Concrete (Vibrator Report)' || activeTab === 'Steam Curing' || activeTab === 'Moisture Analysis' || activeTab === 'Epoxy Treated Sleepers') && (
                     <button
                         className="toggle-btn"
                         style={{ fontSize: '0.7rem' }}

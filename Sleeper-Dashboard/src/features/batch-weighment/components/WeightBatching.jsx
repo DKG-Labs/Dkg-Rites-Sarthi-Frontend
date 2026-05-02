@@ -7,10 +7,10 @@ import { apiService } from '../../../services/api';
  * Displays live SCADA data for batching and allows witnessing of records.
  * Updated to use parent-provided batch selection for consistency.
  */
-const WeightBatching = ({ onWitness, batches = [], selectedBatchNo }) => {
-    // If selectedBatchNo is provided by parent (header), use it. otherwise local fallback.
-    const [localBatch, setLocalBatch] = useState('');
-    const activeBatch = selectedBatchNo || localBatch;
+const WeightBatching = ({ onWitness, batches = [], searchBatchNo, displayBatchNo }) => {
+    // If searchBatchNo (ref moisture batch) is provided, use it for fetching. Otherwise fallback.
+    const activeSearchBatch = searchBatchNo || '';
+    const activeDisplayBatch = displayBatchNo || '';
 
     const columns = [
         { label: "S.No", key: "sno", rowSpan: 2 },
@@ -65,7 +65,9 @@ const WeightBatching = ({ onWitness, batches = [], selectedBatchNo }) => {
 
     const fetchScadaData = async ({ page, size, batch }) => {
         try {
-            const response = await apiService.getScadaRecords(page, size, batch);
+            // Use the provided search batch if available, otherwise fallback to table internal batch state
+            const targetBatch = batch || activeSearchBatch;
+            const response = await apiService.getScadaRecords(page, size, targetBatch);
             const apiRes = response?.responseData;
             if (apiRes) {
                 return {
@@ -86,7 +88,7 @@ const WeightBatching = ({ onWitness, batches = [], selectedBatchNo }) => {
             onClick={() => onWitness({
                 ...record,
                 id: Date.now() + Math.random(),
-                batchNo: record.batch,
+                batchNo: activeDisplayBatch || record.batch, // Use the session alphanumeric batch override
                 source: 'Scada Witnessed',
                 ca1: record.mm20_actual,
                 ca2: record.mm10_actual,
@@ -111,32 +113,18 @@ const WeightBatching = ({ onWitness, batches = [], selectedBatchNo }) => {
 
     return (
         <div className="scada-monitoring">
-            <div className="filter-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
-                {!selectedBatchNo && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <label style={{ fontWeight: '600', color: '#64748b' }}>Select Batch:</label>
-                        <select
-                            value={activeBatch}
-                            onChange={(e) => setLocalBatch(e.target.value)}
-                            style={{ padding: '0.4rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none' }}
-                        >
-                            <option value="">-- Select --</option>
-                            {batches.map(b => <option key={b.id} value={b.batchNo}>{b.batchNo}</option>)}
-                        </select>
-                    </div>
-                )}
-                <div className="status-indicator" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#3b82f6', fontSize: '0.8rem', fontWeight: '600', marginLeft: selectedBatchNo ? '0' : 'auto' }}>
+            <div className="filter-bar" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '1rem' }}>
+                <div className="status-indicator" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#3b82f6', fontSize: '0.8rem', fontWeight: '600' }}>
                     <span className="pulse-dot" style={{ width: '8px', height: '8px', background: '#3b82f6', borderRadius: '50%' }}></span>
-                    Synchronizing with Plant SCADA...
+                    Synchronizing with Plant SCADA for Batch #{activeSearchBatch || 'N/A'}...
                 </div>
             </div>
-
             <div className="scada-table-wrapper" style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden' }}>
                 <ScadaTable
                     columns={columns}
                     fetchData={fetchScadaData}
                     pageSize={10}
-                    batchId={activeBatch}
+                    batchId={activeSearchBatch}
                     height="400px"
                 />
             </div>

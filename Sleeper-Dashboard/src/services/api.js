@@ -102,6 +102,16 @@ export const apiService = {
         saveTestResult: (data) => api.post('/water-cube-sample/save-test-result', data),
         getTestResultsByUser: (userId) => api.get(`/water-cube-sample/test-results/user/${userId}`)
     },
+
+    // ================= Water Quality Testing =================
+    waterQuality: {
+        create: (payload) => api.post('/water-quality', payload),
+        getAll: () => getWithCache('/water-quality'),
+        getById: (id) => api.get(`/water-quality/${id}`),
+        update: (id, payload) => api.put(`/water-quality/${id}`, payload),
+        delete: (id) => api.delete(`/water-quality/${id}`),
+        getByUser: (userId) => api.get(`/water-quality/user/${userId}`)
+    },
     getAllSteamCubes: () => getWithCache('/SteamCube/get-all'),
     getSteamCubeById: (id) => api.get(`/SteamCube/get/${id}`),
     createSteamCube: (payload) => api.post('/SteamCube/create', payload),
@@ -248,6 +258,9 @@ export const apiService = {
     getVerifiedMixDesignIdentifications: () => api.get('/mix-design/verified-identifications'),
     getApprovedMixDesigns: (moduleId = 4, vendorId = '', plantId = '') => api.get(`/mix-design/approvedMixDesign?moduleId=${moduleId}${vendorId ? `&vendorId=${vendorId}` : ''}${plantId ? `&plantId=${plantId}` : ''}`),
 
+    // moduleId=5  PRODUCTION_DECLARATION
+    getProductionDeclarationById: (id) => api.get(`/production-declaration/${id}`),
+
     // moduleId=5  HTS Wire
     getHtsWireRecordById: (id) => api.get(`/hts-wire/${id}`),
 
@@ -281,8 +294,8 @@ export const apiService = {
     getAllProductionSleeperTypes: (batchNo, benchNo, productionUnit) => api.get('/production-declaration/getAll/sleeper-types', { params: { batchNo, benchNo, productionUnit } }),
     getAllProductionSleepers: (batchNo, benchNo, sleeperType, productionUnit) => api.get('/production-declaration/getAll/sleepers', { params: { batchNo, benchNo, sleeperType, productionUnit } }),
 
-    getAllWorkflowTransitions: (roleName = 'IE', userId = '') =>
-        api.get(`/sleeper-workflow/allWorkflowTransition?roleName=${roleName}${userId ? `&assignedTo=${userId}` : ''}`),
+    getAllCompletedWorkflowTransitions: (userId = '', plantId = '') =>
+        api.get(`/sleeper-workflow/allCompletedCalls?roleName=IE${userId ? `&assignedTo=${userId}` : ''}${plantId ? `&plantId=${plantId}` : ''}`),
 
 
     // ================= POI IE Mapping ================= //
@@ -298,6 +311,15 @@ export const apiService = {
     submitInspectionCall: (payload) => api.post('/FinalInspectionController/submit-inspection-call', payload),
     getInspectionCalls: (userId) => api.get(`/FinalInspectionController/inspection-calls?userId=${userId}`),
     getCompletedBatches: (sleeperType, userId) => api.get(`/FinalInspectionController/completed-batches?sleeperType=${sleeperType}&userId=${userId}`),
+    scheduleCall: (payload) => api.post('/FinalCallinspection/scheduleingCall', payload),
+    saveSection1: (payload) => api.post('/FinalCallinspection/section1', payload),
+    saveSection2: (payload) => api.post('/FinalCallinspection/section2', payload),
+    getInspectionCallSummary: (callNo) => api.get(`/main-ie/inspection-call-summary/${callNo}`),
+    getBatchWiseDetails: (callNo) => api.get(`/main-ie/inspection-call/batch-wise/${callNo}`),
+    saveMainIeInspectionBatch: (payload) => api.post('/MainIe-finalcallsleeperInspection', payload),
+    saveMainIeInspectionHeader: (payload) => api.post('/MainIe-finalcallsleeperInspection/finalCallHeader/save', payload),
+    getSavedMainIeHeader: (callNo) => api.get(`/MainIe-finalcallsleeperInspection/finalCallHeader/${callNo}`),
+    getSavedMainIeBatches: (callNo) => api.get(`/MainIe-finalcallsleeperInspection/call-no/${callNo}`),
 
     // ================= Moment of Resistance (MR) =================
     createMRRecord: (payload) => api.post('/moment-of-resistance/create', payload),
@@ -344,4 +366,13 @@ export const apiService = {
     createMFTest: (payload) => api.post('/mf-test-details', payload),
     updateMFTest: (id, payload) => api.put(`/mf-test-details/${id}`, payload),
     deleteMFTest: (id) => api.delete(`/mf-test-details/${id}`),
+    
+    // ================= Epoxy Treated Sleepers (ET) =================
+    getAllETLogs: () => api.get('/et'),
+    getETById: (id) => api.get(`/et/${id}`),
+    createETRecord: (payload) => api.post('/et', payload),
+    updateETRecord: (id, payload) => api.put(`/et/${id}`, payload),
+    deleteETRecord: (id) => api.delete(`/et/${id}`),
+    getETBatchSummary: () => api.get('/et/batch-summary'),
+    getEtBatchSleepers: (batchId) => api.get(`/FinalInspectionController/inspection/Etbatch?batchId=${batchId}`),
 };

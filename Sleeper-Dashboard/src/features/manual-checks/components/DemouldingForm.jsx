@@ -681,7 +681,8 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                                         transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                                         background: (isDefective || isForced) ? '#fee2e2' : '#fff',
                                         color: (isDefective || isForced) ? '#b91c1c' : '#64748b',
-                                        border: '2px solid',
+                                        borderWidth: '2px',
+                                        borderStyle: 'solid',
                                         borderColor: (isDefective || isForced) ? '#ef4444' : '#e2e8f0',
                                         boxShadow: (isDefective || isForced) ? '0 4px 12px rgba(239, 68, 68, 0.2)' : 'none',
                                         transform: (isDefective || isForced) ? 'scale(1.05)' : 'scale(1)'

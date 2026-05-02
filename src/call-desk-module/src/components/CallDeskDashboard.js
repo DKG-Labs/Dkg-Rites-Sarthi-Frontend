@@ -21,6 +21,11 @@ const CallDeskDashboard = () => {
   const [activeTab, setActiveTab] = useState(() => {
     return localStorage.getItem('callDeskActiveTab') || 'pending';
   });
+
+  // Initialize call type from localStorage or default to 'ERC'
+  const [callType, setCallType] = useState(() => {
+    return localStorage.getItem('callDeskType') || 'ERC';
+  });
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
@@ -51,7 +56,7 @@ const CallDeskDashboard = () => {
     loading,
     error,
     refreshData
-  } = useCallDeskData(activeTab);
+  } = useCallDeskData(activeTab, callType);
 
   const {
     verifyAndAccept,
@@ -75,6 +80,11 @@ const CallDeskDashboard = () => {
   React.useEffect(() => {
     localStorage.setItem('callDeskActiveTab', activeTab);
   }, [activeTab]);
+
+  // Persist callType to localStorage whenever it changes
+  React.useEffect(() => {
+    localStorage.setItem('callDeskType', callType);
+  }, [callType]);
 
 
 
@@ -106,7 +116,7 @@ const CallDeskDashboard = () => {
     setHistoryLoading(true);
 
     try {
-      const data = await viewCallHistory(call.callNumber); //  API CALL
+      const data = await viewCallHistory(call.callNumber, callType); //  API CALL
       setHistoryData(data);
       console.log("history data", data);
     } catch (err) {
@@ -124,7 +134,7 @@ const CallDeskDashboard = () => {
 
   const handleVerifyAccept = async (call, remarks, newIeId) => {
     setSelectedCall(call);
-    const result = await verifyAndAccept(call.id, call, remarks, newIeId);
+    const result = await verifyAndAccept(call.id, call, remarks, newIeId, callType);
     if (result.success) {
       alert('Call verified and registered successfully!');
       setShowDetailsModal(false);
@@ -140,7 +150,7 @@ const CallDeskDashboard = () => {
       return;
     }
     setSelectedCall(call);
-    const result = await returnForRectification(call.id, call, remarks);
+    const result = await returnForRectification(call.id, call, remarks, [], callType);
     if (result.success) {
       alert('Call returned for rectification successfully!');
       setShowDetailsModal(false);
@@ -181,7 +191,7 @@ const CallDeskDashboard = () => {
   const submitVerify = async () => {
     if (!selectedCall) return;
 
-    const result = await verifyAndAccept(selectedCall.id, selectedCall, actionRemarks);
+    const result = await verifyAndAccept(selectedCall.id, selectedCall, actionRemarks, null, callType);
     if (result.success) {
       showAppNotification(`Call ${selectedCall.callNumber} verified and registered successfully!`);
       setShowVerifyModal(false);
@@ -206,7 +216,7 @@ const CallDeskDashboard = () => {
       finalRemarks = `Correction required in: ${flagLabels}.\nDetails: ${actionRemarks}`;
     }
 
-    const result = await returnForRectification(selectedCall.id, selectedCall, finalRemarks, flaggedFields);
+    const result = await returnForRectification(selectedCall.id, selectedCall, finalRemarks, flaggedFields, callType);
     if (result.success) {
       showAppNotification(`Call ${selectedCall.callNumber} returned for rectification successfully!`);
       setShowReturnModal(false);
@@ -225,7 +235,8 @@ const CallDeskDashboard = () => {
       selectedCall.id,
       selectedCall,
       selectedRIO,
-      actionRemarks
+      actionRemarks,
+      callType
     );
 
     if (result.success) {
@@ -283,8 +294,27 @@ const CallDeskDashboard = () => {
         <span className="breadcrumb-item">Call Desk Dashboard</span>
       </div>
 
-      {/* Page Title */}
-      <h1 className="page-title">Call Desk Dashboard</h1>
+      {/* Page Title & Toggle */}
+      <div className="dashboard-header-row">
+        <h1 className="page-title">Call Desk Dashboard</h1>
+        
+        <div className="call-type-switcher">
+          <button 
+            className={`switcher-btn ${callType === 'ERC' ? 'active' : ''}`}
+            onClick={() => setCallType('ERC')}
+          >
+            <span className="switcher-icon">🔩</span>
+            ERC Calls
+          </button>
+          <button 
+            className={`switcher-btn ${callType === 'SLEEPER' ? 'active' : ''}`}
+            onClick={() => setCallType('SLEEPER')}
+          >
+            <span className="switcher-icon">🛤️</span>
+            Sleeper Calls
+          </button>
+        </div>
+      </div>
 
       {/* Tabs */}
       <Tabs 

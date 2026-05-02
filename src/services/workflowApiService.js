@@ -41,62 +41,73 @@ export const fetchCompletedCallsForIC = async (userId, forceRefresh = false) => 
     }
 
     const requestPromise = (async () => {
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: headers
-      });
+      try {
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: headers
+        });
 
-      console.log('📥 Response status:', response.status);
-      console.log('📥 Response ok:', response.ok);
+        console.log('📥 Response status:', response.status);
+        console.log('📥 Response ok:', response.ok);
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ API Error Response:', errorText);
-        throw new Error(errorText || `Failed to fetch completed calls: ${response.status}`);
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('❌ API Error Response:', errorText);
+          const errArr = [];
+          errArr.error = true;
+          errArr.errorMsg = errorText || `Failed to fetch completed calls: ${response.status}`;
+          return errArr;
+        }
+
+        const data = await response.json();
+        console.log('✅ Raw API response:', data);
+
+        // Extract responseData array
+        const completedCalls = data.responseData || [];
+        console.log(`📊 Found ${completedCalls.length} completed calls`);
+
+        if (completedCalls.length > 0) {
+          console.log('📋 Sample call data:', completedCalls[0]);
+        }
+
+        // Transform the data to match frontend format
+        const transformedCalls = completedCalls.map(call => ({
+          id: call.workflowTransitionId,
+          call_no: call.requestId,
+          // Generate IC Number using nomenclature: RIO_Short/RequestId/IE_Short
+          icNo: generateICNumber(call.rio, call.requestId),
+          po_no: call.poNo,
+          vendor_name: call.vendorName,
+          product_type: call.productType,
+          requested_date: call.createdDate,
+          stage: call.stage,
+          // Map INSPECTION_COMPLETE_CONFIRM to IC_PENDING for display
+          status: call.status === 'INSPECTION_COMPLETE_CONFIRM' ? 'IC_PENDING' : call.status,
+          displayStatus: 'IC Pending', // User-friendly display status
+          originalStatus: call.status, // Keep original status for reference
+          action: call.action,
+          remarks: call.remarks,
+          jobStatus: call.jobStatus,
+          currentRole: call.currentRoleName,
+          nextRole: call.nextRoleName,
+          assignedToUser: call.assignedToUser,
+          createdBy: call.createdBy,
+          modifiedBy: call.modifiedBy,
+          workflowId: call.workflowId,
+          transitionId: call.transitionId,
+          workflowSequence: call.workflowSequence,
+          rio: call.rio // Keep RIO for reference
+        }));
+
+        console.log('✅ Transformed calls:', transformedCalls);
+        return transformedCalls;
+      } catch (err) {
+        console.error('❌ Network or parse error fetching completed calls:', err);
+        const errArr = [];
+        errArr.error = true;
+        errArr.errorMsg = err.message || 'Failed to fetch completed calls';
+        return errArr;
       }
-
-      const data = await response.json();
-      console.log('✅ Raw API response:', data);
-
-      // Extract responseData array
-      const completedCalls = data.responseData || [];
-      console.log(`📊 Found ${completedCalls.length} completed calls`);
-
-      if (completedCalls.length > 0) {
-        console.log('📋 Sample call data:', completedCalls[0]);
-      }
-
-      // Transform the data to match frontend format
-      const transformedCalls = completedCalls.map(call => ({
-        id: call.workflowTransitionId,
-        call_no: call.requestId,
-        // Generate IC Number using nomenclature: RIO_Short/RequestId/IE_Short
-        icNo: generateICNumber(call.rio, call.requestId),
-        po_no: call.poNo,
-        vendor_name: call.vendorName,
-        product_type: call.productType,
-        requested_date: call.createdDate,
-        stage: call.stage,
-        // Map INSPECTION_COMPLETE_CONFIRM to IC_PENDING for display
-        status: call.status === 'INSPECTION_COMPLETE_CONFIRM' ? 'IC_PENDING' : call.status,
-        displayStatus: 'IC Pending', // User-friendly display status
-        originalStatus: call.status, // Keep original status for reference
-        action: call.action,
-        remarks: call.remarks,
-        jobStatus: call.jobStatus,
-        currentRole: call.currentRoleName,
-        nextRole: call.nextRoleName,
-        assignedToUser: call.assignedToUser,
-        createdBy: call.createdBy,
-        modifiedBy: call.modifiedBy,
-        workflowId: call.workflowId,
-        transitionId: call.transitionId,
-        workflowSequence: call.workflowSequence,
-        rio: call.rio // Keep RIO for reference
-      }));
-
-      console.log('✅ Transformed calls:', transformedCalls);
-      return transformedCalls;
     })();
 
     // Store promise in cache and ensure removal on settled (so forceRefresh can work later)
@@ -112,6 +123,63 @@ export const fetchCompletedCallsForIC = async (userId, forceRefresh = false) => 
       message: error.message,
       stack: error.stack
     });
+    throw error;
+  }
+};
+
+/**
+ * Fetch signed calls for a specific user (for completed calls tab)
+ * @param {number} userId - The user ID (createdBy)
+ * @returns {Promise<Array>} Array of signed calls
+ */
+export const fetchSignedCallsForIC = async (userId) => {
+  try {
+    const url = `${API_BASE_URL}/callSigneddata?createdBy=${userId}`;
+    console.log('🔍 Fetching signed calls for user:', userId);
+
+    const headers = getAuthHeaders();
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: headers
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || `Failed to fetch signed calls: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const signedCalls = data.responseData || [];
+
+    const transformedCalls = signedCalls.map(call => ({
+      id: call.workflowTransitionId,
+      call_no: call.requestId,
+      icNo: generateICNumber(call.rio, call.requestId),
+      po_no: call.poNo,
+      vendor_name: call.vendorName,
+      product_type: call.productType,
+      requested_date: call.createdDate,
+      stage: call.stage,
+      status: call.status,
+      displayStatus: call.status,
+      originalStatus: call.status,
+      action: call.action,
+      remarks: call.remarks,
+      jobStatus: call.jobStatus,
+      currentRole: call.currentRoleName,
+      nextRole: call.nextRoleName,
+      assignedToUser: call.assignedToUser,
+      createdBy: call.createdBy,
+      modifiedBy: call.modifiedBy,
+      workflowId: call.workflowId,
+      transitionId: call.transitionId,
+      workflowSequence: call.workflowSequence,
+      rio: call.rio
+    }));
+
+    return transformedCalls;
+  } catch (error) {
+    console.error('❌ Error fetching signed calls:', error);
     throw error;
   }
 };

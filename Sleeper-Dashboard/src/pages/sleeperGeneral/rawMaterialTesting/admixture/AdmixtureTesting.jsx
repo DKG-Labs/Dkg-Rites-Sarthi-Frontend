@@ -12,8 +12,13 @@ const SubCard = ({ id, title, color, count, label, isActive, onClick }) => (
         className={`asset-card ${isActive ? 'active' : ''}`}
         onClick={onClick}
         style={{
-            borderColor: isActive ? color : '#e2e8f0',
-            borderTop: `4px solid ${color}`,
+            borderWidth: '1px',
+            borderStyle: 'solid',
+            borderTopWidth: '4px',
+            borderTopColor: color,
+            borderRightColor: isActive ? color : '#e2e8f0',
+            borderBottomColor: isActive ? color : '#e2e8f0',
+            borderLeftColor: isActive ? color : '#e2e8f0',
             '--active-color-alpha': `${color}15`,
             cursor: 'pointer',
             flex: '1',
@@ -34,10 +39,15 @@ const AdmixtureTesting = ({ onBack, inventoryData = [] }) => {
     const [viewMode, setViewMode] = useState('new-stocks');
     const [showForm, setShowForm] = useState(false);
     const { selectedShift, dutyDate, dutyLocation } = useShift();
-    const { showToast } = useToast();
+    const toast = useToast();
     const [history, setHistory] = useState([
         { id: 1, testDate: '2026-01-10', consignmentNo: 'AD-490', vendor: 'Fosroc', dosage: '0.8%', result: 'PASS', createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString() }
-    ]);
+    ].sort((a,b) => {
+        const dateA = new Date(a.testDate || 0);
+        const dateB = new Date(b.testDate || 0);
+        if (dateB - dateA !== 0) return dateB - dateA;
+        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+    }));
 
     const pendingStocks = inventoryData;
 
@@ -55,9 +65,15 @@ const AdmixtureTesting = ({ onBack, inventoryData = [] }) => {
     const selectedConsignment = watch('consignmentNo');
 
     useEffect(() => {
-        const item = pendingStocks.find(p => p.consignmentNo === selectedConsignment);
-        if (item) setValue('vendor', item.vendor);
-    }, [selectedConsignment, pendingStocks, setValue]);
+        if (selectedConsignment) {
+            const item = pendingStocks.find(p => p.consignmentNo === selectedConsignment);
+            if (item) {
+                setValue('vendor', item.vendor);
+            } else if (selectedConsignment !== 'PERIODIC') {
+                toast.info(`No specific vendor information found for consignment ${selectedConsignment}. You may continue manually.`);
+            }
+        }
+    }, [selectedConsignment, pendingStocks, setValue, toast]);
 
     const canModify = (createdAt) => {
         if (!createdAt) return false;
@@ -73,25 +89,45 @@ const AdmixtureTesting = ({ onBack, inventoryData = [] }) => {
                 shift: selectedShift || 'General',
                 lineNo: dutyLocation || 'N/A',
                 dateOfInspection: dutyDate || new Date().toISOString().split('T')[0],
-                createdBy: parseInt(localStorage.getItem('userId') || '1', 10), // Default for now
-                result: 'PASS' // Business logic could be added here
+                createdBy: parseInt(localStorage.getItem('userId') || '1', 10),
+                result: 'PASS'
             };
 
             await saveAdmixtureTest(payload);
-            showToast("Admixture quality test saved successfully!", "success");
+            toast.success("Admixture quality test result saved successfully!");
             
             setShowForm(false);
             reset();
-            // In a real app, we'd re-fetch history here
+            // Re-fetch or update history with sorting
+            const newRecord = {
+                ...payload,
+                id: Date.now(),
+                createdAt: new Date().toISOString(),
+                testDate: payload.testDate || new Date().toISOString().split('T')[0]
+            };
+            setHistory(prev => {
+                const combined = [newRecord, ...prev];
+                return combined.sort((a,b) => {
+                    const dateA = new Date(a.testDate || 0);
+                    const dateB = new Date(b.testDate || 0);
+                    if (dateB - dateA !== 0) return dateB - dateA;
+                    return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+                });
+            });
         } catch (error) {
             console.error("Error saving admixture test:", error);
-            showToast("Failed to save admixture test result.", "error");
+            toast.error(error.message || "Failed to save admixture test result.");
         }
     };
 
     const handleDelete = (id) => {
-        if (window.confirm('Delete this record?')) {
-            setHistory(prev => prev.filter(h => h.id !== id));
+        if (window.confirm('Are you sure you want to delete this admixture test record?')) {
+            try {
+                setHistory(prev => prev.filter(h => h.id !== id));
+                toast.success("Record deleted successfully from local history.");
+            } catch (error) {
+                toast.error("Failed to delete record.");
+            }
         }
     };
 

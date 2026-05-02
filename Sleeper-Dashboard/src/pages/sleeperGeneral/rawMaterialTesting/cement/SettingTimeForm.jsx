@@ -1,20 +1,21 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useShift } from "../../../../context/ShiftContext";
 import { useToast } from "../../../../context/ToastContext";
 import { getStoredUser } from "../../../../services/authService";
-import { saveCementSettingTime, getCementSettingTimeByReqId } from "../../../../services/workflowService";
+import { saveCementSettingTime, getCementSettingTimeByReqId, getCementSettingTimeById } from "../../../../services/workflowService";
 
 const emptyRow = { time: "", needle: "", spot: "" };
 
-export default function SettingTimeForm({ onSave, onCancel, inventoryData = [], initialType = "New Inventory", activeRequestId, sharedNC, editData }) {
+export default function SettingTimeForm({ onSave, onCancel, inventoryData = [], initialType = "New consignment", activeRequestId, activeConsignmentNo, sharedNC, editId, editData }) {
     const { selectedShift, dutyDate, dutyLocation } = useShift();
     const toast = useToast();
     const user = getStoredUser();
+    const hasNotifiedRef = useRef(false);
 
     const [loading, setLoading] = useState(false);
     const [header, setHeader] = useState({
         type: initialType,
-        consignment: "",
+        consignment: activeConsignmentNo || "",
         temp: "",
         weight: "400", // Default 400g for setting time
         nc: "",
@@ -28,7 +29,11 @@ export default function SettingTimeForm({ onSave, onCancel, inventoryData = [], 
     const [initialTime, setInitialTime] = useState(null);
     const [finalTime, setFinalTime] = useState(null);
     const [result, setResult] = useState("");
-    const [editId, setEditId] = useState(null);
+    const [editIdState, setEditIdState] = useState(editId || null);
+
+    useEffect(() => {
+        if (editId) setEditIdState(editId);
+    }, [editId]);
 
     // Auto-fetch Normal Consistency if available
     useEffect(() => {
@@ -41,58 +46,63 @@ export default function SettingTimeForm({ onSave, onCancel, inventoryData = [], 
     }, [sharedNC, header.weight]);
 
     useEffect(() => {
-        if (activeRequestId) {
-            const row = inventoryData.find(i => i.requestId === activeRequestId);
-            if (row && !header.consignment) {
-                setHeader(prev => ({ ...prev, consignment: row.consignmentNo }));
-            }
-            getCementSettingTimeByReqId(activeRequestId).then(record => {
-                if (record && record.id) {
-                    setEditId(record.id);
-                    setHeader(prev => ({
-                        ...prev,
-                        type: record.typeOfTesting || prev.type,
-                        consignment: record.consignmentNo || prev.consignment,
-                        temp: record.roomTemp || prev.temp,
-                        weight: record.weight || prev.weight || "400",
-                        nc: record.normalConsistency || prev.nc,
-                        waterQty: record.waterAdded || prev.waterQty,
-                        waterAddTime: record.timeOfAddingWater ? record.timeOfAddingWater.substring(0, 5) : prev.waterAddTime,
-                        mouldTime: record.mouldReadyAt ? record.mouldReadyAt.substring(0, 5) : prev.mouldTime
-                    }));
-                    if (record.observations && record.observations.length > 0) {
-                        const mapped = record.observations.map(o => ({
-                            time: o.readingTime ? o.readingTime.substring(0, 5) : "",
-                            needle: o.needlePenetration || "",
-                            spot: o.finalSpot || ""
-                        }));
-                        setRows(mapped.length > 0 ? mapped : [{ ...emptyRow }]);
-                    }
-                }
-            });
-        } else if (initialType === "Periodic" && editData) {
-            setEditId(editData.id);
+        console.log("SettingTimeForm Props:", { initialType, editId, editData, activeConsignmentNo });
+        const handleRecord = (record) => {
+            if (!record) return;
             setHeader(prev => ({
                 ...prev,
-                type: "Periodic",
-                consignment: editData.consignmentNo || "",
-                temp: editData.roomTemp || "",
-                weight: editData.weight || "400",
-                nc: editData.normalConsistency || "",
-                waterQty: editData.waterAdded || "",
-                waterAddTime: editData.timeOfAddingWater ? editData.timeOfAddingWater.substring(0, 5) : "",
-                mouldTime: editData.mouldReadyAt ? editData.mouldReadyAt.substring(0, 5) : ""
+                type: record.typeOfTesting || prev.type,
+                consignment: record.consignmentNo || record.consignment || activeConsignmentNo || prev.consignment,
+                temp: record.roomTemp || record.temp || prev.temp,
+                weight: record.weight || prev.weight || "400",
+                nc: record.normalConsistency || prev.nc,
+                waterQty: record.waterAdded || prev.waterQty,
+                waterAddTime: record.timeOfAddingWater ? record.timeOfAddingWater.substring(0, 5) : prev.waterAddTime,
+                mouldTime: record.mouldReadyAt ? record.mouldReadyAt.substring(0, 5) : prev.mouldTime
             }));
-            if (editData.observations && editData.observations.length > 0) {
-                const mapped = editData.observations.map(o => ({
+            if (record.observations && record.observations.length > 0) {
+                const mapped = record.observations.map(o => ({
                     time: o.readingTime ? o.readingTime.substring(0, 5) : "",
                     needle: o.needlePenetration || "",
                     spot: o.finalSpot || ""
                 }));
                 setRows(mapped.length > 0 ? mapped : [{ ...emptyRow }]);
             }
+        };
+
+        if (activeRequestId) {
+            getCementSettingTimeByReqId(activeRequestId).then(record => {
+                if (record && (record.id || record.consignmentNo)) {
+                    setEditIdState(record.id || null);
+                    handleRecord(record);
+                } else {
+                    if (activeConsignmentNo) {
+                        setHeader(prev => ({ ...prev, consignment: activeConsignmentNo }));
+                    }
+                    if (!hasNotifiedRef.current) {
+                        toast.info("No previous Setting Time data found. You can start entering new test results.");
+                        hasNotifiedRef.current = true;
+                    }
+                }
+            });
+        } else if (initialType === "Periodic" && (editId || editData)) {
+            // Priority 1: Use pre-loaded data
+            if (editData && (editData.consignmentNo || editData.timeOfAddingWater || editData.observations)) {
+                handleRecord(editData);
+            }
+            
+            // Priority 2: Fetch by ID
+            if (editId) {
+                getCementSettingTimeById(editId).then(record => {
+                    if (record) {
+                        handleRecord(record);
+                    } else {
+                        toast.info("No existing record found in history for this test.");
+                    }
+                });
+            }
         }
-    }, [activeRequestId, inventoryData, editData, initialType]);
+    }, [activeRequestId, editId, editData, initialType]);
 
     const updateRow = (i, field, val) => {
         const copy = [...rows];
@@ -150,7 +160,7 @@ export default function SettingTimeForm({ onSave, onCancel, inventoryData = [], 
         setLoading(true);
         try {
             const payload = {
-                testDate: new Date().toISOString().split('T')[0],
+                testDate: header.testDate || new Date().toISOString().split('T')[0],
                 typeOfTesting: header.type,
                 consignmentNo: header.consignment,
                 roomTemp: parseFloat(header.temp),
@@ -176,12 +186,13 @@ export default function SettingTimeForm({ onSave, onCancel, inventoryData = [], 
                     }))
             };
 
-            await saveCementSettingTime(payload, editId);
-            toast.success(`Setting Time Test record ${editId ? 'updated' : 'saved'} successfully!`);
-            if (onSave) onSave(header.consignment);
+            const resultSaved = await saveCementSettingTime(payload, editIdState);
+            if (onSave) onSave(resultSaved || header.consignment);
+            
+            toast.success(`Setting Time Test record ${editIdState ? 'updated' : 'saved'} successfully!`);
         } catch (error) {
             console.error("Save failed:", error);
-            toast.error("Error saving record. Please check console.");
+            toast.error(error.message || "Unable to save test record. Please try again.");
         } finally {
             setLoading(false);
         }
@@ -209,7 +220,7 @@ export default function SettingTimeForm({ onSave, onCancel, inventoryData = [], 
                             required
                         >
                             <option value="">-- Select --</option>
-                            <option value="New Inventory">New Inventory</option>
+                            <option value="New consignment">New consignment</option>
                             <option value="Periodic">Periodic</option>
                         </select>
                     </div>
@@ -437,7 +448,7 @@ export default function SettingTimeForm({ onSave, onCancel, inventoryData = [], 
 
                 <div className="btn-group" style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
                     <button type="submit" className="btn-save" disabled={loading}>
-                        {loading ? "Saving..." : editId ? "Update Test Report" : "Submit Test Report"}
+                        {loading ? "Saving..." : editIdState ? "Update Test Report" : "Submit Test Report"}
                     </button>
                     <button type="button" className="btn-save" style={{ background: '#64748b' }} onClick={onCancel}>
                         Cancel

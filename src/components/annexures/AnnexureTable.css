@@ -19,8 +19,8 @@
 
 .annexure-table .annexure-th {
   font-size: 9px;
-  padding: 4px 2px;
-  line-height: 1.2;
+  padding: 8px 4px; /* Increased padding */
+  line-height: 1.4; /* Better line height */
   font-weight: bold;
   border: 1px solid #000;
   text-align: center;
@@ -31,11 +31,12 @@
 
 .annexure-table td {
   font-size: 10px;
-  padding: 4px 2px;
+  padding: 8px 4px; /* Increased padding for data cells */
+  line-height: 1.4;
   border: 1px solid #000;
   text-align: center;
   vertical-align: middle;
-  min-height: 30px;
+  min-height: 35px;
   color: #000;
 }
 

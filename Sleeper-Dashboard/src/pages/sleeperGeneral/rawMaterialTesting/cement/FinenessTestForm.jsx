@@ -1,18 +1,19 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useShift } from "../../../../context/ShiftContext";
 import { useToast } from "../../../../context/ToastContext";
 import { getStoredUser } from "../../../../services/authService";
-import { saveCementFineness, getCementFinenessByReqId } from "../../../../services/workflowService";
+import { saveCementFineness, getCementFinenessByReqId, getCementFinenessById } from "../../../../services/workflowService";
 
-export default function FinenessTestForm({ onSave, onCancel, inventoryData = [], initialType = "New Inventory", activeRequestId, editData }) {
+    export default function FinenessTestForm({ onSave, onCancel, inventoryData = [], initialType = "New consignment", activeRequestId, activeConsignmentNo, editId, editData }) {
     const { selectedShift, dutyDate, dutyLocation } = useShift();
     const toast = useToast();
     const user = getStoredUser();
+    const hasNotifiedRef = useRef(false);
 
     const [loading, setLoading] = useState(false);
     const [header, setHeader] = useState({
         typeOfTesting: initialType,
-        consignmentNo: "",
+        consignmentNo: activeConsignmentNo || "",
         sampleWt: 100,
         residue1: "",
         residue2: "",
@@ -29,41 +30,60 @@ export default function FinenessTestForm({ onSave, onCancel, inventoryData = [],
     });
 
     const [result, setResult] = useState("");
-    const [editId, setEditId] = useState(null);
+    const [editIdState, setEditIdState] = useState(editId || null);
 
     useEffect(() => {
-        if (activeRequestId) {
-            const row = inventoryData.find(i => i.requestId === activeRequestId);
-            if (row && !header.consignmentNo) {
-                setHeader(prev => ({ ...prev, consignmentNo: row.consignmentNo }));
-            }
-            getCementFinenessByReqId(activeRequestId).then(record => {
-                if (record && record.id) {
-                    setEditId(record.id);
-                    setHeader(prev => ({
-                        ...prev,
-                        typeOfTesting: record.typeOfTesting || prev.typeOfTesting,
-                        consignmentNo: record.consignmentNo || prev.consignmentNo,
-                        sampleWt: record.sampleWeightW1 || prev.sampleWt,
-                        residue1: record.residue1 || record.residueWeightW2 || "",
-                        residue2: record.residue2 || "",
-                        residue3: record.residue3 || ""
-                    }));
-                }
-            });
-        } else if (initialType === "Periodic" && editData) {
-            setEditId(editData.id);
+        if (editId) setEditIdState(editId);
+    }, [editId]);
+
+    useEffect(() => {
+        console.log("FinenessTestForm Props:", { initialType, editId, editData, activeConsignmentNo });
+        const handleRecord = (record) => {
+            if (!record) return;
             setHeader(prev => ({
                 ...prev,
-                typeOfTesting: "Periodic",
-                consignmentNo: editData.consignmentNo || "",
-                sampleWt: editData.sampleWeightW1 || 100,
-                residue1: editData.residue1 || "",
-                residue2: editData.residue2 || "",
-                residue3: editData.residue3 || ""
+                typeOfTesting: record.typeOfTesting || prev.typeOfTesting,
+                consignmentNo: record.consignmentNo || record.consignment || activeConsignmentNo || prev.consignmentNo,
+                sampleWt: record.sampleWeightW1 || record.sampleWt || 100,
+                residue1: record.residue1 || record.residueWeightW2 || "",
+                residue2: record.residue2 || "",
+                residue3: record.residue3 || ""
             }));
+        };
+
+        if (activeRequestId) {
+            getCementFinenessByReqId(activeRequestId).then(record => {
+                if (record && (record.id || record.consignmentNo)) {
+                    setEditIdState(record.id || null);
+                    handleRecord(record);
+                } else {
+                    if (activeConsignmentNo) {
+                        setHeader(prev => ({ ...prev, consignmentNo: activeConsignmentNo }));
+                    }
+                    if (!hasNotifiedRef.current) {
+                        toast.info("No previous Fineness data found. You can start entering new test results.");
+                        hasNotifiedRef.current = true;
+                    }
+                }
+            });
+        } else if (initialType === "Periodic" && (editId || editData)) {
+            // First Priority: Immediate pre-loaded data
+            if (editData && (editData.consignmentNo || editData.residue1)) {
+                handleRecord(editData);
+            }
+            
+            // Second Priority: Fetch by ID
+            if (editId) {
+                getCementFinenessById(editId).then(record => {
+                    if (record) {
+                        handleRecord(record);
+                    } else {
+                        toast.info("No existing record found in history for this test.");
+                    }
+                });
+            }
         }
-    }, [activeRequestId, editData, initialType]);
+    }, [activeRequestId, editId, editData, initialType]);
 
     useEffect(() => {
         const { sampleWt, residue1, residue2, residue3 } = header;
@@ -116,7 +136,7 @@ export default function FinenessTestForm({ onSave, onCancel, inventoryData = [],
         setLoading(true);
         try {
             const payload = {
-                testDate: new Date().toISOString().split('T')[0],
+                testDate: header.testDate || new Date().toISOString().split('T')[0],
                 typeOfTesting: header.typeOfTesting,
                 consignmentNo: header.consignmentNo,
                 sampleWeightW1: parseFloat(header.sampleWt),
@@ -133,12 +153,13 @@ export default function FinenessTestForm({ onSave, onCancel, inventoryData = [],
                 createdBy: user?.userId || 0
             };
 
-            await saveCementFineness(payload, editId);
-            toast.success(`Cement Fineness Test record ${editId ? 'updated' : 'saved'} successfully!`);
-            if (onSave) onSave(payload);
+            const resultSaved = await saveCementFineness(payload, editIdState);
+            if (onSave) onSave(resultSaved || payload);
+            
+            toast.success(`Cement Fineness Test record ${editIdState ? 'updated' : 'saved'} successfully!`);
         } catch (error) {
             console.error("Save failed:", error);
-            toast.error("Error saving record. Please check console.");
+            toast.error(error.message || "Unable to save test record. Please try again.");
         } finally {
             setLoading(false);
         }
@@ -284,7 +305,7 @@ export default function FinenessTestForm({ onSave, onCancel, inventoryData = [],
 
                 <div className="btn-group" style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
                     <button type="submit" className="btn-save" disabled={loading} style={{ flex: 1 }}>
-                        {loading ? "Saving..." : editId ? "Update Test Report" : "Submit Test Report"}
+                        {loading ? "Saving..." : editIdState ? "Update Test Report" : "Submit Test Report"}
                     </button>
                     <button type="button" onClick={onCancel} className="btn-save" style={{ flex: 1, background: '#64748b' }}>
                         Cancel

@@ -7,7 +7,11 @@ import {
     getWaterCubeSamples, 
     deleteWaterCubeSample,
     saveWaterCubeTestResult,
-    getWaterCubeTestResultsByUser
+    getWaterCubeTestResultsByUser,
+    getAllWaterCubeTests,
+    deleteWaterCubeTest,
+    updateWaterCubeTest,
+    getProductionDeclarationById
 } from '../../../services/workflowService';
 import { getStoredUser } from '../../../services/authService';
 import { useShift } from '../../../context/ShiftContext';
@@ -79,7 +83,7 @@ export const WaterCubeStats = () => {
 const WaterCubeTesting = () => {
     const [activeTab, setActiveTab] = useState('pending'); // 'declaration', 'pending', 'done'
     const [isModifying, setIsModifying] = useState(false);
-    const { selectedShift, dutyLocation } = useShift();
+    const { selectedShift, dutyLocation, dutyUnit, vendorCode } = useShift();
     
     // Live Data State
     const [pendingDeclarations, setPendingDeclarations] = useState([]);
@@ -116,6 +120,7 @@ const WaterCubeTesting = () => {
             const data = await getProductionDeclarations();
             if (data && data.length > 0) {
                 const mappedData = data
+                    .filter(d => d.plantId === (dutyUnit || localStorage.getItem('dutyUnit')))
                     .map(d => ({
                         id: d.id,
                         batchNo: d.batchNumber || 'N/A',
@@ -164,7 +169,7 @@ const WaterCubeTesting = () => {
             if (data && data.length > 0) {
                 const mappedData = data
                     .filter(d => !completedTestIds.has(d.id))
-
+                    .filter(d => d.plantId === (dutyUnit || localStorage.getItem('dutyUnit')))
                     .map(d => ({
                     id: d.id,
                     productionDeclarationId: d.productionDeclarationId,
@@ -173,8 +178,8 @@ const WaterCubeTesting = () => {
                     castingDate: d.castingDate,
                     shift: d.shift,
                     lineNo: d.lineNo,
-                    sample1Raw: d.details?.filter(det => det.sampleNumber === 1).map(det => ({ bench: det.benchNumber, seq: det.sequence })) || [],
-                    sample2Raw: d.details?.filter(det => det.sampleNumber === 2).map(det => ({ bench: det.benchNumber, seq: det.sequence })) || [],
+                    sample1Raw: d.details?.filter(det => det.sampleNumber === 1).sort((a,b) => a.cubeNumber - b.cubeNumber).map(det => ({ id: det.id, bench: det.benchNumber, seq: det.sequence })) || [],
+                    sample2Raw: d.details?.filter(det => det.sampleNumber === 2).sort((a,b) => a.cubeNumber - b.cubeNumber).map(det => ({ id: det.id, bench: det.benchNumber, seq: det.sequence })) || [],
                     sample1: d.details?.filter(det => det.sampleNumber === 1).map(det => `${det.benchNumber}${det.sequence}`) || [],
                     sample2: d.details?.filter(det => det.sampleNumber === 2).map(det => `${det.benchNumber}${det.sequence}`) || [],
                     status: 'Testing Pending',
@@ -210,12 +215,14 @@ const WaterCubeTesting = () => {
                 productionDeclarationId: selectedBatch.id,
                 castingDate: formData.castingDate,
                 batchNumber: formData.batchNo,
+                plantId: dutyUnit || localStorage.getItem('dutyUnit'),
+                vendorCode: vendorCode || localStorage.getItem('vendorCode'),
                 shift: selectedShift || 'General',
                 lineNo: dutyLocation || 'N/A',
                 concreteGrade: formData.grade,
                 details: [
-                    ...formData.sample1Raw.map((c, i) => ({ sampleNumber: 1, cubeNumber: i + 1, benchNumber: c.bench, sequence: c.seq })),
-                    ...formData.sample2Raw.map((c, i) => ({ sampleNumber: 2, cubeNumber: i + 1, benchNumber: c.bench, sequence: c.seq }))
+                    ...formData.sample1Raw.map((c, i) => ({ id: c.id || 0, sampleNumber: 1, cubeNumber: i + 1, benchNumber: c.bench, sequence: c.seq })),
+                    ...formData.sample2Raw.map((c, i) => ({ id: c.id || 0, sampleNumber: 2, cubeNumber: i + 1, benchNumber: c.bench, sequence: c.seq }))
                 ],
                 createdBy: currentUserId
             };
@@ -255,31 +262,38 @@ const WaterCubeTesting = () => {
     const [showTestModal, setShowTestModal] = useState(false);
     const [showTestForm, setShowTestForm] = useState(false);
     const [doneTests, setDoneTests] = useState([]);
+    const [isModifyingTest, setIsModifyingTest] = useState(false);
+    const [selectedTestRecord, setSelectedTestRecord] = useState(null);
 
     // Fetch done tests on mount or when active tab changes
-    useEffect(() => {
-        const fetchDoneTests = async () => {
-            const currentUser = getStoredUser();
-            if (currentUser?.userId) {
-                try {
-                    const results = await getWaterCubeTestResultsByUser(currentUser.userId);
-                    if (results && results.length > 0) {
-                        const mapped = results.map(r => ({
-                            batchNo: r.batchNumber,
-                            castingDate: r.castingDate,
-                            testDate: r.createdDate ? new Date(r.createdDate).toISOString().split('T')[0] : '',
-                            sample1Results: r.details?.filter(d => d.sampleNumber === 1).map(d => d.strengthNmm2) || [],
-                            sample2Results: r.details?.filter(d => d.sampleNumber === 2).map(d => d.strengthNmm2) || [],
-                            avgStrength: r.avgX,
-                            status: r.finalTestResult
-                        }));
-                        setDoneTests(mapped);
-                    }
-                } catch (error) {
-                    console.error("Failed to fetch done tests:", error);
-                }
+    const fetchDoneTests = async () => {
+        try {
+            const results = await getAllWaterCubeTests();
+            if (results && results.length > 0) {
+                const mapped = results
+                    .filter(r => r.plantId === (dutyUnit || localStorage.getItem('dutyUnit')))
+                    .map(r => ({
+                        ...r,
+                        batchNo: r.batchNumber,
+                        castingDate: r.castingDate,
+                        testDate: r.createdDate ? new Date(r.createdDate).toISOString().split('T')[0] : '',
+                        sample1Results: r.details?.filter(d => d.sampleNumber === 1).map(d => d.strengthNmm2) || [],
+                        sample2Results: r.details?.filter(d => d.sampleNumber === 2).map(d => d.strengthNmm2) || [],
+                        avgStrength: r.avgX,
+                        status: r.finalTestResult,
+                        raw: r
+                    }));
+                setDoneTests(mapped);
+            } else {
+                setDoneTests([]);
             }
-        };
+        } catch (error) {
+            console.error("Failed to fetch done tests:", error);
+            setDoneTests([]);
+        }
+    };
+
+    useEffect(() => {
         fetchDoneTests();
     }, [activeTab]);
 
@@ -306,6 +320,8 @@ const WaterCubeTesting = () => {
                 productionDeclarationId: selectedBatch.productionDeclarationId,
                 waterCubeSampleDeclarationId: selectedBatch.id,
                 batchNumber: selectedBatch.batchNo,
+                plantId: dutyUnit || localStorage.getItem('dutyUnit'),
+                vendorCode: vendorCode || localStorage.getItem('vendorCode'),
                 concreteGrade: selectedBatch.grade,
                 castingDate: selectedBatch.castingDate,
                 shift: selectedBatch.shift || 'General',
@@ -338,12 +354,15 @@ const WaterCubeTesting = () => {
                 }))
             };
 
-            await saveWaterCubeTestResult(payload);
-            alert("Test results saved successfully!");
+            await (isModifyingTest ? updateWaterCubeTest(payload, selectedTestRecord.id) : saveWaterCubeTestResult(payload));
+            alert(`Test results ${isModifyingTest ? 'updated' : 'saved'} successfully!`);
 
             setShowTestForm(false);
+            setIsModifyingTest(false);
+            setSelectedTestRecord(null);
             setActiveTab('done');
             fetchActiveDeclarations(); // Refresh the active list
+            fetchDoneTests();
         } catch (error) {
             console.error("Error saving test data:", error);
             alert("Failed to save test results.");
@@ -374,7 +393,7 @@ const WaterCubeTesting = () => {
         { key: 'date', label: 'Date of Casting' },
         { key: 'grade', label: 'Grade' },
         { key: 'sleepers', label: 'Sleepers in Batch' },
-        { key: 'typesCount', label: 'Sleeper Types' },
+        { key: 'typesCount', label: 'Total No of Sleeper Type' },
         {
             key: 'actions',
             label: 'Actions',
@@ -427,7 +446,7 @@ const WaterCubeTesting = () => {
             key: 'actions',
             label: 'Actions',
             render: (_, row) => {
-                const canModify = (new Date() - new Date(row.declarationTime)) < (24 * 60 * 60 * 1000);
+                const canModify = (new Date() - new Date(row.raw?.createdDate || row.declarationTime)) < (8 * 60 * 60 * 1000);
                 const isEligible = checkEligibility(row.castingDate);
                 return (
                     <div style={{ display: 'flex', gap: '8px' }}>
@@ -436,17 +455,8 @@ const WaterCubeTesting = () => {
                             style={{ fontSize: '10px', padding: '4px 10px', background: '#f8fafc', border: '1px solid #e2e8f0', color: '#475569' }}
                             onClick={() => { setSelectedBatch(row); setShowTestModal(true); }}
                         >
-                            Open Details
+                            View Details
                         </button>
-                        {canModify && (
-                            <button
-                                className="btn-delete"
-                                style={{ fontSize: '10px', padding: '4px 10px', background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626' }}
-                                onClick={() => handleDeleteSample(row.id)}
-                            >
-                                Delete
-                            </button>
-                        )}
                     </div>
                 );
             }
@@ -579,6 +589,38 @@ const WaterCubeTesting = () => {
                                             {val}
                                         </span>
                                     )
+                                },
+                                {
+                                    key: 'actions',
+                                    label: 'Actions',
+                                    render: (_, row) => (
+                                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                                            <button
+                                                className="btn-save"
+                                                style={{ fontSize: '10px', padding: '4px 8px', background: '#f8fafc', border: '1px solid #e2e8f0', color: '#475569' }}
+                                                onClick={() => {
+                                                    const mockBatchObj = {
+                                                        id: row.waterCubeSampleDeclarationId,
+                                                        productionDeclarationId: row.productionDeclarationId,
+                                                        batchNo: row.batchNumber,
+                                                        grade: row.concreteGrade,
+                                                        castingDate: row.castingDate,
+                                                        shift: row.shift,
+                                                        lineNo: row.lineNo,
+                                                        sample1: row.details?.filter(d => d.sampleNumber === 1).map(d => d.cubeId) || [],
+                                                        sample2: row.details?.filter(d => d.sampleNumber === 2).map(d => d.cubeId) || [],
+                                                        isTested: true, // Mark it as tested
+                                                        raw: row 
+                                                    };
+                                                    setSelectedBatch(mockBatchObj);
+                                                    setSelectedTestRecord(row);
+                                                    setShowTestModal(true);
+                                                }}
+                                            >
+                                                View Details
+                                            </button>
+                                        </div>
+                                    )
                                 }
                             ]}
                             data={doneTests}
@@ -603,14 +645,31 @@ const WaterCubeTesting = () => {
                 <TestDetailPopup
                     batch={selectedBatch}
                     onClose={() => setShowTestModal(false)}
+                    onDelete={(id) => {
+                        handleDeleteSample(id);
+                        setShowTestModal(false);
+                    }}
                     onModify={() => {
                         setIsModifying(true);
                         setShowTestModal(false);
-                        setShowDeclareModal(true);
+                        setIsSampleModalOpen(true);
                     }}
                     onSaveTest={() => {
                         setShowTestModal(false);
+                        setIsModifyingTest(selectedBatch?.isTested);
+                        setSelectedTestRecord(selectedBatch?.isTested ? selectedBatch.raw : null);
                         setShowTestForm(true);
+                    }}
+                    onDeleteTest={async (id) => {
+                        try {
+                            await deleteWaterCubeTest(id);
+                            alert("Test record deleted successfully.");
+                            fetchDoneTests();
+                            fetchActiveDeclarations();
+                            setShowTestModal(false);
+                        } catch (err) {
+                            alert("Failed to delete test record.");
+                        }
                     }}
                 />
             )}
@@ -626,6 +685,7 @@ const WaterCubeTesting = () => {
                         <div className="form-modal-body" style={{ maxHeight: '85vh', overflowY: 'auto' }}>
                             <WaterCuredCubeForm
                                 batch={selectedBatch}
+                                preFillData={selectedTestRecord}
                                 onSave={handleSaveTestData}
                                 onCancel={() => setShowTestForm(false)}
                             />
@@ -639,16 +699,173 @@ const WaterCubeTesting = () => {
 
 // --- Sub-Components ---
 
+// --- Sub-Components ---
+
+const SearchableSleeperDropdown = ({ value, options, onChange, label, placeholder }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const dropdownRef = React.useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const filteredOptions = useMemo(() => {
+        if (!searchTerm) return options;
+        return options.filter(opt => 
+            opt.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }, [options, searchTerm]);
+
+    return (
+        <div className="dropdown-container" ref={dropdownRef} style={{ position: 'relative', width: '100%' }}>
+            <label style={{ fontSize: '10px', color: '#64748b', fontWeight: '800', marginBottom: '6px', display: 'block', textTransform: 'uppercase', letterSpacing: '0.025em' }}>{label}</label>
+            <div style={{ position: 'relative' }}>
+                <input
+                    type="text"
+                    value={isOpen ? searchTerm : (value || '')}
+                    placeholder={isOpen ? "Type to filter..." : (placeholder || "Select sleeper...")}
+                    style={{ 
+                        fontSize: '13px', 
+                        fontWeight: '600', 
+                        width: '100%',
+                        padding: '12px 14px',
+                        borderRadius: '10px',
+                        border: '1.5px solid #e2e8f0',
+                        background: '#fff',
+                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                        outline: 'none',
+                        boxShadow: isOpen ? '0 0 0 3px rgba(66, 129, 140, 0.15)' : 'none',
+                        borderColor: isOpen ? '#42818c' : '#e2e8f0',
+                        color: (isOpen && !searchTerm) ? '#94a3b8' : '#1e293b'
+                    }}
+                    onFocus={() => { setIsOpen(true); setSearchTerm(''); }}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                <div style={{ 
+                    position: 'absolute', 
+                    right: '14px', 
+                    top: '50%', 
+                    transform: `translateY(-50%) rotate(${isOpen ? '180deg' : '0deg'})`, 
+                    pointerEvents: 'none', 
+                    opacity: 0.6,
+                    transition: 'transform 0.3s ease'
+                }}>
+                    <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M1 1.5L5 4.5L9 1.5" stroke="#475569" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                </div>
+            </div>
+            {isOpen && (
+                <ul style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 6px)',
+                    left: 0,
+                    right: 0,
+                    zIndex: 1000,
+                    margin: 0,
+                    padding: '6px',
+                    listStyle: 'none',
+                    background: '#fff',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '12px',
+                    boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
+                    maxHeight: '220px',
+                    overflowY: 'auto',
+                    animation: 'slideDown 0.2s ease-out'
+                }}>
+                    {filteredOptions.length > 0 ? (
+                        filteredOptions.map((opt, i) => (
+                            <li 
+                                key={i}
+                                style={{
+                                    padding: '10px 14px',
+                                    fontSize: '12.5px',
+                                    fontWeight: '700',
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    color: opt === value ? '#42818c' : '#334155',
+                                    background: opt === value ? '#f0f9fa' : 'transparent',
+                                    marginBottom: '2px',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    transition: 'all 0.15s ease'
+                                }}
+                                onMouseEnter={(e) => { 
+                                    if (opt !== value) e.target.style.background = '#f8fafc'; 
+                                    e.target.style.color = '#13343b';
+                                }}
+                                onMouseLeave={(e) => { 
+                                    e.target.style.background = opt === value ? '#f0f9fa' : 'transparent'; 
+                                    e.target.style.color = opt === value ? '#42818c' : '#334155';
+                                }}
+                                onClick={() => {
+                                    onChange(opt);
+                                    setIsOpen(false);
+                                    setSearchTerm('');
+                                }}
+                            >
+                                {opt}
+                                {opt === value && (
+                                    <svg width="12" height="10" viewBox="0 0 12 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M1 5L4.5 8.5L11 1.5" stroke="#42818c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                    </svg>
+                                )}
+                            </li>
+                        ))
+                    ) : (
+                        <li style={{ padding: '16px', textAlign: 'center', fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>
+                            No sleepers found matching "{searchTerm}"
+                        </li>
+                    )}
+                </ul>
+            )}
+            <style dangerouslySetInnerHTML={{ __html: `
+                @keyframes slideDown {
+                    from { opacity: 0; transform: translateY(-8px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+            `}} />
+        </div>
+    );
+};
+
 const SampleDeclarationModal = ({ batch, isModifying, onClose, onSave }) => {
+    const [fullDeclaration, setFullDeclaration] = useState(batch?.raw || null);
+    const [loading, setLoading] = useState(false);
     const [form, setForm] = useState({
         sample1: isModifying ? batch.sample1Raw : [{ bench: '', seq: '' }, { bench: '', seq: '' }, { bench: '', seq: '' }],
         sample2: isModifying ? batch.sample2Raw : [{ bench: '', seq: '' }, { bench: '', seq: '' }, { bench: '', seq: '' }]
     });
 
+    useEffect(() => {
+        const fetchFullData = async () => {
+            if (batch?.id && (!fullDeclaration?.chambers || fullDeclaration.chambers.length === 0)) {
+                setLoading(true);
+                try {
+                    const data = await getProductionDeclarationById(batch.id);
+                    if (data) setFullDeclaration(data);
+                } catch (err) {
+                    console.error("Error fetching full declaration:", err);
+                } finally {
+                    setLoading(false);
+                }
+            }
+        };
+        fetchFullData();
+    }, [batch?.id]);
+
     // Build a map of Bench Number -> Available Sleeper Suffixes from live API data
     const benchToSleepers = useMemo(() => {
         const map = {};
-        const rawData = batch?.raw;
+        const rawData = fullDeclaration;
         if (!rawData) return map;
 
         // Handle Stress Bench (Chambers -> BenchGroups -> Sleepers)
@@ -658,53 +875,70 @@ const SampleDeclarationModal = ({ batch, isModifying, onClose, onSave }) => {
                     const bNo = String(group.benchNo);
                     if (!map[bNo]) map[bNo] = [];
                     group.sleepers?.forEach(s => {
-                        // Extract suffix: if sleeper is "1A" and bench is "1", suffix is "A"
-                        // Handle cases where suffix might be different (e.g., "11A" for bench 11)
                         const suffix = s.startsWith(bNo) ? s.substring(bNo.length) : s;
                         map[bNo].push({ full: s, suffix: suffix });
                     });
                 });
             });
         }
-        return map;
-    }, [batch]);
+        
+        // Handle Long Line (Gangs -> Sleepers)
+        if (rawData.gangs && rawData.gangs.length > 0) {
+            rawData.gangs.forEach(gang => {
+                 const bNo = String(gang.gangNo);
+                 if (!map[bNo]) map[bNo] = [];
+                 gang.sleepers?.forEach(s => {
+                     const suffix = s.startsWith(bNo) ? s.substring(bNo.length) : s;
+                     map[bNo].push({ full: s, suffix: suffix });
+                 });
+            });
+        }
 
-    const handleUpdate = (sampleIdx, cubeIdx, field, val) => {
+        return map;
+    }, [fullDeclaration]);
+
+    // Flatten map into a single list of all available sleepers for searchable dropdown
+    const allSleeperOptions = useMemo(() => {
+        const list = [];
+        Object.values(benchToSleepers).forEach(sleepers => {
+            sleepers.forEach(s => list.push(s.full));
+        });
+        return list.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    }, [benchToSleepers]);
+
+    const handleUpdateSleeper = (sampleIdx, cubeIdx, val) => {
         const key = `sample${sampleIdx + 1}`;
         const updated = [...form[key]];
-        updated[cubeIdx][field] = val;
         
-        // If bench changes, clear the sequence if it's no longer valid? 
-        // For now, let the user pick.
+        // Match bench and seq from the selected sleeper string
+        let identifiedBench = "";
+        let identifiedSeq = "";
         
-        setForm({ ...form, [key]: updated });
-    };
+        // Identify which bench this sleeper belongs to
+        const knownBenches = Object.keys(benchToSleepers);
+        // Find bench that prefixes the value AND has this exact sleeper in its list
+        const matchedBench = knownBenches.find(b => {
+            if (!val.startsWith(b)) return false;
+            return benchToSleepers[b].some(s => s.full === val);
+        });
 
-    const renderSequenceOptions = (benchNo) => {
-        const available = benchToSleepers[benchNo];
-        if (available && available.length > 0) {
-            return (
-                <>
-                    <optgroup label="Casted Sleepers">
-                        {available.map(s => (
-                            <option key={s.full} value={s.suffix}>{s.suffix}</option>
-                        ))}
-                    </optgroup>
-                </>
-            );
+        if (matchedBench) {
+            identifiedBench = matchedBench;
+            identifiedSeq = val.substring(matchedBench.length);
+        } else {
+            // Partial typing or invalid
+            const match = val.match(/^(\d+)(.*)$/);
+            if (match) {
+                identifiedBench = match[1];
+                identifiedSeq = match[2];
+            } else {
+                identifiedBench = val;
+            }
         }
         
-        // Fallback to defaults if no live data or bench not found
-        return (
-            <>
-                <optgroup label="Single Bench">
-                    {['A', 'B', 'C', 'D'].map(s => <option key={s} value={s}>{s}</option>)}
-                </optgroup>
-                <optgroup label="Twin Bench">
-                    {['E', 'F', 'G', 'H'].map(s => <option key={s} value={s}>{s}</option>)}
-                </optgroup>
-            </>
-        );
+        updated[cubeIdx].bench = identifiedBench;
+        updated[cubeIdx].seq = identifiedSeq;
+        setForm({ ...form, [key]: updated });
     };
 
     return (
@@ -715,81 +949,95 @@ const SampleDeclarationModal = ({ batch, isModifying, onClose, onSave }) => {
                     <button className="form-modal-close" onClick={onClose}>✕</button>
                 </div>
                 <div className="form-modal-body" style={{ background: '#f8fafc' }}>
-                    <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '24px' }}>
-                        <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
-                            <div className="input-group"><label>Batch Number</label><input readOnly value={batch?.batchNo} className="readOnly" /></div>
-                            <div className="input-group"><label>Date of Casting</label><input readOnly value={batch?.date || batch?.castingDate} className="readOnly" /></div>
-                            <div className="input-group"><label>Concrete Grade</label><input readOnly value={batch?.grade} className="readOnly" /></div>
-                        </div>
-                    </div>
+                    {loading ? (
+                        <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>Fetching batch details...</div>
+                    ) : (
+                        <>
+                            <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '24px' }}>
+                                <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
+                                    <div className="input-group"><label>Batch Number</label><input readOnly value={batch?.batchNo} className="readOnly" /></div>
+                                    <div className="input-group"><label>Date of Casting</label><input readOnly value={batch?.date || batch?.castingDate} className="readOnly" /></div>
+                                    <div className="input-group"><label>Concrete Grade</label><input readOnly value={batch?.grade} className="readOnly" /></div>
+                                </div>
+                            </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
-                        {[0, 1].map(sIdx => (
-                            <div key={sIdx} style={{ background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                                <h4 style={{ fontSize: '13px', color: '#42818c', marginBottom: '16px', fontWeight: '800', textTransform: 'uppercase' }}>
-                                    Sample {sIdx + 1} (3 Cubes)
-                                </h4>
-                                {form[`sample${sIdx + 1}`].map((c, cIdx) => (
-                                    <div key={cIdx} style={{ display: 'grid', gridTemplateColumns: '1fr 120px', gap: '12px', marginBottom: '12px' }}>
-                                        <div className="input-group">
-                                            <input
-                                                type="number"
-                                                placeholder="Bench Number"
-                                                value={c.bench}
-                                                onChange={(e) => handleUpdate(sIdx, cIdx, 'bench', e.target.value)}
-                                            />
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+                                {[0, 1].map(sIdx => (
+                                    <div key={sIdx} style={{ background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                                            <h4 style={{ fontSize: '13px', color: '#42818c', margin: 0, fontWeight: '800', textTransform: 'uppercase' }}>
+                                                Sample {sIdx + 1}
+                                            </h4>
+                                            <span style={{ fontSize: '10px', color: '#94a3b8' }}>3 Cubes Required</span>
                                         </div>
-                                        <div className="input-group">
-                                            <select value={c.seq} onChange={(e) => handleUpdate(sIdx, cIdx, 'seq', e.target.value)}>
-                                                <option value="">Select No.</option>
-                                                {renderSequenceOptions(c.bench)}
-                                            </select>
-                                        </div>
+                                        {form[`sample${sIdx + 1}`].map((c, cIdx) => (
+                                            <div key={cIdx} style={{ marginBottom: '16px' }}>
+                                                <SearchableSleeperDropdown
+                                                    label={`Cube ${cIdx + 1} - Sleeper ID`}
+                                                    placeholder="Search Sleeper..."
+                                                    value={c.bench || c.seq ? `${c.bench}${c.seq}` : ''}
+                                                    options={allSleeperOptions}
+                                                    onChange={(val) => handleUpdateSleeper(sIdx, cIdx, val)}
+                                                />
+                                            </div>
+                                        ))}
                                     </div>
                                 ))}
                             </div>
-                        ))}
-                    </div>
 
-                    <div style={{ display: 'flex', gap: '16px', marginTop: '32px' }}>
-                        <button className="btn-verify" style={{ flex: 1, padding: '14px' }} onClick={() => {
-                            const allCubes = [...form.sample1, ...form.sample2];
-                            if (allCubes.some(c => !c.bench || !c.seq)) {
-                                alert("Please provide both Bench Number and Sequence for all samples.");
-                                return;
-                            }
-                            
-                            // Check for duplicates
-                            const combinations = allCubes.map(c => `${c.bench}-${c.seq}`);
-                            const uniqueCombinations = new Set(combinations);
-                            if (uniqueCombinations.size !== combinations.length) {
-                                alert("Duplicate combination of Bench and Sequence detected. Each cube must have a unique Bench & Sequence combination.");
-                                return;
-                            }
-                            
-                            onSave({
-                                batchNo: batch.batchNo,
-                                grade: batch.grade,
-                                castingDate: batch.date || batch.castingDate,
-                                sample1Raw: form.sample1,
-                                sample2Raw: form.sample2,
-                                sample1: form.sample1.map(c => `${c.bench}${c.seq}`),
-                                sample2: form.sample2.map(c => `${c.bench}${c.seq}`),
-                            });
-                        }}>
-                            {isModifying ? 'Update Declaration' : 'Finalize Declaration'}
-                        </button>
-                        <button className="btn-save" style={{ flex: 1, background: '#f1f5f9', color: '#475569', border: 'none' }} onClick={onClose}>Cancel</button>
-                    </div>
+                            <div style={{ display: 'flex', gap: '16px', marginTop: '32px' }}>
+                                <button className="btn-verify" style={{ flex: 1, padding: '14px' }} onClick={() => {
+                                    const allCubes = [...form.sample1, ...form.sample2];
+                                    
+                                    // 1. Check all filled
+                                    if (allCubes.some(c => !c.bench || !c.seq)) {
+                                        alert("Please select exactly 6 sleepers for testing.");
+                                        return;
+                                    }
+                                    
+                                    // 2. Validation: Must be from the list
+                                    const invalid = allCubes.filter(c => !allSleeperOptions.includes(`${c.bench}${c.seq}`));
+                                    if (invalid.length > 0) {
+                                        alert(`Invalid selection: ${invalid.map(c => `${c.bench}${c.seq}`).join(', ')} do not belong to this batch.`);
+                                        return;
+                                    }
+
+                                    // 3. Check for duplicates
+                                    const combinations = allCubes.map(c => `${c.bench}${c.seq}`);
+                                    const uniqueCombinations = new Set(combinations);
+                                    if (uniqueCombinations.size !== combinations.length) {
+                                        alert("Duplicate sleepers selected. Each of the 6 cubes must be a unique sleeper.");
+                                        return;
+                                    }
+                                    
+                                    onSave({
+                                        batchNo: batch.batchNo,
+                                        grade: batch.grade,
+                                        castingDate: batch.date || batch.castingDate,
+                                        sample1Raw: form.sample1,
+                                        sample2Raw: form.sample2,
+                                        sample1: form.sample1.map(c => `${c.bench}${c.seq}`),
+                                        sample2: form.sample2.map(c => `${c.bench}${c.seq}`),
+                                    });
+                                }}>
+                                    {isModifying ? 'Update Declaration' : 'Finalize Declaration'}
+                                </button>
+                                <button className="btn-save" style={{ flex: 1, background: '#f1f5f9', color: '#475569', border: 'none' }} onClick={onClose}>Cancel</button>
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
         </div>
     );
 };
 
-const TestDetailPopup = ({ batch, onClose, onModify, onSaveTest }) => {
+const TestDetailPopup = ({ batch, onClose, onModify, onSaveTest, onDelete, onDeleteTest }) => {
     const isEligible = checkEligibility(batch.castingDate);
-    const canModify = (new Date() - new Date(batch.declarationTime)) < (24 * 60 * 60 * 1000);
+    // 8 hour restriction logic
+    const createdTime = new Date(batch.raw?.updatedDate || batch.raw?.createdDate || Date.now());
+    const hoursElapsed = (new Date() - createdTime) / (1000 * 60 * 60);
+    const canModifyOrDelete = hoursElapsed < 8;
 
     return (
         <div className="form-modal-overlay" onClick={onClose}>
@@ -821,7 +1069,49 @@ const TestDetailPopup = ({ batch, onClose, onModify, onSaveTest }) => {
                             </div>
                         </div>
 
-                        {!isEligible && (
+                        {batch.isTested && batch.raw && (
+                            <div style={{ marginBottom: '24px', background: '#eef2ff', padding: '16px', borderRadius: '8px', border: '1px solid #c7d2fe' }}>
+                                <label style={{ fontSize: '10px', color: '#4338ca', fontWeight: '800', display: 'block', marginBottom: '12px' }}>TESTING DONE DETAILS</label>
+                                
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                                    <div>
+                                        <div style={{ fontSize: '9px', fontWeight: '700', color: '#4f46e5', marginBottom: '4px' }}>SAMPLE 1 STRENGTHS (N/mm²)</div>
+                                        <div style={{ display: 'flex', gap: '6px' }}>
+                                            {batch.raw.sample1Results?.map((s, i) => (
+                                                <span key={i} style={{ background: '#fff', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: '800', border: '1px solid #a5b4fc', color: '#312e81' }}>{s.toFixed(1)}</span>
+                                            )) || 'N/A'}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div style={{ fontSize: '9px', fontWeight: '700', color: '#4f46e5', marginBottom: '4px' }}>SAMPLE 2 STRENGTHS (N/mm²)</div>
+                                        <div style={{ display: 'flex', gap: '6px' }}>
+                                            {batch.raw.sample2Results?.map((s, i) => (
+                                                <span key={i} style={{ background: '#fff', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: '800', border: '1px solid #a5b4fc', color: '#312e81' }}>{s.toFixed(1)}</span>
+                                            )) || 'N/A'}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', borderTop: '1px solid #c7d2fe', paddingTop: '16px' }}>
+                                    <div>
+                                        <div style={{ fontSize: '9px', fontWeight: '700', color: '#6366f1', marginBottom: '4px' }}>MEAN STRENGTH (N/mm²)</div>
+                                        <div style={{ fontSize: '18px', fontWeight: '800', color: '#312e81' }}>{batch.raw.avgStrength?.toFixed(2) || 'N/A'}</div>
+                                    </div>
+                                    <div>
+                                        <div style={{ fontSize: '9px', fontWeight: '700', color: '#6366f1', marginBottom: '4px' }}>CONDITION SATISFIED</div>
+                                        <div style={{ 
+                                            fontSize: '14px', 
+                                            fontWeight: '800', 
+                                            color: batch.raw.status === 'PASS' ? '#059669' : '#dc2626'
+                                        }}>
+                                            {batch.raw.status || 'N/A'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {!isEligible && !batch.isTested && (
                             <div style={{ background: '#fff7ed', padding: '12px', borderRadius: '8px', border: '1px solid #ffedd5', color: '#c2410c', fontSize: '11px', fontWeight: '700', marginBottom: '20px' }}>
                                 {(() => {
                                     const castDate = parseDate(batch.castingDate);
@@ -832,24 +1122,87 @@ const TestDetailPopup = ({ batch, onClose, onModify, onSaveTest }) => {
                             </div>
                         )}
 
-                        <div style={{ display: 'flex', gap: '12px' }}>
-                            <button
+                        <div style={{ display: 'flex', gap: '8px', marginTop: '20px', flexWrap: 'wrap' }}>
+                            {!batch.isTested && (
+                                <button
+                                    className="btn-verify"
+                                    style={{ 
+                                        opacity: isEligible ? 1 : 0.5, 
+                                        cursor: isEligible ? 'pointer' : 'not-allowed', 
+                                        flex: 1, 
+                                        padding: '12px 24px',
+                                        fontSize: '13px',
+                                        fontWeight: '600',
+                                        borderRadius: '25px',
+                                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                                        minWidth: '120px',
+                                        transition: 'all 0.2s'
+                                    }}
+                                    disabled={!isEligible}
+                                    onClick={onSaveTest}
+                                >
+                                    Enter Test Detail
+                                </button>
+                            )}
+                            
+                             <button
                                 className="btn-save"
-                                style={{ flex: 1, background: canModify ? '#f8fafc' : '#f1f5f9', color: canModify ? '#475569' : '#94a3b8', border: '1px solid #e2e8f0', cursor: canModify ? 'pointer' : 'not-allowed' }}
-                                disabled={!canModify}
+                                style={{ 
+                                    opacity: canModifyOrDelete ? 1 : 0.5, 
+                                    cursor: canModifyOrDelete ? 'pointer' : 'not-allowed',
+                                    background: '#fff',
+                                    border: '1px solid #e2e8f0',
+                                    color: '#475569',
+                                    flex: 1,
+                                    padding: '12px 24px',
+                                    fontSize: '13px',
+                                    fontWeight: '600',
+                                    borderRadius: '25px',
+                                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                                    minWidth: '100px',
+                                    transition: 'all 0.2s'
+                                }}
+                                disabled={!canModifyOrDelete}
                                 onClick={onModify}
                             >
-                                Modify Sample Details
+                                Modify {!canModifyOrDelete && ' (Exp.)'}
                             </button>
                             <button
-                                className="btn-verify"
-                                style={{ flex: 1, opacity: isEligible ? 1 : 0.5, cursor: isEligible ? 'pointer' : 'not-allowed' }}
-                                disabled={!isEligible}
-                                onClick={onSaveTest}
+                                className="btn-delete"
+                                style={{ 
+                                    opacity: canModifyOrDelete ? 1 : 0.5, 
+                                    cursor: canModifyOrDelete ? 'pointer' : 'not-allowed',
+                                    background: '#fff',
+                                    border: '1px solid #e2e8f0',
+                                    color: '#475569',
+                                    flex: 1,
+                                    padding: '12px 24px',
+                                    fontSize: '13px',
+                                    fontWeight: '600',
+                                    borderRadius: '25px',
+                                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                                    minWidth: '100px',
+                                    transition: 'all 0.2s'
+                                }}
+                                disabled={!canModifyOrDelete}
+                                onClick={() => {
+                                    if (window.confirm("Delete this record? The sample will return to the previous stage.")) {
+                                        if (batch.isTested) {
+                                            onDeleteTest && onDeleteTest(batch.raw.id);
+                                        } else {
+                                            onDelete && onDelete(batch.id);
+                                        }
+                                    }
+                                }}
                             >
-                                Save Test Details
+                                Delete {!canModifyOrDelete && ' (Exp.)'}
                             </button>
-                        </div>
+                        </div>           
+                            {!canModifyOrDelete && (
+                                <p style={{ fontSize: '10px', color: '#94a3b8', margin: '8px 0 0 0', textAlign: 'center' }}>
+                                    Note: Modify and Delete are only available for 8 hours after declaration.
+                                </p>
+                            )}
                     </div>
                 </div>
             </div>

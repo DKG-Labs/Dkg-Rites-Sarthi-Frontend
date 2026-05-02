@@ -37,9 +37,10 @@ const TrendChart = ({
     }
 
     const allValues = sortedData.flatMap(d => lines.map(l => parseFloat(d[l.key]) || 0));
-    const maxVal = Math.max(10.0, ...allValues) * 1.2;
-    const minVal = Math.min(0, ...allValues);
-    const range = maxVal - minVal;
+    const maxValFromData = allValues.length > 0 ? Math.max(...allValues) : 0;
+    const maxVal = maxValFromData > 0 ? maxValFromData * 1.2 : 5.0;
+    const minVal = 0;
+    const range = maxVal - minVal || 1;
 
     const step = 1000 / (sortedData.length - 1);
 

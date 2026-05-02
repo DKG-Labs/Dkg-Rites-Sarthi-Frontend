@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './SleeperSummary.css';
+import reportService from '../../../services/reportService';
 
 const SleeperLwclReport = () => {
     const [filters, setFilters] = useState({
@@ -8,31 +9,93 @@ const SleeperLwclReport = () => {
         batchNo: ''
     });
 
-    // Mock Data for filters
-    const manufacturers = ['Patil Industries', 'Concrete Sleepers India', 'Dayal Sleepers'];
-    const plants = ['Kargi Road', 'Wadiyaram', 'Noida Unit'];
-    const batches = ['B-2024-05-001', 'B-2024-05-002', 'B-2024-06-015'];
+    const [manufacturers, setManufacturers] = useState([]);
+    const [plants, setPlants] = useState([]);
+    const [batches, setBatches] = useState([]);
+    const [reportData, setReportData] = useState([]);
+    const [loading, setLoading] = useState(false);
 
-    // Mock results
-    const lwclData = filters.batchNo ? [
-        { label: 'Batch Number', value: filters.batchNo, icon: '📦' },
-        { label: 'Manufacturer', value: filters.manufacturer || 'Patil Industries', icon: '🏭' },
-        { label: 'Casting Date', value: '2024-05-12', icon: '📅' },
-        { label: 'Closing Status', value: 'CLOSED', icon: '✅', status: 'success' },
-    ] : [];
+    // Fetch manufacturers on mount
+    useEffect(() => {
+        fetchManufacturers();
+    }, []);
 
-    const details = filters.batchNo ? [
-        { stage: 'Production Phase', qty: 500, date: '2024-05-12', result: 'Completed' },
-        { stage: 'Steam Curing', qty: 500, date: '2024-05-13', result: 'Passed' },
-        { stage: 'Demoulding', qty: 495, date: '2024-05-14', result: '5 Rejected' },
-        { stage: 'Water Curing (14 Days)', qty: 495, date: '2024-05-28', result: 'Completed' },
-        { stage: 'Final Inspection', qty: 495, date: '2024-05-30', result: '492 Accepted' },
-    ] : [];
-
-    const handleFilterChange = (field, value) => {
-        setFilters(prev => ({ ...prev, [field]: value }));
+    const fetchManufacturers = async () => {
+        try {
+            const response = await reportService.getSleeperCompanies();
+            if (response && response.responseData) {
+                setManufacturers(response.responseData);
+            }
+        } catch (error) {
+            console.error("Error fetching manufacturers:", error);
+        }
     };
 
+    const handleManufacturerChange = async (vendorCode) => {
+        setFilters({ manufacturer: vendorCode, plant: '', batchNo: '' });
+        setPlants([]);
+        setBatches([]);
+        setReportData([]);
+
+        if (vendorCode) {
+            try {
+                setLoading(true);
+                const response = await reportService.getSleeperPlants(vendorCode);
+                if (response && response.responseData) {
+                    setPlants(response.responseData);
+                }
+            } catch (error) {
+                console.error("Error fetching plants:", error);
+            } finally {
+                setLoading(false);
+            }
+        }
+    };
+
+    const handlePlantChange = async (plantId) => {
+        setFilters(prev => ({ ...prev, plant: plantId, batchNo: '' }));
+        setBatches([]);
+        setReportData([]);
+
+        if (plantId) {
+            try {
+                setLoading(true);
+                const response = await reportService.getSleeperBatches(plantId);
+                if (response && response.responseData) {
+                    setBatches(response.responseData);
+                }
+            } catch (error) {
+                console.error("Error fetching batches:", error);
+            } finally {
+                setLoading(false);
+            }
+        }
+    };
+
+    const handleBatchChange = async (batchId) => {
+        setFilters(prev => ({ ...prev, batchNo: batchId }));
+        setReportData([]);
+        
+        const selectedBatch = batches.find(b => b.id.toString() === batchId);
+
+        if (batchId && selectedBatch) {
+            try {
+                setLoading(true);
+                const response = await reportService.getSleeperLotWiseAnalysis({
+                    id: selectedBatch.id,
+                    batchId: selectedBatch.batchNumber
+                });
+                if (response && response.responseData) {
+                    setReportData(response.responseData);
+                }
+            } catch (error) {
+                console.error("Error fetching lot-wise analysis:", error);
+            } finally {
+                setLoading(false);
+            }
+        }
+    };
+    
     return (
         <div className="sleeper-report-container animate-up">
             <div className="sec-title mb-4">
@@ -46,51 +109,50 @@ const SleeperLwclReport = () => {
                         <select
                             className="prof-select"
                             value={filters.manufacturer}
-                            onChange={(e) => handleFilterChange('manufacturer', e.target.value)}
+                            onChange={(e) => handleManufacturerChange(e.target.value)}
                         >
                             <option value="">Select Manufacturer</option>
-                            {manufacturers.map(m => <option key={m} value={m}>{m}</option>)}
+                            {manufacturers.map(m => <option key={m.vendorCode} value={m.vendorCode}>{m.companyName}</option>)}
                         </select>
                     </div>
-                    <div className="filter-group">
-                        <label style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', marginBottom: '4px', display: 'block' }}>PLANT</label>
-                        <select
-                            className="prof-select"
-                            value={filters.plant}
-                            onChange={(e) => handleFilterChange('plant', e.target.value)}
-                        >
-                            <option value="">Select Plant</option>
-                            {plants.map(p => <option key={p} value={p}>{p}</option>)}
-                        </select>
-                    </div>
-                    <div className="filter-group">
-                        <label style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', marginBottom: '4px', display: 'block' }}>BATCH NUMBER</label>
-                        <select
-                            className="prof-select"
-                            value={filters.batchNo}
-                            onChange={(e) => handleFilterChange('batchNo', e.target.value)}
-                        >
-                            <option value="">Select Batch</option>
-                            {batches.map(b => <option key={b} value={b}>{b}</option>)}
-                        </select>
-                    </div>
+                    
+                    {filters.manufacturer && (
+                        <div className="filter-group">
+                            <label style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', marginBottom: '4px', display: 'block' }}>PLANT</label>
+                            <select
+                                className="prof-select"
+                                value={filters.plant}
+                                onChange={(e) => handlePlantChange(e.target.value)}
+                            >
+                                <option value="">Select Plant</option>
+                                {plants.map(p => <option key={p.plantId} value={p.plantId}>{p.plantName}</option>)}
+                            </select>
+                        </div>
+                    )}
+
+                    {filters.plant && (
+                        <div className="filter-group">
+                            <label style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', marginBottom: '4px', display: 'block' }}>BATCH NUMBER</label>
+                            <select
+                                className="prof-select"
+                                value={filters.batchNo}
+                                onChange={(e) => handleBatchChange(e.target.value)}
+                            >
+                                <option value="">Select Batch</option>
+                                {batches.map(b => <option key={b.id} value={b.id}>{b.batchNumber}</option>)}
+                            </select>
+                        </div>
+                    )}
                 </div>
             </div>
 
-            {filters.batchNo ? (
+            {loading ? (
+                <div className="text-center p-12">
+                    <div className="loading-spinner"></div>
+                    <p className="mt-4 text-slate-500">Fetching analysis data...</p>
+                </div>
+            ) : filters.batchNo && reportData.length > 0 ? (
                 <div className="lwcl-results fade-in">
-                    <div className="g4 mb-6">
-                        {lwclData.map((item, idx) => (
-                            <div key={idx} className="prof-card text-center" style={{ padding: '15px' }}>
-                                <div style={{ fontSize: '20px', marginBottom: '8px' }}>{item.icon}</div>
-                                <div style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', fontWeight: '600' }}>{item.label}</div>
-                                <div style={{ fontSize: '15px', fontWeight: '700', color: item.status === 'success' ? '#10b981' : '#1e293b', marginTop: '4px' }}>
-                                    {item.value}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
                     <div className="prof-card">
                         <h4 className="card-title-sm mb-4">Tracking Closed Loop Lifecycle</h4>
                         <div className="timeline-container">
@@ -104,15 +166,17 @@ const SleeperLwclReport = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {details.map((d, i) => (
+                                    {reportData.map((d, i) => (
                                         <tr key={i} className={i % 2 === 0 ? 'row-odd' : 'row-even'}>
-                                            <td className="font-medium text-slate-700">{d.stage}</td>
-                                            <td className="text-right text-blue-600 font-bold">{d.qty}</td>
+                                            <td className="font-medium text-slate-700">{d.stageName}</td>
+                                            <td className="text-right text-blue-600 font-bold">{d.quantity}</td>
                                             <td>{d.date}</td>
                                             <td>
-                                                <span className={`prof-badge sm ${d.result.includes('Rejected') ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>
-                                                    {d.result}
-                                                </span>
+                                                {d.remarks ? (
+                                                    <span className={`prof-badge sm ${d.remarks.toLowerCase().includes('rejected') ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>
+                                                        {d.remarks}
+                                                    </span>
+                                                ) : '-'}
                                             </td>
                                         </tr>
                                     ))}
@@ -120,6 +184,11 @@ const SleeperLwclReport = () => {
                             </table>
                         </div>
                     </div>
+                </div>
+            ) : filters.batchNo ? (
+                 <div className="prof-card p-12 text-center" style={{ border: '2px dashed #e2e8f0', background: 'transparent' }}>
+                    <div style={{ fontSize: '3rem', opacity: 0.3 }}>⚠️</div>
+                    <h3 className="mt-4 text-slate-400 font-medium">No lifecycle data found for the selected Batch Number</h3>
                 </div>
             ) : (
                 <div className="prof-card p-12 text-center" style={{ border: '2px dashed #e2e8f0', background: 'transparent' }}>

@@ -1,12 +1,15 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import DataTable from './DataTable';
 import StatusBadge from './StatusBadge';
 import Notification from './Notification';
 import { getProductTypeDisplayName, formatDate } from '../utils/helpers';
 import CallsFilterSection from './common/CallsFilterSection';
 import { createStageValidationHandler } from '../utils/stageValidation';
+import { viewSignedCertificate } from '../services/certificateService';
+import { fetchSignedCallsForIC, getCurrentUserId } from '../services/workflowApiService';
+import AnnexureLoader from './annexures/AnnexureLoader';
 
-const CompletedCallsTab = ({ calls }) => {
+const CompletedCallsTab = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Call Number');
@@ -22,7 +25,35 @@ const CompletedCallsTab = ({ calls }) => {
     callNumbers: []
   });
 
-  const completedCalls = calls.filter(c => c.status === 'Completed');
+  const [completedCalls, setCompletedCalls] = useState([]);
+  const [isLoadingCalls, setIsLoadingCalls] = useState(true);
+
+  const hasFetchedRef = useRef(false);
+
+  useEffect(() => {
+    const loadCalls = async () => {
+      if (hasFetchedRef.current) return;
+      try {
+        setIsLoadingCalls(true);
+        const userId = getCurrentUserId();
+        if (!userId) {
+          setCompletedCalls([]);
+          return;
+        }
+        const fetched = await fetchSignedCallsForIC(userId);
+        // Keep only completed / signed calls
+        const validCalls = fetched.filter(c => c.status === 'Completed' || c.status === 'DSC_SIGN_IC' || c.originalStatus === 'DSC_SIGN_IC');
+        setCompletedCalls(validCalls);
+      } catch (err) {
+        console.error('Error fetching completed calls:', err);
+        setSelectionError('Failed to load completed calls from server.');
+      } finally {
+        setIsLoadingCalls(false);
+        hasFetchedRef.current = true;
+      }
+    };
+    loadCalls();
+  }, []);
 
   // Apply filters to data
   const filteredCalls = useMemo(() => {
@@ -105,18 +136,52 @@ const CompletedCallsTab = ({ calls }) => {
     console.log('Download POs for:', selectedCompletedCalls.map(call => call.po_no));
   };
 
-  const actions = selectedRows.length === 1 ? (row) => (
-    selectedRows.includes(row.id) ? (
-      <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
-        <button className="btn btn-sm btn-primary" onClick={() => console.log('View PO:', row.po_no)}>
-          View PO
-        </button>
-        <button className="btn btn-sm btn-outline" onClick={() => console.log('Download PO:', row.po_no)}>
-          Download PO
-        </button>
-      </div>
-    ) : null
-  ) : null;
+  const handleViewIC = async (row) => {
+    try {
+      const icNumber = row.ic_number || row.icNo || row.call_no;
+      if (!icNumber) {
+        setSelectionError('IC Number not found for this call.');
+        return;
+      }
+      // Using selectionError state to show loading message temporarily
+      setSelectionError('Fetching signed IC from Azure...');
+      
+      const { signedData } = await viewSignedCertificate(icNumber);
+      
+      const byteCharacters = atob(signedData);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      
+      setSelectionError(''); // Clear notification on success
+    } catch (err) {
+      console.error(err);
+      setSelectionError(err.message || 'Failed to fetch IC.');
+    }
+  };
+
+  const actions = (row) => (
+    <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
+      <button className="btn btn-sm btn-primary" onClick={(e) => { e.stopPropagation(); handleViewIC(row); }}>
+        View IC
+      </button>
+      {selectedRows.length === 1 && selectedRows.includes(row.id) && (
+        <>
+          <button className="btn btn-sm btn-outline" onClick={(e) => { e.stopPropagation(); console.log('View PO:', row.po_no); }}>
+            View PO
+          </button>
+          <button className="btn btn-sm btn-outline" onClick={(e) => { e.stopPropagation(); console.log('Download PO:', row.po_no); }}>
+            Download PO
+          </button>
+        </>
+      )}
+    </div>
+  );
 
   return (
     <div>
@@ -136,6 +201,21 @@ const CompletedCallsTab = ({ calls }) => {
         handleMultiSelectToggle={handleMultiSelectToggle}
         summaryLabel="completed calls"
       />
+
+      {/* Loading State */}
+      {isLoadingCalls && (
+        <AnnexureLoader
+          title="Fetching Completed Calls"
+          subtitle="Gathering your signed inspection certificates..."
+        />
+      )}
+
+      {/* No Data State */}
+      {!isLoadingCalls && completedCalls.length === 0 && (
+        <div className="card" style={{ textAlign: 'center', padding: 'var(--space-32)' }}>
+          <p>No signed/completed calls found.</p>
+        </div>
+      )}
 
       {/* Selection Error Message */}
       <Notification
@@ -170,16 +250,18 @@ const CompletedCallsTab = ({ calls }) => {
         </div>
       )}
 
-      <DataTable
-        columns={columns}
-        data={filteredCalls}
-        actions={actions}
-        selectable
-        selectedRows={selectedRows}
-        onSelectionChange={handleSelectionChange}
-        initialPageSize={10}
-        hidePageSize={true}
-      />
+      {!isLoadingCalls && completedCalls.length > 0 && (
+        <DataTable
+          columns={columns}
+          data={filteredCalls}
+          actions={actions}
+          selectable
+          selectedRows={selectedRows}
+          onSelectionChange={handleSelectionChange}
+          initialPageSize={10}
+          hidePageSize={true}
+        />
+      )}
     </div>
   );
 };

@@ -1,24 +1,51 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import './SleeperSummary.css';
+import reportService from '../../../services/reportService';
 
 const SleeperSummary = ({ summaryData = {} }) => {
+    const [rejectedInProcess, setRejectedInProcess] = useState(0);
+    const [rejectedInFinal, setRejectedInFinal] = useState(0);
+    const [rejectionPercentage, setRejectionPercentage] = useState(0);
+
+    useEffect(() => {
+        const fetchCounts = async () => {
+            try {
+                // Fetch Demoulding Rejection
+                const demouldingRes = await reportService.getDemouldingRejectedCount();
+                setRejectedInProcess(demouldingRes.responseData || demouldingRes || 0);
+
+                // Fetch Final Inspection Rejection
+                const finalRes = await reportService.getFinalRejectedCount();
+                setRejectedInFinal(finalRes.responseData || finalRes || 0);
+
+                // Fetch Rejection Percentage
+                const rejectionRes = await reportService.getRejectionPercentage();
+                const percentage = rejectionRes.responseData !== undefined ? rejectionRes.responseData : rejectionRes;
+                setRejectionPercentage(Number(percentage || 0));
+            } catch (error) {
+                console.error("Error fetching sleeper rejection metrics:", error);
+            }
+        };
+        fetchCounts();
+    }, []);
+
     // Mock data based on the provided requirements
     const data = {
-        poIssued: summaryData.poIssued || 124,
+        poIssued: summaryData.sleeperPoIssued || 0,
         poQuantity: {
-            nos: summaryData.poQuantityNos || 850000,
-            set: summaryData.poQuantitySet || 0,
-            rmt: summaryData.poQuantityRmt || 0
+            nos: summaryData.sleeperPoQuantityNos || 0,
+            set: 0,
+            rmt: 0
         },
         finalInspectionQty: {
-            nos: summaryData.finalInspectionQtyNos || 125000,
+            nos: 0,
             set: 0,
             rmt: 0
         },
         newSleepersInPipeline: summaryData.newSleepersInPipeline || 45000,
-        sleepersRejectedInProcess: summaryData.sleepersRejectedInProcess || 1200,
-        sleepersRejectedInFinal: summaryData.sleepersRejectedInFinal || 850,
-        rejectionPercentage: summaryData.rejectionPercentage || 1.64
+        sleepersRejectedInProcess: rejectedInProcess,
+        sleepersRejectedInFinal: rejectedInFinal,
+        rejectionPercentage: rejectionPercentage.toFixed(2)
     };
 
     return (
@@ -32,34 +59,34 @@ const SleeperSummary = ({ summaryData = {} }) => {
                 </div>
                 <div className="prof-card card-ocean" style={{ textAlign: 'center' }}>
                     <div className="kpi-lbl">PO Quantity</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginTop: '4px' }}>
-                        <div style={{ borderRight: '1px solid rgba(255,255,255,0.2)', paddingRight: '4px' }}>
-                            <div className="kpi-val" style={{ fontSize: '22px' }}>{data.poQuantity.nos.toLocaleString()}</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginTop: '4px' }}>
+                        <div style={{ borderRight: '1px solid rgba(255,255,255,0.2)', paddingRight: '8px' }}>
+                            <div className="kpi-val" style={{ fontSize: '13px' }}>{data.poQuantity.nos.toLocaleString()}</div>
                             <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Nos.</div>
                         </div>
-                        <div style={{ borderRight: '1px solid rgba(255,255,255,0.2)', paddingX: '4px' }}>
-                            <div className="kpi-val" style={{ fontSize: '22px' }}>{data.poQuantity.set.toLocaleString()}</div>
+                        <div style={{ borderRight: '1px solid rgba(255,255,255,0.2)', paddingX: '8px' }}>
+                            <div className="kpi-val" style={{ fontSize: '13px' }}>{data.poQuantity.set.toLocaleString()}</div>
                             <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Set</div>
                         </div>
-                        <div style={{ paddingLeft: '4px' }}>
-                            <div className="kpi-val" style={{ fontSize: '22px' }}>{data.poQuantity.rmt.toLocaleString()}</div>
+                        <div style={{ paddingLeft: '8px' }}>
+                            <div className="kpi-val" style={{ fontSize: '13px' }}>{data.poQuantity.rmt.toLocaleString()}</div>
                             <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>RMT</div>
                         </div>
                     </div>
                 </div>
                 <div className="prof-card card-indigo" style={{ textAlign: 'center' }}>
                     <div className="kpi-lbl">Final Inspection Quantity</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginTop: '4px' }}>
-                        <div style={{ borderRight: '1px solid rgba(255,255,255,0.2)', paddingRight: '4px' }}>
-                            <div className="kpi-val" style={{ fontSize: '22px' }}>{data.finalInspectionQty.nos.toLocaleString()}</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginTop: '4px' }}>
+                        <div style={{ borderRight: '1px solid rgba(255,255,255,0.2)', paddingRight: '8px' }}>
+                            <div className="kpi-val" style={{ fontSize: '13px' }}>{data.finalInspectionQty.nos.toLocaleString()}</div>
                             <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Nos.</div>
                         </div>
-                        <div style={{ borderRight: '1px solid rgba(255,255,255,0.2)', paddingX: '4px' }}>
-                            <div className="kpi-val" style={{ fontSize: '22px' }}>{data.finalInspectionQty.set.toLocaleString()}</div>
+                        <div style={{ borderRight: '1px solid rgba(255,255,255,0.2)', paddingX: '8px' }}>
+                            <div className="kpi-val" style={{ fontSize: '13px' }}>{data.finalInspectionQty.set.toLocaleString()}</div>
                             <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Set</div>
                         </div>
-                        <div style={{ paddingLeft: '4px' }}>
-                            <div className="kpi-val" style={{ fontSize: '22px' }}>{data.finalInspectionQty.rmt.toLocaleString()}</div>
+                        <div style={{ paddingLeft: '8px' }}>
+                            <div className="kpi-val" style={{ fontSize: '13px' }}>{data.finalInspectionQty.rmt.toLocaleString()}</div>
                             <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>RMT</div>
                         </div>
                     </div>
@@ -68,11 +95,11 @@ const SleeperSummary = ({ summaryData = {} }) => {
 
             {/* KPI Cards Row 2 */}
             <div className="g3 mb">
-                <div className="prof-card card-spring-green" style={{ textAlign: 'center' }}>
+                {/* <div className="prof-card card-spring-green" style={{ textAlign: 'center' }}>
                     <div className="kpi-lbl">New Sleepers in Pipeline</div>
                     <div className="kpi-val">{data.newSleepersInPipeline.toLocaleString()}</div>
                     <div className="kpi-sub">Manufactured but not cleared</div>
-                </div>
+                </div> */}
                 <div className="prof-card card-amber" style={{ textAlign: 'center' }}>
                     <div className="kpi-lbl">Sleepers Rejected in Process</div>
                     <div className="kpi-val">{data.sleepersRejectedInProcess.toLocaleString()}</div>
@@ -83,16 +110,14 @@ const SleeperSummary = ({ summaryData = {} }) => {
                     <div className="kpi-val">{data.sleepersRejectedInFinal.toLocaleString()}</div>
                     <div className="kpi-sub">Final Inspection + Water Cube + MR</div>
                 </div>
-            </div>
-
-            {/* Rejection Percentage Row */}
-            <div className="prof-card card-gold" style={{ textAlign: 'center', maxWidth: '400px', margin: '0 auto' }}>
-                <div className="kpi-lbl">Rejection Percentage</div>
-                <div className="kpi-val">{data.rejectionPercentage}%</div>
-                <div className="prof-prog">
-                    <div className="prof-prog-f" style={{ width: `${Math.min(100, data.rejectionPercentage * 10)}%`, background: '#eab308' }}></div>
+                <div className="prof-card card-gold" style={{ textAlign: 'center' }}>
+                    <div className="kpi-lbl">Rejection Percentage</div>
+                    <div className="kpi-val">{data.rejectionPercentage}%</div>
+                    <div className="prof-prog">
+                        <div className="prof-prog-f" style={{ width: `${Math.min(100, data.rejectionPercentage * 10)}%`, background: '#eab308' }}></div>
+                    </div>
+                    <div className="kpi-sub">(Process + Final) / Total Manufactured</div>
                 </div>
-                <div className="kpi-sub">(Process + Final) / Total Manufactured</div>
             </div>
 
             <div className="sleeper-footer-note" style={{ textAlign: 'center', marginTop: '2rem', color: '#64748b', fontSize: '14px', fontStyle: 'italic' }}>

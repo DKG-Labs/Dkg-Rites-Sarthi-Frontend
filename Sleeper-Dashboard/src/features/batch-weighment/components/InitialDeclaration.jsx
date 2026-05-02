@@ -10,10 +10,10 @@ import { useShift } from '../../../context/ShiftContext';
 const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorUpdate, activeContainer, loadShiftData, initialSensors }) => {
     const { vendorCode, dutyUnit, selectedShift, dutyDate, userId, vendorId } = useShift();
     const [sensors, setSensors] = useState(initialSensors || {
-        sensorStatus: 'Working', 
+        sensorStatus: '', 
         sandType: '',
         location: '',
-        castingDate: new Date().toISOString().split('T')[0],
+        castingDate: '',
         batchNo: '',
         moistureAnalysis: null
     });
@@ -113,6 +113,7 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
                 setBatches([{
                     id: 1, 
                     batchNo: detail.batchNo || report?.batchNo || "",
+                    refBatchNo: detail.batchNo || report?.batchNo || "",
                     parentId: id,
                     setValues: { 
                         ca1: ca1Set, 
@@ -148,6 +149,11 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
             ...prev,
             [name]: value
         }));
+
+        // If batch number is changed in the header, update the underlying batch cards
+        if (name === 'batchNo') {
+            setBatches(prev => prev.map(b => ({ ...b, batchNo: value })));
+        }
     };
 
     const handleBatchChange = (id, section, field, value) => {
@@ -213,6 +219,7 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
                 moistureAnalysis: sensors.moistureAnalysis || null,
                 batchDetails: batches.map(b => ({
                     batchNo: String(sensors.batchNo || b.batchNo || "0"),
+                    refBatchNo: String(b.refBatchNo || b.batchNo || "0"),
                     proportionStatus: b.proportionMatch || "OK",
                     ca1Ref: parseFloat(b.adjustedWeights?.ca1) || 0,
                     ca2Ref: parseFloat(b.adjustedWeights?.ca2) || 0,
@@ -279,13 +286,14 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
                 marginBottom: '1rem'
             }}>
                 <div className="input-group">
-                    <label style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', marginBottom: '2px', display: 'block' }}>Sensor</label>
+                    <label style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', marginBottom: '2px', display: 'block' }}>Sensor *</label>
                     <select 
                         name="sensorStatus" 
                         value={sensors.sensorStatus} 
                         onChange={handleSensorChange}
-                        style={{ width: '100%', height: '32px', borderRadius: '4px', border: '1.5px solid #e2e8f0', fontSize: '11px', padding: '0 4px' }}
+                        style={{ width: '100%', height: '32px', borderRadius: '4px', border: sensors.sensorStatus ? '1.5px solid #e2e8f0' : '1.5px solid #ef4444', fontSize: '11px', padding: '0 4px' }}
                     >
+                        <option value="">-- Select --</option>
                         <option value="Not available">Not available</option>
                         <option value="Working">Working</option>
                         <option value="Not Working">Not Working</option>
@@ -293,12 +301,12 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
                 </div>
 
                 <div className="input-group">
-                    <label style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', marginBottom: '2px', display: 'block' }}>Sand Type</label>
+                    <label style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', marginBottom: '2px', display: 'block' }}>Sand Type *</label>
                     <select 
                         name="sandType" 
                         value={sensors.sandType} 
                         onChange={handleSensorChange}
-                        style={{ width: '100%', height: '32px', borderRadius: '4px', border: '1.5px solid #e2e8f0', fontSize: '11px', padding: '0 4px' }}
+                        style={{ width: '100%', height: '32px', borderRadius: '4px', border: sensors.sandType ? '1.5px solid #e2e8f0' : '1.5px solid #ef4444', fontSize: '11px', padding: '0 4px' }}
                     >
                         <option value="">-- Select --</option>
                         <option value="M-Sand">M-Sand</option>
@@ -307,12 +315,12 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
                 </div>
 
                 <div className="input-group">
-                    <label style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', marginBottom: '2px', display: 'block' }}>Location</label>
+                    <label style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', marginBottom: '2px', display: 'block' }}>Location *</label>
                     <select 
                         name="location" 
                         value={sensors.location} 
                         onChange={handleSensorChange}
-                        style={{ width: '100%', height: '32px', borderRadius: '4px', border: '1.5px solid #e2e8f0', fontSize: '11px', padding: '0 4px' }}
+                        style={{ width: '100%', height: '32px', borderRadius: '4px', border: sensors.location ? '1.5px solid #e2e8f0' : '1.5px solid #ef4444', fontSize: '11px', padding: '0 4px' }}
                     >
                         <option value="">-- Select --</option>
                         {availableLocations.map((loc, i) => <option key={i} value={loc}>{loc}</option>)}
@@ -320,7 +328,7 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
                 </div>
 
                 <div className="input-group">
-                    <label style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', marginBottom: '2px', display: 'block' }}>Moisture Analysis</label>
+                    <label style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', marginBottom: '2px', display: 'block' }}>Moisture Analysis *</label>
                     <select 
                         value={selectedMoistureReportId} 
                         onChange={handleMoistureReportSelect}
@@ -344,25 +352,25 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
                 </div>
 
                 <div className="input-group">
-                    <label style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', marginBottom: '2px', display: 'block' }}>Date of Casting</label>
+                    <label style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', marginBottom: '2px', display: 'block' }}>Date of Casting *</label>
                     <input 
                         type="date"
                         name="castingDate"
                         value={sensors.castingDate}
                         onChange={handleSensorChange}
-                        style={{ width: '100%', height: '32px', borderRadius: '4px', border: '1.5px solid #e2e8f0', fontSize: '11px', padding: '0 4px' }}
+                        style={{ width: '100%', height: '32px', borderRadius: '4px', border: sensors.castingDate ? '1.5px solid #e2e8f0' : '1.5px solid #ef4444', fontSize: '11px', padding: '0 4px' }}
                     />
                 </div>
 
                 <div className="input-group">
-                    <label style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', marginBottom: '2px', display: 'block' }}>Batch Number</label>
+                    <label style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', marginBottom: '2px', display: 'block' }}>Batch Number *</label>
                     <input 
                         type="text"
                         name="batchNo"
                         value={sensors.batchNo}
                         onChange={handleSensorChange}
                         placeholder="e.g. 101"
-                        style={{ width: '100%', height: '32px', borderRadius: '4px', border: '1.5px solid #e2e8f0', fontSize: '11px', padding: '0 8px' }}
+                        style={{ width: '100%', height: '32px', borderRadius: '4px', border: sensors.batchNo ? '1.5px solid #e2e8f0' : '1.5px solid #ef4444', fontSize: '11px', padding: '0 8px' }}
                     />
                 </div>
             </div>
@@ -388,23 +396,11 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
                             </div>
                         </div>
                         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                            <div style={{ textAlign: 'center' }}>
-                                <div className="mini-label">Status</div>
-                                <div style={{
-                                    fontSize: '0.65rem', fontWeight: '800', padding: '4px 12px', borderRadius: '50px',
-                                    border: `1px solid ${batch.proportionMatch === 'OK' ? '#059669' : '#dc2626'}`,
-                                    color: batch.proportionMatch === 'OK' ? '#059669' : '#dc2626',
-                                    background: batch.proportionMatch === 'OK' ? '#f0fdf4' : '#fef2f2'
-                                }}>{batch.proportionMatch}</div>
-                            </div>
                             <button className="toggle-btn secondary" onClick={() => removeBatch(batch.id)} style={{ padding: '4px 8px', fontSize: '0.7rem' }}>Clear Selection</button>
                         </div>
                     </div>
 
-                    <div style={{ marginBottom: '1.5rem', padding: '0.75rem', background: '#f0f9fa', borderRadius: '8px', fontSize: '0.8rem', color: '#42818c', border: '1px solid #c8e2e6', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#42818c' }}></div>
-                        <strong>Active Calibration:</strong> Lab Report #{lastFiveMoisture.find(r => String(r.id) === String(selectedMoistureReportId))?.batchNo}
-                    </div>
+
 
                     <div className="calculated-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '0.5rem' }}>
                         {Object.keys(batch.setValues).map(ing => {

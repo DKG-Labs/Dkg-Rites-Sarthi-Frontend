@@ -2,13 +2,13 @@ import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useShift } from "../../../../context/ShiftContext";
 import { useToast } from "../../../../context/ToastContext";
-import { saveAggregateSoundness, getAggregateSoundnessByReqId } from "../../../../services/workflowService";
+import { saveAggregateSoundness, getAggregateSoundnessByReqId, getAggregateSoundnessById } from "../../../../services/workflowService";
 
-export default function SoundnessTestForm({ onSave, onCancel, inventoryData = [], initialType = "New Inventory", activeRequestId, editData }) {
+export default function SoundnessTestForm({ onSave, onCancel, inventoryData = [], initialType = "New Inventory", activeRequestId, editId, editData }) {
     const { selectedShift, dutyLocation, dutyDate } = useShift();
     const toast = useToast();
     const [submitting, setSubmitting] = useState(false);
-    const [editId, setEditId] = useState(null);
+    const [editIdState, setEditIdState] = useState(editId || null);
 
     const { register, watch, setValue, handleSubmit, reset, formState: { errors } } = useForm({
         defaultValues: {
@@ -18,22 +18,48 @@ export default function SoundnessTestForm({ onSave, onCancel, inventoryData = []
     });
 
     useEffect(() => {
+        console.log("SoundnessForm Props:", { initialType, editId, editData });
+        
+        const handleRecord = (record) => {
+            if (!record) return;
+            console.log("Processing Soundness Record:", record);
+            if (record.id) setEditIdState(record.id);
+            reset({
+                ...record,
+                typeOfTesting: record.typeOfTesting || "Periodic",
+                consignmentNo: record.consignmentNo || record.consignment || watch("consignmentNo"),
+                testDate: record.testDate ? record.testDate.substring(0, 10) : new Date().toISOString().split('T')[0]
+            });
+        };
+
         if (activeRequestId) {
             const row = inventoryData.find(i => i.requestId === activeRequestId);
-            if (row) {
-                setValue("consignmentNo", row.consignmentNo);
-            }
+            if (row) setValue("consignmentNo", row.consignmentNo);
+            
             getAggregateSoundnessByReqId(activeRequestId).then(record => {
-                if (record && record.id) {
-                    setEditId(record.id);
-                    reset({
-                        ...record,
-                        testDate: record.testDate ? record.testDate.substring(0, 10) : new Date().toISOString().split('T')[0]
-                    });
+                if (record && (record.id || record.consignmentNo)) {
+                    handleRecord(record);
+                } else {
+                    toast.info("No previous Soundness data found. You can start entering new test results.");
                 }
             });
+        } else if (initialType === "Periodic" && (editId || editData)) {
+            // Priority 1: Immediate population (Props)
+            if (editData && (editData.consignmentNo || editData.lossPercent || editData.result)) {
+                handleRecord(editData);
+            }
+            // Priority 2: Backend Sync (Latest from DB)
+            if (editId) {
+                getAggregateSoundnessById(editId).then(record => {
+                    if (record) {
+                        handleRecord(record);
+                    } else {
+                        toast.info("No existing record found in history for this test.");
+                    }
+                });
+            }
         }
-    }, [activeRequestId, inventoryData, reset, setValue]);
+    }, [activeRequestId, editId, editData, initialType, reset, setValue, inventoryData]);
 
     const initialWt = watch("initialWt");
     const finalWt = watch("finalWt");
@@ -80,13 +106,13 @@ export default function SoundnessTestForm({ onSave, onCancel, inventoryData = []
                 createdBy: parseInt(localStorage.getItem('userId') || '1', 10)
             };
 
-            await saveAggregateSoundness(payload, editId);
-            toast.success(`Soundness Test report ${editId ? 'updated' : 'saved'} successfully!`);
-            reset();
-            onSave && onSave(payload);
+            const resultSaved = await saveAggregateSoundness(payload, editIdState);
+            if (onSave) onSave(resultSaved || payload);
+            
+            toast.success(`Soundness Test report ${editIdState ? 'updated' : 'saved'} successfully!`);
         } catch (error) {
             console.error("Error saving soundness data:", error);
-            toast.error("Failed to save Soundness report.");
+            toast.error(error.message || "Failed to save Soundness report.");
         } finally {
             setSubmitting(false);
         }
@@ -198,7 +224,7 @@ export default function SoundnessTestForm({ onSave, onCancel, inventoryData = []
 
                     <div style={{ marginTop: '32px', display: 'flex', gap: '16px' }}>
                         <button type="submit" className="btn-save" style={{ flex: 1, padding: '12px', background: '#42818c', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }} disabled={submitting}>
-                            {submitting ? 'Saving...' : editId ? 'Update Test Report' : 'Save Test Report'}
+                            {submitting ? 'Saving...' : editIdState ? 'Update Test Report' : 'Save Test Report'}
                         </button>
                         {onCancel && <button type="button" onClick={onCancel} className="btn-save" style={{ flex: 1, padding: '12px', background: '#64748b', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }} disabled={submitting}>Cancel</button>}
                     </div>

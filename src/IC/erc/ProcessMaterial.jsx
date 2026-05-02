@@ -11,6 +11,9 @@ import {
 import { formatDate } from "../../utils/helpers";
 import ErcProcessIc from "./ErcProcessIc";
 import { exportToPdf, generatePdfBase64 } from "../../utils/exportUtils";
+import { uploadSignedCertificate, saveProcessIcEditData, getProcessIcEditData } from "../../services/certificateService";
+import { performTransitionAction } from "../../services/workflowService";
+import { getCurrentUserId } from "../../services/workflowApiService";
 
 export default function ProcessMaterialCertificate({ call = {}, onBack }) {
   const printAreaRef = useRef();
@@ -20,14 +23,49 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
   const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
 
   useEffect(() => {
-    const handlePkiStatus = (event) => {
-      const { status, message } = event.detail;
+    const handlePkiStatus = async (event) => {
+      const { status, message, signedData, certificateNo, fileName } = event.detail;
       setNotification({ open: true, message, severity: status });
+      
+      if (status === 'success' && signedData) {
+          try {
+              setNotification({ open: true, message: "Uploading signed certificate to Azure...", severity: "info" });
+              await uploadSignedCertificate({
+                  icNumber: certificateNo,
+                  signedData: signedData,
+                  fileName: fileName,
+                  uploadedBy: "Inspecting Engineer"
+              });
+              setNotification({ open: true, message: "Signed certificate successfully saved to Azure!", severity: "success" });
+              
+              try {
+                  console.log('🔄 Calling performTransitionAction to update status to DSC_SIGN_IC');
+                  await performTransitionAction({
+                      workflowTransitionId: call?.id || call?.transitionId,
+                      requestId: typeof call?.call_no === 'string' && call.call_no.includes('/') ? call.call_no.split('/')[1] : call?.call_no,
+                      action: 'DSC_SIGN_IC',
+                      remarks: 'Digital signature applied and IC stored in Azure',
+                      actionBy: getCurrentUserId()
+                  });
+
+                  console.log('✅ Workflow status updated. Redirecting to Completed Calls Tab.');
+                  sessionStorage.setItem('ie_landing_active_tab', 'completed');
+                  
+                  // Using window.location to trigger a navigation to the landing page
+                  window.location.href = '/';
+              } catch (workflowErr) {
+                  console.error('⚠️ Failed to update workflow status to DSC_SIGN_IC:', workflowErr);
+              }
+          } catch (err) {
+              console.error("Upload error:", err);
+              setNotification({ open: true, message: "Signed successfully, but failed to save to Azure. " + err.message, severity: "error" });
+          }
+      }
     };
 
     window.addEventListener('pki-status', handlePkiStatus);
     return () => window.removeEventListener('pki-status', handlePkiStatus);
-  }, []);
+  }, [call?.call_no, call?.id, call?.transitionId]);
 
   const handleCloseNotification = () => setNotification({ ...notification, open: false });
 
@@ -81,9 +119,28 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
   };
 
   useEffect(() => {
-    if (call && Object.keys(call).length > 0) {
-      setEditableData(transformCallToIC(call));
-    }
+    const initializeData = async () => {
+      if (call && Object.keys(call).length > 0) {
+        let initialData = transformCallToIC(call);
+        const icNumber = initialData.certificateNo || call.icNo || call.call_no;
+        if (icNumber) {
+          const savedEdit = await getProcessIcEditData(icNumber);
+          if (savedEdit) {
+            initialData = {
+              ...initialData,
+              bookNo: savedEdit.bookNo || initialData.bookNo,
+              setNo: savedEdit.setNo || initialData.setNo,
+              offeredInstNo: savedEdit.offeredInstallmentNo || initialData.offeredInstNo,
+              passedInstNo: savedEdit.passedInstallmentNo || initialData.passedInstNo,
+              consigneeRailway: savedEdit.consignee || initialData.consigneeRailway,
+            };
+          }
+        }
+        setEditableData(initialData);
+      }
+    };
+    initializeData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [call]);
 
   const handleDataChange = (field, value) => setEditableData((prev) => ({ ...prev, [field]: value }));
@@ -110,8 +167,22 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
       // 1. Mandatory Validations
       if (!dataToPass.bookNo || !dataToPass.setNo) {
           setNotification({ open: true, message: "Please fill in the 'Book No.' and 'Set No.' before signing.", severity: 'warning' });
+          setIsESigning(false);
           return;
       }
+
+      setNotification({ open: true, message: "Saving edited data...", severity: 'info' });
+      // 2. Save Edited Data to DB
+      await saveProcessIcEditData({
+          icNumber: dataToPass.certificateNo || call.icNo || call.call_no || "ProcessMaterial_IC",
+          certificateId: null,
+          bookNo: dataToPass.bookNo,
+          setNo: dataToPass.setNo,
+          offeredInstallmentNo: dataToPass.offeredInstNo,
+          passedInstallmentNo: dataToPass.passedInstNo,
+          consignee: dataToPass.consigneeRailway,
+          createdBy: getCurrentUserId()?.toString()
+      });
 
       // 2. Generate PDF Snapshot from Frontend (Bypasses PE-02 Backend parsing issues)
       const base64Pdf = await generatePdfBase64(printAreaRef.current);
@@ -157,7 +228,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
       // 4. Trigger Local Bridge
       if (typeof window.abc === 'function') {
           const fileName = (dataToPass.certificateNo || "ProcessMaterial_IC") + ".pdf";
-          window.abc(xmlRequest, undefined, fileName);
+          window.abc(xmlRequest, dataToPass.certificateNo || call.icNo || call.call_no || "ProcessMaterial_IC", fileName);
       } else {
           throw new Error("Digital signature bridge (abc.js) not found.");
       }

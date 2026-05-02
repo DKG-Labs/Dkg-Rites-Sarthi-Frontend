@@ -3,10 +3,23 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 module.exports = function (app) {
     // Proxy /sleeper/ to the Sleeper Dashboard dev server (Vite) on port 5173
     app.use(
-        '/sleeper/',
+        '/sleeper',
         createProxyMiddleware({
             target: 'http://localhost:5173',
             changeOrigin: true,
+            secure: false,
+            ws: true, // proxy websockets
+        })
+    );
+
+    // Proxy /railpad/ to the Railpad IE dev server (Vite) on port 5174
+    app.use(
+        '/railpad',
+        createProxyMiddleware({
+            target: 'http://localhost:5174',
+            changeOrigin: true,
+            secure: false,
+            ws: true, // proxy websockets
         })
     );
 };

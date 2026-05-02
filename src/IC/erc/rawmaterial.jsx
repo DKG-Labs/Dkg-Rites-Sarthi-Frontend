@@ -8,8 +8,11 @@ import {
     Alert,
     Box
 } from "@mui/material";
-import ErcRmIC from "./ErcRmIc";
 import { exportToPdf, generatePdfBase64 } from "../../utils/exportUtils";
+import { uploadSignedCertificate, saveRmIcEditData, getRmIcEditData } from "../../services/certificateService";
+import { performTransitionAction } from "../../services/workflowService";
+import { getCurrentUserId } from "../../services/workflowApiService";
+import ErcRmIC from "./ErcRmIc";
 import { fetchPoDataForSections } from "../../services/poDataService";
 
 export default function RawMaterialCertificate({ call = {}, onBack }) {
@@ -22,20 +25,57 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
 
   useEffect(() => {
     if (call?.po_no && call?.call_no) {
-      fetchPoDataForSections(call.po_no, call.call_no)
+      // Remove spaces around slashes for the API call (e.g., "SCR / 123" -> "SCR/123")
+      const cleanPoNo = typeof call.po_no === 'string' ? call.po_no.replace(/\s*\/\s*/g, '/') : call.po_no;
+      fetchPoDataForSections(cleanPoNo, call.call_no)
         .then(res => setPoDetails(res))
         .catch(err => console.error("Failed to load PO Details:", err));
     }
   }, [call?.po_no, call?.call_no]);
 
   useEffect(() => {
-    const handlePkiStatus = (event) => {
-      const { status, message } = event.detail;
+    const handlePkiStatus = async (event) => {
+      const { status, message, signedData, certificateNo, fileName } = event.detail;
       setNotification({ open: true, message, severity: status });
+      
+      if (status === 'success' && signedData) {
+          try {
+              setNotification({ open: true, message: "Uploading signed certificate to Azure...", severity: "info" });
+              await uploadSignedCertificate({
+                  icNumber: certificateNo,
+                  signedData: signedData,
+                  fileName: fileName,
+                  uploadedBy: "Inspecting Engineer"
+              });
+              setNotification({ open: true, message: "Signed certificate successfully saved to Azure!", severity: "success" });
+              
+              try {
+                  console.log('🔄 Calling performTransitionAction to update status to DSC_SIGN_IC');
+                      await performTransitionAction({
+                          workflowTransitionId: call?.id || call?.transitionId,
+                          requestId: typeof call?.call_no === 'string' && call.call_no.includes('/') ? call.call_no.split('/')[1] : call?.call_no,
+                          action: 'DSC_SIGN_IC',
+                          remarks: 'Digital signature applied and IC stored in Azure',
+                          actionBy: getCurrentUserId()
+                      });
+                      
+                      console.log('✅ Workflow status updated. Redirecting to Completed Calls Tab.');
+                      sessionStorage.setItem('ie_landing_active_tab', 'completed');
+                      
+                      // Using window.location to trigger a navigation to the landing page
+                      window.location.href = '/';
+              } catch (workflowErr) {
+                  console.error('⚠️ Failed to update workflow status to DSC_SIGN_IC:', workflowErr);
+              }
+          } catch (err) {
+              console.error("Upload error:", err);
+              setNotification({ open: true, message: "Signed successfully, but failed to save to Azure. " + err.message, severity: "error" });
+          }
+      }
     };
     window.addEventListener('pki-status', handlePkiStatus);
     return () => window.removeEventListener('pki-status', handlePkiStatus);
-  }, []);
+  }, [call?.call_no, call?.id, call?.transitionId]);
 
   const handleCloseNotification = () => setNotification({ ...notification, open: false });
 
@@ -106,7 +146,27 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
   };
 
   useEffect(() => {
-    if (call && Object.keys(call).length > 0) setEditableData(transformCallToIC(call, poDetails));
+    const initializeData = async () => {
+      if (call && Object.keys(call).length > 0) {
+        let initialData = transformCallToIC(call, poDetails);
+        const icNumber = initialData.certificateNo || call.icNo || call.call_no;
+        if (icNumber) {
+          const savedEdit = await getRmIcEditData(icNumber);
+          if (savedEdit) {
+            initialData = {
+              ...initialData,
+              bookNo: savedEdit.bookNo || initialData.bookNo,
+              setNo: savedEdit.setNo || initialData.setNo,
+              offeredInstNo: savedEdit.offeredInstallmentNo || initialData.offeredInstNo,
+              passedInstNo: savedEdit.passedInstallmentNo || initialData.passedInstNo,
+              drgNo: savedEdit.drawingNo || initialData.drgNo,
+            };
+          }
+        }
+        setEditableData(initialData);
+      }
+    };
+    initializeData();
   }, [call, poDetails]);
 
   const handleDataChange = (field, value) => setEditableData((prev) => ({ ...prev, [field]: value }));
@@ -127,23 +187,45 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
   };
 
   const handleESign = async () => {
+    console.log("📝 handleESign triggered");
     try {
       setIsESigning(true);
       
       // 1. Mandatory Validations
+      console.log("🔍 Validating mandatory fields... dataToPass:", dataToPass);
       if (!dataToPass.bookNo || !dataToPass.setNo) {
+          console.warn("⚠️ Validation failed: Book No or Set No is missing.");
           setNotification({ open: true, message: "Please fill in the 'Book No.' and 'Set No.' before signing.", severity: 'warning' });
+          setIsESigning(false);
           return;
       }
 
-      // 2. Generate PDF Snapshot from Frontend (Bypasses PE-02 Backend parsing issues)
+      console.log("✅ Validation passed. Preparing to save edited data...");
+      setNotification({ open: true, message: "Saving edited data...", severity: 'info' });
+      // 2. Save Edited Data to DB
+      const payloadToSave = {
+          icNumber: dataToPass.certificateNo || call.icNo || call.call_no || "RawMaterial_IC",
+          certificateId: null, // Depending on backend, pass null if not strictly needed
+          bookNo: dataToPass.bookNo,
+          setNo: dataToPass.setNo,
+          offeredInstallmentNo: dataToPass.offeredInstNo,
+          passedInstallmentNo: dataToPass.passedInstNo,
+          drawingNo: dataToPass.drgNo,
+          createdBy: getCurrentUserId()?.toString()
+      };
+      console.log("📤 Sending payload to saveRmIcEditData:", payloadToSave);
+      
+      await saveRmIcEditData(payloadToSave);
+      console.log("✅ saveRmIcEditData completed successfully.");
+
+      // 3. Generate PDF Snapshot from Frontend (Bypasses PE-02 Backend parsing issues)
       const base64Pdf = await generatePdfBase64(printAreaRef.current);
 
       if (!base64Pdf || !base64Pdf.startsWith("JVBER")) {
           throw new Error("Failed to generate PDF snapshot from UI.");
       }
 
-      // 3. Construct Capricorn XML (STRICT pkiNetworkSign SCHEMA)
+      // 4. Construct Capricorn XML (STRICT pkiNetworkSign SCHEMA)
       const now = new Date();
       const pad = (n) => n.toString().padStart(2, '0');
       const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}+05:30`;
@@ -177,10 +259,10 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
         </request>
       `.replace(/>\s+</g, "><").trim();
 
-      // 4. Trigger Local Bridge
+      // 5. Trigger Local Bridge
       if (typeof window.abc === 'function') {
           const fileName = (dataToPass.certificateNo || "RawMaterial_IC") + ".pdf";
-          window.abc(xmlRequest, undefined, fileName);
+          window.abc(xmlRequest, dataToPass.certificateNo || call.icNo || call.call_no || "RawMaterial_IC", fileName);
       } else {
           throw new Error("Digital signature bridge (abc.js) not found.");
       }

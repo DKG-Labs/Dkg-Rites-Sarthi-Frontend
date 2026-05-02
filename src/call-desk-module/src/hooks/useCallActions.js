@@ -23,7 +23,7 @@ export const useCallActions = () => {
   /**
  * Verify and accept a call (REAL API)
  */
-  const verifyAndAccept = async (workflowTransitionId, selectedCall, remarks, newIeId) => {
+  const verifyAndAccept = async (workflowTransitionId, selectedCall, remarks, newIeId, callType = 'ERC') => {
     try {
       setLoading(true);
       setError(null);
@@ -31,19 +31,34 @@ export const useCallActions = () => {
       const user = getStoredUser();
 
       //  API payload
-      const payload = {
-        workflowTransitionId: workflowTransitionId,
-        requestId: selectedCall.callNumber,
-        action: 'VERIFY',
-        remarks: remarks || null,
-        actionBy: Number(user.userId),
-        pincode: null,
-        assignUserId: newIeId ? Number(newIeId) : null
-      };
+      let payload;
+      let endpoint;
+
+      if (callType === 'SLEEPER') {
+        payload = {
+          workflowTransitionId: Number(workflowTransitionId),
+          requestId: selectedCall.callNumber,
+          action: 'VERIFY',
+          remarks: remarks || null,
+          actionBy: Number(user.userId)
+        };
+        endpoint = `${API_BASE_URL}/api/sleeper-workflow/performTransitionAction`;
+      } else {
+        payload = {
+          workflowTransitionId: workflowTransitionId,
+          requestId: selectedCall.callNumber,
+          action: 'VERIFY',
+          remarks: remarks || null,
+          actionBy: Number(user.userId),
+          pincode: null,
+          assignUserId: newIeId ? Number(newIeId) : null
+        };
+        endpoint = `${API_BASE_URL}/performTransitionAction`;
+      }
 
 
       const response = await axios.post(
-        `${API_BASE_URL}/performTransitionAction`,
+        endpoint,
         payload,
         {
           headers: {
@@ -86,7 +101,8 @@ export const useCallActions = () => {
     workflowTransitionId,
     selectedCall,
     remarks,
-    flaggedFields = []
+    flaggedFields = [],
+    callType = 'ERC'
   ) => {
     try {
       setLoading(true);
@@ -99,17 +115,32 @@ export const useCallActions = () => {
       const user = getStoredUser();
 
       //  API payload
-      const payload = {
-        workflowTransitionId: workflowTransitionId,
-        requestId: selectedCall.callNumber,
-        action: 'RETURN_TO_VENDOR',
-        remarks: remarks,
-        actionBy: Number(user.userId),
-        pincode: null,
-      };
+      let payload;
+      let endpoint;
+
+      if (callType === 'SLEEPER') {
+        payload = {
+          workflowTransitionId: Number(workflowTransitionId),
+          requestId: selectedCall.callNumber,
+          action: 'RETURN_TO_VENDOR',
+          remarks: remarks,
+          actionBy: Number(user.userId)
+        };
+        endpoint = `${API_BASE_URL}/api/sleeper-workflow/performTransitionAction`;
+      } else {
+        payload = {
+          workflowTransitionId: workflowTransitionId,
+          requestId: selectedCall.callNumber,
+          action: 'RETURN_TO_VENDOR',
+          remarks: remarks,
+          actionBy: Number(user.userId),
+          pincode: null,
+        };
+        endpoint = `${BASE_URL}/performTransitionAction`;
+      }
 
       const response = await axios.post(
-        `${BASE_URL}/performTransitionAction`,
+        endpoint,
         payload,
         {
           headers: {
@@ -151,7 +182,8 @@ export const useCallActions = () => {
     workflowTransitionId,
     selectedCall,
     targetRIO,
-    remarks
+    remarks,
+    callType = 'ERC'
   ) => {
     try {
       setLoading(true);
@@ -166,18 +198,34 @@ export const useCallActions = () => {
 
       const user = getStoredUser();
 
-      const payload = {
-        workflowTransitionId,
-        requestId: selectedCall.callNumber,
-        action: 'FIX_ROUTING',
-        remarks,
-        actionBy: Number(user.userId),
-        pincode: null,
-        rioRouteChange: targetRIO,
-      };
+      let payload;
+      let endpoint;
+
+      if (callType === 'SLEEPER') {
+        payload = {
+          workflowTransitionId: Number(workflowTransitionId),
+          requestId: selectedCall.callNumber,
+          action: 'FIX_ROUTING',
+          remarks,
+          actionBy: Number(user.userId),
+          rioRouteChange: targetRIO,
+        };
+        endpoint = `${API_BASE_URL}/api/sleeper-workflow/performTransitionAction`;
+      } else {
+        payload = {
+          workflowTransitionId,
+          requestId: selectedCall.callNumber,
+          action: 'FIX_ROUTING',
+          remarks,
+          actionBy: Number(user.userId),
+          pincode: null,
+          rioRouteChange: targetRIO,
+        };
+        endpoint = `${BASE_URL}/performTransitionAction`;
+      }
 
       const response = await axios.post(
-        `${BASE_URL}/performTransitionAction`,
+        endpoint,
         payload,
         {
           headers: {
@@ -222,9 +270,13 @@ export const useCallActions = () => {
   /**
   * Fetch workflow transition history (REAL API)
   */
-  const viewCallHistory = async (requestId) => {
+  const viewCallHistory = async (requestId, callType = 'ERC') => {
+    const endpoint = callType === 'SLEEPER'
+      ? `${BASE_URL}/api/sleeper-workflow/WorkflowTransitionHistory`
+      : `${BASE_URL}/workflowTransitionHistory`;
+
     const response = await axios.get(
-      `${BASE_URL}/workflowTransitionHistory`,
+      endpoint,
       {
         params: { requestId },
         headers: {
@@ -296,4 +348,5 @@ export const useCallActions = () => {
 };
 
 export default useCallActions;
+
 

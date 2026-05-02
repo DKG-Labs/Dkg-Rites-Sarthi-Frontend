@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useShift } from "../../../../context/ShiftContext";
 import { useToast } from "../../../../context/ToastContext";
 import { getStoredUser } from "../../../../services/authService";
-import { saveCementNormalConsistency, getCementNormalConsistencyByReqId } from "../../../../services/workflowService";
+import { saveCementNormalConsistency, getCementNormalConsistencyByReqId, getCementNormalConsistencyById } from "../../../../services/workflowService";
 
 
 const emptyRow = {
@@ -13,15 +13,16 @@ const emptyRow = {
     needle: "",
 };
 
-export default function NormalConsistencyForm({ onSave, onCancel, inventoryData = [], initialType = "New Inventory", activeRequestId, editData, onValueChange }) {
+export default function NormalConsistencyForm({ onSave, onCancel, inventoryData = [], initialType = "New consignment", activeRequestId, activeConsignmentNo, editId, editData, onValueChange }) {
     const { selectedShift, dutyDate, dutyLocation } = useShift();
     const toast = useToast();
     const user = getStoredUser();
+    const hasNotifiedRef = useRef(false);
 
     const [loading, setLoading] = useState(false);
     const [header, setHeader] = useState({
         typeOfTesting: initialType,
-        consignmentNo: "",
+        consignmentNo: activeConsignmentNo || "",
         roomTemp: "",
         sampleWeight: 400
     });
@@ -49,44 +50,22 @@ export default function NormalConsistencyForm({ onSave, onCancel, inventoryData 
     const [normalConsistency, setNormalConsistency] = useState("");
     const [qtyOfWater, setQtyOfWater] = useState("");
     const [water85, setWater85] = useState("");
-    const [editId, setEditId] = useState(null);
+    const [editIdState, setEditIdState] = useState(editId || null);
 
     useEffect(() => {
-        if (activeRequestId) {
-            getCementNormalConsistencyByReqId(activeRequestId).then(record => {
-                if (record && record.id) {
-                    setEditId(record.id);
-                    setHeader(prev => ({
-                        ...prev,
-                        typeOfTesting: record.typeOfTesting || prev.typeOfTesting,
-                        consignmentNo: record.consignmentNo || prev.consignmentNo,
-                        roomTemp: record.roomTemp || prev.roomTemp,
-                        sampleWeight: record.sampleWeight || prev.sampleWeight
-                    }));
-                    if (record.observations && record.observations.length > 0) {
-                        const mapped = record.observations.map(o => ({
-                            percent: o.percentWaterAdded || "",
-                            volume: o.volume || "",
-                            addTime: o.timeOfAdding ? o.timeOfAdding.substring(0, 5) : "",
-                            readTime: o.readingTime ? o.readingTime.substring(0, 5) : "",
-                            needle: o.needleReading || ""
-                        }));
-                        const totalMap = mapped.length < 4 
-                            ? [...mapped, ...Array(4 - mapped.length).fill({ ...emptyRow })] 
-                            : mapped;
-                        setRows(totalMap);
-                    }
-                }
-            });
-        } else if (initialType === "Periodic" && editData) {
-            const record = editData;
-            setEditId(record.id);
+        if (editId) setEditIdState(editId);
+    }, [editId]);
+
+    useEffect(() => {
+        console.log("NormalConsistencyForm Props:", { initialType, editId, editData, activeConsignmentNo });
+        const handleRecord = (record) => {
+            if (!record) return;
             setHeader(prev => ({
                 ...prev,
-                typeOfTesting: "Periodic",
-                consignmentNo: record.consignmentNo || "",
-                roomTemp: record.roomTemp || "",
-                sampleWeight: record.sampleWeight || 400
+                typeOfTesting: record.typeOfTesting || prev.typeOfTesting,
+                consignmentNo: record.consignmentNo || record.consignment || activeConsignmentNo || prev.consignmentNo,
+                roomTemp: record.roomTemp || record.temp || prev.roomTemp,
+                sampleWeight: record.sampleWeight || record.weight || 400
             }));
             if (record.observations && record.observations.length > 0) {
                 const mapped = record.observations.map(o => ({
@@ -101,8 +80,41 @@ export default function NormalConsistencyForm({ onSave, onCancel, inventoryData 
                     : mapped;
                 setRows(totalMap);
             }
+        };
+
+        if (activeRequestId) {
+            getCementNormalConsistencyByReqId(activeRequestId).then(record => {
+                if (record && (record.id || record.consignmentNo)) {
+                    setEditIdState(record.id || null);
+                    handleRecord(record);
+                } else {
+                    if (activeConsignmentNo) {
+                        setHeader(prev => ({ ...prev, consignmentNo: activeConsignmentNo }));
+                    }
+                    if (!hasNotifiedRef.current) {
+                        toast.info("No previous Normal Consistency data found. You can start entering new test results.");
+                        hasNotifiedRef.current = true;
+                    }
+                }
+            });
+        } else if (initialType === "Periodic" && (editId || editData)) {
+            // Priority 1: Use pre-loaded editData immediately
+            if (editData && (editData.observations || editData.consignmentNo)) {
+                handleRecord(editData);
+            }
+            
+            // Priority 2: Fetch full record by ID as fallback/sync
+            if (editId) {
+                getCementNormalConsistencyById(editId).then(record => {
+                    if (record) {
+                        handleRecord(record);
+                    } else {
+                        toast.info("No existing record found in history for this test.");
+                    }
+                });
+            }
         }
-    }, [activeRequestId, editData, initialType]);
+    }, [activeRequestId, editId, editData, initialType]);
 
     // handle table input
     const updateRow = (index, field, value) => {
@@ -153,7 +165,7 @@ export default function NormalConsistencyForm({ onSave, onCancel, inventoryData 
         setLoading(true);
         try {
             const payload = {
-                testDate: new Date().toISOString().split('T')[0],
+                testDate: header.testDate || new Date().toISOString().split('T')[0],
                 typeOfTesting: header.typeOfTesting,
                 consignmentNo: header.consignmentNo,
                 roomTemp: parseFloat(header.roomTemp),
@@ -163,6 +175,7 @@ export default function NormalConsistencyForm({ onSave, onCancel, inventoryData 
                 dateOfInspection: dutyDate,
                 requestId: activeRequestId || null,
                 createdBy: user?.userId || 0,
+                normalConsistency: parseFloat(normalConsistency) || null,
                 observations: rows
                     .filter(r => r.percent && r.volume)
                     .map(r => ({
@@ -174,12 +187,13 @@ export default function NormalConsistencyForm({ onSave, onCancel, inventoryData 
                     }))
             };
 
-            await saveCementNormalConsistency(payload, editId);
-            toast.success(`Cement Normal Consistency record ${editId ? 'updated' : 'saved'} successfully!`);
-            if (onSave) onSave(payload);
+            const resultSaved = await saveCementNormalConsistency(payload, editIdState);
+            if (onSave) onSave(resultSaved || payload);
+            
+            toast.success(`Cement Normal Consistency record ${editIdState ? 'updated' : 'saved'} successfully!`);
         } catch (error) {
             console.error("Save failed:", error);
-            toast.error("Error saving record. Please check console.");
+            toast.error(error.message || "Unable to save test record. Please try again.");
         } finally {
             setLoading(false);
         }
@@ -207,7 +221,7 @@ export default function NormalConsistencyForm({ onSave, onCancel, inventoryData 
                             required
                         >
                             <option value="">-- Select --</option>
-                            <option value="New Inventory">New Inventory</option>
+                            <option value="New consignment">New consignment</option>
                             <option value="Periodic">Periodic</option>
                         </select>
                     </div>
@@ -351,7 +365,7 @@ export default function NormalConsistencyForm({ onSave, onCancel, inventoryData 
 
                 <div className="btn-group" style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
                     <button type="submit" className="btn-save" disabled={loading}>
-                        {loading ? "Saving..." : editId ? "Update Test Report" : "Submit Test Report"}
+                        {loading ? "Saving..." : editIdState ? "Update Test Report" : "Submit Test Report"}
                     </button>
                     <button type="button" className="btn-save" style={{ background: '#64748b' }} onClick={onCancel}>
                         Cancel

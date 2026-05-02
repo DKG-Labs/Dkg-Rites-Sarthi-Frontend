@@ -22,11 +22,16 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
     // Sync with global header changes
     useEffect(() => {
         if (globalConfig) {
-            setFormData(prev => ({
-                ...prev,
-                date: globalConfig.castingDate || prev.date,
-                batchNo: globalConfig.batchNo || prev.batchNo
-            }));
+            setFormData(prev => {
+                const isNewBatch = globalConfig.batchNo && globalConfig.batchNo !== prev.batchNo;
+                return {
+                    ...prev,
+                    date: globalConfig.castingDate || prev.date,
+                    batchNo: globalConfig.batchNo || prev.batchNo,
+                    // Reset Adopted flag if batch changes
+                    isSameAsAdjusted: isNewBatch ? false : prev.isSameAsAdjusted
+                };
+            });
         }
     }, [globalConfig]);
 
@@ -63,8 +68,13 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
     const getFieldValidation = (field, value) => {
         if (!value) return false;
         const limit = (field === 'cement') ? 0.02 : 0.03;
-        const selectedBatch = batches.find(b => String(b.batchNo) === String(formData.batchNo)) || 
+        
+        // Prioritize finding the reference batch by moisture analysis ID, then fallback to name matching
+        const selectedBatch = batches.find(b => String(b.parentId) === String(globalConfig?.moistureAnalysis)) || 
+                             batches.find(b => String(b.batchNo) === String(formData.batchNo)) || 
+                             recentBatches.find(b => String(b.id) === String(globalConfig?.moistureAnalysis)) ||
                              recentBatches.find(b => String(b.batchNo) === String(formData.batchNo));
+
         if (selectedBatch?.adjustedWeights) {
             const refVal = parseFloat(selectedBatch.adjustedWeights[field]) || 0;
             const curVal = parseFloat(value) || 0;
@@ -81,20 +91,21 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
         setFormData(prev => ({ ...prev, [name]: val }));
     };
 
-    // Automatically autofill actual values AND store set values from moisture adjusted weights
+    // Store set values from moisture adjusted weights (but don't autofill actuals)
     useEffect(() => {
-        if (formData.batchNo) {
-            const batchToUse = batches.find(b => String(b.batchNo) === String(formData.batchNo)) || 
+        if (formData.batchNo || globalConfig?.moistureAnalysis) {
+            const batchToUse = batches.find(b => String(b.parentId) === String(globalConfig?.moistureAnalysis)) || 
+                             batches.find(b => String(b.batchNo) === String(formData.batchNo)) || 
+                             recentBatches.find(b => String(b.id) === String(globalConfig?.moistureAnalysis)) ||
                              recentBatches.find(b => String(b.batchNo) === String(formData.batchNo));
+
             if (batchToUse?.adjustedWeights) {
                 const adj = batchToUse.adjustedWeights;
                 
-                // Only autofill if the current fields are empty so we don't overwrite user edits
-                // user edits can be modified AFTER auto-filling
                 setFormData(prev => {
                     const nextSt = { ...prev };
                     
-                    // Store set values
+                    // Store reference set values for the log
                     nextSt.ca1Set = adj.ca1 || '';
                     nextSt.ca2Set = adj.ca2 || '';
                     nextSt.faSet = adj.fa || '';
@@ -102,21 +113,11 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
                     nextSt.waterSet = adj.water || '';
                     nextSt.admixtureSet = adj.admixture || '';
 
-                    // Autofill actual values if empty or if 'isSameAsAdjusted' triggered it
-                    if (prev.isSameAsAdjusted || (!prev.ca1 && !prev.ca2 && !prev.cement)) {
-                        nextSt.ca1 = adj.ca1 || '';
-                        nextSt.ca2 = adj.ca2 || '';
-                        nextSt.fa = adj.fa || '';
-                        nextSt.cement = adj.cement || '';
-                        nextSt.water = adj.water || '';
-                        nextSt.admixture = adj.admixture || '';
-                    }
-
                     return nextSt;
                 });
             }
         }
-    }, [formData.batchNo, formData.isSameAsAdjusted, batches, recentBatches]);
+    }, [formData.batchNo, batches, recentBatches]); // removed isSameAsAdjusted as it no longer triggers fill
 
     const handleEdit = async (record) => {
         try {
@@ -203,8 +204,17 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
             return;
         }
 
+        if (!formData.isSameAsAdjusted) {
+            alert('CRITICAL: You must press the "ADOPT ADJUSTED" button to confirm reference weights before submitting manual results.');
+            return;
+        }
+
         // --- NEW VALIDATION: Allowed Error Check ---
-        const selectedBatch = batches.find(b => String(b.batchNo) === String(formData.batchNo)) || recentBatches.find(b => String(b.batchNo) === String(formData.batchNo));
+        const selectedBatch = batches.find(b => String(b.parentId) === String(globalConfig?.moistureAnalysis)) || 
+                             batches.find(b => String(b.batchNo) === String(formData.batchNo)) || 
+                             recentBatches.find(b => String(b.id) === String(globalConfig?.moistureAnalysis)) ||
+                             recentBatches.find(b => String(b.batchNo) === String(formData.batchNo));
+
         if (selectedBatch && selectedBatch.adjustedWeights) {
             const adj = selectedBatch.adjustedWeights;
             
@@ -238,8 +248,11 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
         // --- END VALIDATION ---
 
         setSaving(true);
-        // Using batchRef to avoid redeclaration conflict
-        const batchRef = batches.find(b => String(b.batchNo) === String(formData.batchNo)) || recentBatches.find(b => String(b.batchNo) === String(formData.batchNo));
+        // Prioritize moisture analysis ID lookup for the final save
+        const batchRef = batches.find(b => String(b.parentId) === String(globalConfig?.moistureAnalysis)) || 
+                       batches.find(b => String(b.batchNo) === String(formData.batchNo)) || 
+                       recentBatches.find(b => String(b.id) === String(globalConfig?.moistureAnalysis)) ||
+                       recentBatches.find(b => String(b.batchNo) === String(formData.batchNo));
         const adj = batchRef?.adjustedWeights || {};
 
         const record = {
@@ -305,9 +318,10 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
                                 id="manual-batch" 
                                 name="batchNo" 
                                 type="text" 
-                                readOnly 
+                                placeholder="e.g. 405A"
                                 value={formData.batchNo} 
-                                style={{ height: small ? '28px' : '32px', fontSize: small ? '0.75rem' : '0.8rem', background: '#f1f5f9', fontWeight: '800', border: '1.5px solid #cbd5e1', color: '#1e293b' }} 
+                                onChange={handleChange}
+                                style={{ height: small ? '28px' : '32px', fontSize: small ? '0.75rem' : '0.8rem', background: '#fff', fontWeight: '800', border: '1.5px solid #cbd5e1', color: '#1e293b' }} 
                             />
                         </div>
                         <div className="form-field" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -327,13 +341,13 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
                                     width: '18px', 
                                     height: '18px', 
                                     borderRadius: '4px', 
-                                    border: formData.isSameAsAdjusted ? 'none' : '2px solid #cbd5e1',
-                                    background: formData.isSameAsAdjusted ? '#3b82f6' : 'transparent',
+                                    border: formData.isSameAsAdjusted ? 'none' : '2px solid #ef4444', // Red border if not selected
+                                    background: formData.isSameAsAdjusted ? '#10b981' : 'transparent', // Green when selected
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                                    boxShadow: formData.isSameAsAdjusted ? '0 2px 4px rgba(59, 130, 246, 0.3)' : 'none'
+                                    boxShadow: formData.isSameAsAdjusted ? '0 2px 4px rgba(16, 185, 129, 0.3)' : 'none'
                                 }}>
                                     {formData.isSameAsAdjusted && (
                                         <svg width="10" height="10" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -344,10 +358,10 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
                                 <span style={{ 
                                     fontSize: '9px', 
                                     fontWeight: '900', 
-                                    color: formData.isSameAsAdjusted ? '#1e40af' : '#64748b',
+                                    color: formData.isSameAsAdjusted ? '#065f46' : '#ef4444',
                                     letterSpacing: '0.4px'
                                 }}>
-                                    {formData.isSameAsAdjusted ? 'ADOPTED ADJUSTED' : 'ADOPT ADJUSTED'}
+                                    {formData.isSameAsAdjusted ? 'ADOPTED ADJUSTED ✓' : 'ADOPT ADJUSTED (COMPULSORY) *'}
                                 </span>
                             </div>
                         </div>

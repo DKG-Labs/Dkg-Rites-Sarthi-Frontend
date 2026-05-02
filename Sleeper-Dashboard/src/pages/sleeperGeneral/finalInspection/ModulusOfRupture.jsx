@@ -3,8 +3,10 @@ import EnhancedDataTable from '../../../components/common/EnhancedDataTable';
 import CollapsibleSection from '../../../components/common/CollapsibleSection';
 import TrendChart from '../../../components/common/TrendChart';
 import { apiService } from '../../../services/api';
+import { useShift } from '../../../context/ShiftContext';
 
 const ModulusOfRupture = () => {
+    const { dutyUnit, vendorCode, selectedShift, userId, dutyDate } = useShift();
     const [viewMode, setViewMode] = useState('statistics'); // 'statistics', 'declared', 'tested'
     const [showDeclareModal, setShowDeclareModal] = useState(false);
     const [showTestModal, setShowTestModal] = useState(false);
@@ -19,13 +21,20 @@ const ModulusOfRupture = () => {
     const fetchData = async () => {
         try {
             setLoading(true);
+            const activePlantId = dutyUnit || localStorage.getItem('dutyUnit');
             const [samplesRes, testsRes] = await Promise.all([
                 apiService.getAllMORSamples(),
                 apiService.getAllMORTests()
             ]);
 
-            setDeclaredSamples(samplesRes.responseData || []);
-            setTestedSamples(testsRes.responseData || []);
+            const currentUserId = parseInt(userId || localStorage.getItem('userId') || '0', 10);
+            const filteredSamples = (samplesRes.responseData || [])
+                .filter(s => s.plantId === activePlantId && s.createdBy === currentUserId);
+            const filteredTests = (testsRes.responseData || [])
+                .filter(t => t.plantId === activePlantId && t.createdBy === currentUserId);
+
+            setDeclaredSamples(filteredSamples);
+            setTestedSamples(filteredTests);
         } catch (error) {
             console.error('Failed to fetch MOR data:', error);
         } finally {
@@ -90,12 +99,18 @@ const ModulusOfRupture = () => {
             if (isModifying) {
                 await apiService.updateMORSample(selectedSample.id, {
                     ...formData,
-                    updatedBy: parseInt(localStorage.getItem('userId') || '118', 10)
+                    plantId: dutyUnit || localStorage.getItem('dutyUnit'),
+                    vendorCode: vendorCode || localStorage.getItem('vendorCode'),
+                    shift: selectedShift || 'General',
+                    updatedBy: parseInt(userId || localStorage.getItem('userId') || '118', 10)
                 });
             } else {
                 await apiService.createMORSample({
                     ...formData,
-                    createdBy: parseInt(localStorage.getItem('userId') || '118', 10)
+                    plantId: dutyUnit || localStorage.getItem('dutyUnit'),
+                    vendorCode: vendorCode || localStorage.getItem('vendorCode'),
+                    shift: selectedShift || 'General',
+                    createdBy: parseInt(userId || localStorage.getItem('userId') || '118', 10)
                 });
             }
             setShowDeclareModal(false);
@@ -110,11 +125,23 @@ const ModulusOfRupture = () => {
     const saveTestDetails = async (testData) => {
         try {
             setLoading(true);
-            await apiService.createMORTest({
+            const payload = {
                 ...testData,
-                morSampleId: selectedSample.id,
-                createdBy: parseInt(localStorage.getItem('userId') || '118', 10)
-            });
+                morSampleId: selectedSample.morSampleId || selectedSample.id,
+                plantId: dutyUnit || localStorage.getItem('dutyUnit'),
+                vendorCode: vendorCode || localStorage.getItem('vendorCode'),
+                shift: selectedShift || 'General',
+                createdBy: parseInt(userId || localStorage.getItem('userId') || '118', 10),
+                samplingDate: selectedSample.samplingDate,
+                concreteGrade: selectedSample.concreteGrade,
+                sampleIdentificationNumber: selectedSample.sampleIdentificationNumber
+            };
+
+            if (selectedSample.isTestRecord) {
+                await apiService.updateMORTest(selectedSample.testId, payload);
+            } else {
+                await apiService.createMORTest(payload);
+            }
             setShowTestModal(false);
             fetchData();
         } catch (error) {
@@ -129,11 +156,36 @@ const ModulusOfRupture = () => {
         return declaredSamples.filter(s => !testedSamples.some(t => t.morSampleId === s.id));
     }, [declaredSamples, testedSamples]);
 
-    const isWithinHour = (dateString) => {
-        if (!dateString) return false;
+    const isActionable = (dateString) => {
+        if (!dateString) return true;
         const diff = Date.now() - new Date(dateString).getTime();
-        return diff < (60 * 60 * 1000);
+        return diff < (8 * 60 * 60 * 1000);
     };
+
+    const handleDeleteRecord = async (id, isTest) => {
+        if (!window.confirm(`Are you sure you want to delete this ${isTest ? 'test record' : 'sample declaration'}?`)) return;
+        setLoading(true);
+        try {
+            if (isTest) {
+                await apiService.deleteMORTest(id);
+                alert('Test record deleted. Sample is now pending again.');
+                setViewMode('declared');
+            } else {
+                await apiService.deleteMORSample(id);
+                alert('Sample declaration deleted successfully.');
+                setViewMode('declared');
+            }
+            fetchData();
+            setShowViewModal(false);
+        } catch (error) {
+            console.error('Failed to delete MOR record:', error);
+            alert('Delete failed.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const [showViewModal, setShowViewModal] = useState(false);
 
     const isAgedForTesting = (samplingDate) => {
         if (!samplingDate) return false;
@@ -147,55 +199,58 @@ const ModulusOfRupture = () => {
     const columnsDeclared = [
         { key: 'samplingDate', label: 'Date of Sampling' },
         { key: 'concreteGrade', label: 'Concrete Grade' },
-        { key: 'shedLine', label: 'Shed/Line No.' },
+        { key: 'location', label: 'Location' },
         { key: 'sampleIdentificationNumber', label: 'Sample ID' },
         {
             key: 'actions',
             label: 'Actions',
             render: (_, row) => (
-                <div style={{ display: 'flex', gap: '8px' }}>
-                    {isWithinHour(row.createdDate) && (
-                        <button className="btn-save" style={{ fontSize: '10px', padding: '4px 8px' }} onClick={() => handleModifySample(row)}>Modify</button>
-                    )}
-                    <button
-                        className="btn-verify"
-                        style={{ fontSize: '10px', padding: '4px 8px' }}
-                        onClick={() => handleEnterTestDetails(row)}
-                    >
-                        Enter Test Details
-                    </button>
-                </div>
+                <button 
+                    className="btn-verify" 
+                    style={{ fontSize: '10px', padding: '6px 14px' }} 
+                    onClick={() => { setSelectedSample(row); setShowViewModal(true); }}
+                >
+                    View Details
+                </button>
             )
         }
     ];
 
     const columnsTested = [
         { key: 'samplingDate', label: 'Date of Sampling', render: (_, row) => {
-            const sample = declaredSamples.find(s => s.id === row.morSampleId);
-            return sample ? sample.samplingDate : '-';
+            const val = row.samplingDate || declaredSamples.find(s => s.id === row.morSampleId)?.samplingDate;
+            return val || '-';
         }},
         { key: 'testingDate', label: 'Date of Testing' },
         { key: 'sampleIdentificationNumber', label: 'Sample ID', render: (_, row) => {
-            const sample = declaredSamples.find(s => s.id === row.morSampleId);
-            return sample ? sample.sampleIdentificationNumber : '-';
+            const val = row.sampleIdentificationNumber || declaredSamples.find(s => s.id === row.morSampleId)?.sampleIdentificationNumber;
+            return val || '-';
         }},
-        { key: 'concreteGrade', label: 'Concrete Grade', render: (_, row) => {
-            const sample = declaredSamples.find(s => s.id === row.morSampleId);
-            return sample ? sample.concreteGrade : '-';
+        { key: 'concreteGrade', label: 'Grade', render: (_, row) => {
+            const val = row.concreteGrade || declaredSamples.find(s => s.id === row.morSampleId)?.concreteGrade;
+            return val || '-';
         }},
-        { key: 'strength', label: 'Strength' },
+        { key: 'weight', label: 'Weight (Kg)' },
+        { key: 'loadKn', label: 'Load (N)' },
+        { key: 'strength', label: 'Strength (N/mm²)' },
         { key: 'result', label: 'Result', render: (val) => (
-            <span style={{ color: (val || '').toLowerCase() === 'pass' ? '#059669' : '#dc2626', fontWeight: '700' }}>{val || 'FAIL'}</span>
+            <span style={{ color: (val || '').toLowerCase() === 'pass' ? '#059669' : '#dc2626', fontWeight: '800', fontSize: '11px' }}>{val || 'FAIL'}</span>
         )},
         {
             key: 'actions',
             label: 'Actions',
             render: (_, row) => (
-                isWithinHour(row.createdDate) ? (
-                    <button className="btn-save" style={{ fontSize: '10px', padding: '4px 8px' }}>Edit</button>
-                ) : (
-                    <span style={{ fontSize: '10px', color: '#94a3b8' }}>Locked</span>
-                )
+                <button 
+                    className="btn-verify" 
+                    style={{ fontSize: '10px', padding: '6px 14px' }} 
+                    onClick={() => { 
+                        const sampleInfo = declaredSamples.find(s => s.id === row.morSampleId);
+                        setSelectedSample({ ...sampleInfo, ...row, testId: row.id, morSampleId: row.morSampleId, isTestRecord: true }); 
+                        setShowViewModal(true); 
+                    }}
+                >
+                    View Details
+                </button>
             )
         }
     ];
@@ -219,9 +274,9 @@ const ModulusOfRupture = () => {
                 border: '1px solid #e2e8f0'
             }}>
                 {[
-                    { id: 'statistics', label: 'Statistics' },
-                    { id: 'declared', label: 'Pending Tests' },
-                    { id: 'tested', label: 'Test Log' }
+                    { id: 'statistics', label: 'Analytics' },
+                    { id: 'declared', label: 'Sample Declared for Testing' },
+                    { id: 'tested', label: 'Testing Completed' }
                 ].map(tab => (
                     <button
                         key={tab.id}
@@ -299,6 +354,28 @@ const ModulusOfRupture = () => {
                 )}
             </div>
 
+            {showViewModal && (
+                <MORDetailsModal
+                    sample={selectedSample}
+                    onClose={() => setShowViewModal(false)}
+                    onModify={() => {
+                        setShowViewModal(false);
+                        if (selectedSample.isTestRecord) {
+                            // Currently we don't have isModifying for tests modeled, but we'll open the modal
+                            setShowTestModal(true);
+                        } else {
+                            setIsModifying(true);
+                            setShowDeclareModal(true);
+                        }
+                    }}
+                    onDelete={(id) => handleDeleteRecord(id, selectedSample.isTestRecord)}
+                    onEnterTest={() => {
+                        setShowViewModal(false);
+                        setShowTestModal(true);
+                    }}
+                />
+            )}
+
             {showDeclareModal && (
                 <MORSampleDeclarationModal
                     sample={selectedSample}
@@ -329,17 +406,37 @@ const StatCard = ({ label, value, unit = '', color = '#1e293b' }) => (
 );
 
 const MORSampleDeclarationModal = ({ sample, isModifying, onClose, onSave, saving }) => {
+    const { vendorId, dutyUnit, vendorCode } = useShift();
+    const [locations, setLocations] = useState({});
+
+    useEffect(() => {
+        const fetchLocations = async () => {
+            const vId = vendorId || localStorage.getItem('vendorId');
+            const pId = dutyUnit || localStorage.getItem('dutyUnit');
+            if (!vId || !pId) return;
+            try {
+                const res = await apiService.getPlantSheds(vId, pId);
+                if (res?.responseData) {
+                    setLocations(res.responseData);
+                } else if (res && typeof res === 'object') {
+                    setLocations(res);
+                }
+            } catch (err) {
+                console.error("Failed to fetch locations:", err);
+            }
+        };
+        fetchLocations();
+    }, [vendorId, dutyUnit]);
+
     const [formData, setFormData] = useState(sample ? {
         samplingDate: sample.samplingDate,
         concreteGrade: sample.concreteGrade,
-        plantType: sample.plantType,
-        shedLine: sample.shedLine,
+        location: sample.location || sample.shedLine || `${sample.plantType || ''} - ${sample.shedLine || ''}`.replace(/^- | - $/g, ''),
         sampleIdentificationNumber: sample.sampleIdentificationNumber
     } : {
         samplingDate: new Date().toISOString().split('T')[0],
         concreteGrade: '',
-        plantType: '',
-        shedLine: '',
+        location: '',
         sampleIdentificationNumber: ''
     });
 
@@ -365,23 +462,16 @@ const MORSampleDeclarationModal = ({ sample, isModifying, onClose, onSave, savin
                             </select>
                         </div>
                         <div className="input-group">
-                            <label>Plant Type</label>
-                            <select value={formData.plantType} onChange={e => setFormData({ ...formData, plantType: e.target.value })}>
-                                <option value="">Select Plant</option>
-                                <option>Long Line</option>
-                                <option>Stress Bench</option>
-                                <option>General</option>
-                            </select>
-                        </div>
-                        <div className="input-group">
-                            <label>Shed / Line</label>
-                            <select value={formData.shedLine} onChange={e => setFormData({ ...formData, shedLine: e.target.value })}>
-                                <option value="">Select Shed/Line</option>
-                                <option>Shed 1</option>
-                                <option>Shed 2</option>
-                                <option>Line 1</option>
-                                <option>Line 2</option>
-                                <option>N/A</option>
+                            <label>Location (Plant / Shed)</label>
+                            <select value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })}>
+                                <option value="">Select Location</option>
+                                {Object.entries(locations).map(([plantType, sheds]) => (
+                                    <optgroup key={plantType} label={plantType}>
+                                        {Array.isArray(sheds) && sheds.map(shed => (
+                                            <option key={`${plantType} - ${shed}`} value={`${plantType} - ${shed}`}>{shed}</option>
+                                        ))}
+                                    </optgroup>
+                                ))}
                             </select>
                         </div>
                         <div className="input-group">
@@ -391,11 +481,22 @@ const MORSampleDeclarationModal = ({ sample, isModifying, onClose, onSave, savin
                     </div>
                     <div style={{ display: 'flex', gap: '12px', marginTop: '32px', flexWrap: 'wrap' }}>
                         <button className="btn-verify" disabled={saving} style={{ flex: '1 1 200px' }} onClick={() => {
-                            if (!formData.concreteGrade || !formData.plantType || !formData.shedLine || !formData.sampleIdentificationNumber) {
-                                alert("Please fill in all mandatory fields (Grade, Plant, Shed/Line, and ID).");
+                            if (!formData.concreteGrade || !formData.location || !formData.sampleIdentificationNumber) {
+                                alert("Please fill in all mandatory fields (Grade, Location, and ID).");
                                 return;
                             }
-                            onSave(formData);
+                            // Backend might still expect plantType and shedLine, or we can send location.
+                            // If backend schema isn't changed, we can send location mapped to shedLine, or split it.
+                            // The backend update was requested, so we'll send it as location.
+                            const payload = { ...formData };
+                            if (formData.location.includes(' - ')) {
+                                const parts = formData.location.split(' - ');
+                                payload.plantType = parts[0];
+                                payload.shedLine = parts[1];
+                            } else {
+                                payload.shedLine = formData.location;
+                            }
+                            onSave(payload);
                         }}>{saving ? 'Saving...' : (isModifying ? 'Update Sample' : 'Save Declaration')}</button>
                         <button className="btn-save" style={{ flex: '1 1 200px', background: '#f1f5f9', color: '#64748b', border: 'none' }} onClick={onClose}>Cancel</button>
                     </div>
@@ -407,11 +508,11 @@ const MORSampleDeclarationModal = ({ sample, isModifying, onClose, onSave, savin
 
 const MORTestDetailsModal = ({ sample, onClose, onSave, saving }) => {
     const [testData, setTestData] = useState({
-        testingDate: new Date().toISOString().split('T')[0],
-        weight: '',
-        loadKn: '', // Representing "Load A (Newton)"
-        strength: '', // Representing "Strength C (N/mm²)"
-        remarks: ''
+        testingDate: sample.testingDate || new Date().toISOString().split('T')[0],
+        weight: sample.weight || '',
+        loadKn: sample.loadKn || '', // Representing "Load A (Newton)"
+        strength: sample.strength || '', // Representing "Strength C (N/mm²)"
+        remarks: sample.remarks || ''
     });
 
     let result = 'PENDING';
@@ -481,6 +582,99 @@ const MORTestDetailsModal = ({ sample, onClose, onSave, saving }) => {
                             onSave({ ...testData, result });
                         }}>{saving ? 'Saving...' : 'Save Test Results'}</button>
                         <button className="btn-save" style={{ flex: '1 1 200px', background: '#f1f5f9', color: '#64748b', border: 'none' }} onClick={onClose}>Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const MORDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelete }) => {
+    if (!sample) return null;
+
+    const createdTime = sample.createdDate ? new Date(sample.createdDate) : new Date();
+    const canModifyOrDelete = (Date.now() - createdTime.getTime()) <= (8 * 60 * 60 * 1000);
+
+    const details = [
+        { label: 'Sample ID', value: sample.sampleIdentificationNumber },
+        { label: 'Grade', value: sample.concreteGrade },
+        { label: 'Location', value: sample.location || sample.shedLine || '-' },
+        { label: 'Sampling Date', value: sample.samplingDate },
+        ...(sample.isTestRecord ? [
+            { label: 'Testing Date', value: sample.testingDate },
+            { label: 'Weight', value: `${sample.weight} Kg` },
+            { label: 'Load', value: `${sample.loadKn} N` },
+            { label: 'Strength', value: `${sample.strength} N/mm²` },
+            { label: 'Result', value: sample.result }
+        ] : []),
+        { label: 'Log Created', value: `${createdTime.toLocaleDateString('en-GB')} ${createdTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` }
+    ];
+
+    return (
+        <div className="form-modal-overlay" onClick={onClose}>
+            <div className="form-modal-container" onClick={e => e.stopPropagation()} style={{ maxWidth: '450px' }}>
+                <div className="form-modal-header">
+                    <span className="form-modal-header-title">MOR Test Details</span>
+                    <button className="form-modal-close" onClick={onClose}>×</button>
+                </div>
+                <div className="form-modal-body">
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: '24px' }}>
+                        {details.map((detail, idx) => (
+                            <div key={idx} style={{ padding: '12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '800', textTransform: 'uppercase' }}>{detail.label}</div>
+                                <div style={{ fontSize: '14px', fontWeight: '800', color: '#13343b' }}>{detail.value}</div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
+                        {!sample.isTestRecord ? (
+                            <button 
+                                className="btn-verify" 
+                                style={{ flex: '1 1 120px', borderRadius: '25px', padding: '10px' }} 
+                                onClick={onEnterTest}
+                            >
+                                Enter Test Details
+                            </button>
+                        ) : null}
+                        
+                        <button
+                            className="btn-save"
+                            style={{ 
+                                flex: '1 1 80px', 
+                                background: '#f8fafc', 
+                                border: '1px solid #e2e8f0', 
+                                color: '#475569', 
+                                borderRadius: '25px',
+                                opacity: canModifyOrDelete ? 1 : 0.6,
+                                padding: '10px',
+                                cursor: canModifyOrDelete ? 'pointer' : 'not-allowed',
+                                fontWeight: '700'
+                            }}
+                            disabled={!canModifyOrDelete}
+                            onClick={onModify}
+                        >
+                            Modify
+                        </button>
+                        
+                        <button
+                            className="btn-save"
+                            style={{ 
+                                flex: '1 1 80px', 
+                                background: '#f8fafc', 
+                                border: '1px solid #e2e8f0', 
+                                color: '#475569', 
+                                borderRadius: '25px',
+                                opacity: canModifyOrDelete ? 1 : 0.6,
+                                padding: '10px',
+                                cursor: canModifyOrDelete ? 'pointer' : 'not-allowed',
+                                fontWeight: '700'
+                            }}
+                            disabled={!canModifyOrDelete}
+                            onClick={() => onDelete(sample.id)}
+                        >
+                            Delete
+                        </button>
                     </div>
                 </div>
             </div>

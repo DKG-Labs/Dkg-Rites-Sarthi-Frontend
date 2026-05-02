@@ -51,6 +51,7 @@ export const API_ENDPOINTS = {
 
     // Certificates
     CERTIFICATES: `${API_BASE_URL}/api/certificate`,
+    CERTIFICATE_STORAGE: `${API_BASE_URL}/api/certificate-storage`,
 
     // Schedule
     SCHEDULE: `${API_BASE_URL}/api/inspection-schedule`,
@@ -63,6 +64,9 @@ export const API_ENDPOINTS = {
 
     // Reports
     REPORTS: `${API_BASE_URL}/api/reports`,
+
+    // Sleeper Dashboard
+    SLEEPER_DASHBOARD: `${API_BASE_URL}/api/sleeper-dashboard`,
 };
 
 /**

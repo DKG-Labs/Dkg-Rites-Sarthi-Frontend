@@ -9,7 +9,7 @@ import { API_BASE_URL } from '../../../services/apiConfig';
 const BASE_URL = API_BASE_URL;
 
 
-export const useCallDeskData = (activeTab = 'pending') => {
+export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
   const [pendingCalls, setPendingCalls] = useState([]);
   const [verifiedCalls, setVerifiedCalls] = useState([]);
   const [disposedCalls] = useState([]);
@@ -30,9 +30,13 @@ export const useCallDeskData = (activeTab = 'pending') => {
   // API: Fetch Pending Verification Calls
   const fetchPendingVerificationCalls = useCallback(async () => {
     const user = getStoredUser();
+    
+    const endpoint = callType === 'SLEEPER'
+      ? `${BASE_URL}/api/sleeper-workflow/allPendingWorkflowTransition`
+      : `${BASE_URL}/allPendingWorkflowTransition`;
 
     const response = await axios.get(
-      `${BASE_URL}/allPendingWorkflowTransition`,
+      endpoint,
       {
         params: {
           roleName: 'RIO Help Desk',
@@ -62,9 +66,9 @@ export const useCallDeskData = (activeTab = 'pending') => {
       let internalStatus = CALL_STATUS.PENDING_VERIFICATION;
       const backendStatus = item.status ? item.status.toString() : '';
 
-      if (backendStatus === 'Created') {
+      if (backendStatus === 'Created' || backendStatus === 'CREATED') {
         internalStatus = CALL_STATUS.FRESH_SUBMISSION;
-      } else if (backendStatus === 'ReSubmitted') {
+      } else if (backendStatus === 'ReSubmitted' || backendStatus === 'RESUBMITTED') {
         internalStatus = CALL_STATUS.RESUBMISSION;
       } else if (backendStatus === 'RETURNED' || backendStatus === 'RETURN_TO_VENDOR' || backendStatus.includes('RETURNED')) {
         internalStatus = CALL_STATUS.RETURNED;
@@ -77,15 +81,15 @@ export const useCallDeskData = (activeTab = 'pending') => {
       return {
         id: item.workflowTransitionId,
         callNumber: item.requestId,
-        vendor: { name: item.vendorName || '-' },
+        vendor: { name: item.vendorName || item.vendorCode || '-' },
         submissionDateTime: item.createdDate,
         poNumber: actualPoNo,
         poSerialNo: actualSerialNo,
         rlyPoSr: item.poNo || '-',
-        product: item.productType,
-        productStage: item.productType,
-        desiredInspectionDate: item.desiredInspectionDate,
-        placeOfInspection: item.placeOfInspection || '-',
+        product: item.productType || (callType === 'SLEEPER' ? 'Sleeper' : '-'),
+        productStage: item.productType || (callType === 'SLEEPER' ? 'Final' : '-'),
+        desiredInspectionDate: item.desiredInspectionDate || item.createdDate,
+        placeOfInspection: item.placeOfInspection || item.poiCode || '-',
         dpDate: item.dpDate,
         extDpDate: item.extDpDate,
         dpDates: `${item.dpDate || '-'} / ${item.extDpDate || '-'}`,
@@ -95,10 +99,15 @@ export const useCallDeskData = (activeTab = 'pending') => {
         returnReason: internalStatus === CALL_STATUS.RETURN_TO_VENDOR ? item.remarks : null
       };
     });
-  }, []);
+  }, [callType]);
 
   // API: Fetch Dashboard KPIs
   const fetchDashboardKPIs = useCallback(async () => {
+    if (callType === 'SLEEPER') {
+      // Sleeper might not have KPIs endpoint yet, return mock or null
+      return null;
+    }
+    
     const user = getStoredUser();
     const response = await axios.get(
       `${BASE_URL}/dashboardKPIs`,
@@ -117,13 +126,18 @@ export const useCallDeskData = (activeTab = 'pending') => {
     }
 
     return response.data.responseData;
-  }, []);
+  }, [callType]);
 
   // API: Fetch Verified & Open Calls
   const fetchVerifiedCalls = useCallback(async () => {
     const user = getStoredUser();
+    
+    const endpoint = callType === 'SLEEPER'
+      ? `${BASE_URL}/api/sleeper-workflow/allCompletedCalls`
+      : `${BASE_URL}/allVerifiedWorkflowTransitions`;
+
     const response = await axios.get(
-      `${BASE_URL}/allVerifiedWorkflowTransitions`,
+      endpoint,
       {
         params: {
           rio: user?.rio || '',
@@ -145,7 +159,7 @@ export const useCallDeskData = (activeTab = 'pending') => {
       let internalStatus = item.status;
       const backendStatus = item.status ? item.status.toString().toUpperCase() : '';
 
-      if (backendStatus.includes('VERIFIED') || backendStatus.includes('REGISTERED')) {
+      if (backendStatus.includes('VERIFIED') || backendStatus.includes('REGISTERED') || backendStatus.includes('COMPLETED')) {
         internalStatus = 'verified_registered';
       } else if (backendStatus.includes('SCHEDULE')) {
         internalStatus = 'scheduled';
@@ -167,19 +181,19 @@ export const useCallDeskData = (activeTab = 'pending') => {
       return {
         id: item.workflowTransitionId,
         callNumber: item.requestId,
-        vendor: { name: item.vendorName || '-' },
+        vendor: { name: item.vendorName || item.vendorCode || '-' },
         submissionDateTime: item.createdDate,
         poNumber: actualPoNo,
-        product: item.productType,
-        productStage: item.productType,
-        desiredInspectionDate: item.desiredInspectionDate,
-        placeOfInspection: item.placeOfInspection || '-',
+        product: item.productType || (callType === 'SLEEPER' ? 'Sleeper' : '-'),
+        productStage: item.productType || (callType === 'SLEEPER' ? 'Final' : '-'),
+        desiredInspectionDate: item.desiredInspectionDate || item.createdDate,
+        placeOfInspection: item.placeOfInspection || item.poiCode || '-',
         status: internalStatus,
         assignedIE: item.assignedToUserName || item.ieName || '-',
         rio: item.rio
       };
     });
-  }, []);
+  }, [callType]);
 
   // Fetch data from backend API
   const fetchData = useCallback(async (tabId = null) => {
@@ -277,6 +291,16 @@ export const useCallDeskData = (activeTab = 'pending') => {
     }
   }, [activeTab, fetchData, dataLoaded]);
 
+  // Reset loaded state when callType changes to force re-fetch
+  useEffect(() => {
+    setDataLoaded({
+      pending: false,
+      verified: false,
+      disposed: false,
+      kpis: false
+    });
+  }, [callType]);
+
   // Get call by ID
   const getCallById = (callId) => {
     const allCalls = [...pendingCalls, ...verifiedCalls, ...disposedCalls];
@@ -334,4 +358,5 @@ export const useCallDeskData = (activeTab = 'pending') => {
 };
 
 export default useCallDeskData;
+
 

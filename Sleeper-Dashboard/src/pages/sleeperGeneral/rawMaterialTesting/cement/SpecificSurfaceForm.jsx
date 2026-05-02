@@ -1,18 +1,19 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useShift } from "../../../../context/ShiftContext";
 import { useToast } from "../../../../context/ToastContext";
 import { getStoredUser } from "../../../../services/authService";
-import { saveCementSpecificSurface, getCementSpecificSurfaceByReqId } from "../../../../services/workflowService";
+import { saveCementSpecificSurface, getCementSpecificSurfaceByReqId, getCementSpecificSurfaceById } from "../../../../services/workflowService";
 
-export default function SpecificSurfaceForm({ onSave, onCancel, inventoryData = [], initialType = "New Inventory", activeRequestId, editData }) {
+export default function SpecificSurfaceForm({ onSave, onCancel, inventoryData = [], initialType = "New consignment", activeRequestId, activeConsignmentNo, editId, editData }) {
     const { selectedShift, dutyDate, dutyLocation } = useShift();
     const toast = useToast();
     const user = getStoredUser();
+    const hasNotifiedRef = useRef(false);
 
     const [loading, setLoading] = useState(false);
     const [header, setHeader] = useState({
         type: initialType,
-        consignment: "",
+        consignment: activeConsignmentNo || "",
         roomTemp: "",
         weight: "",
         standardTime: "",
@@ -28,51 +29,65 @@ export default function SpecificSurfaceForm({ onSave, onCancel, inventoryData = 
     const [avgTime, setAvgTime] = useState(0);
     const [Fm, setFm] = useState(0);
     const [result, setResult] = useState("");
-    const [editId, setEditId] = useState(null);
+    const [editIdState, setEditIdState] = useState(editId || null);
 
     useEffect(() => {
-        if (activeRequestId) {
-            const row = inventoryData.find(i => i.requestId === activeRequestId);
-            if (row && !header.consignment) {
-                setHeader(prev => ({ ...prev, consignment: row.consignmentNo }));
-            }
-            getCementSpecificSurfaceByReqId(activeRequestId).then(record => {
-                if (record && record.id) {
-                    setEditId(record.id);
-                    setHeader(prev => ({
-                        ...prev,
-                        type: record.typeOfTesting || prev.type,
-                        consignment: record.consignmentNo || prev.consignment,
-                        roomTemp: record.roomTemp || prev.roomTemp,
-                        weight: record.weight || prev.weight,
-                        standardTime: record.standardTimeTs || prev.standardTime,
-                        standardSurface: record.standardSurfaceFs || prev.standardSurface
-                    }));
-                    setReadings({
-                        t1: record.sampleTime1 || "",
-                        t2: record.sampleTime2 || "",
-                        t3: record.sampleTime3 || ""
-                    });
-                }
-            });
-        } else if (initialType === "Periodic" && editData) {
-            setEditId(editData.id);
+        if (editId) setEditIdState(editId);
+    }, [editId]);
+
+    useEffect(() => {
+        console.log("SpecificSurfaceForm Props:", { initialType, editId, editData, activeConsignmentNo });
+        const handleRecord = (record) => {
+            if (!record) return;
             setHeader(prev => ({
                 ...prev,
-                type: "Periodic",
-                consignment: editData.consignmentNo || "",
-                roomTemp: editData.roomTemp || "",
-                weight: editData.weight || "",
-                standardTime: editData.standardTimeTs || "",
-                standardSurface: editData.standardSurfaceFs || ""
+                type: record.typeOfTesting || prev.type,
+                consignment: record.consignmentNo || record.consignment || activeConsignmentNo || prev.consignment,
+                roomTemp: record.roomTemp || record.temp || prev.roomTemp,
+                weight: record.weight || prev.weight,
+                standardTime: record.standardTimeTs || record.standardTime || prev.standardTime,
+                standardSurface: record.standardSurfaceFs || record.standardSurface || prev.standardSurface
             }));
             setReadings({
-                t1: editData.sampleTime1 || "",
-                t2: editData.sampleTime2 || "",
-                t3: editData.sampleTime3 || ""
+                t1: record.sampleTime1 || "",
+                t2: record.sampleTime2 || "",
+                t3: record.sampleTime3 || ""
             });
+        };
+
+        if (activeRequestId) {
+            getCementSpecificSurfaceByReqId(activeRequestId).then(record => {
+                if (record && (record.id || record.consignmentNo)) {
+                    setEditIdState(record.id || null);
+                    handleRecord(record);
+                } else {
+                    if (activeConsignmentNo) {
+                        setHeader(prev => ({ ...prev, consignment: activeConsignmentNo }));
+                    }
+                    if (!hasNotifiedRef.current) {
+                        toast.info("No previous Specific Surface data found. You can start entering new test results.");
+                        hasNotifiedRef.current = true;
+                    }
+                }
+            });
+        } else if (initialType === "Periodic" && (editId || editData)) {
+            // First priority: use pre-provided editData
+            if (editData && (editData.consignmentNo || editData.sampleTime1)) {
+                handleRecord(editData);
+            }
+            
+            // Secondary priority: Fetch by ID to ensure full record
+            if (editId) {
+                getCementSpecificSurfaceById(editId).then(record => {
+                    if (record) {
+                        handleRecord(record);
+                    } else {
+                        toast.info("No existing record found in history for this test.");
+                    }
+                });
+            }
         }
-    }, [activeRequestId, editData, initialType]);
+    }, [activeRequestId, editId, editData, initialType]);
 
     // Calculate Average Time
     useEffect(() => {
@@ -123,12 +138,13 @@ export default function SpecificSurfaceForm({ onSave, onCancel, inventoryData = 
                 createdBy: user?.userId || 0
             };
 
-            await saveCementSpecificSurface(payload, editId);
-            toast.success(`Specific Surface Test record ${editId ? 'updated' : 'saved'} successfully!`);
-            if (onSave) onSave(payload);
+            const resultSaved = await saveCementSpecificSurface(payload, editIdState);
+            if (onSave) onSave(resultSaved || payload);
+            
+            toast.success(`Specific Surface Test record ${editIdState ? 'updated' : 'saved'} successfully!`);
         } catch (error) {
             console.error("Save failed:", error);
-            toast.error("Error saving record. Please check console.");
+            toast.error(error.message || "Unable to save test record. Please try again.");
         } finally {
             setLoading(false);
         }
@@ -161,7 +177,7 @@ export default function SpecificSurfaceForm({ onSave, onCancel, inventoryData = 
                             required
                         >
                             <option value="">-- Select --</option>
-                            <option value="New Inventory">New Inventory</option>
+                            <option value="New consignment">New consignment</option>
                             <option value="Periodic">Periodic</option>
                         </select>
                     </div>
@@ -315,7 +331,7 @@ export default function SpecificSurfaceForm({ onSave, onCancel, inventoryData = 
 
                 <div className="btn-group" style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
                     <button type="submit" className="btn-save" disabled={loading}>
-                        {loading ? "Saving..." : editId ? "Update Test Report" : "Submit Test Report"}
+                        {loading ? "Saving..." : editIdState ? "Update Test Report" : "Submit Test Report"}
                     </button>
                     <button type="button" className="btn-save" style={{ background: '#64748b' }} onClick={onCancel}>
                         Cancel

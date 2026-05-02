@@ -4,18 +4,20 @@ import ModulusOfRupture from './ModulusOfRupture';
 import DimensionalTesting from './DimensionalTesting';
 import MomentOfResistance from './MomentOfResistance';
 import MomentOfFailure from './MomentOfFailure';
+import EpoxyTreatedSleepers from './EpoxyTreatedSleepers';
 
 const FinalInspectionDashboard = () => {
-    const [selectedCard, setSelectedCard] = useState('water-cube');
+    const [selectedCard, setSelectedCard] = useState('visual');
 
     const cards = [
         { id: 'visual', title: 'Visual Check & Measurement', subtitle: 'Sub Card- 1 (100%)' },
-        { id: 'critical', title: 'Critical Dimension', subtitle: 'Sub Card- 2 (Target 10-20%)' },
-        { id: 'non-critical', title: 'Non-Critical Dimension', subtitle: 'Sub Card- 3 (Target 1-5%)' },
+        { id: 'epoxy-treated', title: 'Epoxy Treated Sleepers', subtitle: 'Minor surface defect logging' },
+        { id: 'critical', title: 'Critical Dimension', subtitle: 'Sub Card- 2 (Target 10/20%)' },
+        { id: 'non-critical', title: 'Non-Critical Dimension', subtitle: 'Sub Card- 3 (Target 1/5%)' },
         { id: 'water-cube', title: 'Water Cube Strength', subtitle: 'Sub Card- 4' },
-        { id: 'mor', title: 'Modulus of Rupture', subtitle: 'Sub Card- 5' },
-        { id: 'mof', title: 'Modulus of Failure', subtitle: 'Structural Integrity' },
         { id: 'mor_res', title: 'Moment of Resistance', subtitle: 'Standard compliance' },
+        { id: 'mof', title: 'Modulus of Failure', subtitle: 'Structural Integrity' },
+        { id: 'mor', title: 'Modulus of Rupture', subtitle: 'Sub Card- 5' },
     ];
 
     const renderContent = () => {
@@ -30,6 +32,8 @@ const FinalInspectionDashboard = () => {
                 return <MomentOfResistance />;
             case 'visual':
                 return <DimensionalTesting type="visual" />;
+            case 'epoxy-treated':
+                return <EpoxyTreatedSleepers />;
             case 'critical':
                 return <DimensionalTesting type="critical" />;
             case 'non-critical':

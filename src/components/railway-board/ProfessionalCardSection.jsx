@@ -95,7 +95,9 @@ const ProfessionalCardSection = ({
     setMpiaPage = () => { },
     mpiaRowsPerPage = 10,
     setMpiaRowsPerPage = () => { },
-    onReportTabChange = () => { }
+    onReportTabChange = () => { },
+    fromDate,
+    toDate
 }) => {
     // Map selectedProduct to summary data keys
     const getSummaryKey = (prod) => {
@@ -971,7 +973,7 @@ const ProfessionalCardSection = ({
                                         <div className={`sub-tab-btn ${activeReport === 'mpr' ? 'active' : ''}`} onClick={() => { setActiveReport('mpr'); onReportTabChange('mpr'); }}>📋 MPR</div>
                                         <div className={`sub-tab-btn ${activeReport === 'mau' ? 'active' : ''}`} onClick={() => { setActiveReport('mau'); onReportTabChange('mau'); }}>📈 MAU</div>
                                         <div className={`sub-tab-btn ${activeReport === 'lwcl' ? 'active' : ''}`} onClick={() => { setActiveReport('lwcl'); onReportTabChange('lwcl'); }}>🔄 LWCL</div>
-                                        <div className={`sub-tab-btn ${activeReport === 'mpia' ? 'active' : ''}`} onClick={() => { setActiveReport('mpia'); onReportTabChange('mpia'); }}>⚙️ MPIA</div>
+                                        {!isSleeper && <div className={`sub-tab-btn ${activeReport === 'mpia' ? 'active' : ''}`} onClick={() => { setActiveReport('mpia'); onReportTabChange('mpia'); }}>⚙️ MPIA</div>}
                                     </div>
 
                                     <div className="report-viewer-content">
@@ -1047,7 +1049,7 @@ const ProfessionalCardSection = ({
                                         )}
 
                                         {activeReport === 'mau' && (
-                                            isSleeper ? <SleeperMauReport /> : (
+                                            isSleeper ? <SleeperMauReport startDate={fromDate} endDate={toDate} /> : (
                                                 <div className="prof-card animate-up">
                                                     <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                         <span>Monthly Analysis of Units</span>
@@ -1262,6 +1264,8 @@ const ProfessionalCardSection = ({
                             );
                         case 'feedback':
                             return <FeedbackSection />;
+                        case 'scada':
+                            return <ScadaMonitor selectedProduct={selectedProduct} />;
                         default:
                             return null;
                     }
@@ -1737,6 +1741,301 @@ const MpiaReportPage = ({ manufacturer, data, showFooter = true }) => {
                 <div className="mt-8 pt-4 border-t border-slate-100 text-[10px] text-slate-300 flex justify-between font-bold uppercase">
                     <span>SARTHI RAILWAY DASHBOARD - CONFIDENTIAL</span>
                     <span>GENERATED ON: {new Date().toLocaleDateString()}</span>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ────────────────────────────────────────────────────────────────────────────────
+// NEW: ScadaMonitor Component with API Integration
+// ────────────────────────────────────────────────────────────────────────────────
+const SCADA_MANUFACTURERS = [
+    { label: 'Patil Rail Infrastructure Pvt. Ltd.', value: 'PRIL' }
+];
+
+const SCADA_UNITS = [
+    { label: 'Medchal Unit', value: 'MDL-U1' }
+];
+
+const SCADA_LINES = [
+    { label: 'line 1', value: 'L1' }
+];
+
+const SCADA_STAGES = [
+    { label: 'AUTO_COPYING', value: 'AUTO_COPYING' },
+    { label: 'BAR_CROPPING', value: 'BAR_CROPPING' }
+];
+
+const ScadaMonitor = ({ selectedProduct }) => {
+    const [currentPage, setCurrentPage] = useState(0);
+    const [manufacturer, setManufacturer] = useState('');
+    const [unit, setUnit] = useState('');
+    const [line, setLine] = useState('');
+    const [stage, setStage] = useState('');
+    const [data, setData] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+    const [status, setStatus] = useState('No Data');
+    const [lastTimestamp, setLastTimestamp] = useState('N/A');
+
+    useEffect(() => {
+        const fetchScadaData = async () => {
+            if (!manufacturer || !unit || !line || !stage) {
+                setData([]);
+                setStatus('No Data');
+                setLastTimestamp('N/A');
+                return;
+            }
+            
+            setLoading(true);
+            setError(null);
+            
+            const apiType = (selectedProduct || '').toUpperCase().replace(' ', '');
+            
+            const params = new URLSearchParams({
+                type: apiType,
+                plant: manufacturer,
+                plantUnit: unit,
+                line: line,
+                machine: stage,
+                page: currentPage.toString(),
+                size: '30'
+            });
+            
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const baseUrls = isLocal 
+                ? ['http://localhost:8080/sarthi-backend', 'http://localhost:8080', 'http://20.168.13.113:8080'] 
+                : ['/scada-proxy', 'https://sarthibackendservice-bfe2eag3byfkbsa6.canadacentral-01.azurewebsites.net/sarthi-backend', 'http://20.168.13.113:8080'];
+                
+            let success = false;
+            let finalData = [];
+            
+            for (const baseUrl of baseUrls) {
+                try {
+                    const fullUrl = `${baseUrl}/api/scada/scada?${params.toString()}`;
+                    const response = await fetch(fullUrl, {
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...(localStorage.getItem('authToken') && { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` })
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const resData = await response.json();
+                        finalData = Array.isArray(resData) ? resData : (resData.content || []);
+                        success = true;
+                        break;
+                    }
+                } catch (err) {
+                    // silent fail to try next URL
+                }
+            }
+            
+            if (success) {
+                setData(finalData);
+                setStatus(finalData.length > 0 ? 'Live' : 'No Data');
+                setLastTimestamp(new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }));
+            } else {
+                setError('Failed to connect to SCADA servers.');
+                setStatus('No Data');
+                setData([]);
+            }
+            setLoading(false);
+        };
+
+        fetchScadaData();
+    }, [manufacturer, unit, line, stage, selectedProduct, currentPage]);
+
+    // Column sequences mapping - Time is now first, and unwanted columns are excluded
+    const COLUMN_ORDER = ['time', 'PO_No', 'Heat_Code', 'sample', 'length', 'end'];
+    const EXCLUDED_COLUMNS = ['line', 'module', 'plant', 'topic', 'machine', 'host', 'result', 'table'];
+
+    const COLUMN_LABELS = {
+        'time': 'Time',
+        'PO_No': 'Po',
+        'Heat_Code': 'Heat',
+        'length': 'Len',
+        'sample': 'Sam',
+        'end': 'End'
+    };
+
+    const rawKeys = data.length > 0 
+        ? Object.keys(data[0]).filter(key => !EXCLUDED_COLUMNS.includes(key)) 
+        : [];
+
+    const columns = [];
+    COLUMN_ORDER.forEach(orderedKey => {
+        if (rawKeys.includes(orderedKey)) {
+            columns.push(orderedKey);
+        }
+    });
+    rawKeys.forEach(k => {
+        if (!COLUMN_ORDER.includes(k)) {
+            columns.push(k);
+        }
+    });
+
+    const rowsPerPage = 30;
+    const totalPages = data.length === 30 ? currentPage + 2 : currentPage + 1;
+    const start = currentPage * rowsPerPage;
+    const end = start + data.length;
+    const totalElements = data.length === 30 ? (currentPage + 2) * 30 : (currentPage * 30 + data.length);
+
+
+
+    return (
+        <div className="scada-monitor-container fade-in" style={{ padding: '10px 0' }}>
+            <div className="prof-card mb-6" style={{ background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid #d1fae5' }}>
+                <div className="sec-title" style={{ fontSize: '18px', color: '#14532d', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <i className="fa-solid fa-desktop"></i> SCADA Live Monitor - {selectedProduct}
+                </div>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '15px' }}>
+                    <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#166534', marginBottom: '5px' }}>Manufacturer</label>
+                        <select 
+                            value={manufacturer} 
+                            onChange={(e) => { setManufacturer(e.target.value); setCurrentPage(0); }}
+                            style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #bbf7d0', background: '#f0fdf4', fontSize: '13px' }}
+                        >
+                            <option value="">Select Manufacturer</option>
+                            {SCADA_MANUFACTURERS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#166534', marginBottom: '5px' }}>Unit</label>
+                        <select 
+                            value={unit} 
+                            onChange={(e) => { setUnit(e.target.value); setCurrentPage(0); }}
+                            disabled={!manufacturer}
+                            style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #bbf7d0', background: manufacturer ? '#f0fdf4' : '#f8fafc', fontSize: '13px' }}
+                        >
+                            <option value="">Select Unit</option>
+                            {SCADA_UNITS.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#166534', marginBottom: '5px' }}>Line</label>
+                        <select 
+                            value={line} 
+                            onChange={(e) => { setLine(e.target.value); setCurrentPage(0); }}
+                            disabled={!unit}
+                            style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #bbf7d0', background: unit ? '#f0fdf4' : '#f8fafc', fontSize: '13px' }}
+                        >
+                            <option value="">Select Line</option>
+                            {SCADA_LINES.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#166534', marginBottom: '5px' }}>Data Acquisition Stage</label>
+                        <select 
+                            value={stage} 
+                            onChange={(e) => { setStage(e.target.value); setCurrentPage(0); }}
+                            disabled={!line}
+                            style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #bbf7d0', background: line ? '#f0fdf4' : '#f8fafc', fontSize: '13px' }}
+                        >
+                            <option value="">Select Stage</option>
+                            {SCADA_STAGES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                        </select>
+                    </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', borderTop: '1px solid #d1fae5', paddingTop: '15px', marginTop: '15px' }}>
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                        
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <span style={{
+                                width: '10px', height: '10px', borderRadius: '50%', 
+                                background: status === 'Live' ? '#22c55e' : '#cbd5e1',
+                                display: 'inline-block',
+                                animation: status === 'Live' ? 'pulse 2s infinite' : 'none'
+                            }}></span>
+                            <span style={{ fontSize: '13px', fontWeight: '700', color: status === 'Live' ? '#15803d' : '#64748b' }}>{status}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {loading ? (
+                <div className="prof-card" style={{ background: '#fff', padding: '40px', borderRadius: '12px', border: '1px solid #d1fae5', textAlign: 'center' }}>
+                    <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '36px', color: '#16a34a', marginBottom: '15px' }}></i>
+                    <div style={{ fontSize: '14px', color: '#64748b' }}>Fetching live feeds from SCADA gateway...</div>
+                </div>
+            ) : error ? (
+                <div className="prof-card" style={{ background: '#fff', padding: '40px', borderRadius: '12px', border: '1px solid #d1fae5', textAlign: 'center' }}>
+                    <i className="fa-solid fa-triangle-exclamation" style={{ fontSize: '36px', color: '#dc2626', marginBottom: '15px' }}></i>
+                    <div style={{ fontSize: '14px', color: '#991b1b', fontWeight: 'bold' }}>{error}</div>
+                </div>
+            ) : data.length > 0 ? (
+                <div className="prof-card" style={{ background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid #d1fae5', overflowX: 'auto' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                        <div className="sec-title" style={{ marginBottom: 0 }}>
+                            Live Data Feed <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 'normal' }}>({data.length} records)</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                            <ExportButton 
+                                onClick={() => {
+                                    const excelColumns = columns.map(col => ({
+                                        label: COLUMN_LABELS[col] || col,
+                                        key: col
+                                    }));
+                                    downloadExcel(data, excelColumns, `SCADA_Live_Feed_${selectedProduct}_Page_${currentPage + 1}`);
+                                }}
+                            />
+                            <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
+                                Last Received: <span style={{ color: '#1e293b' }}>{lastTimestamp}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <table className="prof-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                            <tr>
+                                {columns.map(col => (
+                                    <th key={col} style={{ background: '#1e3a8a', color: '#fff', padding: '10px', fontSize: '12px', textTransform: 'uppercase' }}>
+                                        {COLUMN_LABELS[col] || col}
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {data.map((row, idx) => (
+                                <tr key={idx} style={{ background: idx % 2 === 0 ? '#fff' : '#f0fdf4', borderBottom: '1px solid #e2e8f0' }}>
+                                    {columns.map(col => (
+                                        <td key={col} style={{ padding: '10px', fontSize: '13px', color: '#1e293b' }}>
+                                            {col === 'time' 
+                                                ? new Date(row[col]).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) 
+                                                : typeof row[col] === 'object' 
+                                                    ? JSON.stringify(row[col]) 
+                                                    : String(row[col])}
+                                        </td>
+                                    ))}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    <div className="mt-4">
+                        <Pagination
+                            currentPage={currentPage} totalPages={totalPages}
+                            start={start} end={end}
+                            totalCount={totalElements} onPageChange={setCurrentPage}
+                            rows={rowsPerPage} onRowsChange={() => {}}
+                            showRows={false}
+                        />
+                    </div>
+                </div>
+            ) : (
+                <div className="prof-card" style={{ background: '#fff', padding: '40px', borderRadius: '12px', border: '1px solid #d1fae5', textAlign: 'center' }}>
+                    <i className="fa-solid fa-tower-broadcast" style={{ fontSize: '48px', color: '#cbd5e1', marginBottom: '15px' }}></i>
+                    <div style={{ fontSize: '16px', fontWeight: '700', color: '#64748b', marginBottom: '5px' }}>No Data Available</div>
+                    <p style={{ fontSize: '14px', color: '#94a3b8', maxWidth: '400px', margin: '0 auto' }}>
+                        Please select Manufacturer, Unit, Line, and Data Acquisition Stage to view the live SCADA data feed.
+                    </p>
                 </div>
             )}
         </div>

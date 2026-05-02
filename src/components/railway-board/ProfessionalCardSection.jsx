@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react'; // Re-adding hooks
 import reportService from '../../services/reportService';
 import Pagination from '../Pagination';
-import { API_BASE_URL } from '../../services/apiConfig';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     Cell, PieChart, Pie, Legend, Line, ComposedChart, AreaChart, Area, LabelList
@@ -1806,8 +1805,8 @@ const ScadaMonitor = ({ selectedProduct }) => {
             
             const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
             const baseUrls = isLocal 
-                ? ['http://localhost:8080/sarthi-backend', 'http://localhost:8080', 'http://20.168.13.113:8080'] 
-                : [API_BASE_URL, '/scada-proxy', 'https://sarthibackendservice-bfe2eag3byfkbsa6.canadacentral-01.azurewebsites.net/sarthi-backend'];
+                ? ['http://20.168.13.113:8080'] 
+                : ['https://20.168.13.113:8080']; 
                 
             let success = false;
             let finalData = [];

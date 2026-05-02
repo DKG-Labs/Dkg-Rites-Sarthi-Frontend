@@ -24,13 +24,15 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "node scripts/integrate-sleeper.js",
+    "build": "node scripts/integrate-subapps.js",
     "build:main": "react-scripts build",
     "build:sleeper": "cd Sleeper-Dashboard && npm install && npm run build",
+    "build:railpad": "cd Railpad-IE && npm install && npm run build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "integrate": "node scripts/integrate-sleeper.js",
-    "dev:sleeper": "cd Sleeper-Dashboard && npm run dev"
+    "integrate": "node scripts/integrate-subapps.js",
+    "dev:sleeper": "cd Sleeper-Dashboard && npm run dev",
+    "dev:railpad": "cd Railpad-IE && npm run dev"
   },
   "eslintConfig": {
     "extends": [

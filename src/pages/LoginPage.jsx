@@ -63,6 +63,13 @@ const LoginPage = () => {
         return;
       }
 
+      if (isRailpadRole(roleName)) {
+        if (!window.location.pathname.startsWith('/railpad')) {
+          window.location.href = '/railpad/';
+        }
+        return;
+      }
+
       let redirectPath = ROLE_LANDING_ROUTE[roleName] || location.state?.from?.pathname || ROUTES.LANDING;
       navigate(redirectPath, { replace: true });
     }
@@ -110,6 +117,13 @@ const LoginPage = () => {
     const roleName = userData.roleName;
     if (isSleeperRole(roleName)) {
       window.location.href = '/sleeper/';
+      return;
+    }
+
+    if (isRailpadRole(roleName)) {
+      if (!window.location.pathname.startsWith('/railpad')) {
+        window.location.href = '/railpad/';
+      }
       return;
     }
 
@@ -186,6 +200,18 @@ const LoginPage = () => {
         });
         seenConsolidated.add('Sleeper Process IE');
         seenConsolidated.add('Main IE');
+      }
+
+      // Handle Railpad Role
+      if (roles.some(r => r === 'Railpad IE')) {
+        options.push({
+          id: 'railpad_option',
+          label: 'Railpad Dashboard',
+          description: 'Access Railpad IE modules',
+          icon: '🛤️',
+          roleToStore: 'Railpad IE'
+        });
+        seenConsolidated.add('Railpad IE');
       }
 
       // Handle any other roles that aren't part of the specific consolidation requirement
@@ -436,6 +462,17 @@ const isSleeperRole = (role) => {
   if (!role) return false;
   const sleeperRoles = ['Sleeper Process IE', 'Main IE'];
   return sleeperRoles.some(r =>
+    role === r || (typeof role === 'string' && role.includes(r))
+  );
+};
+
+/**
+ * Helper to identify if a role belongs to the Railpad Dashboard
+ */
+const isRailpadRole = (role) => {
+  if (!role) return false;
+  const railpadRoles = ['Railpad IE'];
+  return railpadRoles.some(r =>
     role === r || (typeof role === 'string' && role.includes(r))
   );
 };

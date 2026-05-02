@@ -22,6 +22,10 @@
       "dest": "/sleeper/index.html"
     },
     {
+      "src": "/railpad/(.*)",
+      "dest": "/railpad/index.html"
+    },
+    {
       "src": "/(.*)",
       "dest": "/index.html"
     }

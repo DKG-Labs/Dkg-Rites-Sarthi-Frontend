@@ -1787,12 +1787,12 @@ const ScadaMonitor = ({ selectedProduct }) => {
                 setLastTimestamp('N/A');
                 return;
             }
-            
+
             setLoading(true);
             setError(null);
-            
+
             const apiType = (selectedProduct || '').toUpperCase().replace(' ', '');
-            
+
             const params = new URLSearchParams({
                 type: apiType,
                 plant: manufacturer,
@@ -1802,25 +1802,31 @@ const ScadaMonitor = ({ selectedProduct }) => {
                 page: currentPage.toString(),
                 size: '30'
             });
-            
+
             const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            
+            // Using a secure proxy to fetch insecure SCADA data in production to bypass Mixed Content blocks
+            const scadaUrl = `http://20.168.13.113:8080/api/scada/scada?${params.toString()}`;
             const baseUrls = isLocal 
                 ? ['http://20.168.13.113:8080'] 
-                : ['https://20.168.13.113:8080']; 
+                : [`https://api.allorigins.win/raw?url=${encodeURIComponent(scadaUrl)}`]; 
                 
             let success = false;
             let finalData = [];
             
             for (const baseUrl of baseUrls) {
                 try {
-                    const fullUrl = `${baseUrl}/api/scada/scada?${params.toString()}`;
+                    // Construction of fullUrl changes depending on whether we use proxy or direct IP
+                    const fullUrl = baseUrl.includes('allorigins') 
+                        ? baseUrl 
+                        : `${baseUrl}/api/scada/scada?${params.toString()}`;
                     const response = await fetch(fullUrl, {
                         headers: {
                             'Content-Type': 'application/json',
                             ...(localStorage.getItem('authToken') && { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` })
                         }
                     });
-                    
+
                     if (response.ok) {
                         const resData = await response.json();
                         finalData = Array.isArray(resData) ? resData : (resData.content || []);
@@ -1831,7 +1837,7 @@ const ScadaMonitor = ({ selectedProduct }) => {
                     // silent fail to try next URL
                 }
             }
-            
+
             if (success) {
                 setData(finalData);
                 setStatus(finalData.length > 0 ? 'Live' : 'No Data');
@@ -1860,8 +1866,8 @@ const ScadaMonitor = ({ selectedProduct }) => {
         'end': 'End'
     };
 
-    const rawKeys = data.length > 0 
-        ? Object.keys(data[0]).filter(key => !EXCLUDED_COLUMNS.includes(key)) 
+    const rawKeys = data.length > 0
+        ? Object.keys(data[0]).filter(key => !EXCLUDED_COLUMNS.includes(key))
         : [];
 
     const columns = [];
@@ -1890,12 +1896,12 @@ const ScadaMonitor = ({ selectedProduct }) => {
                 <div className="sec-title" style={{ fontSize: '18px', color: '#14532d', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <i className="fa-solid fa-desktop"></i> SCADA Live Monitor - {selectedProduct}
                 </div>
-                
+
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '15px' }}>
                     <div>
                         <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#166534', marginBottom: '5px' }}>Manufacturer</label>
-                        <select 
-                            value={manufacturer} 
+                        <select
+                            value={manufacturer}
                             onChange={(e) => { setManufacturer(e.target.value); setCurrentPage(0); }}
                             style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #bbf7d0', background: '#f0fdf4', fontSize: '13px' }}
                         >
@@ -1903,11 +1909,11 @@ const ScadaMonitor = ({ selectedProduct }) => {
                             {SCADA_MANUFACTURERS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                         </select>
                     </div>
-                    
+
                     <div>
                         <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#166534', marginBottom: '5px' }}>Unit</label>
-                        <select 
-                            value={unit} 
+                        <select
+                            value={unit}
                             onChange={(e) => { setUnit(e.target.value); setCurrentPage(0); }}
                             disabled={!manufacturer}
                             style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #bbf7d0', background: manufacturer ? '#f0fdf4' : '#f8fafc', fontSize: '13px' }}
@@ -1916,11 +1922,11 @@ const ScadaMonitor = ({ selectedProduct }) => {
                             {SCADA_UNITS.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
                         </select>
                     </div>
-                    
+
                     <div>
                         <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#166534', marginBottom: '5px' }}>Line</label>
-                        <select 
-                            value={line} 
+                        <select
+                            value={line}
                             onChange={(e) => { setLine(e.target.value); setCurrentPage(0); }}
                             disabled={!unit}
                             style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #bbf7d0', background: unit ? '#f0fdf4' : '#f8fafc', fontSize: '13px' }}
@@ -1929,11 +1935,11 @@ const ScadaMonitor = ({ selectedProduct }) => {
                             {SCADA_LINES.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
                         </select>
                     </div>
-                    
+
                     <div>
                         <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#166534', marginBottom: '5px' }}>Data Acquisition Stage</label>
-                        <select 
-                            value={stage} 
+                        <select
+                            value={stage}
                             onChange={(e) => { setStage(e.target.value); setCurrentPage(0); }}
                             disabled={!line}
                             style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #bbf7d0', background: line ? '#f0fdf4' : '#f8fafc', fontSize: '13px' }}
@@ -1945,12 +1951,12 @@ const ScadaMonitor = ({ selectedProduct }) => {
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', borderTop: '1px solid #d1fae5', paddingTop: '15px', marginTop: '15px' }}>
-                    
+
                     <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                        
+
                         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                             <span style={{
-                                width: '10px', height: '10px', borderRadius: '50%', 
+                                width: '10px', height: '10px', borderRadius: '50%',
                                 background: status === 'Live' ? '#22c55e' : '#cbd5e1',
                                 display: 'inline-block',
                                 animation: status === 'Live' ? 'pulse 2s infinite' : 'none'
@@ -1978,7 +1984,7 @@ const ScadaMonitor = ({ selectedProduct }) => {
                             Live Data Feed <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 'normal' }}>({data.length} records)</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                            <ExportButton 
+                            <ExportButton
                                 onClick={() => {
                                     const excelColumns = columns.map(col => ({
                                         label: COLUMN_LABELS[col] || col,
@@ -1992,7 +1998,7 @@ const ScadaMonitor = ({ selectedProduct }) => {
                             </div>
                         </div>
                     </div>
-                    
+
                     <table className="prof-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead>
                             <tr>
@@ -2008,10 +2014,10 @@ const ScadaMonitor = ({ selectedProduct }) => {
                                 <tr key={idx} style={{ background: idx % 2 === 0 ? '#fff' : '#f0fdf4', borderBottom: '1px solid #e2e8f0' }}>
                                     {columns.map(col => (
                                         <td key={col} style={{ padding: '10px', fontSize: '13px', color: '#1e293b' }}>
-                                            {col === 'time' 
-                                                ? new Date(row[col]).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) 
-                                                : typeof row[col] === 'object' 
-                                                    ? JSON.stringify(row[col]) 
+                                            {col === 'time'
+                                                ? new Date(row[col]).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+                                                : typeof row[col] === 'object'
+                                                    ? JSON.stringify(row[col])
                                                     : String(row[col])}
                                         </td>
                                     ))}
@@ -2024,7 +2030,7 @@ const ScadaMonitor = ({ selectedProduct }) => {
                             currentPage={currentPage} totalPages={totalPages}
                             start={start} end={end}
                             totalCount={totalElements} onPageChange={setCurrentPage}
-                            rows={rowsPerPage} onRowsChange={() => {}}
+                            rows={rowsPerPage} onRowsChange={() => { }}
                             showRows={false}
                         />
                     </div>

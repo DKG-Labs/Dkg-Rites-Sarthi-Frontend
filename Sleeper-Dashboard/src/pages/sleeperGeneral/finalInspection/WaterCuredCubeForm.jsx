@@ -42,6 +42,7 @@ const WaterCuredCubeForm = ({ batch, preFillData, onSave, onCancel }) => {
         mrSamples: 0,
         testResult: 'Pending'
     });
+    const [saving, setSaving] = useState(false);
 
     const calculateAge = (castingDate) => {
         const diffTime = Math.abs(new Date() - new Date(castingDate));
@@ -124,6 +125,16 @@ const WaterCuredCubeForm = ({ batch, preFillData, onSave, onCancel }) => {
             }
             return c;
         }));
+    };
+
+    const handleSave = async () => {
+        if (saving) return;
+        setSaving(true);
+        try {
+            await onSave({ cubes, results });
+        } catch (err) {
+            setSaving(false);
+        }
     };
 
     return (
@@ -319,8 +330,14 @@ const WaterCuredCubeForm = ({ batch, preFillData, onSave, onCancel }) => {
             </div>
 
             <div className="form-actions">
-                <button className="btn-save" onClick={() => onSave({ cubes, results })} disabled={results.testResult === 'Pending'}>Save Test Details</button>
-                <button className="btn-cancel" onClick={onCancel}>Cancel</button>
+                <button 
+                    className="btn-save" 
+                    onClick={handleSave} 
+                    disabled={results.testResult === 'Pending' || saving}
+                >
+                    {saving ? 'Saving...' : 'Save Test Details'}
+                </button>
+                <button className="btn-cancel" onClick={onCancel} disabled={saving}>Cancel</button>
             </div>
         </div>
     );

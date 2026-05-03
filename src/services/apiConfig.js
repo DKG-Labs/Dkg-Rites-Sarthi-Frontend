@@ -17,7 +17,7 @@ export const API_BASE_URL = isLocal
     : 'https://sarthibackendservice-bfe2eag3byfkbsa6.canadacentral-01.azurewebsites.net/sarthi-backend';
 
 // API Configuration determined by exports above
-// export const API_BASE_URL = 'https://sarthibackendservice-bfe2eag3byfkbsa6.canadacentral-01.azurewebsites.net/sarthi-backend';
+//export const API_BASE_URL = 'https://sarthibackendservice-bfe2eag3byfkbsa6.canadacentral-01.azurewebsites.net/sarthi-backend';
 //Base url for prd
 //export const API_BASE_URL ="https://api.ritesqasarthi.com/sarthi-backend";
 

@@ -13,6 +13,7 @@ import LoginPage from './pages/LoginPage';
 import { isAuthenticated, logoutUser, getStoredUser } from './services/authService';
 import ConfirmationModal from './components/common/ConfirmationModal';
 import RawMaterialVerificationList from './components/RawMaterialVerificationList';
+import ProductionVerificationDashboard from './components/ProductionVerification/ProductionVerificationDashboard';
 
 const SUB_CARDS = [
   { id: 'raw-material', title: 'Raw Material Weighment', description: 'Monitor and log raw material proportions' },
@@ -64,6 +65,12 @@ const MODULES = [
     title: 'Process IE - Incoming Raw Material Verification',
     subtitle: 'Digitally review, verify and approve vendor material entries',
     icon: '🏗️'
+  },
+  {
+    id: 'production-verification',
+    title: 'Process IE - Production Verification & Acceptance',
+    subtitle: 'Review shift production, log rejections and finalize accepted inventory',
+    icon: '✅'
   }
 ];
 
@@ -261,6 +268,8 @@ const App = () => {
                     setActiveCard('hydraulic-press');
                   } else if (mod.id === 'raw-material-verification') {
                     setActiveCard('verification-dashboard');
+                  } else if (mod.id === 'production-verification') {
+                    setActiveCard('production-verification-dashboard');
                   }
                 }}
                 style={{
@@ -623,6 +632,13 @@ const App = () => {
                   </div>
                 </div>
               )}
+            </div>
+          ) : selectedModule === 'production-verification' ? (
+            <div className="fade-in">
+              <ProductionVerificationDashboard 
+                activeCard={activeCard}
+                setActiveCard={setActiveCard}
+              />
             </div>
           ) : (
             <div style={{ textAlign: 'center', padding: '100px 0', color: '#94a3b8', background: '#fff', borderRadius: '16px', border: '1px dashed #cbd5e1' }}>

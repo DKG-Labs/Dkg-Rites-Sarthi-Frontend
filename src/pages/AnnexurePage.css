@@ -402,3 +402,100 @@
   background: #ef4444;
   color: white;
 }
+
+/* 9. PROCESS ENTRY SELECTION */
+.process-entry-selection {
+  background: white;
+  padding: 40px;
+  border-radius: 24px;
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-md);
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.selection-header {
+  margin-bottom: 32px;
+  text-align: center;
+}
+
+.selection-header h3 {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-bottom: 8px;
+}
+
+.selection-header p {
+  color: var(--text-muted);
+}
+
+.entry-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.entry-selection-card {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 24px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.entry-selection-card:hover {
+  border-color: var(--primary);
+  background: white;
+  transform: translateX(8px);
+  box-shadow: var(--shadow-sm);
+}
+
+.entry-card-icon {
+  font-size: 32px;
+  background: white;
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+.entry-card-info {
+  flex: 1;
+}
+
+.entry-main-info {
+  font-weight: 700;
+  color: var(--text-main);
+  font-size: 16px;
+}
+
+.entry-sub-info {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.btn-select-entry {
+  padding: 10px 20px;
+  background: white;
+  border: 1.5px solid var(--primary);
+  color: var(--primary);
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.entry-selection-card:hover .btn-select-entry {
+  background: var(--primary);
+  color: white;
+}

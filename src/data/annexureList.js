@@ -50,6 +50,7 @@ export const ANNEXURE_LIST = [
     code: 'F/ERC-01',
     icon: '⚙️',
     category: 'general',
+    orientation: 'portrait',
     component: ProcessInspectionAnnexure
   },
   {

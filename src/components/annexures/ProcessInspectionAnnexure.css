@@ -324,6 +324,10 @@
   margin-bottom: 40px;
 }
 
+@page {
+  size: A4 portrait;
+  margin: 10mm;
+}
 @media print {
   .itp-page {
     margin-bottom: 0;

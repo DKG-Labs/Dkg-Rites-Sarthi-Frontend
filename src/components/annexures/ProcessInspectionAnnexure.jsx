@@ -4,9 +4,9 @@ import './ProcessInspectionAnnexure.css';
 
 /**
  * ProcessInspectionAnnexure - Process Inspection Register (F/ERC-01)
- * Displays hourly production checks over 3 shifts (A, B, C)
+ * Displays hourly production checks dynamically from backend data.
  */
-const ProcessInspectionAnnexure = ({ data = {}, selectedCall }) => {
+const ProcessInspectionAnnexure = ({ data = [], selectedCall }) => {
   
   // Custom Header matching the reference image perfectly
   const ProcessHeader = () => (
@@ -42,35 +42,21 @@ const ProcessInspectionAnnexure = ({ data = {}, selectedCall }) => {
     </table>
   );
 
-  // Standard 14 Activities from reference images - with sub-rows for multiple checks
-  const activities = [
-    { id: 1, text: "Checking of Length of cut bars, random", detail: "(3 bars/Hr.)", subRows: 3 },
-    { id: 2, text: "Turning Length, random", detail: "(3 bars/Hr.)", subRows: 3 },
-    { id: 3, text: "Turning Dia., random", detail: "(3 bars/Hr.)", subRows: 3 },
-    { id: 4, text: "MPI Test, random", detail: "(3 bars/Hr.)", subRows: 3 },
-    { id: 5, text: "Forging Temp.", detail: "NOT APPLICABLE", isNotApplicable: true },
-    { id: 6, text: "Checking of Die (100%)", detail: "At the start of shift. (if Production per shift is more than 4000 ERCs, additional check in the middle of the shift)", hasDetailRow: true },
-    { id: 7, text: "Quenching Temperature and Duration, random", detail: "(Temp. to be checked every hour. Duration to be checked at the start of the shift)", hasDetailRow: true },
-    { id: 8, text: "Quenching Hardness", detail: "2 ERCs/Hr, random", subRows: 2 },
-    { id: 9, text: "Tempering Temperature and Duration, random", detail: "(Temp. to be checked every hour. Duration to be checked at the start of the shift)", hasDetailRow: true },
-    { id: 10, text: "Dimension Check (2 ERCs/Hr.), random", detail: "", subRows: 2 },
-    { id: 11, text: "Hardness of finished ERC", detail: "2 ERCs/Hr, random", subRows: 2 },
-    { id: 12, text: "Toe load of finished ERC", detail: "2 ERCs/Hr, random", subRows: 2 },
-    { id: 13, text: "Confirmation of yellow and green paint on the end face of ERC Mk-III & V, respectively (Cl. No. 6.1)", detail: "" },
-    { id: 14, text: "Documentation (100%)", detail: "Specific details/results of all the checks should be recorded" },
-  ];
+  // Helper to split reading string (e.g. "R1, R2, R3") into individual values
+  const getReadingValue = (readingStr, index) => {
+    if (!readingStr || readingStr === '-') return '-';
+    const values = readingStr.split(',').map(v => v.trim());
+    return values[index] || '-';
+  };
 
-  // Shift Definitions
-  const shifts = [
-    { id: 'A', title: <>"A" Shift<br />(06:00-14:00)</>, hours: ['06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00'], endpoints: ['07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00'] },
-    { id: 'B', title: <>"B" Shift<br />(14:00-22:00)</>, hours: ['14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'], endpoints: ['15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'] },
-    { id: 'C', title: <>"C" Shift<br />(22:00-06:00)</>, hours: ['22:00', '23:00', '24:00', '01:00', '02:00', '03:00', '04:00', '05:00'], endpoints: ['23:00', '24:00', '01:00', '02:00', '03:00', '04:00', '05:00', '06:00'] },
-  ];
+  if (!data || !Array.isArray(data) || data.length === 0) {
+    return <div className="no-data-alert">No inspection data available for the selected shift.</div>;
+  }
 
   return (
     <div className="process-inspection-annexure">
-      {shifts.map((shift, shiftIdx) => (
-        <AnnexureLayout key={shift.id} className="itp-page">
+      {data.map((entry, entryIdx) => (
+        <AnnexureLayout key={entryIdx} className="itp-page portrait">
           <ProcessHeader />
 
           <div className="pi-info-container">
@@ -78,32 +64,32 @@ const ProcessInspectionAnnexure = ({ data = {}, selectedCall }) => {
               <tbody>
                 <tr className="pi-row-1">
                   <td className="pi-r1-c1">Date</td>
-                  <td className="pi-r1-c2">{data.date || ''}</td>
-                  <td className="pi-r1-c3"><b>{shift.title}</b></td>
+                  <td className="pi-r1-c2">{entry.date || ''}</td>
+                  <td className="pi-r1-c3"><b>Shift: {entry.shift}</b></td>
                   <td className="pi-r1-c4">Lot No.</td>
-                  <td className="pi-r1-c5">{data.lotNo || ''}</td>
+                  <td className="pi-r1-c5">{entry.lotNo || ''}</td>
                 </tr>
                 <tr className="pi-row-2">
                   <td className="pi-r2-c1" colSpan={2}>PO No. & Date</td>
-                  <td className="pi-r2-c2">{data.poNo || ''}</td>
+                  <td className="pi-r2-c2">{entry.poNoAndDate || ''}</td>
                   <td className="pi-r2-c3">Nos. of ERC produced during the shift</td>
-                  <td className="pi-r2-c4">{data.qtyProduced || ''}</td>
+                  <td className="pi-r2-c4">{entry.ercProducedDuringShift || ''}</td>
                 </tr>
                 <tr className="pi-row-3">
                   <td className="pi-r2-c1" colSpan={2}>Case No. (IBS)</td>
-                  <td className="pi-r2-c2">{data.caseNo || ''}</td>
+                  <td className="pi-r2-c2">{entry.caseNoIbs || ''}</td>
                   <td className="pi-r2-c3">Name of Inspecting Engineer</td>
-                  <td className="pi-r2-c4">{data.engineerName || ''}</td>
+                  <td className="pi-r2-c4">{entry.inspectingEngineerName || ''}</td>
                 </tr>
               </tbody>
             </table>
             <table className="pi-info-row-table pi-r4">
               <tbody>
                 <tr>
-                  <td className="pi-r4-c1">Raw material (Stage) IC No.</td>
-                  <td className="pi-r4-c2">{data.icNo || ''}</td>
-                  <td className="pi-r4-c3">& date:</td>
-                  <td className="pi-r4-c4">{data.icDate || ''}</td>
+                  <td className="pi-r4-c1">Raw material (Stage) IC No. & date</td>
+                  <td className="pi-r4-c2">{entry.rawMaterialIcNoAndDate || ''}</td>
+                  <td className="pi-r4-c3">ERC Type</td>
+                  <td className="pi-r4-c4">{entry.ercType || ''}</td>
                 </tr>
               </tbody>
             </table>
@@ -114,63 +100,70 @@ const ProcessInspectionAnnexure = ({ data = {}, selectedCall }) => {
               <tr className="pi-header-row">
                 <th className="pi-sr-col" rowSpan="2">Sr.<br />No.</th>
                 <th className="pi-activity-col">Time</th>
-                {shift.hours.map((h, i) => (
-                  <th key={h} className="pi-time-col">
-                    {h}<br />-<br />{shift.endpoints[i]}
+                {entry.hourLabels.map((h, i) => (
+                  <th key={i} className="pi-time-col">
+                    {h}
                   </th>
                 ))}
                 <th className="pi-remarks-col" rowSpan="2">Remarks Accepted <u>OR</u> Not-accepted</th>
               </tr>
               <tr className="pi-header-row">
                 <th className="pi-activity-col">Activities</th>
-                {shift.hours.map((_, i) => <th key={i}></th>)}
+                {entry.hourLabels.map((_, i) => <th key={i}></th>)}
               </tr>
             </thead>
             <tbody>
-              {activities.map((activity) => {
-                const dataSubRows = activity.subRows || 1;
-                const hasDetailRow = activity.hasDetailRow || false;
-                const totalRowSpan = dataSubRows + (hasDetailRow ? 1 : 0);
+              {entry.rows.map((row, rowIdx) => {
+                let subRowsCount = 1;
+                if (row.activity.includes("(3 bars/Hr.)")) subRowsCount = 3;
+                else if (row.activity.includes("(2 ERCs/Hr.)")) subRowsCount = 2;
+                
+                const totalRowSpan = subRowsCount;
 
                 return (
-                  <React.Fragment key={activity.id}>
+                  <React.Fragment key={rowIdx}>
                     {/* Primary Row / First Data Sub-Row */}
                     <tr className="pi-data-row">
-                      <td rowSpan={totalRowSpan}>{activity.id}.</td>
-                      <td className="pi-activity-col" rowSpan={hasDetailRow ? 1 : totalRowSpan}>
-                        <div className="pi-activity-text">{activity.text}</div>
-                        {!hasDetailRow && activity.detail && <span className="pi-activity-detail">{activity.detail}</span>}
+                      <td rowSpan={totalRowSpan}>{row.srNo}.</td>
+                      <td className="pi-activity-col" rowSpan={totalRowSpan}>
+                        <div className="pi-activity-text">{row.activity}</div>
                       </td>
                       
-                      {activity.isNotApplicable ? (
-                        <td colSpan={shift.hours.length} style={{ fontWeight: 'bold' }}>NOT APPLICABLE</td>
-                      ) : activity.id === 14 ? (
-                        <td colSpan={shift.hours.length} style={{ fontWeight: 'bold', textAlign: 'left', paddingLeft: '8px' }}>
-                          Specific details/results of all the checks should be recorded
+                      {row.activity.includes("(N/A)") ? (
+                        <td colSpan={entry.hourLabels.length} style={{ textAlign: 'center', fontWeight: 'bold', letterSpacing: '2px' }}>
+                          NOT APPLICABLE
                         </td>
                       ) : (
                         <>
-                          {shift.hours.map((_, i) => <td key={i}></td>)}
+                          {entry.hourLabels.map((_, hIdx) => (
+                            <td key={hIdx}>{getReadingValue(row.hourlyData[hIdx], 0)}</td>
+                          ))}
                         </>
                       )}
                       
-                      {activity.id !== 5 && (
-                        <td className="pi-remarks-col" rowSpan={totalRowSpan}></td>
+                      {row.remarks !== 'N/A' && (
+                        <td className="pi-remarks-col" rowSpan={totalRowSpan}>
+                          <span className={row.remarks === 'Not-accepted' ? 'text-rejected' : 'text-accepted'}>
+                            {row.remarks}
+                          </span>
+                        </td>
                       )}
                     </tr>
 
-                    {/* Additional Data Sub-Rows (for multi-check like 3 bars/hr) */}
-                    {dataSubRows > 1 && Array.from({ length: dataSubRows - 1 }).map((_, subIdx) => (
-                      <tr key={`${activity.id}-data-sub-${subIdx}`} className="pi-data-row sub-row">
-                        {shift.hours.map((_, i) => <td key={i}></td>)}
+                    {/* Additional Data Sub-Rows */}
+                    {subRowsCount > 1 && Array.from({ length: subRowsCount - 1 }).map((_, subIdx) => (
+                      <tr key={`sub-${subIdx}`} className="pi-data-row sub-row">
+                        {entry.hourLabels.map((_, hIdx) => (
+                          <td key={hIdx}>{getReadingValue(row.hourlyData[hIdx], subIdx + 1)}</td>
+                        ))}
                       </tr>
                     ))}
 
-                    {/* Horizontal Detail Row (for long notes like shifts 6, 7, 9) */}
-                    {hasDetailRow && (
-                      <tr className="pi-data-row detail-row">
-                        <td colSpan={1 + shift.hours.length} className="pi-horizontal-detail">
-                          {activity.detail}
+                    {/* Special Row 14: Documentation */}
+                    {row.srNo === 14 && (
+                       <tr className="pi-data-row detail-row">
+                        <td colSpan={1 + entry.hourLabels.length} className="pi-horizontal-detail">
+                           Specific details/results of all the checks should be recorded
                         </td>
                       </tr>
                     )}

@@ -105,8 +105,10 @@ const AnnexurePage = ({ onBack }) => {
             const response = await annexureService.getFinalApplicationDeflection(selectedCall.call_no);
             data = response?.responseData || response || [];
           } else if (typeParam === 'process-inspection' && selectedCall?.call_no) {
-            const response = await annexureService.getFinalInclusion(selectedCall.call_no);
-            data = response?.responseData || response || [];
+            const selectedDate = searchParams.get('date');
+            const selectedShift = searchParams.get('shift');
+            const response = await annexureService.getProcessInspectionRegister(selectedCall.call_no, selectedDate, selectedShift);
+            data = response || [];
           } else {
             data = await fetchAnnexureData(typeParam);
           }
@@ -159,7 +161,7 @@ const AnnexurePage = ({ onBack }) => {
 
       const pdfBlob = await captureElementToPdfBlob(annexureElement, {
         filename,
-        orientation: 'landscape'
+        orientation: selectedAnnexure.orientation || 'landscape'
       });
 
       const url = URL.createObjectURL(pdfBlob);

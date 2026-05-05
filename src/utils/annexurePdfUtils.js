@@ -16,24 +16,28 @@ import html2canvas from 'html2canvas';
 const addElementToPdf = async (element, pdf, options) => {
   const { scale = 2.5 } = options;
 
+  const isPortrait = options.orientation === 'portrait';
+  const captureWidth = isPortrait ? 950 : 1600;
+  const windowWidth = isPortrait ? 1000 : 1700;
+
   const canvas = await html2canvas(element, {
     scale,
     useCORS: true,
     backgroundColor: '#ffffff',
     logging: false,
-    width: 1600, // Force high width capture
-    windowWidth: 1700,
+    width: captureWidth, 
+    windowWidth: windowWidth,
     onclone: (clonedDoc) => {
       // Expand stage
-      clonedDoc.body.style.width = '1700px';
+      clonedDoc.body.style.width = `${windowWidth}px`;
       clonedDoc.body.style.overflow = 'visible';
 
       // Select ALL layouts to ensure consistency across pages
       const layouts = clonedDoc.querySelectorAll('.annexure-layout');
       layouts.forEach(layout => {
-        layout.style.width = '1600px';
-        layout.style.minWidth = '1600px';
-        layout.style.padding = '40px';
+        layout.style.width = `${captureWidth}px`;
+        layout.style.minWidth = `${captureWidth}px`;
+        layout.style.padding = isPortrait ? '20px' : '40px';
         layout.style.margin = '0';
         layout.style.background = '#ffffff';
         layout.style.backgroundColor = '#ffffff';

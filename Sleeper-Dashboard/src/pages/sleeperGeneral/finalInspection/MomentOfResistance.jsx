@@ -298,7 +298,7 @@ const MomentOfResistance = () => {
         {
             key: 'declaredSamples',
             label: 'Sleeper Number',
-            render: (val) => val?.map(s => `${s.bench}${s.no}`).join(', ')
+            render: (val) => val?.map(s => s.no).join(', ')
         },
         { key: 'castingDate', label: 'Date of Casting' },
         {
@@ -494,24 +494,38 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
             setIsLoadingSleepers(true);
             try {
                 // Use the provided API to fetch declaration details
-                const response = await apiService.getProductionDeclarationById(batch.id);
+                // Corrected API function name
+                const response = await apiService.getProductionDeclarationRecordById(batch.id);
                 const data = response?.responseData || response;
                 
+                const list = [];
+                // Case 1: Stress Bench (Chambers/BenchGroups)
                 if (data?.chambers) {
-                    const list = [];
                     data.chambers.forEach(chamber => {
                         chamber.benchGroups?.forEach(group => {
                             group.sleepers?.forEach(sleeper => {
                                 list.push({
-                                    bench: String(group.benchNo),
+                                    bench: String(group.benchNo || ''),
                                     no: String(sleeper),
-                                    label: `Bench ${group.benchNo} - Sleeper ${sleeper}`
+                                    label: String(sleeper)
                                 });
                             });
                         });
                     });
-                    setAvailableSleepers(list);
                 }
+                // Case 2: Long Line (Gangs)
+                if (data?.gangs) {
+                    data.gangs.forEach(gang => {
+                        gang.sleepers?.forEach(sleeper => {
+                            list.push({
+                                bench: String(gang.gangNo || ''),
+                                no: String(sleeper),
+                                label: String(sleeper)
+                            });
+                        });
+                    });
+                }
+                setAvailableSleepers(list);
             } catch (error) {
                 console.error("Error fetching sleepers for declaration:", error);
             } finally {
@@ -559,7 +573,7 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
                                     <input 
                                         type="text" 
                                         placeholder={isLoadingSleepers ? "Loading sleepers..." : "Type to search sleeper (e.g. 100A)..."}
-                                        value={activeDropdownIdx === idx ? searchTerm : (s.bench ? `Bench ${s.bench} - ${s.no}` : '')}
+                                        value={activeDropdownIdx === idx ? searchTerm : (s.no || '')}
                                         onFocus={() => {
                                             setActiveDropdownIdx(idx);
                                             setSearchTerm('');

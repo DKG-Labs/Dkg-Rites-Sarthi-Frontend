@@ -305,7 +305,7 @@ export const apiService = {
     getFinalInspectionBatches: (moduleId = 1, params = {}) => api.get(`/FinalInspectionController/inspection/batches/${moduleId}`, { 
         params: { ...params, moduleId } 
     }),
-    getFinalInspectionBatchDetail: (batchId, moduleId = 1) => api.get(`/FinalInspectionController/inspection/batch?batchId=${batchId}&moduleId=${moduleId}`),
+    getFinalInspectionBatchDetail: (batchId, moduleId = 1, sleeperType) => api.get(`/FinalInspectionController/inspection/batch?batchId=${batchId}&moduleId=${moduleId}&sleeperType=${encodeURIComponent(sleeperType || '')}`),
     saveFinalInspection: (payload) => api.post('/FinalInspectionController/save', payload),
     updateInspectionSleepers: (payload) => api.put('/FinalInspectionController/updateInspectionSleepers', payload),
     submitInspectionCall: (payload) => api.post('/FinalInspectionController/submit-inspection-call', payload),

@@ -5,19 +5,64 @@ import './CriticalDimensionForm.css';
 
 const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
     const toast = useToast();
-    // List of all sleepers in the batch
+    // List of all sleepers in the batch (handle production declaration gangs/chambers if sleepers array is missing)
     const allSleepersPool = useMemo(() => {
-        return (batch?.sleepers || [])
-            .map(s => {
-                const isAlreadyRejected = s.status?.toUpperCase() === 'REJECTED';
-                return {
-                    ...s,
-                    id: s.sleeperId,
-                    displayNo: s.sleeperNo,
-                    isRejected: isAlreadyRejected,
-                    isAlreadyPassed: s.status?.toUpperCase() === 'OK' || s.status?.toUpperCase() === 'PASSED'
-                };
-            });
+        let rawList = batch?.sleepers || batch?.sleeperCheckDto || [];
+
+        // FALLBACK: If sleepers array is empty, reconstruct from gangs/chambers (Production Declaration structure)
+        if (rawList.length === 0) {
+            const reconstructed = [];
+            const seenSleeperIds = new Set();
+
+            // Long Line / Gangs
+            if (batch?.gangs && Array.isArray(batch.gangs)) {
+                batch.gangs.forEach(gang => {
+                    gang.sleepers?.forEach(s => {
+                        if (s && !seenSleeperIds.has(s)) {
+                            seenSleeperIds.add(s);
+                            reconstructed.push({
+                                sleeperId: s,
+                                sleeperNo: s,
+                                status: 'pending',
+                                benchNo: String(gang.gangNo || '')
+                            });
+                        }
+                    });
+                });
+            }
+
+            // Stress Bench / Chambers
+            if (batch?.chambers && Array.isArray(batch.chambers)) {
+                batch.chambers.forEach(chamber => {
+                    chamber.benchGroups?.forEach(group => {
+                        group.sleepers?.forEach(s => {
+                            if (s && !seenSleeperIds.has(s)) {
+                                seenSleeperIds.add(s);
+                                reconstructed.push({
+                                    sleeperId: s,
+                                    sleeperNo: s,
+                                    status: 'pending',
+                                    benchNo: String(group.benchNo || '')
+                                });
+                            }
+                        });
+                    });
+                });
+            }
+            rawList = reconstructed;
+        }
+
+        return rawList.map(s => {
+            const statusUpper = s.status?.toUpperCase() || 'PENDING';
+            const isAlreadyRejected = statusUpper === 'REJECTED';
+            return {
+                ...s,
+                id: s.sleeperId || s.sleeperNo,
+                displayNo: s.sleeperNo || s.sleeperId,
+                isRejected: isAlreadyRejected,
+                isAlreadyPassed: statusUpper === 'OK' || statusUpper === 'PASSED'
+            };
+        });
     }, [batch]);
 
     const [selectedSleepers, setSelectedSleepers] = useState(() => 

@@ -203,7 +203,8 @@ const ETDeclarationForm = ({ initialData, allLogs, onClose, onSave }) => {
             if (vId && pId) {
                 try {
                     const locRes = await apiService.getPlantSheds(vId, pId);
-                    if (locRes?.responseData) setLocations(locRes.responseData);
+                    const data = locRes?.responseData || locRes || {};
+                    setLocations(data);
                 } catch (e) {
                     console.error("Error fetching locations:", e);
                 }

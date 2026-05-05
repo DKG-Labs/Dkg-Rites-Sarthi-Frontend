@@ -840,6 +840,7 @@ const SearchableSleeperDropdown = ({ value, options, onChange, label, placeholde
 const SampleDeclarationModal = ({ batch, isModifying, onClose, onSave }) => {
     const [fullDeclaration, setFullDeclaration] = useState(batch?.raw || null);
     const [loading, setLoading] = useState(false);
+    const [saving, setSaving] = useState(false);
     const [form, setForm] = useState({
         sample1: isModifying ? batch.sample1Raw : [{ bench: '', seq: '' }, { bench: '', seq: '' }, { bench: '', seq: '' }],
         sample2: isModifying ? batch.sample2Raw : [{ bench: '', seq: '' }, { bench: '', seq: '' }, { bench: '', seq: '' }]
@@ -897,14 +898,22 @@ const SampleDeclarationModal = ({ batch, isModifying, onClose, onSave }) => {
         return map;
     }, [fullDeclaration]);
 
-    // Flatten map into a single list of all available sleepers for searchable dropdown
+    // Flatten map into a single list of all unique available sleepers for searchable dropdown
     const allSleeperOptions = useMemo(() => {
-        const list = [];
+        const unique = new Set();
         Object.values(benchToSleepers).forEach(sleepers => {
-            sleepers.forEach(s => list.push(s.full));
+            sleepers.forEach(s => unique.add(s.full));
         });
-        return list.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+        return Array.from(unique).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
     }, [benchToSleepers]);
+
+    const selectedSleeperIds = useMemo(() => {
+        const ids = [];
+        [...form.sample1, ...form.sample2].forEach(c => {
+            if (c.bench || c.seq) ids.push(`${c.bench}${c.seq}`);
+        });
+        return ids;
+    }, [form]);
 
     const handleUpdateSleeper = (sampleIdx, cubeIdx, val) => {
         const key = `sample${sampleIdx + 1}`;
@@ -976,7 +985,7 @@ const SampleDeclarationModal = ({ batch, isModifying, onClose, onSave }) => {
                                                     label={`Cube ${cIdx + 1} - Sleeper ID`}
                                                     placeholder="Search Sleeper..."
                                                     value={c.bench || c.seq ? `${c.bench}${c.seq}` : ''}
-                                                    options={allSleeperOptions}
+                                                    options={allSleeperOptions.filter(opt => !selectedSleeperIds.includes(opt) || opt === `${c.bench}${c.seq}`)}
                                                     onChange={(val) => handleUpdateSleeper(sIdx, cIdx, val)}
                                                 />
                                             </div>
@@ -986,7 +995,8 @@ const SampleDeclarationModal = ({ batch, isModifying, onClose, onSave }) => {
                             </div>
 
                             <div style={{ display: 'flex', gap: '16px', marginTop: '32px' }}>
-                                <button className="btn-verify" style={{ flex: 1, padding: '14px' }} onClick={() => {
+                                <button className="btn-verify" style={{ flex: 1, padding: '14px' }} onClick={async () => {
+                                    if (saving) return;
                                     const allCubes = [...form.sample1, ...form.sample2];
                                     
                                     // 1. Check all filled
@@ -1010,19 +1020,24 @@ const SampleDeclarationModal = ({ batch, isModifying, onClose, onSave }) => {
                                         return;
                                     }
                                     
-                                    onSave({
-                                        batchNo: batch.batchNo,
-                                        grade: batch.grade,
-                                        castingDate: batch.date || batch.castingDate,
-                                        sample1Raw: form.sample1,
-                                        sample2Raw: form.sample2,
-                                        sample1: form.sample1.map(c => `${c.bench}${c.seq}`),
-                                        sample2: form.sample2.map(c => `${c.bench}${c.seq}`),
-                                    });
+                                    setSaving(true);
+                                    try {
+                                        await onSave({
+                                            batchNo: batch.batchNo,
+                                            grade: batch.grade,
+                                            castingDate: batch.date || batch.castingDate,
+                                            sample1Raw: form.sample1,
+                                            sample2Raw: form.sample2,
+                                            sample1: form.sample1.map(c => `${c.bench}${c.seq}`),
+                                            sample2: form.sample2.map(c => `${c.bench}${c.seq}`),
+                                        });
+                                    } catch (err) {
+                                        setSaving(false);
+                                    }
                                 }}>
-                                    {isModifying ? 'Update Declaration' : 'Finalize Declaration'}
+                                    {saving ? 'Processing...' : (isModifying ? 'Update Declaration' : 'Finalize Declaration')}
                                 </button>
-                                <button className="btn-save" style={{ flex: 1, background: '#f1f5f9', color: '#475569', border: 'none' }} onClick={onClose}>Cancel</button>
+                                <button className="btn-save" style={{ flex: 1, background: '#f1f5f9', color: '#475569', border: 'none' }} onClick={onClose} disabled={saving}>Cancel</button>
                             </div>
                         </>
                     )}

@@ -268,9 +268,23 @@
 .role-tag {
     font-size: 10px;
     background: #f1f5f9;
-    padding: 2px 6px;
+    color: #64748b;
+    padding: 2px 8px;
     border-radius: 4px;
-    margin-left: 4px;
+    margin-left: 8px;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.product-tag {
+    font-size: 10px;
+    background: #ecfdf5;
+    color: #059669;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-left: 6px;
+    font-weight: 700;
+    border: 1px solid #d1fae5;
 }
 
 .date-time {

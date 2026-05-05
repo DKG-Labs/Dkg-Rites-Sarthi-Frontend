@@ -117,7 +117,7 @@ const FeedbackSection = () => {
                 <div className="feedback-submit-wrapper animate-up">
                     <div className="prof-card feedback-form-card">
                         <div className="sec-title-enhanced">
-                            <i className="fa-solid fa-paper-plane-memo"></i> Compose Your Message
+                            <i className="fa-solid fa-paper-plane-memo"></i> submit your feedback, issue & Suggestion
                         </div>
                         <form className="feedback-form" onSubmit={handleSubmit}>
                             <div className="form-row">
@@ -180,8 +180,14 @@ const FeedbackSection = () => {
                                         <div>
                                             <div className="user-name">
                                                 {f.userName} 
-                                                <span className="role-tag">{f.roleName}</span>
-                                                <span className="product-tag">{f.productType}</span>
+                                                {(() => {
+                                                    const formattedRole = f.roleName?.replace(/_/g, ' ').toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+                                                    const isRedundant = f.userName?.toLowerCase().includes(formattedRole?.toLowerCase()) || formattedRole?.toLowerCase().includes(f.userName?.toLowerCase());
+                                                    return !isRedundant && <span className="role-tag">{formattedRole}</span>;
+                                                })()}
+                                                {f.productType && f.productType !== 'Railway Board' && (
+                                                    <span className="product-tag">{f.productType}</span>
+                                                )}
                                             </div>
                                             <div className="date-time">{formatDate(f.createdDate)}</div>
                                         </div>
@@ -204,7 +210,14 @@ const FeedbackSection = () => {
                                         {f.replies.map((r, i) => (
                                             <div key={r.replyId || i} className="reply-card">
                                                 <div className="reply-header">
-                                                    <span className="reply-user">{r.userName} ({r.roleName})</span>
+                                                    <span className="reply-user">
+                                                        {r.userName} 
+                                                        {(() => {
+                                                            const formattedRole = r.roleName?.replace(/_/g, ' ').toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+                                                            const isRedundant = r.userName?.toLowerCase().includes(formattedRole?.toLowerCase()) || formattedRole?.toLowerCase().includes(r.userName?.toLowerCase());
+                                                            return !isRedundant && ` (${formattedRole})`;
+                                                        })()}
+                                                    </span>
                                                     <span className="reply-date">{formatDate(r.createdDate)}</span>
                                                 </div>
                                                 <p className="reply-text">{r.replyMessage}</p>

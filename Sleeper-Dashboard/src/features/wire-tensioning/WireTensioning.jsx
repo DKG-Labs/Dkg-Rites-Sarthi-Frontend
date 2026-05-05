@@ -917,12 +917,7 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
                                                         <th>Time</th>
                                                         <th>Batch</th>
                                                         <th>Bench</th>
-                                                        <th>Wire Length</th>
-                                                        <th>Cross Section</th>
-                                                        <th>Modulus</th>
-                                                        <th>Measured Elong.</th>
-                                                        <th>Force (Elong.)</th>
-                                                        <th>Total Load</th>
+
                                                         <th>Final Load</th>
                                                         <th>Actions</th>
                                                     </tr>
@@ -935,12 +930,7 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
                                                             <td>{entry.time}</td>
                                                             <td>{entry.batchNo}</td>
                                                             <td><strong>{entry.benchNo}</strong></td>
-                                                            <td>{entry.wireLength || '-'}</td>
-                                                            <td>{entry.crossSection || '-'}</td>
-                                                            <td>{entry.modulus || '-'}</td>
-                                                            <td>{entry.measuredElongation || '-'}</td>
-                                                            <td>{entry.forceElongation || '-'}</td>
-                                                            <td>{entry.totalLoad || '-'}</td>
+
                                                             <td><strong>{entry.finalLoad} KN</strong></td>
                                                             <td>
                                                                 {(() => {
@@ -1000,12 +990,7 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
                                         <tr>
                                             <th>PLC Time</th>
                                             <th>Bench</th>
-                                            <th>Wire Length</th>
-                                            <th>Cross Section</th>
-                                            <th>Modulus</th>
-                                            <th>Measured Elongation</th>
-                                            <th>Force (Elong.)</th>
-                                            <th>Total Load</th>
+
                                             <th>Final Load</th>
                                             <th>Action</th>
                                         </tr>
@@ -1021,12 +1006,7 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
                                                 <tr key={idx}>
                                                     <td>{r.time || r.plcTime}</td>
                                                     <td><strong>{r.benchNo}</strong></td>
-                                                    <td>{r.wireLength || '-'}</td>
-                                                    <td>{r.crossSection || '-'}</td>
-                                                    <td>{r.modulus || r.youngsModulus || '-'}</td>
-                                                    <td>{r.measuredElongation || '-'}</td>
-                                                    <td>{r.forceElongation || '-'}</td>
-                                                    <td>{r.totalLoad || '-'}</td>
+
                                                     <td style={{ fontWeight: '700', color: '#42818c' }}>{r.finalLoad} KN</td>
                                                     <td>
                                                         {r.status === 'PENDING' ? (
@@ -1046,7 +1026,7 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
                                                 </tr>
                                             ))}
                                         {scadaRecords.length === 0 && tensionRecords.filter(r => r.source === 'Scada').length === 0 && (
-                                            <tr><td colSpan="10" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>No SCADA data available.</td></tr>
+                                            <tr><td colSpan="4" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>No SCADA data available.</td></tr>
                                         )}
                                     </tbody>
                                 </table>
@@ -1125,19 +1105,14 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
                                             <th>Time</th>
                                             <th>Batch</th>
                                             <th>Bench</th>
-                                            <th>Wire Length</th>
-                                            <th>Cross Section</th>
-                                            <th>Modulus</th>
-                                            <th>Measured Elong.</th>
-                                            <th>Force (Elong.)</th>
-                                            <th>Total Load</th>
+
                                             <th>Final Load</th>
                                             <th>Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {tensionRecords.length === 0 ? (
-                                            <tr><td colSpan="12" style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>No records logged yet.</td></tr>
+                                            <tr><td colSpan="6" style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>No records logged yet.</td></tr>
                                         ) : (
                                             tensionRecords.map(entry => (
                                                 <tr key={entry.id}>
@@ -1145,12 +1120,7 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
                                                     <td>{entry.time}</td>
                                                     <td>{entry.batchNo}</td>
                                                     <td>{entry.benchNo}</td>
-                                                    <td>{entry.wireLength || '-'}</td>
-                                                    <td>{entry.crossSection || '-'}</td>
-                                                    <td>{entry.modulus || '-'}</td>
-                                                    <td>{entry.measuredElongation || '-'}</td>
-                                                    <td>{entry.forceElongation || '-'}</td>
-                                                    <td>{entry.totalLoad || '-'}</td>
+
                                                     <td><strong style={{ color: '#0f172a' }}>{entry.finalLoad} KN</strong></td>
                                                     <td>
                                                         <div style={{ display: 'flex', gap: '8px' }}>
@@ -1189,7 +1159,7 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
                                             <th>PLC Time</th>
                                             <th>Batch No.</th>
                                             <th>Bench</th>
-                                            <th>Total Load</th>
+
                                             <th>Final Load</th>
                                             <th>Status</th>
                                         </tr>
@@ -1206,7 +1176,7 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
                                                     <td>{r.time || r.plcTime}</td>
                                                     <td>{r.batchNo}</td>
                                                     <td><strong>{r.benchNo}</strong></td>
-                                                    <td>{r.totalLoad}</td>
+
                                                     <td style={{ fontWeight: '700' }}>{r.finalLoad} KN</td>
                                                     <td>
                                                         <span style={{
@@ -1224,7 +1194,7 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
                                                 </tr>
                                             ))}
                                         {scadaRecords.length === 0 && tensionRecords.filter(r => r.source === 'Scada').length === 0 && (
-                                            <tr><td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>No SCADA data available.</td></tr>
+                                            <tr><td colSpan="5" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>No SCADA data available.</td></tr>
                                         )}
                                     </tbody>
                                 </table>

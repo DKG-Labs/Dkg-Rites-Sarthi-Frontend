@@ -978,7 +978,7 @@ const ProfessionalCardSection = ({
 
                                     <div className="report-viewer-content">
                                         {activeReport === 'mpr' && (
-                                            isSleeper ? <SleeperMprReport /> : (
+                                            isSleeper ? <SleeperMprReport mprData={mprData} loading={mprLoading} /> : (
                                                 <div className="prof-card animate-up">
 
                                                     <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1263,7 +1263,7 @@ const ProfessionalCardSection = ({
                                 </div>
                             );
                         case 'feedback':
-                            return <FeedbackSection />;
+                            return <FeedbackSection selectedProduct={selectedProduct} />;
                         case 'scada':
                             return <ScadaMonitor selectedProduct={selectedProduct} />;
                         default:

@@ -3,20 +3,30 @@ import './FeedbackSection.css';
 import { getStoredUser } from '../../services/authService';
 import { submitFeedback, replyToFeedback, getUserFeedback, getAllFeedback } from '../../services/feedbackService';
 
-const FeedbackSection = () => {
+const FeedbackSection = ({ selectedProduct }) => {
     const [view, setView] = useState('submit');
     const [feedbacks, setFeedbacks] = useState([]);
     const [loading, setLoading] = useState(false);
     const [feedbackInput, setFeedbackInput] = useState({ subject: '', message: '', priority: 'Medium' });
     const [replyingTo, setReplyingTo] = useState(null);
     const [replyText, setReplyText] = useState('');
+    const [filter, setFilter] = useState('all');
+
+    // Initialize filter based on selectedProduct
+    useEffect(() => {
+        if (selectedProduct) {
+            setFilter(selectedProduct.toLowerCase().replace(/\s/g, ''));
+        } else {
+            setFilter('all');
+        }
+    }, [selectedProduct]);
     
     const currentUser = getStoredUser();
     const isRailwayBoard = currentUser?.roleName === 'RAILWAY_BOARD' || currentUser?.roleName === 'SUPER_ADMIN';
 
     // Current product context (can be dynamic based on which dashboard we are in)
     // For Railway Board, it's 'General' or 'HQ'
-    const PRODUCT_CONTEXT = 'Railway Board'; 
+    const PRODUCT_CONTEXT = selectedProduct || 'Railway Board'; 
 
     const fetchFeedbacks = useCallback(async () => {
         if (view === 'list') {
@@ -25,6 +35,14 @@ const FeedbackSection = () => {
                 let data;
                 if (isRailwayBoard) {
                     data = await getAllFeedback();
+                    // Filter by selected filter type
+                    if (filter !== 'all') {
+                        data = data.filter(f => {
+                            const fType = f.productType?.toLowerCase().replace(/\s/g, '') || '';
+                            const filterClean = filter.replace(/\s/g, '');
+                            return fType.includes(filterClean);
+                        });
+                    }
                 } else {
                     data = await getUserFeedback(currentUser.userId);
                 }
@@ -35,11 +53,11 @@ const FeedbackSection = () => {
                 setLoading(false);
             }
         }
-    }, [view, isRailwayBoard, currentUser?.userId]);
+    }, [view, isRailwayBoard, currentUser?.userId, filter]);
 
     useEffect(() => {
         fetchFeedbacks();
-    }, [fetchFeedbacks]);
+    }, [fetchFeedbacks, filter]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -112,6 +130,15 @@ const FeedbackSection = () => {
                     </button>
                 </div>
             </div>
+
+            {view === 'list' && isRailwayBoard && (
+                <div className="feedback-filter-bar animate-up">
+                    <button className={`filter-pill ${filter === 'all' ? 'active' : ''}`} onClick={() => setFilter('all')}>All Feedbacks</button>
+                    <button className={`filter-pill ${filter === 'erc' ? 'active' : ''}`} onClick={() => setFilter('erc')}>ERC Vendors</button>
+                    <button className={`filter-pill ${filter === 'sleeper' ? 'active' : ''}`} onClick={() => setFilter('sleeper')}>Sleeper Vendors</button>
+                    <button className={`filter-pill ${filter === 'railpad' ? 'active' : ''}`} onClick={() => setFilter('railpad')}>Railpad Vendors</button>
+                </div>
+            )}
 
             {view === 'submit' ? (
                 <div className="feedback-submit-wrapper animate-up">

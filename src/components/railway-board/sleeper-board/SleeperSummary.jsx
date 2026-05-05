@@ -34,7 +34,7 @@ const SleeperSummary = ({ summaryData = {} }) => {
         poIssued: summaryData.sleeperPoIssued || 0,
         poQuantity: {
             nos: summaryData.sleeperPoQuantityNos || 0,
-            set: 0,
+            set: summaryData.sleeperPoQuantitySet || 0,
             rmt: 0
         },
         finalInspectionQty: {

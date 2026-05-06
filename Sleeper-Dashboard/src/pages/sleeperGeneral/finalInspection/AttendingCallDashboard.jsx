@@ -36,6 +36,8 @@ const AttendingCallDashboard = () => {
     useEffect(() => {
         if (activeTab === 'pending') {
             fetchPendingCalls();
+        } else if (activeTab === 'completed') {
+            fetchCompletedCalls();
         }
     }, [activeTab]);
 
@@ -104,15 +106,32 @@ const AttendingCallDashboard = () => {
         }
     };
 
+    const fetchCompletedCalls = async () => {
+        setIsLoading(true);
+        try {
+            const response = await apiService.getCompletedFinalCalls();
+            if (response && response.responseData) {
+                setCompletedCalls(response.responseData.map(item => ({
+                    ...item,
+                    id: item.workflowTransitionId,
+                    status: item.jobStatus || item.status || 'Completed',
+                    checked: false
+                })));
+            }
+        } catch (error) {
+            console.error("Error fetching completed calls:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const [expandedActions, setExpandedActions] = useState({}); // Track which call has actions shown
 
     const [issuanceCalls, setIssuanceCalls] = useState([
         { id: 'CALL-003', vendor: 'Vendor C', po: 'PO-2024-03', productType: 'Final', qty: 450, accepted: 440, rejected: 10, callDate: '23/04/2026', status: 'ic_pending' },
     ]);
 
-    const [completedCalls, setCompletedCalls] = useState([
-        { id: 'CALL-004', vendor: 'Vendor D', po: 'PO-2024-04', productType: 'Final', qty: 600, accepted: 595, rejected: 5, callDate: '23/04/2026', status: 'ic_pending' },
-    ]);
+    const [completedCalls, setCompletedCalls] = useState([]);
 
     const toggleCheck = (id) => {
         setPendingCalls(prev => prev.map(call => 
@@ -186,7 +205,6 @@ const AttendingCallDashboard = () => {
                                         <th className="checkbox-col"><input type="checkbox" /></th>
                                         <th>TRANSITION ID</th>
                                         <th>REQUEST ID</th>
-                                        <th>MODULE</th>
                                         <th>VENDOR CODE</th>
                                         <th>PLANT ID</th>
                                         <th>POI CODE</th>
@@ -198,11 +216,11 @@ const AttendingCallDashboard = () => {
                                 <tbody>
                                     {isLoading ? (
                                         <tr>
-                                            <td colSpan="10" style={{ textAlign: 'center', padding: '20px' }}>Loading pending calls...</td>
+                                            <td colSpan="9" style={{ textAlign: 'center', padding: '20px' }}>Loading pending calls...</td>
                                         </tr>
                                     ) : pendingCalls.length === 0 ? (
                                         <tr>
-                                            <td colSpan="10" style={{ textAlign: 'center', padding: '20px' }}>No pending calls found.</td>
+                                            <td colSpan="9" style={{ textAlign: 'center', padding: '20px' }}>No pending calls found.</td>
                                         </tr>
                                     ) : (
                                         pendingCalls.map(call => (
@@ -216,7 +234,6 @@ const AttendingCallDashboard = () => {
                                                 </td>
                                                 <td>{call.workflowTransitionId}</td>
                                                 <td>{call.requestId}</td>
-                                                <td>{getModuleName(call.moduleId)}</td>
                                                 <td>{call.vendorCode || '-'}</td>
                                                 <td>{call.plantId || '-'}</td>
                                                 <td>{call.poiCode || '-'}</td>
@@ -232,8 +249,8 @@ const AttendingCallDashboard = () => {
                                                 {expandedActions[call.id] && (
                                                     <td>
                                                         <div className="table-actions-modern">
-                                                            {/* RIO_VERIFIED -> SCHEDULE */}
-                                                            {(call.jobStatus === 'RIO_VERIFIED' || !call.jobStatus) && (
+                                                            {/* RIO_VERIFIED -> SCHEDULE (only if not already scheduled) */}
+                                                            {(call.jobStatus === 'RIO_VERIFIED' || !call.jobStatus) && !call.scheduleDate && (
                                                                 <button 
                                                                     className="btn-start" 
                                                                     onClick={() => {
@@ -245,14 +262,26 @@ const AttendingCallDashboard = () => {
                                                                 </button>
                                                             )}
 
-                                                            {/* SCHEDULED -> START (Action: INITIATE_CALL) */}
-                                                            {(call.jobStatus === 'SCHEDULED' || call.jobStatus === 'scheduled') && (
-                                                                <button 
-                                                                    className="btn-start" 
-                                                                    onClick={() => handleWorkflowAction(call, 'INITIATE_CALL')}
-                                                                >
-                                                                    START
-                                                                </button>
+                                                            {/* SCHEDULED or already has a date -> START & RESCHEDULE */}
+                                                            {(call.jobStatus === 'SCHEDULED' || call.jobStatus === 'scheduled' || !!call.scheduleDate) && (
+                                                                <>
+                                                                    <button 
+                                                                        className="btn-start" 
+                                                                        onClick={() => handleWorkflowAction(call, 'INITIATE_CALL')}
+                                                                    >
+                                                                        START
+                                                                    </button>
+                                                                    <button 
+                                                                        className="btn-start" 
+                                                                        style={{ background: '#f59e0b', marginLeft: '8px' }}
+                                                                        onClick={() => {
+                                                                            setSelectedCallForSchedule(call);
+                                                                            setShowSchedulePopup(true);
+                                                                        }}
+                                                                    >
+                                                                        RESCHEDULE
+                                                                    </button>
+                                                                </>
                                                             )}
 
                                                             {/* INITIATED -> OPEN PO DETAILS (Action: PO_VERIFICATION) */}
@@ -374,46 +403,57 @@ const AttendingCallDashboard = () => {
                                 <thead>
                                     <tr>
                                         <th className="checkbox-col"><input type="checkbox" /></th>
-                                        <th>CALL NO.</th>
-                                        <th>VENDOR NAME</th>
-                                        <th>PO NO.</th>
-                                        <th>QTY OFFERED</th>
-                                        <th>PASSED</th>
-                                        <th>REJECTED</th>
-                                        <th>DATE</th>
+                                        <th>TRANSITION ID</th>
+                                        <th>REQUEST ID</th>
+                                        <th>VENDOR CODE</th>
+                                        <th>PLANT ID</th>
+                                        <th>POI CODE</th>
+                                        <th>CREATED DATE</th>
                                         <th>STATUS</th>
                                         {completedCalls.some(c => expandedActions[c.id]) && <th>ACTIONS</th>}
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {completedCalls.map(call => (
-                                        <tr key={call.id}>
-                                            <td className="checkbox-col"><input type="checkbox" /></td>
-                                            <td>{call.id}</td>
-                                            <td>{call.vendor}</td>
-                                            <td>{call.po}</td>
-                                            <td>{call.qty}</td>
-                                            <td className="text-success">{call.accepted}</td>
-                                            <td className="text-danger">{call.rejected}</td>
-                                            <td>{call.callDate}</td>
-                                            <td>
-                                                <button 
-                                                    className={`status-action-pill ${call.status}`}
-                                                    onClick={() => toggleActions(call.id)}
-                                                >
-                                                    {call.status}
-                                                </button>
-                                            </td>
-                                            {expandedActions[call.id] && (
-                                                <td>
-                                                    <div className="table-actions-modern">
-                                                        <button className="btn-reschedule">Download IC</button>
-                                                        <button className="btn-start">Download Annexures</button>
-                                                    </div>
-                                                </td>
-                                            )}
+                                    {isLoading ? (
+                                        <tr>
+                                            <td colSpan="9" style={{ textAlign: 'center', padding: '20px' }}>Loading completed calls...</td>
                                         </tr>
-                                    ))}
+                                    ) : completedCalls.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="9" style={{ textAlign: 'center', padding: '20px' }}>No completed calls found</td>
+                                        </tr>
+                                    ) : (
+                                        completedCalls.map(call => (
+                                            <React.Fragment key={call.id}>
+                                                <tr>
+                                                    <td className="checkbox-col"><input type="checkbox" checked={call.checked} onChange={() => {}} /></td>
+                                                    <td>{call.workflowTransitionId}</td>
+                                                    <td className="req-id-cell">{call.requestId}</td>
+                                                    <td>{call.vendorCode}</td>
+                                                    <td>{call.plantId}</td>
+                                                    <td>{call.poiCode}</td>
+                                                    <td>{call.createdDate ? new Date(call.createdDate).toLocaleDateString() : 'N/A'}</td>
+                                                    <td>
+                                                        <span 
+                                                            className={`status-pill ${call.jobStatus?.toLowerCase() || 'pending'}`}
+                                                            onClick={() => toggleActions(call.id)}
+                                                            style={{ cursor: 'pointer' }}
+                                                        >
+                                                            {call.jobStatus || call.status}
+                                                        </span>
+                                                    </td>
+                                                    {expandedActions[call.id] && (
+                                                        <td>
+                                                            <div className="table-actions-modern">
+                                                                <button className="btn-reschedule">Download IC</button>
+                                                                <button className="btn-start" style={{ marginLeft: '8px' }}>Download Annexures</button>
+                                                            </div>
+                                                        </td>
+                                                    )}
+                                                </tr>
+                                            </React.Fragment>
+                                        ))
+                                    )}
                                 </tbody>
                             </table>
                         </div>
@@ -475,6 +515,10 @@ const AttendingCallDashboard = () => {
                     onConfirm={async (data) => {
                         try {
                             const user = getStoredUser();
+                            const isReschedule = selectedCallForSchedule.jobStatus === 'SCHEDULED' || 
+                                                selectedCallForSchedule.jobStatus === 'scheduled' || 
+                                                !!selectedCallForSchedule.scheduleDate;
+                            
                             const payload = {
                                 callNo: selectedCallForSchedule.requestId,
                                 workflowTransitionId: selectedCallForSchedule.workflowTransitionId,
@@ -483,16 +527,15 @@ const AttendingCallDashboard = () => {
                                 plantId: selectedCallForSchedule.plantId,
                                 vendorCode: selectedCallForSchedule.vendorCode,
                                 shift: "A", // Default shift
-                                createdBy: Number(user?.userId || 0)
+                                createdBy: Number(selectedCallForSchedule.createdBy || user?.userId || 0),
+                                ...(isReschedule ? { updatedBy: Number(user?.userId || 0) } : {})
                             };
 
-                            const response = await apiService.scheduleCall(payload);
+                            const apiCall = isReschedule ? apiService.updateScheduleCall : apiService.scheduleCall;
+                            const response = await apiCall(payload);
                             
                             if (response) {
-                                // User requested to remove this call
-                                // await handleWorkflowAction(selectedCallForSchedule, 'SCHEDULE');
-                                
-                                alert("Call scheduled successfully!");
+                                alert(isReschedule ? "Call rescheduled successfully!" : "Call scheduled successfully!");
                                 setShowSchedulePopup(false);
                                 fetchPendingCalls(); // Refresh the list
                             }

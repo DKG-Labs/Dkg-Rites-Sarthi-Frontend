@@ -312,6 +312,7 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
                     if (existingBatch) {
                         const payload = {
                             ...existingBatch,
+                            location: existingBatch.location || activeContainer?.name || 'Line I',
                             manualRecords: (existingBatch.manualRecords || []).filter(r => r.id !== id)
                         };
                         await apiService.updateWireTensioning(existingBatch.id, payload);
@@ -431,6 +432,7 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
                     const batchData = batchResult?.responseData;
 
                     if (batchData) {
+                        batchData.location = batchData.location || activeContainer?.name || 'Line I';
                         // Update individual record in list
                         batchData.manualRecords = (batchData.manualRecords || []).map(m => {
                             if (m.id === editId) {
@@ -801,8 +803,8 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
                                 
                                 const payload = {
                                     batchNo: String(selectedBatch),
-                                    location: selectedLocation,
-                                    locationType: selectedLocation.toLowerCase().includes('shed') ? 'Shed' : 'Line',
+                                    location: selectedLocation || activeContainer?.name || 'Line I',
+                                    locationType: (selectedLocation || activeContainer?.name || 'Line I').toLowerCase().includes('shed') ? 'Shed' : 'Line',
                                     vendorCode: vendorCode || localStorage.getItem('vendorCode'),
                                     plantId: dutyUnit || localStorage.getItem('dutyUnit'),
                                     shift: selectedShift || localStorage.getItem('selectedShift'),
@@ -988,9 +990,9 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
                                 <table className="ui-table">
                                     <thead>
                                         <tr>
+                                            <th>Location</th>
                                             <th>PLC Time</th>
                                             <th>Bench</th>
-
                                             <th>Final Load</th>
                                             <th>Action</th>
                                         </tr>
@@ -1004,6 +1006,7 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
                                             .sort((a, b) => b.id - a.id)
                                             .map((r, idx) => (
                                                 <tr key={idx}>
+                                                    <td style={{ fontSize: '11px', color: '#64748b' }}>{r.location || 'N/A'}</td>
                                                     <td>{r.time || r.plcTime}</td>
                                                     <td><strong>{r.benchNo}</strong></td>
 
@@ -1026,7 +1029,7 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
                                                 </tr>
                                             ))}
                                         {scadaRecords.length === 0 && tensionRecords.filter(r => r.source === 'Scada').length === 0 && (
-                                            <tr><td colSpan="4" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>No SCADA data available.</td></tr>
+                                            <tr><td colSpan="5" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>No SCADA data available.</td></tr>
                                         )}
                                     </tbody>
                                 </table>

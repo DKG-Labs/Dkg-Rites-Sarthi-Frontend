@@ -6,7 +6,7 @@ export const mapWireTensionRecords = (responseData) => {
     if (!responseData) return [];
     const flattenedRecords = [];
     responseData.forEach(batchRecord => {
-        const { batchNo, sleeperType, wiresPerSleeper, targetLoadKn, date, entryDate, plantId, vendorCode, shift } = batchRecord;
+        const { batchNo, sleeperType, wiresPerSleeper, targetLoadKn, date, entryDate, plantId, vendorCode, shift, location } = batchRecord;
 
         (batchRecord.manualRecords || []).forEach(m => {
             flattenedRecords.push({
@@ -18,6 +18,7 @@ export const mapWireTensionRecords = (responseData) => {
                 plantId,
                 vendorCode,
                 shift,
+                location,
                 modulus: m.modulus || m.youngsModulus,
                 source: 'Manual',
                 sleeperType,
@@ -36,6 +37,7 @@ export const mapWireTensionRecords = (responseData) => {
                 plantId,
                 vendorCode,
                 shift,
+                location,
                 time: s.time || s.plcTime,
                 modulus: s.modulus || s.youngsModulus,
                 source: 'Scada',

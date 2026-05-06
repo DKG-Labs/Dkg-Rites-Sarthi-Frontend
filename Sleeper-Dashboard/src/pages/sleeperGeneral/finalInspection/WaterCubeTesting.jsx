@@ -875,7 +875,12 @@ const SampleDeclarationModal = ({ batch, isModifying, onClose, onSave }) => {
                 chamber.benchGroups?.forEach(group => {
                     const bNo = String(group.benchNo);
                     if (!map[bNo]) map[bNo] = [];
-                    group.sleepers?.forEach(s => {
+                    
+                    // Support both group.sleepers (strings) and group.sleeperList (objects)
+                    const sList = group.sleeperList || group.sleepers || [];
+                    sList.forEach(item => {
+                        const s = typeof item === 'string' ? item : (item.sleeperNo || item.id);
+                        if (!s) return;
                         const suffix = s.startsWith(bNo) ? s.substring(bNo.length) : s;
                         map[bNo].push({ full: s, suffix: suffix });
                     });
@@ -888,7 +893,10 @@ const SampleDeclarationModal = ({ batch, isModifying, onClose, onSave }) => {
             rawData.gangs.forEach(gang => {
                  const bNo = String(gang.gangNo);
                  if (!map[bNo]) map[bNo] = [];
-                 gang.sleepers?.forEach(s => {
+                 const sList = gang.sleeperList || gang.sleepers || [];
+                 sList.forEach(item => {
+                     const s = typeof item === 'string' ? item : (item.sleeperNo || item.id);
+                     if (!s) return;
                      const suffix = s.startsWith(bNo) ? s.substring(bNo.length) : s;
                      map[bNo].push({ full: s, suffix: suffix });
                  });

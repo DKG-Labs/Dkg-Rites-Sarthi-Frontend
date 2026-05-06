@@ -4,7 +4,8 @@ import { apiService } from '../../../services/api';
 import { getStoredUser } from '../../../services/authService';
 
 const FinalInspectionScreen = ({ call, onBack }) => {
-    const [step, setStep] = useState('po-verification'); // 'po-verification' or 'inspection-form'
+    const isVerificationMode = call?.jobStatus !== 'PO_VERIFICATION' && call?.jobStatus !== 'INSPECTION';
+    const [step, setStep] = useState(isVerificationMode ? 'po-verification' : 'inspection-form');
     const [poVerified, setPoVerified] = useState(false);
 
     useEffect(() => {
@@ -49,10 +50,11 @@ const FinalInspectionScreen = ({ call, onBack }) => {
         }
     ]);
 
-    // Data Entry States
-    const [rejectionEntry, setRejectionEntry] = useState({ batchNo: '', sleeperNo: '', reason: '', subReason: '' });
-    const [etEntry, setEtEntry] = useState({ batchNo: '', sleeperNo: '' });
     const [expandedBatches, setExpandedBatches] = useState({});
+    const [activeAction, setActiveAction] = useState(null); // 'rejection' or 'et'
+    
+    const [rejectionEntry, setRejectionEntry] = useState({ batchNo: '', sleeperNo: '', reason: '' });
+    const [etEntry, setEtEntry] = useState({ batchNo: '', sleeperNo: '', reason: '' });
 
     // Verification Form State
     const [poForm, setPoForm] = useState({
@@ -72,8 +74,8 @@ const FinalInspectionScreen = ({ call, onBack }) => {
         desiredDate: '20/02/2026',
         rlyPoSr: 'WCR/DummyPo_001/001',
         itemDesc: 'Manufacture and Supply of Elastic Rail Clip MK-V with Flat Toe for 60 Kg UIC/ 52 Kg Rail Section (Alt. 2) RDSO Drg. No. T-5919 and As per corrigendum no.-1 of IRS specification No-T-31-2021 (Fifth Revision) with latest amendment. (The alteration/revision/amendment in Drawing and specification issued by RDSO as on date of publishing of tender shall be applicable to this tender). Make/Brand: kr',
-        productType: 'Final',
-        ercType: 'MK-V',
+        productType: 'Sleeper',
+        ercType: 'PSC Sleeper',
         poSrQty: '500 Nos.',
         consignee: 'SE/PWAY/STORE/BPL',
         origDp: '20/10/2025',
@@ -81,6 +83,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
         origDpStart: '21/07/2025',
         stage: 'Final',
         callQty: '2000',
+        qtyUnit: 'Nos',
         place: 'Dummy Po Hyd Company (Dummy address HYD)',
         processIc: 'W/EP-02190007/TIE2',
         remarks: 'IE has scheduled the call'
@@ -426,10 +429,10 @@ const FinalInspectionScreen = ({ call, onBack }) => {
     };
 
     // Derived Section 1 Header Stats
-    const totalOfferedNow = batches.reduce((sum, b) => sum + b.offeredNow, 0);
+    const totalOfferedNow = batches.reduce((sum, b) => sum + (b.offeredNow || 0), 0);
     const totalRejected = batches.reduce((sum, b) => sum + b.rejectedSleepers.length, 0);
-    const totalAccepted = totalOfferedNow - totalRejected;
     const totalEt = batches.reduce((sum, b) => sum + b.etSleepers.length, 0);
+    const totalAccepted = totalOfferedNow - totalRejected; // ET sleepers are already included in (Offered - Rejected)
 
     const handleAddRejection = () => {
         if (!rejectionEntry.batchNo || !rejectionEntry.sleeperNo || !rejectionEntry.reason) return;
@@ -449,33 +452,26 @@ const FinalInspectionScreen = ({ call, onBack }) => {
             }
             return batch;
         }));
-        setRejectionEntry({ ...rejectionEntry, sleeperNo: '', reason: '', subReason: '' });
+        setRejectionEntry({ batchNo: '', sleeperNo: '', reason: '' });
     };
 
     const handleAddEt = () => {
-        if (!etEntry.batchNo) return;
+        if (!etEntry.batchNo || !etEntry.sleeperNo || !etEntry.reason) return;
 
         setBatches(prev => prev.map(batch => {
             if (batch.batchNo === etEntry.batchNo) {
-                // If marking whole batch
-                if (etEntry.sleeperNo === 'ALL') {
-                    // Combine all sleepers into ET list, avoiding duplicates
-                    const allSleepers = [...new Set([...batch.etSleepers, ...batch.sleepers])];
-                    return {
-                        ...batch,
-                        etSleepers: allSleepers
-                    };
-                }
-                
                 if (batch.etSleepers.includes(etEntry.sleeperNo)) return batch;
+                
+                const newAccepted = batch.acceptedSleepers.filter(s => s !== etEntry.sleeperNo);
                 return {
                     ...batch,
+                    acceptedSleepers: newAccepted,
                     etSleepers: [...batch.etSleepers, etEntry.sleeperNo]
                 };
             }
             return batch;
         }));
-        setEtEntry({ ...etEntry, sleeperNo: '' });
+        setEtEntry({ batchNo: '', sleeperNo: '', reason: '' });
     };
 
     const removeRejection = (batchNo, sleeperNo) => {
@@ -498,9 +494,12 @@ const FinalInspectionScreen = ({ call, onBack }) => {
     const removeEt = (batchNo, sleeperNo) => {
         setBatches(prev => prev.map(batch => {
             if (batch.batchNo === batchNo) {
+                const newEt = batch.etSleepers.filter(s => s !== sleeperNo);
+                const newAccepted = [...batch.acceptedSleepers, sleeperNo];
                 return {
                     ...batch,
-                    etSleepers: batch.etSleepers.filter(s => s !== sleeperNo)
+                    acceptedSleepers: newAccepted,
+                    etSleepers: newEt
                 };
             }
             return batch;
@@ -618,15 +617,25 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                                 <div className="input-field-mock">{icForm.productType}</div>
                                             </div>
                                             <div className="form-group-modern">
-                                                <label>TYPE OF ERC</label>
-                                                <div className="input-field-mock">{icForm.ercType}</div>
+                                                <label>Type of Sleeper</label>
+                                                <select 
+                                                    className="input-field-mock"
+                                                    value={icForm.ercType}
+                                                    onChange={(e) => setIcForm({...icForm, ercType: e.target.value})}
+                                                    style={{ width: '100%', height: '45px', border: '1px solid #e2e8f0', background: '#f8fafc' }}
+                                                >
+                                                    <option value="PSC Sleeper">PSC Sleeper</option>
+                                                    <option value="Normal Sleeper">Normal Sleeper</option>
+                                                    <option value="Wide Gauge Sleeper">Wide Gauge Sleeper</option>
+                                                    <option value="Bridge Sleeper">Bridge Sleeper</option>
+                                                </select>
                                             </div>
                                             <div className="form-group-modern">
                                                 <label>PO_SR_QTY + UNIT</label>
                                                 <div className="input-field-mock">{icForm.poSrQty}</div>
                                             </div>
                                             <div className="form-group-modern">
-                                                <label>CONSIGNEE_RLY + CONSIGNEE</label>
+                                                <label>CONSIGNEE</label>
                                                 <div className="input-field-mock">{icForm.consignee}</div>
                                             </div>
                                             <div className="form-group-modern">
@@ -646,17 +655,32 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                                                 <div className="input-field-mock">{icForm.stage}</div>
                                             </div>
                                             <div className="form-group-modern">
-                                                <label>CALL QTY (MT)</label>
-                                                <div className="input-field-mock">{icForm.callQty}</div>
+                                                <label>Call Qty (Nos/Set/RMT)</label>
+                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                    <input 
+                                                        type="text"
+                                                        className="input-field-mock"
+                                                        value={icForm.callQty}
+                                                        onChange={(e) => setIcForm({...icForm, callQty: e.target.value})}
+                                                        style={{ flex: 1, height: '45px', border: '1px solid #e2e8f0', background: '#f8fafc' }}
+                                                    />
+                                                    <select 
+                                                        className="input-field-mock"
+                                                        value={icForm.qtyUnit}
+                                                        onChange={(e) => setIcForm({...icForm, qtyUnit: e.target.value})}
+                                                        style={{ width: '80px', height: '45px', border: '1px solid #e2e8f0', background: '#f8fafc' }}
+                                                    >
+                                                        <option value="Nos">Nos</option>
+                                                        <option value="Set">Set</option>
+                                                        <option value="RMT">RMT</option>
+                                                    </select>
+                                                </div>
                                             </div>
                                             <div className="form-group-modern">
                                                 <label>PLACE OF INSPECTION</label>
                                                 <div className="input-field-mock">{icForm.place}</div>
                                             </div>
-                                            <div className="form-group-modern">
-                                                <label>PROCESS IC NUMBERS</label>
-                                                <div className="input-field-mock">{icForm.processIc}</div>
-                                            </div>
+
                                             <div className="form-group-modern full-width">
                                                 <label>REMARKS</label>
                                                 <div className="input-field-mock">{icForm.remarks}</div>
@@ -711,7 +735,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                     </button>
                     <div>
                         <h1>Final Inspection Form</h1>
-                        <span className="call-ref">Call Ref: {call.id}</span>
+                        <span className="call-ref">Call Ref: {call?.id || 'N/A'}</span>
                     </div>
                 </div>
                 <div className="header-status">
@@ -825,68 +849,123 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                     <section className="section verdict-entry">
                         <div className="section-title">Section 3: Final Verdict (Data Entry)</div>
                         
-                        <div className="entry-grid">
+                        <div className="entry-actions-row" style={{ display: 'flex', gap: '15px', alignItems: 'start' }}>
                             {/* Action A: Add Rejection */}
-                            <div className="entry-card rejection">
-                                <h5>Add Rejection</h5>
-                                <div className="entry-form">
-                                    <div className="field">
-                                        <label>Batch Number</label>
-                                        <select 
-                                            value={rejectionEntry.batchNo} 
-                                            onChange={(e) => setRejectionEntry({...rejectionEntry, batchNo: e.target.value, sleeperNo: ''})}
-                                        >
-                                            <option value="">Select Batch</option>
-                                            {batches.map(b => <option key={b.batchNo} value={b.batchNo}>{b.batchNo}</option>)}
-                                        </select>
-                                    </div>
-                                    <div className="field">
-                                        <label>Sleeper Number</label>
-                                        <select 
-                                            value={rejectionEntry.sleeperNo} 
-                                            onChange={(e) => setRejectionEntry({...rejectionEntry, sleeperNo: e.target.value})}
-                                            disabled={!rejectionEntry.batchNo}
-                                        >
-                                            <option value="">Select Sleeper</option>
-                                            {rejectionEntry.batchNo && batches.find(b => b.batchNo === rejectionEntry.batchNo).acceptedSleepers.map(s => (
-                                                <option key={s} value={s}>{s}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="field">
-                                        <label>Reason for Rejection</label>
-                                        <select 
-                                            value={rejectionEntry.reason} 
-                                            onChange={(e) => setRejectionEntry({...rejectionEntry, reason: e.target.value})}
-                                        >
-                                            <option value="">Select Reason</option>
-                                            <option value="Surface Crack">Surface Crack</option>
-                                            <option value="Dimensional Variation">Dimensional Variation</option>
-                                            <option value="Honeycombing">Honeycombing</option>
-                                            <option value="Broken Edge">Broken Edge</option>
-                                        </select>
-                                    </div>
-                                    <button className="add-btn reject" onClick={handleAddRejection}>Log Rejection</button>
+                            <div className={`collapsible-entry-card ${activeAction === 'rejection' ? 'active' : ''}`} style={{ flex: 1, border: '1px solid #e2e8f0', borderRadius: '8px', background: '#fff' }}>
+                                <div 
+                                    className="card-header-toggle" 
+                                    onClick={() => setActiveAction(activeAction === 'rejection' ? null : 'rejection')}
+                                    style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', background: '#fff1f1' }}
+                                >
+                                    <h5 style={{ margin: 0, color: '#dc2626', fontSize: '0.9rem' }}>Add Rejection {activeAction === 'rejection' ? '▼' : '▶'}</h5>
                                 </div>
+                                {activeAction === 'rejection' && (
+                                    <div className="entry-form" style={{ padding: '16px', borderTop: '1px solid #e2e8f0' }}>
+                                        <div className="field-group" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                                            <div className="field">
+                                                <label style={{ fontSize: '0.75rem', fontWeight: '700' }}>Batch Number</label>
+                                                <select 
+                                                    style={{ width: '100%', height: '35px', fontSize: '0.8rem' }}
+                                                    value={rejectionEntry.batchNo} 
+                                                    onChange={(e) => setRejectionEntry({...rejectionEntry, batchNo: e.target.value, sleeperNo: ''})}
+                                                >
+                                                    <option value="">Select Batch</option>
+                                                    {batches.map(b => <option key={b.batchNo} value={b.batchNo}>{b.batchNo}</option>)}
+                                                </select>
+                                            </div>
+                                            <div className="field">
+                                                <label style={{ fontSize: '0.75rem', fontWeight: '700' }}>Sleeper Number</label>
+                                                <select 
+                                                    style={{ width: '100%', height: '35px', fontSize: '0.8rem' }}
+                                                    value={rejectionEntry.sleeperNo} 
+                                                    onChange={(e) => setRejectionEntry({...rejectionEntry, sleeperNo: e.target.value})}
+                                                    disabled={!rejectionEntry.batchNo}
+                                                >
+                                                    <option value="">Select Sleeper</option>
+                                                    {rejectionEntry.batchNo && batches.find(b => b.batchNo === rejectionEntry.batchNo).acceptedSleepers
+                                                        .map(s => (
+                                                        <option key={s} value={s}>{s}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div className="field" style={{ marginBottom: '15px' }}>
+                                            <label style={{ fontSize: '0.75rem', fontWeight: '700' }}>Reason for Rejection</label>
+                                            <select 
+                                                style={{ width: '100%', height: '35px', fontSize: '0.8rem' }}
+                                                value={rejectionEntry.reason} 
+                                                onChange={(e) => setRejectionEntry({...rejectionEntry, reason: e.target.value})}
+                                            >
+                                                <option value="">Select Reason</option>
+                                                <option value="Surface Crack">Surface Crack</option>
+                                                <option value="Dimensional Variation">Dimensional Variation</option>
+                                                <option value="Honeycombing">Honeycombing</option>
+                                                <option value="Broken Edge">Broken Edge</option>
+                                                <option value="END DAMAGE">END DAMAGE</option>
+                                            </select>
+                                        </div>
+                                        <button className="add-btn reject" onClick={handleAddRejection} style={{ width: '100%', padding: '10px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: '700', fontSize: '0.8rem' }}>Log Rejection</button>
+                                    </div>
+                                )}
                             </div>
-
+    
                             {/* Action B: Add ET */}
-                            <div className="entry-card et">
-                                <h5>Add Epoxy Treatment (ET)</h5>
-                                <div className="entry-form">
-                                    <div className="field">
-                                        <label>Batch Number</label>
-                                        <select 
-                                            value={etEntry.batchNo} 
-                                            onChange={(e) => setEtEntry({...etEntry, batchNo: e.target.value, sleeperNo: 'ALL'})}
-                                        >
-                                            <option value="">Select Batch</option>
-                                            {batches.map(b => <option key={b.batchNo} value={b.batchNo}>{b.batchNo}</option>)}
-                                        </select>
-                                    </div>
-                                    {/* Removed Sleeper Selection as per 'just show Add Epoxy batches' request */}
-                                    <button className="add-btn et" onClick={handleAddEt}>Log ET Batch</button>
+                            <div className={`collapsible-entry-card ${activeAction === 'et' ? 'active' : ''}`} style={{ flex: 1, border: '1px solid #e2e8f0', borderRadius: '8px', background: '#fff' }}>
+                                <div 
+                                    className="card-header-toggle" 
+                                    onClick={() => setActiveAction(activeAction === 'et' ? null : 'et')}
+                                    style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', background: '#f0f9ff' }}
+                                >
+                                    <h5 style={{ margin: 0, color: '#0284c7', fontSize: '0.9rem' }}>Add Epoxy Treatment (ET) {activeAction === 'et' ? '▼' : '▶'}</h5>
                                 </div>
+                                {activeAction === 'et' && (
+                                    <div className="entry-form" style={{ padding: '16px', borderTop: '1px solid #e2e8f0' }}>
+                                        <div className="field-group" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                                            <div className="field">
+                                                <label style={{ fontSize: '0.75rem', fontWeight: '700' }}>Batch Number</label>
+                                                <select 
+                                                    style={{ width: '100%', height: '35px', fontSize: '0.8rem' }}
+                                                    value={etEntry.batchNo} 
+                                                    onChange={(e) => setEtEntry({...etEntry, batchNo: e.target.value, sleeperNo: ''})}
+                                                >
+                                                    <option value="">Select Batch</option>
+                                                    {batches.map(b => <option key={b.batchNo} value={b.batchNo}>{b.batchNo}</option>)}
+                                                </select>
+                                            </div>
+                                            <div className="field">
+                                                <label style={{ fontSize: '0.75rem', fontWeight: '700' }}>Sleeper Number</label>
+                                                <select 
+                                                    style={{ width: '100%', height: '35px', fontSize: '0.8rem' }}
+                                                    value={etEntry.sleeperNo} 
+                                                    onChange={(e) => setEtEntry({...etEntry, sleeperNo: e.target.value})}
+                                                    disabled={!etEntry.batchNo}
+                                                >
+                                                    <option value="">Select Sleeper</option>
+                                                    {etEntry.batchNo && batches.find(b => b.batchNo === etEntry.batchNo).acceptedSleepers
+                                                        .map(s => (
+                                                        <option key={s} value={s}>{s}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div className="field" style={{ marginBottom: '15px' }}>
+                                            <label style={{ fontSize: '0.75rem', fontWeight: '700' }}>Reason for ET</label>
+                                            <select 
+                                                style={{ width: '100%', height: '35px', fontSize: '0.8rem' }}
+                                                value={etEntry.reason} 
+                                                onChange={(e) => setEtEntry({...etEntry, reason: e.target.value})}
+                                            >
+                                                <option value="">Select Reason</option>
+                                                <option value="Surface Crack">Surface Crack</option>
+                                                <option value="Dimensional Variation">Dimensional Variation</option>
+                                                <option value="Honeycombing">Honeycombing</option>
+                                                <option value="Broken Edge">Broken Edge</option>
+                                                <option value="END DAMAGE">END DAMAGE</option>
+                                            </select>
+                                        </div>
+                                        <button className="add-btn et" onClick={handleAddEt} style={{ width: '100%', padding: '10px', background: '#0284c7', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: '700', fontSize: '0.8rem' }}>Log Epoxy Treatment</button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </section>

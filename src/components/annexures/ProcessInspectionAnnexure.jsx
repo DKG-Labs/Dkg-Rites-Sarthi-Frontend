@@ -1,12 +1,42 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import AnnexureLayout from './AnnexureLayout';
 import './ProcessInspectionAnnexure.css';
+import { annexureService } from '../../services/annexureService';
 
-/**
- * ProcessInspectionAnnexure - Process Inspection Register (F/ERC-01)
- * Displays hourly production checks dynamically from backend data.
- */
 const ProcessInspectionAnnexure = ({ data = [], selectedCall }) => {
+  const [remarksState, setRemarksState] = useState({});
+  const [editingId, setEditingId] = useState(null);
+  const [loadingRemarks, setLoadingRemarks] = useState(false);
+
+  // Initialize remarks from data
+  useEffect(() => {
+    if (data && data.length > 0) {
+      const initialRemarks = {};
+      data.forEach((entry, index) => {
+        initialRemarks[index] = entry.remarks || '';
+      });
+      setRemarksState(initialRemarks);
+    }
+  }, [data]);
+
+  const handleSaveRemark = async (index, entry) => {
+    setLoadingRemarks(true);
+    try {
+      await annexureService.updateProcessRemarks({
+        callNo: selectedCall?.call_no || entry.caseNoIbs,
+        shift: entry.shift,
+        lineNo: entry.lineNo,
+        lotNo: entry.lotNo,
+        remarks: remarksState[index]
+      });
+      setEditingId(null);
+    } catch (error) {
+      console.error("Failed to save remarks:", error);
+      alert("Failed to save remarks. Please try again.");
+    } finally {
+      setLoadingRemarks(false);
+    }
+  };
   
   // Custom Header matching the reference image perfectly
   const ProcessHeader = () => (
@@ -24,7 +54,7 @@ const ProcessInspectionAnnexure = ({ data = [], selectedCall }) => {
             </div>
           </td>
           <td className="pi-h-col-2">
-            <div className="pi-h-title-hindi">िनरीक्षण एवं जाँच योजना <b>INSPECTION & TEST PLAN</b></div>
+            <div className="pi-h-title-hindi">निरीक्षण एवं जाँच योजना <b>INSPECTION & TEST PLAN</b></div>
             <div className="pi-h-sub-title"><b>ELASTIC RAIL CLIP</b></div>
             <div className="pi-h-reg-title"><b><u>PROCESS INSPECTION REGISTER</u></b></div>
             <div className="pi-h-ref-text">
@@ -55,8 +85,8 @@ const ProcessInspectionAnnexure = ({ data = [], selectedCall }) => {
 
   return (
     <div className="process-inspection-annexure">
-      {data.map((entry, entryIdx) => (
-        <AnnexureLayout key={entryIdx} className="itp-page portrait">
+      {data.map((entry, index) => (
+        <AnnexureLayout key={index} className="itp-page portrait">
           <ProcessHeader />
 
           <div className="pi-info-container">
@@ -65,19 +95,26 @@ const ProcessInspectionAnnexure = ({ data = [], selectedCall }) => {
                 <tr className="pi-row-1">
                   <td className="pi-r1-c1">Date</td>
                   <td className="pi-r1-c2">{entry.date || ''}</td>
-                  <td className="pi-r1-c3"><b>Shift: {entry.shift}</b></td>
+                  <td className="pi-row-center-label">Shift:</td>
+                  <td className="pi-row-center-value">{entry.shift}</td>
+                  <td className="pi-row-center-label">Line No:</td>
+                  <td className="pi-row-center-value">{entry.lineNo || '-'}</td>
                   <td className="pi-r1-c4">Lot No.</td>
                   <td className="pi-r1-c5">{entry.lotNo || ''}</td>
                 </tr>
                 <tr className="pi-row-2">
                   <td className="pi-r2-c1" colSpan={2}>PO No. & Date</td>
-                  <td className="pi-r2-c2">{entry.poNoAndDate || ''}</td>
+                  <td className="pi-r2-c2" colSpan={2}>{entry.poNoAndDate || ''}</td>
+                  <td className="pi-row-center-label">Heat No:</td>
+                  <td className="pi-row-center-value">{entry.heatNo || ' - '}</td>
                   <td className="pi-r2-c3">Nos. of ERC produced during the shift</td>
                   <td className="pi-r2-c4">{entry.ercProducedDuringShift || ''}</td>
                 </tr>
                 <tr className="pi-row-3">
-                  <td className="pi-r2-c1" colSpan={2}>Case No. (IBS)</td>
-                  <td className="pi-r2-c2">{entry.caseNoIbs || ''}</td>
+                  <td className="pi-r2-c1" colSpan={2}>Call No. (SARTHI) & Date</td>
+                  <td className="pi-r2-c2" colSpan={2}>{entry.callNoAndDate || ''}</td>
+                  <td className="pi-row-center-label">Mfg Name:</td>
+                  <td className="pi-row-center-value">{(entry.mfgName || ' - ').replace(/~/g, ', ')}</td>
                   <td className="pi-r2-c3">Name of Inspecting Engineer</td>
                   <td className="pi-r2-c4">{entry.inspectingEngineerName || ''}</td>
                 </tr>
@@ -86,8 +123,8 @@ const ProcessInspectionAnnexure = ({ data = [], selectedCall }) => {
             <table className="pi-info-row-table pi-r4">
               <tbody>
                 <tr>
-                  <td className="pi-r4-c1">Raw material (Stage) IC No. & date</td>
-                  <td className="pi-r4-c2">{entry.rawMaterialIcNoAndDate || ''}</td>
+                  <td className="pi-r4-c1" colSpan={2}>Raw material (Stage) IC No. & date</td>
+                  <td className="pi-r4-c2" colSpan={4}>{entry.rawMaterialIcNoAndDate || ''}</td>
                   <td className="pi-r4-c3">ERC Type</td>
                   <td className="pi-r4-c4">{entry.ercType || ''}</td>
                 </tr>
@@ -129,7 +166,17 @@ const ProcessInspectionAnnexure = ({ data = [], selectedCall }) => {
                         <div className="pi-activity-text">{row.activity}</div>
                       </td>
                       
-                      {row.activity.includes("(N/A)") ? (
+                      {row.srNo === 13 ? (
+                        <>
+                          {row.hourlyData.map((val, hIdx) => {
+                            return (
+                              <td key={hIdx} style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '8px' }}>
+                                {val}
+                              </td>
+                            );
+                          })}
+                        </>
+                      ) : row.srNo === 5 ? (
                         <td colSpan={entry.hourLabels.length} style={{ textAlign: 'center', fontWeight: 'bold', letterSpacing: '2px' }}>
                           NOT APPLICABLE
                         </td>
@@ -159,10 +206,41 @@ const ProcessInspectionAnnexure = ({ data = [], selectedCall }) => {
                       </tr>
                     ))}
 
+                    {/* Special Row 6: Checking of Die sub-description */}
+                    {row.srNo === 6 && (
+                      <tr className="pi-data-row detail-row">
+                        <td></td>
+                        <td colSpan={1 + entry.hourLabels.length + 1} className="pi-horizontal-detail">
+                          At the start of shift. (if Production per shift is more than 4000 ERCs, additional <strong>check in the middle of the shift</strong>)
+                        </td>
+                      </tr>
+                    )}
+
+                    {/* Special Row 7: Quenching sub-description */}
+                    {row.srNo === 7 && (
+                      <tr className="pi-data-row detail-row">
+                        <td></td>
+                        <td colSpan={1 + entry.hourLabels.length + 1} className="pi-horizontal-detail">
+                          (Temp. to be checked every hour. Duration to be checked at <strong>the start of the shift</strong>)
+                        </td>
+                      </tr>
+                    )}
+
+                    {/* Special Row 9: Tempering sub-description */}
+                    {row.srNo === 9 && (
+                      <tr className="pi-data-row detail-row">
+                        <td></td>
+                        <td colSpan={1 + entry.hourLabels.length + 1} className="pi-horizontal-detail">
+                          (Temp. to be checked every hour. Duration to be checked at <strong>the start of the shift</strong>)
+                        </td>
+                      </tr>
+                    )}
+
                     {/* Special Row 14: Documentation */}
                     {row.srNo === 14 && (
                        <tr className="pi-data-row detail-row">
-                        <td colSpan={1 + entry.hourLabels.length} className="pi-horizontal-detail">
+                        <td style={{ borderTop: '1px solid #000' }}></td>
+                        <td colSpan={1 + entry.hourLabels.length + 1} className="pi-horizontal-detail" style={{ borderTop: '1px solid #000' }}>
                            Specific details/results of all the checks should be recorded
                         </td>
                       </tr>
@@ -175,6 +253,57 @@ const ProcessInspectionAnnexure = ({ data = [], selectedCall }) => {
 
           <div className="pi-note-section">
             (NOTE: &nbsp;&nbsp; In case of any discrepancy observed, the same shall be immediately informed to Quality in-charge/Shift in-charge verbally and also to be communicated the same through E-mail)
+          </div>
+
+          <div className="pi-bottom-remarks">
+            <div className="pi-remark-header">
+              <div className="pi-remark-title">Remark-</div>
+              {editingId !== index ? (
+                <button 
+                  className="btn-edit-remarks no-print" 
+                  onClick={() => setEditingId(index)}
+                  disabled={loadingRemarks}
+                >
+                  Edit Remark
+                </button>
+              ) : (
+                <span className="editing-badge no-print">Editing Mode</span>
+              )}
+            </div>
+            
+            {editingId === index ? (
+              <div className="pi-remarks-edit-box no-print">
+                <textarea
+                  className="pi-remarks-textarea"
+                  value={remarksState[index] || ''}
+                  onChange={(e) => setRemarksState({...remarksState, [index]: e.target.value})}
+                  placeholder="Enter manual remarks here..."
+                  rows={4}
+                />
+                <div className="pi-remarks-actions">
+                  <button 
+                    className="btn-save-remark" 
+                    onClick={() => handleSaveRemark(index, entry)}
+                    disabled={loadingRemarks}
+                  >
+                    {loadingRemarks ? 'Saving...' : 'Save Remark'}
+                  </button>
+                  <button 
+                    className="btn-cancel-remark" 
+                    onClick={() => setEditingId(null)}
+                    disabled={loadingRemarks}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="pi-remarks-display-box">
+                {remarksState[index] && (
+                  <div className="pi-remark-content">{remarksState[index]}</div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="pi-signature-block">

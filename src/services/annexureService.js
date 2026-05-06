@@ -179,5 +179,26 @@ export const annexureService = {
             console.error("Error fetching available process entries:", error);
             throw error;
         }
+    },
+
+    /**
+     * Updates remarks for a specific process inspection entry
+     */
+    updateProcessRemarks: async (params) => {
+        try {
+            const userId = localStorage.getItem('userId') || localStorage.getItem('userName') || 'testUser';
+            const { callNo, shift, lineNo, lotNo, remarks } = params;
+            
+            const url = `${API_BASE_URL}/api/process-annexure/update-remarks?callNo=${callNo}&shift=${shift}&lineNo=${lineNo}&lotNo=${lotNo}&remarks=${encodeURIComponent(remarks)}&createdBy=${userId}`;
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: getAuthHeaders()
+            });
+            return await handleResponse(response);
+        } catch (error) {
+            console.error("Error updating process remarks:", error);
+            throw error;
+        }
     }
 };

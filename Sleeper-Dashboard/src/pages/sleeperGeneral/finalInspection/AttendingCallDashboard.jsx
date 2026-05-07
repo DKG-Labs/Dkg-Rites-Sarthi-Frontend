@@ -527,7 +527,7 @@ const AttendingCallDashboard = () => {
                                 plantId: selectedCallForSchedule.plantId,
                                 vendorCode: selectedCallForSchedule.vendorCode,
                                 shift: "A", // Default shift
-                                createdBy: Number(selectedCallForSchedule.createdBy || user?.userId || 0),
+                                createdBy: Number(user?.userId || 0),
                                 ...(isReschedule ? { updatedBy: Number(user?.userId || 0) } : {})
                             };
 

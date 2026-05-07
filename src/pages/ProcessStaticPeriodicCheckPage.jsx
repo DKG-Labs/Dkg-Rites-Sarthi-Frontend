@@ -11,8 +11,16 @@ import {
   loadFromLocalStorage
 } from '../services/processLocalStorageService';
 
-const ProcessStaticPeriodicCheckPage = ({ call, onBack, selectedLines = [], onNavigateSubmodule, lineData, productionLines = [], allCallOptions = [], mapping = null }) => {
+import { getStoredUser } from '../services/authService';
+
+const ProcessStaticPeriodicCheckPage = ({ call, onBack, selectedLines = [], lotNumbers = [], onNavigateSubmodule, lineData, productionLines = [], allCallOptions = [], mapping = null }) => {
   const shift = lineData?.shift || 'A';
+  const [selectedLot, setSelectedLot] = useState(() => {
+    return lotNumbers.length > 0 ? lotNumbers[0] : '';
+  });
+  const [dateOfInspection, setDateOfInspection] = useState(() => {
+    return sessionStorage.getItem('inspectionDate') || new Date().toISOString().split('T')[0];
+  });
   const [activeLine, setActiveLine] = useState((selectedLines && selectedLines[0]) || 'Line-1');
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -196,10 +204,17 @@ const ProcessStaticPeriodicCheckPage = ({ call, onBack, selectedLines = [], onNa
 
     setIsSaving(true);
     try {
+      const currentUser = getStoredUser();
+      const createdBy = currentUser?.userId || 'SYSTEM';
+
       const payload = {
         inspectionCallNo,
         poNo,
         lineNo: activeLine,
+        shift,
+        lotNo: selectedLot,
+        createdBy,
+        dateOfInspection,
         shearingPressCapacityOk: current.shearingPress,
         forgingPressCapacityOk: current.forgingPress,
         reheatingFurnaceInductionType: current.reheatingFurnace,
@@ -247,6 +262,36 @@ const ProcessStaticPeriodicCheckPage = ({ call, onBack, selectedLines = [], onNa
           <button className="btn btn-outline" onClick={onBack}>
             ← Back to Process Dashboard
           </button>
+        </div>
+
+        {/* Lot and Date Selection */}
+        <div className="card" style={{ marginBottom: 'var(--space-24)', background: '#f8fafc' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+            <div className="form-group">
+              <label className="form-label">Select Lot Number <span className="required">*</span></label>
+              <select
+                className="form-control"
+                value={selectedLot}
+                onChange={(e) => setSelectedLot(e.target.value)}
+                style={{ width: '100%' }}
+              >
+                <option value="">Select Lot</option>
+                {lotNumbers.map(lot => (
+                  <option key={lot} value={lot}>{lot}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Date of Inspection <span className="required">*</span></label>
+              <input
+                type="date"
+                className="form-control"
+                value={dateOfInspection}
+                onChange={(e) => setDateOfInspection(e.target.value)}
+                style={{ width: '100%' }}
+              />
+            </div>
+          </div>
         </div>
 
         {isLoading && (

@@ -110,7 +110,8 @@ const RailwayBoardDashboard = () => {
     }), [mprPage, mprRowsPerPage, dashboardFilters]);
 
     const { data: mprData, pagination: mprPagination, loading: mprLoading } = useReportData(
-        reportService.getMonthlyProgressReport, activeMainCard === 'reports' ? mprParams : undefined
+        selectedProduct === 'Sleeper' ? reportService.getSleeperMonthlyProgressReport : reportService.getMonthlyProgressReport, 
+        activeMainCard === 'reports' ? mprParams : undefined
     );
 
     const [mauPage, setMauPage] = useState(0);
@@ -481,6 +482,8 @@ const RailwayBoardDashboard = () => {
                             setSelectedProduct={setSelectedProduct}
                             fromDate={fromDate}
                             toDate={toDate}
+                            setFromDate={setFromDate}
+                            setToDate={setToDate}
                         />
                     </div>
 

@@ -399,6 +399,107 @@ const reportService = {
         });
         return handleResponse(response);
     },
+
+    /**
+     * Get Sleeper Monthly Progress Report Data
+     * Hits: /api/sleeper-dashboard/mpr
+     * @param {Object} params - { startDate, endDate }
+     */
+    getSleeperMonthlyProgressReport: async (params) => {
+        const { startDate, endDate } = params || {};
+        
+        const formatDate = (dateStr) => {
+            if (!dateStr || !dateStr.includes('-')) return dateStr;
+            const [year, month, day] = dateStr.split('-');
+            return `${day}/${month}/${year}`;
+        };
+
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/mpr`);
+        if (startDate) url.searchParams.append('startDate', formatDate(startDate));
+        if (endDate) url.searchParams.append('endDate', formatDate(endDate));
+
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    /**
+     * Get Defect Distribution Analysis Data for Sleeper Dashboard
+     * Hits: /api/sleeper-dashboard/defect-distribution-analysis
+     * @param {Object} params - { startDate, endDate }
+     */
+    getSleeperDefectDistribution: async (params) => {
+        const { startDate, endDate } = params || {};
+        
+        const formatDate = (dateStr) => {
+            if (!dateStr || !dateStr.includes('-')) return dateStr;
+            const [year, month, day] = dateStr.split('-');
+            return `${day}/${month}/${year}`;
+        };
+
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/defect-distribution-analysis`);
+        if (startDate) url.searchParams.append('startDate', formatDate(startDate));
+        if (endDate) url.searchParams.append('endDate', formatDate(endDate));
+
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    /**
+     * Get Pareto Analysis Data for Sleeper Dashboard
+     * Hits: /api/sleeper-dashboard/pareto-analysis
+     * @param {Object} params - { startDate, endDate }
+     */
+    getSleeperParetoAnalysis: async (params) => {
+        const { startDate, endDate } = params || {};
+        
+        const formatDate = (dateStr) => {
+            if (!dateStr || !dateStr.includes('-')) return dateStr;
+            const [year, month, day] = dateStr.split('-');
+            return `${day}/${month}/${year}`;
+        };
+
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/pareto-analysis`);
+        if (startDate) url.searchParams.append('startDate', formatDate(startDate));
+        if (endDate) url.searchParams.append('endDate', formatDate(endDate));
+
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    /**
+     * Get Manufacturer Performance Data for a specific plant
+     * Hits: /api/sleeper-dashboard/manufacturer-performance/{plantId}?plantId={plantId}
+     * Note: Backend uses literal '{plantId}' in path but takes actual value as @RequestParam
+     * @param {string} plantId 
+     */
+    getManufacturerPerformance: async (plantId) => {
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/manufacturer-performance/{plantId}`);
+        url.searchParams.append('plantId', plantId);
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    /**
+     * Get Process Defect Distribution Data for a specific plant
+     * Hits: /api/sleeper-dashboard/process-defect-distribution?plantId={plantId}
+     * @param {string} plantId 
+     */
+    getProcessDefectDistribution: async (plantId) => {
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/process-defect-distribution`);
+        url.searchParams.append('plantId', plantId);
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
 };
 
 export default reportService;

@@ -226,7 +226,8 @@ export const ShiftProvider = ({ children }) => {
             vendorCode: currentVendorCode || ":41647",
             shift: currentShift || "A",
             createdBy: currentUserId || "134",
-            date: formattedDate
+            date: formattedDate,
+            location: dutyLocation || "Line I"
         };
 
         try {

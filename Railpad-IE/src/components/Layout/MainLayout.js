@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Sidebar from './Sidebar';
 
-const MainLayout = ({ children, activeItem, onItemClick, onLogout, user }) => {
+const MainLayout = ({ children, activeItem, onItemClick, onLogout, user, isShiftActive }) => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isSidebarPinned, setIsSidebarPinned] = useState(false);
     const [isSidebarHovered, setIsSidebarHovered] = useState(false);
@@ -19,6 +19,7 @@ const MainLayout = ({ children, activeItem, onItemClick, onLogout, user }) => {
 
             <Sidebar
                 activeItem={activeItem}
+                isShiftActive={isShiftActive}
                 onItemClick={(item) => {
                     onItemClick(item);
                     setIsMobileMenuOpen(false);

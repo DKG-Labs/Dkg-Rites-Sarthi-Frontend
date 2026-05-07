@@ -16,24 +16,34 @@ import html2canvas from 'html2canvas';
 const addElementToPdf = async (element, pdf, options) => {
   const { scale = 2.5 } = options;
 
+  const isPortrait = options.orientation === 'portrait';
+  const captureWidth = isPortrait ? 950 : 1600;
+  const windowWidth = isPortrait ? 1000 : 1700;
+
   const canvas = await html2canvas(element, {
     scale,
     useCORS: true,
     backgroundColor: '#ffffff',
     logging: false,
-    width: 1600, // Force high width capture
-    windowWidth: 1700,
+    width: captureWidth, 
+    windowWidth: windowWidth,
     onclone: (clonedDoc) => {
       // Expand stage
-      clonedDoc.body.style.width = '1700px';
+      clonedDoc.body.style.width = `${windowWidth}px`;
       clonedDoc.body.style.overflow = 'visible';
+
+      // Hide elements marked as no-print explicitly for the canvas capture
+      const noPrintElements = clonedDoc.querySelectorAll('.no-print');
+      noPrintElements.forEach(el => {
+        el.style.display = 'none';
+      });
 
       // Select ALL layouts to ensure consistency across pages
       const layouts = clonedDoc.querySelectorAll('.annexure-layout');
       layouts.forEach(layout => {
-        layout.style.width = '1600px';
-        layout.style.minWidth = '1600px';
-        layout.style.padding = '40px';
+        layout.style.width = `${captureWidth}px`;
+        layout.style.minWidth = `${captureWidth}px`;
+        layout.style.padding = isPortrait ? '20px' : '40px';
         layout.style.margin = '0';
         layout.style.background = '#ffffff';
         layout.style.backgroundColor = '#ffffff';
@@ -48,11 +58,49 @@ const addElementToPdf = async (element, pdf, options) => {
           // Enforce padding and alignment in PDF
           const cells = table.querySelectorAll('th, td');
           cells.forEach(cell => {
+            // Skip detail/sub-description rows — they have their own tight layout
+            if (cell.classList.contains('pi-horizontal-detail')) {
+              cell.style.padding = '2px 6px';
+              cell.style.verticalAlign = 'top';
+              cell.style.textAlign = 'left';
+              cell.style.lineHeight = '1.2';
+              cell.style.whiteSpace = 'normal';
+              cell.style.overflow = 'visible';
+              cell.style.height = 'auto';
+              cell.style.minHeight = '14px';
+              cell.style.boxSizing = 'border-box';
+              return;
+            }
             cell.style.padding = '10px 5px';
             cell.style.verticalAlign = 'middle';
             cell.style.textAlign = 'center';
             cell.style.lineHeight = '1.4';
           });
+
+          // Snapshot each row's actual rendered height from the ORIGINAL document
+          // and apply it to the CLONED document to prevent collapse.
+          const originalTable = element.querySelector('table');
+          if (originalTable) {
+            const originalRows = originalTable.querySelectorAll('tr');
+            const clonedRows = table.querySelectorAll('tr');
+            
+            originalRows.forEach((origRow, idx) => {
+              if (clonedRows[idx]) {
+                let h = origRow.getBoundingClientRect().height;
+                // Add a small safety buffer for detail rows to prevent line overlap
+                if (origRow.classList.contains('detail-row')) {
+                  h += 2; 
+                }
+                if (h > 0) {
+                  clonedRows[idx].style.height = h + 'px';
+                  clonedRows[idx].style.minHeight = h + 'px';
+                }
+              }
+            });
+          }
+
+          // Keep fixed layout for stable column widths
+          table.style.tableLayout = 'fixed';
         }
 
         // Stabilize Rotated Headers

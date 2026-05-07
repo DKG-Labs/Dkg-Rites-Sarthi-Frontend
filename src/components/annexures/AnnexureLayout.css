@@ -6,14 +6,13 @@
   max-width: 100%;
   width: 1100px;
   overflow: hidden;
-  overflow-x: hidden;
-  overflow-y: hidden;
   box-sizing: border-box;
   background: white;
-  page-break-inside: avoid;
-  page-break-after: avoid;
-  page-break-before: avoid;
   margin: 0 auto;
+}
+
+.annexure-layout.portrait {
+  width: 800px;
 }
 
 /* Center text utility */

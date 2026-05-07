@@ -6,6 +6,7 @@
     min-height: 100vh;
     display: flex;
     justify-content: center;
+    align-items: center;
 }
 
 .verification-card-modern {
@@ -465,9 +466,10 @@
 }
 
 .entry-card {
-    padding: 24px;
-    border-radius: 12px;
+    padding: 12px 20px;
+    border-radius: 10px;
     border: 1.5px solid #e2e8f0;
+    width: auto;
 }
 
 .entry-card.rejection { background: #fffcfc; border-color: #fee2e2; }
@@ -522,8 +524,8 @@
 
 /* Section 4: Floating Actions Bar */
 .actions-bar {
-    position: sticky;
-    bottom: 24px;
+    position: relative;
+    bottom: 0;
     display: flex;
     justify-content: space-between;
     align-items: center;

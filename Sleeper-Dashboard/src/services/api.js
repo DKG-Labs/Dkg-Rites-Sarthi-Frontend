@@ -240,6 +240,9 @@ export const apiService = {
     performTransitionAction: (payload) =>
         api.post('/sleeper-workflow/performTransitionAction', payload),
 
+    getCompletedFinalCalls: () =>
+        api.get('/sleeper-workflow/allFInalCallCompletedCalls'),
+
     // ── Module getById APIs (used by IE dashboard to fetch record details) ──
     // moduleId=1  PLANT_PROFILE
     // getPlantProfileById:       (id) => api.get(`/plant-profile/getById/${id}`),
@@ -305,13 +308,14 @@ export const apiService = {
     getFinalInspectionBatches: (moduleId = 1, params = {}) => api.get(`/FinalInspectionController/inspection/batches/${moduleId}`, { 
         params: { ...params, moduleId } 
     }),
-    getFinalInspectionBatchDetail: (batchId, moduleId = 1) => api.get(`/FinalInspectionController/inspection/batch?batchId=${batchId}&moduleId=${moduleId}`),
+    getFinalInspectionBatchDetail: (batchId, moduleId = 1, sleeperType) => api.get(`/FinalInspectionController/inspection/batch?batchId=${batchId}&moduleId=${moduleId}&sleeperType=${encodeURIComponent(sleeperType || '')}`),
     saveFinalInspection: (payload) => api.post('/FinalInspectionController/save', payload),
     updateInspectionSleepers: (payload) => api.put('/FinalInspectionController/updateInspectionSleepers', payload),
     submitInspectionCall: (payload) => api.post('/FinalInspectionController/submit-inspection-call', payload),
     getInspectionCalls: (userId) => api.get(`/FinalInspectionController/inspection-calls?userId=${userId}`),
     getCompletedBatches: (sleeperType, userId) => api.get(`/FinalInspectionController/completed-batches?sleeperType=${sleeperType}&userId=${userId}`),
     scheduleCall: (payload) => api.post('/FinalCallinspection/scheduleingCall', payload),
+    updateScheduleCall: (payload) => api.put('/FinalCallinspection/UpdatescheduleingCall', payload),
     saveSection1: (payload) => api.post('/FinalCallinspection/section1', payload),
     saveSection2: (payload) => api.post('/FinalCallinspection/section2', payload),
     getInspectionCallSummary: (callNo) => api.get(`/main-ie/inspection-call-summary/${callNo}`),

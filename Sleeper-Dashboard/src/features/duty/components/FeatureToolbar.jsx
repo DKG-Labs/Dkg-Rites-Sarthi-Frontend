@@ -17,8 +17,25 @@ const FeatureToolbar = ({ activeTab, witnessedRecordsCount, setShowBatchEntryFor
                     </button>
                 )}
                 {activeTab === 'Wire Tensioning' && (
-                    <button className="toggle-btn" onClick={() => setShowWireTensionForm(true)}>
-                        Add New Analysis
+                    <button 
+                        className="toggle-btn" 
+                        onClick={() => setShowWireTensionForm(true)}
+                        style={{ 
+                            fontSize: '0.75rem', 
+                            padding: '6px 14px', 
+                            background: '#0f172a', 
+                            color: '#fff', 
+                            border: 'none', 
+                            borderRadius: '8px', 
+                            fontWeight: '700', 
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                        }}
+                    >
+                        <span style={{ fontSize: '1.1rem', fontWeight: '400' }}>+</span> Add New Analysis
                     </button>
                 )}
                 {activeTab === 'Moisture Analysis' && setShowMoistureForm && (

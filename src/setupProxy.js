@@ -8,7 +8,15 @@ module.exports = function (app) {
             target: 'http://localhost:5173',
             changeOrigin: true,
             secure: false,
-            ws: true, // proxy websockets
+            ws: false, // disable proxying websockets, let Vite handle it directly
+            xfwd: true,
+            onError: (err, req, res) => {
+                if (err.code === 'ECONNRESET') {
+                    console.warn('[HPM] WebSocket connection reset (likely Vite HMR restart)');
+                } else {
+                    console.error('[HPM] Proxy error:', err);
+                }
+            }
         })
     );
 
@@ -19,7 +27,15 @@ module.exports = function (app) {
             target: 'http://localhost:5174',
             changeOrigin: true,
             secure: false,
-            ws: true, // proxy websockets
+            ws: false, // disable proxying websockets, let Vite handle it directly
+            xfwd: true,
+            onError: (err, req, res) => {
+                if (err.code === 'ECONNRESET') {
+                    console.warn('[HPM] WebSocket connection reset (likely Vite HMR restart)');
+                } else {
+                    console.error('[HPM] Proxy error:', err);
+                }
+            }
         })
     );
 };

@@ -72,7 +72,7 @@ const DimensionalTesting = ({ type }) => {
             setSelectedBatch(batch);
             const typeToModuleId = { visual: 1, critical: 2, noncritical: 3 };
             const moduleId = typeToModuleId[type] || 1;
-            const details = await apiService.getFinalInspectionBatchDetail(batch.batchId, moduleId);
+            const details = await apiService.getFinalInspectionBatchDetail(batch.batchId, moduleId, batch.sleeperType);
             // Merge list-level data with detail response to ensure all fields are present
             setBatchDetails({
                 ...batch,         // fallback: batchNumber, sleeperType, noOfSleepers, totalBatchQty from list

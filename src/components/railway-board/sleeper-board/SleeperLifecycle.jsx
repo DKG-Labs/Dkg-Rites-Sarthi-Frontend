@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './SleeperSummary.css';
+import { API_ENDPOINTS, getAuthHeaders, handleResponse } from '../../../services/apiConfig';
 
 const SleeperLifecycle = () => {
     // State for expansions
@@ -8,39 +9,143 @@ const SleeperLifecycle = () => {
     const [expandedCall, setExpandedCall] = useState(null);
     const [expandedBatch, setExpandedBatch] = useState(null);
 
-    // Mock Data
-    const poData = [
-        { id: 1, rly: 'NR', poNo: 'PO-2023-SLE-001', poDate: '2023-01-10', vendor: 'Concrete India', region: 'North', poQty: 120000, accQty: 95000, balQty: 25000, rejPct: 1.8 },
-        { id: 2, rly: 'WR', poNo: 'PO-2023-SLE-042', poDate: '2023-03-22', vendor: 'Western Sleepers', region: 'West', poQty: 85000, accQty: 82000, balQty: 3000, rejPct: 0.9 },
-    ];
+    // API Data State
+    const [poData, setPoData] = useState([]);
+    const [level2Data, setLevel2Data] = useState({});
+    const [level3Data, setLevel3Data] = useState({});
+    const [level4Data, setLevel4Data] = useState({});
+    const [level5Data, setLevel5Data] = useState({});
 
-    const srData = [
-        { id: '101', poSrNo: '1', type: 'PSC Sleeper (Main Line)', consignee: 'SSE/PW/DLI', dp: '2024-12-31', qty: '60,000 Nos', bal: '10,000', ics: 12, lastIc: 'IC-9982', procRej: 1.2, finalRej: 0.5, totalRej: 1.7 },
-        { id: '102', poSrNo: '2', type: 'PSC Sleeper (Bridge)', consignee: 'SSE/PW/UMB', dp: '2025-06-30', qty: '60,000 Nos', bal: '15,000', ics: 8, lastIc: 'IC-9541', procRej: 1.5, finalRej: 0.7, totalRej: 2.2 },
-    ];
+    // Date Filters State
+    const [startDate, setStartDate] = useState("2025-11-01");
+    const [endDate, setEndDate] = useState("2026-05-04");
 
-    const callData = [
-        { id: 'CAL-001', callNo: 'C-2024-001', desDate: '2024-05-15', offered: 5000, accepted: 4850, balance: 150, rejected: 150, rejPct: 3.0, icNo: 'IC-9982' },
-        { id: 'CAL-002', callNo: 'C-2024-005', desDate: '2024-06-20', offered: 4000, accepted: 3920, balance: 80, rejected: 80, rejPct: 2.0, icNo: 'IC-9995' },
-    ];
+    const formatDateForApi = (dateString) => {
+        if (!dateString) return "";
+        const [year, month, day] = dateString.split("-");
+        return `${day}/${month}/${year}`;
+    };
 
-    const batchData = [
-        { id: 'BAT-101', batchNo: 'B-24-05-A', dateCasting: '2024-05-01', mfd: 500, mfdType: 500, rejected: 10, passed: 490 },
-        { id: 'BAT-102', batchNo: 'B-24-05-B', dateCasting: '2024-05-02', mfd: 600, mfdType: 600, rejected: 15, passed: 585 },
-    ];
+    const loadLevel1Data = async (start, end) => {
+        const formattedStart = formatDateForApi(start);
+        const formattedEnd = formatDateForApi(end);
+        const data = await fetchLevel1DataAPI(formattedStart, formattedEnd);
+        if (data && data.length > 0) {
+            setPoData(data);
+        } else {
+            setPoData([]);
+        }
+    };
 
-    const batchCheckingData = [
-        { id: 'CHK-001', dateShift: '2024-05-01 (Day)', steam: '45.2', rejDem: 2, rejVis: 3, rejCrit: 1, rejNonCrit: 2, water: '58.5', mr: '4.8' },
-        { id: 'CHK-002', dateShift: '2024-05-01 (Night)', steam: '44.8', rejDem: 1, rejVis: 2, rejCrit: 0, rejNonCrit: 1, water: '57.9', mr: '4.7' },
-    ];
+    useEffect(() => {
+        loadLevel1Data(startDate, endDate);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [startDate, endDate]);
 
-    const togglePo = (id) => setExpandedPo(expandedPo === id ? null : id);
-    const toggleSr = (id) => setExpandedSr(expandedSr === id ? null : id);
-    const toggleCall = (id) => setExpandedCall(expandedCall === id ? null : id);
-    const toggleBatch = (id) => setExpandedBatch(expandedBatch === id ? null : id);
+    const handleApply = () => {
+        loadLevel1Data(startDate, endDate);
+    };
+
+    const handleReset = () => {
+        setStartDate("2025-11-01");
+        setEndDate("2026-05-04");
+        loadLevel1Data("2025-11-01", "2026-05-04");
+    };
+
+    const togglePo = async (id, poNo) => {
+        if (expandedPo === id) {
+            setExpandedPo(null);
+        } else {
+            setExpandedPo(id);
+            // Fetch Level 2 data if not already present
+            if (poNo && !level2Data[poNo]) {
+                const data = await fetchLevel2DataAPI(poNo);
+                if (data) {
+                    setLevel2Data(prev => ({ ...prev, [poNo]: data }));
+                }
+            }
+        }
+    };
+    const toggleSr = async (id, poNo, srNo) => {
+        if (expandedSr === id) {
+            setExpandedSr(null);
+        } else {
+            setExpandedSr(id);
+            // Fetch Level 3 data if not already present
+            const key = `${poNo}-${srNo}`;
+            if (poNo && srNo && !level3Data[key]) {
+                const data = await fetchLevel3DataAPI(poNo, srNo);
+                if (data) {
+                    setLevel3Data(prev => ({ ...prev, [key]: data }));
+                }
+            }
+        }
+    };
+    const toggleCall = async (id, callNo) => {
+        if (expandedCall === id) {
+            setExpandedCall(null);
+        } else {
+            setExpandedCall(id);
+            // Fetch Level 4 data if not already present
+            if (callNo && !level4Data[callNo]) {
+                const data = await fetchLevel4DataAPI(callNo);
+                if (data) {
+                    setLevel4Data(prev => ({ ...prev, [callNo]: data }));
+                }
+            }
+        }
+    };
+    const toggleBatch = async (id, batchNo) => {
+        if (expandedBatch === id) {
+            setExpandedBatch(null);
+        } else {
+            setExpandedBatch(id);
+            // Fetch Level 5 data if not already present
+            const key = `${id}-${batchNo}`;
+            if (batchNo && !level5Data[key]) {
+                const data = await fetchLevel5DataAPI(id, batchNo);
+                if (data) {
+                    setLevel5Data(prev => ({ ...prev, [key]: data }));
+                }
+            }
+        }
+    };
 
     return (
         <div className="sleeper-summary-container fade-in">
+            {/* Filter Bar */}
+            <div style={{ display: 'flex', gap: '15px', alignItems: 'center', marginBottom: '20px', background: '#f0fdf4', padding: '15px', borderRadius: '8px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: '600', color: '#166534' }}>FROM</label>
+                    <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={{ padding: '6px 10px', border: '1px solid #bbf7d0', borderRadius: '4px', background: '#ecfdf5', color: '#166534', outline: 'none', cursor: 'pointer' }} />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: '600', color: '#166534' }}>TO</label>
+                    <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} style={{ padding: '6px 10px', border: '1px solid #bbf7d0', borderRadius: '4px', background: '#ecfdf5', color: '#166534', outline: 'none', cursor: 'pointer' }} />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: '600', color: '#166534' }}>ZONE</label>
+                    <select style={{ padding: '6px 10px', border: '1px solid #bbf7d0', borderRadius: '4px', background: '#ecfdf5', color: '#166534', outline: 'none', cursor: 'pointer' }}>
+                        <option>All Zones</option>
+                    </select>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: '600', color: '#166534' }}>RIO</label>
+                    <select style={{ padding: '6px 10px', border: '1px solid #bbf7d0', borderRadius: '4px', background: '#ecfdf5', color: '#166534', outline: 'none', cursor: 'pointer' }}>
+                        <option>All RITES RIOs</option>
+                    </select>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: 'auto' }}>
+                    <button onClick={handleApply} style={{ padding: '6px 16px', background: '#166534', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        Apply
+                    </button>
+                    <button onClick={handleReset} style={{ padding: '6px 16px', background: '#dcfce3', color: '#166534', border: '1px solid #bbf7d0', borderRadius: '4px', cursor: 'pointer', fontWeight: '600' }}>
+                        Reset
+                    </button>
+                </div>
+            </div>
+
             <div className="prof-card mb">
                 <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span>Sleeper PO Lifecycle Tracking</span>
@@ -69,7 +174,7 @@ const SleeperLifecycle = () => {
                                 <React.Fragment key={po.id}>
                                     <tr className={expandedPo === po.id ? 'expanded-row-parent' : ''}>
                                         <td className="text-center">
-                                            <button className="expand-icon" onClick={() => togglePo(po.id)}>
+                                            <button className="expand-icon" onClick={() => togglePo(po.id, po.poNo)}>
                                                 {expandedPo === po.id ? '−' : '+'}
                                             </button>
                                         </td>
@@ -108,11 +213,11 @@ const SleeperLifecycle = () => {
                                                             </tr>
                                                         </thead>
                                                         <tbody>
-                                                            {srData.map((sr, idx) => (
+                                                            {(level2Data[po.poNo] || []).map((sr, idx) => (
                                                                 <React.Fragment key={sr.id}>
                                                                     <tr className={expandedSr === sr.id ? 'expanded-row-parent' : ''}>
                                                                         <td className="text-center">
-                                                                            <button className="expand-icon" onClick={() => toggleSr(sr.id)}>
+                                                                            <button className="expand-icon" onClick={() => toggleSr(sr.id, po.poNo, sr.poSrNo)}>
                                                                                 {expandedSr === sr.id ? '−' : '+'}
                                                                             </button>
                                                                         </td>
@@ -150,11 +255,11 @@ const SleeperLifecycle = () => {
                                                                                             </tr>
                                                                                         </thead>
                                                                                         <tbody>
-                                                                                            {callData.map((call, cidx) => (
+                                                                            {(level3Data[`${po.poNo}-${sr.poSrNo}`] || []).map((call, cidx) => (
                                                                                                 <React.Fragment key={call.id}>
                                                                                                     <tr className={expandedCall === call.id ? 'expanded-row-parent' : ''}>
                                                                                                         <td className="text-center">
-                                                                                                            <button className="expand-icon" onClick={() => toggleCall(call.id)}>
+                                                                                                            <button className="expand-icon" onClick={() => toggleCall(call.id, call.callNo)}>
                                                                                                                 {expandedCall === call.id ? '−' : '+'}
                                                                                                             </button>
                                                                                                         </td>
@@ -187,11 +292,11 @@ const SleeperLifecycle = () => {
                                                                                                                             </tr>
                                                                                                                         </thead>
                                                                                                                         <tbody>
-                                                                                                                            {batchData.map((batch, bidx) => (
+                                                                                                                            {(level4Data[call.callNo] || []).map((batch, bidx) => (
                                                                                                                                 <React.Fragment key={batch.id}>
                                                                                                                                     <tr className={expandedBatch === batch.id ? 'expanded-row-parent' : ''}>
                                                                                                                                         <td className="text-center">
-                                                                                                                                            <button className="expand-icon" onClick={() => toggleBatch(batch.id)}>
+                                                                                                                                            <button className="expand-icon" onClick={() => toggleBatch(batch.id, batch.batchNo)}>
                                                                                                                                                 {expandedBatch === batch.id ? '−' : '+'}
                                                                                                                                             </button>
                                                                                                                                         </td>
@@ -223,7 +328,7 @@ const SleeperLifecycle = () => {
                                                                                                                                                             </tr>
                                                                                                                                                         </thead>
                                                                                                                                                         <tbody>
-                                                                                                                                                            {batchCheckingData.map((chk, chidx) => (
+                                                                                                                                                            {(level5Data[`${batch.id}-${batch.batchNo}`] || []).map((chk, chidx) => (
                                                                                                                                                                 <tr key={chk.id} className={chidx % 2 === 0 ? 'row-odd' : 'row-even'}>
                                                                                                                                                                     <td>{chidx + 1}</td>
                                                                                                                                                                     <td className="font-bold">{chk.dateShift}</td>
@@ -274,6 +379,190 @@ const SleeperLifecycle = () => {
             </div>
         </div>
     );
+};
+
+// --- API Integration Added Below ---
+/**
+ * Fetches Level 1 data for Sleeper PO Lifecycle Tracking
+ * The requested data is passed as a payload to the API
+ */
+const fetchLevel1DataAPI = async (startDate, endDate) => {
+    try {
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/level1`);
+        // GET requests cannot have a real body, appending payload to URL params
+        url.searchParams.append('startDate', startDate);
+        url.searchParams.append('endDate', endDate);
+        
+        const response = await fetch(url.toString(), {
+            method: 'GET',
+            headers: getAuthHeaders()
+        });
+        
+        const result = await handleResponse(response);
+        
+        // Map the backend responseData structure to the frontend format
+        if (result && result.responseData) {
+            return result.responseData.map(item => ({
+                id: item.sno,
+                rly: item.rly || 'N/A',
+                poNo: item.poNo,
+                poDate: item.poDate,
+                vendor: item.vendor,
+                region: item.region || 'N/A',
+                poQty: item.poQty || 0,
+                accQty: item.accQty || 0,
+                balQty: item.balQty || 0,
+                rejPct: item.rejectionPercent || 0
+            }));
+        }
+        return null;
+    } catch (error) {
+        console.error("Error fetching Level 1 API data:", error);
+        return null;
+    }
+};
+
+/**
+ * Fetches Level 2 data (Serial Details) for a specific PO
+ */
+const fetchLevel2DataAPI = async (poNo) => {
+    try {
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/level2`);
+        url.searchParams.append('poNo', poNo);
+        
+        const response = await fetch(url.toString(), {
+            method: 'GET',
+            headers: getAuthHeaders()
+        });
+        
+        const result = await handleResponse(response);
+        
+        if (result && result.responseData) {
+            return result.responseData.map(item => ({
+                id: `${item.poNo}-${item.srNo}`, // Unique ID for React keys
+                poSrNo: item.srNo,
+                type: item.sleeperType || 'PSC Sleeper (Main Line)',
+                consignee: item.consignee,
+                dp: item.extDpDate || item.dpDate,
+                qty: item.qtyWithUom,
+                bal: item.balance,
+                ics: item.ics || 0,
+                lastIc: item.lastIc || 'N/A',
+                procRej: item.procRejPercent,
+                finalRej: item.finalRejPercent,
+                totalRej: item.totalRejPercent
+            }));
+        }
+        return null;
+    } catch (error) {
+        console.error("Error fetching Level 2 API data:", error);
+        return null;
+    }
+};
+
+/**
+ * Fetches Level 3 data (Inspection Calls) for a specific PO and Serial Number
+ */
+const fetchLevel3DataAPI = async (poNo, srNo) => {
+    try {
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/level3`);
+        url.searchParams.append('poNo', poNo);
+        url.searchParams.append('srNo', srNo);
+        
+        const response = await fetch(url.toString(), {
+            method: 'GET',
+            headers: getAuthHeaders()
+        });
+        
+        const result = await handleResponse(response);
+        
+        if (result && result.responseData) {
+            return result.responseData.map(item => ({
+                id: item.sno,
+                callNo: item.callNo,
+                desDate: item.desDate || 'N/A',
+                offered: item.offered,
+                accepted: item.accepted,
+                rejected: item.rejected,
+                rejPct: item.rejectionPercentage,
+                icNo: item.icNo || 'Pending',
+                balance: (item.offered || 0) - (item.accepted || 0)
+            }));
+        }
+        return null;
+    } catch (error) {
+        console.error("Error fetching Level 3 API data:", error);
+        return null;
+    }
+};
+
+/**
+ * Fetches Level 4 data (Batch Analysis) for a specific Inspection Call Number
+ */
+const fetchLevel4DataAPI = async (callNo) => {
+    try {
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/level4`);
+        url.searchParams.append('callNo', callNo);
+        
+        const response = await fetch(url.toString(), {
+            method: 'GET',
+            headers: getAuthHeaders()
+        });
+        
+        const result = await handleResponse(response);
+        
+        if (result && result.responseData) {
+            return result.responseData.map(item => ({
+                id: item.sno,
+                batchNo: item.batchNo,
+                dateCasting: item.castingDate,
+                mfd: item.totalManufactured,
+                mfdType: item.sleeperTypeManufactured,
+                rejected: item.rejected,
+                passed: item.passed
+            }));
+        }
+        return null;
+    } catch (error) {
+        console.error("Error fetching Level 4 API data:", error);
+        return null;
+    }
+};
+
+/**
+ * Fetches Level 5 data (Batch Checking Details) for a specific Batch
+ */
+const fetchLevel5DataAPI = async (id, batchId) => {
+    try {
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/level5BatchInspectionData`);
+        url.searchParams.append('id', id);
+        url.searchParams.append('batchId', batchId);
+        
+        const response = await fetch(url.toString(), {
+            method: 'GET',
+            headers: getAuthHeaders()
+        });
+        
+        const result = await handleResponse(response);
+        
+        if (result && result.responseData) {
+            return result.responseData.map(item => ({
+                id: item.sno,
+                dateShift: item.dateShift,
+                steam: item.steamCubeStrength,
+                rejDem: item.rejectedDemoulding,
+                rejVis: item.rejectedVisual,
+                rejCrit: item.rejectedCritical,
+                rejNonCrit: item.rejectedNonCritical,
+                water: item.waterCubeStrength,
+                mr: item.mrValue
+            }));
+        }
+        return null;
+    } catch (error) {
+        console.error("Error fetching Level 5 API data:", error);
+        return null;
+    }
 };
 
 export default SleeperLifecycle;

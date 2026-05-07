@@ -137,5 +137,68 @@ export const annexureService = {
             console.error("Error fetching Final Dimensional Inspection data:", error);
             throw error;
         }
+    },
+
+    /**
+     * Fetches Process Inspection Register data (Annexure)
+     * @param {string} callNo - The inspection call number
+     * @param {string} date - Date of inspection
+     * @param {string} shift - Shift code
+     * @returns {Promise<Array>} List of register data objects
+     */
+    getProcessInspectionRegister: async (callNo, date, shift) => {
+        try {
+            const userId = localStorage.getItem('userId') || localStorage.getItem('userName') || 'testUser';
+            let url = `${API_BASE_URL}/api/process-annexure/register?callNo=${callNo}&createdBy=${userId}`;
+            if (date) url += `&date=${date}`;
+            if (shift) url += `&shift=${shift}`;
+            
+            const response = await fetch(url, {
+                headers: getAuthHeaders()
+            });
+            return await handleResponse(response);
+        } catch (error) {
+            console.error("Error fetching Process Inspection Register:", error);
+            throw error;
+        }
+    },
+
+    /**
+     * Fetches available Date/Shift/Lot entries for Process Inspection Register
+     * @param {string} callNo - The inspection call number
+     * @returns {Promise<Array>} List of available entry objects
+     */
+    getProcessAvailableEntries: async (callNo) => {
+        try {
+            const userId = localStorage.getItem('userId') || localStorage.getItem('userName') || 'testUser';
+            const response = await fetch(`${API_BASE_URL}/api/process-annexure/available-entries?callNo=${callNo}&createdBy=${userId}`, {
+                headers: getAuthHeaders()
+            });
+            return await handleResponse(response);
+        } catch (error) {
+            console.error("Error fetching available process entries:", error);
+            throw error;
+        }
+    },
+
+    /**
+     * Updates remarks for a specific process inspection entry
+     */
+    updateProcessRemarks: async (params) => {
+        try {
+            const userId = localStorage.getItem('userId') || localStorage.getItem('userName') || 'testUser';
+            const { callNo, shift, lineNo, lotNo, remarks } = params;
+            
+            const url = `${API_BASE_URL}/api/process-annexure/update-remarks?callNo=${callNo}&shift=${shift}&lineNo=${lineNo}&lotNo=${lotNo}&remarks=${encodeURIComponent(remarks)}&createdBy=${userId}`;
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: getAuthHeaders()
+            });
+            return await handleResponse(response);
+        } catch (error) {
+            console.error("Error updating process remarks:", error);
+            throw error;
+        }
     }
 };

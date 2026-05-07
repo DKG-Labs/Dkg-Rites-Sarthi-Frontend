@@ -3,20 +3,30 @@ import './FeedbackSection.css';
 import { getStoredUser } from '../../services/authService';
 import { submitFeedback, replyToFeedback, getUserFeedback, getAllFeedback } from '../../services/feedbackService';
 
-const FeedbackSection = () => {
+const FeedbackSection = ({ selectedProduct }) => {
     const [view, setView] = useState('submit');
     const [feedbacks, setFeedbacks] = useState([]);
     const [loading, setLoading] = useState(false);
     const [feedbackInput, setFeedbackInput] = useState({ subject: '', message: '', priority: 'Medium' });
     const [replyingTo, setReplyingTo] = useState(null);
     const [replyText, setReplyText] = useState('');
+    const [filter, setFilter] = useState('all');
+
+    // Initialize filter based on selectedProduct
+    useEffect(() => {
+        if (selectedProduct) {
+            setFilter(selectedProduct.toLowerCase().replace(/\s/g, ''));
+        } else {
+            setFilter('all');
+        }
+    }, [selectedProduct]);
     
     const currentUser = getStoredUser();
     const isRailwayBoard = currentUser?.roleName === 'RAILWAY_BOARD' || currentUser?.roleName === 'SUPER_ADMIN';
 
     // Current product context (can be dynamic based on which dashboard we are in)
     // For Railway Board, it's 'General' or 'HQ'
-    const PRODUCT_CONTEXT = 'Railway Board'; 
+    const PRODUCT_CONTEXT = selectedProduct || 'Railway Board'; 
 
     const fetchFeedbacks = useCallback(async () => {
         if (view === 'list') {
@@ -25,6 +35,14 @@ const FeedbackSection = () => {
                 let data;
                 if (isRailwayBoard) {
                     data = await getAllFeedback();
+                    // Filter by selected filter type
+                    if (filter !== 'all') {
+                        data = data.filter(f => {
+                            const fType = f.productType?.toLowerCase().replace(/\s/g, '') || '';
+                            const filterClean = filter.replace(/\s/g, '');
+                            return fType.includes(filterClean);
+                        });
+                    }
                 } else {
                     data = await getUserFeedback(currentUser.userId);
                 }
@@ -35,11 +53,11 @@ const FeedbackSection = () => {
                 setLoading(false);
             }
         }
-    }, [view, isRailwayBoard, currentUser?.userId]);
+    }, [view, isRailwayBoard, currentUser?.userId, filter]);
 
     useEffect(() => {
         fetchFeedbacks();
-    }, [fetchFeedbacks]);
+    }, [fetchFeedbacks, filter]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -113,11 +131,20 @@ const FeedbackSection = () => {
                 </div>
             </div>
 
+            {view === 'list' && isRailwayBoard && (
+                <div className="feedback-filter-bar animate-up">
+                    <button className={`filter-pill ${filter === 'all' ? 'active' : ''}`} onClick={() => setFilter('all')}>All Feedbacks</button>
+                    <button className={`filter-pill ${filter === 'erc' ? 'active' : ''}`} onClick={() => setFilter('erc')}>ERC Vendors</button>
+                    <button className={`filter-pill ${filter === 'sleeper' ? 'active' : ''}`} onClick={() => setFilter('sleeper')}>Sleeper Vendors</button>
+                    <button className={`filter-pill ${filter === 'railpad' ? 'active' : ''}`} onClick={() => setFilter('railpad')}>Railpad Vendors</button>
+                </div>
+            )}
+
             {view === 'submit' ? (
                 <div className="feedback-submit-wrapper animate-up">
                     <div className="prof-card feedback-form-card">
                         <div className="sec-title-enhanced">
-                            <i className="fa-solid fa-paper-plane-memo"></i> Compose Your Message
+                            <i className="fa-solid fa-paper-plane-memo"></i> submit your feedback, issue & Suggestion
                         </div>
                         <form className="feedback-form" onSubmit={handleSubmit}>
                             <div className="form-row">
@@ -180,8 +207,14 @@ const FeedbackSection = () => {
                                         <div>
                                             <div className="user-name">
                                                 {f.userName} 
-                                                <span className="role-tag">{f.roleName}</span>
-                                                <span className="product-tag">{f.productType}</span>
+                                                {(() => {
+                                                    const formattedRole = f.roleName?.replace(/_/g, ' ').toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+                                                    const isRedundant = f.userName?.toLowerCase().includes(formattedRole?.toLowerCase()) || formattedRole?.toLowerCase().includes(f.userName?.toLowerCase());
+                                                    return !isRedundant && <span className="role-tag">{formattedRole}</span>;
+                                                })()}
+                                                {f.productType && f.productType !== 'Railway Board' && (
+                                                    <span className="product-tag">{f.productType}</span>
+                                                )}
                                             </div>
                                             <div className="date-time">{formatDate(f.createdDate)}</div>
                                         </div>
@@ -204,7 +237,14 @@ const FeedbackSection = () => {
                                         {f.replies.map((r, i) => (
                                             <div key={r.replyId || i} className="reply-card">
                                                 <div className="reply-header">
-                                                    <span className="reply-user">{r.userName} ({r.roleName})</span>
+                                                    <span className="reply-user">
+                                                        {r.userName} 
+                                                        {(() => {
+                                                            const formattedRole = r.roleName?.replace(/_/g, ' ').toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+                                                            const isRedundant = r.userName?.toLowerCase().includes(formattedRole?.toLowerCase()) || formattedRole?.toLowerCase().includes(r.userName?.toLowerCase());
+                                                            return !isRedundant && ` (${formattedRole})`;
+                                                        })()}
+                                                    </span>
                                                     <span className="reply-date">{formatDate(r.createdDate)}</span>
                                                 </div>
                                                 <p className="reply-text">{r.replyMessage}</p>

@@ -33,26 +33,119 @@ const ExportButton = ({ label, onClick, disabled, variant = 'green' }) => (
     </button>
 );
 
+const extractPlantId = (plantName) => {
+    if (!plantName) return '';
+    const colonIndex = plantName.indexOf(':');
+    if (colonIndex !== -1) {
+        return plantName.substring(colonIndex).trim();
+    }
+    // Fallback: split by hyphen and take last part if no colon is found
+    const parts = plantName.split(' - ');
+    if (parts.length > 1) {
+        return parts[parts.length - 1].trim();
+    }
+    return plantName;
+};
+
+const getShortName = (name) => {
+    if (!name) return "";
+    let short = name
+        .replace(/Visual Checking[:]?/gi, 'VC:')
+        .replace(/Dimension Checking[:]?/gi, 'DC:')
+        .replace(/Previously/gi, 'Prev')
+        .replace(/Rejected/gi, 'Rej')
+        .replace(/Surface/gi, 'Surf')
+        .replace(/Damage/gi, 'Dmg')
+        .replace(/Missing/gi, 'Miss')
+        .replace(/Position/gi, 'Pos')
+        .replace(/Between/gi, 'b/w')
+        .replace(/ToeGap/gi, 'TG')
+        .replace(/Length of Sleeper/gi, 'Len')
+        .replace(/Width of Sleeper/gi, 'Wid')
+        .replace(/Camber Check/gi, 'Camber')
+        .replace(/Location/gi, 'Loc')
+        .replace(/Checking/gi, 'Chk')
+        .replace(/Sleeper/gi, 'Slp')
+        .replace(/Insert/gi, 'Ins')
+        .trim();
+    
+    short = short.replace(/^[:\s-]+/, '');
+    
+    // If it still has a colon, try to be even more concise
+    if (short.includes(':')) {
+        const parts = short.split(':');
+        const prefix = parts[0].length > 3 ? parts[0].substring(0, 3) : parts[0];
+        short = prefix + ':' + parts[1].trim();
+    }
+
+    if (short.length > 14) {
+        return short.substring(0, 12) + "..";
+    }
+    return short;
+};
+
+const formatDisplayName = (name) => {
+    if (!name) return "";
+    // Hides code like ":41647" but keeps the location after "/"
+    // Example: "PATIL... - :41647/Pahtri" -> "PATIL... - Pahtri"
+    return name.replace(/:[0-9]+\//g, '').replace(/:[0-9]+/g, '');
+};
+
 const SleeperReportPage = ({ plantName }) => {
-    // These would typically come from an API, but using consistent mock for UI/UX
-    const mockDefectAgg = [
-        { name: 'Visual Demoulding', value: 35, color: '#10b981', rate: 1.25 },
-        { name: 'Dimension Demoulding', value: 25, color: '#3b82f6', rate: 0.95 },
-        { name: 'Final Visual', value: 20, color: '#f59e0b', rate: 0.75 },
-        { name: 'Final Critical', value: 10, color: '#ef4444', rate: 0.35 },
-        { name: 'Other', value: 10, color: '#8b5cf6', rate: 0.35 },
-    ];
-    const mockMonthlyPerformance = [
-        { month: 'JAN 2026', inspected: 25000, rejected: 800, rejPct: 3.20 },
-        { month: 'FEB 2026', inspected: 18000, rejected: 504, rejPct: 2.80 },
-        { month: 'MAR 2026', inspected: 32000, rejected: 1000, rejPct: 3.12 },
-    ];
-    const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
+    const [performanceData, setPerformanceData] = useState([]);
+    const [defectData, setDefectData] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const plantId = extractPlantId(plantName);
+                const [perfRes, defectRes] = await Promise.all([
+                    reportService.getManufacturerPerformance(plantId),
+                    reportService.getProcessDefectDistribution(plantId)
+                ]);
+
+                const perfBase = perfRes.responseData || perfRes || {};
+                const defectBase = defectRes.responseData || defectRes || {};
+                
+                const perfArray = perfBase.monthlyPerformance || (Array.isArray(perfBase) ? perfBase : []);
+                const defectArray = defectBase.defects || (Array.isArray(defectBase) ? defectBase : []);
+                
+                setPerformanceData(perfArray);
+                setDefectData(defectArray);
+                
+                setSummaryData({
+                    inspected: perfBase.totalInspected ?? 0,
+                    rejected: perfBase.totalRejected ?? 0,
+                    avgRejPct: perfBase.averageRejectionPercentage ?? 0
+                });
+            } catch (error) {
+                console.error("Error fetching plant report data:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, [plantName]);
+
+    const [summaryData, setSummaryData] = useState({ inspected: 0, rejected: 0, avgRejPct: 0 });
+
+    const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
+
+    if (loading) {
+        return (
+            <div className="bg-white p-20 shadow-sm rounded-lg mx-auto text-center" style={{ maxWidth: '1000px', background: 'white' }}>
+                <div className="spinner-small" style={{ margin: '0 auto 15px', width: '32px', height: '32px', border: '4px solid #f3f3f3', borderTop: '4px solid #10b981', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                <p style={{ color: '#64748b', fontWeight: '600' }}>Loading Performance Analysis...</p>
+            </div>
+        );
+    }
 
     return (
         <div className="bg-white px-8 pb-12 pt-8 shadow-sm rounded-lg mx-auto print-container" style={{ maxWidth: '1000px', background: 'white', borderRadius: '12px', marginBottom: '20px' }}>
             <div className="text-center mb-10">
-                <h2 style={{ fontSize: '28px', fontWeight: '900', color: '#1e293b', textTransform: 'uppercase', letterSpacing: '-0.5px', marginBottom: '4px' }}>{plantName}</h2>
+                <h2 style={{ fontSize: '28px', fontWeight: '900', color: '#1e293b', textTransform: 'uppercase', letterSpacing: '-0.5px', marginBottom: '4px' }}>{formatDisplayName(plantName)}</h2>
                 <p style={{ color: '#94a3b8', fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px' }}>Manufacturer Performance Analysis (Monthly)</p>
                 <div style={{ height: '4px', width: '40px', background: '#10b981', margin: '16px auto', borderRadius: '2px' }}></div>
             </div>
@@ -60,42 +153,53 @@ const SleeperReportPage = ({ plantName }) => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <h3 style={{ fontSize: '14px', fontWeight: '800', color: '#475569', textTransform: 'uppercase', marginBottom: '20px' }}>Process Defect Distribution</h3>
-                    <div style={{ width: '400px', height: '300px' }}>
-                        <PieChart width={400} height={300} margin={{ left: 5, right: 5 }}>
-                            <Pie
-                                data={mockDefectAgg}
-                                cx="50%"
-                                cy="50%"
-                                innerRadius={40}
-                                outerRadius={60}
-                                paddingAngle={8}
-                                dataKey="value"
-                                isAnimationActive={false}
-                                label={({ cx, cy, midAngle, outerRadius, name, rate }) => {
-                                    const RADIAN = Math.PI / 180;
-                                    const radius = outerRadius + 15;
-                                    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                                    const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                                    return (
-                                        <text x={x} y={y} fill="#64748b" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize="8" fontWeight="700">
-                                            {`${name} ${rate}%`}
-                                        </text>
-                                    );
-                                }}
-                                labelLine={{ stroke: '#cbd5e1', strokeWidth: 1 }}
-                            >
-                                {mockDefectAgg.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                ))}
-                            </Pie>
-                            <Tooltip />
-                        </PieChart>
+                    <div style={{ width: '100%', height: '420px' }}>
+                        {defectData.length > 0 ? (
+                            <PieChart width={400} height={420} margin={{ left: 5, right: 5 }}>
+                                <Pie
+                                    data={defectData}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={50}
+                                    outerRadius={70}
+                                    minAngle={15}
+                                    paddingAngle={2}
+                                    dataKey="defectCount"
+                                    nameKey="defectName"
+                                    isAnimationActive={false}
+                                    label={({ cx, cy, midAngle, outerRadius, defectName, percentage }) => {
+                                        const RADIAN = Math.PI / 180;
+                                        const radius = outerRadius + 30;
+                                        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                                        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                                        return (
+                                            <text x={x} y={y} fill="#475569" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize="7.5" fontWeight="800">
+                                                {`${getShortName(defectName)} ${(percentage || 0).toFixed(1)}%`}
+                                            </text>
+                                        );
+                                    }}
+                                    labelLine={{ stroke: '#94a3b8', strokeWidth: 1 }}
+                                >
+                                    {defectData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip />
+                            </PieChart>
+                        ) : (
+                            <div style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '13px' }}>
+                                No defect distribution data available
+                            </div>
+                        )}
                     </div>
-                    <div style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', width: '100%' }}>
-                        {mockDefectAgg.map((d, i) => (
-                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', fontWeight: '600', color: '#64748b' }}>
-                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: COLORS[i] }}></div>
-                                <span>{d.name}: {d.value} Nos. ({((d.value / 100) * 100).toFixed(0)}%)</span>
+                    <div style={{ marginTop: '30px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px', width: '100%', padding: '0 10px' }}>
+                        {defectData.map((d, i) => (
+                            <div key={i} style={{ display: 'flex', alignItems: 'start', gap: '6px', fontSize: '9px', fontWeight: '600', color: '#475569', lineHeight: '1.1' }}>
+                                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: COLORS[i % COLORS.length], marginTop: '3px', flexShrink: 0 }}></div>
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                    <span style={{ color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{getShortName(d.defectName)}</span>
+                                    <span style={{ color: '#94a3b8', fontSize: '8px' }}>{d.defectCount} Nos ({(d.percentage || 0).toFixed(1)}%)</span>
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -114,31 +218,37 @@ const SleeperReportPage = ({ plantName }) => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {mockMonthlyPerformance.map((m, i) => (
-                                    <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                        <td style={{ padding: '12px', fontWeight: '700', color: '#1e293b' }}>{m.month}</td>
-                                        <td style={{ padding: '12px', textAlign: 'right' }}>{m.inspected.toLocaleString()}</td>
-                                        <td style={{ padding: '12px', textAlign: 'right', fontWeight: 'bold' }}>{m.rejected.toLocaleString()}</td>
-                                        <td style={{ padding: '12px', textAlign: 'right' }}>
-                                            <span style={{ padding: '2px 8px', background: '#fef2f2', color: '#b91c1c', borderRadius: '4px', fontWeight: '800' }}>{m.rejPct.toFixed(2)}%</span>
-                                        </td>
+                                {performanceData.length > 0 ? (
+                                    performanceData.map((m, i) => (
+                                        <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                            <td style={{ padding: '12px', fontWeight: '700', color: '#1e293b' }}>{m.month}</td>
+                                            <td style={{ padding: '12px', textAlign: 'right' }}>{(Number(m.inspectedNos) || 0).toLocaleString()}</td>
+                                            <td style={{ padding: '12px', textAlign: 'right', fontWeight: 'bold' }}>{(Number(m.rejectedNos) || 0).toLocaleString()}</td>
+                                            <td style={{ padding: '12px', textAlign: 'right' }}>
+                                                <span style={{ padding: '2px 8px', background: '#fef2f2', color: '#b91c1c', borderRadius: '4px', fontWeight: '800' }}>{(Number(m.rejectionPercentage) || 0).toFixed(2)}%</span>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan="4" style={{ padding: '20px', textAlign: 'center', color: '#94a3b8' }}>No monthly performance data</td>
                                     </tr>
-                                ))}
+                                )}
                             </tbody>
                         </table>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px', marginTop: '30px' }}>
                         <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '12px', border: '1px solid #f1f5f9', textAlign: 'center' }}>
                             <p style={{ fontSize: '9px', fontWeight: '800', color: '#94a3b8', marginBottom: '4px', textTransform: 'uppercase' }}>Inspected (Nos.)</p>
-                            <p style={{ fontSize: '16px', fontWeight: '900', color: '#1e293b' }}>38,710</p>
+                            <p style={{ fontSize: '16px', fontWeight: '900', color: '#1e293b' }}>{(summaryData.inspected || 0).toLocaleString()}</p>
                         </div>
                         <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '12px', border: '1px solid #f1f5f9', textAlign: 'center' }}>
                             <p style={{ fontSize: '9px', fontWeight: '800', color: '#94a3b8', marginBottom: '4px', textTransform: 'uppercase' }}>Rejected (Nos.)</p>
-                            <p style={{ fontSize: '16px', fontWeight: '900', color: '#dc2626' }}>504</p>
+                            <p style={{ fontSize: '16px', fontWeight: '900', color: '#dc2626' }}>{(summaryData.rejected || 0).toLocaleString()}</p>
                         </div>
                         <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '12px', border: '1px solid #f1f5f9', textAlign: 'center' }}>
                             <p style={{ fontSize: '9px', fontWeight: '800', color: '#94a3b8', marginBottom: '4px', textTransform: 'uppercase' }}>Avg% Rej</p>
-                            <p style={{ fontSize: '16px', fontWeight: '900', color: '#1e293b' }}>1.30%</p>
+                            <p style={{ fontSize: '16px', fontWeight: '900', color: '#1e293b' }}>{(summaryData.avgRejPct || 0).toFixed(2)}%</p>
                         </div>
                     </div>
                 </div>
@@ -300,7 +410,7 @@ const SleeperMauReport = ({ startDate, endDate }) => {
                                     filteredData.map((row, idx) => (
                                         <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'} onClick={() => setSelectedPlant(row)} style={{ cursor: 'pointer' }}>
                                             <td>{idx + 1}</td>
-                                            <td className="font-bold text-blue-700">{row.plantName}</td>
+                                            <td className="font-bold text-blue-700">{formatDisplayName(row.plantName)}</td>
                                             <td><span className="prof-badge" style={{ background: '#f0f9ff', color: '#075985' }}>{row.inspectedBy}</span></td>
                                             <td className="text-right">{(row.production || 0).toLocaleString()}</td>
                                             <td className="text-right text-emerald-600 font-bold">{(row.acceptance || 0).toLocaleString()}</td>

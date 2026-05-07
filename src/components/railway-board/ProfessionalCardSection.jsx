@@ -16,6 +16,7 @@ import SleeperLifecycle from './sleeper-board/SleeperLifecycle';
 import SleeperMauReport from './sleeper-board/SleeperMauReport';
 import SleeperMprReport from './sleeper-board/SleeperMprReport';
 import SleeperLwclReport from './sleeper-board/SleeperLwclReport';
+import SleeperScadaMonitor from './sleeper-board/SleeperScadaMonitor';
 
 
 // --- Static Data moved outside component to fix ESLint re-render warnings ---
@@ -97,7 +98,9 @@ const ProfessionalCardSection = ({
     setMpiaRowsPerPage = () => { },
     onReportTabChange = () => { },
     fromDate,
-    toDate
+    toDate,
+    setFromDate = () => { },
+    setToDate = () => { }
 }) => {
     // Map selectedProduct to summary data keys
     const getSummaryKey = (prod) => {
@@ -363,7 +366,7 @@ const ProfessionalCardSection = ({
         const isSleeper = product.includes('sleeper');
         const isErc = product.includes('erc') || product === 'all' || !product;
 
-        const isUnderDev = (!isErc && !isSleeper) || (isSleeper && activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'reports');
+        const isUnderDev = (!isErc && !isSleeper) || (isSleeper && activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'reports' && activeMainCard !== 'scada');
 
 
 
@@ -574,7 +577,12 @@ const ProfessionalCardSection = ({
 
                         case 'quality':
                             if (isSleeper) {
-                                return <SleeperQuality />;
+                                return <SleeperQuality 
+                                    fromDate={fromDate} 
+                                    toDate={toDate} 
+                                    setFromDate={setFromDate} 
+                                    setToDate={setToDate} 
+                                />;
                             }
                             return (
 
@@ -978,7 +986,7 @@ const ProfessionalCardSection = ({
 
                                     <div className="report-viewer-content">
                                         {activeReport === 'mpr' && (
-                                            isSleeper ? <SleeperMprReport /> : (
+                                            isSleeper ? <SleeperMprReport mprData={mprData} loading={mprLoading} /> : (
                                                 <div className="prof-card animate-up">
 
                                                     <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1263,9 +1271,9 @@ const ProfessionalCardSection = ({
                                 </div>
                             );
                         case 'feedback':
-                            return <FeedbackSection />;
+                            return <FeedbackSection selectedProduct={selectedProduct} />;
                         case 'scada':
-                            return <ScadaMonitor selectedProduct={selectedProduct} />;
+                            return isSleeper ? <SleeperScadaMonitor selectedProduct={selectedProduct} /> : <ScadaMonitor selectedProduct={selectedProduct} />;
                         default:
                             return null;
                     }

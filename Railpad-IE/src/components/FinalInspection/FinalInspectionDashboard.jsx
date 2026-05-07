@@ -13,7 +13,48 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // State for Visual & Dimensional Testing
-  const [visualData, setVisualData] = useState({ dv: '', dd: '' });
+  const [visualData, setVisualData] = useState({ 
+    dv: '', 
+    dd: '', 
+    visualReason: '', 
+    dimReason: '',
+    visualN: 25,
+    dimN: 25
+  });
+
+  // State for Weight Testing (Double Sampling)
+  const [weightData, setWeightData] = useState({
+    samples1: Array(125).fill(''),
+    samples2: Array(125).fill(''),
+    n1: 125,
+    ac1: 5,
+    re1: 9,
+    n2: 125,
+    ac2: 12,
+    re2: 13,
+    min: 0, 
+    max: 445,
+    isSecondActive: false
+  });
+
+  const getWeightAQL = (lotSize) => {
+    const size = parseInt(lotSize, 10) || 0;
+    if (size < 281) return { n1: 20, ac1: 0, re1: 1, n2: 0, ac2: 0, re2: 1, isSingle: true };
+    if (size <= 500) return { n1: 32, ac1: 1, re1: 3, n2: 32, ac2: 4, re2: 5, isSingle: false };
+    if (size <= 1200) return { n1: 50, ac1: 2, re1: 5, n2: 50, ac2: 6, re2: 7, isSingle: false };
+    if (size <= 3200) return { n1: 80, ac1: 3, re1: 6, n2: 80, ac2: 9, re2: 10, isSingle: false };
+    if (size <= 10000) return { n1: 125, ac1: 5, re1: 9, n2: 125, ac2: 12, re2: 13, isSingle: false };
+    return { n1: 125, ac1: 5, re1: 9, n2: 125, ac2: 12, re2: 13, isSingle: false };
+  };
+
+  const WEIGHT_TOLERANCE = {
+    'RDSO/T-3703': { type: '6mm GRSP', max: 161 },
+    'RDSO/T-3711': { type: '6mm GRSP', max: 174 },
+    'RDSO/T-6618': { type: '6.2mm CGRSP', max: 167 },
+    'RDSO/T-8327': { type: '6.2mm CGRSP', max: 154 },
+    'RDSO/T-8528': { type: '10mm CGRSP', max: 445 },
+    'RDSO/T-8747': { type: '10mm CGRSP', max: 425 },
+  };
 
   // State for Physical Properties (Tab 2)
   const [physicalData, setPhysicalData] = useState({
@@ -66,7 +107,30 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
     setShowConfirmModal(false);
     
     // Reset form states (simulating new data load)
-    setVisualData({ dv: '', dd: '' });
+    setVisualData({ 
+      dv: '', 
+      dd: '', 
+      visualReason: '', 
+      dimReason: '',
+      visualN: 25,
+      dimN: 25
+    });
+    const lot = lots.find(l => l.id === lotId) || { size: 1500, drawingNo: 'RDSO/T-8528' };
+    const aql = getWeightAQL(lot.size);
+    const tolerance = WEIGHT_TOLERANCE[lot.drawingNo] || { max: 445 };
+    setWeightData({
+      samples1: Array(aql.n1).fill(''),
+      samples2: Array(aql.n2).fill(''),
+      n1: aql.n1,
+      ac1: aql.ac1,
+      re1: aql.re1,
+      n2: aql.n2,
+      ac2: aql.ac2,
+      re2: aql.re2,
+      min: 0,
+      max: tolerance.max,
+      isSecondActive: false
+    });
     setPhysicalData({
       hardness: ['', '', ''],
       tensile: { tsBefore: '', tsAfter: '', elBefore: '', elAfter: '' },
@@ -133,16 +197,87 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
   // AQL Config
   const aqlConfig = { n: 13, ac: 0, re: 1 };
 
-  const getResult = (count) => {
-    if (count <= aqlConfig.ac) return 'PASS';
-    if (count >= aqlConfig.re) return 'FAIL';
+  const getResult = (count, ac = aqlConfig.ac, re = aqlConfig.re) => {
+    if (count === '' || count === undefined) return 'PENDING';
+    const c = parseInt(count);
+    if (isNaN(c)) return 'PENDING';
+    if (c <= ac) return 'PASS';
+    if (c >= re) return 'FAIL';
     return 'MARGINAL';
   };
 
   // Tab 1 Logic
-  const visualResult = visualData.dv === '' ? 'PENDING' : getResult(visualData.dv);
-  const dimensionalResult = visualData.dd === '' ? 'PENDING' : getResult(visualData.dd);
-  const finalDecision = (visualResult === 'PASS' && dimensionalResult === 'PASS') 
+  const visualResult = getResult(visualData.dv);
+  const dimensionalResult = getResult(visualData.dd);
+  
+  // Weight Result Logic (Double Sampling)
+  const getWeightNotOk = (samples) => {
+    return samples.filter(v => {
+      if (v === '') return false;
+      const val = parseFloat(v);
+      return val > weightData.max;
+    }).length;
+  };
+
+  const downloadTemplate = (target) => {
+    const sampleSize = target === 'samples1' ? weightData.n1 : weightData.n2;
+    const headers = `Sample No.,Weight (g)`;
+    const rows = Array(sampleSize).fill('').map((_, idx) => `${idx + 1},`);
+    const csvContent = [headers, ...rows].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `Weight_${target}_${selectedLot}.csv`;
+    link.click();
+  };
+
+  const handleExcelImport = (e, target) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target.result;
+      const lines = text.split('\n').filter(line => line.trim());
+      
+      const values = [];
+      const sampleSize = target === 'samples1' ? weightData.n1 : weightData.n2;
+      
+      for (let i = 1; i < lines.length && i <= sampleSize; i++) {
+        const cols = lines[i].split(',');
+        values.push(cols[1]?.trim() || '');
+      }
+
+      while (values.length < sampleSize) values.push('');
+
+      setWeightData(prev => ({ ...prev, [target]: values }));
+      markDirty();
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const notOk1 = getWeightNotOk(weightData.samples1);
+  const notOk2 = getWeightNotOk(weightData.samples2);
+  const totalNotOk = notOk1 + notOk2;
+
+  let weightStatus = 'PENDING';
+  const filled1 = weightData.samples1.filter(v => v !== '').length;
+  
+  if (filled1 >= weightData.n1) {
+    if (notOk1 <= weightData.ac1) weightStatus = 'ACCEPTED';
+    else if (notOk1 >= weightData.re1) weightStatus = 'REJECTED';
+    else {
+      weightStatus = '2ND SAMPLING';
+      const filled2 = weightData.samples2.filter(v => v !== '').length;
+      if (filled2 >= weightData.n2) {
+        weightStatus = totalNotOk <= weightData.ac2 ? 'ACCEPTED' : 'REJECTED';
+      }
+    }
+  }
+  
+  const finalDecision = (visualResult === 'PASS' && dimensionalResult === 'PASS' && (weightStatus === 'ACCEPTED' || weightStatus === 'PENDING' || weightStatus === '2ND SAMPLING')) 
     ? 'LOT PASSED' 
     : (visualResult === 'PENDING' || dimensionalResult === 'PENDING') ? 'PENDING VERIFICATION'
     : (visualResult !== 'PASS' && dimensionalResult !== 'PASS') ? 'LOT REJECTED (Visual & Dimensional)'
@@ -194,10 +329,10 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
   const specDecision = specPendingCount > 0 ? 'PENDING VERIFICATION' : (specFailedCount === 0 ? 'LOT PASSED' : specFailedCount === 1 ? 'RE-TEST REQUIRED' : 'PERMANENT REJECT');
 
   const lots = [
-    { id: 'LOT-2024-001', size: 1500, status: 'Pending' },
-    { id: 'LOT-2024-002', size: 2000, status: 'Under Testing' },
-    { id: 'LOT-2024-003', size: 1200, status: 'Passed' },
-    { id: 'LOT-2024-004', size: 1800, status: 'Rejected' },
+    { id: 'LOT-2024-001', size: 1500, status: 'Pending', drawingNo: 'RDSO/T-8528', railpadType: '10mm CGRSP' },
+    { id: 'LOT-2024-002', size: 2000, status: 'Under Testing', drawingNo: 'RDSO/T-6618', railpadType: '6.2mm CGRSP' },
+    { id: 'LOT-2024-003', size: 1200, status: 'Passed', drawingNo: 'RDSO/T-3711', railpadType: '6mm GRSP' },
+    { id: 'LOT-2024-004', size: 1800, status: 'Rejected', drawingNo: 'RDSO/T-8747', railpadType: '10mm CGRSP' },
   ];
 
   const filteredLots = lots.filter(lot => lot.id.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -224,6 +359,16 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
           @keyframes modalPop {
             from { opacity: 0; transform: scale(0.95) translateY(-20px); }
             to { opacity: 1; transform: scale(1) translateY(0); }
+          }
+          
+          /* Hide number input spinners */
+          input::-webkit-outer-spin-button,
+          input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+          }
+          input[type=number] {
+            -moz-appearance: textfield;
           }
         `}
       </style>
@@ -432,152 +577,305 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
-                {isDirty && (
-                  <div style={{ 
-                    padding: '6px 12px', 
-                    background: '#fff7ed', 
-                    borderRadius: '8px', 
-                    border: '1px solid #ffedd5', 
-                    fontSize: '10px', 
-                    fontWeight: '800', 
-                    color: '#c2410c',
-                    letterSpacing: '0.05em',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px'
-                  }}>
-                    <span style={{ width: '6px', height: '6px', background: '#ea580c', borderRadius: '50%' }} />
-                    UNSAVED
-                  </div>
-                )}
-                <div style={{ 
-                  padding: '6px 12px', 
-                  background: '#f0f9fa', 
-                  borderRadius: '8px', 
-                  border: '1px solid #b2dfdb', 
-                  fontSize: '10px', 
-                  fontWeight: '800', 
-                  color: '#21808d',
-                  letterSpacing: '0.05em'
-                }}>
-                  DECISION ENGINE ACTIVE
-                </div>
+                {/* Badges removed per user request */}
               </div>
             </div>
             
             {activeTab === 'visual' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                {/* Sampling Details */}
-                <section>
-                  <h4 style={{ color: '#94a3b8', fontSize: '10px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px' }}>
-                    Sampling Details (AQL Config)
-                  </h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
-                    {[
-                      { label: 'Lot Size', value: lots.find(l => l.id === selectedLot)?.size || '0' },
-                      { label: 'Sample N', value: aqlConfig.n },
-                      { label: 'Acc (Ac)', value: aqlConfig.ac },
-                      { label: 'Rej (Re)', value: aqlConfig.re }
-                    ].map(field => (
-                      <div key={field.label} style={{ background: '#f8fafc', padding: '8px 12px', borderRadius: '10px', border: '1px solid #f1f5f9' }}>
-                        <div style={{ fontSize: '9px', color: '#94a3b8', marginBottom: '2px', fontWeight: '700', textTransform: 'uppercase' }}>{field.label}</div>
-                        <div style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b' }}>{field.value}</div>
-                      </div>
-                    ))}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', animation: 'fadeIn 0.4s ease-out' }}>
+                {/* Unified Inspection Table */}
+                <div style={{ overflow: 'hidden', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                    <thead style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                      <tr>
+                        <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', fontSize: '11px', width: '250px' }}>Inspection Parameter</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', fontSize: '11px' }}>No. of Samples</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', fontSize: '11px' }}>Not OK Count</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', fontSize: '11px' }}>Reason of Rejection</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', fontSize: '11px', width: '120px' }}>Result</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {/* Visual Inspection */}
+                      <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '16px', fontWeight: '700', color: '#1e293b' }}>Visual Inspection</td>
+                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                          <input 
+                            type="number" 
+                            value={visualData.visualN} 
+                            readOnly
+                            style={{ width: '60px', padding: '6px', borderRadius: '6px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '700', background: '#f1f5f9' }}
+                          />
+                        </td>
+                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                          <input 
+                            type="number" 
+                            value={visualData.dv} 
+                            onChange={(e) => { setVisualData(prev => ({ ...prev, dv: e.target.value })); markDirty(); }}
+                            style={{ width: '60px', padding: '6px', borderRadius: '6px', border: '2px solid #cbd5e1', textAlign: 'center', fontWeight: '800', background: '#f8fafc' }}
+                          />
+                        </td>
+                        <td style={{ padding: '16px' }}>
+                          <select 
+                            value={visualData.visualReason} 
+                            onChange={(e) => { setVisualData(prev => ({ ...prev, visualReason: e.target.value })); markDirty(); }}
+                            style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', background: 'white' }}
+                          >
+                            <option value="">-- Select Reason --</option>
+                            <option value="Porosity">Porosity</option>
+                            <option value="Blow Holes">Blow Holes</option>
+                            <option value="Uncut Flash">Uncut Flash</option>
+                            <option value="Surface Crack">Surface Crack</option>
+                            <option value="Improper Finish">Improper Finish</option>
+                            <option value="Others">Others</option>
+                          </select>
+                        </td>
+                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                          <span style={{ 
+                            padding: '4px 10px', 
+                            borderRadius: '6px', 
+                            fontSize: '11px', 
+                            fontWeight: '800',
+                            background: visualResult === 'PASS' ? '#dcfce7' : '#fee2e2',
+                            color: visualResult === 'PASS' ? '#166534' : '#991b1b'
+                          }}>
+                            {visualResult}
+                          </span>
+                        </td>
+                      </tr>
+                      {/* Dimensional Inspection */}
+                      <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '16px', fontWeight: '700', color: '#1e293b' }}>Dimensional Inspection</td>
+                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                          <input 
+                            type="number" 
+                            value={visualData.dimN} 
+                            readOnly
+                            style={{ width: '60px', padding: '6px', borderRadius: '6px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '700', background: '#f1f5f9' }}
+                          />
+                        </td>
+                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                          <input 
+                            type="number" 
+                            value={visualData.dd} 
+                            onChange={(e) => { setVisualData(prev => ({ ...prev, dd: e.target.value })); markDirty(); }}
+                            style={{ width: '60px', padding: '6px', borderRadius: '6px', border: '2px solid #cbd5e1', textAlign: 'center', fontWeight: '800', background: '#f8fafc' }}
+                          />
+                        </td>
+                        <td style={{ padding: '16px' }}>
+                          <select 
+                            value={visualData.dimReason} 
+                            onChange={(e) => { setVisualData(prev => ({ ...prev, dimReason: e.target.value })); markDirty(); }}
+                            style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', background: 'white' }}
+                          >
+                            <option value="">-- Select Reason --</option>
+                            <option value="Length deviation">Length deviation</option>
+                            <option value="Width deviation">Width deviation</option>
+                            <option value="Thickness variation">Thickness variation</option>
+                            <option value="Edge damage">Edge damage</option>
+                            <option value="Warpage">Warpage</option>
+                            <option value="Others">Others</option>
+                          </select>
+                        </td>
+                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                          <span style={{ 
+                            padding: '4px 10px', 
+                            borderRadius: '6px', 
+                            fontSize: '11px', 
+                            fontWeight: '800',
+                            background: dimensionalResult === 'PASS' ? '#dcfce7' : '#fee2e2',
+                            color: dimensionalResult === 'PASS' ? '#166534' : '#991b1b'
+                          }}>
+                            {dimensionalResult}
+                          </span>
+                        </td>
+                      </tr>
+                      {/* Weight Testing Header */}
+                      <tr style={{ background: '#f8fafc' }}>
+                        <td style={{ padding: '16px', fontWeight: '800', color: '#0f172a' }}>
+                          Weight Testing (gm)
+                          <div style={{ fontSize: '10px', color: '#64748b', marginTop: '4px', fontWeight: '500' }}>
+                            Type: {lots.find(l => l.id === selectedLot)?.railpadType} | Drg: {lots.find(l => l.id === selectedLot)?.drawingNo}
+                          </div>
+                          <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px', fontWeight: '500' }}>
+                            Max Permissible Weight: {weightData.max}g
+                          </div>
+                        </td>
+                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                          <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '700', marginBottom: '4px' }}>
+                            {weightStatus === '2ND SAMPLING' ? 'Samples (n1/n2)' : 'Samples (n1)'}
+                          </div>
+                          <div style={{ fontWeight: '700', color: '#334155' }}>
+                            {weightStatus === '2ND SAMPLING' ? `${weightData.n1} / ${weightData.n2}` : weightData.n1}
+                          </div>
+                        </td>
+                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                          <div style={{ fontSize: '11px', color: '#059669', fontWeight: '700', marginBottom: '4px' }}>
+                            {weightStatus === '2ND SAMPLING' ? 'Acc (Ac1/Ac2)' : 'Acc (Ac1)'}
+                          </div>
+                          <div style={{ fontWeight: '700', color: '#059669' }}>
+                            {weightStatus === '2ND SAMPLING' ? `${weightData.ac1} / ${weightData.ac2}` : weightData.ac1}
+                          </div>
+                        </td>
+                        <td style={{ padding: '16px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                            <div>
+                              <div style={{ fontSize: '11px', color: '#b91c1c', fontWeight: '700', marginBottom: '4px' }}>
+                                {weightStatus === '2ND SAMPLING' ? 'Rej (Re1/Re2)' : 'Rej (Re1)'}
+                              </div>
+                              <div style={{ fontWeight: '700', color: '#b91c1c' }}>
+                                {weightStatus === '2ND SAMPLING' ? `${weightData.re1} / ${weightData.re2}` : weightData.re1}
+                              </div>
+                            </div>
+                            <div style={{ flex: 1, textAlign: 'right', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                              <button 
+                                onClick={() => downloadTemplate(weightStatus === '2ND SAMPLING' && weightData.isSecondActive ? 'samples2' : 'samples1')}
+                                className="action-btn action-btn--secondary"
+                                style={{ 
+                                  padding: '8px 16px', 
+                                  fontSize: '11px', 
+                                  background: '#fff', 
+                                  border: '1px solid #e2e8f0', 
+                                  borderRadius: '10px', 
+                                  cursor: 'pointer',
+                                  fontWeight: '700',
+                                  color: '#64748b',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  transition: 'all 0.2s ease',
+                                  boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                                }}
+                                onMouseOver={(e) => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.05)'; }}
+                                onMouseOut={(e) => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)'; }}
+                              >
+                                📥 Download Template
+                              </button>
+                              <button 
+                                onClick={() => document.getElementById('weight-import-1').click()}
+                                style={{ 
+                                  padding: '8px 16px', 
+                                  fontSize: '11px', 
+                                  background: 'linear-gradient(135deg, #21808d 0%, #155e75 100%)', 
+                                  color: 'white', 
+                                  border: 'none', 
+                                  borderRadius: '10px', 
+                                  cursor: 'pointer',
+                                  fontWeight: '700',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  transition: 'all 0.2s ease',
+                                  boxShadow: '0 4px 12px rgba(33, 128, 141, 0.2)'
+                                }}
+                                onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(33, 128, 141, 0.3)'; }}
+                                onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(33, 128, 141, 0.2)'; }}
+                              >
+                                📤 Import Data
+                              </button>
+                              <input id="weight-import-1" type="file" accept=".csv" onChange={(e) => handleExcelImport(e, weightStatus === '2ND SAMPLING' && weightData.isSecondActive ? 'samples2' : 'samples1')} style={{ display: 'none' }} />
+                            </div>
+                          </div>
+                        </td>
+                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                           <span style={{ 
+                            padding: '4px 10px', 
+                            borderRadius: '6px', 
+                            fontSize: '11px', 
+                            fontWeight: '800',
+                            background: weightStatus === 'ACCEPTED' ? '#dcfce7' : weightStatus === 'REJECTED' ? '#fee2e2' : weightStatus === '2ND SAMPLING' ? '#fff7ed' : '#f1f5f9',
+                            color: weightStatus === 'ACCEPTED' ? '#166534' : weightStatus === 'REJECTED' ? '#991b1b' : weightStatus === '2ND SAMPLING' ? '#c2410c' : '#475569'
+                          }}>
+                            {weightStatus}
+                          </span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Weight Data Grid Section */}
+                <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', gap: '16px' }}>
+                      <button 
+                        onClick={() => setWeightData(prev => ({ ...prev, isSecondActive: false }))}
+                        style={{ 
+                          padding: '8px 16px', 
+                          borderRadius: '8px', 
+                          fontSize: '12px', 
+                          fontWeight: '700', 
+                          border: 'none',
+                          background: !weightData.isSecondActive ? '#0f172a' : '#f1f5f9',
+                          color: !weightData.isSecondActive ? 'white' : '#64748b',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        FIRST SAMPLING ({filled1}/{weightData.n1})
+                      </button>
+                      {weightStatus === '2ND SAMPLING' && (
+                        <button 
+                          onClick={() => setWeightData(prev => ({ ...prev, isSecondActive: true }))}
+                          style={{ 
+                            padding: '8px 16px', 
+                            borderRadius: '8px', 
+                            fontSize: '12px', 
+                            fontWeight: '700', 
+                            border: 'none',
+                            background: weightData.isSecondActive ? '#0f172a' : '#f1f5f9',
+                            color: weightData.isSecondActive ? 'white' : '#64748b',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          SECOND SAMPLING ({weightData.samples2.filter(v => v !== '').length}/{weightData.n2})
+                        </button>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>
+                      {weightStatus === '2ND SAMPLING' && weightData.isSecondActive ? `Total Not OK: ${totalNotOk} / ${weightData.ac2} (Ac2)` : `Not OK: ${notOk1} / ${weightData.ac1} (Ac1)`}
+                    </div>
                   </div>
-                </section>
 
-                {/* Main Inputs */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <section style={{ border: '1px solid #f1f5f9', borderRadius: '16px', padding: '16px', position: 'relative', background: '#fff' }}>
-                    <div style={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: visualResult === 'PASS' ? '#10b981' : '#ef4444', borderRadius: '16px 0 0 16px' }} />
-                    <h4 style={{ margin: '0 0 16px 0', fontSize: '15px', fontWeight: '700', color: '#334155' }}>2.2 Visual Inspection</h4>
-                    <div style={{ marginBottom: '16px' }}>
-                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '8px' }}>Visual Not OK Count (Dv)</label>
-                      <input 
-                        type="number" 
-                        min="0"
-                        value={visualData.dv}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setVisualData(prev => ({ ...prev, dv: val === '' ? '' : Math.max(0, parseInt(val) || 0) }));
-                          markDirty();
-                        }}
-                        style={{ 
-                          width: '100%', 
-                          padding: '10px 14px', 
-                          borderRadius: '10px', 
-                          border: '2px solid #f1f5f9',
-                          fontSize: '16px',
-                          fontWeight: '800',
-                          outline: 'none',
-                          background: '#f8fafc',
-                          transition: 'all 0.2s',
-                          color: '#1e293b',
-                          boxSizing: 'border-box'
-                        }} 
-                        placeholder="0" 
-                      />
-                    </div>
-                    <div style={{ 
-                      padding: '10px', 
-                      borderRadius: '10px', 
-                      background: visualResult === 'PASS' ? '#ecfdf5' : '#fef2f2', 
-                      color: visualResult === 'PASS' ? '#059669' : '#b91c1c', 
-                      fontSize: '11px', 
-                      fontWeight: '900', 
-                      textAlign: 'center',
-                      border: `1px solid ${visualResult === 'PASS' ? '#a7f3d0' : '#fecaca'}`,
-                      letterSpacing: '0.05em'
-                    }}>
-                      RESULT: {visualResult}
-                    </div>
-                  </section>
-
-                  <section style={{ border: '1px solid #f1f5f9', borderRadius: '16px', padding: '16px', position: 'relative', background: '#fff' }}>
-                    <div style={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: dimensionalResult === 'PASS' ? '#10b981' : '#ef4444', borderRadius: '16px 0 0 16px' }} />
-                    <h4 style={{ margin: '0 0 16px 0', fontSize: '15px', fontWeight: '700', color: '#334155' }}>2.3 Dimensional Inspection</h4>
-                    <div style={{ marginBottom: '16px' }}>
-                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '8px' }}>Dimensional Not OK Count (Dd)</label>
-                      <input 
-                        type="number" 
-                        min="0"
-                        value={visualData.dd}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setVisualData(prev => ({ ...prev, dd: val === '' ? '' : Math.max(0, parseInt(val) || 0) }));
-                          markDirty();
-                        }}
-                        style={{ 
-                          width: '100%', 
-                          padding: '10px 14px', 
-                          borderRadius: '10px', 
-                          border: '2px solid #f1f5f9',
-                          fontSize: '16px',
-                          fontWeight: '800',
-                          outline: 'none',
-                          background: '#f8fafc',
-                          transition: 'all 0.2s',
-                          color: '#1e293b',
-                          boxSizing: 'border-box'
-                        }} 
-                        placeholder="0" 
-                      />
-                    </div>
-                    <div style={{ 
-                      padding: '10px', 
-                      borderRadius: '10px', 
-                      background: dimensionalResult === 'PASS' ? '#ecfdf5' : '#fef2f2', 
-                      color: dimensionalResult === 'PASS' ? '#059669' : '#b91c1c', 
-                      fontSize: '11px', 
-                      fontWeight: '900', 
-                      textAlign: 'center',
-                      border: `1px solid ${dimensionalResult === 'PASS' ? '#a7f3d0' : '#fecaca'}`,
-                      letterSpacing: '0.05em'
-                    }}>
-                      RESULT: {dimensionalResult}
-                    </div>
-                  </section>
+                  {/* Weight Data Grid */}
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(10, 1fr)', 
+                    gap: '8px', 
+                    maxHeight: '300px',
+                    overflowY: 'auto',
+                    paddingRight: '4px'
+                  }}>
+                    {(weightData.isSecondActive ? weightData.samples2 : weightData.samples1).map((val, idx) => {
+                      const isFailing = val !== '' && parseFloat(val) > weightData.max;
+                      return (
+                        <div key={idx} style={{ position: 'relative' }}>
+                          <span style={{ position: 'absolute', top: '-4px', left: '4px', fontSize: '8px', color: '#94a3b8', fontWeight: '800', background: 'white', padding: '0 2px', zIndex: 1 }}>{idx + 1}</span>
+                          <input 
+                            type="number" 
+                            value={val} 
+                            onChange={(e) => {
+                              const target = weightData.isSecondActive ? 'samples2' : 'samples1';
+                              const newSamples = [...weightData[target]];
+                              newSamples[idx] = e.target.value;
+                              setWeightData(prev => ({ ...prev, [target]: newSamples }));
+                              markDirty();
+                            }}
+                            style={{ 
+                              width: '100%', 
+                              padding: '8px 4px', 
+                              borderRadius: '6px', 
+                              border: isFailing ? '2px solid #fee2e2' : '1px solid #e2e8f0', 
+                              textAlign: 'center', 
+                              fontSize: '13px', 
+                              fontWeight: '700',
+                              background: isFailing ? '#fef2f2' : val === '' ? '#fcfcfc' : '#f0f9fa',
+                              color: isFailing ? '#991b1b' : '#1e293b'
+                            }}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {/* Final Decision Block */}

@@ -359,7 +359,7 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
             switch (reason) {
                 case 'Rail Seat Damage': return ['Damage LT', 'Damage RT', 'Crack', 'Spalling'];
                 case 'Surface Honeycomb': return ['Major Honeycomb', 'Minor Honeycomb', 'Side Face', 'Bottom Face'];
-                case 'Surface Damage': return ['Corner Chipped', 'Edge Damage', 'Scratch'];
+                case 'Surface Damage': return ['Corner Chipped', 'Edge Damage', 'Scratch', 'End Damage'];
                 case 'Position of HTS Wire': return ['Shifted LT', 'Shifted RT', 'Too High', 'Too Low'];
                 case 'Foreign Object in Sleeper': return ['Wood', 'Stone', 'Metal Part'];
                 default: return ['Others'];
@@ -389,8 +389,8 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                      const details = sectState.rejectionDetails[fid] || {};
                      if (!details.reason) hasMissingReason = true;
                      else {
-                         const subs = getSubReasons(details.reason, sect.id);
-                         if (subs.length > 0 && !details.subReason) hasMissingReason = true;
+                         const subs = getSubReasons(sect.id, details.reason);
+                         if (sect.id !== 'ftc' && subs.length > 0 && !details.subReason) hasMissingReason = true;
                      }
                 });
             }

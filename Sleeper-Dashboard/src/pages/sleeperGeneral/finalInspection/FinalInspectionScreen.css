@@ -524,8 +524,8 @@
 
 /* Section 4: Floating Actions Bar */
 .actions-bar {
-    position: sticky;
-    bottom: 24px;
+    position: relative;
+    bottom: 0;
     display: flex;
     justify-content: space-between;
     align-items: center;

@@ -393,8 +393,15 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                 actionBy: Number(user?.userId || 0)
             };
             await apiService.performTransitionAction(transitionPayload);
+            
+            // 4. Save local draft on PAUSE for extra safety
+            const draftData = {
+                batches,
+                lastSaved: new Date().toISOString()
+            };
+            localStorage.setItem(`inspection_draft_${call.requestId}`, JSON.stringify(draftData));
 
-            // 4. Clear local draft on completion
+            // 5. Clear local draft on completion
             if (actionName === 'FINISH') {
                 localStorage.removeItem(`inspection_draft_${call.requestId}`);
             }
@@ -404,17 +411,6 @@ const FinalInspectionScreen = ({ call, onBack }) => {
             console.error(`Error saving inspection data for ${actionName}:`, error);
             alert(`Failed to save inspection data: ` + (error.response?.data?.message || error.message));
         }
-    };
-
-    const handleSaveDraft = () => {
-        if (!call?.requestId) return;
-        const draftData = {
-            batches,
-            lastSaved: new Date().toISOString()
-        };
-        localStorage.setItem(`inspection_draft_${call.requestId}`, JSON.stringify(draftData));
-        alert("Draft saved to local storage!");
-        onBack(); // Return to dashboard
     };
 
     useEffect(() => {
@@ -463,6 +459,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
             }
             return batch;
         }));
+        setExpandedBatches(prev => ({ ...prev, [rejectionEntry.batchNo]: true }));
         setRejectionEntry({ batchNo: '', sleeperNo: '', reason: '' });
     };
 
@@ -482,6 +479,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
             }
             return batch;
         }));
+        setExpandedBatches(prev => ({ ...prev, [etEntry.batchNo]: true }));
         setEtEntry({ batchNo: '', sleeperNo: '', reason: '' });
     };
 
@@ -1000,7 +998,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                     </div>
                     
                     <div className="action-buttons">
-                        <button className="btn secondary" onClick={handleSaveDraft}>Save Draft</button>
+                        {/* PAUSE INSPECTION button below now handles saving */}
                         {/* Section 4: Summary & Actions (Simplified to Footer Actions) */}
                         <div className="inspection-footer-actions">
                             <button className="btn-pause" onClick={() => handleWorkflowAction('PAUSE')}>

@@ -4,6 +4,12 @@ import './RawMaterialDimensionalPage.css';
 
 const STORAGE_KEY = 'dimensional_check_draft_data';
 
+// Helper to get current shift from sessionStorage for shift-specific storage
+const getShiftSuffix = () => {
+  const shift = sessionStorage.getItem('inspectionShift');
+  return shift ? `_${shift}` : '';
+};
+
 // Standard Rod Diameter and Tolerance values based on Product Model
 const PRODUCT_SPECS = {
   'MK-III': {
@@ -28,7 +34,7 @@ const RawMaterialDimensionalPage = ({ onBack, heats = [], productModel = 'MK-III
 
   // Load draft data from localStorage
   const loadDraftData = useCallback(() => {
-    const storageKey = `${STORAGE_KEY}_${inspectionCallNo}`;
+    const storageKey = `${STORAGE_KEY}_${inspectionCallNo}${getShiftSuffix()}`;
     const savedDraft = localStorage.getItem(storageKey);
     if (savedDraft) {
       try {
@@ -40,39 +46,68 @@ const RawMaterialDimensionalPage = ({ onBack, heats = [], productModel = 'MK-III
     return null;
   }, [inspectionCallNo]);
 
-  // Per-heat Dimensional state (20 samples per heat)
+  // Per-heat Dimensional state - now keyed by heatNo for stability
   const [heatDimData, setHeatDimData] = useState(() => {
-    const draft = loadDraftData();
-    if (draft?.heatDimData) {
-      return draft.heatDimData;
-    }
-    return heats.map(() => ({
-      dimSamples: Array.from({ length: 20 }).map(() => ({ diameter: '' })),
-    }));
+    const draftRaw = loadDraftData();
+    const draft = draftRaw?.heatDimData;
+    const state = {};
+    
+    // Migration/Initialization logic
+    heats.forEach((h, idx) => {
+      const hNo = (h.heatNo || h.heat_no || `Heat-${idx + 1}`).toString().trim().toUpperCase();
+      
+      // 1. Try to find in draft by heatNo (New format)
+      if (draft && typeof draft === 'object' && !Array.isArray(draft) && draft[hNo]) {
+        state[hNo] = draft[hNo];
+      } 
+      // 2. Fallback: Try to find in draft by index (Old format)
+      else if (draft && Array.isArray(draft) && draft[idx]) {
+        state[hNo] = draft[idx];
+      }
+      // 3. Default: Empty state
+      else {
+        state[hNo] = {
+          dimSamples: Array.from({ length: 20 }).map(() => ({ diameter: '' })),
+        };
+      }
+    });
+    return state;
   });
 
   // Keep heatDimData in sync when heats change
   useEffect(() => {
     setHeatDimData(prev => {
-      const next = heats.map((_, idx) => prev[idx] || {
-        dimSamples: Array.from({ length: 20 }).map(() => ({ diameter: '' })),
+      const next = { ...prev };
+      let changed = false;
+      heats.forEach((h, idx) => {
+        const hNo = (h.heatNo || h.heat_no || `Heat-${idx + 1}`).toString().trim().toUpperCase();
+        if (!next[hNo]) {
+          next[hNo] = {
+            dimSamples: Array.from({ length: 20 }).map(() => ({ diameter: '' })),
+          };
+          changed = true;
+        }
       });
-      if (activeHeatTab >= heats.length) setActiveHeatTab(Math.max(0, heats.length - 1));
-      return next;
+      return changed ? next : prev;
     });
+    if (activeHeatTab >= heats.length) setActiveHeatTab(Math.max(0, heats.length - 1));
   }, [heats, activeHeatTab]);
 
   const handleDimSampleChange = useCallback((idx, value) => {
+    const currentHeat = heats[activeHeatTab];
+    if (!currentHeat) return;
+    const hNo = (currentHeat.heatNo || currentHeat.heat_no || `Heat-${activeHeatTab + 1}`).toString().trim().toUpperCase();
+
     setHeatDimData(prev => {
-      const next = [...prev];
-      const hd = { ...next[activeHeatTab] };
+      const next = { ...prev };
+      const hd = { ...next[hNo] };
       const samples = [...hd.dimSamples];
       samples[idx] = { ...samples[idx], diameter: value };
       hd.dimSamples = samples;
-      next[activeHeatTab] = hd;
+      next[hNo] = hd;
       return next;
     });
-  }, [activeHeatTab]);
+  }, [activeHeatTab, heats]);
 
   // Normalize product model to match keys (e.g., "MK-III" or "MK-V")
   const normalizedModel = useMemo(() => {
@@ -99,11 +134,10 @@ const RawMaterialDimensionalPage = ({ onBack, heats = [], productModel = 'MK-III
     return 'invalid'; // Outside tolerance - red
   }, [specs.toleranceMin, specs.toleranceMax]);
 
-  // Auto-save to localStorage (persist while switching submodules)
+  // Auto-save to localStorage on heatDimData change
   useEffect(() => {
-    const storageKey = `${STORAGE_KEY}_${inspectionCallNo}`;
-    const draftData = { heatDimData };
-    localStorage.setItem(storageKey, JSON.stringify(draftData));
+    const storageKey = `${STORAGE_KEY}_${inspectionCallNo}${getShiftSuffix()}`;
+    localStorage.setItem(storageKey, JSON.stringify({ heatDimData }));
   }, [heatDimData, inspectionCallNo]);
 
   return (
@@ -204,7 +238,8 @@ const RawMaterialDimensionalPage = ({ onBack, heats = [], productModel = 'MK-III
           <h4 style={{ marginBottom: '16px', marginTop: '20px' }}>Dimensional Check (20 samples)</h4>
           <div className="dimensional-samples-grid">
             {(() => {
-              const hd = heatDimData[activeHeatTab] || {};
+              const hNo = (heats[activeHeatTab]?.heatNo || heats[activeHeatTab]?.heat_no || `Heat-${activeHeatTab + 1}`).toString().trim().toUpperCase();
+              const hd = heatDimData[hNo] || {};
               const samples = hd.dimSamples || [];
               return samples.map((s, idx) => {
                 // Handle null or undefined sample objects

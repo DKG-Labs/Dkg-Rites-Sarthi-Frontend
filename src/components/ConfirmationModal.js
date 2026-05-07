@@ -29,17 +29,17 @@ const ConfirmationModal = ({
 
   const config = isDangerous
     ? {
-        color: '#ef4444',
-        headerBg: '#fef2f2',
-        borderColor: '#ef4444',
-        icon: '⚠️'
-      }
+      color: '#ef4444',
+      headerBg: '#fef2f2',
+      borderColor: '#ef4444',
+      icon: '⚠️'
+    }
     : {
-        color: '#f59e0b',
-        headerBg: '#fffbeb',
-        borderColor: '#f59e0b',
-        icon: '❓'
-      };
+      color: '#f59e0b',
+      headerBg: '#fffbeb',
+      borderColor: '#f59e0b',
+      icon: '❓'
+    };
 
   return (
     <div

@@ -503,11 +503,14 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
                 if (data?.chambers) {
                     data.chambers.forEach(chamber => {
                         chamber.benchGroups?.forEach(group => {
-                            group.sleepers?.forEach(sleeper => {
+                            const sList = group.sleeperList || group.sleepers || [];
+                            sList.forEach(item => {
+                                const s = typeof item === 'string' ? item : (item.sleeperNo || item.id);
+                                if (!s) return;
                                 list.push({
                                     bench: String(group.benchNo || ''),
-                                    no: String(sleeper),
-                                    label: String(sleeper)
+                                    no: String(s),
+                                    label: String(s)
                                 });
                             });
                         });
@@ -516,11 +519,14 @@ const DeclareSampleModal = ({ batch, onClose, onSave, isEdit }) => {
                 // Case 2: Long Line (Gangs)
                 if (data?.gangs) {
                     data.gangs.forEach(gang => {
-                        gang.sleepers?.forEach(sleeper => {
+                        const sList = gang.sleeperList || gang.sleepers || [];
+                        sList.forEach(item => {
+                            const s = typeof item === 'string' ? item : (item.sleeperNo || item.id);
+                            if (!s) return;
                             list.push({
                                 bench: String(gang.gangNo || ''),
-                                no: String(sleeper),
-                                label: String(sleeper)
+                                no: String(s),
+                                label: String(s)
                             });
                         });
                     });

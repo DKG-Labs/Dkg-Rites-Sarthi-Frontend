@@ -383,7 +383,18 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                 await apiService.saveMainIeInspectionBatch(batchPayload);
             }
             
-            // 3. Clear local draft on completion
+            // 3. Workflow Transition
+            const transitionPayload = {
+                workflowTransitionId: call.workflowTransitionId,
+                moduleId: call.moduleId || 0,
+                requestId: call.requestId,
+                action: actionName, 
+                remarks: actionName === 'PAUSE' ? "Inspection paused" : "Inspection performed from inspection screen",
+                actionBy: Number(user?.userId || 0)
+            };
+            await apiService.performTransitionAction(transitionPayload);
+
+            // 4. Clear local draft on completion
             if (actionName === 'FINISH') {
                 localStorage.removeItem(`inspection_draft_${call.requestId}`);
             }

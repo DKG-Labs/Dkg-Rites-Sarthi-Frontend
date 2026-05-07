@@ -18,6 +18,10 @@
       "dest": "http://20.168.13.113:8080/api/scada/scada"
     },
     {
+      "src": "/scada-proxy/api/scada/scada-data",
+      "dest": "http://20.168.13.113:8080/api/scada/scada-data"
+    },
+    {
       "src": "/sleeper/(.*)",
       "dest": "/sleeper/index.html"
     },

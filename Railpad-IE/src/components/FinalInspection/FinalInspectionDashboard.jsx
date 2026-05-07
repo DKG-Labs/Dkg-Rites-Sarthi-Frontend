@@ -79,12 +79,15 @@ const lots = [
 ];
 
 const FinalInspectionDashboard = ({ user, isShiftActive }) => {
+  console.log("Rendering FinalInspectionDashboard", { user, isShiftActive });
   const [activeTab, setActiveTab] = useState('visual');
   const [selectedLot, setSelectedLot] = useState('LOT-2024-001');
   const [reTestActive, setReTestActive] = useState(false);
   const [reOfferActive, setReOfferActive] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const activeRailpadType = lots.find(l => l.id === selectedLot)?.railpadType || 'GRSP';
+  
+  const activeLot = lots.find(l => l.id === selectedLot) || lots[0] || { railpadType: 'GRSP' };
+  const activeRailpadType = activeLot.railpadType || 'GRSP';
   
   // State Management for Dirty Form
   const [isDirty, setIsDirty] = useState(false);
@@ -298,7 +301,18 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
       { s20: { a: '', b: '', c: '', d: '' }, s90: { a: '', b: '', c: '', d: '' } },
       { s20: { a: '', b: '', c: '', d: '' }, s90: { a: '', b: '', c: '', d: '' } }
     ],
-    ncrgrsp: { peel: '', hpull: '', breaking: '', denier: '', epi: '', thickness: '', loadAtBreak: '', elongation: '', twists: '' }
+    ncrgrsp: {
+      adhesion: [
+        { peel: '', hpull: '' },
+        { peel: '', hpull: '' }
+      ],
+      breaking: ['', '', '', '', ''],
+      nylonCord: [
+        { denier: '', epi: '', thickness: '', loadAtBreak: '', elongation: '', twists: '' },
+        { denier: '', epi: '', thickness: '', loadAtBreak: '', elongation: '', twists: '' },
+        { denier: '', epi: '', thickness: '', loadAtBreak: '', elongation: '', twists: '' }
+      ]
+    }
   });
 
   // Browser Warning for Unsaved Changes
@@ -406,7 +420,18 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
         { s20: { a: '', b: '', c: '', d: '' }, s90: { a: '', b: '', c: '', d: '' } },
         { s20: { a: '', b: '', c: '', d: '' }, s90: { a: '', b: '', c: '', d: '' } }
       ],
-      ncrgrsp: { peel: '', hpull: '', breaking: '', denier: '', epi: '', thickness: '', loadAtBreak: '', elongation: '', twists: '' }
+      ncrgrsp: {
+        adhesion: [
+          { peel: '', hpull: '' },
+          { peel: '', hpull: '' }
+        ],
+        breaking: ['', '', '', '', ''],
+        nylonCord: [
+          { denier: '', epi: '', thickness: '', loadAtBreak: '', elongation: '', twists: '' },
+          { denier: '', epi: '', thickness: '', loadAtBreak: '', elongation: '', twists: '' },
+          { denier: '', epi: '', thickness: '', loadAtBreak: '', elongation: '', twists: '' }
+        ]
+      }
     });
   };
 
@@ -549,23 +574,27 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
   const notOk2 = getWeightNotOk(weightData.samples2);
   const totalNotOk = notOk1 + notOk2;
 
-  let weightStatus = 'PENDING';
   const filled1 = weightData.samples1.filter(v => v !== '').length;
-  
-  if (filled1 > 0 && filled1 < weightData.n1) {
-    weightStatus = 'PENDING';
+  let weightStatus = 'PENDING';
+
+  if (notOk1 >= weightData.re1) {
+    weightStatus = 'REJECTED';
   } else if (filled1 >= weightData.n1) {
-    if (notOk1 <= weightData.ac1) weightStatus = 'ACCEPTED';
-    else if (notOk1 >= weightData.re1) weightStatus = 'REJECTED';
-    else {
+    if (notOk1 <= weightData.ac1) {
+      weightStatus = 'ACCEPTED';
+    } else {
       weightStatus = '2ND SAMPLING';
       const filled2 = weightData.samples2.filter(v => v !== '').length;
-      if (filled2 > 0 && filled2 < weightData.n2) {
-        weightStatus = 'PENDING';
+      if (totalNotOk >= weightData.re2) {
+        weightStatus = 'REJECTED';
       } else if (filled2 >= weightData.n2) {
         weightStatus = totalNotOk <= weightData.ac2 ? 'ACCEPTED' : 'REJECTED';
+      } else {
+        weightStatus = 'PENDING';
       }
     }
+  } else {
+    weightStatus = filled1 > 0 ? 'UNDER TESTING' : 'PENDING';
   }
   
   const finalDecision = (visualResult === 'PASS' && dimensionalResult === 'PASS' && (weightStatus === 'ACCEPTED' || weightStatus === 'PENDING' || weightStatus === '2ND SAMPLING')) 
@@ -641,13 +670,13 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
   const filledLoad = [pad1Defl, pad2Defl].filter(d => d !== null).length;
 
   const physicalResults = {
-    hardness: (totalHardnessOut === 0 && filledHardness >= totalRequired) ? 'PASS' : (filledHardness >= totalRequired ? 'FAIL' : 'PENDING'),
-    tensile: filledTensile >= 5 ? (tensileOutCount === 0 ? 'PASS' : 'FAIL') : 'PENDING',
-    elongation: filledElongation >= 5 ? (elongationOutCount === 0 ? 'PASS' : 'FAIL') : 'PENDING',
-    modulus: filledModulus >= 3 ? (modulusOutCount === 0 ? 'PASS' : 'FAIL') : 'PENDING',
-    compression: filledCompression >= 3 ? (compressionOutCount === 0 ? 'PASS' : 'FAIL') : 'PENDING',
-    tension: filledTension >= 3 ? (tensionOutCount === 0 ? 'PASS' : 'FAIL') : 'PENDING',
-    load: filledLoad >= 2 ? (loadOutCount === 0 ? 'PASS' : 'FAIL') : 'PENDING'
+    hardness: totalHardnessOut > 0 ? 'FAIL' : (filledHardness >= totalRequired ? 'PASS' : 'PENDING'),
+    tensile: tensileOutCount > 0 ? 'FAIL' : (filledTensile >= 5 ? 'PASS' : 'PENDING'),
+    elongation: elongationOutCount > 0 ? 'FAIL' : (filledElongation >= 5 ? 'PASS' : 'PENDING'),
+    modulus: modulusOutCount > 0 ? 'FAIL' : (filledModulus >= 3 ? 'PASS' : 'PENDING'),
+    compression: compressionOutCount > 0 ? 'FAIL' : (filledCompression >= 3 ? 'PASS' : 'PENDING'),
+    tension: tensionOutCount > 0 ? 'FAIL' : (filledTension >= 3 ? 'PASS' : 'PENDING'),
+    load: loadOutCount > 0 ? 'FAIL' : (filledLoad >= 2 ? 'PASS' : 'PENDING')
   };
   const physicalFailedCount = Object.values(physicalResults).filter(r => r === 'FAIL').length;
   const physicalPendingCount = Object.values(physicalResults).filter(r => r === 'PENDING').length;
@@ -702,49 +731,63 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
   const ashFilled = isCGRSP ? elecData.ash.compoundA.filter((r, i) => r.crucible !== '' && r.sample !== '' && r.ash !== '' && elecData.ash.compoundB[i].crucible !== '' && elecData.ash.compoundB[i].sample !== '' && elecData.ash.compoundB[i].ash !== '').length : elecData.ash.compoundA.filter(r => r.crucible !== '' && r.sample !== '' && r.ash !== '').length;
 
   const elecResults = {
-    resistance: resFilled >= 3 ? (resOutCount === 0 ? 'PASS' : 'FAIL') : 'PENDING',
-    sg: sgFilled >= 3 ? (totalSGOut === 0 ? 'PASS' : 'FAIL') : 'PENDING',
-    ash: ashFilled >= 3 ? (totalAshOut === 0 ? 'PASS' : 'FAIL') : 'PENDING'
+    resistance: resOutCount > 0 ? 'FAIL' : (resFilled >= 3 ? 'PASS' : 'PENDING'),
+    sg: totalSGOut > 0 ? 'FAIL' : (sgFilled >= 3 ? 'PASS' : 'PENDING'),
+    ash: totalAshOut > 0 ? 'FAIL' : (ashFilled >= 3 ? 'PASS' : 'PENDING')
   };
   const elecFailedCount = Object.values(elecResults).filter(r => r === 'FAIL').length;
   const elecPendingCount = Object.values(elecResults).filter(r => r === 'PENDING').length;
   const elecDecision = elecPendingCount > 0 ? 'PENDING VERIFICATION' : (elecFailedCount === 0 ? 'LOT PASSED' : elecFailedCount === 1 ? 'RE-TEST REQUIRED' : 'PERMANENT REJECT');
 
-  // Tab 4 Logic
+  // Tab 4 Logic: Dynamic & Durability Tests (Specialized)
   const secantResults = specData.secant.map(s => {
-    const isS20Complete = Object.values(s.s20).every(v => v !== '');
-    const isS90Complete = Object.values(s.s90).every(v => v !== '');
+    const isS20Complete = s.s20 && Object.values(s.s20).every(v => v !== '');
+    const isS90Complete = s.s90 && Object.values(s.s90).every(v => v !== '');
     const d1 = isS20Complete ? (parseFloat(s.s20.a) + parseFloat(s.s20.b) + parseFloat(s.s20.c) + parseFloat(s.s20.d)) / 4 : 0;
     const d2 = isS90Complete ? (parseFloat(s.s90.a) + parseFloat(s.s90.b) + parseFloat(s.s90.c) + parseFloat(s.s90.d)) / 4 : 0;
-    const stiffness = (d1 > 0 && d2 > 0 && d2 !== d1) ? (70 / (d2 - d1)).toFixed(2) : 0;
+    const diff = d2 - d1;
+    const stiffness = (isS20Complete && isS90Complete && Math.abs(diff) > 0.0001) ? (70 / diff).toFixed(2) : 0;
     return { d1, d2, stiffness, isS20Complete, isS90Complete };
   });
 
-  const secantStatus = secantResults.some(r => !r.isS20Complete || !r.isS90Complete) ? 'PENDING' : 
-    (secantResults.every(r => r.stiffness >= 15 && r.stiffness <= 25) ? 'PASS' : 'FAIL');
+  const secantStatus = secantResults.some(r => r.stiffness !== 0 && (parseFloat(r.stiffness) < 15 || parseFloat(r.stiffness) > 25)) ? 'FAIL' : 
+    (secantResults.every(r => r.isS20Complete && r.isS90Complete) ? 'PASS' : 'PENDING');
 
-  const specResults = specType === 'CGRSP' ? {
-    adhesion: specData.adhesion.some(v => v === '') ? 'PENDING' : (specData.adhesion.every(v => v >= 8) ? 'PASS' : 'FAIL'),
+  const specResults = {
+    adhesion: specData.adhesion.some(v => v !== '' && parseFloat(v) < 8) ? 'FAIL' : (specData.adhesion.every(v => v !== '') ? 'PASS' : 'PENDING'),
     secant: secantStatus
-  } : {
-    peel: specData.ncrgrsp.peel === '' ? 'PENDING' : (specData.ncrgrsp.peel >= 15 ? 'PASS' : 'FAIL'),
-    hpull: specData.ncrgrsp.hpull === '' ? 'PENDING' : (specData.ncrgrsp.hpull >= 120 ? 'PASS' : 'FAIL'),
-    breaking: specData.ncrgrsp.breaking === '' ? 'PENDING' : (specData.ncrgrsp.breaking >= 500 ? 'PASS' : 'FAIL'),
-    cord: (specData.ncrgrsp.denier === '' || specData.ncrgrsp.epi === '' || specData.ncrgrsp.thickness === '' || specData.ncrgrsp.loadAtBreak === '' || specData.ncrgrsp.elongation === '' || specData.ncrgrsp.twists === '') ? 'PENDING' : (specData.ncrgrsp.denier >= 800 && specData.ncrgrsp.loadAtBreak >= 10 ? 'PASS' : 'FAIL')
   };
+
+  const ncrResults = {
+    adhesion: (specData.ncrgrsp && specData.ncrgrsp.adhesion) ? specData.ncrgrsp.adhesion.some(v => (v.peel !== '' && parseFloat(v.peel) < 4) || (v.hpull !== '' && parseFloat(v.hpull) < 10)) ? 'FAIL' : (specData.ncrgrsp.adhesion.every(v => v.peel !== '' && v.hpull !== '') ? 'PASS' : 'PENDING') : 'PENDING',
+    breaking: (specData.ncrgrsp && specData.ncrgrsp.breaking) ? specData.ncrgrsp.breaking.some(v => v !== '' && parseFloat(v) < 350) ? 'FAIL' : (specData.ncrgrsp.breaking.every(v => v !== '') ? 'PASS' : 'PENDING') : 'PENDING',
+    cord: (specData.ncrgrsp && specData.ncrgrsp.nylonCord) ? specData.ncrgrsp.nylonCord.some(v => 
+      (v.epi !== '' && (parseFloat(v.epi) < 22 || parseFloat(v.epi) > 26)) ||
+      (v.thickness !== '' && parseFloat(v.thickness) < 0.75) ||
+      (v.loadAtBreak !== '' && parseFloat(v.loadAtBreak) < 16) ||
+      (v.elongation !== '' && parseFloat(v.elongation) > 20) ||
+      (v.twists !== '' && (parseFloat(v.twists) < 380 || parseFloat(v.twists) > 400))
+    ) ? 'FAIL' : (specData.ncrgrsp.nylonCord.every(v => Object.values(v).every(x => x !== '')) ? 'PASS' : 'PENDING') : 'PENDING'
+  };
+
   const specFailedCount = Object.values(specResults).filter(r => r === 'FAIL').length;
   const specPendingCount = Object.values(specResults).filter(r => r === 'PENDING').length;
-  const specDecision = specPendingCount > 0 ? 'PENDING VERIFICATION' : (specFailedCount === 0 ? 'LOT PASSED' : specFailedCount === 1 ? 'RE-TEST REQUIRED' : 'PERMANENT REJECT');
+  const specDecision = specPendingCount > 0 && specFailedCount === 0 ? 'PENDING VERIFICATION' : (specFailedCount === 0 ? 'LOT PASSED' : specFailedCount === 1 ? 'RE-TEST REQUIRED' : 'PERMANENT REJECT');
+
+  const ncrFailedCount = Object.values(ncrResults).filter(r => r === 'FAIL').length;
+  const ncrPendingCount = Object.values(ncrResults).filter(r => r === 'PENDING').length;
+  const ncrDecision = ncrPendingCount > 0 && ncrFailedCount === 0 ? 'PENDING VERIFICATION' : (ncrFailedCount === 0 ? 'LOT PASSED' : ncrFailedCount === 1 ? 'RE-TEST REQUIRED' : 'PERMANENT REJECT');
 
   const activeLotData = lots.find(l => l.id === selectedLot) || lots[0];
 
   const filteredLots = lots.filter(lot => lot.id.toLowerCase().includes(searchTerm.toLowerCase()));
 
   const tabs = [
-    { id: 'visual', label: `Visual & Dimensional - ${activeRailpadType}` },
-    { id: 'physical', label: `Physical & Ageing Properties - ${activeRailpadType}` },
-    { id: 'electrical', label: `Electrical & Chemical - ${activeRailpadType}` },
-    { id: 'specialized', label: `Specialized Tests - ${activeRailpadType}` },
+    { id: 'visual', label: 'Visual & Dimensional' },
+    { id: 'physical', label: 'Physical & Ageing Properties' },
+    { id: 'electrical', label: 'Electrical & Chemical' },
+    { id: 'specialized', label: 'Dynamic & Durability Test' },
+    { id: 'ncrgrsp', label: 'NCRGRSP Test' },
   ];
 
   return (
@@ -2289,217 +2332,260 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
             )}
 
             {activeTab === 'specialized' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <section style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <h4 style={{ color: '#94a3b8', fontSize: '10px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>
-                      Specialized Configuration
-                    </h4>
-                    <div style={{ display: 'flex', gap: '8px', padding: '4px', background: '#f1f5f9', borderRadius: '12px', width: 'fit-content' }}>
-                      {['CGRSP', 'NCRGRSP'].map(t => (
-                        <button key={t} onClick={() => { setSpecType(t); markDirty(); }} style={{ padding: '6px 20px', borderRadius: '10px', border: 'none', background: specType === t ? 'white' : 'transparent', color: specType === t ? '#21808d' : '#64748b', fontSize: '12px', fontWeight: '800', cursor: 'pointer', boxShadow: specType === t ? '0 2px 4px rgba(0,0,0,0.05)' : 'none', transition: 'all 0.2s' }}>{t}</button>
-                      ))}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', animation: 'fadeIn 0.4s ease-out' }}>
+                {/* Adhesion Test */}
+                <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+                  <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>Adhesion Test</h3>
+                      <div style={{ fontSize: '11px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>FOR: {activeRailpadType} | Standard: ≥8 Kgf</div>
                     </div>
+                    <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: specResults.adhesion === 'PASS' ? '#dcfce7' : specResults.adhesion === 'FAIL' ? '#fef3c7' : '#fee2e2', color: specResults.adhesion === 'PASS' ? '#166534' : specResults.adhesion === 'FAIL' ? '#b45309' : '#991b1b' }}>{specResults.adhesion === 'FAIL' ? 'MARGINAL' : specResults.adhesion}</span>
                   </div>
-                </section>
+                  <div style={{ padding: '20px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr>
+                          {['Sample 1 (S1)', 'Sample 2 (S2)'].map(s => <th key={s} style={{ padding: '12px', textAlign: 'center', fontSize: '11px', color: '#64748b', fontWeight: '700', borderBottom: '2px solid #f1f5f9' }}>{s}</th>)}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          {specData.adhesion.map((v, i) => (
+                            <td key={i} style={{ padding: '12px', border: '1px solid #f1f5f9' }}>
+                              <input type="number" value={v} onChange={(e) => {
+                                const val = e.target.value;
+                                const newA = [...specData.adhesion];
+                                newA[i] = val === '' ? '' : Math.max(0, parseFloat(val) || 0);
+                                setSpecData(prev => ({ ...prev, adhesion: newA }));
+                                markDirty();
+                              }} style={{ width: '100%', padding: '12px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '16px', background: v !== '' && v < 8 ? '#fef2f2' : 'transparent', color: v !== '' && v < 8 ? '#ef4444' : '#21808d' }} />
+                            </td>
+                          ))}
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
 
-                {specType === 'CGRSP' ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    {/* 2.2.1 Adhesion Strength */}
-                    <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
-                      <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>Adhesion Test</h3>
-                          <div style={{ fontSize: '11px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>FOR: {activeRailpadType} | Standard: ≥8 Kgf</div>
-                        </div>
-                        <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: specResults.adhesion === 'PASS' ? '#dcfce7' : specResults.adhesion === 'FAIL' ? '#fef3c7' : '#fee2e2', color: specResults.adhesion === 'PASS' ? '#166534' : specResults.adhesion === 'FAIL' ? '#b45309' : '#991b1b' }}>{specResults.adhesion === 'FAIL' ? 'MARGINAL' : specResults.adhesion}</span>
-                      </div>
-                      <div style={{ padding: '20px' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                          <thead>
-                            <tr>
-                              {['Sample 1 (S1)', 'Sample 2 (S2)'].map(s => <th key={s} style={{ padding: '12px', textAlign: 'center', fontSize: '11px', color: '#64748b', fontWeight: '700', borderBottom: '2px solid #f1f5f9' }}>{s}</th>)}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr>
-                              {specData.adhesion.map((v, i) => (
-                                <td key={i} style={{ padding: '12px', border: '1px solid #f1f5f9' }}>
-                                  <input type="number" value={v} onChange={(e) => {
-                                    const val = e.target.value;
-                                    const newA = [...specData.adhesion];
-                                    newA[i] = val === '' ? '' : Math.max(0, parseFloat(val) || 0);
-                                    setSpecData(prev => ({ ...prev, adhesion: newA }));
-                                    markDirty();
-                                  }} style={{ width: '100%', padding: '12px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '16px', background: v !== '' && v < 8 ? '#fef2f2' : 'transparent', color: v !== '' && v < 8 ? '#ef4444' : '#21808d' }} />
+                {/* Secant Stiffness */}
+                <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+                  <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>Secant Stiffness</h3>
+                      <div style={{ fontSize: '11px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>FOR: {activeRailpadType} | Standard: 15 - 25 kN/mm</div>
+                    </div>
+                    <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: specResults.secant === 'PASS' ? '#dcfce7' : specResults.secant === 'FAIL' ? '#fef3c7' : '#fee2e2', color: specResults.secant === 'PASS' ? '#166534' : specResults.secant === 'FAIL' ? '#b45309' : '#991b1b' }}>{specResults.secant === 'FAIL' ? 'MARGINAL' : specResults.secant}</span>
+                  </div>
+                  <div style={{ padding: '20px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr>
+                          <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Sample No.</th>
+                          <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Load (kN)</th>
+                          <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>A (mm)</th>
+                          <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>B (mm)</th>
+                          <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>C (mm)</th>
+                          <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>D (mm)</th>
+                          <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b', background: '#f8fafc' }}>Mean Value</th>
+                          <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b', background: '#f1f5f9' }}>Static Secant Stiffness</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {specData.secant.map((sample, sIdx) => {
+                          const res = secantResults[sIdx];
+                          return (
+                            <React.Fragment key={sIdx}>
+                              <tr>
+                                <td rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '800', color: '#475569' }}>{sIdx + 1}</td>
+                                <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '800', color: '#64748b' }}>20</td>
+                                {['a', 'b', 'c', 'd'].map(key => (
+                                  <td key={key} style={{ padding: '2px', border: '1px solid #e2e8f0' }}>
+                                    <input type="number" value={sample.s20[key]} onChange={(e) => {
+                                      const newVal = [...specData.secant];
+                                      newVal[sIdx].s20[key] = e.target.value;
+                                      setSpecData(prev => ({ ...prev, secant: newVal }));
+                                      markDirty();
+                                    }} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                                  </td>
+                                ))}
+                                <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: '#21808d', background: '#f8fafc' }}>{res.isS20Complete ? res.d1.toFixed(3) : '-'}</td>
+                                <td rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: res.stiffness >= 15 && res.stiffness <= 25 ? '#166534' : '#ef4444', background: '#f1f5f9', fontSize: '18px' }}>
+                                  {res.stiffness > 0 ? res.stiffness : '-'}
                                 </td>
-                              ))}
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-
-                    {/* 2.2.2 Secant Stiffness */}
-                    <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
-                      <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>Secant Stiffness</h3>
-                          <div style={{ fontSize: '11px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>FOR: {activeRailpadType} | Standard: 15 - 25 kN/mm</div>
-                        </div>
-                        <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: specResults.secant === 'PASS' ? '#dcfce7' : specResults.secant === 'FAIL' ? '#fef3c7' : '#fee2e2', color: specResults.secant === 'PASS' ? '#166534' : specResults.secant === 'FAIL' ? '#b45309' : '#991b1b' }}>{specResults.secant === 'FAIL' ? 'MARGINAL' : specResults.secant}</span>
-                      </div>
-                      <div style={{ padding: '20px' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                          <thead>
-                            <tr>
-                              <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Sample No.</th>
-                              <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Load (kN)</th>
-                              <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>A (mm)</th>
-                              <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>B (mm)</th>
-                              <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>C (mm)</th>
-                              <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>D (mm)</th>
-                              <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b', background: '#f8fafc' }}>Mean Value</th>
-                              <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b', background: '#f1f5f9' }}>Static Secant Stiffness</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {specData.secant.map((sample, sIdx) => {
-                              const res = secantResults[sIdx];
-                              return (
-                                <React.Fragment key={sIdx}>
-                                  <tr>
-                                    <td rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '800', color: '#475569' }}>{sIdx + 1}</td>
-                                    <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '800', color: '#64748b' }}>20</td>
-                                    {['a', 'b', 'c', 'd'].map(key => (
-                                      <td key={key} style={{ padding: '2px', border: '1px solid #e2e8f0' }}>
-                                        <input type="number" value={sample.s20[key]} onChange={(e) => {
-                                          const newVal = [...specData.secant];
-                                          newVal[sIdx].s20[key] = e.target.value;
-                                          setSpecData(prev => ({ ...prev, secant: newVal }));
-                                          markDirty();
-                                        }} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
-                                      </td>
-                                    ))}
-                                    <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: '#21808d', background: '#f8fafc' }}>{res.isS20Complete ? res.d1.toFixed(3) : '-'}</td>
-                                    <td rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: res.stiffness >= 15 && res.stiffness <= 25 ? '#166534' : '#ef4444', background: '#f1f5f9', fontSize: '18px' }}>
-                                      {res.stiffness > 0 ? res.stiffness : '-'}
-                                    </td>
-                                  </tr>
-                                  <tr>
-                                    <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '800', color: '#64748b' }}>90</td>
-                                    {['a', 'b', 'c', 'd'].map(key => (
-                                      <td key={key} style={{ padding: '2px', border: '1px solid #e2e8f0' }}>
-                                        <input type="number" value={sample.s90[key]} onChange={(e) => {
-                                          const newVal = [...specData.secant];
-                                          newVal[sIdx].s90[key] = e.target.value;
-                                          setSpecData(prev => ({ ...prev, secant: newVal }));
-                                          markDirty();
-                                        }} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
-                                      </td>
-                                    ))}
-                                    <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: '#21808d', background: '#f8fafc' }}>{res.isS90Complete ? res.d2.toFixed(3) : '-'}</td>
-                                  </tr>
-                                </React.Fragment>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '800', color: '#64748b' }}>90</td>
+                                {['a', 'b', 'c', 'd'].map(key => (
+                                  <td key={key} style={{ padding: '2px', border: '1px solid #e2e8f0' }}>
+                                    <input type="number" value={sample.s90[key]} onChange={(e) => {
+                                      const newVal = [...specData.secant];
+                                      newVal[sIdx].s90[key] = e.target.value;
+                                      setSpecData(prev => ({ ...prev, secant: newVal }));
+                                      markDirty();
+                                    }} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                                  </td>
+                                ))}
+                                <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: '#21808d', background: '#f8fafc' }}>{res.isS90Complete ? res.d2.toFixed(3) : '-'}</td>
+                              </tr>
+                            </React.Fragment>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    {/* NCRGRSP Nylon Cord / Reinforcement Tests */}
-                    <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
-                      <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>Reinforcement & Cord Analysis</h3>
-                          <div style={{ fontSize: '11px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>FOR: {activeRailpadType} | Material: Reinforced Rubber</div>
-                        </div>
-                        <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: specResults.peel === 'PASS' ? '#dcfce7' : specResults.peel === 'FAIL' ? '#fef3c7' : '#fee2e2', color: specResults.peel === 'PASS' ? '#166534' : specResults.peel === 'FAIL' ? '#b45309' : '#991b1b' }}>{specResults.peel === 'FAIL' ? 'MARGINAL' : specResults.peel}</span>
-                      </div>
-                      <div style={{ padding: '24px' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
-                          {/* Adhesion Section */}
-                          <div style={{ padding: '20px', borderRadius: '16px', background: '#f0fdfa', border: '1px solid #ccfbf1' }}>
-                            <h4 style={{ margin: '0 0 16px 0', fontSize: '12px', fontWeight: '900', color: '#134e4a', borderBottom: '1px solid #99f6e4', paddingBottom: '8px' }}>ADHESION TESTS</h4>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                              {[
-                                { label: 'Peel Adhesion', key: 'peel', limit: '≥ 15 kN/m' },
-                                { label: 'H-Pull Strength', key: 'hpull', limit: '≥ 120 N' }
-                              ].map(test => (
-                                <div key={test.key}>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', fontWeight: '800', marginBottom: '4px' }}>
-                                    <span style={{ color: '#64748b' }}>{test.label}</span>
-                                    <span style={{ color: '#94a3b8' }}>{test.limit}</span>
-                                  </div>
-                                  <input type="number" value={specData.ncrgrsp[test.key]} onChange={(e) => { const val = e.target.value; setSpecData(prev => ({ ...prev, ncrgrsp: { ...prev.ncrgrsp, [test.key]: val } })); markDirty(); }} style={{ width: '100%', padding: '10px', border: '1px solid #99f6e4', borderRadius: '8px', fontWeight: '900', fontSize: '14px', background: 'white' }} />
-                                </div>
-                              ))}
-                            </div>
-                          </div>
+                </div>
 
-                          {/* Mechanical Strength */}
-                          <div style={{ padding: '20px', borderRadius: '16px', background: '#fef2f2', border: '1px solid #fee2e2' }}>
-                            <h4 style={{ margin: '0 0 16px 0', fontSize: '12px', fontWeight: '900', color: '#991b1b', borderBottom: '1px solid #fecaca', paddingBottom: '8px' }}>MECHANICAL STRENGTH</h4>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                              {[
-                                { label: 'Breaking Load', key: 'breaking', limit: '≥ 500 N' },
-                                { label: 'Load at Break', key: 'loadAtBreak', limit: '-' }
-                              ].map(test => (
-                                <div key={test.key}>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', fontWeight: '800', marginBottom: '4px' }}>
-                                    <span style={{ color: '#64748b' }}>{test.label}</span>
-                                    <span style={{ color: '#94a3b8' }}>{test.limit}</span>
-                                  </div>
-                                  <input type="number" value={specData.ncrgrsp[test.key]} onChange={(e) => { const val = e.target.value; setSpecData(prev => ({ ...prev, ncrgrsp: { ...prev.ncrgrsp, [test.key]: val } })); markDirty(); }} style={{ width: '100%', padding: '10px', border: '1px solid #fecaca', borderRadius: '8px', fontWeight: '900', fontSize: '14px', background: 'white' }} />
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Cord Analysis */}
-                          <div style={{ padding: '20px', borderRadius: '16px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                            <h4 style={{ margin: '0 0 16px 0', fontSize: '12px', fontWeight: '900', color: '#1e293b', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>CORD/FABRIC ANALYSIS</h4>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                              {[
-                                { label: 'Denier', key: 'denier' },
-                                { label: 'EPI', key: 'epi' },
-                                { label: 'Thickness', key: 'thickness' },
-                                { label: 'Elongation %', key: 'elongation' },
-                                { label: 'Twists/M', key: 'twists' }
-                              ].map(test => (
-                                <div key={test.key}>
-                                  <label style={{ display: 'block', fontSize: '9px', fontWeight: '800', color: '#64748b', marginBottom: '2px' }}>{test.label}</label>
-                                  <input type="number" value={specData.ncrgrsp[test.key]} onChange={(e) => { const val = e.target.value; setSpecData(prev => ({ ...prev, ncrgrsp: { ...prev.ncrgrsp, [test.key]: val } })); markDirty(); }} style={{ width: '100%', padding: '8px', border: '1px solid #e2e8f0', borderRadius: '6px', fontWeight: '800', fontSize: '13px', background: 'white' }} />
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Layer 3: Specialized Decision */}
+                {/* Specialized Decision */}
                 {specDecision !== 'PENDING VERIFICATION' && (
-                  <section style={{ 
-                    background: specDecision === 'LOT PASSED' ? '#0f172a' : specDecision.includes('PERMANENT') ? '#991b1b' : '#21808d', 
-                    padding: '16px 24px', 
-                    borderRadius: '16px', 
-                    color: 'white'
-                  }}>
+                  <section style={{ background: specDecision === 'LOT PASSED' ? '#0f172a' : specDecision.includes('PERMANENT') ? '#991b1b' : '#21808d', padding: '16px 24px', borderRadius: '16px', color: 'white' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
-                        <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px', fontWeight: '800' }}>Tab 4 Final Decision Engine</div>
+                        <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px', fontWeight: '800' }}>Tab 4 Final Decision</div>
                         <div style={{ fontSize: '24px', fontWeight: '900' }}>{specDecision}</div>
                       </div>
                       {specFailedCount === 1 && (
-                        <button style={{ background: 'white', color: '#21808d', border: 'none', padding: '10px 20px', borderRadius: '10px', fontWeight: '800', fontSize: '13px' }}>
-                          INITIATE RE-TEST
-                        </button>
+                        <button style={{ background: 'white', color: '#21808d', border: 'none', padding: '10px 20px', borderRadius: '10px', fontWeight: '800', fontSize: '13px' }}>INITIATE RE-TEST</button>
+                      )}
+                    </div>
+                  </section>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'ncrgrsp' && specData.ncrgrsp && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', animation: 'fadeIn 0.4s ease-out' }}>
+                {/* Adhesion Test */}
+                <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+                  <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>Adhesion Test</h3>
+                      <div style={{ fontSize: '11px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>Limit: Peel ≥ 4.0 Kgf | H-Pull ≥ 10 Kgf</div>
+                    </div>
+                    <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: ncrResults.adhesion === 'PASS' ? '#dcfce7' : ncrResults.adhesion === 'FAIL' ? '#fef3c7' : '#fee2e2', color: ncrResults.adhesion === 'PASS' ? '#166534' : ncrResults.adhesion === 'FAIL' ? '#b45309' : '#991b1b' }}>{ncrResults.adhesion === 'FAIL' ? 'MARGINAL' : ncrResults.adhesion}</span>
+                  </div>
+                  <div style={{ padding: '20px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr>
+                          <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Sample No.</th>
+                          <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>Peel Adhesion (Kgf)</th>
+                          <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>H-Pull Test (Kgf)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {specData.ncrgrsp.adhesion && specData.ncrgrsp.adhesion.map((row, idx) => (
+                          <tr key={idx}>
+                            <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '800', color: '#475569' }}>S{idx + 1}</td>
+                            <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
+                              <input type="number" value={row.peel} onChange={(e) => {
+                                const newVal = [...specData.ncrgrsp.adhesion];
+                                newVal[idx].peel = e.target.value;
+                                setSpecData(prev => ({ ...prev, ncrgrsp: { ...prev.ncrgrsp, adhesion: newVal } }));
+                                markDirty();
+                              }} style={{ width: '100%', padding: '10px', border: 'none', textAlign: 'center', fontWeight: '900', fontSize: '15px', color: row.peel !== '' && row.peel < 4 ? '#ef4444' : '#21808d' }} />
+                            </td>
+                            <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
+                              <input type="number" value={row.hpull} onChange={(e) => {
+                                const newVal = [...specData.ncrgrsp.adhesion];
+                                newVal[idx].hpull = e.target.value;
+                                setSpecData(prev => ({ ...prev, ncrgrsp: { ...prev.ncrgrsp, adhesion: newVal } }));
+                                markDirty();
+                              }} style={{ width: '100%', padding: '10px', border: 'none', textAlign: 'center', fontWeight: '900', fontSize: '15px', color: row.hpull !== '' && row.hpull < 10 ? '#ef4444' : '#21808d' }} />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Breaking Load */}
+                <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+                  <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>Breaking Load</h3>
+                      <div style={{ fontSize: '11px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>Limit: 350 Kgf Min</div>
+                    </div>
+                    <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: ncrResults.breaking === 'PASS' ? '#dcfce7' : ncrResults.breaking === 'FAIL' ? '#fef3c7' : '#fee2e2', color: ncrResults.breaking === 'PASS' ? '#166534' : ncrResults.breaking === 'FAIL' ? '#b45309' : '#991b1b' }}>{ncrResults.breaking === 'FAIL' ? 'MARGINAL' : ncrResults.breaking}</span>
+                  </div>
+                  <div style={{ padding: '20px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr>
+                          {['S1', 'S2', 'S3', 'S4', 'S5'].map(s => <th key={s} style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>{s}</th>)}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          {specData.ncrgrsp.breaking && specData.ncrgrsp.breaking.map((v, i) => (
+                            <td key={i} style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
+                              <input type="number" value={v} onChange={(e) => {
+                                const newVal = [...specData.ncrgrsp.breaking];
+                                newVal[i] = e.target.value;
+                                setSpecData(prev => ({ ...prev, ncrgrsp: { ...prev.ncrgrsp, breaking: newVal } }));
+                                markDirty();
+                              }} style={{ width: '100%', padding: '10px', border: 'none', textAlign: 'center', fontWeight: '900', fontSize: '15px', color: v !== '' && v < 350 ? '#ef4444' : '#21808d' }} />
+                            </td>
+                          ))}
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Physical Properties of Nylon Cord */}
+                <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+                  <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>Physical Properties of Nylon Cord</h3>
+                    </div>
+                    <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: ncrResults.cord === 'PASS' ? '#dcfce7' : ncrResults.cord === 'FAIL' ? '#fef3c7' : '#fee2e2', color: ncrResults.cord === 'PASS' ? '#166534' : ncrResults.cord === 'FAIL' ? '#b45309' : '#991b1b' }}>{ncrResults.cord === 'FAIL' ? 'MARGINAL' : ncrResults.cord}</span>
+                  </div>
+                  <div style={{ padding: '20px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr>
+                          <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Sample</th>
+                          <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Denier (gm/9000m)</th>
+                          <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>No. of end/inch (22-26)</th>
+                          <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Thickness (0.75 min)</th>
+                          <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Load at Break (16 min)</th>
+                          <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Elongation (20% max)</th>
+                          <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Twists/m (380-400)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {specData.ncrgrsp.nylonCord && specData.ncrgrsp.nylonCord.map((row, idx) => (
+                          <tr key={idx}>
+                            <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '800', color: '#475569' }}>S{idx + 1}</td>
+                            {Object.keys(row).map(key => (
+                              <td key={key} style={{ padding: '2px', border: '1px solid #e2e8f0' }}>
+                                <input type="number" value={row[key]} onChange={(e) => {
+                                  const newVal = [...specData.ncrgrsp.nylonCord];
+                                  newVal[idx][key] = e.target.value;
+                                  setSpecData(prev => ({ ...prev, ncrgrsp: { ...prev.ncrgrsp, nylonCord: newVal } }));
+                                  markDirty();
+                                }} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* NCR Decision */}
+                {ncrDecision !== 'PENDING VERIFICATION' && (
+                  <section style={{ background: ncrDecision === 'LOT PASSED' ? '#0f172a' : ncrDecision.includes('PERMANENT') ? '#991b1b' : '#21808d', padding: '16px 24px', borderRadius: '16px', color: 'white' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px', fontWeight: '800' }}>NCRGRSP Final Decision</div>
+                        <div style={{ fontSize: '24px', fontWeight: '900' }}>{ncrDecision}</div>
+                      </div>
+                      {ncrFailedCount === 1 && (
+                        <button style={{ background: 'white', color: '#21808d', border: 'none', padding: '10px 20px', borderRadius: '10px', fontWeight: '800', fontSize: '13px' }}>INITIATE RE-TEST</button>
                       )}
                     </div>
                   </section>

@@ -149,16 +149,14 @@ const PortalHome = ({ user, onModuleSelect, isShiftActive }) => {
           {/* Rail Pad Final Inspection Card */}
           <div 
             onClick={() => {
-              if (isShiftActive) {
-                onModuleSelect('FINAL_INSPECTION');
-              }
+              onModuleSelect('FINAL_INSPECTION');
             }}
             style={{
               background: '#ffffff',
               border: '1px solid #e5e7eb',
               borderRadius: '10px',
               padding: '12px 16px',
-              cursor: isShiftActive ? 'pointer' : 'default',
+              cursor: 'pointer',
               transition: 'all 0.2s ease',
               display: 'flex',
               alignItems: 'center',
@@ -166,16 +164,14 @@ const PortalHome = ({ user, onModuleSelect, isShiftActive }) => {
               height: '85px',
               boxSizing: 'border-box',
               boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-              opacity: isShiftActive ? 1 : 0.7,
+              opacity: 1,
               position: 'relative'
             }}
             onMouseEnter={e => {
-              if (isShiftActive) {
-                e.currentTarget.style.background = '#f5f3ff';
-                e.currentTarget.style.borderColor = '#8b5cf6';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
-              }
+              e.currentTarget.style.background = '#f5f3ff';
+              e.currentTarget.style.borderColor = '#8b5cf6';
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
             }}
             onMouseLeave={e => {
               e.currentTarget.style.background = '#ffffff';
@@ -183,7 +179,7 @@ const PortalHome = ({ user, onModuleSelect, isShiftActive }) => {
               e.currentTarget.style.transform = 'translateY(0)';
               e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
             }}
-            title={!isShiftActive ? 'Please start duty to access final inspection' : ''}
+            title=""
           >
             <div style={{
               display: 'flex',
@@ -218,36 +214,16 @@ const PortalHome = ({ user, onModuleSelect, isShiftActive }) => {
               flexShrink: 0,
               position: 'relative'
             }}>
-              {!isShiftActive && (
-                <div style={{
-                  position: 'absolute',
-                  top: '-10px',
-                  right: '-10px',
-                  background: '#ef4444',
-                  color: 'white',
-                  borderRadius: '50%',
-                  width: '20px',
-                  height: '20px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '12px',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                  zIndex: 2
-                }}>
-                  🔒
-                </div>
-              )}
               <div style={{
                 width: '40px',
                 height: '40px',
-                background: isShiftActive ? 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)' : '#f1f5f9',
+                background: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)',
                 borderRadius: '12px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: isShiftActive ? '#7c3aed' : '#94a3b8',
-                boxShadow: isShiftActive ? '0 4px 6px -1px rgba(124, 58, 237, 0.15)' : 'none',
+                color: '#7c3aed',
+                boxShadow: '0 4px 6px -1px rgba(124, 58, 237, 0.15)',
                 border: '1px solid rgba(255, 255, 255, 0.8)'
               }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

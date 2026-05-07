@@ -171,8 +171,16 @@ const MaterialTestingPage = ({ onBack, heats = [], productModel, onNavigateSubmo
 
   // Helper to check if material data is essentially empty
   const isMaterialDataEmpty = useCallback((data) => {
-    if (!data || !Array.isArray(data)) return true;
-    return data.every(heat => 
+    if (!data) return true;
+    
+    // Handle both Object and Array formats
+    const heatEntries = typeof data === 'object' && !Array.isArray(data) 
+      ? Object.values(data) 
+      : (Array.isArray(data) ? data : []);
+      
+    if (heatEntries.length === 0) return true;
+
+    return heatEntries.every(heat => 
       heat.samples?.every(sample => 
         !sample.c && !sample.si && !sample.mn && !sample.p && !sample.s && 
         !sample.grainSize && !sample.hardness && !sample.decarb && !sample.remarks &&
@@ -247,7 +255,7 @@ const MaterialTestingPage = ({ onBack, heats = [], productModel, onNavigateSubmo
       if (!inspectionCallNo) return;
 
       // Check if localStorage already has MEANINGFUL data
-      const storageKey = `${STORAGE_KEY}_${inspectionCallNo}`;
+      const storageKey = `${STORAGE_KEY}_${inspectionCallNo}${getShiftSuffix()}`;
       const existingLocalData = localStorage.getItem(storageKey);
 
       if (existingLocalData) {

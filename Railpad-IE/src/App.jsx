@@ -199,11 +199,7 @@ const App = () => {
               setSelectedModule('batch-prep');
               setActiveCard('raw-material');
             } else if (moduleId === 'FINAL_INSPECTION') {
-              if (isShiftActive) {
-                setActiveItem('FINAL_INSPECTION');
-              } else {
-                console.warn('Attempted to access Final Inspection without active shift.');
-              }
+              setActiveItem('FINAL_INSPECTION');
             } else {
               setActiveItem(moduleId);
             }

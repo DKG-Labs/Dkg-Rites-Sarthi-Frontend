@@ -51,6 +51,39 @@ const getShiftSuffix = () => {
   return shift ? `_${shift}` : '';
 };
 
+/**
+ * Robust helper to retrieve submodule data for a specific heat
+ * Supports both the NEW Object format (keyed by heatNo) and OLD Array format (index-based)
+ */
+const getHeatData = (storageData, hNo, idx, consolidatedHeats = []) => {
+  if (!storageData) return null;
+  const nhNo = (hNo || '').toString().trim().toUpperCase();
+
+  // 1. Support NEW Object Format (keyed by heatNo)
+  if (typeof storageData === 'object' && !Array.isArray(storageData)) {
+    if (storageData[nhNo]) return storageData[nhNo];
+  }
+
+  // 2. Support OLD Array Format (fallback to index match in consolidatedHeats)
+  if (Array.isArray(storageData)) {
+    // If we have consolidatedHeats, try to find the actual index for this heat number
+    if (consolidatedHeats.length > 0) {
+      const foundIndex = consolidatedHeats.findIndex(h =>
+        (h.heatNo || h.heat_no || '').toString().trim().toUpperCase() === nhNo
+      );
+      if (foundIndex !== -1 && foundIndex < storageData.length) {
+        return storageData[foundIndex];
+      }
+    }
+    // Final fallback: use provided index
+    if (idx !== undefined && idx !== null && idx < storageData.length) {
+      return storageData[idx];
+    }
+  }
+
+  return null;
+};
+
 const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChange, onProductModelChange, onLadleValuesChange }) => {
   // Import cache functions from context
   const {
@@ -290,8 +323,10 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         if (cachedData.callData) setFetchedCallData(cachedData.callData);
         if (cachedData.heatData) {
           // Merge color codes into cached heat data
-          const heatsWithColorCodes = cachedData.heatData.map(heat => ({
+          const heatsWithColorCodes = cachedData.heatData.map((heat, index) => ({
             ...heat,
+            // Ensure isPersisted is set even if cache is old
+            isPersisted: heat.isPersisted !== undefined ? heat.isPersisted : (!!heat.id && (typeof heat.id !== 'number' || heat.id > 50)),
             colorCode: savedColorCodes[heat.heatNo] || heat.colorCode || ''
           }));
           setFetchedHeatData(heatsWithColorCodes);
@@ -380,6 +415,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
               const heatNo = heat.heatNumber || '';
               return {
                 id: heat.id || index + 1,
+                isPersisted: !!heat.id, // Flag to indicate if this heat has a database ID
                 heatNo,
                 weight: heat.offeredQty || '',
                 tcNo: heat.tcNumber || '',
@@ -525,90 +561,82 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           }).filter(Boolean);
         };
 
-        // 1. Restore Visual Inspection - Per Heat Merge (Prioritize Heat Number)
+        // 1. Restore Visual Inspection - Per Heat Merge (Robust Heat Matching)
         if (pausedData.visualInspectionData?.length > 0) {
           const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${callNo}${getShiftSuffix()}`;
           const existingRaw = localStorage.getItem(visualKey);
-          let visualArray = existingRaw ? JSON.parse(existingRaw) : [];
-          if (!Array.isArray(visualArray)) visualArray = [];
+          let visualData = existingRaw ? JSON.parse(existingRaw) : {};
 
           let visualRestored = false;
           pausedData.visualInspectionData.forEach((item) => {
-            // STRICT Match by Heat Number (Robust)
+            const hNo = (item.heatNo || '').toString().trim().toUpperCase();
+            if (!hNo) return;
+
+            // Find heat index for legacy fallback and local empty check
             let hIdx = consolidatedHeats.findIndex(h =>
-              (h.heatNo || h.heat_no || '').toString().trim().toUpperCase() ===
-              (item.heatNo || '').toString().trim().toUpperCase()
+              (h.heatNo || h.heat_no || '').toString().trim().toUpperCase() === hNo
             );
 
-            // Log if we couldn't match a heat from the backend
-            if (hIdx === -1) {
-              console.warn(`[Visual Restoration] Could not match backend heat ${item.heatNo} to current heats.`);
-              return;
-            }
+            // Use the robust helper logic to check if local data for this heat is empty
+            const localHeat = getHeatData(visualData, hNo, hIdx, consolidatedHeats);
+            const isLocalEmpty = !localHeat || (
+              (!localHeat.selectedDefects || Object.keys(localHeat.selectedDefects).length === 0) &&
+              (!localHeat.defectCounts || Object.keys(localHeat.defectCounts).length === 0)
+            );
 
-            if (hIdx !== -1 && hIdx !== undefined && hIdx !== null) {
-              // Check if local data for this heat index is empty
-              const localHeat = visualArray[hIdx];
-              const isLocalEmpty = !localHeat || (
-                (!localHeat.selectedDefects || Object.keys(localHeat.selectedDefects).length === 0) &&
-                (!localHeat.defectCounts || Object.keys(localHeat.defectCounts).length === 0)
-              );
+            if (isLocalEmpty) {
+              const selectedDefects = {}; const defectCounts = {};
+              if (item.defects) Object.entries(item.defects).forEach(([k, v]) => { if (v) selectedDefects[k] = true; });
+              if (item.defectLengths) Object.entries(item.defectLengths).forEach(([k, v]) => { if (v != null) defectCounts[k] = v; });
 
-              if (isLocalEmpty) {
-                const selectedDefects = {}; const defectCounts = {};
-                if (item.defects) Object.entries(item.defects).forEach(([k, v]) => { if (v) selectedDefects[k] = true; });
-                if (item.defectLengths) Object.entries(item.defectLengths).forEach(([k, v]) => { if (v != null) defectCounts[k] = v; });
-
-                visualArray[hIdx] = { selectedDefects, defectCounts };
-                visualRestored = true;
-              }
+              // Save in Object format (heatNo as key) for maximum stability
+              visualData[hNo] = { selectedDefects, defectCounts };
+              visualRestored = true;
             }
           });
 
           if (visualRestored) {
-            localStorage.setItem(visualKey, JSON.stringify(visualArray));
+            localStorage.setItem(visualKey, JSON.stringify(visualData));
             restoredAny = true;
           }
         }
 
-        // 2. Restore Dimensional Check - Per Heat Merge (Prioritize Heat Number)
+        // 2. Restore Dimensional Check - Per Heat Merge (Robust Heat Matching)
         if (pausedData.dimensionalCheckData?.length > 0) {
           const dimKey = `${STORAGE_KEYS.DIMENSIONAL_CHECK}_${callNo}${getShiftSuffix()}`;
           const existingRaw = localStorage.getItem(dimKey);
-          const existingData = existingRaw ? JSON.parse(existingRaw) : { heatDimData: [] };
-          let heatDimData = Array.isArray(existingData.heatDimData) ? existingData.heatDimData : [];
+          const existingData = existingRaw ? JSON.parse(existingRaw) : { heatDimData: {} };
+          
+          // Support both legacy array and new object formats for internal storage
+          let heatDimData = existingData.heatDimData || {};
 
           let dimRestored = false;
           pausedData.dimensionalCheckData.forEach(item => {
-            // STRICT Match by Heat Number
+            const hNo = (item.heatNo || '').toString().trim().toUpperCase();
+            if (!hNo) return;
+
             let hIdx = consolidatedHeats.findIndex(h =>
-              (h.heatNo || h.heat_no || '').toString().trim().toUpperCase() ===
-              (item.heatNo || '').toString().trim().toUpperCase()
+              (h.heatNo || h.heat_no || '').toString().trim().toUpperCase() === hNo
             );
 
-            if (hIdx === -1) {
-              console.warn(`[Dimensional Restoration] Could not match backend heat ${item.heatNo} to current heats.`);
-              return;
-            }
+            const localHeat = getHeatData(heatDimData, hNo, hIdx, consolidatedHeats);
+            const isLocalEmpty = !localHeat || !localHeat.dimSamples || localHeat.dimSamples.every(s => !s || s.diameter == null);
 
-            if (hIdx !== -1 && hIdx !== undefined && hIdx !== null) {
-              const localHeat = heatDimData.find(h => h.heatIndex === hIdx);
-              const isLocalEmpty = !localHeat || !localHeat.dimSamples || localHeat.dimSamples.every(s => !s || s.diameter == null);
+            if (isLocalEmpty) {
+              const newHeatEntry = {
+                heatNo: item.heatNo,
+                heatIndex: hIdx,
+                dimSamples: (item.sampleDiameters || []).map(d => d != null ? { diameter: d } : null)
+              };
 
-              if (isLocalEmpty) {
-                const newHeatData = {
-                  heatNo: item.heatNo,
-                  heatIndex: hIdx,
-                  dimSamples: (item.sampleDiameters || []).map(d => d != null ? { diameter: d } : null)
-                };
-
-                // Replace or append
-                const existingIdx = heatDimData.findIndex(h => h.heatIndex === hIdx);
-                if (existingIdx !== -1) heatDimData[existingIdx] = newHeatData;
-                else heatDimData.push(newHeatData);
-
-                dimRestored = true;
+              // Save in Object format (heatNo as key)
+              if (typeof heatDimData === 'object' && !Array.isArray(heatDimData)) {
+                heatDimData[hNo] = newHeatEntry;
+              } else {
+                // Fallback for legacy array format migration
+                if (hIdx !== -1) heatDimData[hIdx] = newHeatEntry;
               }
+              dimRestored = true;
             }
           });
 
@@ -618,62 +646,55 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           }
         }
 
-        // 3. Restore Material Testing - Per Heat Merge (Prioritize Heat Number)
+        // 3. Restore Material Testing - Per Heat Merge (Robust Heat Matching)
         if (pausedData.materialTestingData?.length > 0) {
           const matKey = `${STORAGE_KEYS.MATERIAL_TESTING}_${callNo}${getShiftSuffix()}`;
           const existingRaw = localStorage.getItem(matKey);
-          const existingData = existingRaw ? JSON.parse(existingRaw) : { materialData: [] };
-          let materialDataArray = Array.isArray(existingData.materialData) ? existingData.materialData : [];
+          const existingData = existingRaw ? JSON.parse(existingRaw) : { materialData: {} };
+          let materialData = existingData.materialData || {};
 
           let matRestored = false;
-          // Group backend data by resolved heat index first
+          // Group backend data by resolved heatNo first
           const backendMaterialByHeat = {};
           pausedData.materialTestingData.forEach(item => {
-            // STRICT Match by Heat Number
-            let hIdx = consolidatedHeats.findIndex(h =>
-              (h.heatNo || h.heat_no || '').toString().trim().toUpperCase() ===
-              (item.heatNo || '').toString().trim().toUpperCase()
-            );
+            const hNo = (item.heatNo || '').toString().trim().toUpperCase();
+            if (!hNo) return;
 
-            if (hIdx === -1) {
-              console.warn(`[Material Restoration] Could not match backend heat ${item.heatNo} to current heats.`);
-              return;
-            }
-
-            if (hIdx !== -1 && hIdx !== undefined && hIdx !== null) {
-              if (!backendMaterialByHeat[hIdx]) backendMaterialByHeat[hIdx] = { samples: [] };
-              backendMaterialByHeat[hIdx].samples[item.sampleNumber - 1] = {
-                c: item.carbonPercent, si: item.siliconPercent, mn: item.manganesePercent,
-                p: item.phosphorusPercent, s: item.sulphurPercent, grainSize: item.grainSize,
-                hardness: item.hardnessHrc, decarb: item.decarbDepthMm,
-                inclTypeA: item.inclusionTypeA, inclA: item.inclusionA,
-                inclTypeB: item.inclusionTypeB, inclB: item.inclusionB,
-                inclTypeC: item.inclusionTypeC, inclC: item.inclusionC,
-                inclTypeD: item.inclusionTypeD, inclD: item.inclusionD,
-                remarks: item.remarks
-              };
-            }
+            if (!backendMaterialByHeat[hNo]) backendMaterialByHeat[hNo] = { samples: [] };
+            backendMaterialByHeat[hNo].samples[item.sampleNumber - 1] = {
+              c: item.carbonPercent, si: item.siliconPercent, mn: item.manganesePercent,
+              p: item.phosphorusPercent, s: item.sulphurPercent, grainSize: item.grainSize,
+              hardness: item.hardnessHrc, decarb: item.decarbDepthMm,
+              inclTypeA: item.inclusionTypeA, inclA: item.inclusionA,
+              inclTypeB: item.inclusionTypeB, inclB: item.inclusionB,
+              inclTypeC: item.inclusionTypeC, inclC: item.inclusionC,
+              inclTypeD: item.inclusionTypeD, inclD: item.inclusionD,
+              remarks: item.remarks
+            };
           });
 
           // Merge into local state
-          Object.entries(backendMaterialByHeat).forEach(([hIdx, backendHeatData]) => {
-            const idx = parseInt(hIdx);
-            const localHeat = materialDataArray[idx];
+          Object.entries(backendMaterialByHeat).forEach(([hNo, backendHeatData]) => {
+            const hIdx = consolidatedHeats.findIndex(h =>
+              (h.heatNo || h.heat_no || '').toString().trim().toUpperCase() === hNo
+            );
+
+            const localHeat = getHeatData(materialData, hNo, hIdx, consolidatedHeats);
             const isLocalEmpty = !localHeat || !localHeat.samples || localHeat.samples.every(s => !s || Object.values(s).every(v => !v));
 
             if (isLocalEmpty) {
-              materialDataArray[idx] = backendHeatData;
+              materialData[hNo] = backendHeatData;
               matRestored = true;
             }
           });
 
           if (matRestored) {
-            localStorage.setItem(matKey, JSON.stringify({ materialData: materialDataArray }));
+            localStorage.setItem(matKey, JSON.stringify({ materialData }));
             restoredAny = true;
           }
         }
 
-        // 4. Restore Packing & Storage - Per Heat Merge (Prioritize Heat Number)
+        // 4. Restore Packing & Storage - Per Heat Merge (Robust Heat Matching)
         if (pausedData.packingStorageData?.length > 0) {
           const packKey = `${STORAGE_KEYS.PACKING_STORAGE}_${callNo}${getShiftSuffix()}`;
           const existingRaw = localStorage.getItem(packKey);
@@ -682,36 +703,31 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
           let packRestored = false;
           pausedData.packingStorageData.forEach(item => {
-            // STRICT Match by Heat Number
+            const hNo = (item.heatNo || '').toString().trim().toUpperCase();
+            if (!hNo) return;
+
             let hIdx = consolidatedHeats.findIndex(h =>
-              (h.heatNo || h.heat_no || '').toString().trim().toUpperCase() ===
-              (item.heatNo || '').toString().trim().toUpperCase()
+              (h.heatNo || h.heat_no || '').toString().trim().toUpperCase() === hNo
             );
 
-            if (hIdx === -1) {
-              console.warn(`[Packing Restoration] Could not match backend heat ${item.heatNo} to current heats.`);
-              return;
-            }
+            // Use the robust helper logic to check if local data for this heat is empty
+            const currentHeatLocal = getHeatData(packByHeat, hNo, hIdx, consolidatedHeats);
+            const isLocalEmpty = !currentHeatLocal || (
+              !currentHeatLocal.storedHeatWise && !currentHeatLocal.suppliedInBundles &&
+              !currentHeatLocal.heatNumberEnds && !currentHeatLocal.packingStripWidth &&
+              !currentHeatLocal.bundleTiedLocations && !currentHeatLocal.identificationTagBundle &&
+              !currentHeatLocal.metalTagInformation
+            );
 
-            if (hIdx !== -1 && hIdx !== undefined && hIdx !== null) {
-              const currentHeatLocal = packByHeat[hIdx];
-              // Only restore if local data for THIS heat is empty
-              const isLocalEmpty = !currentHeatLocal || (
-                !currentHeatLocal.storedHeatWise && !currentHeatLocal.suppliedInBundles &&
-                !currentHeatLocal.heatNumberEnds && !currentHeatLocal.packingStripWidth &&
-                !currentHeatLocal.bundleTiedLocations && !currentHeatLocal.identificationTagBundle &&
-                !currentHeatLocal.metalTagInformation
-              );
-
-              if (isLocalEmpty) {
-                packByHeat[hIdx] = {
-                  storedHeatWise: item.storedHeatWise, suppliedInBundles: item.suppliedInBundles,
-                  heatNumberEnds: item.heatNumberEnds, packingStripWidth: item.packingStripWidth,
-                  bundleTiedLocations: item.bundleTiedLocations, identificationTagBundle: item.identificationTagBundle,
-                  metalTagInformation: item.metalTagInformation, remarks: item.remarks
-                };
-                packRestored = true;
-              }
+            if (isLocalEmpty) {
+              // Save in Object format (heatNo as key)
+              packByHeat[hNo] = {
+                storedHeatWise: item.storedHeatWise, suppliedInBundles: item.suppliedInBundles,
+                heatNumberEnds: item.heatNumberEnds, packingStripWidth: item.packingStripWidth,
+                bundleTiedLocations: item.bundleTiedLocations, identificationTagBundle: item.identificationTagBundle,
+                metalTagInformation: item.metalTagInformation, remarks: item.remarks
+              };
+              packRestored = true;
             }
           });
 
@@ -1020,51 +1036,22 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       return !isNaN(val) && (val < specs.min || val > specs.max);
     });
 
-    // If more than 2 samples fail, it is NOT OK immediately
-    if (failedSamples.length > 2) return 'NOT OK';
+    // If even ONE sample fails, it is NOT OK immediately
+    if (failedSamples.length > 0) return 'NOT OK';
 
-    // If we haven't reached failure threshold, check if all 20 are filled
+    // If no failures yet, check if all 20 are filled
     if (filledSamples.length < REQUIRED_SAMPLES) return 'Pending';
 
-    // All samples are filled and failed samples <= 2
+    // All samples are filled and 0 failures
     return 'OK';
   }, []);
 
-  /**
-   * Validate material testing for a heat
-   * Rules:
-   * - All required fields (C, Si, Mn, P, S, Grain Size, Decarb, Inclusions A/B/C/D, Hardness) must be filled for all samples
-   * - C: 0.5-0.6, Si: 1.5-2.0, Mn: 0.8-1.0, P: ≤0.030, S: ≤0.030
-   * - GrainSize: ≥6, Decarb: ≤0.25, Inclusions A/B/C/D: ≤2.0
-   * - Returns 'Pending' if not all required fields are filled
-   * - Returns 'OK' if all fields pass validation
-   * - Returns 'NOT OK' if any field fails validation
-   */
   const validateMaterialTestHeat = useCallback((heatMaterialData) => {
     if (!heatMaterialData?.samples || !Array.isArray(heatMaterialData.samples)) return 'Pending';
 
     const samples = heatMaterialData.samples;
 
-    // Check if ALL required fields are filled for all samples (excluding remarks)
-    const allFieldsFilled = samples.every(sample => {
-      const isFilled = (val) => val !== null && val !== undefined && String(val).trim() !== '';
-      return isFilled(sample.c) &&
-        isFilled(sample.si) &&
-        isFilled(sample.mn) &&
-        isFilled(sample.p) &&
-        isFilled(sample.s) &&
-        isFilled(sample.grainSize) &&
-        isFilled(sample.decarb) &&
-        isFilled(sample.inclA) &&
-        isFilled(sample.inclB) &&
-        isFilled(sample.inclC) &&
-        isFilled(sample.inclD) &&
-        isFilled(sample.hardness);
-    });
-
-    if (!allFieldsFilled) return 'Pending';
-
-    // All fields are filled, now validate values
+    // 1. Check for ANY failure immediately
     const hasFailure = samples.some(sample => {
       const c = parseFloat(sample.c);
       const si = parseFloat(sample.si);
@@ -1093,7 +1080,26 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       );
     });
 
-    return hasFailure ? 'NOT OK' : 'OK';
+    if (hasFailure) return 'NOT OK';
+
+    // 2. If no failures, check if ALL required fields are filled
+    const allFieldsFilled = samples.every(sample => {
+      const isFilled = (val) => val !== null && val !== undefined && String(val).trim() !== '';
+      return isFilled(sample.c) &&
+        isFilled(sample.si) &&
+        isFilled(sample.mn) &&
+        isFilled(sample.p) &&
+        isFilled(sample.s) &&
+        isFilled(sample.grainSize) &&
+        isFilled(sample.decarb) &&
+        isFilled(sample.inclA) &&
+        isFilled(sample.inclB) &&
+        isFilled(sample.inclC) &&
+        isFilled(sample.inclD) &&
+        isFilled(sample.hardness);
+    });
+
+    return allFieldsFilled ? 'OK' : 'Pending';
   }, []);
 
   /**
@@ -1187,21 +1193,13 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         statuses.calibration = validateCalibrationHeat(calData);
 
         // Visual, Dimensional, etc. use the heatNo as key (with fallback to index for legacy support)
-        const getHeatData = (storageData, hNo, idx) => {
-          if (!storageData) return null;
-          const nhNo = (hNo || '').toString().trim().toUpperCase();
-          if (typeof storageData === 'object' && !Array.isArray(storageData) && storageData[nhNo]) return storageData[nhNo];
-          if (Array.isArray(storageData) && storageData[idx]) return storageData[idx];
-          return null;
-        };
-
-        const vh = getHeatData(visualData, normalizedHNo, heatIndex);
+        const vh = getHeatData(visualData, normalizedHNo, heatIndex, consolidatedHeats);
         if (vh) statuses.visual = validateVisualHeat(vh);
 
-        const dh = getHeatData(dimData?.heatDimData, normalizedHNo, heatIndex);
+        const dh = getHeatData(dimData?.heatDimData, normalizedHNo, heatIndex, consolidatedHeats);
         if (dh?.dimSamples) statuses.dimensional = validateDimensionalHeat(dh.dimSamples, productModel);
 
-        const mh = getHeatData(matData?.materialData, normalizedHNo, heatIndex);
+        const mh = getHeatData(matData?.materialData, normalizedHNo, heatIndex, consolidatedHeats);
         if (mh) statuses.materialTest = validateMaterialTestHeat(mh);
 
         statuses.packing = validatePackingStorage(packData, normalizedHNo);
@@ -1293,9 +1291,8 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         const visualRaw = localStorage.getItem(visualKey);
         const visualData = visualRaw ? JSON.parse(visualRaw) : [];
 
-        // Find this unique heat's visual data index
         const uniqueHeatIndex = consolidatedHeats.findIndex(h => (h.heatNo || h.heat_no) === heatNo);
-        const heatVisualData = Array.isArray(visualData) && uniqueHeatIndex >= 0 ? visualData[uniqueHeatIndex] : null;
+        const heatVisualData = getHeatData(visualData, heatNo, uniqueHeatIndex, consolidatedHeats);
         const rejectedWeight = calculateVisualRejectedWeight(heatVisualData);
         const offeredWeight = heat.weight;
 
@@ -1392,32 +1389,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     try {
       const shiftOfInspection = sessionStorage.getItem('inspectionShift') || null;
 
-      // Helper to map consolidated data to active heats
-      // Supports both NEW object format (keyed by heatNo) and OLD array format (by index)
-      const getConsolidatedDataForHeat = (storageData, hNo, logTag = 'Data') => {
-        if (!storageData) return null;
 
-        const normalizedHNo = (hNo || '').toString().trim().toUpperCase();
-
-        // 1. Support NEW Object Format (keyed by heatNo)
-        if (typeof storageData === 'object' && !Array.isArray(storageData)) {
-          if (storageData[normalizedHNo]) {
-            return storageData[normalizedHNo];
-          }
-        }
-
-        // 2. Support OLD Array Format (fallback to index match in consolidatedHeats)
-        if (Array.isArray(storageData)) {
-          const foundIndex = consolidatedHeats.findIndex(h =>
-            (h.heatNo || h.heat_no || '').toString().trim().toUpperCase() === normalizedHNo
-          );
-          if (foundIndex !== -1 && foundIndex < storageData.length) {
-            return storageData[foundIndex];
-          }
-        }
-
-        return null;
-      };
 
       // Collect Visual Inspection data
       const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${inspectionCallNo}${getShiftSuffix()}`;
@@ -1429,7 +1401,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
         activeHeats.forEach((heat, heatIndex) => {
           const hNo = heat.heatNo || heat.heat_no || `Heat-${heatIndex + 1}`;
-          const heatData = getConsolidatedDataForHeat(visualParsed, hNo, 'Visual');
+          const heatData = getHeatData(visualParsed, hNo, heatIndex, consolidatedHeats);
 
           if (heatData?.selectedDefects) {
             const defects = {};
@@ -1468,7 +1440,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         const dimParsed = JSON.parse(dimRaw);
         activeHeats.forEach((heat, heatIndex) => {
           const hNo = heat.heatNo || heat.heat_no;
-          const heatData = getConsolidatedDataForHeat(dimParsed.heatDimData, hNo, 'Dimensional');
+          const heatData = getHeatData(dimParsed.heatDimData, hNo, heatIndex, consolidatedHeats);
 
           if (heatData?.dimSamples && Array.isArray(heatData.dimSamples)) {
             const specs = productModel?.toUpperCase().includes('V') ? { min: 22.81, max: 23.23 } : { min: 20.47, max: 20.84 };
@@ -1503,7 +1475,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         const matParsed = JSON.parse(matRaw);
         activeHeats.forEach((heat, heatIndex) => {
           const hNo = heat.heatNo || heat.heat_no || `Heat-${heatIndex + 1}`;
-          const heatData = getConsolidatedDataForHeat(matParsed.materialData, hNo, 'Material');
+          const heatData = getHeatData(matParsed.materialData, hNo, heatIndex, consolidatedHeats);
 
           if (heatData?.samples && Array.isArray(heatData.samples)) {
             heatData.samples.forEach((sample, sampleIdx) => {
@@ -1535,7 +1507,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
         activeHeats.forEach((heat, heatIndex) => {
           const hNo = heat.heatNo || heat.heat_no;
-          const heatData = getConsolidatedDataForHeat(Object.values(packingData), hNo, 'Packing');
+          const heatData = getHeatData(Object.values(packingData), hNo, heatIndex, consolidatedHeats);
 
           if (heatData) {
             packingStorageData.push({
@@ -1643,8 +1615,8 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           const visualRaw = localStorage.getItem(visualKey);
           const visualData = visualRaw ? JSON.parse(visualRaw) : [];
 
-          // Use the index from consolidated list
-          const heatVisualData = Array.isArray(visualData) && heatIndex >= 0 ? visualData[heatIndex] : null;
+          // Use the robust helper to get visual data
+          const heatVisualData = getHeatData(visualData, heatNo, heatIndex, consolidatedHeats);
           totalRejectedWeight = calculateVisualRejectedWeight(heatVisualData);
 
           // Check if any modules are still pending
@@ -1763,7 +1735,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       // Step 1: Update color codes for all heats before saving inspection
       console.log('Updating color codes for heats...');
       const colorCodeUpdatePromises = activeHeats
-        .filter(heat => heat.colorCode && heat.colorCode.trim() !== '') // Only update if color code is provided
+        .filter(heat => heat.isPersisted && heat.colorCode && heat.colorCode.trim() !== '') // Only update if heat exists and color code is provided
         .map(heat => {
           const heatId = heat.id; // Heat ID from rm_heat_quantities table
           const colorCode = heat.colorCode;
@@ -1989,32 +1961,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         return isNaN(num) ? null : num;
       };
 
-      // Helper to map consolidated data to active heats
-      // Supports both NEW object format (keyed by heatNo) and OLD array format (by index)
-      const getConsolidatedDataForHeat = (storageData, hNo, logTag = 'Data') => {
-        if (!storageData) return null;
 
-        const normalizedHNo = (hNo || '').toString().trim().toUpperCase();
-
-        // 1. Support NEW Object Format (keyed by heatNo)
-        if (typeof storageData === 'object' && !Array.isArray(storageData)) {
-          if (storageData[normalizedHNo]) {
-            return storageData[normalizedHNo];
-          }
-        }
-
-        // 2. Support OLD Array Format (fallback to index match in consolidatedHeats)
-        if (Array.isArray(storageData)) {
-          const foundIndex = consolidatedHeats.findIndex(h =>
-            (h.heatNo || h.heat_no || '').toString().trim().toUpperCase() === normalizedHNo
-          );
-          if (foundIndex !== -1 && foundIndex < storageData.length) {
-            return storageData[foundIndex];
-          }
-        }
-
-        return null;
-      };
 
       // Collect Visual Inspection data
       const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${inspectionCallNo}${getShiftSuffix()}`;
@@ -2026,7 +1973,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
         activeHeats.forEach((heat, heatIndex) => {
           const hNo = heat.heatNo || heat.heat_no || `Heat-${heatIndex + 1}`;
-          const heatData = getConsolidatedDataForHeat(visualParsed, hNo, 'Visual');
+          const heatData = getHeatData(visualParsed, hNo, heatIndex, consolidatedHeats);
 
           if (heatData?.selectedDefects) {
             const defects = {};
@@ -2066,7 +2013,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         console.log('📦 Dimensional Check draft items:', Array.isArray(dimParsed?.heatDimData) ? dimParsed.heatDimData.length : 'missing');
         activeHeats.forEach((heat, heatIndex) => {
           const hNo = heat.heatNo || heat.heat_no;
-          const heatData = getConsolidatedDataForHeat(dimParsed.heatDimData, hNo, 'Dimensional');
+          const heatData = getHeatData(dimParsed.heatDimData, hNo, heatIndex, consolidatedHeats);
 
           if (heatData?.dimSamples && Array.isArray(heatData.dimSamples)) {
             const specs = productModel?.toUpperCase().includes('V') ? { min: 22.81, max: 23.23 } : { min: 20.47, max: 20.84 };
@@ -2098,7 +2045,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
         activeHeats.forEach((heat, heatIndex) => {
           const hNo = heat.heatNo || heat.heat_no || `Heat-${heatIndex + 1}`;
-          const heatData = getConsolidatedDataForHeat(matParsed.materialData, hNo, 'Material');
+          const heatData = getHeatData(matParsed.materialData, hNo, heatIndex, consolidatedHeats);
 
           if (heatData?.samples && Array.isArray(heatData.samples)) {
             heatData.samples.forEach((sample, sampleIdx) => {
@@ -2130,7 +2077,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
         activeHeats.forEach((heat, heatIndex) => {
           const hNo = heat.heatNo || heat.heat_no;
-          const heatData = getConsolidatedDataForHeat(Object.values(packingData), hNo, 'Packing');
+          const heatData = getHeatData(Object.values(packingData), hNo, heatIndex, consolidatedHeats);
 
           if (heatData) {
             packingStorageData.push({
@@ -2324,7 +2271,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       // Step 1: Update color codes for all heats
       console.log('Updating color codes for heats...');
       const colorCodeUpdatePromises = activeHeats
-        .filter(heat => heat.colorCode && heat.colorCode.trim() !== '')
+        .filter(heat => heat.isPersisted && heat.colorCode && heat.colorCode.trim() !== '')
         .map(heat => {
           const heatId = heat.id;
           const colorCode = heat.colorCode;

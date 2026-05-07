@@ -1,11 +1,90 @@
 import React, { useState, useEffect } from 'react';
 
+const HardnessCell = ({ value, onChange, min, max }) => {
+  const [isEditing, setIsEditing] = React.useState(false);
+  const inputRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (isEditing && inputRef.current) inputRef.current.focus();
+  }, [isEditing]);
+
+  const subValues = value.split(',').map(s => s.trim()).filter(s => s !== '');
+  const hasOut = subValues.some(sv => {
+    const v = parseFloat(sv);
+    return isNaN(v) || v < min || v > max;
+  });
+
+
+  const cellStyle = {
+    width: '100%',
+    padding: '8px',
+    border: hasOut ? '2px solid #fee2e2' : '1px solid #e2e8f0',
+    borderRadius: '6px',
+    textAlign: 'center',
+    fontSize: '13px',
+    fontWeight: '700',
+    background: hasOut ? '#fef2f2' : 'white',
+    minHeight: '44px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxSizing: 'border-box'
+  };
+
+  if (isEditing) {
+    return (
+      <input
+        ref={inputRef}
+        type="text"
+        value={value}
+        onBlur={() => setIsEditing(false)}
+        onChange={(e) => {
+          const val = e.target.value;
+          const parts = val.split(',');
+          if (parts.length <= 5) {
+            onChange(val);
+          } else {
+            onChange(parts.slice(0, 5).join(','));
+          }
+        }}
+        style={{ ...cellStyle, outline: 'none', border: '2px solid #3b82f6', background: 'white', color: '#1e293b' }}
+      />
+    );
+  }
+
+  return (
+    <div onClick={() => setIsEditing(true)} style={{ ...cellStyle, cursor: 'text', gap: '2px' }}>
+      <div style={{ display: 'flex', gap: '2px', flexWrap: 'wrap', justifyContent: 'center' }}>
+        {subValues.map((sv, i) => {
+          const v = parseFloat(sv);
+          const isOut = isNaN(v) || v < min || v > max;
+          return (
+            <span key={i} style={{ color: isOut ? '#ef4444' : '#059669' }}>
+              {sv}{i < subValues.length - 1 ? ',' : ''}
+            </span>
+          );
+        })}
+      </div>
+      {value === '' && <span style={{ color: '#94a3b8', fontWeight: '400' }}>-</span>}
+    </div>
+  );
+};
+
+const lots = [
+  { id: 'LOT-2024-001', size: 1500, status: 'Pending', drawingNo: 'RDSO/T-8528', railpadType: '10mm CGRSP' },
+  { id: 'LOT-2024-002', size: 2000, status: 'Under Testing', drawingNo: 'RDSO/T-6618', railpadType: '6.2mm CGRSP' },
+  { id: 'LOT-2024-003', size: 1200, status: 'Passed', drawingNo: 'RDSO/T-3711', railpadType: '6mm GRSP' },
+  { id: 'LOT-2024-004', size: 1800, status: 'Rejected', drawingNo: 'RDSO/T-8747', railpadType: '10mm CGRSP' },
+];
+
 const FinalInspectionDashboard = ({ user, isShiftActive }) => {
   const [activeTab, setActiveTab] = useState('visual');
   const [selectedLot, setSelectedLot] = useState('LOT-2024-001');
   const [reTestActive, setReTestActive] = useState(false);
   const [reOfferActive, setReOfferActive] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const activeRailpadType = lots.find(l => l.id === selectedLot)?.railpadType || 'GRSP';
   
   // State Management for Dirty Form
   const [isDirty, setIsDirty] = useState(false);
@@ -24,14 +103,14 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
 
   // State for Weight Testing (Double Sampling)
   const [weightData, setWeightData] = useState({
-    samples1: Array(125).fill(''),
-    samples2: Array(125).fill(''),
-    n1: 125,
-    ac1: 5,
-    re1: 9,
-    n2: 125,
-    ac2: 12,
-    re2: 13,
+    samples1: Array(80).fill(''),
+    samples2: Array(80).fill(''),
+    n1: 80,
+    ac1: 3,
+    re1: 6,
+    n2: 80,
+    ac2: 9,
+    re2: 10,
     min: 0, 
     max: 445,
     isSecondActive: false
@@ -39,11 +118,20 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
 
   const getWeightAQL = (lotSize) => {
     const size = parseInt(lotSize, 10) || 0;
-    if (size < 281) return { n1: 20, ac1: 0, re1: 1, n2: 0, ac2: 0, re2: 1, isSingle: true };
-    if (size <= 500) return { n1: 32, ac1: 1, re1: 3, n2: 32, ac2: 4, re2: 5, isSingle: false };
-    if (size <= 1200) return { n1: 50, ac1: 2, re1: 5, n2: 50, ac2: 6, re2: 7, isSingle: false };
-    if (size <= 3200) return { n1: 80, ac1: 3, re1: 6, n2: 80, ac2: 9, re2: 10, isSingle: false };
-    if (size <= 10000) return { n1: 125, ac1: 5, re1: 9, n2: 125, ac2: 12, re2: 13, isSingle: false };
+    // Strictly following the IS 2500 Part I - 2000 (General Inspection Level-II) AQL 2.5 table provided
+    if (size <= 500) {
+      return { n1: 32, ac1: 1, re1: 3, n2: 32, ac2: 4, re2: 5, isSingle: false };
+    }
+    if (size <= 1200) {
+      return { n1: 50, ac1: 2, re1: 5, n2: 50, ac2: 6, re2: 7, isSingle: false };
+    }
+    if (size <= 3200) {
+      return { n1: 80, ac1: 3, re1: 6, n2: 80, ac2: 9, re2: 10, isSingle: false };
+    }
+    if (size <= 10000) {
+      return { n1: 125, ac1: 5, re1: 9, n2: 125, ac2: 12, re2: 13, isSingle: false };
+    }
+    // Default fallback for very large lots
     return { n1: 125, ac1: 5, re1: 9, n2: 125, ac2: 12, re2: 13, isSingle: false };
   };
 
@@ -56,29 +144,160 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
     'RDSO/T-8747': { type: '10mm CGRSP', max: 425 },
   };
 
+  const getHardnessTolerance = (lotId) => {
+    const lot = lots.find(l => l.id === lotId) || { drawingNo: '', railpadType: '' };
+    const type = lot.railpadType || '';
+    
+    if (type.includes('NCRGRSP')) return { a: { min: 75, max: 85 }, b: { min: 75, max: 85 } };
+    if (type === '6mm GRSP') return { a: { min: 75, max: 85 }, b: { min: 75, max: 85 } };
+    if (type === '10mm GRSP') return { a: { min: 70, max: 80 }, b: { min: 70, max: 80 } };
+    if (type.includes('CGRSP')) return { a: { min: 75, max: 85 }, b: { min: 60, max: 70 } };
+    return { a: { min: 75, max: 85 }, b: { min: 60, max: 70 } };
+  };
+
+  const getTensileTolerance = (lotId) => {
+    const lot = lots.find(l => l.id === lotId) || { drawingNo: '', railpadType: '' };
+    const type = lot.railpadType || '';
+
+    if (type === '6mm GRSP') return { before: 120, after: 100, retention: 80 };
+    if (type === '10mm GRSP') return { before: 120, after: 100, retention: 70 };
+    if (type === '6.2mm CGRSP') return { before: 120, after: 100, retention: 80 };
+    if (type === '10mm CGRSP') return { before: 125, after: 110, retention: 80 };
+    if (type.includes('NCRGRSP')) return { before: 120, after: 100, retention: 80 };
+    return { before: 120, after: 100, retention: 80 };
+  };
+
+  const getElongationTolerance = (lotId) => {
+    const lot = lots.find(l => l.id === lotId) || { drawingNo: '', railpadType: '' };
+    const type = lot.railpadType || '';
+
+    if (type === '6mm GRSP') return { before: 200, after: 150, retention: 65 };
+    if (type === '10mm GRSP') return { before: 200, after: 150, retention: 60 };
+    if (type.includes('CGRSP')) return { before: 50, after: 180, retention: 60 };
+    if (type.includes('NCRGRSP')) return { before: 200, after: 150, retention: 65 };
+    return { before: 200, after: 150, retention: 65 };
+  };
+
+  const getModulusTolerance = (lotId) => {
+    const lot = lots.find(l => l.id === lotId) || { drawingNo: '', railpadType: '' };
+    const type = lot.railpadType || '';
+
+    if (type === '6mm GRSP') return { min: 45, max: 60, changePos: 30, changeNeg: 10 };
+    if (type === '10mm GRSP') return { min: 50, max: 75, changePos: 40, changeNeg: 10 };
+    if (type.includes('CGRSP')) return { min: 25, max: 45, changePos: 30, changeNeg: 10 };
+    if (type.includes('NCRGRSP')) return { min: 45, max: 60, changePos: 30, changeNeg: 10 };
+    return { min: 45, max: 60, changePos: 30, changeNeg: 10 };
+  };
+
+  const getLoadDeflectionTolerance = (lotId) => {
+    const lot = lots.find(l => l.id === lotId) || { railpadType: '' };
+    const type = lot.railpadType || '';
+
+    if (type.includes('GRSP 6mm') || type.includes('6mm GRSP')) return { min: 0.4, max: 0.6 };
+    if (type.includes('GRSP 10mm') || type.includes('10mm GRSP')) return { min: 0.7, max: 1.0 };
+    if (type.includes('CGRSP 6.2mm') || type.includes('6.2mm CGRSP')) return { min: 0.6, max: 0.9 };
+    if (type.includes('CGRSP 10mm') || type.includes('10mm CGRSP')) return { min: 0.9, max: 1.2 };
+    if (type.includes('NCRGRSP 6mm') || type.includes('6mm NCRGRSP')) return { min: 0.3, max: 0.5 };
+    if (type.includes('NCRGRSP 10mm') || type.includes('10mm NCRGRSP')) return { min: 0.5, max: 0.8 };
+    return { min: 0.4, max: 0.6 };
+  };
+
+  const getSGTolerance = (lotId) => {
+    const lot = lots.find(l => l.id === lotId) || { railpadType: '' };
+    const type = lot.railpadType || '';
+    if (type.includes('CGRSP')) return { a: 1.27, b: 1.17, variation: 0.03 };
+    if (type.includes('NCRGRSP')) return { a: 1.27, variation: 0.03 };
+    return { a: 1.27, variation: 0.03 }; // Default for GRSP
+  };
+
+  const getAshTolerance = (lotId) => {
+    const lot = lots.find(l => l.id === lotId) || { railpadType: '' };
+    const type = lot.railpadType || '';
+    if (type.includes('CGRSP')) return { a: 27, b: 20, variation: 5 };
+    return { a: 27, variation: 5 };
+  };
+
+  const currentHardnessSpecs = getHardnessTolerance(selectedLot);
+  const currentTensileSpecs = getTensileTolerance(selectedLot);
+  const currentElongationSpecs = getElongationTolerance(selectedLot);
+  const currentModulusSpecs = getModulusTolerance(selectedLot);
+  const currentLoadSpecs = getLoadDeflectionTolerance(selectedLot);
+  const currentSGSpecs = getSGTolerance(selectedLot);
+  const currentAshSpecs = getAshTolerance(selectedLot);
+
   // State for Physical Properties (Tab 2)
   const [physicalData, setPhysicalData] = useState({
-    hardness: ['', '', ''],
-    tensile: { tsBefore: '', tsAfter: '', elBefore: '', elAfter: '' },
-    modulus: { before: '', after: '' },
-    compressionSet: '',
-    tensionSet: '',
-    loadDeflection: ''
+    hardness: {
+      compoundA: ['', '', '', '', ''],
+      compoundB: ['', '', '', '', '']
+    },
+    tensile: {
+      before: ['', '', '', '', ''],
+      after: ['', '', '', '', '']
+    },
+    elongation: {
+      before: ['', '', '', '', ''],
+      after: ['', '', '', '', '']
+    },
+    modulus: {
+      before: ['', '', ''],
+      after: ['', '', '']
+    },
+    compression: {
+      initial: ['', '', ''],
+      final: ['', '', '']
+    },
+    tension: {
+      initial: ['', '', ''],
+      final: ['', '', '']
+    },
+    loadTest: {
+      pad1: Array(8).fill(0).map(() => ({ left: '', right: '' })),
+      pad2: Array(8).fill(0).map(() => ({ left: '', right: '' }))
+    }
   });
 
   // State for Electrical & Chemical (Tab 3)
   const [elecData, setElecData] = useState({
-    before: { f: '', r: '' },
-    after: { f: '', r: '' },
-    sg: { product: '', baseline: 1.25 },
-    ash: { product: '', baseline: 35 }
+    resistance: [
+      { bF: '', bR: '', aF: '', aR: '' },
+      { bF: '', bR: '', aF: '', aR: '' },
+      { bF: '', bR: '', aF: '', aR: '' }
+    ],
+    sg: {
+      compoundA: [
+        { air: '', water: '' },
+        { air: '', water: '' },
+        { air: '', water: '' }
+      ],
+      compoundB: [
+        { air: '', water: '' },
+        { air: '', water: '' },
+        { air: '', water: '' }
+      ]
+    },
+    ash: {
+      compoundA: [
+        { crucible: '', sample: '', ash: '' },
+        { crucible: '', sample: '', ash: '' },
+        { crucible: '', sample: '', ash: '' }
+      ],
+      compoundB: [
+        { crucible: '', sample: '', ash: '' },
+        { crucible: '', sample: '', ash: '' },
+        { crucible: '', sample: '', ash: '' }
+      ]
+    }
   });
 
   // State for Specialized Tests (Tab 4)
   const [specType, setSpecType] = useState('CGRSP');
   const [specData, setSpecData] = useState({
     adhesion: ['', ''],
-    secant: { p20: '', p90: '' },
+    secant: [
+      { s20: { a: '', b: '', c: '', d: '' }, s90: { a: '', b: '', c: '', d: '' } },
+      { s20: { a: '', b: '', c: '', d: '' }, s90: { a: '', b: '', c: '', d: '' } }
+    ],
     ncrgrsp: { peel: '', hpull: '', breaking: '', denier: '', epi: '', thickness: '', loadAtBreak: '', elongation: '', twists: '' }
   });
 
@@ -93,6 +312,11 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [isDirty]);
+
+  // Initialize Default Lot
+  useEffect(() => {
+    loadLotData(selectedLot);
+  }, []);
 
   const markDirty = () => {
     if (!isDirty) setIsDirty(true);
@@ -132,22 +356,56 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
       isSecondActive: false
     });
     setPhysicalData({
-      hardness: ['', '', ''],
-      tensile: { tsBefore: '', tsAfter: '', elBefore: '', elAfter: '' },
-      modulus: { before: '', after: '' },
-      compressionSet: '',
-      tensionSet: '',
-      loadDeflection: ''
+      hardness: {
+        compoundA: ['', '', '', '', ''],
+        compoundB: ['', '', '', '', '']
+      },
+      tensile: {
+        before: ['', '', '', '', ''],
+        after: ['', '', '', '', '']
+      },
+      elongation: {
+        before: ['', '', '', '', ''],
+        after: ['', '', '', '', '']
+      },
+      modulus: {
+        before: ['', '', ''],
+        after: ['', '', '']
+      },
+      compression: {
+        initial: ['', '', ''],
+        final: ['', '', '']
+      },
+      tension: {
+        initial: ['', '', ''],
+        final: ['', '', '']
+      },
+      loadTest: {
+        pad1: Array(8).fill(0).map(() => ({ left: '', right: '' })),
+        pad2: Array(8).fill(0).map(() => ({ left: '', right: '' }))
+      }
     });
     setElecData({
-      before: { f: '', r: '' },
-      after: { f: '', r: '' },
-      sg: { product: '', baseline: 1.25 },
-      ash: { product: '', baseline: 35 }
+      resistance: [
+        { bF: '', bR: '', aF: '', aR: '' },
+        { bF: '', bR: '', aF: '', aR: '' },
+        { bF: '', bR: '', aF: '', aR: '' }
+      ],
+      sg: {
+        compoundA: [{ air: '', water: '' }, { air: '', water: '' }, { air: '', water: '' }],
+        compoundB: [{ air: '', water: '' }, { air: '', water: '' }, { air: '', water: '' }]
+      },
+      ash: {
+        compoundA: [{ crucible: '', sample: '', ash: '' }, { crucible: '', sample: '', ash: '' }, { crucible: '', sample: '', ash: '' }],
+        compoundB: [{ crucible: '', sample: '', ash: '' }, { crucible: '', sample: '', ash: '' }, { crucible: '', sample: '', ash: '' }]
+      }
     });
     setSpecData({
       adhesion: ['', ''],
-      secant: { p20: '', p90: '' },
+      secant: [
+        { s20: { a: '', b: '', c: '', d: '' }, s90: { a: '', b: '', c: '', d: '' } },
+        { s20: { a: '', b: '', c: '', d: '' }, s90: { a: '', b: '', c: '', d: '' } }
+      ],
       ncrgrsp: { peel: '', hpull: '', breaking: '', denier: '', epi: '', thickness: '', loadAtBreak: '', elongation: '', twists: '' }
     });
   };
@@ -218,6 +476,35 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
       return val > weightData.max;
     }).length;
   };
+  
+  // Hardness Logic
+  const hardnessA = physicalData.hardness.compoundA;
+  const hardnessB = physicalData.hardness.compoundB;
+  
+  const getHardnessOutCount = (values, min, max) => {
+    return values.filter(v => {
+      if (v === '') return false;
+      const subValues = v.split(',').map(s => s.trim()).filter(s => s !== '');
+      return subValues.some(sv => {
+        const val = parseFloat(sv);
+        return isNaN(val) || val < min || val > max;
+      });
+    }).length;
+  };
+
+  const isCGRSP = activeRailpadType.includes('CGRSP');
+  const outA = getHardnessOutCount(hardnessA, currentHardnessSpecs.a.min, currentHardnessSpecs.a.max);
+  const outB = isCGRSP ? getHardnessOutCount(hardnessB, currentHardnessSpecs.b.min, currentHardnessSpecs.b.max) : 0;
+  const totalHardnessOut = outA + outB;
+  
+  const filledHardness = isCGRSP ? [...hardnessA, ...hardnessB].filter(v => v !== '').length : hardnessA.filter(v => v !== '').length;
+  const totalRequired = isCGRSP ? 10 : 5;
+  let hardnessStatus = 'PENDING';
+  if (filledHardness >= totalRequired) {
+    hardnessStatus = totalHardnessOut === 0 ? 'ACCEPTED' : 'MARGINAL';
+  } else if (filledHardness > 0) {
+    hardnessStatus = 'UNDER TESTING';
+  }
 
   const downloadTemplate = (target) => {
     const sampleSize = target === 'samples1' ? weightData.n1 : weightData.n2;
@@ -265,13 +552,17 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
   let weightStatus = 'PENDING';
   const filled1 = weightData.samples1.filter(v => v !== '').length;
   
-  if (filled1 >= weightData.n1) {
+  if (filled1 > 0 && filled1 < weightData.n1) {
+    weightStatus = 'PENDING';
+  } else if (filled1 >= weightData.n1) {
     if (notOk1 <= weightData.ac1) weightStatus = 'ACCEPTED';
     else if (notOk1 >= weightData.re1) weightStatus = 'REJECTED';
     else {
       weightStatus = '2ND SAMPLING';
       const filled2 = weightData.samples2.filter(v => v !== '').length;
-      if (filled2 >= weightData.n2) {
+      if (filled2 > 0 && filled2 < weightData.n2) {
+        weightStatus = 'PENDING';
+      } else if (filled2 >= weightData.n2) {
         weightStatus = totalNotOk <= weightData.ac2 ? 'ACCEPTED' : 'REJECTED';
       }
     }
@@ -286,38 +577,155 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
   // Tab 2 Logic
   const isPhysicalEmpty = (key) => physicalData[key] === '' || (Array.isArray(physicalData[key]) && physicalData[key].some(v => v === '')) || (typeof physicalData[key] === 'object' && Object.values(physicalData[key]).some(v => v === ''));
 
+  const tensileOutCount = physicalData.tensile.before.filter((b, i) => {
+    const a = physicalData.tensile.after[i];
+    if (b === '' || a === '') return false;
+    const bVal = parseFloat(b);
+    const aVal = parseFloat(a);
+    const ret = (aVal / bVal) * 100;
+    return bVal < currentTensileSpecs.before || aVal < currentTensileSpecs.after || ret < currentTensileSpecs.retention;
+  }).length;
+
+  const filledTensile = physicalData.tensile.before.filter((v, i) => v !== '' && physicalData.tensile.after[i] !== '').length;
+
+  const elongationOutCount = physicalData.elongation.before.filter((b, i) => {
+    const a = physicalData.elongation.after[i];
+    if (b === '' || a === '') return false;
+    const bVal = parseFloat(b);
+    const aVal = parseFloat(a);
+    const ret = (aVal / bVal) * 100;
+    return bVal < currentElongationSpecs.before || aVal < currentElongationSpecs.after || ret < currentElongationSpecs.retention;
+  }).length;
+
+  const filledElongation = physicalData.elongation.before.filter((v, i) => v !== '' && physicalData.elongation.after[i] !== '').length;
+
+  const modulusOutCount = physicalData.modulus.before.filter((b, i) => {
+    const a = physicalData.modulus.after[i];
+    if (b === '' || a === '') return false;
+    const bVal = parseFloat(b);
+    const aVal = parseFloat(a);
+    const change = ((aVal - bVal) / bVal) * 100;
+    return bVal < currentModulusSpecs.min || bVal > currentModulusSpecs.max || change > currentModulusSpecs.changePos || change < -currentModulusSpecs.changeNeg;
+  }).length;
+
+  const filledModulus = physicalData.modulus.before.filter((v, i) => v !== '' && physicalData.modulus.after[i] !== '').length;
+
+  const compressionOutCount = physicalData.compression.initial.filter((a, i) => {
+    const b = physicalData.compression.final[i];
+    if (a === '' || b === '') return false;
+    const aVal = parseFloat(a);
+    const bVal = parseFloat(b);
+    const set = ((aVal - bVal) / aVal) * 100;
+    return set > 30;
+  }).length;
+  const filledCompression = physicalData.compression.initial.filter((v, i) => v !== '' && physicalData.compression.final[i] !== '').length;
+
+  const tensionOutCount = physicalData.tension.initial.filter((a, i) => {
+    const b = physicalData.tension.final[i];
+    if (a === '' || b === '') return false;
+    const aVal = parseFloat(a);
+    const bVal = parseFloat(b);
+    const set = ((bVal - aVal) / aVal) * 100;
+    return set > 25;
+  }).length;
+  const filledTension = physicalData.tension.initial.filter((v, i) => v !== '' && physicalData.tension.final[i] !== '').length;
+
+  const getPadDeflection = (pad) => {
+    const s8 = pad[7];
+    if (s8.left === '' || s8.right === '') return null;
+    return (parseFloat(s8.left) + parseFloat(s8.right)) / 2;
+  };
+  const pad1Defl = getPadDeflection(physicalData.loadTest.pad1);
+  const pad2Defl = getPadDeflection(physicalData.loadTest.pad2);
+  const loadOutCount = [pad1Defl, pad2Defl].filter(d => d !== null && (d < currentLoadSpecs.min || d > currentLoadSpecs.max)).length;
+  const filledLoad = [pad1Defl, pad2Defl].filter(d => d !== null).length;
+
   const physicalResults = {
-    hardness: physicalData.hardness.some(v => v === '') ? 'PENDING' : (calculateMedian(physicalData.hardness) >= 60 && calculateMedian(physicalData.hardness) <= 70 ? 'PASS' : 'FAIL'),
-    tensile: (physicalData.tensile.tsBefore === '' || physicalData.tensile.tsAfter === '') ? 'PENDING' : (calculateRetention(physicalData.tensile.tsBefore, physicalData.tensile.tsAfter) >= 80 ? 'PASS' : 'FAIL'),
-    elongation: (physicalData.tensile.elBefore === '' || physicalData.tensile.elAfter === '') ? 'PENDING' : (calculateRetention(physicalData.tensile.elBefore, physicalData.tensile.elAfter) >= 80 ? 'PASS' : 'FAIL'),
-    modulus: (physicalData.modulus.before === '' || physicalData.modulus.after === '') ? 'PENDING' : (Math.abs(calculateRetention(physicalData.modulus.before, physicalData.modulus.after) - 100) <= 20 ? 'PASS' : 'FAIL'),
-    compression: physicalData.compressionSet === '' ? 'PENDING' : (physicalData.compressionSet <= 15 ? 'PASS' : 'FAIL'),
-    tension: physicalData.tensionSet === '' ? 'PENDING' : (physicalData.tensionSet <= 5 ? 'PASS' : 'FAIL'),
-    load: physicalData.loadDeflection === '' ? 'PENDING' : (physicalData.loadDeflection >= 2 && physicalData.loadDeflection <= 4 ? 'PASS' : 'FAIL')
+    hardness: (totalHardnessOut === 0 && filledHardness >= totalRequired) ? 'PASS' : (filledHardness >= totalRequired ? 'FAIL' : 'PENDING'),
+    tensile: filledTensile >= 5 ? (tensileOutCount === 0 ? 'PASS' : 'FAIL') : 'PENDING',
+    elongation: filledElongation >= 5 ? (elongationOutCount === 0 ? 'PASS' : 'FAIL') : 'PENDING',
+    modulus: filledModulus >= 3 ? (modulusOutCount === 0 ? 'PASS' : 'FAIL') : 'PENDING',
+    compression: filledCompression >= 3 ? (compressionOutCount === 0 ? 'PASS' : 'FAIL') : 'PENDING',
+    tension: filledTension >= 3 ? (tensionOutCount === 0 ? 'PASS' : 'FAIL') : 'PENDING',
+    load: filledLoad >= 2 ? (loadOutCount === 0 ? 'PASS' : 'FAIL') : 'PENDING'
   };
   const physicalFailedCount = Object.values(physicalResults).filter(r => r === 'FAIL').length;
   const physicalPendingCount = Object.values(physicalResults).filter(r => r === 'PENDING').length;
   const physicalDecision = physicalPendingCount > 0 ? 'PENDING VERIFICATION' : (physicalFailedCount === 0 ? 'LOT PASSED' : physicalFailedCount === 1 ? 'RE-TEST REQUIRED' : 'PERMANENT REJECT');
 
   // Tab 3 Logic
+  const resOutCount = elecData.resistance.filter(r => {
+    if (r.bF === '' || r.bR === '' || r.aF === '' || r.aR === '') return false;
+    return Math.min(parseFloat(r.bF), parseFloat(r.bR)) < 100 || Math.min(parseFloat(r.aF), parseFloat(r.aR)) < 100;
+  }).length;
+  const resFilled = elecData.resistance.filter(r => r.bF !== '' && r.bR !== '' && r.aF !== '' && r.aR !== '').length;
+
+
+  const sgAOutCount = elecData.sg.compoundA.filter(r => {
+    if (r.air === '' || r.water === '') return false;
+    const sg = parseFloat(r.air) / (parseFloat(r.air) - parseFloat(r.water));
+    return sg > currentSGSpecs.a;
+  }).length;
+  const sgBOutCount = isCGRSP ? elecData.sg.compoundB.filter(r => {
+    if (r.air === '' || r.water === '') return false;
+    const sg = parseFloat(r.air) / (parseFloat(r.air) - parseFloat(r.water));
+    return sg > currentSGSpecs.b;
+  }).length : 0;
+  const sgVarOutCount = isCGRSP ? elecData.sg.compoundA.filter((r, i) => {
+    const rB = elecData.sg.compoundB[i];
+    if (r.air === '' || r.water === '' || rB.air === '' || rB.water === '') return false;
+    const sgA = parseFloat(r.air) / (parseFloat(r.air) - parseFloat(r.water));
+    const sgB = parseFloat(rB.air) / (parseFloat(rB.air) - parseFloat(rB.water));
+    return Math.abs(sgA - sgB) > currentSGSpecs.variation;
+  }).length : 0;
+  const totalSGOut = sgAOutCount + sgBOutCount + sgVarOutCount;
+  const sgFilled = isCGRSP ? elecData.sg.compoundA.filter((r, i) => r.air !== '' && r.water !== '' && elecData.sg.compoundB[i].air !== '' && elecData.sg.compoundB[i].water !== '').length : elecData.sg.compoundA.filter(r => r.air !== '' && r.water !== '').length;
+
+  const ashAOutCount = elecData.ash.compoundA.filter(r => {
+    if (r.crucible === '' || r.sample === '' || r.ash === '') return false;
+    const ash = ((parseFloat(r.ash) - parseFloat(r.crucible)) / (parseFloat(r.sample) - parseFloat(r.crucible))) * 100;
+    return ash > currentAshSpecs.a;
+  }).length;
+  const ashBOutCount = isCGRSP ? elecData.ash.compoundB.filter(r => {
+    if (r.crucible === '' || r.sample === '' || r.ash === '') return false;
+    const ash = ((parseFloat(r.ash) - parseFloat(r.crucible)) / (parseFloat(r.sample) - parseFloat(r.crucible))) * 100;
+    return ash > currentAshSpecs.b;
+  }).length : 0;
+  const ashVarOutCount = isCGRSP ? elecData.ash.compoundA.filter((r, i) => {
+    const rB = elecData.ash.compoundB[i];
+    if (r.crucible === '' || r.sample === '' || r.ash === '' || rB.crucible === '' || rB.sample === '' || rB.ash === '') return false;
+    const ashA = ((parseFloat(r.ash) - parseFloat(r.crucible)) / (parseFloat(r.sample) - parseFloat(r.crucible))) * 100;
+    const ashB = ((parseFloat(rB.ash) - parseFloat(rB.crucible)) / (parseFloat(rB.sample) - parseFloat(rB.crucible))) * 100;
+    return Math.abs(ashA - ashB) > currentAshSpecs.variation;
+  }).length : 0;
+  const totalAshOut = ashAOutCount + ashBOutCount + ashVarOutCount;
+  const ashFilled = isCGRSP ? elecData.ash.compoundA.filter((r, i) => r.crucible !== '' && r.sample !== '' && r.ash !== '' && elecData.ash.compoundB[i].crucible !== '' && elecData.ash.compoundB[i].sample !== '' && elecData.ash.compoundB[i].ash !== '').length : elecData.ash.compoundA.filter(r => r.crucible !== '' && r.sample !== '' && r.ash !== '').length;
+
   const elecResults = {
-    resistanceBefore: (elecData.before.f === '' || elecData.before.r === '') ? 'PENDING' : (Math.min(elecData.before.f, elecData.before.r) >= 100 ? 'PASS' : 'FAIL'),
-    resistanceAfter: (elecData.after.f === '' || elecData.after.r === '') ? 'PENDING' : (Math.min(elecData.after.f, elecData.after.r) >= 10 ? 'PASS' : 'FAIL'),
-    sg: elecData.sg.product === '' ? 'PENDING' : (Math.abs(elecData.sg.product - elecData.sg.baseline) <= 0.03 ? 'PASS' : 'FAIL'),
-    ash: elecData.ash.product === '' ? 'PENDING' : (Math.abs(elecData.ash.product - elecData.ash.baseline) <= 2 ? 'PASS' : 'FAIL')
+    resistance: resFilled >= 3 ? (resOutCount === 0 ? 'PASS' : 'FAIL') : 'PENDING',
+    sg: sgFilled >= 3 ? (totalSGOut === 0 ? 'PASS' : 'FAIL') : 'PENDING',
+    ash: ashFilled >= 3 ? (totalAshOut === 0 ? 'PASS' : 'FAIL') : 'PENDING'
   };
   const elecFailedCount = Object.values(elecResults).filter(r => r === 'FAIL').length;
   const elecPendingCount = Object.values(elecResults).filter(r => r === 'PENDING').length;
   const elecDecision = elecPendingCount > 0 ? 'PENDING VERIFICATION' : (elecFailedCount === 0 ? 'LOT PASSED' : elecFailedCount === 1 ? 'RE-TEST REQUIRED' : 'PERMANENT REJECT');
 
   // Tab 4 Logic
-  const p20Val = parseFloat(specData.secant.p20);
-  const p90Val = parseFloat(specData.secant.p90);
-  const secantStiffness = (specData.secant.p20 === '' || specData.secant.p90 === '') ? 0 : (p20Val && p90Val && p90Val !== p20Val ? (70 / (p90Val - p20Val)).toFixed(2) : 0);
+  const secantResults = specData.secant.map(s => {
+    const isS20Complete = Object.values(s.s20).every(v => v !== '');
+    const isS90Complete = Object.values(s.s90).every(v => v !== '');
+    const d1 = isS20Complete ? (parseFloat(s.s20.a) + parseFloat(s.s20.b) + parseFloat(s.s20.c) + parseFloat(s.s20.d)) / 4 : 0;
+    const d2 = isS90Complete ? (parseFloat(s.s90.a) + parseFloat(s.s90.b) + parseFloat(s.s90.c) + parseFloat(s.s90.d)) / 4 : 0;
+    const stiffness = (d1 > 0 && d2 > 0 && d2 !== d1) ? (70 / (d2 - d1)).toFixed(2) : 0;
+    return { d1, d2, stiffness, isS20Complete, isS90Complete };
+  });
+
+  const secantStatus = secantResults.some(r => !r.isS20Complete || !r.isS90Complete) ? 'PENDING' : 
+    (secantResults.every(r => r.stiffness >= 15 && r.stiffness <= 25) ? 'PASS' : 'FAIL');
 
   const specResults = specType === 'CGRSP' ? {
-    adhesion: specData.adhesion.some(v => v === '') ? 'PENDING' : (specData.adhesion.every(v => v >= 12) ? 'PASS' : 'FAIL'),
-    secant: (specData.secant.p20 === '' || specData.secant.p90 === '') ? 'PENDING' : (secantStiffness >= 15 && secantStiffness <= 25 ? 'PASS' : 'FAIL')
+    adhesion: specData.adhesion.some(v => v === '') ? 'PENDING' : (specData.adhesion.every(v => v >= 8) ? 'PASS' : 'FAIL'),
+    secant: secantStatus
   } : {
     peel: specData.ncrgrsp.peel === '' ? 'PENDING' : (specData.ncrgrsp.peel >= 15 ? 'PASS' : 'FAIL'),
     hpull: specData.ncrgrsp.hpull === '' ? 'PENDING' : (specData.ncrgrsp.hpull >= 120 ? 'PASS' : 'FAIL'),
@@ -328,20 +736,15 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
   const specPendingCount = Object.values(specResults).filter(r => r === 'PENDING').length;
   const specDecision = specPendingCount > 0 ? 'PENDING VERIFICATION' : (specFailedCount === 0 ? 'LOT PASSED' : specFailedCount === 1 ? 'RE-TEST REQUIRED' : 'PERMANENT REJECT');
 
-  const lots = [
-    { id: 'LOT-2024-001', size: 1500, status: 'Pending', drawingNo: 'RDSO/T-8528', railpadType: '10mm CGRSP' },
-    { id: 'LOT-2024-002', size: 2000, status: 'Under Testing', drawingNo: 'RDSO/T-6618', railpadType: '6.2mm CGRSP' },
-    { id: 'LOT-2024-003', size: 1200, status: 'Passed', drawingNo: 'RDSO/T-3711', railpadType: '6mm GRSP' },
-    { id: 'LOT-2024-004', size: 1800, status: 'Rejected', drawingNo: 'RDSO/T-8747', railpadType: '10mm CGRSP' },
-  ];
+  const activeLotData = lots.find(l => l.id === selectedLot) || lots[0];
 
   const filteredLots = lots.filter(lot => lot.id.toLowerCase().includes(searchTerm.toLowerCase()));
 
   const tabs = [
-    { id: 'visual', label: 'Visual & Dimensional' },
-    { id: 'physical', label: 'Physical Tests' },
-    { id: 'electrical', label: 'Electrical & Chemical' },
-    { id: 'specialized', label: 'Specialized Tests' },
+    { id: 'visual', label: `Visual & Dimensional - ${activeRailpadType}` },
+    { id: 'physical', label: `Physical & Ageing Properties - ${activeRailpadType}` },
+    { id: 'electrical', label: `Electrical & Chemical - ${activeRailpadType}` },
+    { id: 'specialized', label: `Specialized Tests - ${activeRailpadType}` },
   ];
 
   return (
@@ -598,7 +1001,10 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
                     <tbody>
                       {/* Visual Inspection */}
                       <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: '16px', fontWeight: '700', color: '#1e293b' }}>Visual Inspection</td>
+                        <td style={{ padding: '16px', fontWeight: '700', color: '#1e293b' }}>
+                          Visual Inspection
+                          <div style={{ fontSize: '9px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>FOR: {activeRailpadType}</div>
+                        </td>
                         <td style={{ padding: '16px', textAlign: 'center' }}>
                           <input 
                             type="number" 
@@ -617,9 +1023,19 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
                         </td>
                         <td style={{ padding: '16px' }}>
                           <select 
-                            value={visualData.visualReason} 
+                            disabled={!visualData.dv || parseInt(visualData.dv) === 0}
+                            value={(!visualData.dv || parseInt(visualData.dv) === 0) ? '' : visualData.visualReason} 
                             onChange={(e) => { setVisualData(prev => ({ ...prev, visualReason: e.target.value })); markDirty(); }}
-                            style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', background: 'white' }}
+                            style={{ 
+                              width: '100%', 
+                              padding: '6px 10px', 
+                              borderRadius: '6px', 
+                              border: '1px solid #cbd5e1', 
+                              fontSize: '13px', 
+                              background: (!visualData.dv || parseInt(visualData.dv) === 0) ? '#f1f5f9' : 'white',
+                              cursor: (!visualData.dv || parseInt(visualData.dv) === 0) ? 'not-allowed' : 'pointer',
+                              color: (!visualData.dv || parseInt(visualData.dv) === 0) ? '#94a3b8' : '#1e293b'
+                            }}
                           >
                             <option value="">-- Select Reason --</option>
                             <option value="Porosity">Porosity</option>
@@ -645,7 +1061,10 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
                       </tr>
                       {/* Dimensional Inspection */}
                       <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: '16px', fontWeight: '700', color: '#1e293b' }}>Dimensional Inspection</td>
+                        <td style={{ padding: '16px', fontWeight: '700', color: '#1e293b' }}>
+                          Dimensional Inspection
+                          <div style={{ fontSize: '9px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>FOR: {activeRailpadType}</div>
+                        </td>
                         <td style={{ padding: '16px', textAlign: 'center' }}>
                           <input 
                             type="number" 
@@ -664,9 +1083,19 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
                         </td>
                         <td style={{ padding: '16px' }}>
                           <select 
-                            value={visualData.dimReason} 
+                            disabled={!visualData.dd || parseInt(visualData.dd) === 0}
+                            value={(!visualData.dd || parseInt(visualData.dd) === 0) ? '' : visualData.dimReason} 
                             onChange={(e) => { setVisualData(prev => ({ ...prev, dimReason: e.target.value })); markDirty(); }}
-                            style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', background: 'white' }}
+                            style={{ 
+                              width: '100%', 
+                              padding: '6px 10px', 
+                              borderRadius: '6px', 
+                              border: '1px solid #cbd5e1', 
+                              fontSize: '13px', 
+                              background: (!visualData.dd || parseInt(visualData.dd) === 0) ? '#f1f5f9' : 'white',
+                              cursor: (!visualData.dd || parseInt(visualData.dd) === 0) ? 'not-allowed' : 'pointer',
+                              color: (!visualData.dd || parseInt(visualData.dd) === 0) ? '#94a3b8' : '#1e293b'
+                            }}
                           >
                             <option value="">-- Select Reason --</option>
                             <option value="Length deviation">Length deviation</option>
@@ -813,7 +1242,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
                       >
                         FIRST SAMPLING ({filled1}/{weightData.n1})
                       </button>
-                      {weightStatus === '2ND SAMPLING' && (
+                      {((weightStatus === '2ND SAMPLING') || (weightData.samples2.filter(v => v !== '').length > 0)) && (
                         <button 
                           onClick={() => setWeightData(prev => ({ ...prev, isSecondActive: true }))}
                           style={{ 
@@ -832,7 +1261,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
                       )}
                     </div>
                     <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>
-                      {weightStatus === '2ND SAMPLING' && weightData.isSecondActive ? `Total Not OK: ${totalNotOk} / ${weightData.ac2} (Ac2)` : `Not OK: ${notOk1} / ${weightData.ac1} (Ac1)`}
+                      {((weightStatus === '2ND SAMPLING') || (weightData.samples2.filter(v => v !== '').length > 0)) && weightData.isSecondActive ? `Total Not OK: ${totalNotOk} / ${weightData.ac2} (Ac2)` : `Not OK: ${notOk1} / ${weightData.ac1} (Ac1)`}
                     </div>
                   </div>
 
@@ -882,24 +1311,24 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
                 {finalDecision !== 'PENDING VERIFICATION' && (
                   <section style={{ 
                     background: finalDecision === 'LOT PASSED' ? 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)' : 'linear-gradient(135deg, #991b1b 0%, #7f1d1d 100%)', 
-                    padding: '20px 32px', 
-                    borderRadius: '20px', 
+                    padding: '12px 24px', 
+                    borderRadius: '16px', 
                     color: 'white',
                     transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.15)',
-                    marginBottom: '12px'
+                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                    marginBottom: '8px'
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
-                        <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '8px', fontWeight: '800' }}>Final Tab Decision Engine</div>
-                        <div style={{ fontSize: '24px', fontWeight: '900', letterSpacing: '-0.03em' }}>{finalDecision}</div>
-                        <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', marginTop: '4px', fontWeight: '500' }}>
+                        <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '2px', fontWeight: '800' }}>Final Tab Decision Engine</div>
+                        <div style={{ fontSize: '18px', fontWeight: '900', letterSpacing: '-0.02em' }}>{finalDecision}</div>
+                        <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', marginTop: '2px', fontWeight: '500' }}>
                           {finalDecision === 'LOT PASSED' 
                             ? 'Automated validation confirm lot meets all AQL standard requirements.' 
                             : 'Specific trigger identified. Follow Section 4/5 protocols below.'}
                         </div>
                       </div>
-                      <div style={{ display: 'flex', gap: '12px' }}>
+                      <div style={{ display: 'flex', gap: '8px' }}>
                         {finalDecision.includes('RE-TEST') && (
                           <button 
                             onClick={() => setReTestActive(true)}
@@ -907,10 +1336,10 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
                               background: 'white', 
                               color: '#991b1b', 
                               border: 'none', 
-                              padding: '12px 20px', 
-                              borderRadius: '10px', 
+                              padding: '8px 16px', 
+                              borderRadius: '8px', 
                               fontWeight: '800',
-                              fontSize: '13px',
+                              fontSize: '12px',
                               cursor: 'pointer',
                               transition: 'transform 0.2s'
                             }}
@@ -924,12 +1353,12 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
                             background: '#21808d', 
                             color: 'white', 
                             border: 'none', 
-                            padding: '12px 28px', 
-                            borderRadius: '10px', 
+                            padding: '8px 20px', 
+                            borderRadius: '8px', 
                             fontWeight: '800',
-                            fontSize: '13px',
+                            fontSize: '12px',
                             cursor: 'pointer',
-                            boxShadow: '0 10px 15px -3px rgba(33, 128, 141, 0.4)'
+                            boxShadow: '0 4px 6px -1px rgba(33, 128, 141, 0.3)'
                           }}
                         >
                           Submit Final Result
@@ -1045,10 +1474,12 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
                   <div style={{ color: '#94a3b8', fontSize: '9px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.1em' }}>CONFIG:</div>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     {[
-                      { label: 'PAD', value: 'CGRSP' },
-                      { label: 'HARDNESS', value: '60-70' },
-                      { label: 'TENSILE', value: '≥80%' },
-                      { label: 'COMPRESSION', value: '≤15%' }
+                      { label: 'PAD', value: activeRailpadType },
+                      { label: 'HARDNESS', value: isCGRSP ? '60-85' : '70-85' },
+                      { label: 'TENSILE', value: `≥${currentTensileSpecs.retention}%` },
+                      { label: 'ELONGATION', value: `≥${currentElongationSpecs.retention}%` },
+                      { label: 'COMPRESSION', value: '≤30%' },
+                      { label: 'TENSION', value: '≤25%' }
                     ].map(field => (
                       <div key={field.label} style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 10px', background: 'white', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                         <span style={{ fontSize: '9px', color: '#64748b', fontWeight: '700' }}>{field.label}:</span>
@@ -1058,116 +1489,536 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
                   </div>
                 </section>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  {/* Hardness Test */}
-                  <section style={{ border: '1px solid #f1f5f9', borderRadius: '12px', padding: '12px', background: 'white' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                      <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '700', color: '#334155' }}>2.2 Hardness Test</h4>
-                      <span style={{ fontSize: '10px', padding: '3px 8px', borderRadius: '6px', background: physicalResults.hardness === 'PASS' ? '#ecfdf5' : '#fef2f2', color: physicalResults.hardness === 'PASS' ? '#059669' : '#b91c1c', fontWeight: '800' }}>
-                        {physicalResults.hardness}
-                      </span>
+                {/* Hardness Section (New Layout) */}
+                <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+                  <div style={{ background: '#f8fafc', padding: '12px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>1) Hardness Shore 'A'</h4>
+                      <div style={{ fontSize: '10px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>FOR: {activeRailpadType}</div>
                     </div>
-                    <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-                      {physicalData.hardness.map((val, idx) => (
-                        <div key={idx} style={{ flex: 1 }}>
-                          <label style={{ display: 'block', fontSize: '10px', color: '#94a3b8', marginBottom: '4px', fontWeight: '700' }}>S{idx+1}</label>
-                          <input 
-                            type="number" 
-                            min="0"
-                            value={val}
-                            onChange={(e) => {
-                              const v = e.target.value;
-                              const newH = [...physicalData.hardness];
-                              newH[idx] = v === '' ? '' : Math.max(0, parseInt(v) || 0);
-                              setPhysicalData(prev => ({ ...prev, hardness: newH }));
-                              markDirty();
-                            }}
-                            style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #f1f5f9', fontWeight: '800', fontSize: '14px', background: '#f8fafc', color: '#1e293b', outline: 'none', transition: 'all 0.2s', boxSizing: 'border-box' }} 
-                          />
-                        </div>
-                      ))}
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '500' }}>
-                      Median Value: <span style={{ fontWeight: '900', color: '#21808d', fontSize: '13px' }}>
-                        {physicalData.hardness.some(v => v === '') ? '-' : `${calculateMedian(physicalData.hardness)} IRHD`}
-                      </span>
-                    </div>
-                  </section>
-
-                  {/* Tensile Strength */}
-                  <section style={{ border: '1px solid #f1f5f9', borderRadius: '12px', padding: '12px', background: 'white' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                      <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '700', color: '#334155' }}>2.3 Tensile & Elongation</h4>
-                      <div style={{ display: 'flex', gap: '4px' }}>
-                        <span style={{ fontSize: '9px', padding: '2px 6px', borderRadius: '4px', background: physicalResults.tensile === 'PASS' ? '#ecfdf5' : '#fef2f2', color: physicalResults.tensile === 'PASS' ? '#059669' : '#b91c1c', fontWeight: '800' }}>TS:{physicalResults.tensile}</span>
-                        <span style={{ fontSize: '9px', padding: '2px 6px', borderRadius: '4px', background: physicalResults.elongation === 'PASS' ? '#ecfdf5' : '#fef2f2', color: physicalResults.elongation === 'PASS' ? '#059669' : '#b91c1c', fontWeight: '800' }}>EL:{physicalResults.elongation}</span>
+                    <div style={{ display: 'flex', gap: '20px' }}>
+                      <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
+                        No. of Samples out of Tolerance: <span style={{ color: totalHardnessOut > 0 ? '#ef4444' : '#059669', fontWeight: '800' }}>{String(totalHardnessOut).padStart(2, '0')}</span>
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
+                        Status: <span style={{ 
+                          color: hardnessStatus === 'ACCEPTED' ? '#059669' : hardnessStatus === 'MARGINAL' ? '#f59e0b' : '#64748b', 
+                          fontWeight: '800',
+                          textTransform: 'uppercase'
+                        }}>{hardnessStatus}</span>
                       </div>
                     </div>
-                    
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '8px' }}>
-                      <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                          <span style={{ fontSize: '10px', fontWeight: '700', color: '#64748b' }}>Tensile (MPa)</span>
-                          <span style={{ fontSize: '10px', fontWeight: '800', color: '#21808d' }}>{(physicalData.tensile.tsBefore === '' || physicalData.tensile.tsAfter === '') ? '' : `${calculateRetention(physicalData.tensile.tsBefore, physicalData.tensile.tsAfter)}%`}</span>
-                        </div>
-                        <div style={{ display: 'flex', gap: '4px' }}>
-                          <input type="number" placeholder="B" value={physicalData.tensile.tsBefore} onChange={(e) => { const v = e.target.value; setPhysicalData(prev => ({ ...prev, tensile: { ...prev.tensile, tsBefore: v === '' ? '' : Math.max(0, parseFloat(v) || 0) } })); markDirty(); }} style={{ flex: 1, padding: '6px', borderRadius: '6px', border: '1px solid #f1f5f9', fontWeight: '800', fontSize: '13px', background: '#f8fafc' }} />
-                          <input type="number" placeholder="A" value={physicalData.tensile.tsAfter} onChange={(e) => { const v = e.target.value; setPhysicalData(prev => ({ ...prev, tensile: { ...prev.tensile, tsAfter: v === '' ? '' : Math.max(0, parseFloat(v) || 0) } })); markDirty(); }} style={{ flex: 1, padding: '6px', borderRadius: '6px', border: '1px solid #f1f5f9', fontWeight: '800', fontSize: '13px', background: '#f8fafc' }} />
-                        </div>
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: '#fff' }}>
+                        <th style={{ width: '200px' }}></th>
+                        {['S1', 'S2', 'S3', 'S4', 'S5'].map(s => (
+                          <th key={s} style={{ padding: '12px', fontSize: '11px', color: '#64748b', fontWeight: '700', textAlign: 'center', borderBottom: '1px solid #f1f5f9' }}>{s}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {/* Compound A / Primary Hardness */}
+                      <tr>
+                        <td style={{ padding: '12px 20px', fontSize: '13px', fontWeight: '700', color: '#334155', background: '#fcfcfc' }}>
+                          {isCGRSP ? 'Compound A' : 'Hardness Result'}
+                        </td>
+                        {physicalData.hardness.compoundA.map((val, idx) => {
+                          return (
+                            <td key={idx} style={{ padding: '8px', border: '1px solid #f1f5f9' }}>
+                              <HardnessCell 
+                                value={val} 
+                                min={currentHardnessSpecs.a.min} 
+                                max={currentHardnessSpecs.a.max} 
+                                onChange={(newVal) => {
+                                  setPhysicalData(prev => ({
+                                    ...prev,
+                                    hardness: { ...prev.hardness, compoundA: prev.hardness.compoundA.map((v, i) => i === idx ? newVal : v) }
+                                  }));
+                                  markDirty();
+                                }} 
+                              />
+                            </td>
+                          );
+                        })}
+                      </tr>
+                      {/* Compound B (CGRSP Only) */}
+                      {isCGRSP && (
+                        <tr>
+                          <td style={{ padding: '12px 20px', fontSize: '13px', fontWeight: '700', color: '#334155', background: '#fcfcfc' }}>
+                            Compound B
+                          </td>
+                          {physicalData.hardness.compoundB.map((val, idx) => {
+                            return (
+                              <td key={idx} style={{ padding: '8px', border: '1px solid #f1f5f9' }}>
+                                <HardnessCell 
+                                  value={val} 
+                                  min={currentHardnessSpecs.b.min} 
+                                  max={currentHardnessSpecs.b.max} 
+                                  onChange={(newVal) => {
+                                    setPhysicalData(prev => ({
+                                      ...prev,
+                                      hardness: { ...prev.hardness, compoundB: prev.hardness.compoundB.map((v, i) => i === idx ? newVal : v) }
+                                    }));
+                                    markDirty();
+                                  }} 
+                                />
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+                  <div style={{ background: '#f8fafc', padding: '12px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>2) Tensile Strength (kg/cm²)</h4>
+                      <div style={{ fontSize: '10px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>FOR: {activeRailpadType}</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '20px' }}>
+                      <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
+                        No. of Sample out of Tolerance: <span style={{ color: tensileOutCount > 0 ? '#ef4444' : '#059669', fontWeight: '800' }}>{String(tensileOutCount).padStart(2, '0')}</span>
                       </div>
-                      <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                          <span style={{ fontSize: '10px', fontWeight: '700', color: '#64748b' }}>Elongation (%)</span>
-                          <span style={{ fontSize: '10px', fontWeight: '800', color: '#21808d' }}>{(physicalData.tensile.elBefore === '' || physicalData.tensile.elAfter === '') ? '' : `${calculateRetention(physicalData.tensile.elBefore, physicalData.tensile.elAfter)}%`}</span>
-                        </div>
-                        <div style={{ display: 'flex', gap: '4px' }}>
-                          <input type="number" placeholder="B" value={physicalData.tensile.elBefore} onChange={(e) => { const v = e.target.value; setPhysicalData(prev => ({ ...prev, tensile: { ...prev.tensile, elBefore: v === '' ? '' : Math.max(0, parseFloat(v) || 0) } })); markDirty(); }} style={{ flex: 1, padding: '6px', borderRadius: '6px', border: '1px solid #f1f5f9', fontWeight: '800', fontSize: '13px', background: '#f8fafc' }} />
-                          <input type="number" placeholder="A" value={physicalData.tensile.elAfter} onChange={(e) => { const v = e.target.value; setPhysicalData(prev => ({ ...prev, tensile: { ...prev.tensile, elAfter: v === '' ? '' : Math.max(0, parseFloat(v) || 0) } })); markDirty(); }} style={{ flex: 1, padding: '6px', borderRadius: '6px', border: '1px solid #f1f5f9', fontWeight: '800', fontSize: '13px', background: '#f8fafc' }} />
-                        </div>
+                      <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
+                        Status: <span style={{ 
+                          color: physicalResults.tensile === 'PASS' ? '#059669' : physicalResults.tensile === 'FAIL' ? '#f59e0b' : '#64748b', 
+                          fontWeight: '800',
+                          textTransform: 'uppercase'
+                        }}>{physicalResults.tensile === 'FAIL' ? 'MARGINAL' : physicalResults.tensile}</span>
                       </div>
                     </div>
-                  </section>
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: '#fff' }}>
+                        <th style={{ width: '250px' }}></th>
+                        {['S1', 'S2', 'S3', 'S4', 'S5'].map(s => (
+                          <th key={s} style={{ padding: '12px', fontSize: '11px', color: '#64748b', fontWeight: '700', textAlign: 'center', borderBottom: '1px solid #f1f5f9' }}>{s}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td style={{ padding: '12px 20px', fontSize: '12px', fontWeight: '700', color: '#334155', background: '#fcfcfc' }}>
+                          Before Ageing (Kg/cm²)
+                        </td>
+                        {physicalData.tensile.before.map((val, idx) => (
+                          <td key={idx} style={{ padding: '8px', border: '1px solid #f1f5f9' }}>
+                            <input 
+                              type="number" 
+                              value={val}
+                              onChange={(e) => {
+                                const newVal = e.target.value;
+                                setPhysicalData(prev => ({
+                                  ...prev,
+                                  tensile: { ...prev.tensile, before: prev.tensile.before.map((v, i) => i === idx ? newVal : v) }
+                                }));
+                                markDirty();
+                              }}
+                              style={{ width: '100%', padding: '8px', border: '1px solid #e2e8f0', borderRadius: '6px', textAlign: 'center', fontSize: '13px', fontWeight: '700', background: (val !== '' && parseFloat(val) < currentTensileSpecs.before) ? '#fef2f2' : 'white', color: (val !== '' && parseFloat(val) < currentTensileSpecs.before) ? '#ef4444' : '#059669' }}
+                            />
+                          </td>
+                        ))}
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '12px 20px', fontSize: '12px', fontWeight: '700', color: '#334155', background: '#fcfcfc' }}>
+                          After Ageing (Kg/cm²)
+                        </td>
+                        {physicalData.tensile.after.map((val, idx) => (
+                          <td key={idx} style={{ padding: '8px', border: '1px solid #f1f5f9' }}>
+                            <input 
+                              type="number" 
+                              value={val}
+                              onChange={(e) => {
+                                const newVal = e.target.value;
+                                setPhysicalData(prev => ({
+                                  ...prev,
+                                  tensile: { ...prev.tensile, after: prev.tensile.after.map((v, i) => i === idx ? newVal : v) }
+                                }));
+                                markDirty();
+                              }}
+                              style={{ width: '100%', padding: '8px', border: '1px solid #e2e8f0', borderRadius: '6px', textAlign: 'center', fontSize: '13px', fontWeight: '700', background: (val !== '' && parseFloat(val) < currentTensileSpecs.after) ? '#fef2f2' : 'white', color: (val !== '' && parseFloat(val) < currentTensileSpecs.after) ? '#ef4444' : '#059669' }}
+                            />
+                          </td>
+                        ))}
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '12px 20px', fontSize: '12px', fontWeight: '700', color: '#334155', background: '#fcfcfc' }}>
+                          % Retention After Ageing
+                        </td>
+                        {physicalData.tensile.before.map((b, idx) => {
+                          const a = physicalData.tensile.after[idx];
+                          const ret = (b && a) ? ((parseFloat(a) / parseFloat(b)) * 100).toFixed(2) : '-';
+                          const isLow = ret !== '-' && parseFloat(ret) < currentTensileSpecs.retention;
+                          return (
+                            <td key={idx} style={{ padding: '8px', border: '1px solid #f1f5f9', textAlign: 'center', fontSize: '13px', fontWeight: '800', color: isLow ? '#ef4444' : '#21808d', background: '#f8fafc' }}>
+                              {ret}{ret !== '-' ? '%' : ''}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '12px' }}>
-                  {/* Modulus Section */}
-                  <section style={{ border: '1px solid #f1f5f9', borderRadius: '12px', padding: '12px', background: 'white' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                      <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '700' }}>2.4 Modulus</h4>
-                      <span style={{ fontSize: '10px', fontWeight: '900', color: physicalResults.modulus === 'PASS' ? '#059669' : '#b91c1c' }}>{physicalResults.modulus}</span>
+                {/* Elongation at Break Section */}
+                <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+                  <div style={{ background: '#f8fafc', padding: '12px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>3) Elongation at Break (%)</h4>
+                      <div style={{ fontSize: '10px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>FOR: {activeRailpadType}</div>
                     </div>
-                    <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
-                      <input type="number" placeholder="B" value={physicalData.modulus.before} onChange={(e) => { const v = e.target.value; setPhysicalData(prev => ({ ...prev, modulus: { ...prev.modulus, before: v === '' ? '' : Math.max(0, parseFloat(v) || 0) } })); markDirty(); }} style={{ flex: 1, padding: '6px', borderRadius: '6px', border: '1px solid #f1f5f9', fontSize: '13px', fontWeight: '800' }} />
-                      <input type="number" placeholder="A" value={physicalData.modulus.after} onChange={(e) => { const v = e.target.value; setPhysicalData(prev => ({ ...prev, modulus: { ...prev.modulus, after: v === '' ? '' : Math.max(0, parseFloat(v) || 0) } })); markDirty(); }} style={{ flex: 1, padding: '6px', borderRadius: '6px', border: '1px solid #f1f5f9', fontSize: '13px', fontWeight: '800' }} />
-                    </div>
-                    <div style={{ fontSize: '10px', color: '#94a3b8' }}>% Change: <span style={{ fontWeight: '800', color: '#21808d' }}>{(physicalData.modulus.before === '' || physicalData.modulus.after === '') ? '-' : `${Math.abs(calculateRetention(physicalData.modulus.before, physicalData.modulus.after) - 100).toFixed(2)}%`}</span></div>
-                  </section>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', flex: 1 }}>
-                    {[
-                      { label: '2.5 Comp Set', key: 'compressionSet', res: physicalResults.compression },
-                      { label: '2.6 Ten Set', key: 'tensionSet', res: physicalResults.tension },
-                      { label: '2.7 Load Defl', key: 'loadDeflection', res: physicalResults.load }
-                    ].map(test => (
-                      <div key={test.key} style={{ background: 'white', padding: '12px', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                          <div style={{ fontSize: '11px', fontWeight: '700', color: '#475569' }}>{test.label}</div>
-                          <span style={{ fontSize: '9px', fontWeight: '900', color: test.res === 'PASS' ? '#059669' : '#b91c1c' }}>{test.res}</span>
-                        </div>
-                        <input 
-                          type="number" 
-                          min="0"
-                          value={physicalData[test.key]}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setPhysicalData(prev => ({ ...prev, [test.key]: val === '' ? '' : Math.max(0, parseFloat(val) || 0) }));
-                            markDirty();
-                          }}
-                          style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #e2e8f0', fontWeight: '800', fontSize: '14px', color: '#1e293b', outline: 'none', boxSizing: 'border-box' }} 
-                        />
+                    <div style={{ display: 'flex', gap: '20px' }}>
+                      <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
+                        No. of Sample out of Tolerance: <span style={{ color: elongationOutCount > 0 ? '#ef4444' : '#059669', fontWeight: '800' }}>{String(elongationOutCount).padStart(2, '0')}</span>
                       </div>
-                    ))}
+                      <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
+                        Status: <span style={{ 
+                          color: physicalResults.elongation === 'PASS' ? '#059669' : physicalResults.elongation === 'FAIL' ? '#f59e0b' : '#64748b', 
+                          fontWeight: '800',
+                          textTransform: 'uppercase'
+                        }}>{physicalResults.elongation === 'FAIL' ? 'MARGINAL' : physicalResults.elongation}</span>
+                      </div>
+                    </div>
                   </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: '#fff' }}>
+                        <th style={{ width: '250px' }}></th>
+                        {['S1', 'S2', 'S3', 'S4', 'S5'].map(s => (
+                          <th key={s} style={{ padding: '12px', fontSize: '11px', color: '#64748b', fontWeight: '700', textAlign: 'center', borderBottom: '1px solid #f1f5f9' }}>{s}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td style={{ padding: '12px 20px', fontSize: '12px', fontWeight: '700', color: '#334155', background: '#fcfcfc' }}>
+                          Before Ageing (%)
+                        </td>
+                        {physicalData.elongation.before.map((val, idx) => (
+                          <td key={idx} style={{ padding: '8px', border: '1px solid #f1f5f9' }}>
+                            <input 
+                              type="number" 
+                              value={val}
+                              onChange={(e) => {
+                                const newVal = e.target.value;
+                                setPhysicalData(prev => ({
+                                  ...prev,
+                                  elongation: { ...prev.elongation, before: prev.elongation.before.map((v, i) => i === idx ? newVal : v) }
+                                }));
+                                markDirty();
+                              }}
+                              style={{ width: '100%', padding: '8px', border: '1px solid #e2e8f0', borderRadius: '6px', textAlign: 'center', fontSize: '13px', fontWeight: '700', background: (val !== '' && parseFloat(val) < currentElongationSpecs.before) ? '#fef2f2' : 'white', color: (val !== '' && parseFloat(val) < currentElongationSpecs.before) ? '#ef4444' : '#059669' }}
+                            />
+                          </td>
+                        ))}
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '12px 20px', fontSize: '12px', fontWeight: '700', color: '#334155', background: '#fcfcfc' }}>
+                          After Ageing (%)
+                        </td>
+                        {physicalData.elongation.after.map((val, idx) => (
+                          <td key={idx} style={{ padding: '8px', border: '1px solid #f1f5f9' }}>
+                            <input 
+                              type="number" 
+                              value={val}
+                              onChange={(e) => {
+                                const newVal = e.target.value;
+                                setPhysicalData(prev => ({
+                                  ...prev,
+                                  elongation: { ...prev.elongation, after: prev.elongation.after.map((v, i) => i === idx ? newVal : v) }
+                                }));
+                                markDirty();
+                              }}
+                              style={{ width: '100%', padding: '8px', border: '1px solid #e2e8f0', borderRadius: '6px', textAlign: 'center', fontSize: '13px', fontWeight: '700', background: (val !== '' && parseFloat(val) < currentElongationSpecs.after) ? '#fef2f2' : 'white', color: (val !== '' && parseFloat(val) < currentElongationSpecs.after) ? '#ef4444' : '#059669' }}
+                            />
+                          </td>
+                        ))}
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '12px 20px', fontSize: '12px', fontWeight: '700', color: '#334155', background: '#fcfcfc' }}>
+                          % Retention After Ageing
+                        </td>
+                        {physicalData.elongation.before.map((b, idx) => {
+                          const a = physicalData.elongation.after[idx];
+                          const ret = (b && a) ? ((parseFloat(a) / parseFloat(b)) * 100).toFixed(2) : '-';
+                          const isLow = ret !== '-' && parseFloat(ret) < currentElongationSpecs.retention;
+                          return (
+                            <td key={idx} style={{ padding: '8px', border: '1px solid #f1f5f9', textAlign: 'center', fontSize: '13px', fontWeight: '800', color: isLow ? '#ef4444' : '#21808d', background: '#f8fafc' }}>
+                              {ret}{ret !== '-' ? '%' : ''}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Relaxed Modulus Section */}
+                <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', overflow: 'hidden', marginTop: '12px' }}>
+                  <div style={{ background: '#f8fafc', padding: '12px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>Relaxed Modulus at 100% Elongation</h4>
+                      <div style={{ fontSize: '10px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>FOR: {activeRailpadType}</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '20px' }}>
+                      <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
+                        No. of Sample out of Tolerance: <span style={{ color: modulusOutCount > 0 ? '#ef4444' : '#059669', fontWeight: '800' }}>{String(modulusOutCount).padStart(2, '0')}</span>
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
+                        Status: <span style={{ 
+                          color: physicalResults.modulus === 'PASS' ? '#059669' : physicalResults.modulus === 'FAIL' ? '#f59e0b' : '#64748b', 
+                          fontWeight: '800',
+                          textTransform: 'uppercase'
+                        }}>{physicalResults.modulus === 'FAIL' ? 'MARGINAL' : physicalResults.modulus}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: '#fff' }}>
+                        <th style={{ width: '250px' }}></th>
+                        {['S1', 'S2', 'S3'].map(s => (
+                          <th key={s} style={{ padding: '12px', fontSize: '11px', color: '#64748b', fontWeight: '700', textAlign: 'center', borderBottom: '1px solid #f1f5f9' }}>{s}</th>
+                        ))}
+                        <th style={{ flex: 1 }}></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td style={{ padding: '12px 20px', fontSize: '12px', fontWeight: '700', color: '#334155', background: '#fcfcfc' }}>
+                          Before Ageing (Kg/cm²)
+                        </td>
+                        {physicalData.modulus.before.map((val, idx) => (
+                          <td key={idx} style={{ padding: '8px', border: '1px solid #f1f5f9' }}>
+                            <input 
+                              type="number" 
+                              value={val}
+                              onChange={(e) => {
+                                const newVal = e.target.value;
+                                setPhysicalData(prev => ({
+                                  ...prev,
+                                  modulus: { ...prev.modulus, before: prev.modulus.before.map((v, i) => i === idx ? newVal : v) }
+                                }));
+                                markDirty();
+                              }}
+                              style={{ width: '100%', padding: '8px', border: '1px solid #e2e8f0', borderRadius: '6px', textAlign: 'center', fontSize: '13px', fontWeight: '700', background: (val !== '' && (parseFloat(val) < currentModulusSpecs.min || parseFloat(val) > currentModulusSpecs.max)) ? '#fef2f2' : 'white', color: (val !== '' && (parseFloat(val) < currentModulusSpecs.min || parseFloat(val) > currentModulusSpecs.max)) ? '#ef4444' : '#059669' }}
+                            />
+                          </td>
+                        ))}
+                        <td></td>
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '12px 20px', fontSize: '12px', fontWeight: '700', color: '#334155', background: '#fcfcfc' }}>
+                          After Ageing (Kg/cm²)
+                        </td>
+                        {physicalData.modulus.after.map((val, idx) => (
+                          <td key={idx} style={{ padding: '8px', border: '1px solid #f1f5f9' }}>
+                            <input 
+                              type="number" 
+                              value={val}
+                              onChange={(e) => {
+                                const newVal = e.target.value;
+                                setPhysicalData(prev => ({
+                                  ...prev,
+                                  modulus: { ...prev.modulus, after: prev.modulus.after.map((v, i) => i === idx ? newVal : v) }
+                                }));
+                                markDirty();
+                              }}
+                              style={{ width: '100%', padding: '8px', border: '1px solid #e2e8f0', borderRadius: '6px', textAlign: 'center', fontSize: '13px', fontWeight: '700', background: 'white' }}
+                            />
+                          </td>
+                        ))}
+                        <td></td>
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '12px 20px', fontSize: '12px', fontWeight: '700', color: '#334155', background: '#fcfcfc' }}>
+                          % Change in Modulus
+                        </td>
+                        {physicalData.modulus.before.map((b, idx) => {
+                          const a = physicalData.modulus.after[idx];
+                          const change = (b && a) ? (((parseFloat(a) - parseFloat(b)) / parseFloat(b)) * 100).toFixed(2) : '-';
+                          const isOut = change !== '-' && (parseFloat(change) > currentModulusSpecs.changePos || parseFloat(change) < -currentModulusSpecs.changeNeg);
+                          return (
+                            <td key={idx} style={{ padding: '8px', border: '1px solid #f1f5f9', textAlign: 'center', fontSize: '13px', fontWeight: '800', color: isOut ? '#ef4444' : '#21808d', background: '#f8fafc' }}>
+                              {change}{change !== '-' ? '%' : ''}
+                            </td>
+                          );
+                        })}
+                        <td></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Compression Set Section */}
+                <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', overflow: 'hidden', marginTop: '12px' }}>
+                  <div style={{ background: '#f8fafc', padding: '12px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>Compression Set subjected to 50% Compression</h4>
+                      <div style={{ fontSize: '10px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>FOR: {activeRailpadType}</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '20px' }}>
+                      <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
+                        No. of Sample out of Tolerance: <span style={{ color: compressionOutCount > 0 ? '#ef4444' : '#059669', fontWeight: '800' }}>{String(compressionOutCount).padStart(2, '0')}</span>
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
+                        Status: <span style={{ color: physicalResults.compression === 'PASS' ? '#059669' : physicalResults.compression === 'FAIL' ? '#f59e0b' : '#64748b', fontWeight: '800' }}>{physicalResults.compression === 'FAIL' ? 'MARGINAL' : physicalResults.compression}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: '#fff' }}>
+                        <th style={{ width: '250px' }}></th>
+                        {['S1', 'S2', 'S3'].map(s => <th key={s} style={{ padding: '12px', fontSize: '11px', color: '#64748b', fontWeight: '700', textAlign: 'center', borderBottom: '1px solid #f1f5f9' }}>{s}</th>)}
+                        <th style={{ flex: 1 }}></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td style={{ padding: '12px 20px', fontSize: '12px', fontWeight: '700', color: '#334155', background: '#fcfcfc' }}>Initial Thickness (A) in mm</td>
+                        {physicalData.compression.initial.map((val, idx) => (
+                          <td key={idx} style={{ padding: '8px', border: '1px solid #f1f5f9' }}>
+                            <input type="number" value={val} onChange={(e) => setPhysicalData(prev => ({ ...prev, compression: { ...prev.compression, initial: prev.compression.initial.map((v, i) => i === idx ? e.target.value : v) } }))} style={{ width: '100%', padding: '8px', border: '1px solid #e2e8f0', borderRadius: '6px', textAlign: 'center', fontSize: '13px', fontWeight: '700' }} />
+                          </td>
+                        ))}
+                        <td></td>
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '12px 20px', fontSize: '12px', fontWeight: '700', color: '#334155', background: '#fcfcfc' }}>Final Thickness (B) in mm</td>
+                        {physicalData.compression.final.map((val, idx) => (
+                          <td key={idx} style={{ padding: '8px', border: '1px solid #f1f5f9' }}>
+                            <input type="number" value={val} onChange={(e) => setPhysicalData(prev => ({ ...prev, compression: { ...prev.compression, final: prev.compression.final.map((v, i) => i === idx ? e.target.value : v) } }))} style={{ width: '100%', padding: '8px', border: '1px solid #e2e8f0', borderRadius: '6px', textAlign: 'center', fontSize: '13px', fontWeight: '700' }} />
+                          </td>
+                        ))}
+                        <td></td>
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '12px 20px', fontSize: '12px', fontWeight: '700', color: '#334155', background: '#fcfcfc' }}>Compression Set ((A-B)/A*100)</td>
+                        {physicalData.compression.initial.map((a, idx) => {
+                          const b = physicalData.compression.final[idx];
+                          const set = (a && b) ? (((parseFloat(a) - parseFloat(b)) / parseFloat(a)) * 100).toFixed(2) : '-';
+                          return <td key={idx} style={{ padding: '8px', border: '1px solid #f1f5f9', textAlign: 'center', fontSize: '13px', fontWeight: '800', color: (set !== '-' && parseFloat(set) > 30) ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{set}{set !== '-' ? '%' : ''}</td>;
+                        })}
+                        <td></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Tension Set Section */}
+                <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', overflow: 'hidden', marginTop: '12px' }}>
+                  <div style={{ background: '#f8fafc', padding: '12px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>Tension Set subjected to 50% Stretch</h4>
+                      <div style={{ fontSize: '10px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>FOR: {activeRailpadType}</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '20px' }}>
+                      <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
+                        No. of Sample out of Tolerance: <span style={{ color: tensionOutCount > 0 ? '#ef4444' : '#059669', fontWeight: '800' }}>{String(tensionOutCount).padStart(2, '0')}</span>
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
+                        Status: <span style={{ color: physicalResults.tension === 'PASS' ? '#059669' : physicalResults.tension === 'FAIL' ? '#f59e0b' : '#64748b', fontWeight: '800' }}>{physicalResults.tension === 'FAIL' ? 'MARGINAL' : physicalResults.tension}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: '#fff' }}>
+                        <th style={{ width: '250px' }}></th>
+                        {['S1', 'S2', 'S3'].map(s => <th key={s} style={{ padding: '12px', fontSize: '11px', color: '#64748b', fontWeight: '700', textAlign: 'center', borderBottom: '1px solid #f1f5f9' }}>{s}</th>)}
+                        <th style={{ flex: 1 }}></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td style={{ padding: '12px 20px', fontSize: '12px', fontWeight: '700', color: '#334155', background: '#fcfcfc' }}>Initial Length (A) in mm</td>
+                        {physicalData.tension.initial.map((val, idx) => (
+                          <td key={idx} style={{ padding: '8px', border: '1px solid #f1f5f9' }}>
+                            <input type="number" value={val} onChange={(e) => setPhysicalData(prev => ({ ...prev, tension: { ...prev.tension, initial: prev.tension.initial.map((v, i) => i === idx ? e.target.value : v) } }))} style={{ width: '100%', padding: '8px', border: '1px solid #e2e8f0', borderRadius: '6px', textAlign: 'center', fontSize: '13px', fontWeight: '700' }} />
+                          </td>
+                        ))}
+                        <td></td>
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '12px 20px', fontSize: '12px', fontWeight: '700', color: '#334155', background: '#fcfcfc' }}>Final Length (B) in mm</td>
+                        {physicalData.tension.final.map((val, idx) => (
+                          <td key={idx} style={{ padding: '8px', border: '1px solid #f1f5f9' }}>
+                            <input type="number" value={val} onChange={(e) => setPhysicalData(prev => ({ ...prev, tension: { ...prev.tension, final: prev.tension.final.map((v, i) => i === idx ? e.target.value : v) } }))} style={{ width: '100%', padding: '8px', border: '1px solid #e2e8f0', borderRadius: '6px', textAlign: 'center', fontSize: '13px', fontWeight: '700' }} />
+                          </td>
+                        ))}
+                        <td></td>
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '12px 20px', fontSize: '12px', fontWeight: '700', color: '#334155', background: '#fcfcfc' }}>Tension Set ((B-A)/A*100)</td>
+                        {physicalData.tension.initial.map((a, idx) => {
+                          const b = physicalData.tension.final[idx];
+                          const set = (a && b) ? (((parseFloat(b) - parseFloat(a)) / parseFloat(a)) * 100).toFixed(2) : '-';
+                          return <td key={idx} style={{ padding: '8px', border: '1px solid #f1f5f9', textAlign: 'center', fontSize: '13px', fontWeight: '800', color: (set !== '-' && parseFloat(set) > 25) ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{set}{set !== '-' ? '%' : ''}</td>;
+                        })}
+                        <td></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Load Compression Test Section */}
+                <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', overflow: 'hidden', marginTop: '12px' }}>
+                  <div style={{ background: '#f8fafc', padding: '12px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>Load Compression Test</h4>
+                      <div style={{ fontSize: '10px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>FOR: {activeRailpadType}</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '20px' }}>
+                      <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
+                        Status: <span style={{ color: physicalResults.load === 'PASS' ? '#059669' : physicalResults.load === 'FAIL' ? '#f59e0b' : '#64748b', fontWeight: '800' }}>{physicalResults.load === 'FAIL' ? 'MARGINAL' : physicalResults.load}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: '#fcfcfc' }}>
+                        <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }} rowSpan="2">Load (Tonnes)</th>
+                        <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }} colSpan="3">Pad 1</th>
+                        <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }} colSpan="3">Pad 2</th>
+                      </tr>
+                      <tr style={{ background: '#fcfcfc' }}>
+                        <th style={{ padding: '8px', fontSize: '10px', border: '1px solid #f1f5f9' }}>L Gauge</th>
+                        <th style={{ padding: '8px', fontSize: '10px', border: '1px solid #f1f5f9' }}>R Gauge</th>
+                        <th style={{ padding: '8px', fontSize: '10px', border: '1px solid #f1f5f9', background: '#f0f9ff' }}>Defl (mm)</th>
+                        <th style={{ padding: '8px', fontSize: '10px', border: '1px solid #f1f5f9' }}>L Gauge</th>
+                        <th style={{ padding: '8px', fontSize: '10px', border: '1px solid #f1f5f9' }}>R Gauge</th>
+                        <th style={{ padding: '8px', fontSize: '10px', border: '1px solid #f1f5f9', background: '#f0f9ff' }}>Defl (mm)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[0.08, 0.76, 1.52, 2.28, 3.8, 7.6, 11.4, 15.2].map((load, idx) => (
+                        <tr key={load}>
+                          <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', fontWeight: '800', background: '#f8fafc', border: '1px solid #f1f5f9' }}>{load}</td>
+                          {['pad1', 'pad2'].map(padKey => {
+                            const data = physicalData.loadTest[padKey][idx];
+                            const defl = (data.left && data.right) ? ((parseFloat(data.left) + parseFloat(data.right)) / 2).toFixed(2) : '-';
+                            const isOutAtEnd = idx === 7 && defl !== '-' && (parseFloat(defl) < currentLoadSpecs.min || parseFloat(defl) > currentLoadSpecs.max);
+                            return (
+                              <React.Fragment key={padKey}>
+                                <td style={{ padding: '4px', border: '1px solid #f1f5f9' }}>
+                                  <input type="number" value={data.left} onChange={(e) => setPhysicalData(prev => ({ ...prev, loadTest: { ...prev.loadTest, [padKey]: prev.loadTest[padKey].map((v, i) => i === idx ? { ...v, left: e.target.value } : v) } }))} style={{ width: '100%', padding: '6px', border: '1px solid #e2e8f0', borderRadius: '4px', textAlign: 'center', fontSize: '12px', fontWeight: '700' }} />
+                                </td>
+                                <td style={{ padding: '4px', border: '1px solid #f1f5f9' }}>
+                                  <input type="number" value={data.right} onChange={(e) => setPhysicalData(prev => ({ ...prev, loadTest: { ...prev.loadTest, [padKey]: prev.loadTest[padKey].map((v, i) => i === idx ? { ...v, right: e.target.value } : v) } }))} style={{ width: '100%', padding: '6px', border: '1px solid #e2e8f0', borderRadius: '4px', textAlign: 'center', fontSize: '12px', fontWeight: '700' }} />
+                                </td>
+                                <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', fontWeight: '900', background: '#f8fafc', border: '1px solid #f1f5f9', color: isOutAtEnd ? '#ef4444' : '#21808d' }}>{defl}</td>
+                              </React.Fragment>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
 
                 {/* Layer 3: Physical Decision */}
@@ -1196,94 +2047,216 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
             )}
 
             {activeTab === 'electrical' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <section>
-                  <h4 style={{ color: '#94a3b8', fontSize: '10px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px' }}>
-                    Baseline Configuration
-                  </h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
-                    {[
-                      { label: 'SG Baseline', value: '1.25 ± 0.03' },
-                      { label: 'Ash %', value: '35% ± 2.0' },
-                      { label: 'Dry Resistance', value: '≥ 100 MΩ' }
-                    ].map(field => (
-                      <div key={field.label} style={{ background: '#f8fafc', padding: '8px 12px', borderRadius: '10px', border: '1px solid #f1f5f9' }}>
-                        <div style={{ fontSize: '9px', color: '#94a3b8', marginBottom: '2px', fontWeight: '700', textTransform: 'uppercase' }}>{field.label}</div>
-                        <div style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b' }}>{field.value}</div>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-
-                <section style={{ border: '1px solid #f1f5f9', borderRadius: '16px', padding: '16px', background: 'white' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                    <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#334155' }}>2.2 Electrical Resistance Test</h4>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <span style={{ fontSize: '10px', padding: '4px 10px', borderRadius: '6px', background: elecResults.resistanceBefore === 'PASS' ? '#ecfdf5' : '#fef2f2', color: elecResults.resistanceBefore === 'PASS' ? '#059669' : '#b91c1c', fontWeight: '800' }}>Dry: {elecResults.resistanceBefore}</span>
-                      <span style={{ fontSize: '10px', padding: '4px 10px', borderRadius: '6px', background: elecResults.resistanceAfter === 'PASS' ? '#ecfdf5' : '#fef2f2', color: elecResults.resistanceAfter === 'PASS' ? '#059669' : '#b91c1c', fontWeight: '800' }}>Wet: {elecResults.resistanceAfter}</span>
-                    </div>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', animation: 'fadeIn 0.4s ease-out' }}>
+                {/* 8) Electrical Resistance Test */}
+                <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+                  <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#64748b', marginBottom: '12px' }}>Dry Condition (MΩ)</div>
-                      <div style={{ display: 'flex', gap: '12px' }}>
-                        <input type="number" min="0" placeholder="Forward" value={elecData.before.f} onChange={(e) => { const val = e.target.value; setElecData(prev => ({ ...prev, before: { ...prev.before, f: val === '' ? '' : Math.max(0, parseFloat(val) || 0) } })); markDirty(); }} style={{ flex: 1, padding: '10px', border: '1px solid #e2e8f0', borderRadius: '10px', fontWeight: '800', fontSize: '15px', background: '#f8fafc', outline: 'none' }} />
-                        <input type="number" min="0" placeholder="Reverse" value={elecData.before.r} onChange={(e) => { const val = e.target.value; setElecData(prev => ({ ...prev, before: { ...prev.before, r: val === '' ? '' : Math.max(0, parseFloat(val) || 0) } })); markDirty(); }} style={{ flex: 1, padding: '10px', border: '1px solid #e2e8f0', borderRadius: '10px', fontWeight: '800', fontSize: '15px', background: '#f8fafc', outline: 'none' }} />
-                      </div>
-                      <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '8px', fontWeight: '500' }}>
-                        Min: <span style={{ color: '#21808d', fontWeight: '800' }}>
-                          {(elecData.before.f === '' || elecData.before.r === '') ? '-' : `${Math.min(elecData.before.f, elecData.before.r)} MΩ`}
-                        </span>
-                      </div>
+                      <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>Electrical Resistance Test (Mega Ohms)</h3>
                     </div>
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#64748b', marginBottom: '12px' }}>Wet Condition (MΩ)</div>
-                      <div style={{ display: 'flex', gap: '12px' }}>
-                        <input type="number" min="0" placeholder="Forward" value={elecData.after.f} onChange={(e) => { const val = e.target.value; setElecData(prev => ({ ...prev, after: { ...prev.after, f: val === '' ? '' : Math.max(0, parseFloat(val) || 0) } })); markDirty(); }} style={{ flex: 1, padding: '10px', border: '1px solid #e2e8f0', borderRadius: '10px', fontWeight: '800', fontSize: '15px', background: '#f8fafc', outline: 'none' }} />
-                        <input type="number" min="0" placeholder="Reverse" value={elecData.after.r} onChange={(e) => { const val = e.target.value; setElecData(prev => ({ ...prev, after: { ...prev.after, r: val === '' ? '' : Math.max(0, parseFloat(val) || 0) } })); markDirty(); }} style={{ flex: 1, padding: '10px', border: '1px solid #e2e8f0', borderRadius: '10px', fontWeight: '800', fontSize: '15px', background: '#f8fafc', outline: 'none' }} />
+                    <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
+                      <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
+                        No. of Samples out of Tolerance: <span style={{ color: resOutCount > 0 ? '#ef4444' : '#059669', fontWeight: '800' }}>{String(resOutCount).padStart(2, '0')}</span>
                       </div>
-                      <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '8px', fontWeight: '500' }}>
-                        Min: <span style={{ color: '#21808d', fontWeight: '800' }}>
-                          {(elecData.after.f === '' || elecData.after.r === '') ? '-' : `${Math.min(elecData.after.f, elecData.after.r)} MΩ`}
-                        </span>
-                      </div>
+                      <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: elecResults.resistance === 'PASS' ? '#dcfce7' : elecResults.resistance === 'FAIL' ? '#fef3c7' : '#fee2e2', color: elecResults.resistance === 'PASS' ? '#166534' : elecResults.resistance === 'FAIL' ? '#b45309' : '#991b1b' }}>{elecResults.resistance === 'FAIL' ? 'MARGINAL' : elecResults.resistance}</span>
                     </div>
                   </div>
-                </section>
+                  <div style={{ padding: '20px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr>
+                          <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Sample</th>
+                          <th colSpan="3" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f0f9fa', fontSize: '12px', color: '#21808d', fontWeight: '800' }}>Before Immersion</th>
+                          <th colSpan="3" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#fff7ed', fontSize: '12px', color: '#c2410c', fontWeight: '800' }}>After Immersion*</th>
+                        </tr>
+                        <tr>
+                          <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Forward</th>
+                          <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Reverse</th>
+                          <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b', background: '#f8fafc' }}>Lower Value</th>
+                          <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Forward</th>
+                          <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Reverse</th>
+                          <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b', background: '#f8fafc' }}>Lower Value</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {elecData.resistance.map((row, idx) => {
+                          const bMin = (row.bF && row.bR) ? Math.min(parseFloat(row.bF), parseFloat(row.bR)) : '-';
+                          const aMin = (row.aF && row.aR) ? Math.min(parseFloat(row.aF), parseFloat(row.aR)) : '-';
+                          return (
+                            <tr key={idx}>
+                              <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '700', color: '#64748b' }}>S{idx + 1}</td>
+                              <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
+                                <input type="number" value={row.bF} onChange={(e) => setElecData(prev => ({ ...prev, resistance: prev.resistance.map((r, i) => i === idx ? { ...r, bF: e.target.value } : r) }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                              </td>
+                              <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
+                                <input type="number" value={row.bR} onChange={(e) => setElecData(prev => ({ ...prev, resistance: prev.resistance.map((r, i) => i === idx ? { ...r, bR: e.target.value } : r) }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                              </td>
+                              <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: bMin !== '-' && bMin < 100 ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{bMin}</td>
+                              <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
+                                <input type="number" value={row.aF} onChange={(e) => setElecData(prev => ({ ...prev, resistance: prev.resistance.map((r, i) => i === idx ? { ...r, aF: e.target.value } : r) }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                              </td>
+                              <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
+                                <input type="number" value={row.aR} onChange={(e) => setElecData(prev => ({ ...prev, resistance: prev.resistance.map((r, i) => i === idx ? { ...r, aR: e.target.value } : r) }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                              </td>
+                              <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: aMin !== '-' && aMin < 100 ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{aMin}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <section style={{ border: '1px solid #f1f5f9', borderRadius: '16px', padding: '16px', background: 'white' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                      <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '700' }}>Specific Gravity Audit</h4>
-                      <span style={{ fontSize: '10px', fontWeight: '900', color: elecResults.sg === 'PASS' ? '#059669' : '#b91c1c' }}>{elecResults.sg}</span>
+                {/* Specific Gravity */}
+                <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+                  <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>Specific Gravity</h3>
                     </div>
-                    <div style={{ display: 'flex', gap: '12px' }}>
-                      <div style={{ flex: 1 }}>
-                        <label style={{ display: 'block', fontSize: '10px', color: '#94a3b8', marginBottom: '4px' }}>Product SG</label>
-                        <input type="number" min="0" placeholder="Product" value={elecData.sg.product} onChange={(e) => { const val = e.target.value; setElecData(prev => ({ ...prev, sg: { ...prev.sg, product: val === '' ? '' : Math.max(0, parseFloat(val) || 0) } })); markDirty(); }} style={{ width: '100%', padding: '10px', border: '1px solid #e2e8f0', borderRadius: '8px', fontWeight: '800', fontSize: '14px' }} />
+                    <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
+                      <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
+                        No. of Samples out of Tolerance: <span style={{ color: totalSGOut > 0 ? '#ef4444' : '#059669', fontWeight: '800' }}>{String(totalSGOut).padStart(2, '0')}</span>
                       </div>
-                      <div style={{ flex: 1 }}>
-                        <label style={{ display: 'block', fontSize: '10px', color: '#94a3b8', marginBottom: '4px' }}>Baseline SG</label>
-                        <input type="number" min="0" placeholder="Baseline" value={elecData.sg.baseline} onChange={(e) => { const val = e.target.value; setElecData(prev => ({ ...prev, sg: { ...prev.sg, baseline: val === '' ? '' : Math.max(0, parseFloat(val) || 0) } })); markDirty(); }} style={{ width: '100%', padding: '10px', border: '1px solid #e2e8f0', borderRadius: '8px', fontWeight: '800', fontSize: '14px' }} />
-                      </div>
+                      <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: elecResults.sg === 'PASS' ? '#dcfce7' : elecResults.sg === 'FAIL' ? '#fef3c7' : '#fee2e2', color: elecResults.sg === 'PASS' ? '#166534' : elecResults.sg === 'FAIL' ? '#b45309' : '#991b1b' }}>{elecResults.sg === 'FAIL' ? 'MARGINAL' : elecResults.sg}</span>
                     </div>
-                  </section>
-                  <section style={{ border: '1px solid #f1f5f9', borderRadius: '16px', padding: '16px', background: 'white' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                      <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '700' }}>Ash Content % Audit</h4>
-                      <span style={{ fontSize: '10px', fontWeight: '900', color: elecResults.ash === 'PASS' ? '#059669' : '#b91c1c' }}>{elecResults.ash}</span>
+                  </div>
+                  <div style={{ padding: '20px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr>
+                          <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Sample</th>
+                          <th colSpan="3" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>Compound A</th>
+                          {isCGRSP && <th colSpan="3" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>Compound B</th>}
+                          {isCGRSP && <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Variation</th>}
+                        </tr>
+                        <tr>
+                          <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Wt. Air (g)</th>
+                          <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Wt. Water (g)</th>
+                          <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b', background: '#f8fafc' }}>S.G.</th>
+                          {isCGRSP && <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Wt. Air (g)</th>}
+                          {isCGRSP && <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Wt. Water (g)</th>}
+                          {isCGRSP && <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b', background: '#f8fafc' }}>S.G.</th>}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[0, 1, 2].map(idx => {
+                          const rA = elecData.sg.compoundA[idx];
+                          const rB = elecData.sg.compoundB[idx];
+                          const sgA = (rA.air && rA.water) ? (parseFloat(rA.air) / (parseFloat(rA.air) - parseFloat(rA.water))).toFixed(3) : '-';
+                          const sgB = (rB.air && rB.water) ? (parseFloat(rB.air) / (parseFloat(rB.air) - parseFloat(rB.water))).toFixed(3) : '-';
+                          const variation = (sgA !== '-' && sgB !== '-') ? (parseFloat(sgA) - parseFloat(sgB)).toFixed(3) : '-';
+                          
+                          return (
+                            <tr key={idx}>
+                              <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '700', color: '#64748b' }}>S{idx + 1}</td>
+                              <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
+                                <input type="number" value={rA.air} onChange={(e) => setElecData(prev => ({ ...prev, sg: { ...prev.sg, compoundA: prev.sg.compoundA.map((r, i) => i === idx ? { ...r, air: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                              </td>
+                              <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
+                                <input type="number" value={rA.water} onChange={(e) => setElecData(prev => ({ ...prev, sg: { ...prev.sg, compoundA: prev.sg.compoundA.map((r, i) => i === idx ? { ...r, water: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                              </td>
+                              <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: sgA !== '-' && parseFloat(sgA) > currentSGSpecs.a ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{sgA}</td>
+                              
+                              {isCGRSP && (
+                                <>
+                                  <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
+                                    <input type="number" value={rB.air} onChange={(e) => setElecData(prev => ({ ...prev, sg: { ...prev.sg, compoundB: prev.sg.compoundB.map((r, i) => i === idx ? { ...r, air: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                                  </td>
+                                  <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
+                                    <input type="number" value={rB.water} onChange={(e) => setElecData(prev => ({ ...prev, sg: { ...prev.sg, compoundB: prev.sg.compoundB.map((r, i) => i === idx ? { ...r, water: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                                  </td>
+                                  <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: sgB !== '-' && parseFloat(sgB) > currentSGSpecs.b ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{sgB}</td>
+                                  <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: variation !== '-' && Math.abs(parseFloat(variation)) > currentSGSpecs.variation ? '#ef4444' : '#64748b', background: '#f8fafc' }}>{variation}</td>
+                                </>
+                              )}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Ash Content */}
+                <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+                  <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>Ash Content</h3>
                     </div>
-                    <div style={{ display: 'flex', gap: '12px' }}>
-                      <div style={{ flex: 1 }}>
-                        <label style={{ display: 'block', fontSize: '10px', color: '#94a3b8', marginBottom: '4px' }}>Product Ash %</label>
-                        <input type="number" min="0" placeholder="Product %" value={elecData.ash.product} onChange={(e) => { const val = e.target.value; setElecData(prev => ({ ...prev, ash: { ...prev.ash, product: val === '' ? '' : Math.max(0, parseFloat(val) || 0) } })); markDirty(); }} style={{ width: '100%', padding: '10px', border: '1px solid #e2e8f0', borderRadius: '8px', fontWeight: '800', fontSize: '14px' }} />
+                    <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
+                      <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
+                        No. of Samples out of Tolerance: <span style={{ color: totalAshOut > 0 ? '#ef4444' : '#059669', fontWeight: '800' }}>{String(totalAshOut).padStart(2, '0')}</span>
                       </div>
-                      <div style={{ flex: 1 }}>
-                        <label style={{ display: 'block', fontSize: '10px', color: '#94a3b8', marginBottom: '4px' }}>Baseline Ash %</label>
-                        <input type="number" min="0" placeholder="Baseline %" value={elecData.ash.baseline} onChange={(e) => { const val = e.target.value; setElecData(prev => ({ ...prev, ash: { ...prev.ash, baseline: val === '' ? '' : Math.max(0, parseFloat(val) || 0) } })); markDirty(); }} style={{ width: '100%', padding: '10px', border: '1px solid #e2e8f0', borderRadius: '8px', fontWeight: '800', fontSize: '14px' }} />
-                      </div>
+                      <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: elecResults.ash === 'PASS' ? '#dcfce7' : elecResults.ash === 'FAIL' ? '#fef3c7' : '#fee2e2', color: elecResults.ash === 'PASS' ? '#166534' : elecResults.ash === 'FAIL' ? '#b45309' : '#991b1b' }}>{elecResults.ash === 'FAIL' ? 'MARGINAL' : elecResults.ash}</span>
                     </div>
-                  </section>
+                  </div>
+                  <div style={{ padding: '20px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr>
+                          <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Sample</th>
+                          <th colSpan="4" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>Product A</th>
+                          {isCGRSP && <th colSpan="4" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>Product B</th>}
+                          {isCGRSP && <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Variation</th>}
+                        </tr>
+                        <tr>
+                          <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Crucible</th>
+                          <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Sample+Cr</th>
+                          <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Ash+Cr</th>
+                          <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b', background: '#f8fafc' }}>% Ash</th>
+                          {isCGRSP && (
+                            <>
+                              <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Crucible</th>
+                              <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Sample+Cr</th>
+                              <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Ash+Cr</th>
+                              <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b', background: '#f8fafc' }}>% Ash</th>
+                            </>
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[0, 1, 2].map(idx => {
+                          const rA = elecData.ash.compoundA[idx];
+                          const rB = elecData.ash.compoundB[idx];
+                          const ashA = (rA.crucible && rA.sample && rA.ash) ? (((parseFloat(rA.ash) - parseFloat(rA.crucible)) / (parseFloat(rA.sample) - parseFloat(rA.crucible))) * 100).toFixed(2) : '-';
+                          const ashB = (rB.crucible && rB.sample && rB.ash) ? (((parseFloat(rB.ash) - parseFloat(rB.crucible)) / (parseFloat(rB.sample) - parseFloat(rB.crucible))) * 100).toFixed(2) : '-';
+                          const variation = (ashA !== '-' && ashB !== '-') ? (parseFloat(ashA) - parseFloat(ashB)).toFixed(2) : '-';
+                          
+                          return (
+                            <tr key={idx}>
+                              <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '700', color: '#64748b' }}>S{idx + 1}</td>
+                              <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
+                                <input type="number" value={rA.crucible} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundA: prev.ash.compoundA.map((r, i) => i === idx ? { ...r, crucible: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                              </td>
+                              <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
+                                <input type="number" value={rA.sample} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundA: prev.ash.compoundA.map((r, i) => i === idx ? { ...r, sample: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                              </td>
+                              <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
+                                <input type="number" value={rA.ash} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundA: prev.ash.compoundA.map((r, i) => i === idx ? { ...r, ash: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                              </td>
+                              <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: ashA !== '-' && parseFloat(ashA) > currentAshSpecs.a ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{ashA}%</td>
+                              
+                              {isCGRSP && (
+                                <>
+                                  <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
+                                    <input type="number" value={rB.crucible} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundB: prev.ash.compoundB.map((r, i) => i === idx ? { ...r, crucible: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                                  </td>
+                                  <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
+                                    <input type="number" value={rB.sample} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundB: prev.ash.compoundB.map((r, i) => i === idx ? { ...r, sample: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                                  </td>
+                                  <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
+                                    <input type="number" value={rB.ash} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundB: prev.ash.compoundB.map((r, i) => i === idx ? { ...r, ash: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                                  </td>
+                                  <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: ashB !== '-' && parseFloat(ashB) > currentAshSpecs.b ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{ashB}%</td>
+                                  <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: variation !== '-' && Math.abs(parseFloat(variation)) > currentAshSpecs.variation ? '#ef4444' : '#64748b', background: '#f8fafc' }}>{variation}</td>
+                                </>
+                              )}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
 
                 {/* Layer 3: Electrical Decision */}
@@ -1299,11 +2272,16 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
                         <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px', fontWeight: '800' }}>Tab 3 Final Decision Engine</div>
                         <div style={{ fontSize: '24px', fontWeight: '900' }}>{elecDecision}</div>
                       </div>
-                      {elecFailedCount === 1 && (
-                        <button style={{ background: 'white', color: '#21808d', border: 'none', padding: '10px 20px', borderRadius: '10px', fontWeight: '800', fontSize: '13px' }}>
-                          INITIATE RE-TEST
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        {elecFailedCount === 1 && (
+                          <button style={{ background: 'white', color: '#21808d', border: 'none', padding: '10px 20px', borderRadius: '10px', fontWeight: '800', fontSize: '13px' }}>
+                            INITIATE RE-TEST
+                          </button>
+                        )}
+                        <button onClick={handleSave} style={{ background: '#21808d', color: 'white', border: 'none', padding: '10px 24px', borderRadius: '10px', fontWeight: '800', fontSize: '13px', boxShadow: '0 4px 12px rgba(33,128,141,0.2)' }}>
+                          Save & Submit Module
                         </button>
-                      )}
+                      </div>
                     </div>
                   </section>
                 )}
@@ -1326,65 +2304,182 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
                 </section>
 
                 {specType === 'CGRSP' ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                    <section style={{ border: '1px solid #f1f5f9', borderRadius: '16px', padding: '16px', background: 'white' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                        <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '700' }}>2.2.1 Adhesion Strength (kN)</h4>
-                        <span style={{ fontSize: '10px', fontWeight: '900', color: specResults.adhesion === 'PASS' ? '#059669' : '#b91c1c' }}>{specResults.adhesion}</span>
-                      </div>
-                      <div style={{ display: 'flex', gap: '12px' }}>
-                        {specData.adhesion.map((v, i) => (
-                          <input key={i} type="number" min="0" placeholder={`S${i+1}`} value={v} onChange={(e) => {
-                            const val = e.target.value;
-                            const newA = [...specData.adhesion];
-                            newA[i] = val === '' ? '' : Math.max(0, parseFloat(val) || 0);
-                            setSpecData(prev => ({ ...prev, adhesion: newA }));
-                            markDirty();
-                          }} style={{ flex: 1, padding: '10px', border: '1px solid #e2e8f0', borderRadius: '10px', fontWeight: '800', background: '#f8fafc', fontSize: '14px' }} />
-                        ))}
-                      </div>
-                    </section>
-                    <section style={{ border: '1px solid #f1f5f9', borderRadius: '16px', padding: '16px', background: 'white' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                        <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '700' }}>2.2.2 Secant Stiffness Audit</h4>
-                        <span style={{ fontSize: '10px', fontWeight: '900', color: specResults.secant === 'PASS' ? '#059669' : '#b91c1c' }}>{specResults.secant}</span>
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    {/* 2.2.1 Adhesion Strength */}
+                    <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+                      <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
-                          <label style={{ display: 'block', fontSize: '10px', color: '#94a3b8', marginBottom: '4px' }}>Mean 20kN</label>
-                          <input type="number" min="0" placeholder="Value" value={specData.secant.p20} onChange={(e) => { const val = e.target.value; setSpecData(prev => ({ ...prev, secant: { ...prev.secant, p20: val === '' ? '' : Math.max(0, parseFloat(val) || 0) } })); markDirty(); }} style={{ width: '100%', padding: '10px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', fontWeight: '800' }} />
+                          <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>Adhesion Test</h3>
+                          <div style={{ fontSize: '11px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>FOR: {activeRailpadType} | Standard: ≥8 Kgf</div>
                         </div>
+                        <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: specResults.adhesion === 'PASS' ? '#dcfce7' : specResults.adhesion === 'FAIL' ? '#fef3c7' : '#fee2e2', color: specResults.adhesion === 'PASS' ? '#166534' : specResults.adhesion === 'FAIL' ? '#b45309' : '#991b1b' }}>{specResults.adhesion === 'FAIL' ? 'MARGINAL' : specResults.adhesion}</span>
+                      </div>
+                      <div style={{ padding: '20px' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr>
+                              {['Sample 1 (S1)', 'Sample 2 (S2)'].map(s => <th key={s} style={{ padding: '12px', textAlign: 'center', fontSize: '11px', color: '#64748b', fontWeight: '700', borderBottom: '2px solid #f1f5f9' }}>{s}</th>)}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr>
+                              {specData.adhesion.map((v, i) => (
+                                <td key={i} style={{ padding: '12px', border: '1px solid #f1f5f9' }}>
+                                  <input type="number" value={v} onChange={(e) => {
+                                    const val = e.target.value;
+                                    const newA = [...specData.adhesion];
+                                    newA[i] = val === '' ? '' : Math.max(0, parseFloat(val) || 0);
+                                    setSpecData(prev => ({ ...prev, adhesion: newA }));
+                                    markDirty();
+                                  }} style={{ width: '100%', padding: '12px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '16px', background: v !== '' && v < 8 ? '#fef2f2' : 'transparent', color: v !== '' && v < 8 ? '#ef4444' : '#21808d' }} />
+                                </td>
+                              ))}
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* 2.2.2 Secant Stiffness */}
+                    <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+                      <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
-                          <label style={{ display: 'block', fontSize: '10px', color: '#94a3b8', marginBottom: '4px' }}>Mean 90kN</label>
-                          <input type="number" min="0" placeholder="Value" value={specData.secant.p90} onChange={(e) => { const val = e.target.value; setSpecData(prev => ({ ...prev, secant: { ...prev.secant, p90: val === '' ? '' : Math.max(0, parseFloat(val) || 0) } })); markDirty(); }} style={{ width: '100%', padding: '10px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', fontWeight: '800' }} />
+                          <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>Secant Stiffness</h3>
+                          <div style={{ fontSize: '11px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>FOR: {activeRailpadType} | Standard: 15 - 25 kN/mm</div>
                         </div>
+                        <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: specResults.secant === 'PASS' ? '#dcfce7' : specResults.secant === 'FAIL' ? '#fef3c7' : '#fee2e2', color: specResults.secant === 'PASS' ? '#166534' : specResults.secant === 'FAIL' ? '#b45309' : '#991b1b' }}>{specResults.secant === 'FAIL' ? 'MARGINAL' : specResults.secant}</span>
                       </div>
-                      <div style={{ fontSize: '12px', color: '#1e293b', fontWeight: '900' }}>
-                        Stiffness: <span style={{ color: '#21808d' }}>
-                          {(specData.secant.p20 === '' || specData.secant.p90 === '') ? '-' : `${secantStiffness} kN/mm`}
-                        </span>
+                      <div style={{ padding: '20px' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr>
+                              <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Sample No.</th>
+                              <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Load (kN)</th>
+                              <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>A (mm)</th>
+                              <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>B (mm)</th>
+                              <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>C (mm)</th>
+                              <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>D (mm)</th>
+                              <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b', background: '#f8fafc' }}>Mean Value</th>
+                              <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b', background: '#f1f5f9' }}>Static Secant Stiffness</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {specData.secant.map((sample, sIdx) => {
+                              const res = secantResults[sIdx];
+                              return (
+                                <React.Fragment key={sIdx}>
+                                  <tr>
+                                    <td rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '800', color: '#475569' }}>{sIdx + 1}</td>
+                                    <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '800', color: '#64748b' }}>20</td>
+                                    {['a', 'b', 'c', 'd'].map(key => (
+                                      <td key={key} style={{ padding: '2px', border: '1px solid #e2e8f0' }}>
+                                        <input type="number" value={sample.s20[key]} onChange={(e) => {
+                                          const newVal = [...specData.secant];
+                                          newVal[sIdx].s20[key] = e.target.value;
+                                          setSpecData(prev => ({ ...prev, secant: newVal }));
+                                          markDirty();
+                                        }} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                                      </td>
+                                    ))}
+                                    <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: '#21808d', background: '#f8fafc' }}>{res.isS20Complete ? res.d1.toFixed(3) : '-'}</td>
+                                    <td rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: res.stiffness >= 15 && res.stiffness <= 25 ? '#166534' : '#ef4444', background: '#f1f5f9', fontSize: '18px' }}>
+                                      {res.stiffness > 0 ? res.stiffness : '-'}
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '800', color: '#64748b' }}>90</td>
+                                    {['a', 'b', 'c', 'd'].map(key => (
+                                      <td key={key} style={{ padding: '2px', border: '1px solid #e2e8f0' }}>
+                                        <input type="number" value={sample.s90[key]} onChange={(e) => {
+                                          const newVal = [...specData.secant];
+                                          newVal[sIdx].s90[key] = e.target.value;
+                                          setSpecData(prev => ({ ...prev, secant: newVal }));
+                                          markDirty();
+                                        }} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
+                                      </td>
+                                    ))}
+                                    <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: '#21808d', background: '#f8fafc' }}>{res.isS90Complete ? res.d2.toFixed(3) : '-'}</td>
+                                  </tr>
+                                </React.Fragment>
+                              );
+                            })}
+                          </tbody>
+                        </table>
                       </div>
-                    </section>
+                    </div>
                   </div>
                 ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
-                    {[
-                      { label: 'Peel Adh', key: 'peel', limit: '≥ 15' },
-                      { label: 'H-Pull', key: 'hpull', limit: '≥ 120' },
-                      { label: 'Break Load', key: 'breaking', limit: '≥ 500' },
-                      { label: 'Denier', key: 'denier', limit: '≥ 800' },
-                      { label: 'EPI', key: 'epi', limit: '-' },
-                      { label: 'Thickness', key: 'thickness', limit: '-' },
-                      { label: 'Load/Break', key: 'loadAtBreak', limit: '-' },
-                      { label: 'Elongation', key: 'elongation', limit: '-' },
-                      { label: 'Twists/M', key: 'twists', limit: '-' }
-                    ].map(test => (
-                      <div key={test.key} style={{ background: 'white', padding: '10px', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
-                        <div style={{ fontSize: '9px', fontWeight: '800', marginBottom: '4px', color: '#64748b' }}>{test.label}</div>
-                        <input type="number" min="0" placeholder={test.limit} value={specData.ncrgrsp[test.key]} onChange={(e) => { const val = e.target.value; setSpecData(prev => ({ ...prev, ncrgrsp: { ...prev.ncrgrsp, [test.key]: val === '' ? '' : Math.max(0, parseFloat(val) || 0) } })); markDirty(); }} style={{ width: '100%', padding: '6px', border: '1px solid #e2e8f0', borderRadius: '8px', fontWeight: '900', background: '#f8fafc', fontSize: '13px' }} />
-                        <div style={{ fontSize: '9px', color: specResults[test.key] === 'PASS' ? '#059669' : '#b91c1c', marginTop: '4px', fontWeight: '900' }}>{test.key === 'cord' ? specResults.cord : specResults[test.key] || 'PENDING'}</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    {/* NCRGRSP Nylon Cord / Reinforcement Tests */}
+                    <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+                      <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>Reinforcement & Cord Analysis</h3>
+                          <div style={{ fontSize: '11px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>FOR: {activeRailpadType} | Material: Reinforced Rubber</div>
+                        </div>
+                        <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: specResults.peel === 'PASS' ? '#dcfce7' : specResults.peel === 'FAIL' ? '#fef3c7' : '#fee2e2', color: specResults.peel === 'PASS' ? '#166534' : specResults.peel === 'FAIL' ? '#b45309' : '#991b1b' }}>{specResults.peel === 'FAIL' ? 'MARGINAL' : specResults.peel}</span>
                       </div>
-                    ))}
+                      <div style={{ padding: '24px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+                          {/* Adhesion Section */}
+                          <div style={{ padding: '20px', borderRadius: '16px', background: '#f0fdfa', border: '1px solid #ccfbf1' }}>
+                            <h4 style={{ margin: '0 0 16px 0', fontSize: '12px', fontWeight: '900', color: '#134e4a', borderBottom: '1px solid #99f6e4', paddingBottom: '8px' }}>ADHESION TESTS</h4>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                              {[
+                                { label: 'Peel Adhesion', key: 'peel', limit: '≥ 15 kN/m' },
+                                { label: 'H-Pull Strength', key: 'hpull', limit: '≥ 120 N' }
+                              ].map(test => (
+                                <div key={test.key}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', fontWeight: '800', marginBottom: '4px' }}>
+                                    <span style={{ color: '#64748b' }}>{test.label}</span>
+                                    <span style={{ color: '#94a3b8' }}>{test.limit}</span>
+                                  </div>
+                                  <input type="number" value={specData.ncrgrsp[test.key]} onChange={(e) => { const val = e.target.value; setSpecData(prev => ({ ...prev, ncrgrsp: { ...prev.ncrgrsp, [test.key]: val } })); markDirty(); }} style={{ width: '100%', padding: '10px', border: '1px solid #99f6e4', borderRadius: '8px', fontWeight: '900', fontSize: '14px', background: 'white' }} />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Mechanical Strength */}
+                          <div style={{ padding: '20px', borderRadius: '16px', background: '#fef2f2', border: '1px solid #fee2e2' }}>
+                            <h4 style={{ margin: '0 0 16px 0', fontSize: '12px', fontWeight: '900', color: '#991b1b', borderBottom: '1px solid #fecaca', paddingBottom: '8px' }}>MECHANICAL STRENGTH</h4>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                              {[
+                                { label: 'Breaking Load', key: 'breaking', limit: '≥ 500 N' },
+                                { label: 'Load at Break', key: 'loadAtBreak', limit: '-' }
+                              ].map(test => (
+                                <div key={test.key}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', fontWeight: '800', marginBottom: '4px' }}>
+                                    <span style={{ color: '#64748b' }}>{test.label}</span>
+                                    <span style={{ color: '#94a3b8' }}>{test.limit}</span>
+                                  </div>
+                                  <input type="number" value={specData.ncrgrsp[test.key]} onChange={(e) => { const val = e.target.value; setSpecData(prev => ({ ...prev, ncrgrsp: { ...prev.ncrgrsp, [test.key]: val } })); markDirty(); }} style={{ width: '100%', padding: '10px', border: '1px solid #fecaca', borderRadius: '8px', fontWeight: '900', fontSize: '14px', background: 'white' }} />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Cord Analysis */}
+                          <div style={{ padding: '20px', borderRadius: '16px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                            <h4 style={{ margin: '0 0 16px 0', fontSize: '12px', fontWeight: '900', color: '#1e293b', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>CORD/FABRIC ANALYSIS</h4>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                              {[
+                                { label: 'Denier', key: 'denier' },
+                                { label: 'EPI', key: 'epi' },
+                                { label: 'Thickness', key: 'thickness' },
+                                { label: 'Elongation %', key: 'elongation' },
+                                { label: 'Twists/M', key: 'twists' }
+                              ].map(test => (
+                                <div key={test.key}>
+                                  <label style={{ display: 'block', fontSize: '9px', fontWeight: '800', color: '#64748b', marginBottom: '2px' }}>{test.label}</label>
+                                  <input type="number" value={specData.ncrgrsp[test.key]} onChange={(e) => { const val = e.target.value; setSpecData(prev => ({ ...prev, ncrgrsp: { ...prev.ncrgrsp, [test.key]: val } })); markDirty(); }} style={{ width: '100%', padding: '8px', border: '1px solid #e2e8f0', borderRadius: '6px', fontWeight: '800', fontSize: '13px', background: 'white' }} />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
 

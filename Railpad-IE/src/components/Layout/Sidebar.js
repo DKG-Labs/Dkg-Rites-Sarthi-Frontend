@@ -18,9 +18,10 @@ const Sidebar = ({ activeItem, onItemClick, isOpen, expanded, onMouseEnter, onMo
             onMouseLeave={onMouseLeave}
             onClick={onClick}
         >
-            <div className="sidebar-header">
-                <h2 className="sidebar-logo">SARTHI</h2>
-                <span style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: '4px', display: 'block' }}>Rites Ltd.</span>
+            <div className="sidebar-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px 0' }}>
+                <img src="/sarthi-logo1.png" alt="SARTHI" style={{ width: '40px', height: '40px', marginBottom: '8px' }} />
+                <h2 className="sidebar-logo" style={{ fontSize: '18px', margin: 0, letterSpacing: '2px' }}>SARTHI</h2>
+                <span style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: '2px', display: 'block' }}>Inspection Engine</span>
             </div>
 
             <nav className="sidebar-nav">

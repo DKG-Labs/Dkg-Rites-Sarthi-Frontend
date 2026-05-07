@@ -5,6 +5,12 @@ import './MaterialTestingPage.css';
 
 const STORAGE_KEY = 'material_testing_draft_data';
 
+// Helper to get current shift from sessionStorage for shift-specific storage
+const getShiftSuffix = () => {
+  const shift = sessionStorage.getItem('inspectionShift');
+  return shift ? `_${shift}` : '';
+};
+
 /**
  * Specification limits for raw material testing
  * Based on validation rules from specification document
@@ -67,7 +73,7 @@ const MaterialTestingPage = ({ onBack, heats = [], productModel, onNavigateSubmo
     if (!limits) return '';
 
     // 1. Ladle Tolerance Check (if ladle analysis is available)
-    if (ladleVal !== null && TOLERANCES[field] !== undefined) {
+    if (ladleVal !== null && ladleVal !== undefined && TOLERANCES[field] !== undefined) {
       const lVal = parseFloat(ladleVal);
       const tolerance = TOLERANCES[field];
 
@@ -97,13 +103,14 @@ const MaterialTestingPage = ({ onBack, heats = [], productModel, onNavigateSubmo
   const [ladleValues, setLadleValues] = useState([]);
   const [isLoadingLadle, setIsLoadingLadle] = useState(false);
 
-  // Load draft data from localStorage
+  // Load draft data from localStorage or initialize empty
   const loadDraftData = useCallback(() => {
-    const storageKey = `${STORAGE_KEY}_${inspectionCallNo}`;
+    const storageKey = `${STORAGE_KEY}_${inspectionCallNo}${getShiftSuffix()}`;
     const savedDraft = localStorage.getItem(storageKey);
     if (savedDraft) {
       try {
-        return JSON.parse(savedDraft);
+        const parsed = JSON.parse(savedDraft);
+        return parsed?.materialData || null;
       } catch (e) {
         console.error('Error parsing draft data:', e);
       }
@@ -111,36 +118,103 @@ const MaterialTestingPage = ({ onBack, heats = [], productModel, onNavigateSubmo
     return null;
   }, [inspectionCallNo]);
 
-  // Material testing state
+  // Empty sample template
+  const createEmptyHeat = useCallback(() => ({
+    samples: [
+      { c: '', si: '', mn: '', p: '', s: '', grainSize: '', inclTypeA: '', inclA: '', inclTypeB: '', inclB: '', inclTypeC: '', inclC: '', inclTypeD: '', inclD: '', hardness: '', decarb: '', remarks: '' },
+      { c: '', si: '', mn: '', p: '', s: '', grainSize: '', inclTypeA: '', inclA: '', inclTypeB: '', inclB: '', inclTypeC: '', inclC: '', inclTypeD: '', inclD: '', hardness: '', decarb: '', remarks: '' }
+    ]
+  }), []);
+
+  // Material testing state - now keyed by heatNo for stability
   const [materialData, setMaterialData] = useState(() => {
     const draft = loadDraftData();
-    if (draft?.materialData) {
-      return draft.materialData;
-    }
-    return heats.map(() => ({
-      samples: [
-        { c: '', si: '', mn: '', p: '', s: '', grainSize: '', inclTypeA: '', inclA: '', inclTypeB: '', inclB: '', inclTypeC: '', inclC: '', inclTypeD: '', inclD: '', hardness: '', decarb: '', remarks: '' },
-        { c: '', si: '', mn: '', p: '', s: '', grainSize: '', inclTypeA: '', inclA: '', inclTypeB: '', inclB: '', inclTypeC: '', inclC: '', inclTypeD: '', inclD: '', hardness: '', decarb: '', remarks: '' }
-      ]
-    }));
+    const state = {};
+    
+    // Migration/Initialization logic
+    heats.forEach((h, idx) => {
+      const hNo = (h.heatNo || h.heat_no || `Heat-${idx + 1}`).toString().trim().toUpperCase();
+      
+      // 1. Try to find in draft by heatNo (New format)
+      if (draft && typeof draft === 'object' && !Array.isArray(draft) && draft[hNo]) {
+        state[hNo] = draft[hNo];
+      } 
+      // 2. Fallback: Try to find in draft by index (Old format)
+      else if (draft && Array.isArray(draft) && draft[idx]) {
+        state[hNo] = draft[idx];
+      }
+      // 3. Default: Empty state
+      else {
+        state[hNo] = createEmptyHeat();
+      }
+    });
+    return state;
   });
 
-  // Auto-save to localStorage
+  // Keep materialData in sync when heats change
   useEffect(() => {
-    const storageKey = `${STORAGE_KEY}_${inspectionCallNo}`;
+    setMaterialData(prev => {
+      const next = { ...prev };
+      let changed = false;
+      heats.forEach((h, idx) => {
+        const hNo = (h.heatNo || h.heat_no || `Heat-${idx + 1}`).toString().trim().toUpperCase();
+        if (!next[hNo]) {
+          next[hNo] = createEmptyHeat();
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [heats, createEmptyHeat]);
+
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+
+  // Helper to check if material data is essentially empty
+  const isMaterialDataEmpty = useCallback((data) => {
+    if (!data || !Array.isArray(data)) return true;
+    return data.every(heat => 
+      heat.samples?.every(sample => 
+        !sample.c && !sample.si && !sample.mn && !sample.p && !sample.s && 
+        !sample.grainSize && !sample.hardness && !sample.decarb && !sample.remarks &&
+        !sample.inclA && !sample.inclB && !sample.inclC && !sample.inclD
+      )
+    );
+  }, []);
+
+  // Auto-save to localStorage on materialData change
+  useEffect(() => {
+    const storageKey = `${STORAGE_KEY}_${inspectionCallNo}${getShiftSuffix()}`;
     localStorage.setItem(storageKey, JSON.stringify({ materialData }));
   }, [materialData, inspectionCallNo]);
 
-  const updateMaterialField = (heatIndex, sampleIndex, field, value) => {
+  const updateMaterialField = (heatIdx, sampleIndex, field, value) => {
+    const heat = heats[heatIdx];
+    if (!heat) return;
+    const hNo = (heat.heatNo || heat.heat_no || `Heat-${heatIdx + 1}`).toString().trim().toUpperCase();
+
     setMaterialData(prev => {
-      const next = [...prev];
-      next[heatIndex] = { ...next[heatIndex], samples: [...next[heatIndex].samples] };
-      next[heatIndex].samples[sampleIndex] = { ...next[heatIndex].samples[sampleIndex], [field]: value };
+      const next = { ...prev };
+      // Defensive check: ensure the heat object exists
+      if (!next[hNo]) {
+        next[hNo] = createEmptyHeat();
+      }
+      
+      // Ensure samples array exists and copy it
+      const heatObj = { ...next[hNo] };
+      heatObj.samples = [...(heatObj.samples || createEmptyHeat().samples)];
+      
+      // Ensure specific sample exists and copy it
+      heatObj.samples[sampleIndex] = { ...heatObj.samples[sampleIndex], [field]: value };
+      
+      next[hNo] = heatObj;
       return next;
     });
+    
+    // Ensure we mark as loaded when user starts editing
+    if (!isDataLoaded) setIsDataLoaded(true);
   };
 
-  const currentHeat = heats[activeHeatTab] || {};
+  const currentHeat = useMemo(() => heats[activeHeatTab] || {}, [heats, activeHeatTab]);
   const heatIndex = activeHeatTab;
 
   // Fetch ladle values from RM Chemical Analysis table via API
@@ -172,13 +246,23 @@ const MaterialTestingPage = ({ onBack, heats = [], productModel, onNavigateSubmo
     const loadExistingData = async () => {
       if (!inspectionCallNo) return;
 
-      // Check if localStorage already has data - if yes, don't overwrite with backend data
+      // Check if localStorage already has MEANINGFUL data
       const storageKey = `${STORAGE_KEY}_${inspectionCallNo}`;
       const existingLocalData = localStorage.getItem(storageKey);
 
       if (existingLocalData) {
-        console.log('⏭️ Skipping backend load - localStorage data exists (preserving user edits)');
-        return;
+        try {
+          const parsed = JSON.parse(existingLocalData);
+          const draft = parsed?.materialData;
+          if (draft && !isMaterialDataEmpty(draft)) {
+            console.log('⏭️ Skipping backend load - valid draft exists in localStorage');
+            setIsDataLoaded(true);
+            return;
+          }
+          console.log('🔄 Local draft is empty, proceeding with backend load');
+        } catch (e) {
+          console.error('Error checking local data:', e);
+        }
       }
 
       try {
@@ -192,7 +276,7 @@ const MaterialTestingPage = ({ onBack, heats = [], productModel, onNavigateSubmo
           const materialDataByHeat = {};
 
           existingData.forEach(record => {
-            const heatNo = record.heatNo;
+            const heatNo = (record.heatNo || '').toString().trim().toUpperCase();
             const sampleNum = record.sampleNumber || 1;
 
             if (!materialDataByHeat[heatNo]) {
@@ -207,79 +291,65 @@ const MaterialTestingPage = ({ onBack, heats = [], productModel, onNavigateSubmo
             const sampleIndex = sampleNum - 1;
             if (sampleIndex >= 0 && sampleIndex < 2) {
               materialDataByHeat[heatNo].samples[sampleIndex] = {
-                c: record.carbonPercent || '',
-                si: record.siliconPercent || '',
-                mn: record.manganesePercent || '',
-                p: record.phosphorusPercent || '',
-                s: record.sulphurPercent || '',
-                grainSize: record.grainSize || '',
+                c: record.carbonPercent !== null && record.carbonPercent !== undefined ? record.carbonPercent : '',
+                si: record.siliconPercent !== null && record.siliconPercent !== undefined ? record.siliconPercent : '',
+                mn: record.manganesePercent !== null && record.manganesePercent !== undefined ? record.manganesePercent : '',
+                p: record.phosphorusPercent !== null && record.phosphorusPercent !== undefined ? record.phosphorusPercent : '',
+                s: record.sulphurPercent !== null && record.sulphurPercent !== undefined ? record.sulphurPercent : '',
+                grainSize: record.grainSize !== null && record.grainSize !== undefined ? record.grainSize : '',
                 inclTypeA: record.inclusionTypeA || '',
-                inclA: record.inclusionA || '',
+                inclA: record.inclusionA !== null && record.inclusionA !== undefined ? record.inclusionA : '',
                 inclTypeB: record.inclusionTypeB || '',
-                inclB: record.inclusionB || '',
+                inclB: record.inclusionB !== null && record.inclusionB !== undefined ? record.inclusionB : '',
                 inclTypeC: record.inclusionTypeC || '',
-                inclC: record.inclusionC || '',
+                inclC: record.inclusionC !== null && record.inclusionC !== undefined ? record.inclusionC : '',
                 inclTypeD: record.inclusionTypeD || '',
-                inclD: record.inclusionD || '',
-                hardness: record.hardnessHrc || '',
-                decarb: record.decarbDepthMm || '',
+                inclD: record.inclusionD !== null && record.inclusionD !== undefined ? record.inclusionD : '',
+                hardness: record.hardnessHrc !== null && record.hardnessHrc !== undefined ? record.hardnessHrc : '',
+                decarb: record.decarbDepthMm !== null && record.decarbDepthMm !== undefined ? record.decarbDepthMm : '',
                 remarks: record.remarks || ''
               };
             }
           });
 
-          // Convert to array format matching heats order
-          const loadedData = heats.map(heat => {
-            const hId = heat.heatNo || heat.heat_no;
-            return materialDataByHeat[hId] || {
-              samples: [
-                { c: '', si: '', mn: '', p: '', s: '', grainSize: '', inclTypeA: '', inclA: '', inclTypeB: '', inclB: '', inclTypeC: '', inclC: '', inclTypeD: '', inclD: '', hardness: '', decarb: '', remarks: '' },
-                { c: '', si: '', mn: '', p: '', s: '', grainSize: '', inclTypeA: '', inclA: '', inclTypeB: '', inclB: '', inclTypeC: '', inclC: '', inclTypeD: '', inclD: '', hardness: '', decarb: '', remarks: '' }
-              ]
-            };
-          });
-
-          setMaterialData(loadedData);
+          // Convert backend data to state
+          setMaterialData(prev => ({ ...prev, ...materialDataByHeat }));
           console.log('✅ Material testing data loaded from backend and saved to state');
+        } else {
+          console.log('ℹ️ No existing material testing data found on backend');
         }
       } catch (error) {
         console.error('❌ Error loading existing material testing data:', error);
-        // Continue with empty data if fetch fails
+      } finally {
+        setIsDataLoaded(true);
       }
     };
 
     loadExistingData();
-  }, [inspectionCallNo, heats]);
+  }, [inspectionCallNo, heats, createEmptyHeat, isMaterialDataEmpty]);
 
   // Get ladle values for the currently selected heat
-  // BUSINESS RULE: Each heat has its own ladle values from vendor's chemical analysis
   const currentLadleHeat = useMemo(() => {
-    const currentHeatNo = currentHeat?.heatNo;
+    const currentHeatNo = (currentHeat?.heatNo || currentHeat?.heat_no || '').toString().trim().toUpperCase();
 
     if (!currentHeatNo) {
       console.log('⚠️ No heat number available for current heat');
       return {};
     }
 
-    console.log('🔬 Looking for ladle values for heat:', currentHeatNo);
-    console.log('📊 Available ladle values:', ladleValues);
-
     // Find ladle values matching the current heat number
-    const ladleData = ladleValues.find(ladle => ladle.heatNo === currentHeatNo);
+    const ladleData = ladleValues.find(ladle => {
+      const ladleHeatNo = (ladle.heatNo || ladle.heat_no || '').toString().trim().toUpperCase();
+      return ladleHeatNo === currentHeatNo;
+    });
 
     if (ladleData) {
-      console.log('✅ Found ladle values for heat', currentHeatNo, ':', ladleData);
-      console.log('  percentC:', ladleData.percentC);
-      console.log('  percentSi:', ladleData.percentSi);
-      console.log('  percentMn:', ladleData.percentMn);
-      console.log('  percentP:', ladleData.percentP);
-      console.log('  percentS:', ladleData.percentS);
       return ladleData;
     }
 
     console.log('⚠️ No ladle values found for heat:', currentHeatNo);
     return {};
-  }, [ladleValues, currentHeat?.heatNo]);
+  }, [ladleValues, currentHeat]);
 
   // Format ladle value for display
   // IMPORTANT: Must handle 0 as a valid value (not falsy)
@@ -352,7 +422,7 @@ const MaterialTestingPage = ({ onBack, heats = [], productModel, onNavigateSubmo
           if (hasSingleUniqueHeat) {
             return (
               <div className="material-heat-toggle material-heat-single">
-                <span className="heat-single-label">Heat {heats[0].heatNo || `#1`}</span>
+                <span className="heat-single-label">Heat {heats[0].heatNo || heats[0].heat_no || `#1`}</span>
               </div>
             );
           }
@@ -368,7 +438,7 @@ const MaterialTestingPage = ({ onBack, heats = [], productModel, onNavigateSubmo
                     className={`heat-toggle-btn ${idx === activeHeatTab ? 'active' : ''}`}
                     onClick={() => setActiveHeatTab(idx)}
                   >
-                    Heat {heat.heatNo || `#${idx + 1}`}
+                    Heat {heat.heatNo || heat.heat_no || `#${idx + 1}`}
                   </button>
                 ))}
               </div>
@@ -378,7 +448,7 @@ const MaterialTestingPage = ({ onBack, heats = [], productModel, onNavigateSubmo
 
         {heats.length > 0 && (
           <div style={{ marginBottom: '24px' }}>
-            <h4 style={{ marginBottom: '12px' }}>Heat: {currentHeat.heatNo || `#${heatIndex + 1}`} — Material Testing (2 samples)</h4>
+            <h4 style={{ marginBottom: '12px' }}>Heat: {currentHeat.heatNo || currentHeat.heat_no || `#${heatIndex + 1}`} — Material Testing (2 samples)</h4>
 
             {/* Chemical Composition Table */}
             <div className="material-testing-table-wrapper" style={{ marginBottom: '24px' }}>
@@ -413,7 +483,8 @@ const MaterialTestingPage = ({ onBack, heats = [], productModel, onNavigateSubmo
                     <td style={{ color: '#94a3b8', fontStyle: 'italic' }}>N/A</td>
                   </tr>
                   {[0, 1].map(sampleIndex => {
-                    const sample = materialData[heatIndex]?.samples[sampleIndex] || {};
+                    const activeHeatNo = (heats[activeHeatTab]?.heatNo || heats[activeHeatTab]?.heat_no || `Heat-${activeHeatTab + 1}`).toString().trim().toUpperCase();
+                    const sample = materialData[activeHeatNo]?.samples[sampleIndex] || {};
                     return (
                       <tr key={sampleIndex}>
                         <td data-label="Sample"><strong>Sample {sampleIndex + 1}</strong></td>
@@ -452,7 +523,8 @@ const MaterialTestingPage = ({ onBack, heats = [], productModel, onNavigateSubmo
             <div className="inclusion-section">
               <h5 className="inclusion-section-title">Inclusion Rating (Type)</h5>
               {[0, 1].map(sampleIndex => {
-                const sample = materialData[heatIndex]?.samples[sampleIndex] || {};
+                const activeHeatNo = (heats[activeHeatTab]?.heatNo || heats[activeHeatTab]?.heat_no || `Heat-${activeHeatTab + 1}`).toString().trim().toUpperCase();
+                const sample = materialData[activeHeatNo]?.samples[sampleIndex] || {};
                 return (
                   <div key={sampleIndex} className="inclusion-sample-card">
                     <div className="inclusion-sample-label">Sample {sampleIndex + 1}</div>

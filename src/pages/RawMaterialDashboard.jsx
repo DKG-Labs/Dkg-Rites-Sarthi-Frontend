@@ -45,6 +45,12 @@ const STORAGE_KEYS = {
 // localStorage key for dashboard draft data
 const DASHBOARD_DRAFT_KEY = 'rm_dashboard_draft_';
 
+// Helper to get current shift from sessionStorage for shift-specific storage
+const getShiftSuffix = () => {
+  const shift = sessionStorage.getItem('inspectionShift');
+  return shift ? `_${shift}` : '';
+};
+
 const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChange, onProductModelChange, onLadleValuesChange }) => {
   // Import cache functions from context
   const {
@@ -67,7 +73,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     try {
       const callNo = call?.call_no;
       if (!callNo) return '';
-      const saved = localStorage.getItem(`${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}`);
+      const saved = localStorage.getItem(`${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}${getShiftSuffix()}`);
       return saved ? (JSON.parse(saved).sourceOfRawMaterial || '') : '';
     } catch { return ''; }
   });
@@ -75,7 +81,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     try {
       const callNo = call?.call_no;
       if (!callNo) return '';
-      const saved = localStorage.getItem(`${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}`);
+      const saved = localStorage.getItem(`${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}${getShiftSuffix()}`);
       return saved ? (JSON.parse(saved).numberOfBundles || '') : '';
     } catch { return ''; }
   });
@@ -84,20 +90,62 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     try {
       const callNo = call?.call_no;
       if (!callNo) return {};
-      const saved = localStorage.getItem(`${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}`);
+      const saved = localStorage.getItem(`${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}${getShiftSuffix()}`);
       return saved ? (JSON.parse(saved).heatRemarks || {}) : {};
     } catch { return {}; }
   });
 
-  // Per-heat sealing type: { heatNo: 'RITES_STEEL_PUNCH' | 'RITES_HOLOGRAM', ... }
   const [heatSealingType, setHeatSealingType] = useState(() => {
     try {
       const callNo = call?.call_no;
       if (!callNo) return {};
-      const saved = localStorage.getItem(`${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}`);
+      const saved = localStorage.getItem(`${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}${getShiftSuffix()}`);
       return saved ? (JSON.parse(saved).heatSealingType || {}) : {};
     } catch { return {}; }
   });
+
+  // Helpers to check if submodule data is essentially empty
+  const isVisualDataEmpty = useCallback((data) => {
+    if (!data || !Array.isArray(data)) return true;
+    return data.every(heat => !heat.selectedDefects || Object.keys(heat.selectedDefects).length === 0);
+  }, []);
+
+  const isDimDataEmpty = useCallback((data) => {
+    if (!data || !data.heatDimData || !Array.isArray(data.heatDimData)) return true;
+    return data.heatDimData.every(heat => !heat.dimSamples || heat.dimSamples.every(s => !s?.diameter));
+  }, []);
+
+  const isMaterialDataEmpty = useCallback((data) => {
+    if (!data || !data.materialData || !Array.isArray(data.materialData)) return true;
+    return data.materialData.every(heat =>
+      !heat.samples || heat.samples.every(sample =>
+        !sample.c && !sample.si && !sample.mn && !sample.p && !sample.s &&
+        !sample.grainSize && !sample.hardness && !sample.decarb &&
+        !sample.inclA && !sample.inclB && !sample.inclC && !sample.inclD
+      )
+    );
+  }, []);
+
+  const isPackingDataEmpty = useCallback((data) => {
+    if (!data || !data.packingDataByHeat) return true;
+    const heats = Object.values(data.packingDataByHeat);
+    if (heats.length === 0) return true;
+    // Check if ALL heats have empty values for all fields
+    return heats.every(h =>
+      !h.storedHeatWise && !h.suppliedInBundles && !h.heatNumberEnds &&
+      !h.packingStripWidth && !h.bundleTiedLocations &&
+      !h.identificationTagBundle && !h.metalTagInformation
+    );
+  }, []);
+
+  const isCalibrationDataEmpty = useCallback((data) => {
+    if (!data) return true;
+    // Check if it's just the default data or empty
+    const isDefaultRDSO = !data.rdsoApprovalValidity || data.rdsoApprovalValidity.approvalId === 'RDSO/2023/ERC-001';
+    const hasNoLadle = !data.heats || data.heats.every(h => !h.percentC && !h.percentSi && !h.percentMn && !h.percentP && !h.percentS);
+    const hasNoGauges = !data.gaugesAvailable;
+    return isDefaultRDSO && hasNoLadle && hasNoGauges;
+  }, []);
 
   // Per-heat steel stamp number: { heatNo: 'stamp text', ... }
   const [heatSteelStampNumber, setHeatSteelStampNumber] = useState(() => {
@@ -120,16 +168,24 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
   });
 
   // Handler for sealing type change - clears the other fields when toggled
-  const handleSealingTypeChange = useCallback((heatNo, newType) => {
-    setHeatSealingType(prev => ({ ...prev, [heatNo]: newType }));
+  // Handler for sealing type change - now allows multiple selections
+  const handleSealingTypeChange = useCallback((heatNo, toggledType) => {
+    setHeatSealingType(prev => {
+      const current = prev[heatNo] || '';
+      const types = current ? current.split(',').map(s => s.trim()) : [];
 
-    if (newType === 'RITES_STEEL_PUNCH') {
-      // Clear hologram entries for this heat
-      setHeatHologramEntries(prev => ({ ...prev, [heatNo]: [] }));
-    } else if (newType === 'RITES_HOLOGRAM') {
-      // Clear steel stamp number for this heat
-      setHeatSteelStampNumber(prev => ({ ...prev, [heatNo]: '' }));
-    }
+      let newTypes;
+      if (types.includes(toggledType)) {
+        // Remove if already present
+        newTypes = types.filter(t => t !== toggledType);
+      } else {
+        // Add if not present
+        newTypes = [...types, toggledType];
+      }
+
+      return { ...prev, [heatNo]: newTypes.join(', ') };
+    });
+    // Removed clearing logic to allow both values to persist
   }, []);
   // Collapsible state for Pre-Inspection Data Entry card
   const [isPreInspectionExpanded, setIsPreInspectionExpanded] = useState(true);
@@ -216,7 +272,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         setIsLoadingFromCache(true);
 
         // Load saved color codes from localStorage
-        const mainKey = `${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}`;
+        const mainKey = `${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}${getShiftSuffix()}`;
         const savedData = localStorage.getItem(mainKey);
         let savedColorCodes = {};
         if (savedData) {
@@ -308,7 +364,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           // Map RM heat details to heat data format
           if (response.rmHeatDetails && response.rmHeatDetails.length > 0) {
             // Check if we have saved color codes in localStorage
-            const mainKey = `${STORAGE_KEYS.MAIN_INSPECTION}_${call?.call_no}`;
+            const mainKey = `${STORAGE_KEYS.MAIN_INSPECTION}_${call?.call_no}${getShiftSuffix()}`;
             const savedData = localStorage.getItem(mainKey);
             let savedColorCodes = {};
             if (savedData) {
@@ -387,288 +443,15 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [call?.po_no, call?.call_no]);
 
-  // Fetch and restore paused inspection data
-  // IMPORTANT: Only restore from backend if localStorage is empty (don't overwrite user edits)
-  useEffect(() => {
-    const restorePausedData = async () => {
-      const callNo = call?.call_no;
-      if (!callNo) return;
-
-      try {
-        console.log('🔄 Checking for paused inspection data for call:', callNo);
-        const pausedData = await getInspectionDataByCallNo(callNo);
-
-        if (pausedData) {
-          console.log('✅ Found paused inspection data:', pausedData);
-
-          // Restore Visual Inspection data - ONLY if localStorage is empty
-          if (pausedData.visualInspectionData && pausedData.visualInspectionData.length > 0) {
-            const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${callNo}`;
-            const existingVisualData = localStorage.getItem(visualKey);
-
-            // Only restore if no existing data in localStorage (preserve user edits)
-            if (!existingVisualData) {
-              // NEW FORMAT: Backend returns one record per heat with defects and defectLengths maps
-              const visualArray = pausedData.visualInspectionData.map(item => {
-                const selectedDefects = {};
-                const defectCounts = {};
-
-                // Convert defects map to selectedDefects
-                if (item.defects) {
-                  Object.entries(item.defects).forEach(([defectName, isSelected]) => {
-                    if (isSelected) {
-                      selectedDefects[defectName] = true;
-                    }
-                  });
-                }
-
-                // Convert defectLengths map to defectCounts
-                if (item.defectLengths) {
-                  Object.entries(item.defectLengths).forEach(([defectName, length]) => {
-                    if (length !== null && length !== undefined) {
-                      defectCounts[defectName] = length;
-                    }
-                  });
-                }
-
-                return { selectedDefects, defectCounts };
-              });
-
-              localStorage.setItem(visualKey, JSON.stringify(visualArray));
-              console.log('✅ Restored visual inspection data from backend:', visualArray);
-            } else {
-              console.log('⏭️ Skipping visual inspection restore - user data already exists in localStorage');
-            }
-          }
-
-          // Restore Dimensional Check data - ONLY if localStorage is empty
-          if (pausedData.dimensionalCheckData && pausedData.dimensionalCheckData.length > 0) {
-            const dimKey = `${STORAGE_KEYS.DIMENSIONAL_CHECK}_${callNo}`;
-            const existingDimData = localStorage.getItem(dimKey);
-
-            // Only restore if no existing data in localStorage (preserve user edits)
-            if (!existingDimData) {
-              // NEW FORMAT: Backend returns one record per heat with sampleDiameters array
-              const heatDimData = pausedData.dimensionalCheckData.map(item => {
-                // Convert sampleDiameters array to dimSamples format
-                const dimSamples = (item.sampleDiameters || []).map(diameter =>
-                  diameter !== null ? { diameter } : null
-                );
-                return { dimSamples };
-              });
-
-              localStorage.setItem(dimKey, JSON.stringify({ heatDimData }));
-              console.log('✅ Restored dimensional check data from backend:', heatDimData);
-            } else {
-              console.log('⏭️ Skipping dimensional check restore - user data already exists in localStorage');
-            }
-          }
-
-          // Restore Material Testing data - ONLY if localStorage is empty
-          if (pausedData.materialTestingData && pausedData.materialTestingData.length > 0) {
-            const matKey = `${STORAGE_KEYS.MATERIAL_TESTING}_${callNo}`;
-            const existingMatData = localStorage.getItem(matKey);
-
-            // Only restore if no existing data in localStorage (preserve user edits)
-            if (!existingMatData) {
-              const materialByHeat = {};
-              pausedData.materialTestingData.forEach(item => {
-                const heatIdx = item.heatIndex || 0;
-                if (!materialByHeat[heatIdx]) {
-                  materialByHeat[heatIdx] = { samples: [] };
-                }
-                const sampleIdx = item.sampleNumber - 1;
-                materialByHeat[heatIdx].samples[sampleIdx] = {
-                  c: item.carbonPercent,
-                  si: item.siliconPercent,
-                  mn: item.manganesePercent,
-                  p: item.phosphorusPercent,
-                  s: item.sulphurPercent,
-                  grainSize: item.grainSize,
-                  hardness: item.hardnessHrc,
-                  decarb: item.decarbDepthMm,
-                  inclTypeA: item.inclusionTypeA,
-                  inclA: item.inclusionA,
-                  inclTypeB: item.inclusionTypeB,
-                  inclB: item.inclusionB,
-                  inclTypeC: item.inclusionTypeC,
-                  inclC: item.inclusionC,
-                  inclTypeD: item.inclusionTypeD,
-                  inclD: item.inclusionD,
-                  remarks: item.remarks
-                };
-              });
-              const materialArray = Object.keys(materialByHeat)
-                .sort((a, b) => parseInt(a) - parseInt(b))
-                .map(idx => materialByHeat[idx]);
-              localStorage.setItem(matKey, JSON.stringify({ materialData: materialArray }));
-              console.log('✅ Restored material testing data from backend');
-            } else {
-              console.log('⏭️ Skipping material testing restore - user data already exists in localStorage');
-            }
-          }
-
-          // Restore Packing & Storage data - ONLY if localStorage is empty
-          if (pausedData.packingStorageData && pausedData.packingStorageData.length > 0) {
-            const packKey = `${STORAGE_KEYS.PACKING_STORAGE}_${callNo}`;
-            const existingPackData = localStorage.getItem(packKey);
-
-            // Only restore if no existing data in localStorage (preserve user edits)
-            if (!existingPackData) {
-              const packByHeat = {};
-              pausedData.packingStorageData.forEach(item => {
-                packByHeat[item.heatIndex] = {
-                  bundlingSecure: item.bundlingSecure,
-                  tagsAttached: item.tagsAttached,
-                  labelsCorrect: item.labelsCorrect,
-                  protectionAdequate: item.protectionAdequate,
-                  storageCondition: item.storageCondition,
-                  moistureProtection: item.moistureProtection,
-                  stackingProper: item.stackingProper,
-                  remarks: item.remarks
-                };
-              });
-              localStorage.setItem(packKey, JSON.stringify({ packingDataByHeat: packByHeat }));
-              console.log('✅ Restored packing & storage data from backend');
-            } else {
-              console.log('⏭️ Skipping packing storage restore - user data already exists in localStorage');
-            }
-          }
-
-          // Restore Calibration Documents data - ONLY if localStorage is empty
-          if (pausedData.calibrationDocumentsData && pausedData.calibrationDocumentsData.length > 0) {
-            const calKey = `${STORAGE_KEYS.CALIBRATION}_${callNo}`;
-            const existingCalData = localStorage.getItem(calKey);
-
-            // Only restore if no existing data in localStorage (preserve user edits)
-            if (!existingCalData) {
-              const calData = {
-                heats: pausedData.calibrationDocumentsData.map(item => ({
-                  heatNo: item.heatNo,
-                  percentC: item.ladleCarbonPercent,
-                  percentSi: item.ladleSiliconPercent,
-                  percentMn: item.ladleManganesePercent,
-                  percentP: item.ladlePhosphorusPercent,
-                  percentS: item.ladleSulphurPercent
-                })),
-                rdsoApprovalValidity: {
-                  approvalId: pausedData.calibrationDocumentsData[0]?.rdsoApprovalId,
-                  validFrom: pausedData.calibrationDocumentsData[0]?.rdsoValidFrom,
-                  validTo: pausedData.calibrationDocumentsData[0]?.rdsoValidTo
-                },
-                gaugesAvailable: pausedData.calibrationDocumentsData[0]?.gaugesAvailable || false,
-                vendorVerification: {
-                  verified: pausedData.calibrationDocumentsData[0]?.vendorVerified || false,
-                  verifiedBy: pausedData.calibrationDocumentsData[0]?.verifiedBy,
-                  verifiedAt: pausedData.calibrationDocumentsData[0]?.verifiedAt
-                }
-              };
-              localStorage.setItem(calKey, JSON.stringify(calData));
-              console.log('✅ Restored calibration documents data from backend');
-            } else {
-              console.log('⏭️ Skipping calibration documents restore - user data already exists in localStorage');
-            }
-          }
-
-          // Restore pre-inspection data (Bundles, Source)
-          if (pausedData.preInspectionData) {
-            const mainKey = `${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}`;
-            const mainData = localStorage.getItem(mainKey);
-            const existingData = mainData ? JSON.parse(mainData) : {};
-
-            // PRIORITIZE LOCAL EDITS: Only restore from backend if local field is empty
-            const restoredBundles = (existingData.numberOfBundles !== undefined && existingData.numberOfBundles !== '')
-              ? existingData.numberOfBundles
-              : pausedData.preInspectionData.numberOfBundles;
-
-            const restoredSource = (existingData.sourceOfRawMaterial !== undefined && existingData.sourceOfRawMaterial !== '')
-              ? existingData.sourceOfRawMaterial
-              : pausedData.preInspectionData.sourceOfRawMaterial;
-
-            const updatedData = {
-              ...existingData,
-              numberOfBundles: restoredBundles,
-              sourceOfRawMaterial: restoredSource
-            };
-
-            localStorage.setItem(mainKey, JSON.stringify(updatedData));
-            setNumberOfBundles(restoredBundles);
-            setSourceOfRawMaterial(restoredSource);
-            console.log('✅ Restored pre-inspection data (prioritizing local edits)');
-          }
-
-          // Helper to parse hologram string back to entries
-          const parseHologramString = (str) => {
-            if (!str) return [];
-            return str.split(', ').map(entry => {
-              if (entry.startsWith('Range: ')) {
-                const parts = entry.replace('Range: ', '').split(' to ');
-                return { type: 'range', from: parts[0] || '', to: parts[1] || '' };
-              } else if (entry.startsWith('Single: ')) {
-                return { type: 'single', value: entry.replace('Single: ', '') };
-              }
-              return null;
-            }).filter(Boolean);
-          };
-
-          // Restore heat final results (remarks, sealing, holograms)
-          if (pausedData.heatFinalResults && pausedData.heatFinalResults.length > 0) {
-            const mainKey = `${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}`;
-            const mainData = localStorage.getItem(mainKey);
-            const existingData = mainData ? JSON.parse(mainData) : {};
-
-            const localRemarks = existingData.heatRemarks || {};
-            const localSealingType = existingData.heatSealingType || {};
-            const localSteelStamp = existingData.heatSteelStampNumber || {};
-            const localHolograms = existingData.heatHologramEntries || {};
-
-            const remarksMap = { ...localRemarks };
-            const sealingTypeMap = { ...localSealingType };
-            const steelStampMap = { ...localSteelStamp };
-            const hologramsMap = { ...localHolograms };
-
-            pausedData.heatFinalResults.forEach(result => {
-              const hNo = result.heatNo;
-              // Only take from backend if no local data exists for this heat
-              if (result.remarks && !remarksMap[hNo]) {
-                remarksMap[hNo] = result.remarks;
-              }
-              if (result.sealingType && !sealingTypeMap[hNo]) {
-                sealingTypeMap[hNo] = result.sealingType;
-              }
-              if (result.steelStampNumber && !steelStampMap[hNo]) {
-                steelStampMap[hNo] = result.steelStampNumber;
-              }
-              if (result.hologramDetails && (!hologramsMap[hNo] || hologramsMap[hNo].length === 0)) {
-                hologramsMap[hNo] = parseHologramString(result.hologramDetails);
-              }
-            });
-
-            setHeatRemarks(remarksMap);
-            setHeatSealingType(sealingTypeMap);
-            setHeatSteelStampNumber(steelStampMap);
-            setHeatHologramEntries(hologramsMap);
-            console.log('✅ Restored heat remarks and sealing details (merged with local edits)');
-          }
-
-          console.log('✅ All paused inspection data restored successfully');
-        }
-      } catch (error) {
-        console.log('ℹ️ No paused data found or error fetching:', error.message);
-        // This is not an error - it just means there's no paused data
-      }
-    };
-
-    restorePausedData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [call?.call_no]);
-
   // Use fetched data from backend (stabilized)
   const poData = useMemo(() => (fetchedPoData || {}), [fetchedPoData]);
 
   // Use fetched heat data from backend
   const activeHeats = useMemo(() => {
-    return fetchedHeatData;
+    if (!fetchedHeatData) return [];
+    return [...fetchedHeatData].sort((a, b) =>
+      (a.heatNo || a.heat_no || '').toString().localeCompare((b.heatNo || b.heat_no || '').toString(), undefined, { numeric: true, sensitivity: 'base' })
+    );
   }, [fetchedHeatData]);
 
   // Determine product model/type from Type of ERC field or product name parsing
@@ -704,8 +487,337 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       }
     });
 
-    return Array.from(heatMap.values());
+    // Return sorted array to ensure stable indexing across submodules
+    return Array.from(heatMap.values()).sort((a, b) =>
+      (a.heatNo || '').toString().localeCompare((b.heatNo || '').toString(), undefined, { numeric: true, sensitivity: 'base' })
+    );
   }, [activeHeats]);
+
+  // Fetch and restore paused inspection data
+  useEffect(() => {
+    const restorePausedData = async () => {
+      const callNo = call?.call_no;
+      if (!callNo) return;
+
+      try {
+        if (!consolidatedHeats || consolidatedHeats.length === 0) {
+          console.log('⏳ Waiting for consolidatedHeats before restoring paused data...');
+          return;
+        }
+
+        console.log('🔄 Checking for paused inspection data for call:', callNo);
+        const pausedData = await getInspectionDataByCallNo(callNo);
+        if (!pausedData) return;
+
+        console.log('✅ Found paused inspection data:', pausedData);
+        let restoredAny = false;
+
+        const parseHologramString = (str) => {
+          if (!str) return [];
+          return str.split(', ').map(entry => {
+            if (entry.startsWith('Range: ')) {
+              const parts = entry.replace('Range: ', '').split(' to ');
+              return { type: 'range', from: parts[0] || '', to: parts[1] || '' };
+            } else if (entry.startsWith('Single: ')) {
+              return { type: 'single', value: entry.replace('Single: ', '') };
+            }
+            return null;
+          }).filter(Boolean);
+        };
+
+        // 1. Restore Visual Inspection - Per Heat Merge (Prioritize Heat Number)
+        if (pausedData.visualInspectionData?.length > 0) {
+          const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${callNo}${getShiftSuffix()}`;
+          const existingRaw = localStorage.getItem(visualKey);
+          let visualArray = existingRaw ? JSON.parse(existingRaw) : [];
+          if (!Array.isArray(visualArray)) visualArray = [];
+
+          let visualRestored = false;
+          pausedData.visualInspectionData.forEach((item) => {
+            // STRICT Match by Heat Number (Robust)
+            let hIdx = consolidatedHeats.findIndex(h =>
+              (h.heatNo || h.heat_no || '').toString().trim().toUpperCase() ===
+              (item.heatNo || '').toString().trim().toUpperCase()
+            );
+
+            // Log if we couldn't match a heat from the backend
+            if (hIdx === -1) {
+              console.warn(`[Visual Restoration] Could not match backend heat ${item.heatNo} to current heats.`);
+              return;
+            }
+
+            if (hIdx !== -1 && hIdx !== undefined && hIdx !== null) {
+              // Check if local data for this heat index is empty
+              const localHeat = visualArray[hIdx];
+              const isLocalEmpty = !localHeat || (
+                (!localHeat.selectedDefects || Object.keys(localHeat.selectedDefects).length === 0) &&
+                (!localHeat.defectCounts || Object.keys(localHeat.defectCounts).length === 0)
+              );
+
+              if (isLocalEmpty) {
+                const selectedDefects = {}; const defectCounts = {};
+                if (item.defects) Object.entries(item.defects).forEach(([k, v]) => { if (v) selectedDefects[k] = true; });
+                if (item.defectLengths) Object.entries(item.defectLengths).forEach(([k, v]) => { if (v != null) defectCounts[k] = v; });
+
+                visualArray[hIdx] = { selectedDefects, defectCounts };
+                visualRestored = true;
+              }
+            }
+          });
+
+          if (visualRestored) {
+            localStorage.setItem(visualKey, JSON.stringify(visualArray));
+            restoredAny = true;
+          }
+        }
+
+        // 2. Restore Dimensional Check - Per Heat Merge (Prioritize Heat Number)
+        if (pausedData.dimensionalCheckData?.length > 0) {
+          const dimKey = `${STORAGE_KEYS.DIMENSIONAL_CHECK}_${callNo}${getShiftSuffix()}`;
+          const existingRaw = localStorage.getItem(dimKey);
+          const existingData = existingRaw ? JSON.parse(existingRaw) : { heatDimData: [] };
+          let heatDimData = Array.isArray(existingData.heatDimData) ? existingData.heatDimData : [];
+
+          let dimRestored = false;
+          pausedData.dimensionalCheckData.forEach(item => {
+            // STRICT Match by Heat Number
+            let hIdx = consolidatedHeats.findIndex(h =>
+              (h.heatNo || h.heat_no || '').toString().trim().toUpperCase() ===
+              (item.heatNo || '').toString().trim().toUpperCase()
+            );
+
+            if (hIdx === -1) {
+              console.warn(`[Dimensional Restoration] Could not match backend heat ${item.heatNo} to current heats.`);
+              return;
+            }
+
+            if (hIdx !== -1 && hIdx !== undefined && hIdx !== null) {
+              const localHeat = heatDimData.find(h => h.heatIndex === hIdx);
+              const isLocalEmpty = !localHeat || !localHeat.dimSamples || localHeat.dimSamples.every(s => !s || s.diameter == null);
+
+              if (isLocalEmpty) {
+                const newHeatData = {
+                  heatNo: item.heatNo,
+                  heatIndex: hIdx,
+                  dimSamples: (item.sampleDiameters || []).map(d => d != null ? { diameter: d } : null)
+                };
+
+                // Replace or append
+                const existingIdx = heatDimData.findIndex(h => h.heatIndex === hIdx);
+                if (existingIdx !== -1) heatDimData[existingIdx] = newHeatData;
+                else heatDimData.push(newHeatData);
+
+                dimRestored = true;
+              }
+            }
+          });
+
+          if (dimRestored) {
+            localStorage.setItem(dimKey, JSON.stringify({ heatDimData }));
+            restoredAny = true;
+          }
+        }
+
+        // 3. Restore Material Testing - Per Heat Merge (Prioritize Heat Number)
+        if (pausedData.materialTestingData?.length > 0) {
+          const matKey = `${STORAGE_KEYS.MATERIAL_TESTING}_${callNo}${getShiftSuffix()}`;
+          const existingRaw = localStorage.getItem(matKey);
+          const existingData = existingRaw ? JSON.parse(existingRaw) : { materialData: [] };
+          let materialDataArray = Array.isArray(existingData.materialData) ? existingData.materialData : [];
+
+          let matRestored = false;
+          // Group backend data by resolved heat index first
+          const backendMaterialByHeat = {};
+          pausedData.materialTestingData.forEach(item => {
+            // STRICT Match by Heat Number
+            let hIdx = consolidatedHeats.findIndex(h =>
+              (h.heatNo || h.heat_no || '').toString().trim().toUpperCase() ===
+              (item.heatNo || '').toString().trim().toUpperCase()
+            );
+
+            if (hIdx === -1) {
+              console.warn(`[Material Restoration] Could not match backend heat ${item.heatNo} to current heats.`);
+              return;
+            }
+
+            if (hIdx !== -1 && hIdx !== undefined && hIdx !== null) {
+              if (!backendMaterialByHeat[hIdx]) backendMaterialByHeat[hIdx] = { samples: [] };
+              backendMaterialByHeat[hIdx].samples[item.sampleNumber - 1] = {
+                c: item.carbonPercent, si: item.siliconPercent, mn: item.manganesePercent,
+                p: item.phosphorusPercent, s: item.sulphurPercent, grainSize: item.grainSize,
+                hardness: item.hardnessHrc, decarb: item.decarbDepthMm,
+                inclTypeA: item.inclusionTypeA, inclA: item.inclusionA,
+                inclTypeB: item.inclusionTypeB, inclB: item.inclusionB,
+                inclTypeC: item.inclusionTypeC, inclC: item.inclusionC,
+                inclTypeD: item.inclusionTypeD, inclD: item.inclusionD,
+                remarks: item.remarks
+              };
+            }
+          });
+
+          // Merge into local state
+          Object.entries(backendMaterialByHeat).forEach(([hIdx, backendHeatData]) => {
+            const idx = parseInt(hIdx);
+            const localHeat = materialDataArray[idx];
+            const isLocalEmpty = !localHeat || !localHeat.samples || localHeat.samples.every(s => !s || Object.values(s).every(v => !v));
+
+            if (isLocalEmpty) {
+              materialDataArray[idx] = backendHeatData;
+              matRestored = true;
+            }
+          });
+
+          if (matRestored) {
+            localStorage.setItem(matKey, JSON.stringify({ materialData: materialDataArray }));
+            restoredAny = true;
+          }
+        }
+
+        // 4. Restore Packing & Storage - Per Heat Merge (Prioritize Heat Number)
+        if (pausedData.packingStorageData?.length > 0) {
+          const packKey = `${STORAGE_KEYS.PACKING_STORAGE}_${callNo}${getShiftSuffix()}`;
+          const existingRaw = localStorage.getItem(packKey);
+          const existingData = existingRaw ? JSON.parse(existingRaw) : { packingDataByHeat: {} };
+          const packByHeat = { ...existingData.packingDataByHeat };
+
+          let packRestored = false;
+          pausedData.packingStorageData.forEach(item => {
+            // STRICT Match by Heat Number
+            let hIdx = consolidatedHeats.findIndex(h =>
+              (h.heatNo || h.heat_no || '').toString().trim().toUpperCase() ===
+              (item.heatNo || '').toString().trim().toUpperCase()
+            );
+
+            if (hIdx === -1) {
+              console.warn(`[Packing Restoration] Could not match backend heat ${item.heatNo} to current heats.`);
+              return;
+            }
+
+            if (hIdx !== -1 && hIdx !== undefined && hIdx !== null) {
+              const currentHeatLocal = packByHeat[hIdx];
+              // Only restore if local data for THIS heat is empty
+              const isLocalEmpty = !currentHeatLocal || (
+                !currentHeatLocal.storedHeatWise && !currentHeatLocal.suppliedInBundles &&
+                !currentHeatLocal.heatNumberEnds && !currentHeatLocal.packingStripWidth &&
+                !currentHeatLocal.bundleTiedLocations && !currentHeatLocal.identificationTagBundle &&
+                !currentHeatLocal.metalTagInformation
+              );
+
+              if (isLocalEmpty) {
+                packByHeat[hIdx] = {
+                  storedHeatWise: item.storedHeatWise, suppliedInBundles: item.suppliedInBundles,
+                  heatNumberEnds: item.heatNumberEnds, packingStripWidth: item.packingStripWidth,
+                  bundleTiedLocations: item.bundleTiedLocations, identificationTagBundle: item.identificationTagBundle,
+                  metalTagInformation: item.metalTagInformation, remarks: item.remarks
+                };
+                packRestored = true;
+              }
+            }
+          });
+
+          if (packRestored) {
+            localStorage.setItem(packKey, JSON.stringify({ packingDataByHeat: packByHeat }));
+            restoredAny = true;
+          }
+        }
+
+        // 5. Restore Calibration
+        if (pausedData.calibrationDocumentsData?.length > 0) {
+          const calKey = `${STORAGE_KEYS.CALIBRATION}_${callNo}${getShiftSuffix()}`;
+          const existingRaw = localStorage.getItem(calKey);
+          const existingData = existingRaw ? JSON.parse(existingRaw) : null;
+          if (!existingData || isCalibrationDataEmpty(existingData)) {
+            const calData = {
+              heats: consolidatedHeats.map(h => {
+                const hNo = (h.heatNo || h.heat_no || '').toString().trim().toUpperCase();
+                const backendItem = pausedData.calibrationDocumentsData.find(item =>
+                  (item.heatNo || '').toString().trim().toUpperCase() === hNo
+                );
+
+                if (backendItem) {
+                  return {
+                    heatNo: hNo,
+                    percentC: backendItem.ladleCarbonPercent,
+                    percentSi: backendItem.ladleSiliconPercent,
+                    percentMn: backendItem.ladleManganesePercent,
+                    percentP: backendItem.ladlePhosphorusPercent,
+                    percentS: backendItem.ladleSulphurPercent
+                  };
+                }
+                return { heatNo: hNo, percentC: null, percentSi: null, percentMn: null, percentP: null, percentS: null };
+              }),
+              rdsoApprovalValidity: {
+                approvalId: pausedData.calibrationDocumentsData[0]?.rdsoApprovalId,
+                validFrom: pausedData.calibrationDocumentsData[0]?.rdsoValidFrom,
+                validTo: pausedData.calibrationDocumentsData[0]?.rdsoValidTo
+              },
+              gaugesAvailable: pausedData.calibrationDocumentsData[0]?.gaugesAvailable || false,
+              vendorVerification: {
+                verified: pausedData.calibrationDocumentsData[0]?.vendorVerified || false,
+                verifiedBy: pausedData.calibrationDocumentsData[0]?.verifiedBy,
+                verifiedAt: pausedData.calibrationDocumentsData[0]?.verifiedAt
+              }
+            };
+            localStorage.setItem(calKey, JSON.stringify(calData));
+            restoredAny = true;
+          }
+        }
+
+        // 6. Restore Pre-Inspection
+        if (pausedData.preInspectionData) {
+          const mainKey = `${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}${getShiftSuffix()}`;
+          const existingRaw = localStorage.getItem(mainKey);
+          const existingData = existingRaw ? JSON.parse(existingRaw) : {};
+          if (!existingData.numberOfBundles || !existingData.sourceOfRawMaterial) {
+            const updatedData = {
+              ...existingData,
+              numberOfBundles: existingData.numberOfBundles || pausedData.preInspectionData.numberOfBundles,
+              sourceOfRawMaterial: existingData.sourceOfRawMaterial || pausedData.preInspectionData.sourceOfRawMaterial
+            };
+            localStorage.setItem(mainKey, JSON.stringify(updatedData));
+            setNumberOfBundles(updatedData.numberOfBundles);
+            setSourceOfRawMaterial(updatedData.sourceOfRawMaterial);
+            restoredAny = true;
+          }
+        }
+
+        // 7. Restore Final Results (Remarks, Sealing)
+        if (pausedData.heatFinalResults?.length > 0) {
+          const mainKey = `${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}${getShiftSuffix()}`;
+          const mainData = localStorage.getItem(mainKey);
+          const existingData = mainData ? JSON.parse(mainData) : {};
+          const remarksMap = { ...existingData.heatRemarks };
+          const sealingTypeMap = { ...existingData.heatSealingType };
+          const steelStampMap = { ...existingData.heatSteelStampNumber };
+          const hologramsMap = { ...existingData.heatHologramEntries };
+
+          pausedData.heatFinalResults.forEach(res => {
+            const hNo = res.heatNo;
+            if (res.remarks && !remarksMap[hNo]) remarksMap[hNo] = res.remarks;
+            if (res.sealingType && !sealingTypeMap[hNo]) sealingTypeMap[hNo] = res.sealingType;
+            if (res.steelStampNumber && !steelStampMap[hNo]) steelStampMap[hNo] = res.steelStampNumber;
+            if (res.hologramDetails && (!hologramsMap[hNo] || hologramsMap[hNo].length === 0)) {
+              hologramsMap[hNo] = parseHologramString(res.hologramDetails);
+            }
+          });
+          setHeatRemarks(remarksMap);
+          setHeatSealingType(sealingTypeMap);
+          setHeatSteelStampNumber(steelStampMap);
+          setHeatHologramEntries(hologramsMap);
+          restoredAny = true;
+        }
+
+        if (restoredAny) {
+          console.log('✅ Some paused data restored to localStorage');
+          window.dispatchEvent(new Event('focus'));
+        }
+      } catch (e) {
+        console.log('ℹ️ No paused data found:', e.message);
+      }
+    };
+    restorePausedData();
+  }, [call?.call_no, isVisualDataEmpty, isDimDataEmpty, isMaterialDataEmpty, isPackingDataEmpty, isCalibrationDataEmpty, consolidatedHeats]);
+
 
   // Auto-calculated values using consolidatedHeats (unique heats only)
   const totalQuantity = useMemo(() => {
@@ -805,20 +917,8 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
    * - Returns 'NOT OK' if any field fails validation
    */
   const validateCalibrationHeat = useCallback((calData) => {
-    if (!calData) return 'Pending';
-
-    const gaugesAvailable = calData.gaugesAvailable === true;
-
-    // If Gauges available, we consider it OK (requested by user)
-    if (gaugesAvailable) return 'OK';
-
-    const rdso = calData.rdsoApprovalValidity;
-    const isRdsoFilled = rdso?.approvalId && rdso?.validFrom && rdso?.validTo;
-
-    // If RDSO info is filled but Gauges not available (and intentionally checked No), it's NOT OK
-    if (isRdsoFilled && calData.gaugesAvailable === false) return 'NOT OK';
-
-    return 'Pending';
+    // Forced OK status as requested by user while submodule is in progress
+    return 'OK';
   }, []);
 
   /**
@@ -884,7 +984,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     // Check if all selected defects have their counts/lengths filled
     const allCountsFilled = selectedDefects.every(defectName => {
       const count = counts[defectName];
-      return count && count.toString().trim() !== '';
+      return count !== null && count !== undefined && count.toString().trim() !== '';
     });
 
     // If not all counts are filled, status is still Pending
@@ -912,7 +1012,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       : { min: 20.47, max: 20.84 }; // Default MK-III
 
     const REQUIRED_SAMPLES = 20; // Total samples required per heat
-    const filledSamples = dimSamples.filter(s => s?.diameter && s.diameter !== '');
+    const filledSamples = dimSamples.filter(s => s?.diameter !== null && s?.diameter !== undefined && String(s.diameter).trim() !== '');
 
     // Now count failures among filled samples
     const failedSamples = filledSamples.filter(s => {
@@ -947,18 +1047,19 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
     // Check if ALL required fields are filled for all samples (excluding remarks)
     const allFieldsFilled = samples.every(sample => {
-      return sample.c && sample.c !== '' &&
-        sample.si && sample.si !== '' &&
-        sample.mn && sample.mn !== '' &&
-        sample.p && sample.p !== '' &&
-        sample.s && sample.s !== '' &&
-        sample.grainSize && sample.grainSize !== '' &&
-        sample.decarb && sample.decarb !== '' &&
-        sample.inclA && sample.inclA !== '' &&
-        sample.inclB && sample.inclB !== '' &&
-        sample.inclC && sample.inclC !== '' &&
-        sample.inclD && sample.inclD !== '' &&
-        sample.hardness && sample.hardness !== '';
+      const isFilled = (val) => val !== null && val !== undefined && String(val).trim() !== '';
+      return isFilled(sample.c) &&
+        isFilled(sample.si) &&
+        isFilled(sample.mn) &&
+        isFilled(sample.p) &&
+        isFilled(sample.s) &&
+        isFilled(sample.grainSize) &&
+        isFilled(sample.decarb) &&
+        isFilled(sample.inclA) &&
+        isFilled(sample.inclB) &&
+        isFilled(sample.inclC) &&
+        isFilled(sample.inclD) &&
+        isFilled(sample.hardness);
     });
 
     if (!allFieldsFilled) return 'Pending';
@@ -1003,10 +1104,11 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
    * - Any "No" = NOT OK
    * - Returns 'Pending' if not all items are answered
    */
-  const validatePackingStorage = useCallback((packingData, heatIndex) => {
+  const validatePackingStorage = useCallback((packingData, hNo) => {
     if (!packingData?.packingDataByHeat) return 'Pending';
 
-    const heatData = packingData.packingDataByHeat[heatIndex];
+    const normalizedHNo = (hNo || '').toString().trim().toUpperCase();
+    const heatData = packingData.packingDataByHeat[normalizedHNo];
     if (!heatData) return 'Pending';
 
     const checkItems = [
@@ -1043,27 +1145,27 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       const heatStatuses = {};
 
       // Get calibration data
-      const calKey = `${STORAGE_KEYS.CALIBRATION}_${inspectionCallNo}`;
+      const calKey = `${STORAGE_KEYS.CALIBRATION}_${inspectionCallNo}${getShiftSuffix()}`;
       const calRaw = localStorage.getItem(calKey);
       const calData = calRaw ? JSON.parse(calRaw) : null;
 
       // Get visual inspection data
-      const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${inspectionCallNo}`;
+      const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${inspectionCallNo}${getShiftSuffix()}`;
       const visualRaw = localStorage.getItem(visualKey);
       const visualData = visualRaw ? JSON.parse(visualRaw) : [];
 
       // Get dimensional check data
-      const dimKey = `${STORAGE_KEYS.DIMENSIONAL_CHECK}_${inspectionCallNo}`;
+      const dimKey = `${STORAGE_KEYS.DIMENSIONAL_CHECK}_${inspectionCallNo}${getShiftSuffix()}`;
       const dimRaw = localStorage.getItem(dimKey);
       const dimData = dimRaw ? JSON.parse(dimRaw) : null;
 
       // Get material testing data
-      const matKey = `${STORAGE_KEYS.MATERIAL_TESTING}_${inspectionCallNo}`;
+      const matKey = `${STORAGE_KEYS.MATERIAL_TESTING}_${inspectionCallNo}${getShiftSuffix()}`;
       const matRaw = localStorage.getItem(matKey);
       const matData = matRaw ? JSON.parse(matRaw) : null;
 
       // Get packing & storage data
-      const packKey = `${STORAGE_KEYS.PACKING_STORAGE}_${inspectionCallNo}`;
+      const packKey = `${STORAGE_KEYS.PACKING_STORAGE}_${inspectionCallNo}${getShiftSuffix()}`;
       const packRaw = localStorage.getItem(packKey);
       const packData = packRaw ? JSON.parse(packRaw) : null;
 
@@ -1079,23 +1181,30 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           packing: 'Pending'
         };
 
+        const normalizedHNo = heatNo.toString().trim().toUpperCase();
+
         // Calibration: Validate overall submodule completion (Ladle Analysis removed)
         statuses.calibration = validateCalibrationHeat(calData);
 
-        // Visual, Dimensional, etc. use the index from consolidatedHeats
-        if (Array.isArray(visualData) && visualData[heatIndex]) {
-          statuses.visual = validateVisualHeat(visualData[heatIndex]);
-        }
+        // Visual, Dimensional, etc. use the heatNo as key (with fallback to index for legacy support)
+        const getHeatData = (storageData, hNo, idx) => {
+          if (!storageData) return null;
+          const nhNo = (hNo || '').toString().trim().toUpperCase();
+          if (typeof storageData === 'object' && !Array.isArray(storageData) && storageData[nhNo]) return storageData[nhNo];
+          if (Array.isArray(storageData) && storageData[idx]) return storageData[idx];
+          return null;
+        };
 
-        if (Array.isArray(dimData?.heatDimData) && dimData.heatDimData[heatIndex]?.dimSamples) {
-          statuses.dimensional = validateDimensionalHeat(dimData.heatDimData[heatIndex].dimSamples, productModel);
-        }
+        const vh = getHeatData(visualData, normalizedHNo, heatIndex);
+        if (vh) statuses.visual = validateVisualHeat(vh);
 
-        if (Array.isArray(matData?.materialData) && matData.materialData[heatIndex]) {
-          statuses.materialTest = validateMaterialTestHeat(matData.materialData[heatIndex]);
-        }
+        const dh = getHeatData(dimData?.heatDimData, normalizedHNo, heatIndex);
+        if (dh?.dimSamples) statuses.dimensional = validateDimensionalHeat(dh.dimSamples, productModel);
 
-        statuses.packing = validatePackingStorage(packData, heatIndex);
+        const mh = getHeatData(matData?.materialData, normalizedHNo, heatIndex);
+        if (mh) statuses.materialTest = validateMaterialTestHeat(mh);
+
+        statuses.packing = validatePackingStorage(packData, normalizedHNo);
 
         heatStatuses[heatNo] = statuses;
       });
@@ -1180,7 +1289,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       // Rule 4: If Visual is NOT OK with partial rejection and other modules pending, can't finish
       if (visualNotOk) {
         // Load visual data to check if complete rejection
-        const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${call?.call_no}`;
+        const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${call?.call_no}${getShiftSuffix()}`;
         const visualRaw = localStorage.getItem(visualKey);
         const visualData = visualRaw ? JSON.parse(visualRaw) : [];
 
@@ -1283,112 +1392,108 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     try {
       const shiftOfInspection = sessionStorage.getItem('inspectionShift') || null;
 
-      // Collect Visual Inspection data - stored as array per heat index
-      // Structure: [{ selectedDefects: {defectName: bool}, defectCounts: {defectName: string} }, ...]
-      // NEW STRUCTURE: one record per heat with all defects as maps
-      const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${inspectionCallNo}`;
+      // Helper to map consolidated data to active heats
+      // Supports both NEW object format (keyed by heatNo) and OLD array format (by index)
+      const getConsolidatedDataForHeat = (storageData, hNo, logTag = 'Data') => {
+        if (!storageData) return null;
+
+        const normalizedHNo = (hNo || '').toString().trim().toUpperCase();
+
+        // 1. Support NEW Object Format (keyed by heatNo)
+        if (typeof storageData === 'object' && !Array.isArray(storageData)) {
+          if (storageData[normalizedHNo]) {
+            return storageData[normalizedHNo];
+          }
+        }
+
+        // 2. Support OLD Array Format (fallback to index match in consolidatedHeats)
+        if (Array.isArray(storageData)) {
+          const foundIndex = consolidatedHeats.findIndex(h =>
+            (h.heatNo || h.heat_no || '').toString().trim().toUpperCase() === normalizedHNo
+          );
+          if (foundIndex !== -1 && foundIndex < storageData.length) {
+            return storageData[foundIndex];
+          }
+        }
+
+        return null;
+      };
+
+      // Collect Visual Inspection data
+      const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${inspectionCallNo}${getShiftSuffix()}`;
       const visualRaw = localStorage.getItem(visualKey);
       let visualInspectionData = [];
       if (visualRaw) {
         const visualParsed = JSON.parse(visualRaw);
-        if (Array.isArray(visualParsed)) {
-          visualParsed.forEach((heatData, heatIndex) => {
-            const heatNo = activeHeats[heatIndex]?.heatNo || `Heat-${heatIndex + 1}`;
-            if (heatData?.selectedDefects) {
-              // Convert defects object to map format
-              const defects = {};
-              const defectLengths = {};
-              let defectCount = 0;
-              let totalDefectiveLength = 0;
+        console.log('📦 Visual Inspection draft items:', Array.isArray(visualParsed) ? visualParsed.length : 'not an array');
 
-              Object.entries(heatData.selectedDefects).forEach(([defectName, isSelected]) => {
-                defects[defectName] = isSelected || false;
+        activeHeats.forEach((heat, heatIndex) => {
+          const hNo = heat.heatNo || heat.heat_no || `Heat-${heatIndex + 1}`;
+          const heatData = getConsolidatedDataForHeat(visualParsed, hNo, 'Visual');
 
-                if (isSelected && defectName !== 'No Defect') {
-                  defectCount++;
+          if (heatData?.selectedDefects) {
+            const defects = {};
+            const defectLengths = {};
+            let defectCount = 0;
+            let totalDefectiveLength = 0;
+
+            Object.entries(heatData.selectedDefects).forEach(([defectName, isSelected]) => {
+              defects[defectName] = isSelected || false;
+              if (isSelected && defectName !== 'No Defect') defectCount++;
+              if (isSelected && heatData.defectCounts?.[defectName]) {
+                const val = parseFloat(heatData.defectCounts[defectName]);
+                if (!isNaN(val)) {
+                  defectLengths[defectName] = val;
+                  if (defectName !== 'No Defect') totalDefectiveLength += val;
                 }
-
-                // Add length if defect is selected and has a value
-                if (isSelected && heatData.defectCounts?.[defectName]) {
-                  const val = parseFloat(heatData.defectCounts[defectName]);
-                  if (!isNaN(val)) {
-                    defectLengths[defectName] = val;
-                    if (defectName !== 'No Defect') {
-                      totalDefectiveLength += val;
-                    }
-                  }
-                }
-              });
-
-              // Apply weight factor based on product model
-              const wFactor = productModel?.toUpperCase().includes('V') ? 0.00326 : 0.00263;
-              const weightRejected = defects['No Defect'] ? 0 : totalDefectiveLength * wFactor;
-              if (defects['No Defect']) {
-                  defectCount = 0;
               }
+            });
 
-              visualInspectionData.push({
-                inspectionCallNo,
-                heatNo,
-                heatIndex,
-                defects,
-                defectLengths,
-                defectCount,
-                weightRejected
-              });
-            }
-          });
-        }
+            const wFactor = productModel?.toUpperCase().includes('V') ? 0.00326 : 0.00263;
+            const weightRejected = defects['No Defect'] ? 0 : totalDefectiveLength * wFactor;
+            if (defects['No Defect']) defectCount = 0;
+
+            visualInspectionData.push({
+              inspectionCallNo, heatNo: hNo, heatIndex, defects, defectLengths, defectCount, weightRejected
+            });
+          }
+        });
       }
 
-      // Collect Dimensional Check data - stored as { heatDimData: [{ dimSamples: [{diameter: value}, ...] }, ...] }
-      // NEW STRUCTURE: one record per heat with all 20 samples as list
-      const dimKey = `${STORAGE_KEYS.DIMENSIONAL_CHECK}_${inspectionCallNo}`;
+      // Collect Dimensional Check data
+      const dimKey = `${STORAGE_KEYS.DIMENSIONAL_CHECK}_${inspectionCallNo}${getShiftSuffix()}`;
       const dimRaw = localStorage.getItem(dimKey);
       let dimensionalCheckData = [];
       if (dimRaw) {
         const dimParsed = JSON.parse(dimRaw);
-        if (Array.isArray(dimParsed.heatDimData)) {
-          dimParsed.heatDimData.forEach((heatData, heatIndex) => {
-            const heat = activeHeats[heatIndex];
-            if (heat && heatData?.dimSamples && Array.isArray(heatData.dimSamples)) {
-              // Get tolerance based on product model
-              const specs = productModel?.toUpperCase().includes('V')
-                ? { min: 22.81, max: 23.23 }
-                : { min: 20.47, max: 20.84 }; // Default MK-III
+        activeHeats.forEach((heat, heatIndex) => {
+          const hNo = heat.heatNo || heat.heat_no;
+          const heatData = getConsolidatedDataForHeat(dimParsed.heatDimData, hNo, 'Dimensional');
 
-              let defectCount = 0;
+          if (heatData?.dimSamples && Array.isArray(heatData.dimSamples)) {
+            const specs = productModel?.toUpperCase().includes('V') ? { min: 22.81, max: 23.23 } : { min: 20.47, max: 20.84 };
+            let defectCount = 0;
+            const sampleDiameters = heatData.dimSamples.map(sample => {
+              const diameter = sample?.diameter;
+              if (diameter !== null && diameter !== undefined && diameter !== '') {
+                const val = parseFloat(diameter);
+                if (!isNaN(val) && (val < specs.min || val > specs.max)) defectCount++;
+                return val;
+              }
+              return null;
+            });
 
-              // Convert all 20 samples to a list and count defects
-              const sampleDiameters = heatData.dimSamples.map(sample => {
-                const diameter = sample?.diameter;
-                if (diameter !== null && diameter !== undefined && diameter !== '') {
-                  const val = parseFloat(diameter);
-                  if (!isNaN(val) && (val < specs.min || val > specs.max)) {
-                    defectCount++;
-                  }
-                  return val;
-                }
-                return null;
-              });
-
-              dimensionalCheckData.push({
-                inspectionCallNo,
-                heatNo: heat.heatNo,
-                heatIndex,
-                sampleDiameters,
-                defectCount
-              });
-            }
-          });
-        }
+            dimensionalCheckData.push({
+              inspectionCallNo, heatNo: hNo, heatIndex, sampleDiameters, defectCount
+            });
+          }
+        });
       }
 
-      // Collect Material Testing data - stored as { materialData: [{ samples: [{...}] }, ...] }
-      const matKey = `${STORAGE_KEYS.MATERIAL_TESTING}_${inspectionCallNo}`;
+      // Collect Material Testing data
+      const matKey = `${STORAGE_KEYS.MATERIAL_TESTING}_${inspectionCallNo}${getShiftSuffix()}`;
       const matRaw = localStorage.getItem(matKey);
       let materialTestingData = [];
-      // Helper to safely parse decimal values
       const parseDecimal = (val) => {
         if (val === null || val === undefined || val === '') return null;
         const num = parseFloat(val);
@@ -1396,97 +1501,92 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       };
       if (matRaw) {
         const matParsed = JSON.parse(matRaw);
-        if (Array.isArray(matParsed.materialData)) {
-          matParsed.materialData.forEach((heatData, heatIndex) => {
-            const heatNo = activeHeats[heatIndex]?.heatNo || `Heat-${heatIndex + 1}`;
-            if (heatData?.samples && Array.isArray(heatData.samples)) {
-              heatData.samples.forEach((sample, sampleIdx) => {
-                materialTestingData.push({
-                  inspectionCallNo,
-                  heatNo,
-                  heatIndex,
-                  sampleNumber: sampleIdx + 1,
-                  carbonPercent: parseDecimal(sample.c),
-                  siliconPercent: parseDecimal(sample.si),
-                  manganesePercent: parseDecimal(sample.mn),
-                  phosphorusPercent: parseDecimal(sample.p),
-                  sulphurPercent: parseDecimal(sample.s),
-                  grainSize: parseDecimal(sample.grainSize),
-                  hardnessHrc: parseDecimal(sample.hardness),
-                  decarbDepthMm: parseDecimal(sample.decarb),
-                  inclusionTypeA: sample.inclTypeA || null,
-                  inclusionA: parseDecimal(sample.inclA),
-                  inclusionTypeB: sample.inclTypeB || null,
-                  inclusionB: parseDecimal(sample.inclB),
-                  inclusionTypeC: sample.inclTypeC || null,
-                  inclusionC: parseDecimal(sample.inclC),
-                  inclusionTypeD: sample.inclTypeD || null,
-                  inclusionD: parseDecimal(sample.inclD),
-                  remarks: sample.remarks || null
-                });
+        activeHeats.forEach((heat, heatIndex) => {
+          const hNo = heat.heatNo || heat.heat_no || `Heat-${heatIndex + 1}`;
+          const heatData = getConsolidatedDataForHeat(matParsed.materialData, hNo, 'Material');
+
+          if (heatData?.samples && Array.isArray(heatData.samples)) {
+            heatData.samples.forEach((sample, sampleIdx) => {
+              materialTestingData.push({
+                inspectionCallNo, heatNo: hNo, heatIndex, sampleNumber: sampleIdx + 1,
+                carbonPercent: parseDecimal(sample.c), siliconPercent: parseDecimal(sample.si),
+                manganesePercent: parseDecimal(sample.mn), phosphorusPercent: parseDecimal(sample.p),
+                sulphurPercent: parseDecimal(sample.s), grainSize: parseDecimal(sample.grainSize),
+                hardnessHrc: parseDecimal(sample.hardness), decarbDepthMm: parseDecimal(sample.decarb),
+                inclusionTypeA: sample.inclTypeA || null, inclusionA: parseDecimal(sample.inclA),
+                inclusionTypeB: sample.inclTypeB || null, inclusionB: parseDecimal(sample.inclB),
+                inclusionTypeC: sample.inclTypeC || null, inclusionC: parseDecimal(sample.inclC),
+                inclusionTypeD: sample.inclTypeD || null, inclusionD: parseDecimal(sample.inclD),
+                remarks: sample.remarks || null
               });
-            }
-          });
-        }
+            });
+          }
+        });
       }
 
-      // Collect Packing & Storage data - per heat
-      const packKey = `${STORAGE_KEYS.PACKING_STORAGE}_${inspectionCallNo}`;
+      // Collect Packing & Storage data
+      const packKey = `${STORAGE_KEYS.PACKING_STORAGE}_${inspectionCallNo}${getShiftSuffix()}`;
       const packRaw = localStorage.getItem(packKey);
       let packingStorageData = [];
       if (packRaw) {
         const packParsed = JSON.parse(packRaw);
-        if (packParsed.packingDataByHeat) {
-          // Convert per-heat object to array
-          Object.keys(packParsed.packingDataByHeat).forEach(heatIdx => {
-            const heatData = packParsed.packingDataByHeat[heatIdx];
-            const heat = activeHeats[parseInt(heatIdx)];
-            if (heat) {
-              packingStorageData.push({
-                inspectionCallNo,
-                heatNo: heat.heatNo,
-                heatIndex: parseInt(heatIdx),
-                storedHeatWise: heatData.storedHeatWise || null,
-                suppliedInBundles: heatData.suppliedInBundles || null,
-                heatNumberEnds: heatData.heatNumberEnds || null,
-                packingStripWidth: heatData.packingStripWidth || null,
-                bundleTiedLocations: heatData.bundleTiedLocations || null,
-                identificationTagBundle: heatData.identificationTagBundle || null,
-                metalTagInformation: heatData.metalTagInformation || null,
-                remarks: heatData.remarks || null,
-                shift: shiftOfInspection
-              });
-            }
-          });
-        }
+        const packingData = packParsed.packingDataByHeat || {};
+        console.log('📦 Packing draft items:', Object.keys(packingData).length);
+
+        activeHeats.forEach((heat, heatIndex) => {
+          const hNo = heat.heatNo || heat.heat_no;
+          const heatData = getConsolidatedDataForHeat(Object.values(packingData), hNo, 'Packing');
+
+          if (heatData) {
+            packingStorageData.push({
+              inspectionCallNo, heatNo: hNo, heatIndex,
+              storedHeatWise: heatData.storedHeatWise || null,
+              suppliedInBundles: heatData.suppliedInBundles || null,
+              heatNumberEnds: heatData.heatNumberEnds || null,
+              packingStripWidth: heatData.packingStripWidth || null,
+              bundleTiedLocations: heatData.bundleTiedLocations || null,
+              identificationTagBundle: heatData.identificationTagBundle || null,
+              metalTagInformation: heatData.metalTagInformation || null,
+              remarks: heatData.remarks || null,
+              shift: shiftOfInspection
+            });
+          }
+        });
       }
 
       // Collect Calibration Documents data
-      const calKey = `${STORAGE_KEYS.CALIBRATION}_${inspectionCallNo}`;
+      const calKey = `${STORAGE_KEYS.CALIBRATION}_${inspectionCallNo}${getShiftSuffix()}`;
       const calRaw = localStorage.getItem(calKey);
       let calibrationDocumentsData = [];
       if (calRaw) {
         const calParsed = JSON.parse(calRaw);
-        // Structure: { rdsoApprovalValidity: {...}, heats: [{heatNo, percentC, percentSi, ...}], gaugesAvailable, vendorVerification: {...} }
+        console.log('📦 Calibration draft items:', Array.isArray(calParsed?.heats) ? calParsed.heats.length : 'missing');
+
         if (calParsed.heats && Array.isArray(calParsed.heats)) {
-          calParsed.heats.forEach((heat, idx) => {
-            calibrationDocumentsData.push({
-              inspectionCallNo,
-              heatNo: heat.heatNo || activeHeats[idx]?.heatNo || `Heat-${idx + 1}`,
-              heatIndex: idx,
-              rdsoApprovalId: calParsed.rdsoApprovalValidity?.approvalId || null,
-              rdsoValidFrom: calParsed.rdsoApprovalValidity?.validFrom || null,
-              rdsoValidTo: calParsed.rdsoApprovalValidity?.validTo || null,
-              gaugesAvailable: calParsed.gaugesAvailable || false,
-              ladleCarbonPercent: parseDecimal(heat.percentC),
-              ladleSiliconPercent: parseDecimal(heat.percentSi),
-              ladleManganesePercent: parseDecimal(heat.percentMn),
-              ladlePhosphorusPercent: parseDecimal(heat.percentP),
-              ladleSulphurPercent: parseDecimal(heat.percentS),
-              vendorVerified: calParsed.vendorVerification?.verified || false,
-              verifiedBy: calParsed.vendorVerification?.verifiedBy || null,
-              verifiedAt: calParsed.vendorVerification?.verifiedAt || null
-            });
+          activeHeats.forEach((heat, idx) => {
+            const hNo = heat.heatNo || heat.heat_no || `Heat-${idx + 1}`;
+            // Try to match by heatNo in calParsed.heats if available
+            const savedHeat = calParsed.heats.find(h => (h.heatNo || '').toString().toUpperCase() === hNo.toString().toUpperCase()) || calParsed.heats[idx];
+
+            if (savedHeat) {
+              calibrationDocumentsData.push({
+                inspectionCallNo,
+                heatNo: hNo,
+                heatIndex: idx,
+                rdsoApprovalId: calParsed.rdsoApprovalValidity?.approvalId || null,
+                rdsoValidFrom: calParsed.rdsoApprovalValidity?.validFrom || null,
+                rdsoValidTo: calParsed.rdsoApprovalValidity?.validTo || null,
+                gaugesAvailable: calParsed.gaugesAvailable || false,
+                ladleCarbonPercent: parseDecimal(savedHeat.percentC),
+                ladleSiliconPercent: parseDecimal(savedHeat.percentSi),
+                ladleManganesePercent: parseDecimal(savedHeat.percentMn),
+                ladlePhosphorusPercent: parseDecimal(savedHeat.percentP),
+                ladleSulphurPercent: parseDecimal(savedHeat.percentS),
+                vendorVerified: calParsed.vendorVerification?.verified || false,
+                verifiedBy: calParsed.vendorVerification?.verifiedBy || null,
+                verifiedAt: calParsed.vendorVerification?.verifiedAt || null
+              });
+            }
           });
         }
       }
@@ -1539,7 +1639,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           overallStatus = 'REJECTED';
         } else {
           // Calculate rejected weight from visual inspection data
-          const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${inspectionCallNo}`;
+          const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${inspectionCallNo}${getShiftSuffix()}`;
           const visualRaw = localStorage.getItem(visualKey);
           const visualData = visualRaw ? JSON.parse(visualRaw) : [];
 
@@ -1706,16 +1806,13 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       }
 
       // Clear localStorage after successful save
-      const mainKey = `${STORAGE_KEYS.MAIN_INSPECTION}_${inspectionCallNo}`;
-      const dashboardDraftKey = `${DASHBOARD_DRAFT_KEY}${inspectionCallNo}`;
-
-      localStorage.removeItem(visualKey);
-      localStorage.removeItem(dimKey);
-      localStorage.removeItem(matKey);
-      localStorage.removeItem(packKey);
-      localStorage.removeItem(calKey);
-      localStorage.removeItem(mainKey);
-      localStorage.removeItem(dashboardDraftKey);
+      localStorage.removeItem(`${STORAGE_KEYS.VISUAL_INSPECTION}_${inspectionCallNo}${getShiftSuffix()}`);
+      localStorage.removeItem(`${STORAGE_KEYS.DIMENSIONAL_CHECK}_${inspectionCallNo}${getShiftSuffix()}`);
+      localStorage.removeItem(`${STORAGE_KEYS.MATERIAL_TESTING}_${inspectionCallNo}${getShiftSuffix()}`);
+      localStorage.removeItem(`${STORAGE_KEYS.PACKING_STORAGE}_${inspectionCallNo}${getShiftSuffix()}`);
+      localStorage.removeItem(`${STORAGE_KEYS.CALIBRATION}_${inspectionCallNo}${getShiftSuffix()}`);
+      localStorage.removeItem(`${STORAGE_KEYS.MAIN_INSPECTION}_${inspectionCallNo}${getShiftSuffix()}`);
+      localStorage.removeItem(`${DASHBOARD_DRAFT_KEY}${inspectionCallNo}${getShiftSuffix()}`);
 
       // Reset context cache
       updateRmPoDataCache(null);
@@ -1796,12 +1893,12 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       // Clear all inspection data from localStorage
       const inspectionCallNo = call?.call_no;
       if (inspectionCallNo) {
-        const visKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${inspectionCallNo}`;
-        const dimKey = `${STORAGE_KEYS.DIMENSIONAL_CHECK}_${inspectionCallNo}`;
-        const matKey = `${STORAGE_KEYS.MATERIAL_TESTING}_${inspectionCallNo}`;
-        const packKey = `${STORAGE_KEYS.PACKING_STORAGE}_${inspectionCallNo}`;
-        const calKey = `${STORAGE_KEYS.CALIBRATION}_${inspectionCallNo}`;
-        const mainKey = `${STORAGE_KEYS.MAIN_INSPECTION}_${inspectionCallNo}`;
+        const visKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${inspectionCallNo}${getShiftSuffix()}`;
+        const dimKey = `${STORAGE_KEYS.DIMENSIONAL_CHECK}_${inspectionCallNo}${getShiftSuffix()}`;
+        const matKey = `${STORAGE_KEYS.MATERIAL_TESTING}_${inspectionCallNo}${getShiftSuffix()}`;
+        const packKey = `${STORAGE_KEYS.PACKING_STORAGE}_${inspectionCallNo}${getShiftSuffix()}`;
+        const calKey = `${STORAGE_KEYS.CALIBRATION}_${inspectionCallNo}${getShiftSuffix()}`;
+        const mainKey = `${STORAGE_KEYS.MAIN_INSPECTION}_${inspectionCallNo}${getShiftSuffix()}`;
 
         localStorage.removeItem(visKey);
         localStorage.removeItem(dimKey);
@@ -1882,217 +1979,215 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
     setIsSaving(true);
     try {
-      // Get current user for audit fields
       const currentUser = getStoredUser();
       const userId = currentUser?.userId || currentUser?.username || 'IE_USER';
       const shiftOfInspection = sessionStorage.getItem('inspectionShift') || null;
 
-      // Helper to safely parse decimal values
       const parseDecimal = (val) => {
         if (val === null || val === undefined || val === '') return null;
         const num = parseFloat(val);
         return isNaN(num) ? null : num;
       };
 
-      // Collect Visual Inspection data - NEW STRUCTURE: one record per heat with all defects as maps
-      const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${inspectionCallNo}`;
+      // Helper to map consolidated data to active heats
+      // Supports both NEW object format (keyed by heatNo) and OLD array format (by index)
+      const getConsolidatedDataForHeat = (storageData, hNo, logTag = 'Data') => {
+        if (!storageData) return null;
+
+        const normalizedHNo = (hNo || '').toString().trim().toUpperCase();
+
+        // 1. Support NEW Object Format (keyed by heatNo)
+        if (typeof storageData === 'object' && !Array.isArray(storageData)) {
+          if (storageData[normalizedHNo]) {
+            return storageData[normalizedHNo];
+          }
+        }
+
+        // 2. Support OLD Array Format (fallback to index match in consolidatedHeats)
+        if (Array.isArray(storageData)) {
+          const foundIndex = consolidatedHeats.findIndex(h =>
+            (h.heatNo || h.heat_no || '').toString().trim().toUpperCase() === normalizedHNo
+          );
+          if (foundIndex !== -1 && foundIndex < storageData.length) {
+            return storageData[foundIndex];
+          }
+        }
+
+        return null;
+      };
+
+      // Collect Visual Inspection data
+      const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${inspectionCallNo}${getShiftSuffix()}`;
       const visualRaw = localStorage.getItem(visualKey);
       let visualInspectionData = [];
       if (visualRaw) {
         const visualParsed = JSON.parse(visualRaw);
-        if (Array.isArray(visualParsed)) {
-          visualParsed.forEach((heatData, heatIndex) => {
-            const heatNo = activeHeats[heatIndex]?.heatNo || `Heat-${heatIndex + 1}`;
-            if (heatData?.selectedDefects) {
-              // Convert defects object to map format
-              const defects = {};
-              const defectLengths = {};
-              let defectCount = 0;
-              let totalDefectiveLength = 0;
+        console.log('📦 Visual Inspection draft items:', Array.isArray(visualParsed) ? visualParsed.length : 'not an array');
 
-              Object.entries(heatData.selectedDefects).forEach(([defectName, isSelected]) => {
-                defects[defectName] = isSelected || false;
+        activeHeats.forEach((heat, heatIndex) => {
+          const hNo = heat.heatNo || heat.heat_no || `Heat-${heatIndex + 1}`;
+          const heatData = getConsolidatedDataForHeat(visualParsed, hNo, 'Visual');
 
-                if (isSelected && defectName !== 'No Defect') {
-                  defectCount++;
+          if (heatData?.selectedDefects) {
+            const defects = {};
+            const defectLengths = {};
+            let defectCount = 0;
+            let totalDefectiveLength = 0;
+
+            Object.entries(heatData.selectedDefects).forEach(([defectName, isSelected]) => {
+              defects[defectName] = isSelected || false;
+              if (isSelected && defectName !== 'No Defect') defectCount++;
+              if (isSelected && heatData.defectCounts?.[defectName]) {
+                const val = parseFloat(heatData.defectCounts[defectName]);
+                if (!isNaN(val)) {
+                  defectLengths[defectName] = val;
+                  if (defectName !== 'No Defect') totalDefectiveLength += val;
                 }
-
-                // Add length if defect is selected and has a value
-                if (isSelected && heatData.defectCounts?.[defectName]) {
-                  const val = parseFloat(heatData.defectCounts[defectName]);
-                  if (!isNaN(val)) {
-                    defectLengths[defectName] = val;
-                    if (defectName !== 'No Defect') {
-                      totalDefectiveLength += val;
-                    }
-                  }
-                }
-              });
-
-              // Apply weight factor based on product model
-              const wFactor = productModel?.toUpperCase().includes('V') ? 0.00326 : 0.00263;
-              const weightRejected = defects['No Defect'] ? 0 : totalDefectiveLength * wFactor;
-              if (defects['No Defect']) {
-                  defectCount = 0;
               }
+            });
 
-              visualInspectionData.push({
-                inspectionCallNo,
-                heatNo,
-                heatIndex,
-                defects,
-                defectLengths,
-                defectCount,
-                weightRejected
-              });
-            }
-          });
-        }
+            const wFactor = productModel?.toUpperCase().includes('V') ? 0.00326 : 0.00263;
+            const weightRejected = defects['No Defect'] ? 0 : totalDefectiveLength * wFactor;
+            if (defects['No Defect']) defectCount = 0;
+
+            visualInspectionData.push({
+              inspectionCallNo, heatNo: hNo, heatIndex, defects, defectLengths, defectCount, weightRejected
+            });
+          }
+        });
       }
 
-      // Collect Dimensional Check data - NEW STRUCTURE: one record per heat with all 20 samples as list
-      const dimKey = `${STORAGE_KEYS.DIMENSIONAL_CHECK}_${inspectionCallNo}`;
+      // Collect Dimensional Check data
+      const dimKey = `${STORAGE_KEYS.DIMENSIONAL_CHECK}_${inspectionCallNo}${getShiftSuffix()}`;
       const dimRaw = localStorage.getItem(dimKey);
       let dimensionalCheckData = [];
       if (dimRaw) {
         const dimParsed = JSON.parse(dimRaw);
-        if (Array.isArray(dimParsed.heatDimData)) {
-          dimParsed.heatDimData.forEach((heatData, heatIndex) => {
-            const heat = activeHeats[heatIndex];
-            if (heat && heatData?.dimSamples && Array.isArray(heatData.dimSamples)) {
-              // Get tolerance based on product model
-              const specs = productModel?.toUpperCase().includes('V')
-                ? { min: 22.81, max: 23.23 }
-                : { min: 20.47, max: 20.84 }; // Default MK-III
+        console.log('📦 Dimensional Check draft items:', Array.isArray(dimParsed?.heatDimData) ? dimParsed.heatDimData.length : 'missing');
+        activeHeats.forEach((heat, heatIndex) => {
+          const hNo = heat.heatNo || heat.heat_no;
+          const heatData = getConsolidatedDataForHeat(dimParsed.heatDimData, hNo, 'Dimensional');
 
-              let defectCount = 0;
+          if (heatData?.dimSamples && Array.isArray(heatData.dimSamples)) {
+            const specs = productModel?.toUpperCase().includes('V') ? { min: 22.81, max: 23.23 } : { min: 20.47, max: 20.84 };
+            let defectCount = 0;
+            const sampleDiameters = heatData.dimSamples.map(sample => {
+              const diameter = sample?.diameter;
+              if (diameter !== null && diameter !== undefined && diameter !== '') {
+                const val = parseFloat(diameter);
+                if (!isNaN(val) && (val < specs.min || val > specs.max)) defectCount++;
+                return val;
+              }
+              return null;
+            });
 
-              // Convert all 20 samples to a list and count defects
-              const sampleDiameters = heatData.dimSamples.map(sample => {
-                const diameter = sample?.diameter;
-                if (diameter !== null && diameter !== undefined && diameter !== '') {
-                  const val = parseFloat(diameter);
-                  if (!isNaN(val) && (val < specs.min || val > specs.max)) {
-                    defectCount++;
-                  }
-                  return val;
-                }
-                return null;
-              });
-
-              dimensionalCheckData.push({
-                inspectionCallNo,
-                heatNo: heat.heatNo,
-                heatIndex,
-                sampleDiameters,
-                defectCount
-              });
-            }
-          });
-        }
+            dimensionalCheckData.push({
+              inspectionCallNo, heatNo: hNo, heatIndex, sampleDiameters, defectCount
+            });
+          }
+        });
       }
 
       // Collect Material Testing data
-      const matKey = `${STORAGE_KEYS.MATERIAL_TESTING}_${inspectionCallNo}`;
+      const matKey = `${STORAGE_KEYS.MATERIAL_TESTING}_${inspectionCallNo}${getShiftSuffix()}`;
       const matRaw = localStorage.getItem(matKey);
       let materialTestingData = [];
       if (matRaw) {
         const matParsed = JSON.parse(matRaw);
-        if (Array.isArray(matParsed.materialData)) {
-          matParsed.materialData.forEach((heatData, heatIndex) => {
-            const heatNo = activeHeats[heatIndex]?.heatNo || `Heat-${heatIndex + 1}`;
-            if (heatData?.samples && Array.isArray(heatData.samples)) {
-              heatData.samples.forEach((sample, sampleIdx) => {
-                materialTestingData.push({
-                  inspectionCallNo,
-                  heatNo,
-                  heatIndex,
-                  sampleNumber: sampleIdx + 1,
-                  carbonPercent: parseDecimal(sample.c),
-                  siliconPercent: parseDecimal(sample.si),
-                  manganesePercent: parseDecimal(sample.mn),
-                  phosphorusPercent: parseDecimal(sample.p),
-                  sulphurPercent: parseDecimal(sample.s),
-                  grainSize: parseDecimal(sample.grainSize),
-                  hardnessHrc: parseDecimal(sample.hardness),
-                  decarbDepthMm: parseDecimal(sample.decarb),
-                  inclusionTypeA: sample.inclTypeA || null,
-                  inclusionA: parseDecimal(sample.inclA),
-                  inclusionTypeB: sample.inclTypeB || null,
-                  inclusionB: parseDecimal(sample.inclB),
-                  inclusionTypeC: sample.inclTypeC || null,
-                  inclusionC: parseDecimal(sample.inclC),
-                  inclusionTypeD: sample.inclTypeD || null,
-                  inclusionD: parseDecimal(sample.inclD),
-                  remarks: sample.remarks || null
-                });
+        console.log('📦 Material Testing draft items:', Array.isArray(matParsed?.materialData) ? matParsed.materialData.length : 'missing');
+
+        activeHeats.forEach((heat, heatIndex) => {
+          const hNo = heat.heatNo || heat.heat_no || `Heat-${heatIndex + 1}`;
+          const heatData = getConsolidatedDataForHeat(matParsed.materialData, hNo, 'Material');
+
+          if (heatData?.samples && Array.isArray(heatData.samples)) {
+            heatData.samples.forEach((sample, sampleIdx) => {
+              materialTestingData.push({
+                inspectionCallNo, heatNo: hNo, heatIndex, sampleNumber: sampleIdx + 1,
+                carbonPercent: parseDecimal(sample.c), siliconPercent: parseDecimal(sample.si),
+                manganesePercent: parseDecimal(sample.mn), phosphorusPercent: parseDecimal(sample.p),
+                sulphurPercent: parseDecimal(sample.s), grainSize: parseDecimal(sample.grainSize),
+                hardnessHrc: parseDecimal(sample.hardness), decarbDepthMm: parseDecimal(sample.decarb),
+                inclusionTypeA: sample.inclTypeA || null, inclusionA: parseDecimal(sample.inclA),
+                inclusionTypeB: sample.inclTypeB || null, inclusionB: parseDecimal(sample.inclB),
+                inclusionTypeC: sample.inclTypeC || null, inclusionC: parseDecimal(sample.inclC),
+                inclusionTypeD: sample.inclTypeD || null, inclusionD: parseDecimal(sample.inclD),
+                remarks: sample.remarks || null
               });
-            }
-          });
-        }
+            });
+          }
+        });
       }
 
       // Collect Packing & Storage data
-      const packKey = `${STORAGE_KEYS.PACKING_STORAGE}_${inspectionCallNo}`;
+      const packKey = `${STORAGE_KEYS.PACKING_STORAGE}_${inspectionCallNo}${getShiftSuffix()}`;
       const packRaw = localStorage.getItem(packKey);
       let packingStorageData = [];
       if (packRaw) {
         const packParsed = JSON.parse(packRaw);
-        if (packParsed.packingDataByHeat) {
-          Object.keys(packParsed.packingDataByHeat).forEach(heatIdx => {
-            const heatData = packParsed.packingDataByHeat[heatIdx];
-            const heat = activeHeats[parseInt(heatIdx)];
-            if (heat) {
-              packingStorageData.push({
+        const packingData = packParsed.packingDataByHeat || {};
+        console.log('📦 Packing draft items:', Object.keys(packingData).length);
+
+        activeHeats.forEach((heat, heatIndex) => {
+          const hNo = heat.heatNo || heat.heat_no;
+          const heatData = getConsolidatedDataForHeat(Object.values(packingData), hNo, 'Packing');
+
+          if (heatData) {
+            packingStorageData.push({
+              inspectionCallNo, heatNo: hNo, heatIndex,
+              storedHeatWise: heatData.storedHeatWise || null,
+              suppliedInBundles: heatData.suppliedInBundles || null,
+              heatNumberEnds: heatData.heatNumberEnds || null,
+              packingStripWidth: heatData.packingStripWidth || null,
+              bundleTiedLocations: heatData.bundleTiedLocations || null,
+              identificationTagBundle: heatData.identificationTagBundle || null,
+              metalTagInformation: heatData.metalTagInformation || null,
+              remarks: heatData.remarks || null,
+              shift: shiftOfInspection,
+              dateOfInspection: sessionStorage.getItem('inspectionDate') || new Date().toISOString().split('T')[0]
+            });
+          }
+        });
+      }
+
+      // Collect Calibration Documents data
+      const calKey = `${STORAGE_KEYS.CALIBRATION}_${inspectionCallNo}${getShiftSuffix()}`;
+      const calRaw = localStorage.getItem(calKey);
+      let calibrationDocumentsData = [];
+      if (calRaw) {
+        const calParsed = JSON.parse(calRaw);
+        console.log('📦 Calibration draft items:', Array.isArray(calParsed?.heats) ? calParsed.heats.length : 'missing');
+
+        if (calParsed.heats && Array.isArray(calParsed.heats)) {
+          activeHeats.forEach((heat, idx) => {
+            const hNo = heat.heatNo || heat.heat_no || `Heat-${idx + 1}`;
+            // Try to match by heatNo in calParsed.heats if available
+            const savedHeat = calParsed.heats.find(h => (h.heatNo || '').toString().toUpperCase() === hNo.toString().toUpperCase()) || calParsed.heats[idx];
+
+            if (savedHeat) {
+              calibrationDocumentsData.push({
                 inspectionCallNo,
-                heatNo: heat.heatNo,
-                heatIndex: parseInt(heatIdx),
-                storedHeatWise: heatData.storedHeatWise || null,
-                suppliedInBundles: heatData.suppliedInBundles || null,
-                heatNumberEnds: heatData.heatNumberEnds || null,
-                packingStripWidth: heatData.packingStripWidth || null,
-                bundleTiedLocations: heatData.bundleTiedLocations || null,
-                identificationTagBundle: heatData.identificationTagBundle || null,
-                metalTagInformation: heatData.metalTagInformation || null,
-                remarks: heatData.remarks || null,
-                shift: shiftOfInspection,
-                dateOfInspection: sessionStorage.getItem('inspectionDate') || new Date().toISOString().split('T')[0]
+                heatNo: hNo,
+                heatIndex: idx,
+                rdsoApprovalId: calParsed.rdsoApprovalValidity?.approvalId || null,
+                rdsoValidFrom: calParsed.rdsoApprovalValidity?.validFrom || null,
+                rdsoValidTo: calParsed.rdsoApprovalValidity?.validTo || null,
+                gaugesAvailable: calParsed.gaugesAvailable || false,
+                ladleCarbonPercent: parseDecimal(savedHeat.percentC),
+                ladleSiliconPercent: parseDecimal(savedHeat.percentSi),
+                ladleManganesePercent: parseDecimal(savedHeat.percentMn),
+                ladlePhosphorusPercent: parseDecimal(savedHeat.percentP),
+                ladleSulphurPercent: parseDecimal(savedHeat.percentS),
+                vendorVerified: calParsed.vendorVerification?.verified || false,
+                verifiedBy: calParsed.vendorVerification?.verifiedBy || null,
+                verifiedAt: calParsed.vendorVerification?.verifiedAt || null
               });
             }
           });
         }
       }
 
-      // Collect Calibration Documents data
-      const calKey = `${STORAGE_KEYS.CALIBRATION}_${inspectionCallNo}`;
-      const calRaw = localStorage.getItem(calKey);
-      let calibrationDocumentsData = [];
-      if (calRaw) {
-        const calParsed = JSON.parse(calRaw);
-        if (calParsed.heats && Array.isArray(calParsed.heats)) {
-          calParsed.heats.forEach((heat, idx) => {
-            calibrationDocumentsData.push({
-              inspectionCallNo,
-              heatNo: heat.heatNo || activeHeats[idx]?.heatNo || `Heat-${idx + 1}`,
-              heatIndex: idx,
-              rdsoApprovalId: calParsed.rdsoApprovalValidity?.approvalId || null,
-              rdsoValidFrom: calParsed.rdsoApprovalValidity?.validFrom || null,
-              rdsoValidTo: calParsed.rdsoApprovalValidity?.validTo || null,
-              gaugesAvailable: calParsed.gaugesAvailable || false,
-              ladleCarbonPercent: parseDecimal(heat.percentC),
-              ladleSiliconPercent: parseDecimal(heat.percentSi),
-              ladleManganesePercent: parseDecimal(heat.percentMn),
-              ladlePhosphorusPercent: parseDecimal(heat.percentP),
-              ladleSulphurPercent: parseDecimal(heat.percentS),
-              vendorVerified: calParsed.vendorVerification?.verified || false,
-              verifiedBy: calParsed.vendorVerification?.verifiedBy || null,
-              verifiedAt: calParsed.vendorVerification?.verifiedAt || null
-            });
-          });
-        }
-      }
-
-      // Collect pre-inspection data using consolidatedHeats
+      // Collect pre-inspection data
       const preInspectionData = {
         inspectionCallNo,
         totalHeatsOffered: consolidatedHeats.length,
@@ -2125,7 +2220,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         const weight = heat.weight; // Already aggregated in consolidatedHeats
 
         // Calculate rejected weight from visual inspection data
-        const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${inspectionCallNo}`;
+        const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${inspectionCallNo}${getShiftSuffix()}`;
         const visualRaw = localStorage.getItem(visualKey);
         const visualData = visualRaw ? JSON.parse(visualRaw) : [];
 
@@ -2195,6 +2290,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           sealingType: heatSealingType[heatNo] || null,
           steelStampNumber: heatSteelStampNumber[heatNo] || null,
           hologramDetails: hologramString || null,
+          colorCode: heat.colorCode || null,
 
           // Audit Fields
           createdBy: userId,
@@ -2273,16 +2369,13 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       markAsPaused(inspectionCallNo);
 
       // Clear all inspection data from localStorage after successful pause
-      const mainKey = `${STORAGE_KEYS.MAIN_INSPECTION}_${inspectionCallNo}`;
-      const dashboardDraftKey = `${DASHBOARD_DRAFT_KEY}${inspectionCallNo}`;
-
-      localStorage.removeItem(visualKey);
-      localStorage.removeItem(dimKey);
-      localStorage.removeItem(matKey);
-      localStorage.removeItem(packKey);
-      localStorage.removeItem(calKey);
-      localStorage.removeItem(mainKey);
-      localStorage.removeItem(dashboardDraftKey);
+      localStorage.removeItem(`${STORAGE_KEYS.VISUAL_INSPECTION}_${inspectionCallNo}${getShiftSuffix()}`);
+      localStorage.removeItem(`${STORAGE_KEYS.DIMENSIONAL_CHECK}_${inspectionCallNo}${getShiftSuffix()}`);
+      localStorage.removeItem(`${STORAGE_KEYS.MATERIAL_TESTING}_${inspectionCallNo}${getShiftSuffix()}`);
+      localStorage.removeItem(`${STORAGE_KEYS.PACKING_STORAGE}_${inspectionCallNo}${getShiftSuffix()}`);
+      localStorage.removeItem(`${STORAGE_KEYS.CALIBRATION}_${inspectionCallNo}${getShiftSuffix()}`);
+      localStorage.removeItem(`${STORAGE_KEYS.MAIN_INSPECTION}_${inspectionCallNo}${getShiftSuffix()}`);
+      localStorage.removeItem(`${DASHBOARD_DRAFT_KEY}${inspectionCallNo}${getShiftSuffix()}`);
 
       // Reset context cache
       updateRmPoDataCache(null);
@@ -2354,11 +2447,10 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       };
 
       // Save to localStorage with inspection call number as key
-      const storageKey = `${DASHBOARD_DRAFT_KEY}${inspectionCallNo}`;
-      localStorage.setItem(storageKey, JSON.stringify(draftData));
+      const storageKey = `${DASHBOARD_DRAFT_KEY}${inspectionCallNo}${getShiftSuffix()}`;
+      const mainKey = `${STORAGE_KEYS.MAIN_INSPECTION}_${inspectionCallNo}${getShiftSuffix()}`;
 
-      // Also save to main inspection data key (for color codes)
-      const mainKey = `${STORAGE_KEYS.MAIN_INSPECTION}_${inspectionCallNo}`;
+      localStorage.setItem(storageKey, JSON.stringify(draftData));
       localStorage.setItem(mainKey, JSON.stringify(draftData));
 
       // Show success modal instead of alert
@@ -2393,7 +2485,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     hasLoadedDraftRef.current = true;
 
     try {
-      const storageKey = `${DASHBOARD_DRAFT_KEY}${inspectionCallNo}`;
+      const storageKey = `${DASHBOARD_DRAFT_KEY}${inspectionCallNo}${getShiftSuffix()}`;
       const savedDraft = localStorage.getItem(storageKey);
 
       if (savedDraft) {
@@ -2431,7 +2523,9 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
   // Auto-save dashboard fields to localStorage whenever they change
   useEffect(() => {
     const inspectionCallNo = call?.call_no;
-    if (!inspectionCallNo) return;
+    // VERY IMPORTANT: Prevent overwriting existing localStorage data with empty initial state
+    // only save when data is fully loaded and we have heat data to save
+    if (!inspectionCallNo || isLoading || fetchedHeatData.length === 0) return;
 
     try {
       const draftData = {
@@ -2451,8 +2545,8 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         }, {})
       };
 
-      const storageKey = `${DASHBOARD_DRAFT_KEY}${inspectionCallNo}`;
-      const mainKey = `${STORAGE_KEYS.MAIN_INSPECTION}_${inspectionCallNo}`;
+      const storageKey = `${DASHBOARD_DRAFT_KEY}${inspectionCallNo}${getShiftSuffix()}`;
+      const mainKey = `${STORAGE_KEYS.MAIN_INSPECTION}_${inspectionCallNo}${getShiftSuffix()}`;
 
       const serializedData = JSON.stringify(draftData);
       localStorage.setItem(storageKey, serializedData);
@@ -2460,7 +2554,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     } catch (error) {
       console.error('Error in auto-save:', error);
     }
-  }, [call?.call_no, numberOfBundles, sourceOfRawMaterial, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, fetchedHeatData]);
+  }, [call?.call_no, numberOfBundles, sourceOfRawMaterial, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, fetchedHeatData, isLoading]);
 
   // Show loading indicator while fetching data
   if (isLoading) {
@@ -2496,27 +2590,40 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         </button>
       </div> */}
 
-      {/* Inspection Call Info Banner */}
-      <div className="card" style={{ background: 'var(--color-primary-light)', marginBottom: 'var(--space-16)', padding: 'var(--space-16)' }}>
-        <div style={{ display: 'flex', gap: 'var(--space-24)', flexWrap: 'wrap' }}>
-          <div><strong>Call No:</strong> {callNo}</div>
-          <div><strong>Shift:</strong> {shiftOfInspection}</div>
-          <div><strong>Date of Inspection:</strong> {formatDate(dateOfInspection)}</div>
+      {/* Call Details Info Banner - Moved to Top */}
+      <div className="card" style={{ background: '#f8fafc', marginBottom: 'var(--space-16)', padding: '16px 24px', border: '1px solid #e2e8f0' }}>
+        <div style={{ display: 'flex', gap: '32px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ fontSize: '14px', color: '#64748b' }}>
+            <span style={{ fontWeight: '600', color: '#1e293b', marginRight: '8px' }}>Call No:</span> {callNo}
+          </div>
+          <div style={{ fontSize: '14px', color: '#64748b' }}>
+            <span style={{ fontWeight: '600', color: '#1e293b', marginRight: '8px' }}>Shift:</span> {shiftOfInspection}
+          </div>
+          <div style={{ fontSize: '14px', color: '#64748b' }}>
+            <span style={{ fontWeight: '600', color: '#1e293b', marginRight: '8px' }}>Date of Inspection:</span> {formatDate(dateOfInspection)}
+          </div>
         </div>
       </div>
 
       {/* Header with Static Data */}
-      <div className="card" style={{ background: 'var(--color-gray-100)', marginBottom: 'var(--space-24)' }}>
-        <div className="card-header rm-card-header">
-          <h3 className="card-title rm-card-title">Inspection Details </h3>
-          {/* <p className="card-subtitle">Auto-fetched from PO/Sub PO information</p> */}
+      <div className="card" style={{ marginBottom: 'var(--space-24)', paddingBottom: '24px' }}>
+        <div className="card-header rm-card-header" style={{ padding: '16px 24px', borderBottom: '1px solid #e2e8f0', marginBottom: '20px' }}>
+          <h3 className="card-title rm-card-title" style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b' }}>Inspection Details</h3>
         </div>
-        <div className="rm-form-grid">
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: '24px',
+          padding: '0 24px'
+        }}>
+          {/* Row 1 */}
           <div className="rm-form-group">
-            <label className="rm-form-label">PO Number</label>
+            <label className="rm-form-label" style={{ fontWeight: '500', marginBottom: '8px', color: '#374151' }}>PO Number</label>
             <input
               type="text"
               className="rm-form-input"
+              style={{ backgroundColor: '#f8fafc', borderColor: '#e2e8f0', color: '#475569', borderRadius: '10px' }}
               value={(() => {
                 const poNo = poData.po_no || poData.sub_po_no;
                 const serial = poData.poSerialNo
@@ -2528,24 +2635,56 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
             />
           </div>
           <div className="rm-form-group">
-            <label className="rm-form-label">PO Date</label>
-            <input type="text" className="rm-form-input" value={formatDate(poData.po_date || poData.sub_po_date) || ''} disabled />
+            <label className="rm-form-label" style={{ fontWeight: '500', marginBottom: '8px', color: '#374151' }}>PO Date</label>
+            <input
+              type="text"
+              className="rm-form-input"
+              style={{ backgroundColor: '#f8fafc', borderColor: '#e2e8f0', color: '#475569', borderRadius: '10px' }}
+              value={formatDate(poData.po_date || poData.sub_po_date) || ''}
+              disabled
+            />
           </div>
           <div className="rm-form-group">
-            <label className="rm-form-label">Contractor Name</label>
-            <input type="text" className="rm-form-input" value={poData.contractor || poData.vendor_name || ''} disabled />
+            <label className="rm-form-label" style={{ fontWeight: '500', marginBottom: '8px', color: '#374151' }}>Contractor Name</label>
+            <input
+              type="text"
+              className="rm-form-input"
+              style={{ backgroundColor: '#f8fafc', borderColor: '#e2e8f0', color: '#475569', borderRadius: '10px' }}
+              value={poData.contractor || poData.vendor_name || ''}
+              disabled
+            />
+          </div>
+
+          {/* Row 2 */}
+          <div className="rm-form-group">
+            <label className="rm-form-label" style={{ fontWeight: '500', marginBottom: '8px', color: '#374151' }}>Manufacturer</label>
+            <input
+              type="text"
+              className="rm-form-input"
+              style={{ backgroundColor: '#f8fafc', borderColor: '#e2e8f0', color: '#475569', borderRadius: '10px' }}
+              value={poData.contractor || poData.vendor_name || ''}
+              disabled
+            />
           </div>
           <div className="rm-form-group">
-            <label className="rm-form-label">Manufacturer</label>
-            <input type="text" className="rm-form-input" value={poData.contractor || poData.vendor_name || ''} disabled />
+            <label className="rm-form-label" style={{ fontWeight: '500', marginBottom: '8px', color: '#374151' }}>Place of Inspection</label>
+            <input
+              type="text"
+              className="rm-form-input"
+              style={{ backgroundColor: '#f8fafc', borderColor: '#e2e8f0', color: '#475569', borderRadius: '10px' }}
+              value={poData.place_of_inspection || ''}
+              disabled
+            />
           </div>
           <div className="rm-form-group">
-            <label className="rm-form-label">Place of Inspection</label>
-            <input type="text" className="rm-form-input" value={poData.place_of_inspection || ''} disabled />
-          </div>
-          <div className="rm-form-group">
-            <label className="rm-form-label">Stage of Inspection</label>
-            <input type="text" className="rm-form-input" value="Raw Material Inspection" disabled />
+            <label className="rm-form-label" style={{ fontWeight: '500', marginBottom: '8px', color: '#374151' }}>Stage of Inspection</label>
+            <input
+              type="text"
+              className="rm-form-input"
+              style={{ backgroundColor: '#f8fafc', borderColor: '#e2e8f0', color: '#475569', borderRadius: '10px' }}
+              value="Raw Material Inspection"
+              disabled
+            />
           </div>
         </div>
       </div>
@@ -2752,7 +2891,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                 if (anyPending) return 'PENDING';
 
                 // Calculate accepted weight from visual inspection
-                const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${call?.call_no}`;
+                const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${call?.call_no}${getShiftSuffix()}`;
                 const visualRaw = localStorage.getItem(visualKey);
                 const visualData = visualRaw ? JSON.parse(visualRaw) : [];
                 const heatVisualData = Array.isArray(visualData) && heatIndex >= 0 ? visualData[heatIndex] : null;
@@ -2828,7 +2967,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
               const anyPending = Object.values(heatStatuses).some(s => s === 'Pending');
 
               // Calculate accepted weight to determine if partial rejection occurred
-              const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${call?.call_no}`;
+              const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${call?.call_no}${getShiftSuffix()}`;
               const visualRaw = localStorage.getItem(visualKey);
               const visualData = visualRaw ? JSON.parse(visualRaw) : [];
               const heatVisualData = Array.isArray(visualData) && heatIndex >= 0 ? visualData[heatIndex] : null;
@@ -2998,7 +3137,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                           }
 
                           // Calculate rejected weight from visual inspection
-                          const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${callNo}`;
+                          const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${callNo}${getShiftSuffix()}`;
                           const visualRaw = localStorage.getItem(visualKey);
                           const visualData = visualRaw ? JSON.parse(visualRaw) : [];
 
@@ -3045,7 +3184,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                           }
 
                           // Calculate rejected weight from visual inspection
-                          const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${callNo}`;
+                          const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${callNo}${getShiftSuffix()}`;
                           const visualRaw = localStorage.getItem(visualKey);
                           const visualData = visualRaw ? JSON.parse(visualRaw) : [];
 
@@ -3092,7 +3231,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                           }
 
                           // Otherwise, calculate rejected weight from visual inspection
-                          const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${callNo}`;
+                          const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${callNo}${getShiftSuffix()}`;
                           const visualRaw = localStorage.getItem(visualKey);
                           const visualData = visualRaw ? JSON.parse(visualRaw) : [];
 
@@ -3162,17 +3301,17 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                             gap: '8px',
                             transition: 'all 0.2s',
                             border: 'none',
-                            background: heatSealingType[heat.heatNo] === 'RITES_STEEL_PUNCH' ? '#fff' : 'transparent',
-                            color: heatSealingType[heat.heatNo] === 'RITES_STEEL_PUNCH' ? '#b45309' : '#d97706',
-                            boxShadow: heatSealingType[heat.heatNo] === 'RITES_STEEL_PUNCH' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
+                            background: (heatSealingType[heat.heatNo] || '').includes('RITES_STEEL_PUNCH') ? '#fff' : 'transparent',
+                            color: (heatSealingType[heat.heatNo] || '').includes('RITES_STEEL_PUNCH') ? '#b45309' : '#d97706',
+                            boxShadow: (heatSealingType[heat.heatNo] || '').includes('RITES_STEEL_PUNCH') ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
                           }}
                         >
                           <span style={{
                             width: '12px',
                             height: '12px',
-                            borderRadius: '50%',
+                            borderRadius: '2px',
                             border: '2px solid',
-                            background: heatSealingType[heat.heatNo] === 'RITES_STEEL_PUNCH' ? '#b45309' : 'transparent',
+                            background: (heatSealingType[heat.heatNo] || '').includes('RITES_STEEL_PUNCH') ? '#b45309' : 'transparent',
                             display: 'inline-block'
                           }}></span>
                           RITES Steel Punch
@@ -3190,17 +3329,17 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                             gap: '8px',
                             transition: 'all 0.2s',
                             border: 'none',
-                            background: heatSealingType[heat.heatNo] === 'RITES_HOLOGRAM' ? '#fff' : 'transparent',
-                            color: heatSealingType[heat.heatNo] === 'RITES_HOLOGRAM' ? '#b45309' : '#d97706',
-                            boxShadow: heatSealingType[heat.heatNo] === 'RITES_HOLOGRAM' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
+                            background: (heatSealingType[heat.heatNo] || '').includes('RITES_HOLOGRAM') ? '#fff' : 'transparent',
+                            color: (heatSealingType[heat.heatNo] || '').includes('RITES_HOLOGRAM') ? '#b45309' : '#d97706',
+                            boxShadow: (heatSealingType[heat.heatNo] || '').includes('RITES_HOLOGRAM') ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
                           }}
                         >
                           <span style={{
                             width: '12px',
                             height: '12px',
-                            borderRadius: '50%',
+                            borderRadius: '2px',
                             border: '2px solid',
-                            background: heatSealingType[heat.heatNo] === 'RITES_HOLOGRAM' ? '#b45309' : 'transparent',
+                            background: (heatSealingType[heat.heatNo] || '').includes('RITES_HOLOGRAM') ? '#b45309' : 'transparent',
                             display: 'inline-block'
                           }}></span>
                           RITES Hologram
@@ -3208,7 +3347,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                       </div>
 
                       {/* IE Steel Stamp Number Inline - Enhanced Prominence */}
-                      {heatSealingType[heat.heatNo] === 'RITES_STEEL_PUNCH' && (
+                      {(heatSealingType[heat.heatNo] || '').includes('RITES_STEEL_PUNCH') && (
                         <div style={{
                           display: 'flex',
                           alignItems: 'center',
@@ -3242,7 +3381,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                     </div>
 
                     {/* Hologram Details Refined Section - High Discoverability */}
-                    {heatSealingType[heat.heatNo] === 'RITES_HOLOGRAM' && (
+                    {(heatSealingType[heat.heatNo] || '').includes('RITES_HOLOGRAM') && (
                       <div style={{
                         gridColumn: 'span 7',
                         background: '#f0fdf4',

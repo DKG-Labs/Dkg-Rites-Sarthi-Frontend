@@ -125,7 +125,11 @@ const SleeperLwclReport = () => {
                                 onChange={(e) => handlePlantChange(e.target.value)}
                             >
                                 <option value="">Select Plant</option>
-                                {plants.map(p => <option key={p.plantId} value={p.plantId}>{p.plantName}</option>)}
+                                {plants.map(p => (
+                                    <option key={p.plantId} value={p.plantId}>
+                                        {p.plantName} {p.plantId && p.plantId.includes('/') ? p.plantId.split('/').pop() : ''}
+                                    </option>
+                                ))}
                             </select>
                         </div>
                     )}

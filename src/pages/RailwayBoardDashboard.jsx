@@ -482,6 +482,8 @@ const RailwayBoardDashboard = () => {
                             setSelectedProduct={setSelectedProduct}
                             fromDate={fromDate}
                             toDate={toDate}
+                            setFromDate={setFromDate}
+                            setToDate={setToDate}
                         />
                     </div>
 

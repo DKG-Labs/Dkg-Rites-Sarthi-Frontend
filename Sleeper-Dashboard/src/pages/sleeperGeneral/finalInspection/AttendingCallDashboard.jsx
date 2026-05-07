@@ -36,8 +36,10 @@ const AttendingCallDashboard = () => {
     useEffect(() => {
         if (activeTab === 'pending') {
             fetchPendingCalls();
+        } else if (activeTab === 'issuance') {
+            fetchIssuanceCalls();
         } else if (activeTab === 'completed') {
-            fetchCompletedCalls();
+            setCompletedCalls([]); // Clear if needed, or remove tab
         }
     }, [activeTab]);
 
@@ -106,12 +108,12 @@ const AttendingCallDashboard = () => {
         }
     };
 
-    const fetchCompletedCalls = async () => {
+    const fetchIssuanceCalls = async () => {
         setIsLoading(true);
         try {
             const response = await apiService.getCompletedFinalCalls();
             if (response && response.responseData) {
-                setCompletedCalls(response.responseData.map(item => ({
+                setIssuanceCalls(response.responseData.map(item => ({
                     ...item,
                     id: item.workflowTransitionId,
                     status: item.jobStatus || item.status || 'Completed',
@@ -119,19 +121,15 @@ const AttendingCallDashboard = () => {
                 })));
             }
         } catch (error) {
-            console.error("Error fetching completed calls:", error);
+            console.error("Error fetching issuance calls:", error);
         } finally {
             setIsLoading(false);
         }
     };
 
-    const [expandedActions, setExpandedActions] = useState({}); // Track which call has actions shown
-
-    const [issuanceCalls, setIssuanceCalls] = useState([
-        { id: 'CALL-003', vendor: 'Vendor C', po: 'PO-2024-03', productType: 'Final', qty: 450, accepted: 440, rejected: 10, callDate: '23/04/2026', status: 'ic_pending' },
-    ]);
-
+    const [issuanceCalls, setIssuanceCalls] = useState([]);
     const [completedCalls, setCompletedCalls] = useState([]);
+    const [expandedActions, setExpandedActions] = useState({}); // Track which call has actions shown
 
     const toggleCheck = (id) => {
         setPendingCalls(prev => prev.map(call => 
@@ -346,46 +344,57 @@ const AttendingCallDashboard = () => {
                                 <thead>
                                     <tr>
                                         <th className="checkbox-col"><input type="checkbox" /></th>
-                                        <th>CALL NO.</th>
-                                        <th>VENDOR NAME</th>
-                                        <th>PO NO.</th>
-                                        <th>QTY OFFERED</th>
-                                        <th>PASSED</th>
-                                        <th>REJECTED</th>
-                                        <th>DATE</th>
+                                        <th>TRANSITION ID</th>
+                                        <th>REQUEST ID</th>
+                                        <th>VENDOR CODE</th>
+                                        <th>PLANT ID</th>
+                                        <th>POI CODE</th>
+                                        <th>CREATED DATE</th>
                                         <th>STATUS</th>
                                         {issuanceCalls.some(c => expandedActions[c.id]) && <th>ACTIONS</th>}
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {issuanceCalls.map(call => (
-                                        <tr key={call.id}>
-                                            <td className="checkbox-col"><input type="checkbox" /></td>
-                                            <td>{call.id}</td>
-                                            <td>{call.vendor}</td>
-                                            <td>{call.po}</td>
-                                            <td>{call.qty}</td>
-                                            <td className="text-success">{call.accepted}</td>
-                                            <td className="text-danger">{call.rejected}</td>
-                                            <td>{call.callDate}</td>
-                                            <td>
-                                                <button 
-                                                    className={`status-action-pill ${call.status}`}
-                                                    onClick={() => toggleActions(call.id)}
-                                                >
-                                                    {call.status}
-                                                </button>
-                                            </td>
-                                            {expandedActions[call.id] && (
-                                                <td>
-                                                    <div className="table-actions-modern">
-                                                        <button className="btn-reschedule">Download IC</button>
-                                                        <button className="btn-start">Download Annexures</button>
-                                                    </div>
-                                                </td>
-                                            )}
+                                    {isLoading ? (
+                                        <tr>
+                                            <td colSpan="9" style={{ textAlign: 'center', padding: '20px' }}>Loading issuance calls...</td>
                                         </tr>
-                                    ))}
+                                    ) : issuanceCalls.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="9" style={{ textAlign: 'center', padding: '20px' }}>No calls for IC issuance found</td>
+                                        </tr>
+                                    ) : (
+                                        issuanceCalls.map(call => (
+                                            <React.Fragment key={call.id}>
+                                                <tr>
+                                                    <td className="checkbox-col"><input type="checkbox" checked={call.checked} onChange={() => {}} /></td>
+                                                    <td>{call.workflowTransitionId}</td>
+                                                    <td className="req-id-cell">{call.requestId}</td>
+                                                    <td>{call.vendorCode}</td>
+                                                    <td>{call.plantId}</td>
+                                                    <td>{call.poiCode}</td>
+                                                    <td>{call.createdDate ? new Date(call.createdDate).toLocaleDateString() : 'N/A'}</td>
+                                                    <td>
+                                                        <span 
+                                                            className={`status-pill ${call.jobStatus?.toLowerCase() || 'pending'}`}
+                                                            onClick={() => toggleActions(call.id)}
+                                                            style={{ cursor: 'pointer' }}
+                                                        >
+                                                            {call.jobStatus || call.status}
+                                                        </span>
+                                                    </td>
+                                                    {expandedActions[call.id] && (
+                                                        <td>
+                                                            <div className="table-actions-modern">
+                                                                <button className="btn-start" onClick={() => handleViewDetails(call)}>Issue IC</button>
+                                                                <button className="btn-reschedule" style={{ marginLeft: '8px' }}>Download Annexures</button>
+                                                            </div>
+                                                        </td>
+                                                    )}
+                                                </tr>
+                                            </React.Fragment>
+                                        ))
+                                    )}
                                 </tbody>
                             </table>
                         </div>

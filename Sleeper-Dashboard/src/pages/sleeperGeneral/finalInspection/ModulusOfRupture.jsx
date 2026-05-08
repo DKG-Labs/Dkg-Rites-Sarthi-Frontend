@@ -552,7 +552,7 @@ const MORTestDetailsModal = ({ sample, onClose, onSave, saving }) => {
                             <input type="date" value={testData.testingDate} onChange={e => setTestData({ ...testData, testingDate: e.target.value })} />
                         </div>
                         <div className="input-group">
-                            <label>Weight (in Kgs) <span className="required">*</span></label>
+                            <label>Weight (in Kgs)</label>
                             <input type="number" step="0.01" value={testData.weight} onChange={e => setTestData({ ...testData, weight: e.target.value })} />
                         </div>
                         <div className="input-group">
@@ -575,8 +575,8 @@ const MORTestDetailsModal = ({ sample, onClose, onSave, saving }) => {
 
                     <div style={{ display: 'flex', gap: '12px', marginTop: '24px', flexWrap: 'wrap' }}>
                         <button className="btn-verify" disabled={saving} style={{ flex: '1 1 200px' }} onClick={() => {
-                            if (!testData.weight || !testData.loadKn || !testData.strength) {
-                                alert("Mandatory Data Missing: Please enter Weight, Load, and Strength before saving.");
+                            if (!testData.loadKn || !testData.strength) {
+                                alert("Mandatory Data Missing: Please enter Load, and Strength before saving.");
                                 return;
                             }
                             onSave({ ...testData, result });

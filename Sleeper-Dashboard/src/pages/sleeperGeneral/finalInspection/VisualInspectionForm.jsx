@@ -381,9 +381,9 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
         sections.forEach(sect => {
             const sectState = sectionStates[sect.id];
             if (sectState.result === 'all-rejected') {
-                if (!sectState.globalReason) hasMissingReason = true;
-                const subs = getSubReasons(sectState.globalReason, sect.id);
-                if (subs.length > 0 && !sectState.globalSubReason) hasMissingReason = true;
+                if (!sectState.globalReason && sect.id !== 'ftc') hasMissingReason = true;
+                const subs = getSubReasons(sect.id, sectState.globalReason);
+                if (sect.id !== 'ftc' && subs.length > 0 && !sectState.globalSubReason) hasMissingReason = true;
             } else if (sectState.result === 'partial-ok') {
                 sectState.failedSleepers.forEach(fid => {
                      const details = sectState.rejectionDetails[fid] || {};

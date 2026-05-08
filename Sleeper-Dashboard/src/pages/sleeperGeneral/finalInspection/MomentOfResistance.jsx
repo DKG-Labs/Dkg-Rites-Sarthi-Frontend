@@ -745,7 +745,7 @@ const TestDetailsModal = ({ batch, onClose, onSave }) => {
 
     const calculateResult = () => {
         const results = manualResults.map(r => {
-            const pass = r.ct >= DESIRED_VALUES.centreTop && r.cb >= DESIRED_VALUES.centreBottom && r.rs >= DESIRED_VALUES.railSeat;
+            const pass = r.ct >= DESIRED_VALUES.centreTop && r.rs >= DESIRED_VALUES.railSeat;
             return pass;
         });
 
@@ -789,23 +789,23 @@ const TestDetailsModal = ({ batch, onClose, onSave }) => {
                                 {/* SCADA View */}
                                 <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px dashed #cbd5e1' }}>
                                     <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700' }}>MR SCADA DATA</span>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginTop: '8px' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '8px' }}>
                                         <div><div style={{ fontSize: '9px' }}>CT</div><div style={{ fontWeight: '700' }}>{mockScadaData[idx].ct}</div></div>
-                                        <div><div style={{ fontSize: '9px' }}>CB</div><div style={{ fontWeight: '700' }}>{mockScadaData[idx].cb}</div></div>
+                                        {/* <div><div style={{ fontSize: '9px' }}>CB</div><div style={{ fontWeight: '700' }}>{mockScadaData[idx].cb}</div></div> */}
                                         <div><div style={{ fontSize: '9px' }}>RS</div><div style={{ fontWeight: '700' }}>{mockScadaData[idx].rs}</div></div>
                                     </div>
                                 </div>
 
                                 {/* Manual Form */}
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                                     <div className="input-group">
                                         <label>CT (KN)</label>
                                         <input type="number" readOnly={witnessed[idx]} value={res.ct} onChange={(e) => handleUpdateManual(idx, 'ct', e.target.value)} />
                                     </div>
-                                    <div className="input-group">
+                                    {/* <div className="input-group">
                                         <label>CB (KN)</label>
                                         <input type="number" readOnly={witnessed[idx]} value={res.cb} onChange={(e) => handleUpdateManual(idx, 'cb', e.target.value)} />
-                                    </div>
+                                    </div> */}
                                     <div className="input-group">
                                         <label>RS (KN)</label>
                                         <input type="number" readOnly={witnessed[idx]} value={res.rs} onChange={(e) => handleUpdateManual(idx, 'rs', e.target.value)} />

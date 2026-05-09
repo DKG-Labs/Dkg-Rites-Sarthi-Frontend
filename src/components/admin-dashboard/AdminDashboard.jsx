@@ -19,6 +19,9 @@ export const AdminDashboard = () => {
     const [modalContent, setModalContent] = useState(null);
     const [selectedItem, setSelectedItem] = useState(null);
     const [roles, setRoles] = useState([]);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+    const refreshData = () => setRefreshTrigger(prev => prev + 1);
 
     // Fetch roles for dropdown
     React.useEffect(() => {
@@ -48,12 +51,6 @@ export const AdminDashboard = () => {
         setModalOpen(true);
     };
 
-    const handleChangeRole = (user) => {
-        setSelectedItem(user);
-        setModalTitle('Change User Role');
-        setModalContent('change-role');
-        setModalOpen(true);
-    };
 
     const handleChangeRegion = (user) => {
         setSelectedItem(user);
@@ -62,25 +59,35 @@ export const AdminDashboard = () => {
         setModalOpen(true);
     };
 
-    const handleDeleteUser = (userId) => {
+    const handleDeleteUser = async (userId) => {
         if (window.confirm('Are you sure you want to delete this user?')) {
-            alert('User deleted successfully');
+            try {
+                await deleteUserApi(userId);
+                alert('User deleted successfully');
+                refreshData();
+            } catch (error) {
+                alert('Failed to delete user: ' + error.message);
+            }
         }
     };
 
     const handleSubmitUser = async (formData) => {
         try {
-            // Get current logged in user for createdBy
             const currentUser = getStoredUser();
             const dataToSubmit = {
                 ...formData,
                 createdBy: currentUser?.userId || 'Admin'
             };
 
-            await createUserApi(dataToSubmit);
+            if (selectedItem) {
+                await updateUserApi(dataToSubmit);
+            } else {
+                await createUserApi(dataToSubmit);
+            }
+            
             alert(selectedItem ? 'User updated successfully' : 'User created successfully');
             setModalOpen(false);
-            // In a real app, we would refresh the user list here
+            refreshData();
         } catch (error) {
             console.error('Error submitting user:', error);
             alert('Failed to save user: ' + error.message);
@@ -267,9 +274,9 @@ export const AdminDashboard = () => {
                         <UserList
                             onEdit={handleEditUser}
                             onDelete={handleDeleteUser}
-                            onChangeRole={handleChangeRole}
                             onChangeRegion={handleChangeRegion}
                             onCreateNew={handleCreateUser}
+                            refreshTrigger={refreshTrigger}
                         />
                     )}
 
@@ -322,44 +329,33 @@ export const AdminDashboard = () => {
                         onCancel={() => setModalOpen(false)}
                     />
                 )}
-                {modalContent === 'change-role' && (
-                    <div>
-                        <p>Change role for: <strong>{selectedItem?.name}</strong></p>
-                        <div className="form-group">
-                            <label className="form-label">New Role</label>
-                            <select className="form-control">
-                                <option>Select New Role</option>
-                            </select>
-                        </div>
-                        <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
-                            <button className="btn btn-secondary" onClick={() => setModalOpen(false)}>
-                                Cancel
-                            </button>
-                            <button className="btn btn-primary" onClick={() => {
-                                alert('Role changed successfully');
-                                setModalOpen(false);
-                            }}>
-                                Update Role
-                            </button>
-                        </div>
-                    </div>
-                )}
                 {modalContent === 'change-region' && (
                     <div>
                         <p>Change region for: <strong>{selectedItem?.name}</strong></p>
                         <div className="form-group">
                             <label className="form-label">New Region</label>
-                            <select className="form-control">
-                                <option>Select New Region</option>
+                            <select className="form-control" id="new-region-select">
+                                <option value="">Select New Region</option>
+                                {['NRIO', 'ERIO', 'WRIO', 'SRIO', 'CRIO'].map(region => (
+                                    <option key={region} value={region}>{region}</option>
+                                ))}
                             </select>
                         </div>
                         <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
                             <button className="btn btn-secondary" onClick={() => setModalOpen(false)}>
                                 Cancel
                             </button>
-                            <button className="btn btn-primary" onClick={() => {
-                                alert('Region changed successfully');
-                                setModalOpen(false);
+                            <button className="btn btn-primary" onClick={async () => {
+                                const newRegion = document.getElementById('new-region-select').value;
+                                if (!newRegion) return alert('Please select a region');
+                                try {
+                                    await changeUserRegionApi(selectedItem.userId || selectedItem.id, newRegion);
+                                    alert('Region changed successfully');
+                                    setModalOpen(false);
+                                    refreshData();
+                                } catch (error) {
+                                    alert('Failed to change region: ' + error.message);
+                                }
                             }}>
                                 Update Region
                             </button>
@@ -578,3 +574,90 @@ const saveProcessIeMappingApi = async (userId, processData, createdBy) => {
         throw error;
     }
 };
+
+/**
+ * API to fetch all users
+ */
+export const getUsersApi = async () => {
+    try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${API_BASE_URL}/api/auth/api/users`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        const data = await response.json();
+        if (data.responseStatus?.statusCode !== 0) throw new Error(data.responseStatus?.message || 'API Error');
+        return data.responseData;
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * API to update user
+ */
+export const updateUserApi = async (userData) => {
+    try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${API_BASE_URL}/api/auth/api/users`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(userData)
+        });
+        const data = await response.json();
+        if (data.responseStatus?.statusCode !== 0) throw new Error(data.responseStatus?.message || 'API Error');
+        return data.responseData;
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * API to delete user
+ */
+export const deleteUserApi = async (userId) => {
+    try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${API_BASE_URL}/api/auth/api/users/${userId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        const data = await response.json();
+        if (data.responseStatus?.statusCode !== 0) throw new Error(data.responseStatus?.message || 'API Error');
+        return data.responseData;
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * API to change user region
+ */
+export const changeUserRegionApi = async (userId, region) => {
+    try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${API_BASE_URL}/api/auth/api/users/${userId}/region`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ region })
+        });
+        const data = await response.json();
+        if (data.responseStatus?.statusCode !== 0) throw new Error(data.responseStatus?.message || 'API Error');
+        return data.responseData;
+    } catch (error) {
+        throw error;
+    }
+};
+

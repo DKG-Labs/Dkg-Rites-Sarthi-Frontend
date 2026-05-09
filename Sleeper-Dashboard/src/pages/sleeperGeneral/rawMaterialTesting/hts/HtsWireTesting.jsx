@@ -64,8 +64,10 @@ const HtsWireTesting = ({ onBack, inventoryData = [] }) => {
             const fetchedHistory = [];
             let updated = false;
             try {
+                const processedReqIds = new Set();
                 for (const stock of pendingStocks) {
-                    if (stock.requestId) {
+                    if (stock.requestId && !processedReqIds.has(stock.requestId)) {
+                        processedReqIds.add(stock.requestId);
                         const record = await getHtsWireDailyTestByReqId(stock.requestId);
                         if (record && record.id) {
                             newStatusMap[stock.requestId] = "Completed";
@@ -108,7 +110,7 @@ const HtsWireTesting = ({ onBack, inventoryData = [] }) => {
         };
         fetchStatus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [pendingStocks, refreshTrigger]);
+    }, [pendingStocks?.length, refreshTrigger]);
 
     const { register, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm({
         defaultValues: {
@@ -135,7 +137,7 @@ const HtsWireTesting = ({ onBack, inventoryData = [] }) => {
                 }
             });
         }
-    }, [activeRequestId, reset, toast]);
+    }, [activeRequestId, reset]);
 
     // Removed coilNo watch and useEffect
 

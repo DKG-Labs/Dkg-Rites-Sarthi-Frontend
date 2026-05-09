@@ -22,17 +22,36 @@ export const UserForm = ({ user, roles = [], onSubmit, onCancel }) => {
 
     useEffect(() => {
         if (user) {
-            setFormData({
-                ...formData,
+            setFormData(prev => ({
+                ...prev,
                 ...user,
-                fullName: user.name || user.fullName || '',
-                employeeCode: user.rritesEmployeeCode || user.employeeCode || '',
-                mobileNumber: user.mobileNo || user.mobileNumber || '',
-                roleNames: user.role ? [user.role] : (user.roleNames || []),
-                userId: user.id || user.userId || undefined
+                fullName: user.fullName || user.name || '',
+                employeeCode: user.employeeCode || user.rritesEmployeeCode || '',
+                mobileNumber: user.mobileNumber || user.mobileNo || '',
+                roleNames: Array.isArray(user.roleNames) ? user.roleNames : (user.roleName ? user.roleName.split(',') : []),
+                userId: user.userId || user.id || undefined,
+                rio: user.rio || ''
+            }));
+        } else {
+            setFormData({
+                userName: '',
+                password: '',
+                roleNames: [],
+                email: '',
+                mobileNumber: '',
+                employeeCode: '',
+                employmentType: 'REGULAR',
+                fullName: '',
+                shortName: '',
+                dateOfBirth: '',
+                designation: '',
+                discipline: '',
+                rio: '',
+                cm: '',
+                status: 'Active'
             });
         }
-    }, [user, formData]);
+    }, [user]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { USER_ROLES, REGIONS, DESIGNATIONS, DISCIPLINES } from './utils/mockData';
 
-export const UserForm = ({ user, roles = [], onSubmit, onCancel }) => {
+export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCancel }) => {
     const [formData, setFormData] = useState({
         userName: '',
         password: '',
@@ -57,8 +57,8 @@ export const UserForm = ({ user, roles = [], onSubmit, onCancel }) => {
         const { name, value } = e.target;
         setFormData(prev => {
             const newState = { ...prev, [name]: value };
-            // Automatically set userName to match fullName
-            if (name === 'fullName') {
+            // Automatically set userName to match employeeCode for login consistency
+            if (name === 'employeeCode') {
                 newState.userName = value;
             }
             return newState;
@@ -73,8 +73,46 @@ export const UserForm = ({ user, roles = [], onSubmit, onCancel }) => {
         }));
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
+        
+        // Validation for duplicate user
+        if (!user) {
+            const existing = existingUsers.find(u => 
+                u.employeeCode === formData.employeeCode || 
+                (u.email && u.email === formData.email)
+            );
+
+            if (existing) {
+                const selectedRole = formData.roleNames[0];
+                const existingRoles = (existing.roleName || '').split(',').map(r => r.trim());
+
+                if (existingRoles.includes(selectedRole)) {
+                    window.alert(`Error: User with Employee Code ${formData.employeeCode} already has the role "${selectedRole}".`);
+                    return;
+                }
+
+                const confirmAdd = window.confirm(
+                    `User with Employee Code ${formData.employeeCode} already exists with roles: ${existing.roleName}.\n\nDo you want to add the "${selectedRole}" role to this existing user instead?`
+                );
+
+                if (confirmAdd) {
+                    // Update existing user by appending the new role
+                    const updatedRoleNames = [...existingRoles, selectedRole];
+                    const dataToSubmit = {
+                        ...existing,
+                        roleNames: updatedRoleNames,
+                        // Ensure ID is passed for update
+                        userId: existing.userId || existing.id
+                    };
+                    onSubmit(dataToSubmit);
+                    return;
+                } else {
+                    return; // User cancelled
+                }
+            }
+        }
+
         // Ensure userName matches fullName before submission
         const finalData = { ...formData, userName: formData.fullName };
         onSubmit(finalData);
@@ -98,9 +136,11 @@ export const UserForm = ({ user, roles = [], onSubmit, onCancel }) => {
                             required
                         >
                             <option value="">Select User Role</option>
-                            {(roles && roles.length > 0 ? roles : USER_ROLES).map(role => (
-                                <option key={role} value={role}>{role}</option>
-                            ))}
+                            {(roles && roles.length > 0 ? roles : USER_ROLES).map(role => {
+                                const rName = typeof role === 'object' ? role.roleName : role;
+                                const rId = typeof role === 'object' ? (role.roleId || role.roleName) : role;
+                                return <option key={rId} value={rName}>{rName}</option>;
+                            })}
                         </select>
                     </div>
                 </div>
@@ -283,4 +323,31 @@ export const UserForm = ({ user, roles = [], onSubmit, onCancel }) => {
             </div>
         </form>
     );
+};
+
+/**
+ * Helper Validation Functions
+ * Added at the end of file for clarity and maintainability
+ */
+
+/**
+ * Checks if a user already exists in the system based on Employee Code or Email.
+ * Returns the existing user object if found, otherwise null.
+ */
+export const checkExistingUser = (employeeCode, email, usersList) => {
+    if (!usersList || !Array.isArray(usersList)) return null;
+    
+    return usersList.find(user => 
+        (employeeCode && user.employeeCode === employeeCode) || 
+        (email && user.email === email)
+    );
+};
+
+/**
+ * Validates if the selected role is already assigned to a user.
+ */
+export const hasDuplicateRole = (user, roleName) => {
+    if (!user || !user.roleName || !roleName) return false;
+    const roles = user.roleName.split(',').map(r => r.trim());
+    return roles.includes(roleName);
 };

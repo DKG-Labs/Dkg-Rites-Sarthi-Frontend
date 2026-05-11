@@ -1,32 +1,14 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { USER_ROLES, REGIONS } from './utils/mockData';
 import { filterBySearch, paginate } from './utils/helpers';
 import { DEFAULT_PAGE_SIZE } from './utils/constants';
-import { getUsersApi } from './AdminDashboard';
 
-export const UserList = ({ onEdit, onDelete, onChangeRegion, onCreateNew, refreshTrigger }) => {
-    const [users, setUsers] = useState([]);
-    const [loading, setLoading] = useState(true);
+export const UserList = ({ users = [], loading, onEdit, onDelete, onChangeRegion, onCreateNew, refreshTrigger }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterRole, setFilterRole] = useState('');
     const [filterRegion, setFilterRegion] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize] = useState(DEFAULT_PAGE_SIZE);
-
-    useEffect(() => {
-        const fetchUsers = async () => {
-            setLoading(true);
-            try {
-                const data = await getUsersApi();
-                setUsers(data || []);
-            } catch (error) {
-                console.error('Error fetching users:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchUsers();
-    }, [refreshTrigger]);
 
     const filteredUsers = useMemo(() => {
         let result = users;

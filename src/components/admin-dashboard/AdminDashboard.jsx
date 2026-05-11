@@ -19,11 +19,10 @@ export const AdminDashboard = () => {
     const [modalContent, setModalContent] = useState(null);
     const [selectedItem, setSelectedItem] = useState(null);
     const [roles, setRoles] = useState([]);
+    const [users, setUsers] = useState([]);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
-
     const refreshData = () => setRefreshTrigger(prev => prev + 1);
-
-    // Fetch roles for dropdown
+// Fetch roles for dropdown
     React.useEffect(() => {
         const fetchRoles = async () => {
             try {
@@ -33,8 +32,19 @@ export const AdminDashboard = () => {
                 console.error('Error fetching roles:', error);
             }
         };
+
+        const fetchUsers = async () => {
+            try {
+                const userList = await getUsersApi();
+                setUsers(userList || []);
+            } catch (error) {
+                console.error('Error fetching users:', error);
+            }
+        };
+
         fetchRoles();
-    }, []);
+        fetchUsers();
+    }, [refreshTrigger]);
 
     // User Module Handlers
     const handleCreateUser = () => {
@@ -79,18 +89,19 @@ export const AdminDashboard = () => {
                 createdBy: currentUser?.userId || 'Admin'
             };
 
-            if (selectedItem) {
+            if (selectedItem || dataToSubmit.userId || dataToSubmit.id) {
                 await updateUserApi(dataToSubmit);
             } else {
                 await createUserApi(dataToSubmit);
             }
             
-            alert(selectedItem ? 'User updated successfully' : 'User created successfully');
-            setModalOpen(false);
             refreshData();
+            setModalOpen(false);
+            setSelectedItem(null);
+            window.alert('User saved successfully!');
         } catch (error) {
             console.error('Error submitting user:', error);
-            alert('Failed to save user: ' + error.message);
+            window.alert(`Failed to save user: ${error.message}`);
         }
     };
 
@@ -272,11 +283,13 @@ export const AdminDashboard = () => {
                 <div className="admin-content">
                     {activeModule === 'users' && (
                         <UserList
+                            users={users}
                             onEdit={handleEditUser}
                             onDelete={handleDeleteUser}
                             onChangeRegion={handleChangeRegion}
                             onCreateNew={handleCreateUser}
                             refreshTrigger={refreshTrigger}
+                            loading={false}
                         />
                     )}
 
@@ -318,8 +331,10 @@ export const AdminDashboard = () => {
                     <UserForm
                         user={selectedItem}
                         roles={roles}
+                        existingUsers={users}
                         onSubmit={handleSubmitUser}
                         onCancel={() => setModalOpen(false)}
+                        
                     />
                 )}
                 {modalContent === 'master-form' && (
@@ -347,14 +362,14 @@ export const AdminDashboard = () => {
                             </button>
                             <button className="btn btn-primary" onClick={async () => {
                                 const newRegion = document.getElementById('new-region-select').value;
-                                if (!newRegion) return alert('Please select a region');
+                                if (!newRegion) return window.alert('Please select a region');
                                 try {
                                     await changeUserRegionApi(selectedItem.userId || selectedItem.id, newRegion);
-                                    alert('Region changed successfully');
+                                    window.alert('Region changed successfully');
                                     setModalOpen(false);
                                     refreshData();
                                 } catch (error) {
-                                    alert('Failed to change region: ' + error.message);
+                                    window.alert('Failed to change region: ' + error.message);
                                 }
                             }}>
                                 Update Region
@@ -383,39 +398,6 @@ export const AdminDashboard = () => {
         </div>
     );
 };
-
-/**
- * API Service for User Management
- * Added at the end of file as per instructions
- */
-const createUserApi = async (userData) => {
-    try {
-        const token = localStorage.getItem('authToken');
-        const response = await fetch(`${API_BASE_URL}/api/auth/api/OnlyRoleBasedCreation`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify(userData)
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.responseStatus?.message || 'Error creating user');
-        }
-
-        if (data.responseStatus?.statusCode !== 0) {
-            throw new Error(data.responseStatus?.message || 'API Error');
-        }
-
-        return data.responseData;
-    } catch (error) {
-        throw error;
-    }
-};
-
 /**
  * API to fetch all roles
  * Added at the end of file as per instructions

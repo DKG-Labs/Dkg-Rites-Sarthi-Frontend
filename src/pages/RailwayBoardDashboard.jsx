@@ -384,7 +384,7 @@ const RailwayBoardDashboard = () => {
                                 <div className={`report-link ${activeReport === 'mpr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpr')}>Monthly Progress Report</div>
                                 <div className={`report-link ${activeReport === 'mau' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mau')}>Monthly Analysis of Units</div>
                                 <div className={`report-link ${activeReport === 'lwcl' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('lwcl')}>Lot Wise Closed Loop</div>
-                                {selectedProduct !== 'Sleeper' && (
+                                {selectedProduct !== 'Sleeper' && selectedProduct !== 'Rail Pad' && (
                                     <div className={`report-link ${activeReport === 'mpia' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpia')}>Manufacture Process Inspection Analysis</div>
                                 )}
                             </div>

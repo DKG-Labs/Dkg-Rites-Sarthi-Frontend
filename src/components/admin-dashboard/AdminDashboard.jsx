@@ -601,6 +601,28 @@ export const updateUserApi = async (userData) => {
 };
 
 /**
+ * API to create user
+ */
+export const createUserApi = async (userData) => {
+    try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${API_BASE_URL}/api/auth/api/users`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(userData)
+        });
+        const data = await response.json();
+        if (data.responseStatus?.statusCode !== 0) throw new Error(data.responseStatus?.message || 'API Error');
+        return data.responseData;
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
  * API to delete user
  */
 export const deleteUserApi = async (userId) => {

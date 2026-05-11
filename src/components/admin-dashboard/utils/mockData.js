@@ -30,6 +30,31 @@ export const REGIONS = [
     'CRIO'
 ];
 
+// Designations
+export const DESIGNATIONS = [
+    'Technical Assistant',
+    'Senior Technical Assistant',
+    'Assistant Engineer',
+    'Engineer',
+    'Assistant Manager',
+    'Manager',
+    'Senior Manager',
+    'DGM',
+    'JGM',
+    'AGM',
+    'GM',
+    'GGM',
+    'ED'
+];
+
+// Disciplines
+export const DISCIPLINES = [
+    'Mechanical',
+    'M&C',
+    'Civil',
+    'Electrical'
+];
+
 // Mock Users Data
 export const mockUsers = [
     {

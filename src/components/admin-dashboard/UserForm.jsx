@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { USER_ROLES, REGIONS } from './utils/mockData';
+import { USER_ROLES, REGIONS, DESIGNATIONS, DISCIPLINES } from './utils/mockData';
 
 export const UserForm = ({ user, roles = [], onSubmit, onCancel }) => {
     const [formData, setFormData] = useState({
@@ -218,25 +218,31 @@ export const UserForm = ({ user, roles = [], onSubmit, onCancel }) => {
                     </div>
                     <div className="form-group">
                         <label className="form-label">Designation</label>
-                        <input
-                            type="text"
+                        <select
                             name="designation"
                             className="form-control"
-                            placeholder="Current designation"
                             value={formData.designation}
                             onChange={handleChange}
-                        />
+                        >
+                            <option value="">Select Designation</option>
+                            {DESIGNATIONS.map(designation => (
+                                <option key={designation} value={designation}>{designation}</option>
+                            ))}
+                        </select>
                     </div>
                     <div className="form-group">
                         <label className="form-label">Discipline</label>
-                        <input
-                            type="text"
+                        <select
                             name="discipline"
                             className="form-control"
-                            placeholder="e.g. Mechanical, Electrical"
                             value={formData.discipline}
                             onChange={handleChange}
-                        />
+                        >
+                            <option value="">Select Discipline</option>
+                            {DISCIPLINES.map(discipline => (
+                                <option key={discipline} value={discipline}>{discipline}</option>
+                            ))}
+                        </select>
                     </div>
                     <div className="form-group">
                         <label className="form-label">Region (RIO)</label>

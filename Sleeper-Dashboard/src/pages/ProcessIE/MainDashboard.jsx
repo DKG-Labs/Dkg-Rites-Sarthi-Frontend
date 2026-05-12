@@ -213,7 +213,13 @@ const MainDashboard = () => {
             </header>
 
             <div className="ie-sub-nav-grid">
-                {DASHBOARD_CARDS.map(card => {
+                {DASHBOARD_CARDS.filter(card => {
+                    const userRole = localStorage.getItem('roleName');
+                    if (userRole === 'Sleeper Process IE' && card.id === 'attending-call') {
+                        return false;
+                    }
+                    return true;
+                }).map(card => {
                     const isRestricted = !dutyStarted && card.id === 'production-verification';
                     return (
                         <div

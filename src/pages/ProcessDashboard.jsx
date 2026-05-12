@@ -3803,6 +3803,30 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         return totalMfg;
       };
 
+      // Helper function to calculate current shift's total rejected for a stage (Across All Lines for current IC/Lot)
+      const getCurrentShiftStageRejectedTotal = (stageField) => {
+        const moduleMap = {
+          'shearing': 'shearingData',
+          'turning': 'turningData',
+          'mpiTesting': 'mpiData',
+          'forging': 'forgingData',
+          'quenching': 'quenchingData',
+          'tempering': 'temperingData'
+        };
+        const moduleName = moduleMap[stageField];
+        const targetLineIc = currentProductionLine?.icNumber;
+        let totalRejected = 0;
+
+        localProductionLines.forEach((line, index) => {
+          const lineKey = `Line-${index + 1}`;
+          // Match by IC Number and Lot Number
+          if (line.icNumber === targetLineIc && selectedLotByLine[lineKey] === lotNo) {
+            totalRejected += getModuleTotalRejected(moduleName, lotNo, lineKey);
+          }
+        });
+        return totalRejected;
+      };
+
       let maxAllowedAllShifts = Infinity;
       let prevStageName = '';
       let historicalProducedOthers = 0;
@@ -3817,20 +3841,28 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           currentShiftProducedOthers = 0;
           break;
         case 'turning':
+          // Formula: Shearing Production - Rejection in Shearing (Total Shearing Accepted)
           maxAllowedAllShifts = (lotHistoricalTotals.totalShearingAccepted || 0) + getCurrentShiftStageAcceptedTotal('shearing');
           prevStageName = 'Shearing Accepted (Total)';
           historicalProducedOthers = lotHistoricalTotals.totalTurningManufactured || 0;
           currentShiftProducedOthers = getCurrentShiftStageManufacturedTotal('turning', true);
           break;
         case 'mpiTesting':
-          maxAllowedAllShifts = (lotHistoricalTotals.totalTurningAccepted || 0) + getCurrentShiftStageAcceptedTotal('turning');
-          prevStageName = 'Turning Accepted (Total)';
+          // Formula: Shearing Production - Rejection in Shearing (Total Shearing Accepted)
+          maxAllowedAllShifts = (lotHistoricalTotals.totalShearingAccepted || 0) + getCurrentShiftStageAcceptedTotal('shearing');
+          prevStageName = 'Shearing Accepted (Total)';
           historicalProducedOthers = lotHistoricalTotals.totalMpiManufactured || 0;
           currentShiftProducedOthers = getCurrentShiftStageManufacturedTotal('mpiTesting', true);
           break;
         case 'forging':
-          maxAllowedAllShifts = (lotHistoricalTotals.totalMpiAccepted || 0) + getCurrentShiftStageAcceptedTotal('mpiTesting');
-          prevStageName = 'MPI Accepted (Total)';
+          // Formula: Production in Shearing - (rejection in Shearing + Rejection in Turning + Rejection in MPI)
+          // Equivalent to: Shearing Accepted (Total) - Turning Rejected (Total) - MPI Rejected (Total)
+          const totalShearingAccepted = (lotHistoricalTotals.totalShearingAccepted || 0) + getCurrentShiftStageAcceptedTotal('shearing');
+          const totalTurningRejected = ((lotHistoricalTotals.totalTurningManufactured || 0) - (lotHistoricalTotals.totalTurningAccepted || 0)) + getCurrentShiftStageRejectedTotal('turning');
+          const totalMpiRejected = ((lotHistoricalTotals.totalMpiManufactured || 0) - (lotHistoricalTotals.totalMpiAccepted || 0)) + getCurrentShiftStageRejectedTotal('mpiTesting');
+          
+          maxAllowedAllShifts = totalShearingAccepted - (totalTurningRejected + totalMpiRejected);
+          prevStageName = 'Cumulative Accepted from Previous Stages';
           historicalProducedOthers = lotHistoricalTotals.totalForgingManufactured || 0;
           currentShiftProducedOthers = getCurrentShiftStageManufacturedTotal('forging', true);
           break;

@@ -69,24 +69,36 @@
 .card-indigo .kpi-lbl, .card-indigo .kpi-val, .card-indigo .kpi-sub { color: white; }
 
 .card-spring-green {
-    background: linear-gradient(135deg, #15803d, #16a34a);
+    background: #f0fdf4 !important;
+    border: 1px solid #22c55e !important;
 }
-.card-spring-green .kpi-lbl, .card-spring-green .kpi-val, .card-spring-green .kpi-sub { color: white; }
+.card-spring-green .kpi-lbl { color: #065f46 !important; }
+.card-spring-green .kpi-val { color: #064e3b !important; }
+.card-spring-green .kpi-sub { color: #047857 !important; }
 
 .card-amber {
-    background: linear-gradient(135deg, #b45309, #d97706);
+    background: #fff7ed !important;
+    border: 1px solid #f59e0b !important;
 }
-.card-amber .kpi-lbl, .card-amber .kpi-val, .card-amber .kpi-sub { color: white; }
+.card-amber .kpi-lbl { color: #9a3412 !important; }
+.card-amber .kpi-val { color: #ea580c !important; }
+.card-amber .kpi-sub { color: #c2410c !important; }
 
 .card-ruby {
-    background: linear-gradient(135deg, #be123c, #e11d48);
+    background: #fef2f2 !important;
+    border: 1px solid #ef4444 !important;
 }
-.card-ruby .kpi-lbl, .card-ruby .kpi-val, .card-ruby .kpi-sub { color: white; }
+.card-ruby .kpi-lbl { color: #991b1b !important; }
+.card-ruby .kpi-val { color: #ef4444 !important; }
+.card-ruby .kpi-sub { color: #b91c1c !important; }
 
 .card-gold {
-    background: linear-gradient(135deg, #a16207, #ca8a04);
+    background: #fffbeb !important;
+    border: 1px solid #f59e0b !important;
 }
-.card-gold .kpi-lbl, .card-gold .kpi-val, .card-gold .kpi-sub { color: white; }
+.card-gold .kpi-lbl { color: #854d0e !important; }
+.card-gold .kpi-val { color: #713f12 !important; }
+.card-gold .kpi-sub { color: #b45309 !important; }
 
 .prof-prog {
     height: 6px;

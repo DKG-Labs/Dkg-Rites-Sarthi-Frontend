@@ -100,7 +100,7 @@ const SleeperSummary = ({ summaryData = {} }) => {
                     <div className="kpi-val">{data.newSleepersInPipeline.toLocaleString()}</div>
                     <div className="kpi-sub">Manufactured but not cleared</div>
                 </div> */}
-                <div className="prof-card card-amber" style={{ textAlign: 'center' }}>
+                <div className="prof-card card-mint" style={{ textAlign: 'center' }}>
                     <div className="kpi-lbl">Sleepers Rejected in Process</div>
                     <div className="kpi-val">{data.sleepersRejectedInProcess.toLocaleString()}</div>
                     <div className="kpi-sub">Rejected in demoulding</div>

@@ -95,7 +95,7 @@ const RailPadSummary = ({ summaryData = {} }) => {
 
             {/* KPI Cards Row 3 */}
             <div className="g2">
-                <div className="prof-card card-amber" style={{ textAlign: 'center' }}>
+                <div className="prof-card card-mint" style={{ textAlign: 'center' }}>
                     <div className="kpi-lbl">Rejected in Process Inspection</div>
                     <div className="kpi-val">{data.rejectedInProcess.toLocaleString()}</div>
                     <div className="kpi-sub">Porosity, Blow holes, Dimensions, Flash</div>

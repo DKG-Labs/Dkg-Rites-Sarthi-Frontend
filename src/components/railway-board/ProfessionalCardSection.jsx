@@ -496,7 +496,7 @@ const ProfessionalCardSection = ({
                                                 <div className="prof-card" key={idx} style={{
                                                     padding: '15px',
                                                     borderLeft: cat === 'RM' ? '4px solid #3b82f6' : cat === 'Process' ? '4px solid #f59e0b' : '4px solid #ef4444',
-                                                    background: cat === 'RM' ? 'linear-gradient(135deg, #eff6ff, #dbeafe)' : cat === 'Process' ? 'linear-gradient(135deg, #fff7ed, #ffedd5)' : 'linear-gradient(135deg, #fef2f2, #fee2e2)'
+                                                    background: cat === 'RM' ? '#eff6ff' : cat === 'Process' ? '#fff7ed' : '#fef2f2'
                                                 }}>
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                                                         <span style={{ fontSize: '14px', fontWeight: '800', color: '#475569', textTransform: 'uppercase' }}>{cat} Stage</span>
@@ -527,7 +527,7 @@ const ProfessionalCardSection = ({
                                                 <div className="prof-card" key={idx} style={{
                                                     padding: '15px',
                                                     borderLeft: cat === 'RM' ? '4px solid #0d9488' : cat === 'Process' ? '4px solid #7c3aed' : '4px solid #db2777',
-                                                    background: cat === 'RM' ? 'linear-gradient(135deg, #f0fdfa, #ccfbf1)' : cat === 'Process' ? 'linear-gradient(135deg, #f5f3ff, #ede9fe)' : 'linear-gradient(135deg, #fff1f2, #ffe4e6)'
+                                                    background: cat === 'RM' ? '#f0fdfa' : cat === 'Process' ? '#f5f3ff' : '#fff1f2'
                                                 }}>
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                                                         <span style={{ fontSize: '14px', fontWeight: '800', color: '#475569', textTransform: 'uppercase' }}>{cat} Stage</span>
@@ -560,23 +560,23 @@ const ProfessionalCardSection = ({
                                             return (
                                                 <div className="g4">
                                                     <div className="prof-card card-spring-green" style={{ textAlign: 'center' }}>
-                                                        <div className="kpi-lbl" style={{ color: '#065f46' }}>Avg Production/Day</div>
-                                                        <div className="kpi-val" style={{ color: '#064e3b' }}>{(Math.round(s.avgProductionPerDay ?? 947)).toLocaleString()}</div>
-                                                        <div className="kpi-sub" style={{ color: '#047857' }}>Nos.</div>
+                                                        <div className="kpi-lbl">Avg Production/Day</div>
+                                                        <div className="kpi-val">{(Math.round(s.avgProductionPerDay ?? 947)).toLocaleString()}</div>
+                                                        <div className="kpi-sub">Nos.</div>
                                                     </div>
                                                     <div className="prof-card card-lime" style={{ textAlign: 'center' }}>
-                                                        <div className="kpi-lbl" style={{ color: '#3f6212' }}>Process Rejection</div>
-                                                        <div className="kpi-val" style={{ color: '#365314' }}>{formatDecimal(pRejPct)}%</div>
+                                                        <div className="kpi-lbl">Process Rejection</div>
+                                                        <div className="kpi-val">{formatDecimal(pRejPct)}%</div>
                                                         <div className="prof-prog"><div className="prof-prog-f" style={{ width: `${Math.min(100, pRejPct * 10)}%`, background: '#84cc16' }}></div></div>
                                                     </div>
                                                     <div className="prof-card card-ruby" style={{ textAlign: 'center' }}>
-                                                        <div className="kpi-lbl" style={{ color: '#991b1b' }}>Final Rejection</div>
-                                                        <div className="kpi-val" style={{ color: '#7f1d1d' }}>{formatDecimal(s.finalRejectionPercentage ?? 1.8)}%</div>
+                                                        <div className="kpi-lbl">Final Rejection</div>
+                                                        <div className="kpi-val">{formatDecimal(s.finalRejectionPercentage ?? 1.8)}%</div>
                                                         <div className="prof-prog"><div className="prof-prog-f" style={{ width: `${Math.min(100, (s.finalRejectionPercentage ?? 1.8) * 10)}%`, background: '#e11d48' }}></div></div>
                                                     </div>
                                                     <div className="prof-card card-gold" style={{ textAlign: 'center' }}>
-                                                        <div className="kpi-lbl" style={{ color: '#854d0e' }}>RM Rejection</div>
-                                                        <div className="kpi-val" style={{ color: '#713f12' }}>{formatDecimal(s.rmRejectionPercentage ?? 3.2)}%</div>
+                                                        <div className="kpi-lbl">RM Rejection</div>
+                                                        <div className="kpi-val">{formatDecimal(s.rmRejectionPercentage ?? 3.2)}%</div>
                                                         <div className="prof-prog"><div className="prof-prog-f" style={{ width: `${Math.min(100, (s.rmRejectionPercentage ?? 3.2) * 10)}%`, background: '#eab308' }}></div></div>
                                                     </div>
                                                 </div>
@@ -614,16 +614,16 @@ const ProfessionalCardSection = ({
                                         return (
                                             <div className="g3 mb">
                                                 <div className="prof-card card-red" style={{ textAlign: 'center' }}>
-                                                    <div className="kpi-lbl" style={{ color: '#991b1b' }}>Process Overall Rejection %</div>
-                                                    <div className="kpi-val" style={{ color: '#7f1d1d' }}>{formatDecimal(pRejPct)}%</div>
+                                                    <div className="kpi-lbl">Process Overall Rejection %</div>
+                                                    <div className="kpi-val">{formatDecimal(pRejPct)}%</div>
                                                 </div>
                                                 <div className="prof-card card-mint" style={{ textAlign: 'center' }}>
-                                                    <div className="kpi-lbl" style={{ color: '#166534' }}>Top Defect</div>
-                                                    <div style={{ fontSize: '13px', fontWeight: '700', color: '#166534', marginTop: '5px' }}>{paretoAnalysisData?.[0]?.name || 'Turning Length'}</div>
+                                                    <div className="kpi-lbl">Top Defect</div>
+                                                    <div style={{ fontSize: '13px', fontWeight: '700', marginTop: '5px' }}>{paretoAnalysisData?.[0]?.name || 'Turning Length'}</div>
                                                 </div>
                                                 <div className="prof-card card-amber" style={{ textAlign: 'center' }}>
-                                                    <div className="kpi-lbl" style={{ color: '#92400e' }}>Worst Plant</div>
-                                                    <div style={{ fontSize: '12px', fontWeight: '700', color: '#78350f', marginTop: '5px' }}>{processPerformanceData?.worstPerforming?.length > 0 ? processPerformanceData.worstPerforming[0]?.name : manufacturerRejectionData?.length > 0 ? [...manufacturerRejectionData].sort((a, b) => b.value - a.value)[0]?.name : 'Adinath Industries'}</div>
+                                                    <div className="kpi-lbl">Worst Plant</div>
+                                                    <div style={{ fontSize: '12px', fontWeight: '700', marginTop: '5px' }}>{processPerformanceData?.worstPerforming?.length > 0 ? processPerformanceData.worstPerforming[0]?.name : manufacturerRejectionData?.length > 0 ? [...manufacturerRejectionData].sort((a, b) => b.value - a.value)[0]?.name : 'Adinath Industries'}</div>
                                                 </div>
                                             </div>
                                         );

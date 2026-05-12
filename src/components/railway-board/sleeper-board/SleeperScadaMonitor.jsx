@@ -150,30 +150,51 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
         fetchScadaData();
     }, [manufacturer, unit, line, stage, currentPage]);
 
-    const COLUMN_ORDER = ['time', 'PO_No', 'Heat_Code', 'sample', 'length', 'end'];
-    const EXCLUDED_COLUMNS = ['line', 'module', 'plant', 'topic', 'machine', 'host', 'result', 'table'];
-
-    const COLUMN_LABELS = {
-        'time': 'Time',
-        'PO_No': 'Po',
-        'Heat_Code': 'Heat',
-        'length': 'Len',
-        'sample': 'Sam',
-        'end': 'End'
+    const STAGE_CONFIGS = {
+        'VIBRATOR': {
+            order: ['time', 'Batch_No', 'Bench_No', 'Running_Bench', 'Vibrator1_RPM', 'Vibrator1_Time', 'Vibrator2_RPM', 'Vibrator2_Time', 'Vibrator3_RPM', 'Vibrator3_Time', 'Vibrator4_RPM', 'Vibrator4_Time', 'Vibrator5_RPM', 'Vibrator5_Time', 'Vibrator6_RPM', 'Vibrator6_Time', 'Vibrator7_RPM', 'Vibrator7_Time', 'Vibrator8_RPM', 'Vibrator8_Time'],
+            labels: { 'time': 'Time', 'Batch_No': 'Batch No', 'Bench_No': 'Bench No', 'Running_Bench': 'Running Bench', 'Vibrator1_RPM': 'Vibrator 1 RPM', 'Vibrator1_Time': 'Vibrator 1 Time', 'Vibrator2_RPM': 'Vibrator 2 RPM', 'Vibrator2_Time': 'Vibrator 2 Time', 'Vibrator3_RPM': 'Vibrator 3 RPM', 'Vibrator3_Time': 'Vibrator 3 Time', 'Vibrator4_RPM': 'Vibrator 4 RPM', 'Vibrator4_Time': 'Vibrator 4 Time', 'Vibrator5_RPM': 'Vibrator 5 RPM', 'Vibrator5_Time': 'Vibrator 5 Time', 'Vibrator6_RPM': 'Vibrator 6 RPM', 'Vibrator6_Time': 'Vibrator 6 Time', 'Vibrator7_RPM': 'Vibrator 7 RPM', 'Vibrator7_Time': 'Vibrator 7 Time', 'Vibrator8_RPM': 'Vibrator 8 RPM', 'Vibrator8_Time': 'Vibrator 8 Time' }
+        },
+        'STEAM CUBE': {
+            order: ['time', 'Batch_No', 'Date_Of_Casting', 'LBC_Time', 'Cube_No', 'Type_of_Sleeper', 'Chamber_No', 'Age', 'Weight', 'Load(KN)', 'Strength'],
+            labels: { 'time': 'Time', 'Batch_No': 'Batch No', 'Date_Of_Casting': 'Date of Casting', 'LBC_Time': 'LBC Time', 'Cube_No': 'Cube No', 'Type_of_Sleeper': 'Type of Sleeper', 'Chamber_No': 'Chamber No', 'Age': 'Age', 'Weight': 'Weight', 'Load(KN)': 'Load(KN)', 'Strength': 'Strength' }
+        },
+        'CHAMBER': {
+            order: ['time', 'Batch_No', 'Chamber_No', 'Set_Temp', 'Act_Temp', 'Start_Time', 'Cycle_Status'],
+            labels: { 'time': 'Time', 'Batch_No': 'Batch No', 'Chamber_No': 'Chamber No', 'Set_Temp': 'Set Temp', 'Act_Temp': 'Act Temp', 'Start_Time': 'Start Time', 'Cycle_Status': 'Cycle Status' }
+        },
+        'WATER CUBE': {
+            order: ['time', 'Batch_No', 'Date_Of_Casting', 'LBC_Time', 'Cube_No', 'Type_of_Sleeper', 'Age', 'Weight', 'Load(KN)', 'Strength'],
+            labels: { 'time': 'Time', 'Batch_No': 'Batch No', 'Date_Of_Casting': 'Date of Casting', 'LBC_Time': 'LBC Time', 'Cube_No': 'Cube No', 'Type_of_Sleeper': 'Type of Sleeper', 'Age': 'Age', 'Weight': 'Weight', 'Load(KN)': 'Load(KN)', 'Strength': 'Strength' }
+        },
+        'TENSIONING': {
+            order: ['time', 'Batch_No', 'Bench_No', 'Wire_Length', 'Total_Cross_Section', 'Young_Modulus', '10%_LU', '10%_LL', '10%_RU', '10%_RL', '100%_LU', '100%_LL', '100%_RU', '100%_RL', 'Measured_Elongation', 'Pressed_Load', 'Total_Pressed_Load', 'Final_Load'],
+            labels: { 'time': 'Time', 'Batch_No': 'Batch No', 'Bench_No': 'Bench No', 'Wire_Length': 'Wire Length', 'Total_Cross_Section': 'Total Cross Section', 'Young_Modulus': 'Young Modulus', '10%_LU': '10% LU', '10%_LL': '10% LL', '10%_RU': '10% RU', '10%_RL': '10% RL', '100%_LU': '100% LU', '100%_LL': '100% LL', '100%_RU': '100% RU', '100%_RL': '100% RL', 'Measured_Elongation': 'Measured Elongation', 'Pressed_Load': 'Pressed Load', 'Total_Pressed_Load': 'Total Pressed Load', 'Final_Load': 'Final Load' }
+        }
     };
+
+    const currentConfig = STAGE_CONFIGS[stage] || { order: ['time'], labels: { 'time': 'Time' } };
+    const COLUMN_ORDER = currentConfig.order;
+    const COLUMN_LABELS = currentConfig.labels;
+    const EXCLUDED_COLUMNS = ['line', 'module', 'plant', 'topic', 'machine', 'host', 'result', 'table'];
 
     const rawKeys = data.length > 0 
         ? Object.keys(data[0]).filter(key => !EXCLUDED_COLUMNS.includes(key)) 
         : [];
 
     const columns = [];
+    // First, add columns in the specified order
     COLUMN_ORDER.forEach(orderedKey => {
-        if (rawKeys.includes(orderedKey)) {
-            columns.push(orderedKey);
+        // Try exact match or case-insensitive match
+        const actualKey = rawKeys.find(rk => rk === orderedKey || rk.toLowerCase() === orderedKey.toLowerCase());
+        if (actualKey) {
+            columns.push(actualKey);
         }
     });
+
+    // Then add any other columns that are not in the order list
     rawKeys.forEach(k => {
-        if (!COLUMN_ORDER.includes(k)) {
+        if (!columns.includes(k)) {
             columns.push(k);
         }
     });
@@ -184,13 +205,26 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
     const end = start + data.length;
     const totalElements = data.length === 30 ? (currentPage + 2) * 30 : (currentPage * 30 + data.length);
 
+    const formatTimestamp = (val) => {
+        if (!val) return 'N/A';
+        return new Date(val).toLocaleString('en-IN', { 
+            day: '2-digit', 
+            month: '2-digit', 
+            year: 'numeric', 
+            hour: '2-digit', 
+            minute: '2-digit', 
+            second: '2-digit', 
+            hour12: true 
+        });
+    };
+
     const downloadExcel = (data, columns, filename) => {
         if (!data || data.length === 0) return;
-        const headers = columns.map(col => COLUMN_LABELS[col] || col).join(',');
+        const headers = columns.map(col => COLUMN_LABELS[col] || COLUMN_LABELS[col.toLowerCase()] || col).join(',');
         const rows = data.map(row => 
             columns.map(col => {
                 let val = row[col];
-                if (col === 'time') val = new Date(val).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+                if (col.toLowerCase() === 'time') val = formatTimestamp(val);
                 return `"${String(val || '').replace(/"/g, '""')}"`;
             }).join(',')
         ).join('\n');
@@ -316,7 +350,7 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
                                 <tr>
                                     {columns.map(col => (
                                         <th key={col} style={{ background: '#f8fafc', color: '#64748b', padding: '16px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'left', fontWeight: '800', borderBottom: '1px solid #e2e8f0' }}>
-                                            {COLUMN_LABELS[col] || col}
+                                            {COLUMN_LABELS[col] || COLUMN_LABELS[col.toLowerCase()] || col}
                                         </th>
                                     ))}
                                 </tr>
@@ -325,9 +359,9 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
                                 {data.map((row, idx) => (
                                     <tr key={idx} style={{ background: idx % 2 === 0 ? '#fff' : '#f9fafb', borderBottom: '1px solid #f1f5f9', transition: 'background 0.2s' }}>
                                         {columns.map(col => (
-                                            <td key={col} style={{ padding: '14px 16px', fontSize: '13px', color: col === 'time' ? '#64748b' : '#1e293b', fontWeight: col === 'PO_No' ? '700' : '500' }}>
-                                                {col === 'time' 
-                                                    ? new Date(row[col]).toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }) 
+                                            <td key={col} style={{ padding: '14px 16px', fontSize: '13px', color: col.toLowerCase() === 'time' ? '#64748b' : '#1e293b', fontWeight: (col === 'PO_No' || col === 'Batch_No') ? '700' : '500' }}>
+                                                {col.toLowerCase() === 'time' 
+                                                    ? formatTimestamp(row[col]) 
                                                     : typeof row[col] === 'object' 
                                                         ? JSON.stringify(row[col]) 
                                                         : String(row[col])}

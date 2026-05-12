@@ -802,6 +802,77 @@
     grid-column: span 2;
 }
 
+/* Multi-select for Sleeper Company Wise Mapping */
+.multi-select-container {
+    background-color: var(--white);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 12px;
+    max-height: 250px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.multi-select-container:focus-within {
+    border-color: var(--secondary-color);
+    box-shadow: 0 0 0 3px rgba(23, 162, 184, 0.1);
+}
+
+.multi-select-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+    cursor: pointer;
+}
+
+.multi-select-item:hover {
+    background-color: #f8f9fa;
+}
+
+.multi-select-item input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.multi-select-item label {
+    margin: 0;
+    cursor: pointer;
+    font-size: 13px;
+    flex: 1;
+}
+
+/* Validation Info Box */
+.validation-info-box {
+    margin-top: 16px;
+    padding: 12px 16px;
+    background: #f0f9ff;
+    border-radius: 6px;
+    border-left: 4px solid var(--info-color);
+}
+
+.validation-info-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #0369a1;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.validation-info-content {
+    font-size: 12px;
+    color: #0c4a6e;
+    margin: 0;
+}
+
+
 @media (max-width: 600px) {
     .mapping-grid {
         grid-template-columns: 1fr;

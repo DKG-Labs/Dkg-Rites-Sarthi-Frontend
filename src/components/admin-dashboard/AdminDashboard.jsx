@@ -142,36 +142,58 @@ export const AdminDashboard = () => {
 
     const handleSubmitMapping = async (formData) => {
         try {
-            const { userId, role, ...mappingData } = formData;
-            if (!userId) {
-                alert('Please select a user');
-                return;
-            }
+            const { userId, role, productType, ...mappingData } = formData;
 
-            if (role === 'Process IE') {
-                // For Process IE, we need to restructure data for the body and params
-                // body: { iePoiMappings: [...] }
-                // params: userId, createdBy
-                const processData = {
-                    iePoiMappings: mappingData.iePoiMappings.map(item => ({
-                        ieUserId: item.ieUserId,
-                        poiCodes: [item.poiCode] // Backend takes a list
-                    }))
-                };
-                const currentUser = getStoredUser();
-                let createdBy = currentUser?.userId || "1";
-                // Robust check to ensure createdBy is a numeric ID
-                if (!createdBy || isNaN(Number(createdBy))) {
-                    createdBy = "1";
+            if (productType === 'SLEEPER') {
+                // Sleeper specific mapping submission
+                const { sleeperMapping, mappingType } = formData;
+                
+                if (mappingType === 'employee wise') {
+                    const payload = {
+                        poiCode: sleeperMapping.poiCode,
+                        plantId: sleeperMapping.plantId,
+                        employeeCode: sleeperMapping.employeeCode,
+                        ieType: role
+                    };
+                    await saveSleeperMappingApi(payload);
+                } else {
+                    // Company wise mapping (multiple employees)
+                    const payload = {
+                        poiCode: sleeperMapping.poiCode,
+                        plantId: sleeperMapping.plantId,
+                        ieType: role,
+                        employeeCodes: sleeperMapping.selectedEmployees.map(emp => emp.employeeCode)
+                    };
+                    await saveCompanyWiseSleeperMappingApi(payload);
                 }
-                await saveProcessIeMappingApi(userId, processData, createdBy);
             } else {
-                // Original IE mapping logic
-                await saveIeMappingApi(userId, mappingData);
+                // Original IE/ERC mapping logic
+                if (!userId) {
+                    alert('Please select a user');
+                    return;
+                }
+
+                if (role === 'Process IE') {
+                    const processData = {
+                        iePoiMappings: mappingData.iePoiMappings.map(item => ({
+                            ieUserId: item.ieUserId,
+                            poiCodes: [item.poiCode]
+                        }))
+                    };
+                    const currentUser = getStoredUser();
+                    let createdBy = currentUser?.userId || "1";
+                    if (!createdBy || isNaN(Number(createdBy))) {
+                        createdBy = "1";
+                    }
+                    await saveProcessIeMappingApi(userId, processData, createdBy);
+                } else {
+                    await saveIeMappingApi(userId, mappingData);
+                }
             }
 
             alert(selectedItem ? 'Mapping updated successfully' : 'Mapping created successfully');
             setModalOpen(false);
+            refreshData();
         } catch (error) {
             console.error('Error saving mapping:', error);
             alert('Failed to save mapping: ' + (error.response?.data?.message || error.message));
@@ -392,6 +414,10 @@ export const AdminDashboard = () => {
                         getCompanies={getCompaniesApi}
                         getUnitsByCompany={getUnitsByCompanyApi}
                         getMappingDetails={getMappingDetailsApi}
+                        getSleeperEmployeesByRole={getSleeperEmployeesByRoleApi}
+                        getSleeperCompanies={getSleeperCompaniesApi}
+                        getSleeperPlants={getSleeperPlantsApi}
+                        getSleeperMappedEmployees={getSleeperMappedEmployeesApi}
                     />
                 )}
             </Modal>
@@ -665,3 +691,129 @@ export const changeUserRegionApi = async (userId, region) => {
     }
 };
 
+/**
+ * API to fetch Sleeper employees by role ID
+ */
+const getSleeperEmployeesByRoleApi = async (roleId) => {
+    try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${API_BASE_URL}/api/sleeper-mapping/employees-by-role?roleId=${roleId}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        const data = await response.json();
+        if (data.responseStatus?.statusCode !== 0) throw new Error(data.responseStatus?.message || 'API Error');
+        return data.responseData;
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * API to fetch Sleeper companies
+ */
+const getSleeperCompaniesApi = async () => {
+    try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${API_BASE_URL}/api/sleeper-mapping/sleeper-companies`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        const data = await response.json();
+        if (data.responseStatus?.statusCode !== 0) throw new Error(data.responseStatus?.message || 'API Error');
+        return data.responseData;
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * API to fetch Sleeper plants by vendor code
+ */
+const getSleeperPlantsApi = async (vendorCode) => {
+    try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${API_BASE_URL}/api/sleeper-mapping/sleeper-plants/${vendorCode}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        const data = await response.json();
+        // This endpoint returns a direct list of strings as per user's prompt
+        return data; 
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * API to save Sleeper mapping
+ */
+const saveSleeperMappingApi = async (payload) => {
+    try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${API_BASE_URL}/api/sleeper-mapping/sleeperMapping`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (data.responseStatus?.statusCode !== 0) throw new Error(data.responseStatus?.message || 'API Error');
+        return data.responseData;
+    } catch (error) {
+        throw error;
+    }
+};
+/**
+ * API to fetch already mapped employees for a plant
+ */
+const getSleeperMappedEmployeesApi = async (companyName, plantId, ieType) => {
+    try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${API_BASE_URL}/api/sleeper-mapping/mapped-emp-list?companyName=${encodeURIComponent(companyName)}&plantId=${encodeURIComponent(plantId)}&ieType=${encodeURIComponent(ieType)}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        const data = await response.json();
+        if (data.responseStatus?.statusCode !== 0) throw new Error(data.responseStatus?.message || 'API Error');
+        return data.responseData;
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * API to save Company-wise Sleeper mapping
+ */
+const saveCompanyWiseSleeperMappingApi = async (payload) => {
+    try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${API_BASE_URL}/api/sleeper-mapping/company-wise-sleeper-mapping`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (data.responseStatus?.statusCode !== 0) throw new Error(data.responseStatus?.message || 'API Error');
+        return data.responseData;
+    } catch (error) {
+        throw error;
+    }
+};

@@ -87,12 +87,28 @@ const SearchableSelect = ({ options, value, onChange, placeholder, disabled, dis
     );
 };
 
-export const IEFieldsForm = ({ onSubmit, onCancel, getUsersByRole, getCompanies, getUnitsByCompany, getMappingDetails }) => {
+export const IEFieldsForm = ({ 
+    onSubmit, 
+    onCancel, 
+    getUsersByRole, 
+    getCompanies, 
+    getUnitsByCompany, 
+    getMappingDetails,
+    getSleeperEmployeesByRole,
+    getSleeperCompanies,
+    getSleeperPlants,
+    getSleeperMappedEmployees
+}) => {
+    const [productType, setProductType] = useState('ERC');
+    const [mappingType, setMappingType] = useState('employee wise'); // 'employee wise' or 'company wise' (for Sleeper)
     const [selectedRole, setSelectedRole] = useState('IE');
     const [users, setUsers] = useState([]); // Users for the MAIN profile (based on selectedRole)
     const [ieUsers, setIeUsers] = useState([]); // List of IEs (role 'IE') for Process IE mapping
     const [companies, setCompanies] = useState([]);
+    const [sleeperPlants, setSleeperPlants] = useState([]);
+    const [mappedEmployees, setMappedEmployees] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [validating, setValidating] = useState(false);
 
     const [formData, setFormData] = useState({
         userId: '',
@@ -101,36 +117,77 @@ export const IEFieldsForm = ({ onSubmit, onCancel, getUsersByRole, getCompanies,
         currentCityOfPosting: '',
         metalStampNo: '',
         iePinPoiList: [
-            { id: Date.now(), product: '', companyName: '', unitName: '', pinCode: '', poiCode: '', ieType: '', units: [] }
+            { id: Date.now(), product: 'ERC', companyName: '', unitName: '', pinCode: '', poiCode: '', ieType: '', units: [] }
         ],
         // New structure for Process IE
         iePoiMappings: [
             { id: Date.now(), ieUserId: '', ieUserName: '', companyName: '', unitName: '', poiCode: '', units: [] }
         ],
-        controllingManagerUserId: ''
+        controllingManagerUserId: '',
+        // Sleeper specific
+        sleeperMapping: {
+            roleId: '',
+            roleName: '',
+            employeeId: '',
+            employeeName: '',
+            employeeCode: '',
+            companyName: '',
+            vendorCode: '',
+            poiCode: '',
+            plantId: '',
+            plantName: '',
+            selectedEmployees: [] // For company wise mapping
+        }
     });
 
+    const PRODUCT_TYPES = ['ERC', 'SLEEPER', 'RAILPAD'];
+    const MAPPING_TYPES = [
+        { label: 'Employee Wise', value: 'employee wise' },
+        { label: 'Company Wise', value: 'company wise' }
+    ];
     const REGIONS = ['NRIO', 'WRIO', 'SRIO', 'ERIO', 'CRIO'];
     const PRODUCTS = ['ERC', 'RailPad', 'Sleeper'];
     const IE_TYPES = ['Primary', 'Secondary'];
-    const ROLES = ['IE', 'Process IE', 'Secondary IE'];
+    
+    // Dynamic roles based on product type
+    const ROLES = React.useMemo(() => {
+        if (productType === 'SLEEPER') {
+            return [
+                { name: 'Main IE', id: 10 },
+                { name: 'Process IE', id: 14 }
+            ];
+        }
+        return [
+            { name: 'IE', id: null },
+            { name: 'Process IE', id: null },
+            { name: 'Secondary IE', id: null }
+        ];
+    }, [productType]);
 
     useEffect(() => {
         const fetchInitialData = async () => {
             setLoading(true);
             try {
-                // Fetch users for the current selected role (e.g. Process IE users)
-                const [roleUsers, companyList] = await Promise.all([
-                    getUsersByRole(selectedRole),
-                    getCompanies()
-                ]);
-                setUsers(roleUsers || []);
-                setCompanies(companyList || []);
+                if (productType === 'SLEEPER') {
+                    const roleId = ROLES.find(r => r.name === selectedRole)?.id || 10;
+                    const [roleUsers, sleeperCompanies] = await Promise.all([
+                        getSleeperEmployeesByRole(roleId),
+                        getSleeperCompanies()
+                    ]);
+                    setUsers(roleUsers || []);
+                    setCompanies(sleeperCompanies || []);
+                } else {
+                    const [roleUsers, companyList] = await Promise.all([
+                        getUsersByRole(selectedRole),
+                        getCompanies()
+                    ]);
+                    setUsers(roleUsers || []);
+                    setCompanies(companyList || []);
 
-                // If role is Process IE, we also need the list of Process IEs for mapping
-                if (selectedRole === 'Process IE') {
-                    const ies = await getUsersByRole('Process IE');
-                    setIeUsers(ies || []);
+                    if (selectedRole === 'Process IE') {
+                        const ies = await getUsersByRole('Process IE');
+                        setIeUsers(ies || []);
+                    }
                 }
             } catch (error) {
                 console.error('Error fetching initial data:', error);
@@ -139,7 +196,32 @@ export const IEFieldsForm = ({ onSubmit, onCancel, getUsersByRole, getCompanies,
             }
         };
         fetchInitialData();
-    }, [selectedRole, getUsersByRole, getCompanies]);
+    }, [selectedRole, productType, getUsersByRole, getCompanies, getSleeperEmployeesByRole, getSleeperCompanies, ROLES]);
+
+    const { companyName: sleeperCompanyName, plantId: sleeperPlantId } = formData.sleeperMapping;
+
+    // Sleeper Validation Effect
+    useEffect(() => {
+        const validateSleeperMapping = async () => {
+            if (productType === 'SLEEPER' && sleeperCompanyName && sleeperPlantId && selectedRole) {
+                setValidating(true);
+                try {
+                    const alreadyMapped = await getSleeperMappedEmployees(sleeperCompanyName, sleeperPlantId, selectedRole);
+                    setMappedEmployees(alreadyMapped || []);
+                } catch (error) {
+                    console.error('Error validating sleeper mapping:', error);
+                    setMappedEmployees([]);
+                } finally {
+                    setValidating(false);
+                }
+            } else {
+                setMappedEmployees([]);
+            }
+        };
+
+        const timer = setTimeout(validateSleeperMapping, 500); // Debounce
+        return () => clearTimeout(timer);
+    }, [sleeperCompanyName, sleeperPlantId, selectedRole, productType, getSleeperMappedEmployees]);
 
     const handleMainInputChange = (e) => {
         const { name, value } = e.target;
@@ -154,6 +236,55 @@ export const IEFieldsForm = ({ onSubmit, onCancel, getUsersByRole, getCompanies,
             setFormData(prev => ({
                 ...prev,
                 [name]: value
+            }));
+        }
+    };
+
+    const handleSleeperInputChange = async (name, value) => {
+        if (name === 'employee') {
+            setFormData(prev => ({
+                ...prev,
+                sleeperMapping: {
+                    ...prev.sleeperMapping,
+                    employeeId: value.userId,
+                    employeeCode: value.employeeCode
+                }
+            }));
+        } else if (name === 'company') {
+            setLoading(true);
+            try {
+                const plants = await getSleeperPlants(value.vendorCode);
+                setSleeperPlants(plants || []);
+                setFormData(prev => ({
+                    ...prev,
+                    sleeperMapping: {
+                        ...prev.sleeperMapping,
+                        companyName: value.companyName,
+                        vendorCode: value.vendorCode,
+                        poiCode: value.poiCode,
+                        plantId: '' // Reset plant on company change
+                    }
+                }));
+            } catch (error) {
+                console.error('Error fetching plants:', error);
+            } finally {
+                setLoading(false);
+            }
+        } else if (name === 'selectedEmployees') {
+            setFormData(prev => ({
+                ...prev,
+                sleeperMapping: {
+                    ...prev.sleeperMapping,
+                    selectedEmployees: value
+                }
+            }));
+        } else {
+            setFormData(prev => ({
+                ...prev,
+                sleeperMapping: {
+                    ...prev.sleeperMapping,
+                    [name]: value
+                }
             }));
         }
     };
@@ -266,7 +397,7 @@ export const IEFieldsForm = ({ onSubmit, onCancel, getUsersByRole, getCompanies,
                 ...prev,
                 iePinPoiList: [
                     ...prev.iePinPoiList,
-                    { id: Date.now(), product: '', companyName: '', unitName: '', pinCode: '', poiCode: '', ieType: '', units: [] }
+                    { id: Date.now(), product: productType, companyName: '', unitName: '', pinCode: '', poiCode: '', ieType: '', units: [] }
                 ]
             }));
         }
@@ -290,6 +421,32 @@ export const IEFieldsForm = ({ onSubmit, onCancel, getUsersByRole, getCompanies,
 
     const handleSubmit = (e) => {
         e.preventDefault();
+
+        if (productType === 'SLEEPER') {
+            // Sleeper validation
+            const { sleeperMapping } = formData;
+            if (mappingType === 'employee wise') {
+                if (!sleeperMapping.employeeCode || !sleeperMapping.poiCode || !sleeperMapping.plantId) {
+                    alert('Please fill all fields for Sleeper Employee mapping');
+                    return;
+                }
+            } else {
+                if (!sleeperMapping.poiCode || !sleeperMapping.plantId || sleeperMapping.selectedEmployees.length === 0) {
+                    alert('Please fill all fields for Sleeper Company mapping');
+                    return;
+                }
+            }
+            
+            const submissionData = {
+                productType,
+                mappingType,
+                role: selectedRole,
+                roleId: ROLES.find(r => r.name === selectedRole)?.id,
+                sleeperMapping
+            };
+            onSubmit(submissionData);
+            return;
+        }
 
         if (!formData.userId) {
             alert('Please select a profile user (Username)');
@@ -326,22 +483,51 @@ export const IEFieldsForm = ({ onSubmit, onCancel, getUsersByRole, getCompanies,
         // Structure the data as expected by backend
         const submissionData = {
             ...formData,
+            productType,
             role: selectedRole,
             userId: parseInt(formData.userId)
         };
         onSubmit(submissionData);
     };
 
-    if (selectedRole === 'Secondary IE') {
+    const [multiSearchTerm, setMultiSearchTerm] = useState('');
+
+    const toggleMultiSelectEmployee = (employee) => {
+        const current = formData.sleeperMapping.selectedEmployees;
+        const exists = current.find(e => e.userId === employee.userId);
+        let updated;
+        if (exists) {
+            updated = current.filter(e => e.userId !== employee.userId);
+        } else {
+            updated = [...current, employee];
+        }
+        handleSleeperInputChange('selectedEmployees', updated);
+    };
+
+    // Filtered users for multi-select
+    const filteredMultiUsers = users.filter(u => 
+        (u.employeeCode && u.employeeCode.toString().toLowerCase().includes(multiSearchTerm.toLowerCase())) ||
+        (u.userId && u.userId.toString().includes(multiSearchTerm))
+    );
+
+    if (selectedRole === 'Secondary IE' && productType !== 'SLEEPER') {
         return (
             <div className="user-form-professional">
                 <div className="form-section">
-                    <h3 className="form-section-title">Role Configuration</h3>
-                    <div className="form-group">
-                        <label className="form-label">Role Category</label>
-                        <select className="form-control" value={selectedRole} onChange={(e) => setSelectedRole(e.target.value)}>
-                            {ROLES.map(role => <option key={role} value={role}>{role}</option>)}
-                        </select>
+                    <h3 className="form-section-title">Product & Role Configuration</h3>
+                    <div className="form-grid">
+                        <div className="form-group">
+                            <label className="form-label">Product Type</label>
+                            <select className="form-control" value={productType} onChange={(e) => setProductType(e.target.value)}>
+                                {PRODUCT_TYPES.map(p => <option key={p} value={p}>{p}</option>)}
+                            </select>
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Role Category</label>
+                            <select className="form-control" value={selectedRole} onChange={(e) => setSelectedRole(e.target.value)}>
+                                {ROLES.map(role => <option key={role.name} value={role.name}>{role.name}</option>)}
+                            </select>
+                        </div>
                     </div>
                 </div>
                 <div className="card" style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
@@ -357,188 +543,341 @@ export const IEFieldsForm = ({ onSubmit, onCancel, getUsersByRole, getCompanies,
     return (
         <div className="user-form-professional">
             <form onSubmit={handleSubmit}>
-                {/* Role Selection */}
+                {/* Product & Role Selection */}
                 <div className="form-section">
-                    <h3 className="form-section-title">Role Configuration</h3>
-                    <div className="form-group">
-                        <label className="form-label">Role Category</label>
-                        <select
-                            className="form-control"
-                            value={selectedRole}
-                            onChange={(e) => {
-                                setSelectedRole(e.target.value);
-                                // Reset form data on role change
-                                setFormData(prev => ({
-                                    ...prev,
-                                    userId: '',
-                                    userName: ''
-                                }));
-                            }}
-                        >
-                            {ROLES.map(role => <option key={role} value={role}>{role}</option>)}
-                        </select>
-                    </div>
-                </div>
-
-                {/* User Information */}
-                <div className="form-section">
-                    <h3 className="form-section-title">Mapping Profile</h3>
+                    <h3 className="form-section-title">Configuration</h3>
                     <div className="form-grid">
                         <div className="form-group">
-                            <label className="form-label">Username <small className="required-star">*</small></label>
+                            <label className="form-label">Product Type <small className="required-star">*</small></label>
                             <select
-                                name="userId"
                                 className="form-control"
-                                value={formData.userId}
-                                onChange={handleMainInputChange}
-                                required
+                                value={productType}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    setProductType(val);
+                                    // Reset role when product type changes to ensure valid roles
+                                    if (val === 'SLEEPER') {
+                                        setSelectedRole('Main IE');
+                                    } else {
+                                        setSelectedRole('IE');
+                                    }
+                                }}
                             >
-                                <option value="">Select User</option>
-                                {users.map(u => (
-                                    <option key={u.userId} value={u.userId}>{u.userName}</option>
-                                ))}
+                                {PRODUCT_TYPES.map(p => <option key={p} value={p}>{p}</option>)}
                             </select>
                         </div>
-                        <div className="form-group">
-                            <label className="form-label">User ID (System)</label>
-                            <input
-                                type="text"
-                                className="form-control"
-                                value={formData.userId}
-                                disabled
-                                placeholder="Auto-filled"
-                            />
-                        </div>
-                    </div>
-
-                    {selectedRole === 'IE' && (
-                        <div className="form-grid">
+                        {productType === 'SLEEPER' && (
                             <div className="form-group">
-                                <label className="form-label">Region (RIO) <small className="required-star">*</small></label>
+                                <label className="form-label">Mapping Type <small className="required-star">*</small></label>
                                 <select
-                                    name="rio"
                                     className="form-control"
-                                    value={formData.rio}
-                                    onChange={handleMainInputChange}
-                                    required
+                                    value={mappingType}
+                                    onChange={(e) => setMappingType(e.target.value)}
                                 >
-                                    <option value="">Select Region</option>
-                                    {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
+                                    {MAPPING_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                                 </select>
                             </div>
-                            <div className="form-group">
-                                <label className="form-label">Current City of Posting</label>
-                                <input
-                                    type="text"
-                                    name="currentCityOfPosting"
-                                    className="form-control"
-                                    value={formData.currentCityOfPosting}
-                                    onChange={handleMainInputChange}
-                                    placeholder="Enter city name"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Metal Stamp No.</label>
-                                <input
-                                    type="number"
-                                    name="metalStampNo"
-                                    className="form-control"
-                                    value={formData.metalStampNo}
-                                    onChange={handleMainInputChange}
-                                    placeholder="Enter stamp number"
-                                />
-                            </div>
+                        )}
+                        <div className="form-group">
+                            <label className="form-label">Role Category <small className="required-star">*</small></label>
+                            <select
+                                className="form-control"
+                                value={selectedRole}
+                                onChange={(e) => {
+                                    setSelectedRole(e.target.value);
+                                    // Reset form data on role change
+                                    setFormData(prev => ({
+                                        ...prev,
+                                        userId: '',
+                                        userName: ''
+                                    }));
+                                }}
+                            >
+                                {ROLES.map(role => <option key={role.name} value={role.name}>{role.name}</option>)}
+                            </select>
                         </div>
-                    )}
+                    </div>
                 </div>
 
-                {/* Dynamic Mapping List */}
-                <div className="form-section">
-                    <h3 className="form-section-title">
-                        {selectedRole === 'Process IE' ? 'IE to POI Mapping' : 'Pin/PoI Mapping List'}
-                    </h3>
+                {/* Sleeper Form */}
+                {productType === 'SLEEPER' ? (
+                    <div className="form-section">
+                        <h3 className="form-section-title">
+                            Sleeper {mappingType === 'employee wise' ? 'Employee' : 'Company'} Mapping
+                        </h3>
+                        
+                        <div className="mapping-card">
+                            <div className="form-grid">
+                                {mappingType === 'employee wise' ? (
+                                    <>
+                                        <div className="form-group">
+                                            <label className="form-label">Select Employee (Code) <small className="required-star">*</small></label>
+                                            <SearchableSelect
+                                                options={users}
+                                                value={formData.sleeperMapping.employeeId}
+                                                displayKey="employeeCode"
+                                                valueKey="userId"
+                                                onChange={(val) => handleSleeperInputChange('employee', val)}
+                                                placeholder="Search Employee Code..."
+                                            />
+                                        </div>
+                                    </>
+                                ) : null}
 
-                    {/* IE Role Mapping UI */}
-                    {selectedRole === 'IE' && formData.iePinPoiList.map((item, index) => (
-                        <div key={item.id} className="mapping-card">
-                            <div className="mapping-card-header">
-                                <span className="mapping-card-title">Mapping Entry #{index + 1}</span>
-                                {formData.iePinPoiList.length > 1 && (
-                                    <button type="button" className="remove-btn" onClick={() => removeMappingRow(item.id)}>&times;</button>
-                                )}
-                            </div>
-                            <div className="mapping-grid">
-                                <div className="form-group">
-                                    <label className="form-label">Product <small className="required-star">*</small></label>
-                                    <select className="form-control" value={item.product} onChange={(e) => handleIEMappingChange(index, 'product', e.target.value)} required>
-                                        <option value="">Select Product</option>
-                                        {PRODUCTS.map(p => <option key={p} value={p}>{p}</option>)}
-                                    </select>
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">IE Type <small className="required-star">*</small></label>
-                                    <select className="form-control" value={item.ieType} onChange={(e) => handleIEMappingChange(index, 'ieType', e.target.value)} required>
-                                        <option value="">Select Type</option>
-                                        {IE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                                    </select>
-                                </div>
                                 <div className="form-group mapping-full-row">
                                     <label className="form-label">Company Name <small className="required-star">*</small></label>
-                                    <SearchableSelect options={companies} value={item.companyName} onChange={(val) => handleIEMappingChange(index, 'companyName', val)} placeholder="Select Company" />
-                                </div>
-                                <div className="form-group mapping-full-row">
-                                    <label className="form-label">Unit Name <small className="required-star">*</small></label>
-                                    <SearchableSelect options={item.units} value={item.unitName} onChange={(val) => handleIEMappingChange(index, 'unitName', val)} placeholder="Select Unit" disabled={!item.companyName} />
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-
-                    {/* Process IE Role Mapping UI */}
-                    {selectedRole === 'Process IE' && formData.iePoiMappings.map((item, index) => (
-                        <div key={item.id} className="mapping-card">
-                            <div className="mapping-card-header">
-                                <span className="mapping-card-title">IE Mapping Entry #{index + 1}</span>
-                                {formData.iePoiMappings.length > 1 && (
-                                    <button type="button" className="remove-btn" onClick={() => removeMappingRow(item.id)}>&times;</button>
-                                )}
-                            </div>
-                            <div className="mapping-grid">
-                                <div className="form-group">
-                                    <label className="form-label">IE Username <small className="required-star">*</small></label>
                                     <SearchableSelect
-                                        options={ieUsers}
-                                        value={item.ieUserId}
-                                        displayKey="userName"
-                                        valueKey="userId"
-                                        onChange={(val) => handleProcessMappingChange(index, 'ieUser', val)}
-                                        placeholder="Select IE"
+                                        options={companies}
+                                        value={formData.sleeperMapping.vendorCode}
+                                        displayKey="companyName"
+                                        valueKey="vendorCode"
+                                        onChange={(val) => handleSleeperInputChange('company', val)}
+                                        placeholder="Select Company"
                                     />
                                 </div>
+
+                                <div className="form-group mapping-full-row">
+                                    <label className="form-label">Plant ID <small className="required-star">*</small></label>
+                                    <SearchableSelect
+                                        options={sleeperPlants}
+                                        value={formData.sleeperMapping.plantId}
+                                        onChange={(val) => handleSleeperInputChange('plantId', val)}
+                                        placeholder="Select Plant"
+                                        disabled={!formData.sleeperMapping.vendorCode}
+                                    />
+                                </div>
+
+                                {mappingType === 'company wise' && (
+                                    <div className="form-group mapping-full-row">
+                                        <label className="form-label">Select Employees (Code) <small className="required-star">*</small></label>
+                                        <div className="multi-select-search" style={{ marginBottom: '8px' }}>
+                                            <input 
+                                                type="text" 
+                                                className="form-control" 
+                                                placeholder="Search Employee Code or User ID..." 
+                                                value={multiSearchTerm}
+                                                onChange={(e) => setMultiSearchTerm(e.target.value)}
+                                                style={{ height: '36px', fontSize: '12px' }}
+                                            />
+                                        </div>
+                                        <div className="multi-select-container">
+                                            {filteredMultiUsers.map(u => (
+                                                <div key={u.userId} className="multi-select-item" onClick={() => toggleMultiSelectEmployee(u)}>
+                                                    <input
+                                                        type="checkbox"
+                                                        id={`emp-${u.userId}`}
+                                                        checked={formData.sleeperMapping.selectedEmployees.some(e => e.userId === u.userId)}
+                                                        onChange={(e) => e.stopPropagation()}
+                                                        style={{ pointerEvents: 'none' }}
+                                                    />
+                                                    <label htmlFor={`emp-${u.userId}`}>{u.employeeCode} (User ID: {u.userId})</label>
+                                                </div>
+                                            ))}
+                                            {filteredMultiUsers.length === 0 && <div style={{ color: '#999', textAlign: 'center', padding: '10px' }}>No matching employees found</div>}
+                                        </div>
+                                        <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--secondary-color)', fontWeight: '600' }}>
+                                            Selected: {formData.sleeperMapping.selectedEmployees.length} employees
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {formData.sleeperMapping.plantId && (
+                                <div className="validation-info-box">
+                                    <h4 className="validation-info-title">
+                                        <span>ℹ️</span> Validation Info
+                                    </h4>
+                                    <div className="validation-info-content">
+                                        {validating ? (
+                                            <p>Validating existing mappings for plant <strong>{formData.sleeperMapping.plantId}</strong>...</p>
+                                        ) : (
+                                            <>
+                                                <p style={{ marginBottom: '8px' }}>
+                                                    Already mapped employees for <strong>{formData.sleeperMapping.plantId}</strong> ({selectedRole}):
+                                                </p>
+                                                {mappedEmployees.length > 0 ? (
+                                                    <ul style={{ paddingLeft: '18px', margin: 0 }}>
+                                                        {mappedEmployees.map((emp, idx) => (
+                                                            <li key={idx} style={{ color: 'var(--danger-color)', fontWeight: '600' }}>
+                                                                {emp.employeeCode} (User ID: {emp.userId})
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                ) : (
+                                                    <p style={{ color: 'var(--success-color)', fontWeight: '500' }}>
+                                                        ✅ No employees currently mapped to this plant for this role.
+                                                    </p>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                ) : (
+                    <>
+                        {/* User Information (Profile) */}
+                        <div className="form-section">
+                            <h3 className="form-section-title">Mapping Profile</h3>
+                            <div className="form-grid">
                                 <div className="form-group">
-                                    <label className="form-label">IE User ID</label>
-                                    <input type="text" className="form-control" value={item.ieUserId} disabled placeholder="Auto-filled" />
+                                    <label className="form-label">Username <small className="required-star">*</small></label>
+                                    <select
+                                        name="userId"
+                                        className="form-control"
+                                        value={formData.userId}
+                                        onChange={handleMainInputChange}
+                                        required
+                                    >
+                                        <option value="">Select User</option>
+                                        {users.map(u => (
+                                            <option key={u.userId} value={u.userId}>{u.userName}</option>
+                                        ))}
+                                    </select>
                                 </div>
-                                <div className="form-group mapping-full-row">
-                                    <label className="form-label">Company Name (POI) <small className="required-star">*</small></label>
-                                    <SearchableSelect options={companies} value={item.companyName} onChange={(val) => handleProcessMappingChange(index, 'companyName', val)} placeholder="Select Company" />
-                                </div>
-                                <div className="form-group mapping-full-row">
-                                    <label className="form-label">Unit Name (POI) <small className="required-star">*</small></label>
-                                    <SearchableSelect options={item.units} value={item.unitName} onChange={(val) => handleProcessMappingChange(index, 'unitName', val)} placeholder="Select Unit" disabled={!item.companyName} />
+                                <div className="form-group">
+                                    <label className="form-label">User ID (System)</label>
+                                    <input
+                                        type="text"
+                                        className="form-control"
+                                        value={formData.userId}
+                                        disabled
+                                        placeholder="Auto-filled"
+                                    />
                                 </div>
                             </div>
+
+                            {selectedRole === 'IE' && (
+                                <div className="form-grid">
+                                    <div className="form-group">
+                                        <label className="form-label">Region (RIO) <small className="required-star">*</small></label>
+                                        <select
+                                            name="rio"
+                                            className="form-control"
+                                            value={formData.rio}
+                                            onChange={handleMainInputChange}
+                                            required
+                                        >
+                                            <option value="">Select Region</option>
+                                            {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Current City of Posting</label>
+                                        <input
+                                            type="text"
+                                            name="currentCityOfPosting"
+                                            className="form-control"
+                                            value={formData.currentCityOfPosting}
+                                            onChange={handleMainInputChange}
+                                            placeholder="Enter city name"
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Metal Stamp No.</label>
+                                        <input
+                                            type="number"
+                                            name="metalStampNo"
+                                            className="form-control"
+                                            value={formData.metalStampNo}
+                                            onChange={handleMainInputChange}
+                                            placeholder="Enter stamp number"
+                                        />
+                                    </div>
+                                </div>
+                            )}
                         </div>
-                    ))}
 
-                    <button type="button" className="add-mapping-btn" onClick={addMappingRow}>
-                        <span>+</span> {selectedRole === 'Process IE' ? 'Add Another IE Mapping' : 'Add Another Mapping'}
-                    </button>
-                </div>
+                        {/* Dynamic Mapping List (ERC/RailPad) */}
+                        <div className="form-section">
+                            <h3 className="form-section-title">
+                                {selectedRole === 'Process IE' ? 'IE to POI Mapping' : 'Pin/PoI Mapping List'}
+                            </h3>
 
-                <div className="form-actions" style={{ marginTop: '30px' }}>
+                            {/* IE Role Mapping UI */}
+                            {selectedRole === 'IE' && formData.iePinPoiList.map((item, index) => (
+                                <div key={item.id} className="mapping-card">
+                                    <div className="mapping-card-header">
+                                        <span className="mapping-card-title">Mapping Entry #{index + 1}</span>
+                                        {formData.iePinPoiList.length > 1 && (
+                                            <button type="button" className="remove-btn" onClick={() => removeMappingRow(item.id)}>&times;</button>
+                                        )}
+                                    </div>
+                                    <div className="mapping-grid">
+                                        <div className="form-group">
+                                            <label className="form-label">Product <small className="required-star">*</small></label>
+                                            <select className="form-control" value={item.product} onChange={(e) => handleIEMappingChange(index, 'product', e.target.value)} required>
+                                                <option value="">Select Product</option>
+                                                {PRODUCTS.map(p => <option key={p} value={p}>{p}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">IE Type <small className="required-star">*</small></label>
+                                            <select className="form-control" value={item.ieType} onChange={(e) => handleIEMappingChange(index, 'ieType', e.target.value)} required>
+                                                <option value="">Select Type</option>
+                                                {IE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="form-group mapping-full-row">
+                                            <label className="form-label">Company Name <small className="required-star">*</small></label>
+                                            <SearchableSelect options={companies} value={item.companyName} onChange={(val) => handleIEMappingChange(index, 'companyName', val)} placeholder="Select Company" />
+                                        </div>
+                                        <div className="form-group mapping-full-row">
+                                            <label className="form-label">Unit Name <small className="required-star">*</small></label>
+                                            <SearchableSelect options={item.units} value={item.unitName} onChange={(val) => handleIEMappingChange(index, 'unitName', val)} placeholder="Select Unit" disabled={!item.companyName} />
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+
+                            {/* Process IE Role Mapping UI */}
+                            {selectedRole === 'Process IE' && formData.iePoiMappings.map((item, index) => (
+                                <div key={item.id} className="mapping-card">
+                                    <div className="mapping-card-header">
+                                        <span className="mapping-card-title">IE Mapping Entry #{index + 1}</span>
+                                        {formData.iePoiMappings.length > 1 && (
+                                            <button type="button" className="remove-btn" onClick={() => removeMappingRow(item.id)}>&times;</button>
+                                        )}
+                                    </div>
+                                    <div className="mapping-grid">
+                                        <div className="form-group">
+                                            <label className="form-label">IE Username <small className="required-star">*</small></label>
+                                            <SearchableSelect
+                                                options={ieUsers}
+                                                value={item.ieUserId}
+                                                displayKey="userName"
+                                                valueKey="userId"
+                                                onChange={(val) => handleProcessMappingChange(index, 'ieUser', val)}
+                                                placeholder="Select IE"
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">IE User ID</label>
+                                            <input type="text" className="form-control" value={item.ieUserId} disabled placeholder="Auto-filled" />
+                                        </div>
+                                        <div className="form-group mapping-full-row">
+                                            <label className="form-label">Company Name (POI) <small className="required-star">*</small></label>
+                                            <SearchableSelect options={companies} value={item.companyName} onChange={(val) => handleProcessMappingChange(index, 'companyName', val)} placeholder="Select Company" />
+                                        </div>
+                                        <div className="form-group mapping-full-row">
+                                            <label className="form-label">Unit Name (POI) <small className="required-star">*</small></label>
+                                            <SearchableSelect options={item.units} value={item.unitName} onChange={(val) => handleProcessMappingChange(index, 'unitName', val)} placeholder="Select Unit" disabled={!item.companyName} />
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+
+                            <button type="button" className="add-mapping-btn" onClick={addMappingRow}>
+                                <span>+</span> {selectedRole === 'Process IE' ? 'Add Another IE Mapping' : 'Add Another Mapping'}
+                            </button>
+                        </div>
+                    </>
+                )}
+
+                <div className="form-actions" style={{ marginTop: '30px', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
                     <button type="submit" className="btn btn-primary" disabled={loading}>
-                        {loading ? 'Processing...' : `Save ${selectedRole} Mapping`}
+                        {loading ? 'Processing...' : 'Submit'}
                     </button>
                     <button type="button" className="btn btn-secondary" onClick={onCancel}>
                         Cancel

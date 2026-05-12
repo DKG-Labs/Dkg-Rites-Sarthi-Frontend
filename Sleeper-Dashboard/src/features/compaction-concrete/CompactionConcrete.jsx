@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { apiService } from '../../services/api';
 import './CompactionConcrete.css';
 import { useShift } from '../../context/ShiftContext';
+import { getBatchNosForCompaction } from '../../services/workflowService';
 
 const CompactionSubCard = ({ id, title, color, statusDetail, isActive, onClick }) => {
     const label = id === 'stats' ? 'ANALYSIS' : id === 'witnessed' ? 'HISTORY' : 'SCADA';
@@ -10,8 +11,17 @@ const CompactionSubCard = ({ id, title, color, statusDetail, isActive, onClick }
             className={`compaction-sub-card ${isActive ? 'active' : ''}`}
             onClick={onClick}
             style={{
-                borderTop: `4px solid ${color}`,
-                borderColor: isActive ? color : '#e2e8f0',
+                borderWidth: '0px',
+                borderStyle: 'solid',
+                borderTopWidth: '4px',
+                borderTopColor: color,
+                borderRightWidth: '1px',
+                borderBottomWidth: '1px',
+                borderLeftWidth: '1px',
+                borderRightColor: isActive ? color : '#e2e8f0',
+                borderBottomColor: isActive ? color : '#e2e8f0',
+                borderLeftColor: isActive ? color : '#e2e8f0',
+                borderRadius: '12px',
                 '--active-color': color
             }}
         >
@@ -27,73 +37,148 @@ const CompactionSubCard = ({ id, title, color, statusDetail, isActive, onClick }
     );
 };
 
-const CompactionConcrete = ({ onBack, batches = [], sharedState, displayMode = 'modal', showForm: propsShowForm, setShowForm: propsSetShowForm, activeContainer }) => {
-    const { compactionRecords: entries, setAllCompactionRecords: setEntries } = sharedState;
-    const { vendorCode, dutyUnit, selectedShift, dutyDate, userId } = useShift();
-    const [viewMode, setViewMode] = useState('witnessed'); // Default to 'witnessed'
+const CompactionConcrete = ({ 
+    onBack, 
+    displayMode = 'modal', 
+    showForm: propsShowForm, 
+    setShowForm: propsSetShowForm, 
+    activeContainer, 
+    loadShiftData, 
+    sharedState = {} 
+}) => {
+    const { compactionRecords: entries = [], setAllCompactionRecords: setEntries } = sharedState;
+    const { 
+        vendorCode, dutyUnit, selectedShift, dutyDate, userId, vendorId,
+        containers = [], allBatchDeclarations = {}, fetchCompaction 
+    } = useShift();
+    
+    const [viewMode, setViewMode] = useState('witnessed'); 
     const [localShowForm, setLocalShowForm] = useState(false);
     const showForm = propsShowForm !== undefined ? propsShowForm : localShowForm;
     const setShowForm = propsSetShowForm !== undefined ? propsSetShowForm : setLocalShowForm;
 
-    const [selectedBatch, setSelectedBatch] = useState('');
-    const [isSaving, setIsSaving] = useState(false);
-
-    // Mock SCADA Data - In production this would come from an API or live feed
-    const [scadaRecords, setScadaRecords] = useState([
-        {
-            id: 101, time: '10:15', batchNo: '615', benchNo: '12',
-            v1_rpm: 9000, v1_dur: 42, v2_rpm: 8950, v2_dur: 45, v3_rpm: 9100, v3_dur: 40, v4_rpm: 8800, v4_dur: 48,
-            v5_rpm: 9050, v5_dur: 44, v6_rpm: 8980, v6_dur: 46, v7_rpm: 9120, v7_dur: 43, v8_rpm: 8850, v8_dur: 45
-        },
-        {
-            id: 102, time: '10:18', batchNo: '615', benchNo: '13',
-            v1_rpm: 8850, v1_dur: 40, v2_rpm: 9200, v2_dur: 42, v3_rpm: 9050, v3_dur: 45, v4_rpm: 8900, v4_dur: 41,
-            v5_rpm: 9100, v5_dur: 44, v6_rpm: 8870, v6_dur: 43, v7_rpm: 9020, v7_dur: 46, v8_rpm: 8950, v8_dur: 44
-        },
-        {
-            id: 103, time: '10:22', batchNo: '615', benchNo: '14',
-            v1_rpm: 9150, v1_dur: 45, v2_rpm: 8700, v2_dur: 46, v3_rpm: 9250, v3_dur: 42, v4_rpm: 9100, v4_dur: 44,
-            v5_rpm: 8950, v5_dur: 41, v6_rpm: 9080, v6_dur: 45, v7_rpm: 8800, v7_dur: 43, v8_rpm: 9150, v8_dur: 42
-        },
-    ]);
-
-    // Dynamic Batch List
-    const availableBatches = useMemo(() => {
-        const bSet = new Set();
-        if (Array.isArray(batches)) {
-            batches.forEach(b => { if (b.batchNo) bSet.add(String(b.batchNo)); });
-        }
-        if (scadaRecords) {
-            scadaRecords.forEach(r => { if (r.batchNo) bSet.add(String(r.batchNo)); });
-        }
-        if (entries) {
-            entries.forEach(r => { if (r.batchNo) bSet.add(String(r.batchNo)); });
-        }
-        return Array.from(bSet).sort();
-    }, [batches, scadaRecords, entries]);
-
     const [manualForm, setManualForm] = useState({
-        date: new Date().toISOString().split('T')[0],
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
-        batchNo: selectedBatch,
+        dateOfCasting: dutyDate || new Date().toISOString().split('T')[0],
+        location: activeContainer?.name || (containers[0]?.name || 'Line I'),
+        batchNo: '',
         benchNo: '',
-        tachoCount: 4,
-        workingTachos: 4,
+        timeOfCasting: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
         minRpm: '',
         maxRpm: '',
         minDuration: '',
         maxDuration: '',
-        duration: ''
     });
 
-    const [editingId, setEditingId] = useState(null);
-    const [editOnly, setEditOnly] = useState(false);
-    const [editParentId, setEditParentId] = useState(null);
+    const [selectedBatch, setSelectedBatch] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+    const [fetchedLocations, setFetchedLocations] = useState([]);
+    const [batchOptions, setBatchOptions] = useState([]);
+    
+    // Track records added in CURRENT form session
+    const [sessionRecords, setSessionRecords] = useState([]);
 
-    // Keep form batch in sync
     useEffect(() => {
-        setManualForm(prev => ({ ...prev, batchNo: selectedBatch }));
-    }, [selectedBatch]);
+        if (loadShiftData) loadShiftData();
+    }, [loadShiftData]);
+
+    // Fetch dynamic locations for the current Unit (Plant)
+    useEffect(() => {
+        const fetchLocations = async () => {
+            const vId = vendorId || localStorage.getItem('vendorId');
+            if (dutyUnit && vId) {
+                try {
+                    const response = await apiService.getPlantSheds(vId, dutyUnit);
+                    let locList = [];
+                    const data = response?.responseData || response;
+                    if (data && typeof data === 'object') {
+                        Object.values(data).forEach(ids => {
+                            if (Array.isArray(ids)) {
+                                ids.forEach(id => locList.push(id));
+                            }
+                        });
+                    }
+                    setFetchedLocations(locList);
+                    if (locList.length > 0 && !manualForm.location) {
+                        setManualForm(prev => ({ ...prev, location: locList[0] }));
+                    }
+                } catch (err) {
+                    console.error("Error fetching locations for compaction:", err);
+                }
+            }
+        };
+        fetchLocations();
+    }, [dutyUnit, vendorId]);
+
+    // Fetch batch numbers for compaction (strictly filtered by date and location)
+    useEffect(() => {
+        const fetchBatches = async () => {
+            const dateToUse = manualForm.dateOfCasting;
+            const locationToUse = manualForm.location;
+
+            if (dateToUse && locationToUse) {
+                try {
+                    const data = await getBatchNosForCompaction({ 
+                        entryDate: dateToUse, 
+                        location: locationToUse
+                    });
+                    setBatchOptions(data || []);
+                } catch (err) {
+                    console.error("Error fetching batch numbers for compaction:", err);
+                    setBatchOptions([]);
+                }
+            } else {
+                setBatchOptions([]);
+            }
+        };
+        fetchBatches();
+    }, [manualForm.dateOfCasting, manualForm.location, showForm]);
+
+    // Mock SCADA Data 
+    // Track SCADA records (real or mock)
+    const [scadaRecords, setScadaRecords] = useState([]);
+
+
+
+    const [editingId, setEditingId] = useState(null);
+
+    // Initial load sync for location
+    useEffect(() => {
+        if (activeContainer?.name) {
+            setManualForm(prev => ({ ...prev, location: activeContainer.name }));
+        }
+    }, [activeContainer]);
+
+    // Filter available batches based on chosen location in form
+    const filteredBatchesForForm = useMemo(() => {
+        if (!manualForm.location) return [];
+        // Support both fetched locations (strings) and ShiftContext containers (objects)
+        let matchedId = null;
+        const matchedCont = containers.find(c => c.name === manualForm.location);
+        if (matchedCont) {
+            matchedId = matchedCont.id;
+        } else {
+            // Fallback for fetched locations - we might need mapping or it might work by name if allBatchDeclarations keys are names
+            // However, ShiftContext uses numeric IDs for allBatchDeclarations.
+            // Let's see if we can find the ID by name matching in containers
+            // If it's a new location from the API that isn't in containers, we might have a problem mapping batches.
+            // But usually the API locations correspond to what's in ShiftContext.
+        }
+        
+        if (!matchedId) {
+            // Check if we can find by name in all keys?
+            // For now, let's assume containers covers it or we fallback to empty
+            return [];
+        }
+
+        const batchesList = allBatchDeclarations[matchedId] || [];
+        return [...batchesList].sort((a,b) => String(b.batchNo).localeCompare(String(a.batchNo)));
+    }, [manualForm.location, allBatchDeclarations, containers]);
+
+    const availableBatchesForLogs = useMemo(() => {
+        const bSet = new Set();
+        (entries || []).forEach(r => { if (r.batchNo) bSet.add(String(r.batchNo)); });
+        return Array.from(bSet).sort();
+    }, [entries]);
 
     const handleWitness = (record) => {
         const rpms = [];
@@ -105,92 +190,98 @@ const CompactionConcrete = ({ onBack, batches = [], sharedState, displayMode = '
 
         const newEntry = {
             id: Date.now(),
-            date: new Date().toISOString().split('T')[0],
+            date: manualForm.dateOfCasting,
             time: record.time,
             batchNo: record.batchNo,
             benchNo: record.benchNo,
-            tachoCount: 8,
-            workingTachos: rpms.length,
             minRpm: Math.min(...rpms),
             maxRpm: Math.max(...rpms),
             minDuration: Math.min(...durs),
             maxDuration: Math.max(...durs),
-            duration: Math.round(durs.reduce((a, b) => a + b, 0) / durs.length),
+            duration: Math.round(durs.reduce((a, b) => a + b, 0) / (durs.length || 1)),
             source: 'Scada',
-            location: record.location || 'N/A', // Assuming SCADA might have it, or we'll filter by name later
+            location: manualForm.location,
             originalScadaId: record.id
         };
-        setEntries(prev => [newEntry, ...prev]);
+        setSessionRecords(prev => [newEntry, ...prev]);
         setScadaRecords(prev => prev.filter(r => r.id !== record.id));
-        alert('Record witnessed and added to local session.');
     };
 
     const handleDelete = (id) => {
-        if (window.confirm('Are you sure you want to delete this record?')) {
-            setEntries(prev => prev.filter(e => e.id !== id));
+        if (window.confirm('Are you sure you want to remove this record from the current session?')) {
+            setSessionRecords(prev => prev.filter(e => e.id !== id));
         }
     };
 
+    const handleDeleteLog = async (parentId) => {
+        if (!parentId) return;
+        if (window.confirm('Are you sure you want to delete this batch record? This will remove all associated logs for this session.')) {
+            try {
+                await apiService.deleteCompaction(parentId);
+                if (fetchCompaction) await fetchCompaction();
+                alert("Deleted successfully");
+            } catch (err) {
+                console.error("Delete failed:", err);
+                alert("Failed to delete record: " + err.message);
+            }
+        }
+    };
 
     const handleFinalSave = async () => {
-        if (!selectedBatch) {
-            alert("Please select a batch first.");
+        if (sessionRecords.length === 0) {
+            alert("No records to save.");
+            return;
+        }
+        if (!manualForm.batchNo) {
+            alert("Please select a Batch Number.");
             return;
         }
 
         setIsSaving(true);
         try {
-            const batchRecords = entries.filter(r => String(r.batchNo) === String(selectedBatch));
+            const [y, m, d] = manualForm.dateOfCasting.split('-');
+            const formattedDate = `${d}/${m}/${y}`;
 
-            const manualRecords = batchRecords
-                .filter(r => r.source === 'Manual')
-                .map(r => ({
-                    id: typeof r.id === 'number' && r.id < 1000000000 ? r.id : 0,
+            const now = new Date();
+            const payload = {
+                batchNo: String(manualForm.batchNo),
+                sleeperType: "RT-8746", 
+                entryDate: formattedDate,
+                date: formattedDate,
+                location: manualForm.location,
+                locationType: manualForm.location.toLowerCase().includes('shed') ? 'Shed' : 'Line',
+                time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }),
+                vendorCode: vendorCode || localStorage.getItem('vendorCode'),
+                plantId: dutyUnit || localStorage.getItem('dutyUnit'),
+                shift: selectedShift || localStorage.getItem('selectedShift'),
+                createdBy: userId || localStorage.getItem('userId'),
+                updatedBy: userId || localStorage.getItem('userId'),
+                scadaRecords: sessionRecords.filter(r => r.source === 'Scada').map(r => ({
+                    id: 0,
+                    time: (r.time && r.time.length === 5) ? `${r.time}:00` : (r.time || "00:00:00"),
+                    benchNo: String(r.benchNo),
+                    v1V4Rpm: parseInt(r.minRpm) || 0,
+                    minDuration: parseInt(r.minDuration) || 0,
+                    maxDuration: parseInt(r.maxDuration) || 0,
+                    duration: parseInt(r.duration) || 0
+                })),
+                manualRecords: sessionRecords.filter(r => r.source === 'Manual').map(r => ({
+                    id: 0,
                     benchNo: String(r.benchNo),
                     minRpm: parseInt(r.minRpm) || 0,
                     maxRpm: parseInt(r.maxRpm) || 0,
                     minDuration: parseInt(r.minDuration) || 0,
                     maxDuration: parseInt(r.maxDuration) || 0,
                     duration: parseInt(r.duration) || 0
-                }));
-
-            const scadaRecordsPayload = batchRecords
-                .filter(r => r.source === 'Scada')
-                .map(r => ({
-                    id: typeof r.id === 'number' && r.id < 1000000000 ? r.id : 0,
-                    time: (r.time || "").substring(0, 5), // Truncate HH:mm:ss to HH:mm to satisfy backend parsing
-                    benchNo: String(r.benchNo),
-                    v1V4Rpm: parseInt(r.v1V4Rpm || r.minRpm) || 0,
-                    minDuration: parseInt(r.minDuration) || 0,
-                    maxDuration: parseInt(r.maxDuration) || 0,
-                    duration: parseInt(r.duration) || 0
-                }));
-
-            const [y, m, d] = (dutyDate || new Date().toISOString().split('T')[0]).split('-');
-            const formattedDate = `${d}/${m}/${y}`;
-
-            const batchMeta = batches.find(b => String(b.batchNo) === String(selectedBatch));
-            const payload = {
-                batchNo: String(selectedBatch),
-                sleeperType: batchMeta?.sleeperType || "RT-1234",
-                entryDate: formattedDate,
-                date: formattedDate,
-                location: activeContainer?.name || 'Line I',
-                locationType: (activeContainer?.name || 'Line I').toLowerCase().includes('shed') ? 'Shed' : 'Line',
-                vendorCode: vendorCode || localStorage.getItem('vendorCode'),
-                plantId: dutyUnit || localStorage.getItem('dutyUnit'),
-                shift: selectedShift || localStorage.getItem('selectedShift'),
-                createdBy: userId || localStorage.getItem('userId'),
-                updatedBy: userId || localStorage.getItem('userId'),
-                scadaRecords: scadaRecordsPayload,
-                manualRecords: manualRecords
+                }))
             };
 
-            // Call create directly – backend handles the match.
             await apiService.createCompaction(payload);
-
+            const refresh = fetchCompaction || propsFetchCompaction || loadShiftData;
+            if (refresh) await refresh();
             setShowForm(false);
-            alert("Compaction data synced successfully.");
+            setSessionRecords([]);
+            alert("Compaction session saved successfully.");
         } catch (error) {
             console.error("Save failed:", error);
             alert(`Failed to save: ${error.message}`);
@@ -199,137 +290,58 @@ const CompactionConcrete = ({ onBack, batches = [], sharedState, displayMode = '
         }
     };
 
-    const handleEdit = async (entry) => {
-        try {
-            const fetchId = entry.parentId || entry.id;
-            const response = await apiService.getCompactionById(fetchId);
-            const fetchedBatch = response?.responseData;
-
-            let target = entry;
-            if (fetchedBatch) {
-                const found = (fetchedBatch.manualRecords || []).find(m => m.id === entry.id);
-                if (found) target = { ...found, parentId: fetchedBatch.id };
-            }
-
-            setEditingId(target.id);
-            setEditParentId(target.parentId || null);
-            setManualForm({
-                date: target.date || entry.date,
-                time: target.time || entry.time,
-                batchNo: target.batchNo || entry.batchNo,
-                benchNo: target.benchNo || entry.benchNo,
-                tachoCount: target.tachoCount || entry.tachoCount,
-                workingTachos: target.workingTachos || entry.workingTachos,
-                minRpm: target.minRpm || entry.minRpm,
-                maxRpm: target.maxRpm || entry.maxRpm,
-                minDuration: target.minDuration || entry.minDuration || '',
-                maxDuration: target.maxDuration || entry.maxDuration || '',
-                duration: target.duration || entry.duration
-            });
-        } catch (error) {
-            console.error('Fetch failed:', error);
-            setEditingId(entry.id);
-            setEditParentId(entry.parentId || null);
-            setManualForm({
-                ...entry,
-                minDuration: entry.minDuration || '',
-                maxDuration: entry.maxDuration || ''
-            });
-        }
-        setShowForm(true);
-        setEditOnly(true);
-    };
-
-
-    const handleSaveManual = async () => {
+    const handleSaveManual = () => {
         if (!manualForm.batchNo || !manualForm.benchNo) {
             alert('Batch and Bench required');
             return;
         }
 
-        // Validation for RPM (9000 +/- 4%: 8640 to 9360)
         const minRpmVal = parseInt(manualForm.minRpm);
         const maxRpmVal = parseInt(manualForm.maxRpm);
-        if (isNaN(minRpmVal) || isNaN(maxRpmVal)) {
-            alert('Please enter valid RPM values');
-            return;
-        }
-        if (minRpmVal < 8640 || maxRpmVal > 9360) {
-            alert('RPM must be between 8640 and 9360 (9000 +/- 4%)');
-            return;
-        }
-        if (minRpmVal > maxRpmVal) {
-            alert('Min RPM cannot be greater than Max RPM');
+        if (isNaN(minRpmVal) || isNaN(maxRpmVal) || minRpmVal < 8640 || maxRpmVal > 9360) {
+            alert('Invalid RPM: Speed must be between 8640 and 9360 RPM');
             return;
         }
 
-        // Validation for Duration (120 to 240 seconds)
         const minDurVal = parseInt(manualForm.minDuration);
         const maxDurVal = parseInt(manualForm.maxDuration);
-        if (isNaN(minDurVal) || isNaN(maxDurVal)) {
-            alert('Please enter valid Duration values');
+        if (isNaN(minDurVal) || isNaN(maxDurVal) || minDurVal < 120 || maxDurVal > 240) {
+            alert('Invalid Duration: Cycle must be between 120 and 240 seconds');
             return;
         }
-        if (minDurVal < 120 || maxDurVal > 240) {
-            alert('Duration must be between 120 and 240 seconds');
-            return;
-        }
-        if (minDurVal > maxDurVal) {
-            alert('Min Duration cannot be greater than Max Duration');
-            return;
-        }
+
         const avgDuration = Math.round((minDurVal + maxDurVal) / 2);
         const newEntry = {
-            ...manualForm,
-            duration: avgDuration,
             id: editingId || Date.now(),
-            timestamp: new Date().toISOString(),
-            location: manualForm.location || 'N/A',
-            source: 'Manual'
+            date: manualForm.dateOfCasting,
+            time: manualForm.timeOfCasting,
+            batchNo: manualForm.batchNo,
+            benchNo: manualForm.benchNo,
+            minRpm: minRpmVal,
+            maxRpm: maxRpmVal,
+            minDuration: minDurVal,
+            maxDuration: maxDurVal,
+            duration: avgDuration,
+            source: 'Manual',
+            location: manualForm.location
         };
 
         if (editingId) {
-            try {
-                if (editParentId) {
-                    const batchResult = await apiService.getCompactionById(editParentId);
-                    const batchData = batchResult?.responseData;
-                    if (batchData) {
-                        batchData.manualRecords = (batchData.manualRecords || []).map(m => {
-                            if (m.id === editingId) {
-                                return {
-                                    ...m,
-                                    benchNo: String(manualForm.benchNo),
-                                    minRpm: parseInt(manualForm.minRpm) || 0,
-                                    maxRpm: parseInt(manualForm.maxRpm) || 0,
-                                    minDuration: parseInt(manualForm.minDuration) || 0,
-                                    maxDuration: parseInt(manualForm.maxDuration) || 0,
-                                    duration: avgDuration
-                                };
-                            }
-                            return m;
-                        });
-                        await apiService.updateCompaction(editParentId, batchData);
-                    }
-                }
-                setEntries(prev => prev.map(e => e.id === editingId ? newEntry : e));
-                alert('Record updated successfully');
-            } catch (error) {
-                console.error('Update failed:', error);
-                alert(`Update failed: ${error.message}`);
-            } finally {
-                setEditingId(null);
-                setEditParentId(null);
-                setEditOnly(false);
-            }
+            setSessionRecords(prev => prev.map(e => e.id === editingId ? newEntry : e));
+            setEditingId(null);
         } else {
-            setEntries(prev => [newEntry, ...prev]);
+            setSessionRecords(prev => [newEntry, ...prev]);
         }
-        setManualForm({
-            ...manualForm,
-            batchNo: selectedBatch, benchNo: '', minRpm: '', maxRpm: '', minDuration: '', maxDuration: '', duration: '',
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
-        });
-        setShowForm(false);
+        
+        setManualForm(prev => ({
+            ...prev,
+            benchNo: '',
+            minRpm: '',
+            maxRpm: '',
+            minDuration: '',
+            maxDuration: '',
+            timeOfCasting: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+        }));
     };
 
     const tabs = [
@@ -354,14 +366,14 @@ const CompactionConcrete = ({ onBack, batches = [], sharedState, displayMode = '
         </div>
     );
 
-    const closeForm = () => { setShowForm(false); setEditOnly(false); setEditingId(null); };
+    const closeForm = () => { setShowForm(false); setEditingId(null); };
 
     const renderForm = () => (
         <div className="compaction-form-overlay" onClick={closeForm}>
             <div className="compaction-form-card" onClick={e => e.stopPropagation()}>
                 <div className="compaction-card-header">
                     <div>
-                        <h2>{editOnly ? 'Edit' : 'New'} Compaction Entry</h2>
+                        <h2>New Compaction Entry</h2>
                         <p className="card-subtitle">Monitoring & Assurance</p>
                     </div>
                     <button onClick={closeForm} className="close-mini-btn">✕</button>
@@ -369,31 +381,69 @@ const CompactionConcrete = ({ onBack, batches = [], sharedState, displayMode = '
 
                 <div className="compaction-card-body">
                     <div className="compaction-form-stack">
-                        {!editOnly && (
                         <section className="compaction-section section-blue">
                             <div className="section-header">
                                 <span className="step-number blue-bg">1</span>
                                 <h4>Initial Declaration</h4>
                             </div>
-                            <div className="form-grid compact">
+                            <div className="form-grid compact" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
                                 <div className="form-field">
-                                    <label>Batch No.</label>
+                                    <label>Location</label>
                                     <select
-                                        value={selectedBatch}
-                                        onChange={e => setSelectedBatch(e.target.value)}
+                                        value={manualForm.location}
+                                        onChange={e => setManualForm({ ...manualForm, location: e.target.value, batchNo: '' })}
                                         style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px' }}
                                     >
                                         <option value="">-- Select --</option>
-                                        {availableBatches.map(b => <option key={b} value={b}>{b}</option>)}
+                                        {(fetchedLocations.length > 0 ? fetchedLocations : containers.map(c => c.name)).map(loc => (
+                                            <option key={loc} value={loc}>{loc}</option>
+                                        ))}
                                     </select>
                                 </div>
-                                <div className="form-field"><label>Sleeper Type</label><input value="RT-8746" readOnly /></div>
-                                <div className="form-field"><label>Date</label><input type="text" value={manualForm.date ? manualForm.date.split('-').reverse().join('/') : ''} readOnly /></div>
+                                <div className="form-field">
+                                    <label>Date of Casting</label>
+                                    <input 
+                                        type="date" 
+                                        value={manualForm.dateOfCasting} 
+                                        onChange={e => setManualForm({ ...manualForm, dateOfCasting: e.target.value, batchNo: '' })} 
+                                    />
+                                </div>
+                                <div className="form-field">
+                                    <label>Batch Number</label>
+                                    <select
+                                        value={manualForm.batchNo}
+                                        onChange={e => setManualForm({ ...manualForm, batchNo: e.target.value })}
+                                        disabled={!manualForm.location || !manualForm.dateOfCasting}
+                                        style={{ 
+                                            padding: '8px', 
+                                            border: '1px solid #cbd5e1', 
+                                            borderRadius: '6px',
+                                            background: (!manualForm.location || !manualForm.dateOfCasting) ? '#f1f5f9' : '#fff'
+                                        }}
+                                    >
+                                        <option value="">
+                                            {(!manualForm.location || !manualForm.dateOfCasting) 
+                                                ? '-- Select Loc/Date First --' 
+                                                : '-- Select Available Batch --'}
+                                        </option>
+                                        {batchOptions
+                                            .filter(b => b.batchNumber)
+                                            .map(b => (
+                                                <option key={b.id || b.batchNumber} value={b.batchNumber}>
+                                                    Batch #{b.batchNumber}
+                                                </option>
+                                            ))
+                                        }
+                                    </select>
+                                    {batchOptions.length === 0 && manualForm.location && manualForm.dateOfCasting && (
+                                        <p style={{ margin: '4px 0 0 0', fontSize: '0.65rem', color: '#ef4444', fontWeight: '600' }}>
+                                            No weighment declarations found for this date & location.
+                                        </p>
+                                    )}
+                                </div>
                             </div>
                         </section>
-                        )}
 
-                        {!editOnly && (
                         <section className="compaction-section section-amber">
                             <div className="section-header">
                                 <span className="step-number amber-bg">2</span>
@@ -420,10 +470,10 @@ const CompactionConcrete = ({ onBack, batches = [], sharedState, displayMode = '
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {scadaRecords.filter(r => !selectedBatch || String(r.batchNo) === String(selectedBatch)).length === 0 ? (
-                                            <tr><td colSpan="19" className="empty-msg">No pending SCADA data.</td></tr>
+                                        {(!manualForm.batchNo || scadaRecords.filter(r => String(r.batchNo) === String(manualForm.batchNo)).length === 0) ? (
+                                            <tr><td colSpan="19" className="empty-msg">No pending SCADA data found.</td></tr>
                                         ) : (
-                                            scadaRecords.filter(r => !selectedBatch || String(r.batchNo) === String(selectedBatch)).map(r => (
+                                            scadaRecords.filter(r => String(r.batchNo) === String(manualForm.batchNo)).map(r => (
                                                 <tr key={r.id}>
                                                     <td>{r.time}</td>
                                                     <td><strong>{r.benchNo}</strong></td>
@@ -441,7 +491,6 @@ const CompactionConcrete = ({ onBack, batches = [], sharedState, displayMode = '
                                 </table>
                             </div>
                         </section>
-                        )}
 
                         <section className="compaction-section section-green">
                             <div className="section-header">
@@ -450,6 +499,7 @@ const CompactionConcrete = ({ onBack, batches = [], sharedState, displayMode = '
                             </div>
                             <div className="form-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))' }}>
                                 <div className="form-field"><label>Bench No.</label><input type="number" min="0" value={manualForm.benchNo} onChange={e => setManualForm({ ...manualForm, benchNo: e.target.value })} /></div>
+                                <div className="form-field"><label>Time of Casting</label><input type="time" value={manualForm.timeOfCasting} onChange={e => setManualForm({ ...manualForm, timeOfCasting: e.target.value })} /></div>
                                 <div className="form-field">
                                     <label>Min RPM <small style={{ opacity: 0.6 }}>(8640+)</small></label>
                                     <input 
@@ -469,7 +519,7 @@ const CompactionConcrete = ({ onBack, batches = [], sharedState, displayMode = '
                                     />
                                 </div>
                                 <div className="form-field">
-                                    <label>Min Dur. <small style={{ opacity: 0.6 }}>(120s+)</small></label>
+                                    <label>Min Duration <small style={{ opacity: 0.6 }}>(120s+)</small></label>
                                     <input 
                                         type="number" 
                                         value={manualForm.minDuration} 
@@ -478,7 +528,7 @@ const CompactionConcrete = ({ onBack, batches = [], sharedState, displayMode = '
                                     />
                                 </div>
                                 <div className="form-field">
-                                    <label>Max Dur. <small style={{ opacity: 0.6 }}>(up to 240s)</small></label>
+                                    <label>Max Duration <small style={{ opacity: 0.6 }}>(up to 240s)</small></label>
                                     <input 
                                         type="number" 
                                         value={manualForm.maxDuration} 
@@ -490,68 +540,54 @@ const CompactionConcrete = ({ onBack, batches = [], sharedState, displayMode = '
                             <div className="action-row-center" style={{ marginTop: '1rem' }}><button className="toggle-btn" onClick={handleSaveManual}>{editingId ? 'Update Record' : 'Save Manual Record'}</button></div>
                         </section>
 
-                        {!editOnly && (
                         <section className="compaction-section section-slate" style={{ borderBottom: 'none' }}>
                             <div className="section-header">
                                 <span className="step-number slate-bg">4</span>
-                                <h4>Recent Witness Logs</h4>
+                                <h4>Recent Session Logs</h4>
                             </div>
                             <div className="table-responsive">
                                 <table className="ui-table compact">
-                                    <thead><tr><th>Source</th><th>Date</th><th>Batch</th><th>Bench</th><th>RPM Range</th><th>Duration</th><th>Actions</th></tr></thead>
+                                    <thead><tr><th>Source</th><th>Date</th><th>Location</th><th>Batch</th><th>Bench</th><th>RPM Range</th><th>Duration</th><th>Actions</th></tr></thead>
                                     <tbody>
-                                        {entries.filter(e => !selectedBatch || String(e.batchNo) === String(selectedBatch)).slice(0, 5).map(e => (
-                                            <tr key={e.id}>
-                                                <td><span className={`status-pill ${e.source === 'Manual' ? 'manual' : 'witnessed'}`}>{e.source}</span></td>
-                                                <td>{e.date ? e.date.split('-').reverse().join('/') : ''}</td>
-                                                <td>{e.batchNo}</td><td>{e.benchNo}</td><td>{e.minRpm}-{e.maxRpm}</td><td>{e.minDuration ? `${e.minDuration}-${e.maxDuration}s` : `${e.duration}s`}</td>
-                                                <td>
-                                                    {(() => {
-                                                        const todayStr = new Date().toISOString().split('T')[0];
-                                                        const [y, m, d] = todayStr.split('-');
-                                                        const todayDMY = `${d}/${m}/${y}`;
-                                                        
-                                                        const recordDate = e.date || e.entryDate || e.timestamp || "";
-                                                        const isToday = recordDate.includes(todayStr) || recordDate.includes(todayDMY);
-                                                        
-                                                        if (isToday) {
-                                                            return (
-                                                                <div className="btn-group">
-                                                                    {e.source === 'Manual' && <button className="btn-action" onClick={() => handleEdit(e)}>Edit</button>}
-                                                                    <button className="btn-action danger" onClick={() => handleDelete(e.id)}>Delete</button>
-                                                                </div>
-                                                            );
-                                                        }
-                                                        return <span style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic', display: 'block', textAlign: 'center' }}>Fixed</span>;
-                                                    })()}
-                                                </td>
-                                            </tr>
-                                        ))}
+                                        {sessionRecords.length === 0 ? (
+                                            <tr><td colSpan="8" className="empty-msg">No entries added in this session.</td></tr>
+                                        ) : (
+                                            sessionRecords.map(e => (
+                                                <tr key={e.id}>
+                                                    <td><span className={`status-pill ${e.source === 'Manual' ? 'manual' : 'witnessed'}`}>{e.source}</span></td>
+                                                    <td>{e.date && e.date.includes('-') ? e.date.split('-').reverse().join('/') : (e.date || '—')}</td>
+                                                    <td>{e.location || '—'}</td>
+                                                    <td>{e.batchNo}</td><td>{e.benchNo}</td><td>{e.minRpm}-{e.maxRpm}</td><td>{e.minDuration ? `${e.minDuration}-${e.maxDuration}s` : `${e.duration}s`}</td>
+                                                    <td>
+                                                        <div className="btn-group">
+                                                            <button className="btn-action danger" onClick={() => handleDelete(e.id)}>Delete</button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
                                     </tbody>
                                 </table>
                             </div>
                         </section>
-                        )}
                     </div>
                 </div>
 
-                {!editOnly && (
                 <div className="compaction-card-footer" style={{ padding: '1.5rem', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '1rem', background: '#f8fafc' }}>
                     <button className="btn-action" onClick={closeForm} style={{ padding: '10px 20px' }}>Cancel</button>
                     <button
                         className="toggle-btn"
                         onClick={handleFinalSave}
-                        disabled={isSaving || !selectedBatch}
+                        disabled={isSaving || !manualForm.batchNo}
                         style={{
                             padding: '10px 30px',
-                            background: isSaving || !selectedBatch ? '#94a3b8' : '#0f172a',
-                            cursor: isSaving || !selectedBatch ? 'not-allowed' : 'pointer'
+                            background: isSaving || !manualForm.batchNo ? '#94a3b8' : '#0f172a',
+                            cursor: isSaving || !manualForm.batchNo ? 'not-allowed' : 'pointer'
                         }}
                     >
                         {isSaving ? 'Processing...' : 'Save / Finish Batch'}
                     </button>
                 </div>
-                )}
             </div>
         </div>
     );
@@ -570,13 +606,13 @@ const CompactionConcrete = ({ onBack, batches = [], sharedState, displayMode = '
                                 <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b' }}>Batch:</label>
                                 <select className="dash-select" value={selectedBatch} onChange={e => setSelectedBatch(e.target.value)}>
                                     <option value="">-- All --</option>
-                                    {availableBatches.map(b => <option key={b} value={b}>{b}</option>)}
+                                    {availableBatchesForLogs.map(b => <option key={b} value={b}>{b}</option>)}
                                 </select>
                             </div>
                         </div>
 
                         {(() => {
-                            const filtered = entries.filter(e => !selectedBatch || String(e.batchNo) === String(selectedBatch));
+                            const filtered = (entries || []).filter(e => !selectedBatch || String(e.batchNo) === String(selectedBatch));
                             const avgRpm = filtered.length ? Math.round(filtered.reduce((acc, curr) => acc + (parseInt(curr.minRpm) + parseInt(curr.maxRpm)) / 2, 0) / filtered.length) : 0;
                             const avgDur = filtered.length ? Math.round(filtered.reduce((acc, curr) => acc + parseInt(curr.duration), 0) / filtered.length) : 0;
                             const withinRange = filtered.filter(e => e.minRpm >= 8000 && e.maxRpm <= 10000).length;
@@ -598,7 +634,6 @@ const CompactionConcrete = ({ onBack, batches = [], sharedState, displayMode = '
                                         <div style={{ width: '100%', height: '6px', background: '#e2e8f0', borderRadius: '3px', marginTop: '10px', overflow: 'hidden' }}>
                                             <div style={{ width: `${consistency}%`, height: '100%', background: consistency > 90 ? '#10b981' : consistency > 70 ? '#f59e0b' : '#ef4444', transition: 'width 0.5s ease' }}></div>
                                         </div>
-                                        <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '6px' }}>Within 8k-10k RPM Bounds</div>
                                     </div>
                                     <div className="stats-metric-card" style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                                         <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 'bold', marginBottom: '0.5rem' }}>TOTAL LOGS</div>
@@ -614,17 +649,14 @@ const CompactionConcrete = ({ onBack, batches = [], sharedState, displayMode = '
                     <div className="view-witnessed fade-in">
                         <div className="content-title-row">
                             <h3>Witnessed Compaction Logs</h3>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                <select className="dash-select" value={selectedBatch} onChange={e => setSelectedBatch(e.target.value)}>
-                                    <option value="">-- All Batches --</option>
-                                    {availableBatches.map(b => <option key={b} value={b}>{b}</option>)}
-                                </select>
-                                <button className="toggle-btn" onClick={() => setShowForm(true)}>+ Add New Entry</button>
-                            </div>
+                            <button className="toggle-btn" onClick={() => {
+                                setSessionRecords([]);
+                                setShowForm(true);
+                            }}>+ Add New Entry</button>
                         </div>
 
                         {(() => {
-                            const filtered = entries.filter(e => !selectedBatch || String(e.batchNo) === String(selectedBatch));
+                            const filtered = (entries || []).filter(e => !selectedBatch || String(e.batchNo) === String(selectedBatch));
                             const lineRecords = filtered.filter(r => !(r.location || '').toLowerCase().includes('shed'));
                             const shedRecords = filtered.filter(r => (r.location || '').toLowerCase().includes('shed'));
 
@@ -636,33 +668,22 @@ const CompactionConcrete = ({ onBack, batches = [], sharedState, displayMode = '
                                     <div className="table-outer-wrapper" style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                                         <div className="table-responsive">
                                             <table className="ui-table">
-                                                <thead><tr><th>Location</th><th>Source</th><th>Date</th><th>Time</th><th>Batch</th><th>Bench</th><th>RPM Range</th><th>Dur Range</th><th>Actions</th></tr></thead>
+                                                <thead><tr><th>Location</th><th>Shift</th><th>Source</th><th>Date</th><th>Time</th><th>Batch</th><th>Bench</th><th>Type</th><th>RPM Range</th><th>Dur Range</th><th>Actions</th></tr></thead>
                                                 <tbody>
                                                     {recordsSubset.map(e => (
                                                         <tr key={e.id}>
                                                             <td style={{ fontSize: '11px', color: '#64748b' }}>{e.location || 'N/A'}</td>
+                                                            <td style={{ fontSize: '11px' }}>{e.shift || '—'}</td>
                                                             <td><span className={`status-pill ${e.source === 'Manual' ? 'manual' : 'witnessed'}`}>{e.source}</span></td>
-                                                            <td>{e.date ? e.date.split('-').reverse().join('/') : ''}</td>
-                                                            <td>{e.time}</td><td>{e.batchNo}</td><td><strong>{e.benchNo}</strong></td><td>{e.minRpm}-{e.maxRpm}</td><td>{e.minDuration ? `${e.minDuration}-${e.maxDuration}s` : `${e.duration}s`}</td>
+                                                            <td>{e.date && e.date.includes('-') ? e.date.split('-').reverse().join('/') : (e.date || '—')}</td>
+                                                            <td>{e.time}</td><td>{e.batchNo}</td><td><strong>{e.benchNo}</strong></td><td>{e.sleeperType || '—'}</td><td>{e.minRpm}-{e.maxRpm}</td><td>{e.duration}s</td>
                                                             <td>
-                                                                {(() => {
-                                                                    const todayStr = new Date().toISOString().split('T')[0];
-                                                                    const [y, m, d] = todayStr.split('-');
-                                                                    const todayDMY = `${d}/${m}/${y}`;
-                                                                    
-                                                                    const recordDate = e.date || e.entryDate || e.timestamp || "";
-                                                                    const isToday = recordDate.includes(todayStr) || recordDate.includes(todayDMY);
-                                                                    
-                                                                    if (isToday) {
-                                                                        return (
-                                                                            <div className="btn-group">
-                                                                                {e.source === 'Manual' && <button className="btn-action" onClick={() => handleEdit(e)}>Edit</button>}
-                                                                                <button className="btn-action danger" onClick={() => handleDelete(e.id)}>Delete</button>
-                                                                            </div>
-                                                                        );
-                                                                    }
-                                                                    return <span style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic', display: 'block', textAlign: 'center' }}>Fixed</span>;
-                                                                })()}
+                                                                <button 
+                                                                    className="btn-action mini danger" 
+                                                                    onClick={() => handleDeleteLog(e.parentId)}
+                                                                >
+                                                                    Delete
+                                                                </button>
                                                             </td>
                                                         </tr>
                                                     ))}
@@ -696,7 +717,7 @@ const CompactionConcrete = ({ onBack, batches = [], sharedState, displayMode = '
                                 <label style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Batch:</label>
                                 <select className="dash-select" value={selectedBatch} onChange={e => setSelectedBatch(e.target.value)}>
                                     <option value="">-- All --</option>
-                                    {availableBatches.map(b => <option key={b} value={b}>{b}</option>)}
+                                    {availableBatchesForLogs.map(b => <option key={b} value={b}>{b}</option>)}
                                 </select>
                             </div>
                         </div>
@@ -757,10 +778,13 @@ const CompactionConcrete = ({ onBack, batches = [], sharedState, displayMode = '
                 <header className="modal-header">
                     <div className="header-titles">
                         <h2>Compaction & Vibration Console</h2>
-                        <p className="header-subtitle">Concrete Compaction Monitoring & Assurance</p>
+                        <p className="header-subtitle">Performance Monitoring & Assurance</p>
                     </div>
                     <div className="header-actions">
-                        <button className="toggle-btn mini" onClick={() => setShowForm(true)}>+ Add New Entry</button>
+                        <button className="toggle-btn mini" onClick={() => {
+                            setSessionRecords([]);
+                            setShowForm(true);
+                        }}>+ Add New Entry</button>
                         <button className="close-btn" onClick={onBack}>✕</button>
                     </div>
                 </header>

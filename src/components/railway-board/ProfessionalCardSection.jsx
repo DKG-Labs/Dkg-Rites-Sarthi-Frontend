@@ -10,6 +10,21 @@ import './ProfessionalCardSection.css';
 import './InspectionStackedCharts.css';
 import './PerformanceMatrixTheme.css';
 import FeedbackSection from './FeedbackSection';
+import SleeperSummary from './sleeper-board/SleeperSummary';
+import SleeperQuality from './sleeper-board/SleeperQuality';
+import SleeperLifecycle from './sleeper-board/SleeperLifecycle';
+import SleeperMauReport from './sleeper-board/SleeperMauReport';
+import SleeperMprReport from './sleeper-board/SleeperMprReport';
+import SleeperLwclReport from './sleeper-board/SleeperLwclReport';
+import SleeperScadaMonitor from './sleeper-board/SleeperScadaMonitor';
+import RailPadSummary from './railpad-board/RailPadSummary';
+import RailPadQuality from './railpad-board/RailPadQuality';
+import RailPadLifecycle from './railpad-board/RailPadLifecycle';
+import RailPadPerformance from './railpad-board/RailPadPerformance';
+import RailPadMprReport from './railpad-board/RailPadMprReport';
+import RailPadMauReport from './railpad-board/RailPadMauReport';
+import RailPadLwcpReport from './railpad-board/RailPadLwcpReport';
+
 
 // --- Static Data moved outside component to fix ESLint re-render warnings ---
 const staticInspectionCallsData = [
@@ -88,7 +103,11 @@ const ProfessionalCardSection = ({
     setMpiaPage = () => { },
     mpiaRowsPerPage = 10,
     setMpiaRowsPerPage = () => { },
-    onReportTabChange = () => { }
+    onReportTabChange = () => { },
+    fromDate,
+    toDate,
+    setFromDate = () => { },
+    setToDate = () => { }
 }) => {
     // Map selectedProduct to summary data keys
     const getSummaryKey = (prod) => {
@@ -351,9 +370,15 @@ const ProfessionalCardSection = ({
     const renderSubContent = () => {
         // Under Development Placeholder for non-ERC products
         const product = selectedProduct?.toLowerCase() || '';
+        const isSleeper = product.includes('sleeper');
         const isErc = product.includes('erc') || product === 'all' || !product;
 
-        if (!isErc) {
+        const isRailPad = product.includes('rail pad') || product.includes('railpad');
+        const isUnderDev = (!isErc && !isSleeper && !isRailPad) || (isSleeper && activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'reports' && activeMainCard !== 'scada');
+
+
+
+        if (isUnderDev) {
             return (
                 <div className="under-dev-container fade-in" style={{ padding: '2rem 0' }}>
                     <div className="prof-card" style={{
@@ -374,16 +399,16 @@ const ProfessionalCardSection = ({
                             marginBottom: '1rem',
                             filter: 'drop-shadow(0 10px 15px rgba(0,0,0,0.1))',
                             animation: 'bounce 2s infinite'
-                        }}>🏗️</div>
+                        }}>{isSleeper ? '📊' : '🏗️'}</div>
                         <h2 style={{ fontSize: '32px', color: '#065f46', marginBottom: '10px' }}>
-                            {selectedProduct?.toUpperCase()}
+                            {selectedProduct?.toUpperCase()} {isSleeper ? activeMainCard.toUpperCase() : ''}
                         </h2>
                         <h3 style={{ fontSize: '20px', color: '#059669', marginBottom: '20px', fontWeight: '600' }}>
                             Section Under Development
                         </h3>
                         <p style={{ color: '#475569', maxWidth: '450px', lineHeight: '1.6', fontSize: '15px' }}>
-                            We are currently integrating data for this product line.
-                            Stay tuned for a complete performance overview of {selectedProduct} soon!
+                            We are currently integrating data for this {isSleeper ? 'specific analysis' : 'product line'}.
+                            Stay tuned for a complete performance overview soon!
                         </p>
                         <div style={{
                             marginTop: '2rem',
@@ -417,7 +442,14 @@ const ProfessionalCardSection = ({
                 {(() => {
                     switch (activeMainCard) {
                         case 'summary':
+                            if (isSleeper) {
+                                return <SleeperSummary summaryData={summaryData} />;
+                            }
+                            if (isRailPad) {
+                                return <RailPadSummary summaryData={summaryData} />;
+                            }
                             const s = summaryData || {};
+
                             return (
                                 <div className="summary-tab-content">
                                     <div className="g3 mb">
@@ -518,52 +550,84 @@ const ProfessionalCardSection = ({
 
                                     <div className="prof-card">
                                         <div className="sec-title">Production & Rejection</div>
-                                        <div className="g4">
-                                            <div className="prof-card card-spring-green" style={{ textAlign: 'center' }}>
-                                                <div className="kpi-lbl" style={{ color: '#065f46' }}>Avg Production/Day</div>
-                                                <div className="kpi-val" style={{ color: '#064e3b' }}>{(Math.round(s.avgProductionPerDay ?? 947)).toLocaleString()}</div>
-                                                <div className="kpi-sub" style={{ color: '#047857' }}>Nos.</div>
-                                            </div>
-                                            <div className="prof-card card-lime" style={{ textAlign: 'center' }}>
-                                                <div className="kpi-lbl" style={{ color: '#3f6212' }}>Process Rejection</div>
-                                                <div className="kpi-val" style={{ color: '#365314' }}>{formatDecimal(s.processRejectionPercentage ?? 4.2)}%</div>
-                                                <div className="prof-prog"><div className="prof-prog-f" style={{ width: `${Math.min(100, (s.processRejectionPercentage ?? 4.2) * 10)}%`, background: '#84cc16' }}></div></div>
-                                            </div>
-                                            <div className="prof-card card-ruby" style={{ textAlign: 'center' }}>
-                                                <div className="kpi-lbl" style={{ color: '#991b1b' }}>Final Rejection</div>
-                                                <div className="kpi-val" style={{ color: '#7f1d1d' }}>{formatDecimal(s.finalRejectionPercentage ?? 1.8)}%</div>
-                                                <div className="prof-prog"><div className="prof-prog-f" style={{ width: `${Math.min(100, (s.finalRejectionPercentage ?? 1.8) * 10)}%`, background: '#e11d48' }}></div></div>
-                                            </div>
-                                            <div className="prof-card card-gold" style={{ textAlign: 'center' }}>
-                                                <div className="kpi-lbl" style={{ color: '#854d0e' }}>RM Rejection</div>
-                                                <div className="kpi-val" style={{ color: '#713f12' }}>{formatDecimal(s.rmRejectionPercentage ?? 3.2)}%</div>
-                                                <div className="prof-prog"><div className="prof-prog-f" style={{ width: `${Math.min(100, (s.rmRejectionPercentage ?? 3.2) * 10)}%`, background: '#eab308' }}></div></div>
-                                            </div>
-                                        </div>
+                                        {(() => {
+                                            const procData = (inspectionDetailsData?.length > 0 ? inspectionDetailsData : staticInspectionDetailsData).find(x => x.name === 'Process');
+                                            const pAcc = procData?.accepted || 0;
+                                            const pRej = procData?.rejected || 0;
+                                            const pInsp = pAcc + pRej;
+                                            const pRejPct = pInsp > 0 ? (pRej * 100) / pInsp : 0;
+
+                                            return (
+                                                <div className="g4">
+                                                    <div className="prof-card card-spring-green" style={{ textAlign: 'center' }}>
+                                                        <div className="kpi-lbl" style={{ color: '#065f46' }}>Avg Production/Day</div>
+                                                        <div className="kpi-val" style={{ color: '#064e3b' }}>{(Math.round(s.avgProductionPerDay ?? 947)).toLocaleString()}</div>
+                                                        <div className="kpi-sub" style={{ color: '#047857' }}>Nos.</div>
+                                                    </div>
+                                                    <div className="prof-card card-lime" style={{ textAlign: 'center' }}>
+                                                        <div className="kpi-lbl" style={{ color: '#3f6212' }}>Process Rejection</div>
+                                                        <div className="kpi-val" style={{ color: '#365314' }}>{formatDecimal(pRejPct)}%</div>
+                                                        <div className="prof-prog"><div className="prof-prog-f" style={{ width: `${Math.min(100, pRejPct * 10)}%`, background: '#84cc16' }}></div></div>
+                                                    </div>
+                                                    <div className="prof-card card-ruby" style={{ textAlign: 'center' }}>
+                                                        <div className="kpi-lbl" style={{ color: '#991b1b' }}>Final Rejection</div>
+                                                        <div className="kpi-val" style={{ color: '#7f1d1d' }}>{formatDecimal(s.finalRejectionPercentage ?? 1.8)}%</div>
+                                                        <div className="prof-prog"><div className="prof-prog-f" style={{ width: `${Math.min(100, (s.finalRejectionPercentage ?? 1.8) * 10)}%`, background: '#e11d48' }}></div></div>
+                                                    </div>
+                                                    <div className="prof-card card-gold" style={{ textAlign: 'center' }}>
+                                                        <div className="kpi-lbl" style={{ color: '#854d0e' }}>RM Rejection</div>
+                                                        <div className="kpi-val" style={{ color: '#713f12' }}>{formatDecimal(s.rmRejectionPercentage ?? 3.2)}%</div>
+                                                        <div className="prof-prog"><div className="prof-prog-f" style={{ width: `${Math.min(100, (s.rmRejectionPercentage ?? 3.2) * 10)}%`, background: '#eab308' }}></div></div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 </div>
                             );
 
                         case 'quality':
+                            if (isSleeper) {
+                                return <SleeperQuality 
+                                    fromDate={fromDate} 
+                                    toDate={toDate} 
+                                    setFromDate={setFromDate} 
+                                    setToDate={setToDate} 
+                                />;
+                            }
+                            if (isRailPad) {
+                                return <RailPadQuality />;
+                            }
                             return (
+
                                 <div className="quality-tab-content fade-in">
                                     <div className="sec-title" style={{ fontSize: '14px', marginBottom: '10px' }}>Railway Quality Surveillance · ERC Defect Analysis</div>
 
                                     {/* KPI Row exactly from Index 5, adjusted to hide Total Defects */}
-                                    <div className="g3 mb">
-                                        <div className="prof-card card-red" style={{ textAlign: 'center' }}>
-                                            <div className="kpi-lbl" style={{ color: '#991b1b' }}>Process Overall Rejection %</div>
-                                            <div className="kpi-val" style={{ color: '#7f1d1d' }}>{formatDecimal(summaryData?.processRejectionPercentage ?? 1.34)}%</div>
-                                        </div>
-                                        <div className="prof-card card-mint" style={{ textAlign: 'center' }}>
-                                            <div className="kpi-lbl" style={{ color: '#166534' }}>Top Defect</div>
-                                            <div style={{ fontSize: '13px', fontWeight: '700', color: '#166534', marginTop: '5px' }}>{paretoAnalysisData?.[0]?.name || 'Turning Length'}</div>
-                                        </div>
-                                        <div className="prof-card card-amber" style={{ textAlign: 'center' }}>
-                                            <div className="kpi-lbl" style={{ color: '#92400e' }}>Worst Plant</div>
-                                            <div style={{ fontSize: '12px', fontWeight: '700', color: '#78350f', marginTop: '5px' }}>{processPerformanceData?.worstPerforming?.length > 0 ? processPerformanceData.worstPerforming[0]?.name : manufacturerRejectionData?.length > 0 ? [...manufacturerRejectionData].sort((a, b) => b.value - a.value)[0]?.name : 'Adinath Industries'}</div>
-                                        </div>
-                                    </div>
+                                    {(() => {
+                                        const procData = (inspectionDetailsData?.length > 0 ? inspectionDetailsData : staticInspectionDetailsData).find(x => x.name === 'Process');
+                                        const pAcc = procData?.accepted || 0;
+                                        const pRej = procData?.rejected || 0;
+                                        const pInsp = pAcc + pRej;
+                                        const pRejPct = pInsp > 0 ? (pRej * 100) / pInsp : 0;
+
+                                        return (
+                                            <div className="g3 mb">
+                                                <div className="prof-card card-red" style={{ textAlign: 'center' }}>
+                                                    <div className="kpi-lbl" style={{ color: '#991b1b' }}>Process Overall Rejection %</div>
+                                                    <div className="kpi-val" style={{ color: '#7f1d1d' }}>{formatDecimal(pRejPct)}%</div>
+                                                </div>
+                                                <div className="prof-card card-mint" style={{ textAlign: 'center' }}>
+                                                    <div className="kpi-lbl" style={{ color: '#166534' }}>Top Defect</div>
+                                                    <div style={{ fontSize: '13px', fontWeight: '700', color: '#166534', marginTop: '5px' }}>{paretoAnalysisData?.[0]?.name || 'Turning Length'}</div>
+                                                </div>
+                                                <div className="prof-card card-amber" style={{ textAlign: 'center' }}>
+                                                    <div className="kpi-lbl" style={{ color: '#92400e' }}>Worst Plant</div>
+                                                    <div style={{ fontSize: '12px', fontWeight: '700', color: '#78350f', marginTop: '5px' }}>{processPerformanceData?.worstPerforming?.length > 0 ? processPerformanceData.worstPerforming[0]?.name : manufacturerRejectionData?.length > 0 ? [...manufacturerRejectionData].sort((a, b) => b.value - a.value)[0]?.name : 'Adinath Industries'}</div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
 
                                     {/* Analysis Grid (3x2) exactly from Index 5 */}
                                     <div className="g2 mb">
@@ -828,7 +892,14 @@ const ProfessionalCardSection = ({
                             );
 
                         case 'lifecycle':
+                            if (isSleeper) {
+                                return <SleeperLifecycle />;
+                            }
+                            if (isRailPad) {
+                                return <RailPadLifecycle />;
+                            }
                             return (
+
                                 <div className="lifecycle-tab-content fade-in">
                                     <div className="prof-card mb">
                                         <div className="sec-title">Purchase Order Lifecycle Tracking</div>
@@ -839,6 +910,9 @@ const ProfessionalCardSection = ({
                             );
 
                         case 'performance':
+                            if (isRailPad) {
+                                return <RailPadPerformance />;
+                            }
                             return (
                                 <div className="performance-tab-content fade-in">
                                     <div className="prof-card">
@@ -927,258 +1001,82 @@ const ProfessionalCardSection = ({
                                         <div className={`sub-tab-btn ${activeReport === 'mpr' ? 'active' : ''}`} onClick={() => { setActiveReport('mpr'); onReportTabChange('mpr'); }}>📋 MPR</div>
                                         <div className={`sub-tab-btn ${activeReport === 'mau' ? 'active' : ''}`} onClick={() => { setActiveReport('mau'); onReportTabChange('mau'); }}>📈 MAU</div>
                                         <div className={`sub-tab-btn ${activeReport === 'lwcl' ? 'active' : ''}`} onClick={() => { setActiveReport('lwcl'); onReportTabChange('lwcl'); }}>🔄 LWCL</div>
-                                        <div className={`sub-tab-btn ${activeReport === 'mpia' ? 'active' : ''}`} onClick={() => { setActiveReport('mpia'); onReportTabChange('mpia'); }}>⚙️ MPIA</div>
+                                        {!isSleeper && !isRailPad && <div className={`sub-tab-btn ${activeReport === 'mpia' ? 'active' : ''}`} onClick={() => { setActiveReport('mpia'); onReportTabChange('mpia'); }}>⚙️ MPIA</div>}
                                     </div>
 
                                     <div className="report-viewer-content">
-                                        {activeReport === 'mpr' && (
-                                            <div className="prof-card animate-up">
-                                                <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                    <span>Monthly Progress Report</span>
-                                                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                                                        <ExportButton
-                                                            onClick={() => downloadExcel(
-                                                                displayMprData,
-                                                                [
-                                                                    { label: 'Rly', key: 'rly' },
-                                                                    { label: 'PO Number', key: 'poNumber' },
-                                                                    { label: 'Manufacturer', key: 'manufacturer' },
-                                                                    { label: 'PO Qty', key: 'poQty' },
-                                                                    { label: 'RM', key: 'monthlyRm' },
-                                                                    { label: 'Process', key: 'monthlyProcess' },
-                                                                    { label: 'Final', key: 'monthlyFinal' },
-                                                                    { label: 'Total Final Inspected', key: 'totalFinalInspected' },
-                                                                    { label: 'Balance', key: 'poBalance' }
-                                                                ],
-                                                                'Monthly_Progress_Report'
-                                                            )}
-                                                        />
-                                                        <input type="text" placeholder="Search..." className="prof-search" value={mprSearch} onChange={(e) => setMprSearch(e.target.value)} />
-                                                    </div>
-                                                </div>
-                                                <div className="table-responsive">
-                                                    <table className="prof-table">
-                                                        <thead>
-                                                            <tr className="sortable-header">
-                                                                <th onClick={() => handleMprSort('rly')}>Rly {renderSortIcon('rly', mprSort)}</th>
-                                                                <th onClick={() => handleMprSort('poNumber')}>PO Number {renderSortIcon('poNumber', mprSort)}</th>
-                                                                <th onClick={() => handleMprSort('manufacturer')}>Manufacturer {renderSortIcon('manufacturer', mprSort)}</th>
-                                                                <th className="text-right" onClick={() => handleMprSort('poQty')}>PO Qty {renderSortIcon('poQty', mprSort)}</th>
-                                                                <th className="text-right" onClick={() => handleMprSort('monthlyRm')}>RM {renderSortIcon('monthlyRm', mprSort)}</th>
-                                                                <th className="text-right" onClick={() => handleMprSort('monthlyProcess')}>Process {renderSortIcon('monthlyProcess', mprSort)}</th>
-                                                                <th className="text-right" onClick={() => handleMprSort('monthlyFinal')}>Final {renderSortIcon('monthlyFinal', mprSort)}</th>
-                                                                <th className="text-right" onClick={() => handleMprSort('totalFinalInspected')}>Total Final Inspected {renderSortIcon('totalFinalInspected', mprSort)}</th>
-                                                                <th className="text-right" onClick={() => handleMprSort('poBalance')}>Balance {renderSortIcon('poBalance', mprSort)}</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {displayMprData.map((row, idx) => (
-                                                                <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
-                                                                    <td>{row.rly}</td>
-                                                                    <td>{row.poNumber}</td>
-                                                                    <td>{row.manufacturer}</td>
-                                                                    <td className="text-right">{row.poQty?.toLocaleString()}</td>
-                                                                    <td className="text-right">{row.monthlyRm?.toLocaleString()}</td>
-                                                                    <td className="text-right">{row.monthlyProcess?.toLocaleString()}</td>
-                                                                    <td className="text-right">{row.monthlyFinal?.toLocaleString()}</td>
-                                                                    <td className="text-right">{row.totalFinalInspected?.toLocaleString()}</td>
-                                                                    <td className="text-right font-bold" style={{ color: '#16a34a' }}>{row.poBalance?.toLocaleString()}</td>
-                                                                </tr>
-                                                            ))}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                                <div className="mt-4">
-                                                    <Pagination
-                                                        currentPage={mprPage} totalPages={mprPagination.totalPages}
-                                                        start={mprPage * mprRowsPerPage} end={Math.min((mprPage + 1) * mprRowsPerPage, mprPagination.totalElements)}
-                                                        totalCount={mprPagination.totalElements} onPageChange={setMprPage}
-                                                        rows={mprRowsPerPage} onRowsChange={setMprRowsPerPage}
-                                                    />
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {activeReport === 'mau' && (
-                                            <div className="prof-card animate-up">
-                                                <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                    <span>Monthly Analysis of Units</span>
-                                                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                                                        <ExportButton
-                                                            onClick={() => downloadExcel(
-                                                                displayMauData,
-                                                                [
-                                                                    { label: 'Manufacturer', key: 'manufacturer' },
-                                                                    { label: 'Manufactured', key: 'manufactured' },
-                                                                    { label: 'Inspected', key: 'inspected' },
-                                                                    { label: 'Rejected', key: 'rejected' },
-                                                                    { label: 'RM %', key: 'rmRejPercent' },
-                                                                    { label: 'Process %', key: 'processRejPercent' },
-                                                                    { label: 'Final %', key: 'finalRejPercent' }
-                                                                ],
-                                                                'Monthly_Analysis_of_Units'
-                                                            )}
-                                                        />
-                                                        <input type="text" placeholder="Search..." className="prof-search" value={mauSearch} onChange={(e) => setMauSearch(e.target.value)} />
-                                                    </div>
-                                                </div>
-                                                <div className="table-responsive">
-                                                    <table className="prof-table">
-                                                        <thead>
-                                                            <tr className="sortable-header">
-                                                                <th onClick={() => handleMauSort('manufacturer')}>Manufacturer {renderSortIcon('manufacturer', mauSort)}</th>
-                                                                <th className="text-right" onClick={() => handleMauSort('manufactured')}>Manufactured {renderSortIcon('manufactured', mauSort)}</th>
-                                                                <th className="text-right" onClick={() => handleMauSort('inspected')}>Inspected {renderSortIcon('inspected', mauSort)}</th>
-                                                                <th className="text-right" onClick={() => handleMauSort('rejected')}>Rejected {renderSortIcon('rejected', mauSort)}</th>
-                                                                <th className="text-right" onClick={() => handleMauSort('rmRejPercent')}>RM % {renderSortIcon('rmRejPercent', mauSort)}</th>
-                                                                <th className="text-right" onClick={() => handleMauSort('processRejPercent')}>Process % {renderSortIcon('processRejPercent', mauSort)}</th>
-                                                                <th className="text-right" onClick={() => handleMauSort('finalRejPercent')}>Final % {renderSortIcon('finalRejPercent', mauSort)}</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {displayMauData.map((row, idx) => (
-                                                                <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
-                                                                    <td>{row.manufacturer}</td>
-                                                                    <td className="text-right">{row.manufactured?.toLocaleString()}</td>
-                                                                    <td className="text-right">{row.inspected?.toLocaleString()}</td>
-                                                                    <td className="text-right" style={{ color: '#dc2626' }}>{row.rejected?.toLocaleString()}</td>
-                                                                    <td className="text-right">{formatDecimal(row.rmRejPercent)}%</td>
-                                                                    <td className="text-right text-red-600">{formatDecimal(row.processRejPercent)}%</td>
-                                                                    <td className="text-right">{formatDecimal(row.finalRejPercent)}%</td>
-                                                                </tr>
-                                                            ))}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                                <div className="mt-4">
-                                                    <Pagination
-                                                        currentPage={mauPage} totalPages={mauPagination.totalPages}
-                                                        start={mauPage * mauRowsPerPage} end={Math.min((mauPage + 1) * mauRowsPerPage, mauPagination.totalElements)}
-                                                        totalCount={mauPagination.totalElements} onPageChange={setMauPage}
-                                                        rows={mauRowsPerPage} onRowsChange={setMauRowsPerPage}
-                                                    />
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {activeReport === 'lwcl' && (
-                                            <div className="prof-card animate-up">
-                                                <div className="sec-title">Lot Wise Closed Loop</div>
-                                                <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-                                                    <select className="prof-select" style={{ maxWidth: '300px' }} value={lwclCallNo} onChange={(e) => setLwclCallNo(e.target.value)}>
-                                                        <option value="">Select Call No.</option>
-                                                        {lwclRequestIds.map(id => <option key={id} value={id}>{id}</option>)}
-                                                    </select>
-                                                </div>
-                                                {level4Loading ? (
-                                                    <div className="p-12 text-center text-teal font-medium">Loading Process Defect Summary...</div>
-                                                ) : lwclCallNo ? (
-                                                    <Level4ReportTable data={level4Data} />
-                                                ) : (
-                                                    <div className="p-12 text-center text-slate-400">
-                                                        Please select a <strong>Call Number</strong> from the dropdown above to view the report details.
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-
-                                        {activeReport === 'mpia' && (
-                                            <div className={`prof-card animate-up ${batchReportData ? 'no-print' : ''}`} style={{ padding: drilldownManufacturer ? '0' : '15px' }}>
-                                                {drilldownManufacturer ? (
-                                                    <MpiaDrillDown
-                                                        data={drilldownData}
-                                                        manufacturer={drilldownManufacturer}
-                                                        loading={isDrilldownLoading}
-                                                        onBack={() => setDrilldownManufacturer(null)}
-                                                    />
-                                                ) : (
-                                                    <>
+                                        {isRailPad ? (
+                                            (() => {
+                                                switch (activeReport) {
+                                                    case 'mpr': return <RailPadMprReport />;
+                                                    case 'mau': return <RailPadMauReport />;
+                                                    case 'lwcl': return <RailPadLwcpReport />;
+                                                    default: return <RailPadMprReport />;
+                                                }
+                                            })()
+                                        ) : isSleeper ? (
+                                            (() => {
+                                                switch (activeReport) {
+                                                    case 'mpr': return <SleeperMprReport mprData={mprData} loading={mprLoading} />;
+                                                    case 'mau': return <SleeperMauReport mauData={mauData} loading={mauLoading} />;
+                                                    case 'lwcl': return <SleeperLwclReport lwclData={lwclData} loading={lwclLoading} callNo={lwclCallNo} setCallNo={setLwclCallNo} lotNo={lwclLotNo} setLotNo={setLwclLotNo} requestIds={lwclRequestIds} lotNumbers={lwclLotNumbers} />;
+                                                    default: return <SleeperMprReport mprData={mprData} />;
+                                                }
+                                            })()
+                                        ) : (
+                                            <>
+                                                {activeReport === 'mpr' && (
+                                                    <div className="prof-card animate-up">
                                                         <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                            <span>Manufacture Process Inspection Analysis</span>
+                                                            <span>Monthly Progress Report</span>
                                                             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                                                                 <ExportButton
-                                                                    label="Download Summary"
                                                                     onClick={() => downloadExcel(
-                                                                        displayMpiaData,
+                                                                        displayMprData,
                                                                         [
-                                                                            { label: 'Manufacture', key: 'manufacture' },
-                                                                            { label: 'Total Inspected', key: 'totalInspected' },
-                                                                            { label: 'Total Accepted', key: 'totalAccepted' },
-                                                                            { label: 'Total Rejected', key: 'totalRejected' },
-                                                                            { label: 'Rejection %', key: 'rejectionPercent' }
+                                                                            { label: 'Rly', key: 'rly' },
+                                                                            { label: 'PO Number', key: 'poNumber' },
+                                                                            { label: 'Manufacturer', key: 'manufacturer' },
+                                                                            { label: 'PO Qty', key: 'poQty' },
+                                                                            { label: 'RM', key: 'monthlyRm' },
+                                                                            { label: 'Process', key: 'monthlyProcess' },
+                                                                            { label: 'Final', key: 'monthlyFinal' },
+                                                                            { label: 'Total Final Inspected', key: 'totalFinalInspected' },
+                                                                            { label: 'Balance', key: 'poBalance' }
                                                                         ],
-                                                                        'Manufacture_Process_Inspection_Analysis_Summary'
+                                                                        'Monthly_Progress_Report'
                                                                     )}
                                                                 />
-                                                                <ExportButton
-                                                                    label={isPreparingBatchPdf ? `Preparing (${batchProgress}/${mpiaData.length})...` : "Batch PDF Report"}
-                                                                    disabled={isPreparingBatchPdf}
-                                                                    onClick={async () => {
-                                                                        if (!mpiaData || mpiaData.length === 0) {
-                                                                            alert("No manufacturers found to process.");
-                                                                            return;
-                                                                        }
-                                                                        try {
-                                                                            setBatchProgress(0);
-                                                                            setIsPreparingBatchPdf(true);
-                                                                            const end = new Date().toISOString().split('T')[0];
-                                                                            const start = new Date(new Date().setFullYear(new Date().getFullYear() - 1)).toISOString().split('T')[0];
-
-                                                                            const results = await Promise.all(mpiaData.map(async (m) => {
-                                                                                try {
-                                                                                    const res = await reportService.getCompanyMonthWiseData({
-                                                                                        companyName: m.manufacture,
-                                                                                        startDate: start,
-                                                                                        endDate: end,
-                                                                                        page: 0,
-                                                                                        size: 13
-                                                                                    });
-                                                                                    const data = res.responseData?.content || res.content || res || [];
-                                                                                    setBatchProgress(prev => prev + 1);
-                                                                                    return { manufacturer: m.manufacture, data: Array.isArray(data) ? data : [] };
-                                                                                } catch (e) {
-                                                                                    return { manufacturer: m.manufacture, data: [] };
-                                                                                }
-                                                                            }));
-
-                                                                            setBatchReportData(results);
-                                                                        } catch (err) {
-                                                                            setIsPreparingBatchPdf(false);
-                                                                            alert("Failed to prepare batch PDF data.");
-                                                                        }
-                                                                    }}
-                                                                />
-                                                                <input type="text" placeholder="Search..." className="prof-search" value={mpiaSearch} onChange={(e) => setMpiaSearch(e.target.value)} />
+                                                                <input type="text" placeholder="Search..." className="prof-search" value={mprSearch} onChange={(e) => setMprSearch(e.target.value)} />
                                                             </div>
                                                         </div>
                                                         <div className="table-responsive">
                                                             <table className="prof-table">
                                                                 <thead>
                                                                     <tr className="sortable-header">
-                                                                        <th onClick={() => handleMpiaSort('manufacture')}>Manufacture {renderSortIcon('manufacture', mpiaSort)}</th>
-                                                                        <th className="text-right" onClick={() => handleMpiaSort('totalInspected')}>Total Inspected {renderSortIcon('totalInspected', mpiaSort)}</th>
-                                                                        <th className="text-right" onClick={() => handleMpiaSort('totalAccepted')}>Total Accepted {renderSortIcon('totalAccepted', mpiaSort)}</th>
-                                                                        <th className="text-right" onClick={() => handleMpiaSort('totalRejected')}>Total Rejected {renderSortIcon('totalRejected', mpiaSort)}</th>
-                                                                        <th className="text-right" onClick={() => handleMpiaSort('rejectionPercent')}>Rejection % {renderSortIcon('rejectionPercent', mpiaSort)}</th>
+                                                                        <th onClick={() => handleMprSort('rly')}>Rly {renderSortIcon('rly', mprSort)}</th>
+                                                                        <th onClick={() => handleMprSort('poNumber')}>PO Number {renderSortIcon('poNumber', mprSort)}</th>
+                                                                        <th onClick={() => handleMprSort('manufacturer')}>Manufacturer {renderSortIcon('manufacturer', mprSort)}</th>
+                                                                        <th className="text-right" onClick={() => handleMprSort('poQty')}>PO Qty {renderSortIcon('poQty', mprSort)}</th>
+                                                                        <th className="text-right" onClick={() => handleMprSort('monthlyRm')}>RM {renderSortIcon('monthlyRm', mprSort)}</th>
+                                                                        <th className="text-right" onClick={() => handleMprSort('monthlyProcess')}>Process {renderSortIcon('monthlyProcess', mprSort)}</th>
+                                                                        <th className="text-right" onClick={() => handleMprSort('monthlyFinal')}>Final {renderSortIcon('monthlyFinal', mprSort)}</th>
+                                                                        <th className="text-right" onClick={() => handleMprSort('totalFinalInspected')}>Total Final Inspected {renderSortIcon('totalFinalInspected', mprSort)}</th>
+                                                                        <th className="text-right" onClick={() => handleMprSort('poBalance')}>Balance {renderSortIcon('poBalance', mprSort)}</th>
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody>
-                                                                    {displayMpiaData.map((row, idx) => (
+                                                                    {displayMprData.map((row, idx) => (
                                                                         <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
-                                                                            <td
-                                                                                className="font-bold text-emerald-800 cursor-pointer hover:underline"
-                                                                                onClick={() => setDrilldownManufacturer(row.manufacture)}
-                                                                            >
-                                                                                {row.manufacture}
-                                                                            </td>
-                                                                            <td className="text-right">{row.totalInspected?.toLocaleString()}</td>
-                                                                            <td className="text-right" style={{ color: '#16a34a' }}>{row.totalAccepted?.toLocaleString()}</td>
-                                                                            <td className="text-right" style={{ color: '#dc2626' }}>{row.totalRejected?.toLocaleString()}</td>
-                                                                            <td className="text-right">
-                                                                                <span className="prof-badge" style={{ background: '#fff7ed', color: '#9a3412', fontWeight: 'bold' }}>
-                                                                                    {row.rejectionPercent?.toFixed(2)}%
-                                                                                </span>
-                                                                            </td>
+                                                                            <td>{row.rly}</td>
+                                                                            <td>{row.poNumber}</td>
+                                                                            <td>{row.manufacturer}</td>
+                                                                            <td className="text-right">{row.poQty?.toLocaleString()}</td>
+                                                                            <td className="text-right">{row.monthlyRm?.toLocaleString()}</td>
+                                                                            <td className="text-right">{row.monthlyProcess?.toLocaleString()}</td>
+                                                                            <td className="text-right">{row.monthlyFinal?.toLocaleString()}</td>
+                                                                            <td className="text-right">{row.totalFinalInspected?.toLocaleString()}</td>
+                                                                            <td className="text-right font-bold" style={{ color: '#16a34a' }}>{row.poBalance?.toLocaleString()}</td>
                                                                         </tr>
                                                                     ))}
                                                                 </tbody>
@@ -1186,28 +1084,227 @@ const ProfessionalCardSection = ({
                                                         </div>
                                                         <div className="mt-4">
                                                             <Pagination
-                                                                currentPage={mpiaPage} totalPages={mpiaPagination.totalPages}
-                                                                start={mpiaPage * mpiaRowsPerPage} end={Math.min((mpiaPage + 1) * mpiaRowsPerPage, mpiaPagination.totalElements)}
-                                                                totalCount={mpiaPagination.totalElements} onPageChange={setMpiaPage}
-                                                                rows={mpiaRowsPerPage} onRowsChange={setMpiaRowsPerPage}
+                                                                currentPage={mprPage} totalPages={mprPagination.totalPages}
+                                                                start={mprPage * mprRowsPerPage} end={Math.min((mprPage + 1) * mprRowsPerPage, mprPagination.totalElements)}
+                                                                totalCount={mprPagination.totalElements} onPageChange={setMprPage}
+                                                                rows={mprRowsPerPage} onRowsChange={setMprRowsPerPage}
                                                             />
                                                         </div>
-                                                    </>
+                                                    </div>
                                                 )}
-                                            </div>
+
+                                                {activeReport === 'mau' && (
+                                                    <div className="prof-card animate-up">
+                                                        <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                            <span>Monthly Analysis of Units</span>
+                                                            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                                                <ExportButton
+                                                                    onClick={() => downloadExcel(
+                                                                        displayMauData,
+                                                                        [
+                                                                            { label: 'Manufacturer', key: 'manufacturer' },
+                                                                            { label: 'Manufactured', key: 'manufactured' },
+                                                                            { label: 'Inspected', key: 'inspected' },
+                                                                            { label: 'Rejected', key: 'rejected' },
+                                                                            { label: 'RM %', key: 'rmRejPercent' },
+                                                                            { label: 'Process %', key: 'processRejPercent' },
+                                                                            { label: 'Final %', key: 'finalRejPercent' }
+                                                                        ],
+                                                                        'Monthly_Analysis_of_Units'
+                                                                    )}
+                                                                />
+                                                                <input type="text" placeholder="Search..." className="prof-search" value={mauSearch} onChange={(e) => setMauSearch(e.target.value)} />
+                                                            </div>
+                                                        </div>
+                                                        <div className="table-responsive">
+                                                            <table className="prof-table">
+                                                                <thead>
+                                                                    <tr className="sortable-header">
+                                                                        <th onClick={() => handleMauSort('manufacturer')}>Manufacturer {renderSortIcon('manufacturer', mauSort)}</th>
+                                                                        <th className="text-right" onClick={() => handleMauSort('manufactured')}>Manufactured {renderSortIcon('manufactured', mauSort)}</th>
+                                                                        <th className="text-right" onClick={() => handleMauSort('inspected')}>Inspected {renderSortIcon('inspected', mauSort)}</th>
+                                                                        <th className="text-right" onClick={() => handleMauSort('rejected')}>Rejected {renderSortIcon('rejected', mauSort)}</th>
+                                                                        <th className="text-right" onClick={() => handleMauSort('rmRejPercent')}>RM % {renderSortIcon('rmRejPercent', mauSort)}</th>
+                                                                        <th className="text-right" onClick={() => handleMauSort('processRejPercent')}>Process % {renderSortIcon('processRejPercent', mauSort)}</th>
+                                                                        <th className="text-right" onClick={() => handleMauSort('finalRejPercent')}>Final % {renderSortIcon('finalRejPercent', mauSort)}</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {displayMauData.map((row, idx) => (
+                                                                        <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
+                                                                            <td>{row.manufacturer}</td>
+                                                                            <td className="text-right">{row.manufactured?.toLocaleString()}</td>
+                                                                            <td className="text-right">{row.inspected?.toLocaleString()}</td>
+                                                                            <td className="text-right" style={{ color: '#dc2626' }}>{row.rejected?.toLocaleString()}</td>
+                                                                            <td className="text-right">{formatDecimal(row.rmRejPercent)}%</td>
+                                                                            <td className="text-right text-red-600">{formatDecimal(row.processRejPercent)}%</td>
+                                                                            <td className="text-right">{formatDecimal(row.finalRejPercent)}%</td>
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                        <div className="mt-4">
+                                                            <Pagination
+                                                                currentPage={mauPage} totalPages={mauPagination.totalPages}
+                                                                start={mauPage * mauRowsPerPage} end={Math.min((mauPage + 1) * mauRowsPerPage, mauPagination.totalElements)}
+                                                                totalCount={mauPagination.totalElements} onPageChange={setMauPage}
+                                                                rows={mauRowsPerPage} onRowsChange={setMauRowsPerPage}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {activeReport === 'lwcl' && (
+                                                    <div className="prof-card animate-up">
+                                                        <div className="sec-title">Lot Wise Closed Loop</div>
+                                                        <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+                                                            <select className="prof-select" style={{ maxWidth: '300px' }} value={lwclCallNo} onChange={(e) => setLwclCallNo(e.target.value)}>
+                                                                <option value="">Select Call No.</option>
+                                                                {lwclRequestIds.map(id => <option key={id} value={id}>{id}</option>)}
+                                                            </select>
+                                                        </div>
+                                                        {level4Loading ? (
+                                                            <div className="p-12 text-center text-teal font-medium">Loading Process Defect Summary...</div>
+                                                        ) : lwclCallNo ? (
+                                                            <Level4ReportTable data={level4Data} />
+                                                        ) : (
+                                                            <div className="p-12 text-center text-slate-400">
+                                                                Please select a <strong>Call Number</strong> from the dropdown above to view the report details.
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+
+                                                {activeReport === 'mpia' && (
+                                                    <div className={`prof-card animate-up ${batchReportData ? 'no-print' : ''}`} style={{ padding: drilldownManufacturer ? '0' : '15px' }}>
+                                                        {drilldownManufacturer ? (
+                                                            <MpiaDrillDown
+                                                                data={drilldownData}
+                                                                manufacturer={drilldownManufacturer}
+                                                                loading={isDrilldownLoading}
+                                                                onBack={() => setDrilldownManufacturer(null)}
+                                                            />
+                                                        ) : (
+                                                            <>
+                                                                <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                    <span>Manufacture Process Inspection Analysis</span>
+                                                                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                                                        <ExportButton
+                                                                            label="Download Summary"
+                                                                            onClick={() => downloadExcel(
+                                                                                displayMpiaData,
+                                                                                [
+                                                                                    { label: 'Manufacture', key: 'manufacture' },
+                                                                                    { label: 'Total Inspected', key: 'totalInspected' },
+                                                                                    { label: 'Total Accepted', key: 'totalAccepted' },
+                                                                                    { label: 'Total Rejected', key: 'totalRejected' },
+                                                                                    { label: 'Rejection %', key: 'rejectionPercent' }
+                                                                                ],
+                                                                                'Manufacture_Process_Inspection_Analysis_Summary'
+                                                                            )}
+                                                                        />
+                                                                        <ExportButton
+                                                                            label={isPreparingBatchPdf ? `Preparing (${batchProgress}/${mpiaData.length})...` : "Batch PDF Report"}
+                                                                            disabled={isPreparingBatchPdf}
+                                                                            onClick={async () => {
+                                                                                if (!mpiaData || mpiaData.length === 0) {
+                                                                                    alert("No manufacturers found to process.");
+                                                                                    return;
+                                                                                }
+                                                                                try {
+                                                                                    setBatchProgress(0);
+                                                                                    setIsPreparingBatchPdf(true);
+                                                                                    const end = new Date().toISOString().split('T')[0];
+                                                                                    const start = new Date(new Date().setFullYear(new Date().getFullYear() - 1)).toISOString().split('T')[0];
+
+                                                                                    const results = await Promise.all(mpiaData.map(async (m) => {
+                                                                                        try {
+                                                                                            const res = await reportService.getCompanyMonthWiseData({
+                                                                                                companyName: m.manufacture,
+                                                                                                startDate: start,
+                                                                                                endDate: end,
+                                                                                                page: 0,
+                                                                                                size: 13
+                                                                                            });
+                                                                                            const data = res.responseData?.content || res.content || res || [];
+                                                                                            setBatchProgress(prev => prev + 1);
+                                                                                            return { manufacturer: m.manufacture, data: Array.isArray(data) ? data : [] };
+                                                                                        } catch (e) {
+                                                                                            return { manufacturer: m.manufacture, data: [] };
+                                                                                        }
+                                                                                    }));
+
+                                                                                    setBatchReportData(results);
+                                                                                } catch (err) {
+                                                                                    setIsPreparingBatchPdf(false);
+                                                                                    alert("Failed to prepare batch PDF data.");
+                                                                                }
+                                                                            }}
+                                                                        />
+                                                                        <input type="text" placeholder="Search..." className="prof-search" value={mpiaSearch} onChange={(e) => setMpiaSearch(e.target.value)} />
+                                                                    </div>
+                                                                </div>
+                                                                <div className="table-responsive">
+                                                                    <table className="prof-table">
+                                                                        <thead>
+                                                                            <tr className="sortable-header">
+                                                                                <th onClick={() => handleMpiaSort('manufacture')}>Manufacture {renderSortIcon('manufacture', mpiaSort)}</th>
+                                                                                <th className="text-right" onClick={() => handleMpiaSort('totalInspected')}>Total Inspected {renderSortIcon('totalInspected', mpiaSort)}</th>
+                                                                                <th className="text-right" onClick={() => handleMpiaSort('totalAccepted')}>Total Accepted {renderSortIcon('totalAccepted', mpiaSort)}</th>
+                                                                                <th className="text-right" onClick={() => handleMpiaSort('totalRejected')}>Total Rejected {renderSortIcon('totalRejected', mpiaSort)}</th>
+                                                                                <th className="text-right" onClick={() => handleMpiaSort('rejectionPercent')}>Rejection % {renderSortIcon('rejectionPercent', mpiaSort)}</th>
+                                                                            </tr>
+                                                                        </thead>
+                                                                        <tbody>
+                                                                            {displayMpiaData.map((row, idx) => (
+                                                                                <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
+                                                                                    <td
+                                                                                        className="font-bold text-emerald-800 cursor-pointer hover:underline"
+                                                                                        onClick={() => setDrilldownManufacturer(row.manufacture)}
+                                                                                    >
+                                                                                        {row.manufacture}
+                                                                                    </td>
+                                                                                    <td className="text-right">{row.totalInspected?.toLocaleString()}</td>
+                                                                                    <td className="text-right" style={{ color: '#16a34a' }}>{row.totalAccepted?.toLocaleString()}</td>
+                                                                                    <td className="text-right" style={{ color: '#dc2626' }}>{row.totalRejected?.toLocaleString()}</td>
+                                                                                    <td className="text-right">
+                                                                                        <span className="prof-badge" style={{ background: '#fff7ed', color: '#9a3412', fontWeight: 'bold' }}>
+                                                                                            {row.rejectionPercent?.toFixed(2)}%
+                                                                                        </span>
+                                                                                    </td>
+                                                                                </tr>
+                                                                            ))}
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                                <div className="mt-4">
+                                                                    <Pagination
+                                                                        currentPage={mpiaPage} totalPages={mpiaPagination.totalPages}
+                                                                        start={mpiaPage * mpiaRowsPerPage} end={Math.min((mpiaPage + 1) * mpiaRowsPerPage, mpiaPagination.totalElements)}
+                                                                        totalCount={mpiaPagination.totalElements} onPageChange={setMpiaPage}
+                                                                        rows={mpiaRowsPerPage} onRowsChange={setMpiaRowsPerPage}
+                                                                    />
+                                                                </div>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </>
                                         )}
-
-
                                     </div>
                                 </div>
                             );
+
                         case 'feedback':
-                            return <FeedbackSection />;
+                            return <FeedbackSection selectedProduct={selectedProduct} />;
+                        case 'scada':
+                            return isSleeper ? <SleeperScadaMonitor selectedProduct={selectedProduct} /> : <ScadaMonitor selectedProduct={selectedProduct} />;
                         default:
                             return null;
                     }
                 })()}
-            </div>
+            </div >
         );
     };
 
@@ -1678,6 +1775,312 @@ const MpiaReportPage = ({ manufacturer, data, showFooter = true }) => {
                 <div className="mt-8 pt-4 border-t border-slate-100 text-[10px] text-slate-300 flex justify-between font-bold uppercase">
                     <span>SARTHI RAILWAY DASHBOARD - CONFIDENTIAL</span>
                     <span>GENERATED ON: {new Date().toLocaleDateString()}</span>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ────────────────────────────────────────────────────────────────────────────────
+// NEW: ScadaMonitor Component with API Integration
+// ────────────────────────────────────────────────────────────────────────────────
+const SCADA_MANUFACTURERS = [
+    { label: 'Patil Rail Infrastructure Pvt. Ltd.', value: 'PRIL' }
+];
+
+const SCADA_UNITS = [
+    { label: 'Medchal Unit', value: 'MDL-U1' }
+];
+
+const SCADA_LINES = [
+    { label: 'line 1', value: 'L1' }
+];
+
+const SCADA_STAGES = [
+    { label: 'AUTO_COPYING', value: 'AUTO_COPYING' },
+    { label: 'BAR_CROPPING', value: 'BAR_CROPPING' }
+];
+
+const ScadaMonitor = ({ selectedProduct }) => {
+    const [currentPage, setCurrentPage] = useState(0);
+    const [manufacturer, setManufacturer] = useState('');
+    const [unit, setUnit] = useState('');
+    const [line, setLine] = useState('');
+    const [stage, setStage] = useState('');
+    const [data, setData] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+    const [status, setStatus] = useState('No Data');
+    const [lastTimestamp, setLastTimestamp] = useState('N/A');
+
+    useEffect(() => {
+        const fetchScadaData = async () => {
+            if (!manufacturer || !unit || !line || !stage) {
+                setData([]);
+                setStatus('No Data');
+                setLastTimestamp('N/A');
+                return;
+            }
+
+            setLoading(true);
+            setError(null);
+
+            const apiType = (selectedProduct || '').toUpperCase().replace(' ', '');
+
+            const params = new URLSearchParams({
+                type: apiType,
+                plant: manufacturer,
+                plantUnit: unit,
+                line: line,
+                machine: stage,
+                page: currentPage.toString(),
+                size: '30'
+            });
+
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            
+            // Using a secure proxy to fetch insecure SCADA data in production to bypass Mixed Content blocks
+            const scadaUrl = `http://20.168.13.113:8080/api/scada/scada?${params.toString()}`;
+            const baseUrls = isLocal 
+                ? ['http://20.168.13.113:8080'] 
+                : [`https://api.allorigins.win/raw?url=${encodeURIComponent(scadaUrl)}`]; 
+                
+            let success = false;
+            let finalData = [];
+            
+            for (const baseUrl of baseUrls) {
+                try {
+                    // Construction of fullUrl changes depending on whether we use proxy or direct IP
+                    const fullUrl = baseUrl.includes('allorigins') 
+                        ? baseUrl 
+                        : `${baseUrl}/api/scada/scada?${params.toString()}`;
+                    // Use simple headers for proxy to avoid CORS preflight errors
+                    const fetchOptions = baseUrl.includes('allorigins')
+                        ? {} 
+                        : {
+                            headers: {
+                                'Content-Type': 'application/json',
+                                ...(localStorage.getItem('authToken') && { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` })
+                            }
+                        };
+
+                    const response = await fetch(fullUrl, fetchOptions);
+
+                    if (response.ok) {
+                        const resData = await response.json();
+                        finalData = Array.isArray(resData) ? resData : (resData.content || []);
+                        success = true;
+                        break;
+                    }
+                } catch (err) {
+                    // silent fail to try next URL
+                }
+            }
+
+            if (success) {
+                setData(finalData);
+                setStatus(finalData.length > 0 ? 'Live' : 'No Data');
+                setLastTimestamp(new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }));
+            } else {
+                setError('Failed to connect to SCADA servers.');
+                setStatus('No Data');
+                setData([]);
+            }
+            setLoading(false);
+        };
+
+        fetchScadaData();
+    }, [manufacturer, unit, line, stage, selectedProduct, currentPage]);
+
+    // Column sequences mapping - Time is now first, and unwanted columns are excluded
+    const COLUMN_ORDER = ['time', 'PO_No', 'Heat_Code', 'sample', 'length', 'end'];
+    const EXCLUDED_COLUMNS = ['line', 'module', 'plant', 'topic', 'machine', 'host', 'result', 'table'];
+
+    const COLUMN_LABELS = {
+        'time': 'Time',
+        'PO_No': 'Po',
+        'Heat_Code': 'Heat',
+        'length': 'Len',
+        'sample': 'Sam',
+        'end': 'End'
+    };
+
+    const rawKeys = data.length > 0
+        ? Object.keys(data[0]).filter(key => !EXCLUDED_COLUMNS.includes(key))
+        : [];
+
+    const columns = [];
+    COLUMN_ORDER.forEach(orderedKey => {
+        if (rawKeys.includes(orderedKey)) {
+            columns.push(orderedKey);
+        }
+    });
+    rawKeys.forEach(k => {
+        if (!COLUMN_ORDER.includes(k)) {
+            columns.push(k);
+        }
+    });
+
+    const rowsPerPage = 30;
+    const totalPages = data.length === 30 ? currentPage + 2 : currentPage + 1;
+    const start = currentPage * rowsPerPage;
+    const end = start + data.length;
+    const totalElements = data.length === 30 ? (currentPage + 2) * 30 : (currentPage * 30 + data.length);
+
+
+
+    return (
+        <div className="scada-monitor-container fade-in" style={{ padding: '10px 0' }}>
+            <div className="prof-card mb-6" style={{ background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid #d1fae5' }}>
+                <div className="sec-title" style={{ fontSize: '18px', color: '#14532d', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <i className="fa-solid fa-desktop"></i> SCADA Live Monitor - {selectedProduct}
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '15px' }}>
+                    <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#166534', marginBottom: '5px' }}>Manufacturer</label>
+                        <select
+                            value={manufacturer}
+                            onChange={(e) => { setManufacturer(e.target.value); setCurrentPage(0); }}
+                            style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #bbf7d0', background: '#f0fdf4', fontSize: '13px' }}
+                        >
+                            <option value="">Select Manufacturer</option>
+                            {SCADA_MANUFACTURERS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#166534', marginBottom: '5px' }}>Unit</label>
+                        <select
+                            value={unit}
+                            onChange={(e) => { setUnit(e.target.value); setCurrentPage(0); }}
+                            disabled={!manufacturer}
+                            style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #bbf7d0', background: manufacturer ? '#f0fdf4' : '#f8fafc', fontSize: '13px' }}
+                        >
+                            <option value="">Select Unit</option>
+                            {SCADA_UNITS.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#166534', marginBottom: '5px' }}>Line</label>
+                        <select
+                            value={line}
+                            onChange={(e) => { setLine(e.target.value); setCurrentPage(0); }}
+                            disabled={!unit}
+                            style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #bbf7d0', background: unit ? '#f0fdf4' : '#f8fafc', fontSize: '13px' }}
+                        >
+                            <option value="">Select Line</option>
+                            {SCADA_LINES.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#166534', marginBottom: '5px' }}>Data Acquisition Stage</label>
+                        <select
+                            value={stage}
+                            onChange={(e) => { setStage(e.target.value); setCurrentPage(0); }}
+                            disabled={!line}
+                            style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #bbf7d0', background: line ? '#f0fdf4' : '#f8fafc', fontSize: '13px' }}
+                        >
+                            <option value="">Select Stage</option>
+                            {SCADA_STAGES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                        </select>
+                    </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', borderTop: '1px solid #d1fae5', paddingTop: '15px', marginTop: '15px' }}>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <span style={{
+                                width: '10px', height: '10px', borderRadius: '50%',
+                                background: status === 'Live' ? '#22c55e' : '#cbd5e1',
+                                display: 'inline-block',
+                                animation: status === 'Live' ? 'pulse 2s infinite' : 'none'
+                            }}></span>
+                            <span style={{ fontSize: '13px', fontWeight: '700', color: status === 'Live' ? '#15803d' : '#64748b' }}>{status}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {loading ? (
+                <div className="prof-card" style={{ background: '#fff', padding: '40px', borderRadius: '12px', border: '1px solid #d1fae5', textAlign: 'center' }}>
+                    <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '36px', color: '#16a34a', marginBottom: '15px' }}></i>
+                    <div style={{ fontSize: '14px', color: '#64748b' }}>Fetching live feeds from SCADA gateway...</div>
+                </div>
+            ) : error ? (
+                <div className="prof-card" style={{ background: '#fff', padding: '40px', borderRadius: '12px', border: '1px solid #d1fae5', textAlign: 'center' }}>
+                    <i className="fa-solid fa-triangle-exclamation" style={{ fontSize: '36px', color: '#dc2626', marginBottom: '15px' }}></i>
+                    <div style={{ fontSize: '14px', color: '#991b1b', fontWeight: 'bold' }}>{error}</div>
+                </div>
+            ) : data.length > 0 ? (
+                <div className="prof-card" style={{ background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid #d1fae5', overflowX: 'auto' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                        <div className="sec-title" style={{ marginBottom: 0 }}>
+                            Live Data Feed <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 'normal' }}>({data.length} records)</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                            <ExportButton
+                                onClick={() => {
+                                    const excelColumns = columns.map(col => ({
+                                        label: COLUMN_LABELS[col] || col,
+                                        key: col
+                                    }));
+                                    downloadExcel(data, excelColumns, `SCADA_Live_Feed_${selectedProduct}_Page_${currentPage + 1}`);
+                                }}
+                            />
+                            <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
+                                Last Received: <span style={{ color: '#1e293b' }}>{lastTimestamp}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <table className="prof-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                            <tr>
+                                {columns.map(col => (
+                                    <th key={col} style={{ background: '#1e3a8a', color: '#fff', padding: '10px', fontSize: '12px', textTransform: 'uppercase' }}>
+                                        {COLUMN_LABELS[col] || col}
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {data.map((row, idx) => (
+                                <tr key={idx} style={{ background: idx % 2 === 0 ? '#fff' : '#f0fdf4', borderBottom: '1px solid #e2e8f0' }}>
+                                    {columns.map(col => (
+                                        <td key={col} style={{ padding: '10px', fontSize: '13px', color: '#1e293b' }}>
+                                            {col === 'time'
+                                                ? new Date(row[col]).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+                                                : typeof row[col] === 'object'
+                                                    ? JSON.stringify(row[col])
+                                                    : String(row[col])}
+                                        </td>
+                                    ))}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    <div className="mt-4">
+                        <Pagination
+                            currentPage={currentPage} totalPages={totalPages}
+                            start={start} end={end}
+                            totalCount={totalElements} onPageChange={setCurrentPage}
+                            rows={rowsPerPage} onRowsChange={() => { }}
+                            showRows={false}
+                        />
+                    </div>
+                </div>
+            ) : (
+                <div className="prof-card" style={{ background: '#fff', padding: '40px', borderRadius: '12px', border: '1px solid #d1fae5', textAlign: 'center' }}>
+                    <i className="fa-solid fa-tower-broadcast" style={{ fontSize: '48px', color: '#cbd5e1', marginBottom: '15px' }}></i>
+                    <div style={{ fontSize: '16px', fontWeight: '700', color: '#64748b', marginBottom: '5px' }}>No Data Available</div>
+                    <p style={{ fontSize: '14px', color: '#94a3b8', maxWidth: '400px', margin: '0 auto' }}>
+                        Please select Manufacturer, Unit, Line, and Data Acquisition Stage to view the live SCADA data feed.
+                    </p>
                 </div>
             )}
         </div>

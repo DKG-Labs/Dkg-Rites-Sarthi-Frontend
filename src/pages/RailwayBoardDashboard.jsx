@@ -110,7 +110,8 @@ const RailwayBoardDashboard = () => {
     }), [mprPage, mprRowsPerPage, dashboardFilters]);
 
     const { data: mprData, pagination: mprPagination, loading: mprLoading } = useReportData(
-        reportService.getMonthlyProgressReport, activeMainCard === 'reports' ? mprParams : undefined
+        selectedProduct === 'Sleeper' ? reportService.getSleeperMonthlyProgressReport : reportService.getMonthlyProgressReport, 
+        activeMainCard === 'reports' ? mprParams : undefined
     );
 
     const [mauPage, setMauPage] = useState(0);
@@ -370,9 +371,11 @@ const RailwayBoardDashboard = () => {
                         <div className={`nav-item ${activeMainCard === 'lifecycle' ? 'active' : ''}`} onClick={() => handleSwitchTab('lifecycle')}>
                             <i className="fa-solid fa-file-contract"></i> {!isSidebarCollapsed && <span>PO Lifecycle</span>}
                         </div>
-                        <div className={`nav-item ${activeMainCard === 'performance' ? 'active' : ''}`} onClick={() => handleSwitchTab('performance')}>
-                            <i className="fa-solid fa-trophy"></i> {!isSidebarCollapsed && <span>Performance</span>}
-                        </div>
+                        {selectedProduct !== 'Sleeper' && (
+                            <div className={`nav-item ${activeMainCard === 'performance' ? 'active' : ''}`} onClick={() => handleSwitchTab('performance')}>
+                                <i className="fa-solid fa-trophy"></i> {!isSidebarCollapsed && <span>Performance</span>}
+                            </div>
+                        )}
                         <div className={`nav-item ${activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleSwitchTab('reports')}>
                             <i className="fa-solid fa-file-lines"></i> {!isSidebarCollapsed && <span>Reports</span>}
                         </div>
@@ -381,9 +384,14 @@ const RailwayBoardDashboard = () => {
                                 <div className={`report-link ${activeReport === 'mpr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpr')}>Monthly Progress Report</div>
                                 <div className={`report-link ${activeReport === 'mau' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mau')}>Monthly Analysis of Units</div>
                                 <div className={`report-link ${activeReport === 'lwcl' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('lwcl')}>Lot Wise Closed Loop</div>
-                                <div className={`report-link ${activeReport === 'mpia' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpia')}>Manufacture Process Inspection Analysis</div>
+                                {selectedProduct !== 'Sleeper' && selectedProduct !== 'Rail Pad' && (
+                                    <div className={`report-link ${activeReport === 'mpia' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpia')}>Manufacture Process Inspection Analysis</div>
+                                )}
                             </div>
                         )}
+                        <div className={`nav-item ${activeMainCard === 'scada' ? 'active' : ''}`} onClick={() => handleSwitchTab('scada')}>
+                            <i className="fa-solid fa-desktop"></i> {!isSidebarCollapsed && <span>Scada Monitor</span>}
+                        </div>
                         <div className={`nav-item ${activeMainCard === 'feedback' ? 'active' : ''}`} onClick={() => handleSwitchTab('feedback')}>
                             <i className="fa-solid fa-comment-dots"></i> {!isSidebarCollapsed && <span>Feedback</span>}
                         </div>
@@ -396,12 +404,16 @@ const RailwayBoardDashboard = () => {
                     {/* GLOBAL PRODUCT SELECTION - Above everything */}
                     <div className="sub-tabs" style={{ padding: '0 24px', marginTop: '24px', marginBottom: '4px' }}>
                         <button className={`sub-tab-btn ${selectedProduct === 'ERC' ? 'active' : ''}`} onClick={() => setSelectedProduct('ERC')}>ERC</button>
-                        <button className={`sub-tab-btn ${selectedProduct === 'Sleeper' ? 'active' : ''}`} onClick={() => setSelectedProduct('Sleeper')}>Sleeper</button>
+                        <button className={`sub-tab-btn ${selectedProduct === 'Sleeper' ? 'active' : ''}`} onClick={() => {
+                            setSelectedProduct('Sleeper');
+                            if (activeMainCard === 'performance') handleSwitchTab('summary');
+                            if (activeReport === 'mpia') setActiveReport('mpr');
+                        }}>Sleeper</button>
                         <button className={`sub-tab-btn ${selectedProduct === 'Rail Pad' ? 'active' : ''}`} onClick={() => setSelectedProduct('Rail Pad')}>Rail Pad</button>
                     </div>
 
-                    {/* TOPBAR / FILTERS - Hidden on Dashboard (summary), Quality, Lifecycle, and Feedback tabs */}
-                    {activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && (
+                    {/* TOPBAR / FILTERS - Hidden on Dashboard (summary), Quality, Lifecycle, Feedback, and Scada Monitor tabs */}
+                    {activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'scada' && (
                         <div id="prof-topbar">
                             <label>From</label>
                             <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
@@ -468,6 +480,10 @@ const RailwayBoardDashboard = () => {
                             activeReportFromParent={activeReport}
                             onReportTabChange={handleReportLink}
                             setSelectedProduct={setSelectedProduct}
+                            fromDate={fromDate}
+                            toDate={toDate}
+                            setFromDate={setFromDate}
+                            setToDate={setToDate}
                         />
                     </div>
 

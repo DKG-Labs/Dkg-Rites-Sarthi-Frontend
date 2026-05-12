@@ -5,6 +5,12 @@ import './PackingStoragePage.css';
 
 const STORAGE_KEY = 'packing_storage_draft_data';
 
+// Helper to get current shift from sessionStorage for shift-specific storage
+const getShiftSuffix = () => {
+  const shift = sessionStorage.getItem('inspectionShift');
+  return shift ? `_${shift}` : '';
+};
+
 /**
  * Packing & Storage Verification Page - Raw Material Sub-module
  * Verification of packing conditions and storage requirements
@@ -17,7 +23,7 @@ const PackingStoragePage = ({ onBack, heats = [], onNavigateSubmodule, inspectio
 
   // Load draft data from localStorage
   const loadDraftData = useCallback(() => {
-    const storageKey = `${STORAGE_KEY}_${inspectionCallNo}`;
+    const storageKey = `${STORAGE_KEY}_${inspectionCallNo}${getShiftSuffix()}`;
     const savedDraft = localStorage.getItem(storageKey);
     if (savedDraft) {
       try {
@@ -29,41 +35,72 @@ const PackingStoragePage = ({ onBack, heats = [], onNavigateSubmodule, inspectio
     return null;
   }, [inspectionCallNo]);
 
-  // Packing checklist state - now per heat
+  // Per-heat Packing state - now keyed by heatNo for stability
   const [packingDataByHeat, setPackingDataByHeat] = useState(() => {
-    const draft = loadDraftData();
-    if (draft?.packingDataByHeat) {
-      return draft.packingDataByHeat;
-    }
-    // Initialize empty data for each heat
-    const initialData = {};
-    heats.forEach((heat, idx) => {
-      initialData[idx] = {
-        storedHeatWise: '',
-        suppliedInBundles: '',
-        heatNumberEnds: '',
-        packingStripWidth: '',
-        bundleTiedLocations: '',
-        identificationTagBundle: '',
-        metalTagInformation: '',
-        remarks: ''
-      };
+    const draftRaw = loadDraftData();
+    const draft = draftRaw?.packingDataByHeat;
+    const state = {};
+    
+    // Migration/Initialization logic
+    heats.forEach((h, idx) => {
+      const hNo = (h.heatNo || h.heat_no || `Heat-${idx + 1}`).toString().trim().toUpperCase();
+      
+      // 1. Try to find in draft by heatNo (New format)
+      if (draft && typeof draft === 'object' && draft[hNo]) {
+        state[hNo] = draft[hNo];
+      } 
+      // 2. Fallback: Try to find in draft by index (Old format)
+      else if (draft && draft[idx]) {
+        state[hNo] = draft[idx];
+      }
+      // 3. Default: Empty state
+      else {
+        state[hNo] = {
+          storedHeatWise: '', suppliedInBundles: '', heatNumberEnds: '',
+          packingStripWidth: '', bundleTiedLocations: '', identificationTagBundle: '',
+          metalTagInformation: '', remarks: ''
+        };
+      }
     });
-    return initialData;
+    return state;
   });
+
+  // Keep packingDataByHeat in sync when heats change
+  useEffect(() => {
+    setPackingDataByHeat(prev => {
+      const next = { ...prev };
+      let changed = false;
+      heats.forEach((h, idx) => {
+        const hNo = (h.heatNo || h.heat_no || `Heat-${idx + 1}`).toString().trim().toUpperCase();
+        if (!next[hNo]) {
+          next[hNo] = {
+            storedHeatWise: '', suppliedInBundles: '', heatNumberEnds: '',
+            packingStripWidth: '', bundleTiedLocations: '', identificationTagBundle: '',
+            metalTagInformation: '', remarks: ''
+          };
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [heats]);
 
   // Auto-save to localStorage
   useEffect(() => {
-    const storageKey = `${STORAGE_KEY}_${inspectionCallNo}`;
+    const storageKey = `${STORAGE_KEY}_${inspectionCallNo}${getShiftSuffix()}`;
     localStorage.setItem(storageKey, JSON.stringify({ packingDataByHeat }));
   }, [packingDataByHeat, inspectionCallNo]);
 
   // Update checklist for current heat
   const updateChecklist = (field, value) => {
+    const currentHeat = heats[activeHeatIndex];
+    if (!currentHeat) return;
+    const hNo = (currentHeat.heatNo || currentHeat.heat_no || `Heat-${activeHeatIndex + 1}`).toString().trim().toUpperCase();
+
     setPackingDataByHeat(prev => ({
       ...prev,
-      [activeHeatIndex]: {
-        ...prev[activeHeatIndex],
+      [hNo]: {
+        ...prev[hNo],
         [field]: value
       }
     }));
@@ -75,7 +112,8 @@ const PackingStoragePage = ({ onBack, heats = [], onNavigateSubmodule, inspectio
   };
 
   // Get current heat's data
-  const currentHeatData = packingDataByHeat[activeHeatIndex] || {
+  const activeHeatNo = (heats[activeHeatIndex]?.heatNo || heats[activeHeatIndex]?.heat_no || `Heat-${activeHeatIndex + 1}`).toString().trim().toUpperCase();
+  const currentHeatData = packingDataByHeat[activeHeatNo] || {
     storedHeatWise: '',
     suppliedInBundles: '',
     heatNumberEnds: '',

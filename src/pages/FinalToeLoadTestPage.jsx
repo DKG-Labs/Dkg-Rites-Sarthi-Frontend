@@ -7,6 +7,7 @@ import { getHardnessToeLoadAQL } from '../utils/is2500Calculations';
 import { getToeLoadTestsByCall } from '../services/finalInspectionSubmoduleService';
 import './FinalToeLoadTestPage.css';
 import { normalizeErcType } from '../utils/ercUtils';
+import Notification from "../components/Notification";
 
 /**
  * Tolerance band by spring type (used internally for validation)
@@ -23,6 +24,13 @@ const TOLERANCES = {
 const FinalToeLoadTestPage = ({ onBack, onNavigateSubmodule }) => {
   // State for lot selection toggle
   const [activeLotTab, setActiveLotTab] = useState(0);
+
+  // Notification state
+  const [notification, setNotification] = useState({ message: '', type: 'error' });
+  const showNotification = (message, type = 'error') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification({ message: '', type }), 4000);
+  };
 
   // Get live lot data from context
   const { getFpCachedData, selectedCall } = useInspection();
@@ -74,7 +82,17 @@ const FinalToeLoadTestPage = ({ onBack, onNavigateSubmodule }) => {
             cachedData?.inspectionCall?.ercType ||
             selectedCall?.ercType ||
             lot.springType ||
-            'MK-III'
+            (() => {
+              try {
+                const storedCache = sessionStorage.getItem('fpDashboardDataCache');
+                if (storedCache) {
+                  const cacheData = JSON.parse(storedCache);
+                  return cacheData[callNo]?.dashboardData?.inspectionCall?.ercType || 
+                         cacheData[callNo]?.inspectionCall?.ercType;
+                }
+              } catch (e) {}
+              return null;
+            })()
           ),
           sampleSize: aql.n1,
           sampleSize2nd: aql.n2,
@@ -84,7 +102,7 @@ const FinalToeLoadTestPage = ({ onBack, onNavigateSubmodule }) => {
           singleSampling: aql.useSingleSampling || false
         };
       }),
-    [lotsFromVendor, cachedData, selectedCall]
+    [lotsFromVendor, cachedData, selectedCall, callNo]
   );
 
   /**
@@ -575,6 +593,7 @@ const FinalToeLoadTestPage = ({ onBack, onNavigateSubmodule }) => {
                   sampleSize={lot.sampleSize}
                   valueLabel="Toe Load (Kgf)"
                   onImport={(values) => handleExcelImport(lot.lotNo, values, false)}
+                  onNotification={showNotification}
                 />
               </div>
 
@@ -628,6 +647,7 @@ const FinalToeLoadTestPage = ({ onBack, onNavigateSubmodule }) => {
                       sampleSize={lot.sampleSize2nd}
                       valueLabel="Toe Load (Kgf)"
                       onImport={(values) => handleExcelImport(lot.lotNo, values, true)}
+                      onNotification={showNotification}
                     />
                   </div>
 
@@ -691,6 +711,12 @@ const FinalToeLoadTestPage = ({ onBack, onNavigateSubmodule }) => {
         );
       })}
 
+      {/* App notification */}
+      <Notification
+        message={notification.message}
+        type={notification.type}
+        onClose={() => setNotification({ message: '', type: notification.type })}
+      />
     </div >
   );
 };

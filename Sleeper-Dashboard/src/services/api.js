@@ -2,8 +2,8 @@ import axios from 'axios';
 
 // const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
-//export const API_BASE_URL = 'https://sarthibackendservice-bfe2eag3byfkbsa6.canadacentral-01.azurewebsites.net/sarthi-backend/api';
-export const API_BASE_URL = 'https://api.ritesqasarthi.com/sarthi-backend/api';
+export const API_BASE_URL = 'https://sarthibackendservice-bfe2eag3byfkbsa6.canadacentral-01.azurewebsites.net/sarthi-backend/api';
+//  export const API_BASE_URL = 'https://api.ritesqasarthi.com/sarthi-backend/api';
 const BASE_URL = API_BASE_URL;
 
 const api = axios.create({
@@ -102,11 +102,30 @@ export const apiService = {
         saveTestResult: (data) => api.post('/water-cube-sample/save-test-result', data),
         getTestResultsByUser: (userId) => api.get(`/water-cube-sample/test-results/user/${userId}`)
     },
+
+    // ================= Water Quality Testing =================
+    waterQuality: {
+        create: (payload) => api.post('/water-quality', payload),
+        getAll: () => getWithCache('/water-quality'),
+        getById: (id) => api.get(`/water-quality/${id}`),
+        update: (id, payload) => api.put(`/water-quality/${id}`, payload),
+        delete: (id) => api.delete(`/water-quality/${id}`),
+        getByUser: (userId) => api.get(`/water-quality/user/${userId}`)
+    },
     getAllSteamCubes: () => getWithCache('/SteamCube/get-all'),
     getSteamCubeById: (id) => api.get(`/SteamCube/get/${id}`),
     createSteamCube: (payload) => api.post('/SteamCube/create', payload),
     updateSteamCube: (id, payload) => api.put(`/SteamCube/update/${id}`, payload),
     deleteSteamCube: (id) => api.delete(`/SteamCube/delete/${id}`),
+    getSteamCubeData: (params) => api.get('/SteamCube/steamCubeData', { params }),
+
+    // ================= Steam Cube Test Results =================
+    steamCubeResults: {
+        create: (payload) => api.post('/steam-cube-testing/create', payload),
+        update: (id, payload) => api.put(`/steam-cube-testing/update/${id}`, payload),
+        delete: (id) => api.delete(`/steam-cube-testing/delete/${id}`),
+        getResults: (params) => api.get('/steam-cube-testing/steamCubeTestingData', { params }),
+    },
 
     // ================= Stress Bench / Mould Master =================
     getAllStressBenches: () => getWithCache('/stress-bench/getAll'),
@@ -221,6 +240,9 @@ export const apiService = {
     performTransitionAction: (payload) =>
         api.post('/sleeper-workflow/performTransitionAction', payload),
 
+    getCompletedFinalCalls: () =>
+        api.get('/sleeper-workflow/allFInalCallCompletedCalls'),
+
     // ── Module getById APIs (used by IE dashboard to fetch record details) ──
     // moduleId=1  PLANT_PROFILE
     // getPlantProfileById:       (id) => api.get(`/plant-profile/getById/${id}`),
@@ -238,6 +260,9 @@ export const apiService = {
     getMixDesignById: (id) => api.get(`/mix-design/${id}`),
     getVerifiedMixDesignIdentifications: () => api.get('/mix-design/verified-identifications'),
     getApprovedMixDesigns: (moduleId = 4, vendorId = '', plantId = '') => api.get(`/mix-design/approvedMixDesign?moduleId=${moduleId}${vendorId ? `&vendorId=${vendorId}` : ''}${plantId ? `&plantId=${plantId}` : ''}`),
+
+    // moduleId=5  PRODUCTION_DECLARATION
+    getProductionDeclarationById: (id) => api.get(`/production-declaration/${id}`),
 
     // moduleId=5  HTS Wire
     getHtsWireRecordById: (id) => api.get(`/hts-wire/${id}`),
@@ -259,6 +284,7 @@ export const apiService = {
 
     getProductionDeclarationRecordById: (id) => api.get(`/production-declaration/${id}`),
     getVerifiedProductionDeclarations: () => api.get('/production-declaration/verified-declarations'),
+    getAllVerifedWaterBatchs: (params = {}) => api.get('/production-declaration/getAllVerifedWaterBatchs', { params }),
     getAllProductionBatches: (vendorId, castingDate, plantId, productionUnit) =>
         api.get('/production-declaration/getAll/batches', {
             params: { vendorId, castingDate, plantId, productionUnit }
@@ -267,25 +293,53 @@ export const apiService = {
         api.get('/production-declaration/getAll/batchesWithId', {
             params: { vendorId, castingDate, plantId, productionUnit }
         }),
-    getAllProductionBenches: (batchNo) => api.get(`/production-declaration/getAll/benches?batchNo=${batchNo}`),
-    getAllProductionSleeperTypes: (batchNo, benchNo) => api.get(`/production-declaration/getAll/sleeper-types?batchNo=${batchNo}&benchNo=${benchNo}`),
-    getAllProductionSleepers: (batchNo, benchNo, sleeperType) => api.get(`/production-declaration/getAll/sleepers?batchNo=${batchNo}&benchNo=${benchNo}&sleeperType=${sleeperType}`),
+    getAllProductionBenches: (batchNo, productionUnit) => api.get('/production-declaration/getAll/benches', { params: { batchNo, productionUnit } }),
+    getAllProductionSleeperTypes: (batchNo, benchNo, productionUnit) => api.get('/production-declaration/getAll/sleeper-types', { params: { batchNo, benchNo, productionUnit } }),
+    getAllProductionSleepers: (batchNo, benchNo, sleeperType, productionUnit) => api.get('/production-declaration/getAll/sleepers', { params: { batchNo, benchNo, sleeperType, productionUnit } }),
 
-    getAllWorkflowTransitions: (roleName = 'IE', userId = '') =>
-        api.get(`/sleeper-workflow/allWorkflowTransition?roleName=${roleName}${userId ? `&assignedTo=${userId}` : ''}`),
+    getAllCompletedWorkflowTransitions: (userId = '', plantId = '') =>
+        api.get(`/sleeper-workflow/allCompletedCalls?roleName=IE${userId ? `&assignedTo=${userId}` : ''}${plantId ? `&plantId=${plantId}` : ''}`),
 
 
     // ================= POI IE Mapping ================= //
     getCompanyUnitsByUser: (userId) => api.get(`/sleeper-mapping/company-units/${userId}`),
 
     // ================= Final Inspection Controller ================= //
-    getFinalInspectionBatches: (moduleId = 1, params = {}) => api.get(`/FinalInspectionController/inspection/batches/${moduleId}`, { params }),
-    getFinalInspectionBatchDetail: (batchId, moduleId = 1) => api.get(`/FinalInspectionController/inspection/batch?batchId=${batchId}&moduleId=${moduleId}`),
+    getFinalInspectionBatches: (moduleId = 1, params = {}) => api.get(`/FinalInspectionController/inspection/batches/${moduleId}`, { 
+        params: { ...params, moduleId } 
+    }),
+    getFinalInspectionBatchDetail: (batchId, moduleId = 1, sleeperType) => api.get(`/FinalInspectionController/inspection/batch?batchId=${batchId}&moduleId=${moduleId}&sleeperType=${encodeURIComponent(sleeperType || '')}`),
     saveFinalInspection: (payload) => api.post('/FinalInspectionController/save', payload),
     updateInspectionSleepers: (payload) => api.put('/FinalInspectionController/updateInspectionSleepers', payload),
     submitInspectionCall: (payload) => api.post('/FinalInspectionController/submit-inspection-call', payload),
     getInspectionCalls: (userId) => api.get(`/FinalInspectionController/inspection-calls?userId=${userId}`),
     getCompletedBatches: (sleeperType, userId) => api.get(`/FinalInspectionController/completed-batches?sleeperType=${sleeperType}&userId=${userId}`),
+    scheduleCall: (payload) => api.post('/FinalCallinspection/scheduleingCall', payload),
+    updateScheduleCall: (payload) => api.put('/FinalCallinspection/UpdatescheduleingCall', payload),
+    saveSection1: (payload) => api.post('/FinalCallinspection/section1', payload),
+    saveSection2: (payload) => api.post('/FinalCallinspection/section2', payload),
+    getInspectionCallSummary: (callNo) => api.get(`/main-ie/inspection-call-summary/${callNo}`),
+    getBatchWiseDetails: (callNo) => api.get(`/main-ie/inspection-call/batch-wise/${callNo}`),
+    saveMainIeInspectionBatch: (payload) => api.post('/MainIe-finalcallsleeperInspection', payload),
+    saveMainIeInspectionHeader: (payload) => api.post('/MainIe-finalcallsleeperInspection/finalCallHeader/save', payload),
+    getSavedMainIeHeader: (callNo) => api.get(`/MainIe-finalcallsleeperInspection/finalCallHeader/${callNo}`),
+    getSavedMainIeBatches: (callNo) => api.get(`/MainIe-finalcallsleeperInspection/call-no/${callNo}`),
+
+    // ================= Moment of Resistance (MR) =================
+    createMRRecord: (payload) => api.post('/moment-of-resistance/create', payload),
+    updateMRRecord: (id, payload) => api.put(`/moment-of-resistance/update/${id}`, payload),
+    getMRRecordById: (id) => api.get(`/moment-of-resistance/${id}`),
+    getMRTodayRecords: (params) => api.get('/moment-of-resistance/mrTodayRecord', { params }),
+    getAllMRRecords: () => getWithCache('/moment-of-resistance/all'),
+    deleteMRRecord: (id) => api.delete(`/moment-of-resistance/delete/${id}`),
+
+    // ================= Moment of Resistance Testing (MR Testing) =================
+    createMRTest: (payload) => api.post('/mr-testing/create', payload),
+    updateMRTest: (id, payload) => api.put(`/mr-testing/update/${id}`, payload),
+    getMRTestById: (id) => api.get(`/mr-testing/${id}`),
+    getMRTestTodayRecords: (params) => api.get('/mr-testing/mrTestTodayRecord', { params }),
+    getAllMRTests: () => getWithCache('/mr-testing/all'),
+    deleteMRTest: (id) => api.delete(`/mr-testing/delete/${id}`),
 
     // ================= Modulus of Rupture (MOR) =================
     // Sample Declaration
@@ -316,4 +370,13 @@ export const apiService = {
     createMFTest: (payload) => api.post('/mf-test-details', payload),
     updateMFTest: (id, payload) => api.put(`/mf-test-details/${id}`, payload),
     deleteMFTest: (id) => api.delete(`/mf-test-details/${id}`),
+    
+    // ================= Epoxy Treated Sleepers (ET) =================
+    getAllETLogs: () => api.get('/et'),
+    getETById: (id) => api.get(`/et/${id}`),
+    createETRecord: (payload) => api.post('/et', payload),
+    updateETRecord: (id, payload) => api.put(`/et/${id}`, payload),
+    deleteETRecord: (id) => api.delete(`/et/${id}`),
+    getETBatchSummary: () => api.get('/et/batch-summary'),
+    getEtBatchSleepers: (batchId) => api.get(`/FinalInspectionController/inspection/Etbatch?batchId=${batchId}`),
 };

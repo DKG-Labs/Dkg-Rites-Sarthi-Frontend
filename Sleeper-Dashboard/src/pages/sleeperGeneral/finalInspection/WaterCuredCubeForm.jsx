@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './WaterCuredCubeForm.css';
 
-const WaterCuredCubeForm = ({ batch, onSave, onCancel }) => {
+const WaterCuredCubeForm = ({ batch, preFillData, onSave, onCancel }) => {
     // Area for 150mm cube is 22500 mm2
     const AREA = 22500;
     const FCK = batch.grade === 'M55' ? 55 : (batch.grade === 'M60' ? 60 : 55);
@@ -15,7 +15,20 @@ const WaterCuredCubeForm = ({ batch, onSave, onCancel }) => {
         { id: 6, sample: 2, weight: '', load: '', strength: 0, date: new Date().toISOString().split('T')[0], time: new Date().toTimeString().slice(0, 5) },
     ];
 
-    const [cubes, setCubes] = useState(initialCubes);
+    const [cubes, setCubes] = useState(() => {
+        if (preFillData?.details && preFillData.details.length === 6) {
+            return preFillData.details.sort((a,b) => (a.sampleNumber - b.sampleNumber) || (a.cubeIndex - b.cubeIndex)).map((d, idx) => ({
+                id: idx + 1,
+                sample: d.sampleNumber,
+                weight: d.weightKg || '',
+                load: d.loadKn || '',
+                strength: d.strengthNmm2 || 0,
+                date: d.testingDate || new Date().toISOString().split('T')[0],
+                time: d.testingTime || new Date().toTimeString().slice(0, 5)
+            }));
+        }
+        return initialCubes;
+    });
     const [results, setResults] = useState({
         s1Avg: 0,
         s2Avg: 0,
@@ -29,6 +42,7 @@ const WaterCuredCubeForm = ({ batch, onSave, onCancel }) => {
         mrSamples: 0,
         testResult: 'Pending'
     });
+    const [saving, setSaving] = useState(false);
 
     const calculateAge = (castingDate) => {
         const diffTime = Math.abs(new Date() - new Date(castingDate));
@@ -111,6 +125,16 @@ const WaterCuredCubeForm = ({ batch, onSave, onCancel }) => {
             }
             return c;
         }));
+    };
+
+    const handleSave = async () => {
+        if (saving) return;
+        setSaving(true);
+        try {
+            await onSave({ cubes, results });
+        } catch (err) {
+            setSaving(false);
+        }
     };
 
     return (
@@ -306,8 +330,14 @@ const WaterCuredCubeForm = ({ batch, onSave, onCancel }) => {
             </div>
 
             <div className="form-actions">
-                <button className="btn-save" onClick={() => onSave({ cubes, results })} disabled={results.testResult === 'Pending'}>Save Test Details</button>
-                <button className="btn-cancel" onClick={onCancel}>Cancel</button>
+                <button 
+                    className="btn-save" 
+                    onClick={handleSave} 
+                    disabled={results.testResult === 'Pending' || saving}
+                >
+                    {saving ? 'Saving...' : 'Save Test Details'}
+                </button>
+                <button className="btn-cancel" onClick={onCancel} disabled={saving}>Cancel</button>
             </div>
         </div>
     );

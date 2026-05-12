@@ -4,7 +4,7 @@ import EnhancedDataTable from '../../../../components/common/EnhancedDataTable';
 import { MOCK_SGCI_HISTORY, MOCK_INVENTORY, MOCK_VERIFIED_CONSIGNMENTS } from '../../../../utils/rawMaterialMockData';
 import { useShift } from '../../../../context/ShiftContext';
 import { useToast } from '../../../../context/ToastContext';
-import { saveSgciInsertAudit, getSgciInsertAuditByRequestId } from '../../../../services/workflowService';
+import { saveSgciInsertAudit, getSgciInsertAuditByRequestId, getSgciInsertAuditById, deleteSgciInsertAudit } from '../../../../services/workflowService';
 import TrendChart from '../../../../components/common/TrendChart';
 import '../cement/CementForms.css';
 
@@ -13,8 +13,13 @@ const SubCard = ({ id, title, color, count, label, isActive, onClick }) => (
         className={`asset-card ${isActive ? 'active' : ''}`}
         onClick={onClick}
         style={{
-            borderColor: isActive ? color : '#e2e8f0',
-            borderTop: `4px solid ${color}`,
+            borderWidth: '1px',
+            borderStyle: 'solid',
+            borderTopWidth: '4px',
+            borderTopColor: color,
+            borderRightColor: isActive ? color : '#e2e8f0',
+            borderBottomColor: isActive ? color : '#e2e8f0',
+            borderLeftColor: isActive ? color : '#e2e8f0',
             '--active-color-alpha': `${color}15`,
             cursor: 'pointer',
             flex: '1',
@@ -82,7 +87,13 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
                         setHistory(prev => {
                             const existingIds = new Set(prev.map(p => p.id));
                             const newRecords = fetchedHistory.filter(f => !existingIds.has(f.id));
-                            return [...newRecords, ...prev];
+                            const combined = [...newRecords, ...prev];
+                            return combined.sort((a,b) => {
+                                const dateA = new Date(a.testDate || 0);
+                                const dateB = new Date(b.testDate || 0);
+                                if (dateB - dateA !== 0) return dateB - dateA;
+                                return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+                            });
                         });
                     }
                 }
@@ -120,8 +131,13 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
                     setEditId(record.id);
                     reset({
                         ...record,
-                        date: record.testDate ? record.testDate.substring(0, 10) : new Date().toISOString().split('T')[0]
+                        date: record.testDate ? record.testDate.substring(0, 10) : new Date().toISOString().split('T')[0],
+                        readings: record.readings && record.readings.length > 0 
+                            ? record.readings 
+                            : [{ heatNo: '', patternNo: '', weight: '', dimensionalNotOk: false, hammerNotOk: false, rejectionReason: '', result: 'PASS' }]
                     });
+                } else if (activeRequestId) {
+                    toast.info("No existing audit record found for this consignment. You can start entry from scratch.");
                 }
             });
         }
@@ -157,11 +173,11 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
         let isWeightOk = false;
         
         if (typeKey === 'T-6901') {
-            isWeightOk = w >= 1.484;
+            isWeightOk = w >= 1.440 && w <= 1.484;
         } else if (typeKey === 'T-3815' || typeKey === 'T-381') {
-            isWeightOk = w >= 1.55;
+            isWeightOk = w >= 1.504 && w <= 1.560;
         } else if (typeKey === 'T-3705') {
-            isWeightOk = w >= 1.95;
+            isWeightOk = w >= 1.880 && w <= 1.940;
         } else {
             isWeightOk = w > 0; // fallback
         }
@@ -202,8 +218,8 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
                 shift: selectedShift || 'General',
                 lineNo: dutyLocation || 'N/A',
                 dateOfInspection: dutyDate || new Date().toISOString().split('T')[0],
-                requestId: activeRequestId || null,
-                createdBy: parseInt(localStorage.getItem('userId') || '1', 10), // Default 
+                requestId: activeRequestId || 0,
+                createdBy: parseInt(localStorage.getItem('userId') || '1', 10),
                 readings: data.readings
             };
 
@@ -214,24 +230,31 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
             }
 
             await saveSgciInsertAudit(payload, editId);
-            toast.success(`SGCI Insert Audit record ${editId ? 'updated' : 'saved'}!`);
-            // Re-fetch historical logs in real app
-        } catch (error) {
-            console.error("Error saving SGCI audit:", error);
-            toast.error("Failed to save SGCI Insert Audit report.");
-        } finally {
+            toast.success(`SGCI Insert Audit record ${editId ? 'updated' : 'saved'} successfully!`);
+            
             setShowForm(false);
             reset();
             setActiveRequestId(null);
             setEditId(null);
             setIsPeriodic(false);
             setRefreshTrigger(prev => prev + 1);
+        } catch (error) {
+            console.error("Error saving SGCI audit:", error);
+            toast.error(error.message || "Failed to save SGCI Insert Audit report.");
         }
     };
 
-    const handleDelete = (id) => {
-        if (window.confirm('Delete this record?')) {
-            setHistory(prev => prev.filter(h => h.id !== id));
+    const handleDelete = async (id) => {
+        if (window.confirm('Are you sure you want to delete this record?')) {
+            try {
+                await deleteSgciInsertAudit(id);
+                toast.success("Record deleted successfully!");
+                setHistory(prev => prev.filter(h => h.id !== id));
+                setRefreshTrigger(prev => prev + 1);
+            } catch (error) {
+                console.error("Error deleting record:", error);
+                toast.error(error.message || "Failed to delete record.");
+            }
         }
     };
 
@@ -282,6 +305,40 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
             label: 'Actions',
             render: (_, row) => {
                 const isCompleted = statusMap[row.requestId] === 'Completed';
+                
+                if (isCompleted) {
+                    return (
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                                className="btn-action mini"
+                                onClick={() => {
+                                    setActiveRequestId(row.requestId);
+                                    setShowForm(true);
+                                }}
+                            >
+                                Modify
+                            </button>
+                            <button
+                                className="btn-action mini danger"
+                                onClick={async () => {
+                                    try {
+                                        const record = await getSgciInsertAuditByRequestId(row.requestId);
+                                        if (record && record.id) {
+                                            handleDelete(record.id);
+                                        } else {
+                                            toast.error("Could not find record to delete");
+                                        }
+                                    } catch (err) {
+                                        toast.error("Error locating record");
+                                    }
+                                }}
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    );
+                }
+
                 return (
                     <button
                         className="btn-action mini"
@@ -301,7 +358,7 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
                             setShowForm(true);
                         }}
                     >
-                        {isCompleted ? 'Modify test details' : 'Add Test Detail'}
+                        Add Test Detail
                     </button>
                 );
             }
@@ -324,14 +381,34 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
                         <button
                             className={`btn-action mini ${!editable ? 'disabled-btn' : ''}`}
                             disabled={!editable}
-                            onClick={() => {
-                                reset({
-                                    date: row.testDate,
-                                    consignmentNo: row.consignmentNo,
-                                    supplier: row.supplier,
-                                    readings: []
-                                });
-                                setShowForm(true);
+                            onClick={async () => {
+                                try {
+                                    const record = await getSgciInsertAuditById(row.id);
+                                    if (record) {
+                                        setEditId(record.id);
+                                        setActiveRequestId(record.requestId || null);
+                                        setIsPeriodic(!record.requestId);
+                                        reset({
+                                            ...record,
+                                            date: record.testDate ? record.testDate.substring(0, 10) : new Date().toISOString().split('T')[0],
+                                            consignmentNo: record.consignmentNo,
+                                            supplier: record.supplier,
+                                            type: record.type,
+                                            ritesIc: record.ritesIc || '',
+                                            approvalValidity: record.approvalValidity || '',
+                                            inventoryId: record.requestId,
+                                            readings: record.readings && record.readings.length > 0 
+                                                ? record.readings 
+                                                : [{ heatNo: '', patternNo: '', weight: '', dimensionalNotOk: false, hammerNotOk: false, rejectionReason: '', result: 'PASS' }]
+                                        });
+                                        setShowForm(true);
+                                    } else {
+                                        toast.error("Could not fetch complete record details.");
+                                    }
+                                } catch (error) {
+                                    console.error("Error fetching record:", error);
+                                    toast.error("Error loading record details.");
+                                }
                             }}
                             title={!editable ? "Expired" : ""}
                         >
@@ -355,13 +432,6 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
             <div className="content-title-row" style={{ marginBottom: '24px' }}>
                 <h2 style={{ margin: 0 }}>SGCI Insert Audit Report</h2>
                 <div style={{ display: 'flex', gap: '12px' }}>
-                    <button className="toggle-btn mini" onClick={() => { 
-                        reset(); 
-                        setActiveRequestId(null);
-                        setEditId(null);
-                        setIsPeriodic(true);
-                        setShowForm(true); 
-                    }}>+ Add New (Periodic)</button>
                     <button className="toggle-btn secondary mini" onClick={onBack}>Back to Dashboard</button>
                 </div>
             </div>
@@ -410,13 +480,6 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
                     <div className="table-outer-wrapper fade-in">
                         <div className="content-title-row" style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', marginBottom: 0 }}>
                             <h4 style={{ margin: 0 }}>Weekly Audit Logs</h4>
-                            <button className="toggle-btn mini" onClick={() => { 
-                                reset(); 
-                                setActiveRequestId(null);
-                                setEditId(null);
-                                setIsPeriodic(true);
-                                setShowForm(true); 
-                            }}>+ Add New (Periodic)</button>
                         </div>
                         <EnhancedDataTable columns={historyColumns} data={history} />
                     </div>
@@ -524,7 +587,7 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
                                                     Weight (kg)
                                                      {selectedType && (
                                                         <span style={{ display: 'block', fontSize: '9px', color: '#94a3b8', fontWeight: '400', marginTop: '2px' }}>
-                                                            Min Weight: {selectedType === 'T-6901' ? '1.484' : (selectedType === 'T-3815' || selectedType === 'T-381') ? '1.55' : selectedType === 'T-3705' ? '1.95' : '—'} kg
+                                                            Weight Range: {selectedType === 'T-6901' ? '1.440 - 1.484' : (selectedType === 'T-3815' || selectedType === 'T-381') ? '1.504 - 1.560' : selectedType === 'T-3705' ? '1.880 - 1.940' : '—'} kg
                                                         </span>
                                                      )}
                                                 </th>

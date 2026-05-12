@@ -8,13 +8,14 @@ import { useShift } from '../../../context/ShiftContext';
  * Configures sensors and batch set values for the shift.
  */
 const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorUpdate, activeContainer, loadShiftData, initialSensors }) => {
-    const { vendorCode, dutyUnit, selectedShift, dutyDate, userId } = useShift();
+    const { vendorCode, dutyUnit, selectedShift, dutyDate, userId, vendorId } = useShift();
     const [sensors, setSensors] = useState(initialSensors || {
-        sensorStatus: 'Working', 
+        sensorStatus: '', 
         sandType: '',
         location: '',
-        castingDate: new Date().toISOString().split('T')[0],
-        batchNo: ''
+        castingDate: '',
+        batchNo: '',
+        moistureAnalysis: null
     });
 
     const [batches, setBatches] = useState([]);
@@ -24,7 +25,8 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
     const [selectedMoistureReportId, setSelectedMoistureReportId] = useState('');
     const [fetchingMoistureDetail, setFetchingMoistureDetail] = useState(false);
 
-    const effectiveVendorId = userId || localStorage.getItem('userId') || vendorCode?.replace(':', '');
+    // Deriving IDs safely from Context or Storage
+    const effectiveVendorId = vendorId || userId || localStorage.getItem('vendorId') || localStorage.getItem('userId') || vendorCode?.replace(':', '');
     const effectivePlantId = dutyUnit || localStorage.getItem('dutyUnit');
     console.log("Batch IDs:", { effectiveVendorId, effectivePlantId });
 
@@ -77,6 +79,12 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
     const handleMoistureReportSelect = async (e) => {
         const id = e.target.value;
         setSelectedMoistureReportId(id);
+        
+        setSensors(prev => ({
+            ...prev,
+            moistureAnalysis: id ? String(id) : null
+        }));
+
         if (!id) {
             setBatches([]);
             return;
@@ -105,6 +113,7 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
                 setBatches([{
                     id: 1, 
                     batchNo: detail.batchNo || report?.batchNo || "",
+                    refBatchNo: detail.batchNo || report?.batchNo || "",
                     parentId: id,
                     setValues: { 
                         ca1: ca1Set, 
@@ -140,6 +149,11 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
             ...prev,
             [name]: value
         }));
+
+        // If batch number is changed in the header, update the underlying batch cards
+        if (name === 'batchNo') {
+            setBatches(prev => prev.map(b => ({ ...b, batchNo: value })));
+        }
     };
 
     const handleBatchChange = (id, section, field, value) => {
@@ -184,24 +198,28 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
             const selectedLocation = sensors.location || activeContainer?.name || 'Line I';
             const locationType = String(selectedLocation).toLowerCase().includes('shed') ? 'Shed' : 'Line';
 
+            const currentUserIdStr = userId || localStorage.getItem('userId') || "0";
+            const currentUserId = parseInt(currentUserIdStr, 10) || 0;
+
             const payload = {
                 lineNo: selectedLocation,
-                location: selectedLocation,
-                locationType: locationType,
                 entryDate: formattedDate,
                 sandType: sensors.sandType || "River Sand",
                 moistureSensorStatus: String(sensors.sensorStatus || "WORKING").toUpperCase(),
                 verifiedBy: "Operator",
                 remarks: "Initial declaration",
                 entryMode: "MANUAL",
+                createdBy: currentUserId,
+                updatedBy: currentUserId,
                 vendorCode: vendorCode || localStorage.getItem('vendorCode'),
                 plantId: dutyUnit || localStorage.getItem('dutyUnit'),
                 shift: selectedShift || localStorage.getItem('selectedShift'),
-                date: formattedDate,
-                createdBy: userId || localStorage.getItem('userId'),
-                updatedBy: userId || localStorage.getItem('userId'),
+                location: sensors.location || activeContainer?.name || null,
+                batchNumber: sensors.batchNo ? String(sensors.batchNo) : null,
+                moistureAnalysis: sensors.moistureAnalysis || null,
                 batchDetails: batches.map(b => ({
                     batchNo: String(sensors.batchNo || b.batchNo || "0"),
+                    refBatchNo: String(b.refBatchNo || b.batchNo || "0"),
                     proportionStatus: b.proportionMatch || "OK",
                     ca1Ref: parseFloat(b.adjustedWeights?.ca1) || 0,
                     ca2Ref: parseFloat(b.adjustedWeights?.ca2) || 0,
@@ -258,23 +276,24 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
 
             <div style={{ 
                 display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', 
-                gap: '12px', 
+                gridTemplateColumns: 'repeat(6, 1fr)', 
+                gap: '8px', 
                 alignItems: 'end',
                 background: '#fff',
-                padding: '16px',
-                borderRadius: '12px',
+                padding: '12px',
+                borderRadius: '8px',
                 border: '1px solid #e2e8f0',
-                marginBottom: '2rem'
+                marginBottom: '1rem'
             }}>
                 <div className="input-group">
-                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', display: 'block' }}>Sensor Status</label>
+                    <label style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', marginBottom: '2px', display: 'block' }}>Sensor *</label>
                     <select 
                         name="sensorStatus" 
                         value={sensors.sensorStatus} 
                         onChange={handleSensorChange}
-                        style={{ width: '100%', height: '38px', borderRadius: '6px', border: '1.5px solid #e2e8f0', fontSize: '12px' }}
+                        style={{ width: '100%', height: '32px', borderRadius: '4px', border: sensors.sensorStatus ? '1.5px solid #e2e8f0' : '1.5px solid #ef4444', fontSize: '11px', padding: '0 4px' }}
                     >
+                        <option value="">-- Select --</option>
                         <option value="Not available">Not available</option>
                         <option value="Working">Working</option>
                         <option value="Not Working">Not Working</option>
@@ -282,27 +301,26 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
                 </div>
 
                 <div className="input-group">
-                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', display: 'block' }}>Sand Type</label>
+                    <label style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', marginBottom: '2px', display: 'block' }}>Sand Type *</label>
                     <select 
                         name="sandType" 
                         value={sensors.sandType} 
                         onChange={handleSensorChange}
-                        style={{ width: '100%', height: '38px', borderRadius: '6px', border: '1.5px solid #e2e8f0', fontSize: '12px' }}
+                        style={{ width: '100%', height: '32px', borderRadius: '4px', border: sensors.sandType ? '1.5px solid #e2e8f0' : '1.5px solid #ef4444', fontSize: '11px', padding: '0 4px' }}
                     >
                         <option value="">-- Select --</option>
+                        <option value="M-Sand">M-Sand</option>
                         <option value="Natural Sand">Natural Sand</option>
-                        <option value="Crushed Sand">Crushed Sand</option>
-                        <option value="River Sand">River Sand</option>
                     </select>
                 </div>
 
                 <div className="input-group">
-                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', display: 'block' }}>Location</label>
+                    <label style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', marginBottom: '2px', display: 'block' }}>Location *</label>
                     <select 
                         name="location" 
                         value={sensors.location} 
                         onChange={handleSensorChange}
-                        style={{ width: '100%', height: '38px', borderRadius: '6px', border: '1.5px solid #e2e8f0', fontSize: '12px' }}
+                        style={{ width: '100%', height: '32px', borderRadius: '4px', border: sensors.location ? '1.5px solid #e2e8f0' : '1.5px solid #ef4444', fontSize: '11px', padding: '0 4px' }}
                     >
                         <option value="">-- Select --</option>
                         {availableLocations.map((loc, i) => <option key={i} value={loc}>{loc}</option>)}
@@ -310,17 +328,18 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
                 </div>
 
                 <div className="input-group">
-                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', display: 'block' }}>Moisture Analysis</label>
+                    <label style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', marginBottom: '2px', display: 'block' }}>Moisture Analysis *</label>
                     <select 
                         value={selectedMoistureReportId} 
                         onChange={handleMoistureReportSelect}
                         style={{ 
                             width: '100%', 
-                            height: '38px', 
-                            borderRadius: '6px', 
+                            height: '32px', 
+                            borderRadius: '4px', 
                             border: (selectedMoistureReportId ? '1.5px solid #42818c' : '1.5px solid #ef4444'),
-                            fontSize: '11px',
-                            fontWeight: '600'
+                            fontSize: '10px',
+                            fontWeight: '600',
+                            padding: '0 4px'
                         }}
                     >
                         <option value="">-- Choose Lab Report --</option>
@@ -333,25 +352,25 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
                 </div>
 
                 <div className="input-group">
-                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', display: 'block' }}>Date of Casting</label>
+                    <label style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', marginBottom: '2px', display: 'block' }}>Date of Casting *</label>
                     <input 
                         type="date"
                         name="castingDate"
                         value={sensors.castingDate}
                         onChange={handleSensorChange}
-                        style={{ width: '100%', height: '38px', borderRadius: '6px', border: '1.5px solid #e2e8f0', fontSize: '12px', padding: '0 8px' }}
+                        style={{ width: '100%', height: '32px', borderRadius: '4px', border: sensors.castingDate ? '1.5px solid #e2e8f0' : '1.5px solid #ef4444', fontSize: '11px', padding: '0 4px' }}
                     />
                 </div>
 
                 <div className="input-group">
-                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', display: 'block' }}>Batch Number</label>
+                    <label style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', marginBottom: '2px', display: 'block' }}>Batch Number *</label>
                     <input 
-                        type="number"
+                        type="text"
                         name="batchNo"
                         value={sensors.batchNo}
                         onChange={handleSensorChange}
                         placeholder="e.g. 101"
-                        style={{ width: '100%', height: '38px', borderRadius: '6px', border: '1.5px solid #e2e8f0', fontSize: '12px', padding: '0 8px' }}
+                        style={{ width: '100%', height: '32px', borderRadius: '4px', border: sensors.batchNo ? '1.5px solid #e2e8f0' : '1.5px solid #ef4444', fontSize: '11px', padding: '0 8px' }}
                     />
                 </div>
             </div>
@@ -377,52 +396,23 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
                             </div>
                         </div>
                         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                            <div style={{ textAlign: 'center' }}>
-                                <div className="mini-label">Status</div>
-                                <div style={{
-                                    fontSize: '0.65rem', fontWeight: '800', padding: '4px 12px', borderRadius: '50px',
-                                    border: `1px solid ${batch.proportionMatch === 'OK' ? '#059669' : '#dc2626'}`,
-                                    color: batch.proportionMatch === 'OK' ? '#059669' : '#dc2626',
-                                    background: batch.proportionMatch === 'OK' ? '#f0fdf4' : '#fef2f2'
-                                }}>{batch.proportionMatch}</div>
-                            </div>
                             <button className="toggle-btn secondary" onClick={() => removeBatch(batch.id)} style={{ padding: '4px 8px', fontSize: '0.7rem' }}>Clear Selection</button>
                         </div>
                     </div>
 
-                    <div style={{ marginBottom: '1.5rem', padding: '0.75rem', background: '#f0f9fa', borderRadius: '8px', fontSize: '0.8rem', color: '#42818c', border: '1px solid #c8e2e6', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#42818c' }}></div>
-                        <strong>Active Calibration:</strong> Lab Report #{lastFiveMoisture.find(r => String(r.id) === String(selectedMoistureReportId))?.batchNo}
-                    </div>
 
-                    <div className="calculated-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1.25rem' }}>
+
+                    <div className="calculated-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '0.5rem' }}>
                         {Object.keys(batch.setValues).map(ing => {
-                            const setVal = batch.setValues[ing];
                             const adjVal = batch.adjustedWeights[ing];
-                            const deviation = adjVal > 0 ? (Math.abs(setVal - adjVal) / adjVal * 100) : 0;
-                            const isError = deviation > 1;
-
                             return (
-                                <div key={ing} className="calc-card" style={{ padding: '0.75rem', border: isError ? '1px solid #fee2e2' : '1px solid #e2e8f0', background: isError ? '#fff5f5' : '#fff' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                                        <span className="calc-label" style={{ textTransform: 'uppercase' }}>{ing}</span>
-                                        {isError && <span style={{ fontSize: '0.6rem', color: '#ef4444', fontWeight: '800' }}>MISMATCH ({deviation.toFixed(1)}%)</span>}
+                                <div key={ing} className="calc-card" style={{ padding: '0.4rem', border: '1px solid #e2e8f0', background: '#fff' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.2rem' }}>
+                                        <span className="calc-label" style={{ textTransform: 'uppercase', fontSize: '10px' }}>{ing}</span>
                                     </div>
                                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                                         <div style={{ flex: 1 }}>
-                                            <div className="mini-label">SET (Manual)</div>
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                step="0.1"
-                                                value={batch.setValues[ing]}
-                                                onChange={e => handleBatchChange(batch.id, 'setValues', ing, e.target.value)}
-                                                style={{ borderColor: isError ? '#ef4444' : '#cbd5e1' }}
-                                            />
-                                        </div>
-                                        <div style={{ flex: 1 }}>
-                                            <div className="mini-label">ADJ (Ref)</div>
-                                            <div className="calc-value" style={{ height: '32px', display: 'flex', alignItems: 'center', border: '1px solid #e2e8f0', padding: '0 8px', borderRadius: '6px', background: '#f8fafc' }}>{batch.adjustedWeights[ing]}</div>
+                                            <div className="calc-value" style={{ height: '28px', display: 'flex', alignItems: 'center', border: '1px solid #e2e8f0', padding: '0 8px', borderRadius: '4px', background: '#f8fafc', fontSize: '11px', fontWeight: '700' }}>{adjVal}</div>
                                         </div>
                                     </div>
                                 </div>
@@ -432,8 +422,8 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
                 </div>
             ))}
 
-            <div className="form-actions-center" style={{ marginTop: '2.5rem', flexWrap: 'wrap', gap: '12px' }}>
-                <button className="toggle-btn" style={{ flex: '1 1 180px' , height: '48px', maxWidth: '300px' }} onClick={handleSaveDeclaration} disabled={saving}>{saving ? 'Saving...' : 'Deploy Configuration'}</button>
+            <div className="form-actions-center" style={{ marginTop: '1rem', flexWrap: 'wrap', gap: '12px', display: 'none' }}>
+                {/* Deploy Configuration button removed as requested */}
             </div>
         </div>
     );

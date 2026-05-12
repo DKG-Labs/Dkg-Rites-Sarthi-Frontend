@@ -13,8 +13,13 @@ const SubCard = ({ id, title, color, count, label, isActive, onClick }) => (
         className={`asset-card ${isActive ? 'active' : ''}`}
         onClick={onClick}
         style={{
-            borderColor: isActive ? color : '#e2e8f0',
-            borderTop: `4px solid ${color}`,
+            borderWidth: '1px',
+            borderStyle: 'solid',
+            borderTopWidth: '4px',
+            borderTopColor: color,
+            borderRightColor: isActive ? color : '#e2e8f0',
+            borderBottomColor: isActive ? color : '#e2e8f0',
+            borderLeftColor: isActive ? color : '#e2e8f0',
             '--active-color-alpha': `${color}15`,
             cursor: 'pointer',
             flex: '1',
@@ -59,8 +64,10 @@ const HtsWireTesting = ({ onBack, inventoryData = [] }) => {
             const fetchedHistory = [];
             let updated = false;
             try {
+                const processedReqIds = new Set();
                 for (const stock of pendingStocks) {
-                    if (stock.requestId) {
+                    if (stock.requestId && !processedReqIds.has(stock.requestId)) {
+                        processedReqIds.add(stock.requestId);
                         const record = await getHtsWireDailyTestByReqId(stock.requestId);
                         if (record && record.id) {
                             newStatusMap[stock.requestId] = "Completed";
@@ -87,7 +94,13 @@ const HtsWireTesting = ({ onBack, inventoryData = [] }) => {
                         setHistory(prev => {
                             const existingIds = new Set(prev.map(p => p.id));
                             const newRecords = fetchedHistory.filter(f => !existingIds.has(f.id));
-                            return [...newRecords, ...prev];
+                            const combined = [...newRecords, ...prev];
+                            return combined.sort((a,b) => {
+                                const dateA = new Date(a.testDate || 0);
+                                const dateB = new Date(b.testDate || 0);
+                                if (dateB - dateA !== 0) return dateB - dateA;
+                                return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+                            });
                         });
                     }
                 }
@@ -97,7 +110,7 @@ const HtsWireTesting = ({ onBack, inventoryData = [] }) => {
         };
         fetchStatus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [pendingStocks, refreshTrigger]);
+    }, [pendingStocks?.length, refreshTrigger]);
 
     const { register, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm({
         defaultValues: {
@@ -119,6 +132,8 @@ const HtsWireTesting = ({ onBack, inventoryData = [] }) => {
                         ...record,
                         testDate: record.testDate ? record.testDate.substring(0, 10) : new Date().toISOString().split('T')[0]
                     });
+                } else {
+                    toast.info("No previous HTS Wire test data found for this request. You can start entering new results.");
                 }
             });
         }
@@ -146,23 +161,27 @@ const HtsWireTesting = ({ onBack, inventoryData = [] }) => {
 
             await saveHtsWireDailyTest(payload, editId);
             toast.success(`HTS Wire daily test result ${editId ? 'updated' : 'saved'} successfully!`);
-            // In real app re-fetch history
-        } catch (error) {
-            console.error("Error saving HTS wire test:", error);
-            toast.error("Failed to save HTS wire test result.");
-        } finally {
+            
             setShowForm(false);
             reset();
             setActiveRequestId(null);
             setEditId(null);
             setIsPeriodic(false);
             setRefreshTrigger(prev => prev + 1);
+        } catch (error) {
+            console.error("Error saving HTS wire test:", error);
+            toast.error(error.message || "Failed to save HTS wire test result.");
         }
     };
 
     const handleDelete = (id) => {
-        if (window.confirm('Delete this record?')) {
-            setHistory(prev => prev.filter(h => h.id !== id));
+        if (window.confirm('Are you sure you want to delete this test record?')) {
+            try {
+                setHistory(prev => prev.filter(h => h.id !== id));
+                toast.success("Record removed from local history list.");
+            } catch (error) {
+                toast.error("Failed to delete record.");
+            }
         }
     };
 
@@ -272,13 +291,6 @@ const HtsWireTesting = ({ onBack, inventoryData = [] }) => {
             <div className="content-title-row" style={{ marginBottom: '24px' }}>
                 <h2 style={{ margin: 0 }}>HTS Wire Testing (Daily)</h2>
                 <div style={{ display: 'flex', gap: '12px' }}>
-                    <button className="toggle-btn mini" onClick={() => { 
-                        reset(); 
-                        setActiveRequestId(null);
-                        setEditId(null);
-                        setIsPeriodic(true);
-                        setShowForm(true); 
-                    }}>+ Add New (Periodic)</button>
                     <button className="toggle-btn secondary mini" onClick={onBack}>Back to Dashboard</button>
                 </div>
             </div>
@@ -327,13 +339,6 @@ const HtsWireTesting = ({ onBack, inventoryData = [] }) => {
                     <div className="table-outer-wrapper fade-in">
                         <div className="content-title-row" style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', marginBottom: 0 }}>
                             <h4 style={{ margin: 0 }}>HTS Quality Logs</h4>
-                            <button className="toggle-btn mini" onClick={() => { 
-                                reset(); 
-                                setActiveRequestId(null);
-                                setEditId(null);
-                                setIsPeriodic(true);
-                                setShowForm(true); 
-                            }}>+ Add New (Periodic)</button>
                         </div>
                         <EnhancedDataTable columns={historyColumns} data={history} emptyMessage="No HTS test records found." />
                     </div>

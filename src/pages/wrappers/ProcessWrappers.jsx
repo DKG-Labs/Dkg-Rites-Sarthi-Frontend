@@ -136,11 +136,14 @@ export const ProcessStaticCheckWrapper = () => {
     if (route) navigate(route);
   };
 
+  const lotNumbers = lineData?.lotNumbers || [];
+
   return (
     <ProcessStaticPeriodicCheckPage
       call={selectedCall}
       onBack={handleBack}
       selectedLines={allLines}
+      lotNumbers={lotNumbers}
       onNavigateSubmodule={handleNavigateSubmodule}
       lineData={lineData}
       productionLines={productionLines}

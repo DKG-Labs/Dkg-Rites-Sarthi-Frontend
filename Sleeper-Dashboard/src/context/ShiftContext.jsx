@@ -217,14 +217,17 @@ export const ShiftProvider = ({ children }) => {
         const currentPlantId = dutyUnit || localStorage.getItem('dutyUnit');
         const currentDutyDate = dutyDate || localStorage.getItem('dutyDate') || formatToIST(null, 'iso_date');
 
-        const formattedDate = formatToIST(currentDutyDate, 'date');
+        // Force format to dd/MM/yyyy 
+        const [y, m, d] = currentDutyDate.split('-');
+        const formattedDate = `${d}/${m}/${y}`;
 
         const params = {
             plantId: currentPlantId || ":41647/01",
             vendorCode: currentVendorCode || ":41647",
             shift: currentShift || "A",
             createdBy: currentUserId || "134",
-            date: formattedDate
+            date: formattedDate,
+            location: dutyLocation || "Line I"
         };
 
         try {
@@ -245,15 +248,19 @@ export const ShiftProvider = ({ children }) => {
         const currentPlantId = dutyUnit || localStorage.getItem('dutyUnit');
         const currentDutyDate = dutyDate || localStorage.getItem('dutyDate') || formatToIST(null, 'iso_date');
 
-        const formattedDate = formatToIST(currentDutyDate, 'date');
+        // Format required by API: dd/MM/yyyy
+        const [y, m, d] = currentDutyDate.split('-');
+        const formattedDate = `${d}/${m}/${y}`;
 
         const params = {
-            plantId: currentPlantId || ":41647/01",
+            plantId: currentPlantId || ":41647/waidiyaram",
             vendorCode: currentVendorCode || ":41647",
             shift: currentShift || "A",
             createdBy: currentUserId || "134",
             date: formattedDate
         };
+
+        console.log("Calling getCompactionTodayRecord with params:", params);
 
         try {
             const res = await apiService.getCompactionTodayRecord(params);

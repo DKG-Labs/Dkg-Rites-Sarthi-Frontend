@@ -1,147 +1,123 @@
 import React from 'react';
-import '../AnnexureTemplate.css';
+import AnnexureLayout from "./AnnexureLayout";
+import AnnexureHeader from "./AnnexureHeader";
+import AnnexureTable from "./AnnexureTable";
+import AnnexureFooter from "./AnnexureFooter";
 import './InclusionRatingAnnexure.css';
-import AnnexureHeader from './AnnexureHeader';
 
 /**
  * Final Inspection Report - Inclusion Rating, Depth of Decarb Annexure
  * Annexure-VII for inclusion rating and depth of decarb inspection
  */
 
-const InclusionRatingAnnexure = ({ data = [] }) => {
+const inclusionHeaderRows = [
+  [
+    { label: "S. No.", rowSpan: 3 },
+    { label: "Cast / Heat No.", rowSpan: 3 },
+    { label: "Colour Code", rowSpan: 3 },
+    { label: "Lot No.", rowSpan: 3 },
+    { label: "Quantity (in nos.)", rowSpan: 3 },
+    { label: "Sample Size", rowSpan: 3 },
+    { label: "Sample (Nos.)", rowSpan: 3 },
+    { label: "Inclusion Rating (thin)(thick)\n2.0 max", colSpan: 8 },
+    { label: "Depth of Decarb\n(d/100 OR 0.25 mm max)", rowSpan: 3 },
+    { label: "Micro-structure\n(Fully tempered martensite structure)", rowSpan: 3 },
+    { label: "Freedom from defects", rowSpan: 3 },
+    { label: "Remarks / Accepted - Rejected", rowSpan: 3 },
+    { label: "Sign. Of Supervisor", rowSpan: 3 }
+  ],
+  [
+    { label: "A", colSpan: 2 },
+    { label: "B", colSpan: 2 },
+    { label: "C", colSpan: 2 },
+    { label: "D", colSpan: 2 }
+  ],
+  [
+    { label: "Thin" }, { label: "Thick" },
+    { label: "Thin" }, { label: "Thick" },
+    { label: "Thin" }, { label: "Thick" },
+    { label: "Thin" }, { label: "Thick" }
+  ]
+];
 
-  // Sample data rows - empty for now, will be populated dynamically in future
-  // Each main row has 8 sub-rows for inclusion rating measurements
-  const sampleRows = data.length > 0 ? data : [
-    {
-      sNo: '',
-      castHeatNo: '',
-      colourCode: '',
-      lotNo: '',
-      quantityInNos: '',
-      sampleSize: '',
-      sampleNos: '',
-      inclusionRating: [
-        { a: { thin: '', thick: '' }, b: { thin: '', thick: '' }, c: { thin: '', thick: '' }, d: { thin: '', thick: '' } },
-        { a: { thin: '', thick: '' }, b: { thin: '', thick: '' }, c: { thin: '', thick: '' }, d: { thin: '', thick: '' } },
-        { a: { thin: '', thick: '' }, b: { thin: '', thick: '' }, c: { thin: '', thick: '' }, d: { thin: '', thick: '' } },
-        { a: { thin: '', thick: '' }, b: { thin: '', thick: '' }, c: { thin: '', thick: '' }, d: { thin: '', thick: '' } },
-        { a: { thin: '', thick: '' }, b: { thin: '', thick: '' }, c: { thin: '', thick: '' }, d: { thin: '', thick: '' } },
-        { a: { thin: '', thick: '' }, b: { thin: '', thick: '' }, c: { thin: '', thick: '' }, d: { thin: '', thick: '' } },
-        { a: { thin: '', thick: '' }, b: { thin: '', thick: '' }, c: { thin: '', thick: '' }, d: { thin: '', thick: '' } },
-        { a: { thin: '', thick: '' }, b: { thin: '', thick: '' }, c: { thin: '', thick: '' }, d: { thin: '', thick: '' } }
-      ],
-      depthOfDecarb: '',
-      microstructure: '',
-      freePearlite: '',
-      remarks: '',
-      acceptedRejected: '',
-      signOfSupervisor: ''
-    }
-  ];
+const InclusionRatingAnnexure = ({ data, selectedCall }) => {
+  const reportData = data?.pages ? data : { pages: [] };
+  const pages = reportData.pages;
+
+  if (!pages || pages.length === 0) {
+    return (
+      <div className="annexure-empty-state" style={{ padding: '2rem', textAlign: 'center' }}>
+        <p>No Inclusion Rating & Decarb data available for this call.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="annexure-template inclusion-rating-annexure">
-      {/* HEADER SECTION */}
-      <AnnexureHeader
-        pageNo="13 of 18"
-        preparedBy="KJM"
-        checkedBy="CSR"
-        approvedBy="GM(I)/WR"
-        title="Final Inspection Report"
-        subtitle="Test Result: Inclusion Rating, Depth of Decarb"
-        annexureNumber="Annexure-VII"
-        annexureCode="IRST-31-2025"
-      />
+    <div className="multi-annexure-container">
+      {pages.map((page, pageIdx) => (
+        <AnnexureLayout key={pageIdx}>
+          <AnnexureHeader
+            selectedCall={selectedCall}
+            pageNo={`${pageIdx + 1} of ${pages.length}`}
+            docNo="QA/WR/MECH/604"
+            issueNo="02"
+            effectiveDate="14.10.2025"
+            preparedBy="KJM"
+            checkedBy="CSR"
+            approvedBy="GGM-I/WR"
+            title="Final Inspection Report"
+            subtitle="Test Result: Inclusion Rating, Depth of Decarb"
+            annexureNumber="Annexure-VII"
+            annexureCode="IRST-31-2025"
+            vendorName={reportData.vendor}
+            firmName={reportData.vendor}
+            productName={reportData.productName || selectedCall?.product_type}
+            callNo={reportData.inspectionCallNo}
+            certificateNo={reportData.certificateNo}
+            dateOfInspection={reportData.dateOfInspection}
+          />
 
-      {/* INCLUSION RATING TABLE */}
-      <div className="annexure-table-wrapper">
-        <table className="annexure-table inclusion-rating-table">
-          <thead>
-            {/* Row 1: Main headers */}
-            <tr>
-              <th rowSpan="3" className="annexure-th rotated-header"><div className="rotated-text">S.No.</div></th>
-              <th rowSpan="3" className="annexure-th rotated-header"><div className="rotated-text">Cast / Heat No.</div></th>
-              <th rowSpan="3" className="annexure-th rotated-header"><div className="rotated-text">Colour Code</div></th>
-              <th rowSpan="3" className="annexure-th rotated-header"><div className="rotated-text">Lot No.</div></th>
-              <th rowSpan="3" className="annexure-th rotated-header"><div className="rotated-text">Quantity (in nos.)</div></th>
-              <th rowSpan="3" className="annexure-th rotated-header"><div className="rotated-text">Sample Size</div></th>
-              <th rowSpan="3" className="annexure-th rotated-header"><div className="rotated-text">Sample (Nos.)</div></th>
-              <th colSpan="8" className="annexure-th">Inclusion Rating (thin)(thick)<br/>2.0 max</th>
-              <th rowSpan="3" className="annexure-th rotated-header"><div className="rotated-text">Depth of Decarb (d100 OR 0.25 mm max)</div></th>
-              <th rowSpan="3" className="annexure-th rotated-header"><div className="rotated-text">Micro-structure (fully pearlitic martensitic structure</div></th>
-              <th rowSpan="3" className="annexure-th rotated-header"><div className="rotated-text">Free/non Pearlite area</div></th>
-              <th rowSpan="3" className="annexure-th rotated-header"><div className="rotated-text">Remarks / Accepted - Rejected</div></th>
-              <th rowSpan="3" className="annexure-th rotated-header"><div className="rotated-text">Sign of Supervisor</div></th>
-            </tr>
-            {/* Row 2: A, B, C, D headers */}
-            <tr>
-              <th colSpan="2" className="annexure-th sub-header">A</th>
-              <th colSpan="2" className="annexure-th sub-header">B</th>
-              <th colSpan="2" className="annexure-th sub-header">C</th>
-              <th colSpan="2" className="annexure-th sub-header">D</th>
-            </tr>
-            {/* Row 3: Thin/Thick headers */}
-            <tr>
-              <th className="annexure-th sub-header-small">Thin</th>
-              <th className="annexure-th sub-header-small">Thick</th>
-              <th className="annexure-th sub-header-small">Thin</th>
-              <th className="annexure-th sub-header-small">Thick</th>
-              <th className="annexure-th sub-header-small">Thin</th>
-              <th className="annexure-th sub-header-small">Thick</th>
-              <th className="annexure-th sub-header-small">Thin</th>
-              <th className="annexure-th sub-header-small">Thick</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sampleRows.map((row, rowIndex) => (
-              <React.Fragment key={rowIndex}>
-                {row.inclusionRating.map((rating, subIndex) => (
-                  <tr key={`${rowIndex}-${subIndex}`}>
-                    {subIndex === 0 && (
-                      <>
-                        <td rowSpan="8" className="annexure-td">{row.sNo}</td>
-                        <td rowSpan="8" className="annexure-td data-cell">{row.castHeatNo}</td>
-                        <td rowSpan="8" className="annexure-td data-cell">{row.colourCode}</td>
-                        <td rowSpan="8" className="annexure-td data-cell">{row.lotNo}</td>
-                        <td rowSpan="8" className="annexure-td data-cell">{row.quantityInNos}</td>
-                        <td rowSpan="8" className="annexure-td data-cell">{row.sampleSize}</td>
-                        <td rowSpan="8" className="annexure-td data-cell">{row.sampleNos}</td>
-                      </>
-                    )}
-                    <td className="annexure-td data-cell">{rating.a.thin}</td>
-                    <td className="annexure-td data-cell">{rating.a.thick}</td>
-                    <td className="annexure-td data-cell">{rating.b.thin}</td>
-                    <td className="annexure-td data-cell">{rating.b.thick}</td>
-                    <td className="annexure-td data-cell">{rating.c.thin}</td>
-                    <td className="annexure-td data-cell">{rating.c.thick}</td>
-                    <td className="annexure-td data-cell">{rating.d.thin}</td>
-                    <td className="annexure-td data-cell">{rating.d.thick}</td>
-                    {subIndex === 0 && (
-                      <>
-                        <td rowSpan="8" className="annexure-td data-cell">{row.depthOfDecarb}</td>
-                        <td rowSpan="8" className="annexure-td data-cell">{row.microstructure}</td>
-                        <td rowSpan="8" className="annexure-td data-cell">{row.freePearlite}</td>
-                        <td rowSpan="8" className="annexure-td data-cell">{row.remarks}</td>
-                        <td rowSpan="8" className="annexure-td data-cell">{row.signOfSupervisor}</td>
-                      </>
-                    )}
-                  </tr>
-                ))}
-              </React.Fragment>
+          <AnnexureTable headerRows={inclusionHeaderRows}>
+            {page.rows.map((row, rowIdx) => (
+              <tr key={rowIdx}>
+                {rowIdx === 0 && (
+                  <>
+                    <td className="annexure-td data-cell" rowSpan={page.rows.length} style={{ verticalAlign: 'middle' }}>{pageIdx + 1}</td>
+                    <td className="annexure-td data-cell" rowSpan={page.rows.length} style={{ verticalAlign: 'middle' }}>{page.heatNo || '-'}</td>
+                    <td className="annexure-td data-cell" rowSpan={page.rows.length} style={{ verticalAlign: 'middle' }}>{page.colourCode || '-'}</td>
+                    <td className="annexure-td data-cell" rowSpan={page.rows.length} style={{ verticalAlign: 'middle' }}>{page.lotNo || '-'}</td>
+                    <td className="annexure-td data-cell" rowSpan={page.rows.length} style={{ verticalAlign: 'middle' }}>{page.quantity || '-'}</td>
+                    <td className="annexure-td data-cell" rowSpan={page.rows.length} style={{ verticalAlign: 'middle' }}>{page.sampleSize || '-'}</td>
+                  </>
+                )}
+                
+                <td className="annexure-td data-cell">{row.sampleNo || '-'}</td>
+
+                <td className="annexure-td data-cell">{row.inclusionAThin || '-'}</td>
+                <td className="annexure-td data-cell">{row.inclusionAThick || '-'}</td>
+                <td className="annexure-td data-cell">{row.inclusionBThin || '-'}</td>
+                <td className="annexure-td data-cell">{row.inclusionBThick || '-'}</td>
+                <td className="annexure-td data-cell">{row.inclusionCThin || '-'}</td>
+                <td className="annexure-td data-cell">{row.inclusionCThick || '-'}</td>
+                <td className="annexure-td data-cell">{row.inclusionDThin || '-'}</td>
+                <td className="annexure-td data-cell">{row.inclusionDThick || '-'}</td>
+
+                {rowIdx === 0 && (
+                  <>
+                    <td className="annexure-td data-cell" rowSpan={page.rows.length} style={{ verticalAlign: 'middle', whiteSpace: 'pre-line' }}>{row.decarbResult || '-'}</td>
+                    <td className="annexure-td data-cell" rowSpan={page.rows.length} style={{ verticalAlign: 'middle' }}>{row.microstructureResult || '-'}</td>
+                    <td className="annexure-td data-cell" rowSpan={page.rows.length} style={{ verticalAlign: 'middle' }}>{row.freedomResult || '-'}</td>
+                    <td className="annexure-td data-cell" rowSpan={page.rows.length} style={{ verticalAlign: 'middle' }}>{page.overallStatus || '-'}</td>
+                    <td className="annexure-td data-cell" rowSpan={page.rows.length} style={{ verticalAlign: 'middle' }}></td>
+                  </>
+                )}
+              </tr>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </AnnexureTable>
 
-      {/* FOOTER SECTION */}
-      <div className="annexure-footer">
-        <div className="annexure-signature-section">
-          <div className="annexure-signature-right">
-            <div className="annexure-signature-label">Name & signature of IE</div>
-          </div>
-        </div>
-      </div>
+          <AnnexureFooter />
+        </AnnexureLayout>
+      ))}
     </div>
   );
 };

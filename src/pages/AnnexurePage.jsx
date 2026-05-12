@@ -1,18 +1,14 @@
-import React, { useState, useRef } from 'react';
-import jsPDF from 'jspdf';
-import domtoimage from 'dom-to-image-more';
-import ChemicalAnalysisAnnexureAdvanced from '../components/annexures/ChemicalAnalysisAnnexureAdvanced';
-import DimensionAnnexure from '../components/annexures/DimensionAnnexure';
-import FinalInspectionAnnexure from '../components/annexures/FinalInspectionAnnexure';
-import FinalChemicalAnalysisAnnexure from '../components/annexures/FinalChemicalAnalysisAnnexure';
+import React, { useState, useRef, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import InclusionRatingAnnexure from '../components/annexures/InclusionRatingAnnexure';
-import HardnessTestAnnexure from '../components/annexures/HardnessTestAnnexure';
-import DimensionTestAnnexure from '../components/annexures/DimensionTestAnnexure';
 import ApplicationDeflectionAnnexure from '../components/annexures/ApplicationDeflectionAnnexure';
-import ToeLoadTestAnnexure from '../components/annexures/ToeLoadTestAnnexure';
-import WeightTestAnnexure from '../components/annexures/WeightTestAnnexure';
-import InspectionTestPlanAnnexure from '../components/annexures/InspectionTestPlanAnnexure';
-import { SAMPLE_CHEMICAL_ANALYSIS_DATA, SAMPLE_DIMENSION_DATA, SAMPLE_FINAL_INSPECTION_DATA, SAMPLE_FINAL_CHEMICAL_ANALYSIS_DATA, SAMPLE_INCLUSION_RATING_DATA, fetchAnnexureData } from '../data/annexureData';
+import { useInspection } from '../context/InspectionContext';
+import { captureElementToPdfBlob } from '../utils/annexurePdfUtils';
+import { ANNEXURE_LIST } from '../data/annexureList';
+import { fetchAnnexureData } from '../data/annexureData';
+import { annexureService } from '../services/annexureService';
+import AnnexureLoader from '../components/annexures/AnnexureLoader';
+import { getAnnexureErrorMessage } from '../utils/annexureErrorHandlers';
 import './AnnexurePage.css';
 
 /**
@@ -20,139 +16,126 @@ import './AnnexurePage.css';
  * Displays list of available annexures and allows viewing them
  */
 
+// Use the centralized list outside to avoid re-renders
+const annexureList = ANNEXURE_LIST.map(a => {
+  if (a.id === 'inclusion-rating') return { ...a, component: InclusionRatingAnnexure };
+  if (a.id === 'application-deflection') return { ...a, component: ApplicationDeflectionAnnexure };
+  return a;
+});
+
 const AnnexurePage = ({ onBack }) => {
+  const { selectedCall } = useInspection();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const typeParam = searchParams.get('type');
+
   const [selectedAnnexure, setSelectedAnnexure] = useState(null);
-  const [annexureData, setAnnexureData] = useState({
-    'chemical-analysis': SAMPLE_CHEMICAL_ANALYSIS_DATA,
-    'dimensional-check': SAMPLE_DIMENSION_DATA,
-    'final-inspection': SAMPLE_FINAL_INSPECTION_DATA,
-    'final-chemical-analysis': SAMPLE_FINAL_CHEMICAL_ANALYSIS_DATA,
-    'inclusion-rating': SAMPLE_INCLUSION_RATING_DATA
-  });
+  const [annexureData, setAnnexureData] = useState({});
   const [loading, setLoading] = useState(false);
   const [pdfGenerating, setPdfGenerating] = useState(false);
   const [notification, setNotification] = useState(null);
   const annexureRef = useRef(null);
+  const lastLoadedType = useRef(null);
+  const fetchingRef = useRef(null);
 
-  // List of available annexures
-  const annexureList = [
-    {
-      id: 'inspection-test-plan',
-      title: 'Inspection & Test Plan',
-      subtitle: 'Complete Inspection & Test Plan for Elastic Rail Clip MK-III/MK-V',
-      code: 'Pages 1-8 of 18',
-      icon: '📑',
-      component: InspectionTestPlanAnnexure
-    },
-    {
-      id: 'chemical-analysis',
-      title: 'Chemical Analysis',
-      subtitle: 'Stage Inspection for Raw material - Test Result: Chemical Analysis',
-      code: 'Annexure-I',
-      icon: '🧪',
-      component: ChemicalAnalysisAnnexureAdvanced
-    },
-    // Add more annexures here as they are created
-    {
-      id: 'dimensional-check',
-      title: 'Dimensional Check',
-      subtitle: 'Stage Inspection for Raw material - Test Result: Dimension',
-      code: 'Annexure-II',
-      icon: '📏',
-      component: DimensionAnnexure
-    },
-    {
-      id: 'final-inspection',
-      title: 'Final Inspection Report',
-      subtitle: 'Final Inspection Report - Dimensions (in mm)',
-      code: 'Annexure-III',
-      icon: '📋',
-      component: FinalInspectionAnnexure
-    },
-    {
-      id: 'final-chemical-analysis',
-      title: 'Final Chemical Analysis',
-      subtitle: 'Final Inspection Report - Test Result: Chemical Analysis',
-      code: 'Annexure-VI',
-      icon: '🧪',
-      component: FinalChemicalAnalysisAnnexure
-    },
-    {
-      id: 'inclusion-rating',
-      title: 'Inclusion Rating & Depth of Decarb',
-      subtitle: 'Final Inspection Report - Test Result: Inclusion Rating, Depth of Decarb',
-      code: 'Annexure-VII',
-      icon: '🔬',
-      component: InclusionRatingAnnexure
-    },
-    {
-      id: 'hardness-test',
-      title: 'Hardness Test',
-      subtitle: 'Final Inspection Report - Test Result: Hardness Test',
-      code: 'Annexure-VIII',
-      icon: '💎',
-      component: HardnessTestAnnexure
-    },
-    {
-      id: 'dimension-test',
-      title: 'Dimension Test',
-      subtitle: 'Final Inspection Report - Test Result: Dimension test',
-      code: 'Annexure-IX',
-      icon: '📐',
-      component: DimensionTestAnnexure
-    },
-    {
-      id: 'application-deflection',
-      title: 'Application & Deflection Test',
-      subtitle: 'Final Inspection Report - Test Result: Application & Deflection test',
-      code: 'Annexure-X',
-      icon: '⚙️',
-      component: ApplicationDeflectionAnnexure
-    },
-    {
-      id: 'toe-load-test',
-      title: 'Toe Load Test',
-      subtitle: 'Final Inspection Report - Test Result: Toe load test',
-      code: 'Annexure-XI',
-      icon: '🔩',
-      component: ToeLoadTestAnnexure
-    },
-    {
-      id: 'weight-test',
-      title: 'Weight Test',
-      subtitle: 'Final Inspection Report - Test Result: Weight Test',
-      code: 'Annexure-XV',
-      icon: '⚖️',
-      component: WeightTestAnnexure
-    }
-  ];
-
-  const handleViewAnnexure = async (annexure) => {
-    setSelectedAnnexure(annexure);
-
-    // Load data if not already loaded
-    if (!annexureData[annexure.id]) {
-      setLoading(true);
-      try {
-        const data = await fetchAnnexureData(annexure.id);
-        setAnnexureData(prev => ({
-          ...prev,
-          [annexure.id]: data
-        }));
-      } catch (error) {
-        console.error('Error loading annexure data:', error);
-      } finally {
-        setLoading(false);
+  // Single Source of Truth: URL Logic
+  useEffect(() => {
+    const syncStateWithUrl = async () => {
+      // CASE 1: Back to list
+      if (!typeParam) {
+        if (selectedAnnexure) {
+          setSelectedAnnexure(null);
+          lastLoadedType.current = null;
+          fetchingRef.current = null;
+        }
+        return;
       }
-    }
+
+      // CASE 2: New Annexure Selection or Page Load
+      const currentAnnexureId = selectedAnnexure?.id;
+      const isNewType = typeParam && (currentAnnexureId !== typeParam || lastLoadedType.current !== typeParam);
+      
+      if (isNewType) {
+        // PREVENT DOUBLE FETCH (Strict Mode or Rapid Clicks)
+        if (fetchingRef.current === typeParam) return;
+
+        const annexure = annexureList.find(a => a.id === typeParam);
+        if (!annexure) {
+          setSelectedAnnexure(null);
+          return;
+        }
+
+        setSelectedAnnexure(annexure);
+        
+        // Check if data already exists to avoid refetching
+        if (annexureData[typeParam] && lastLoadedType.current === typeParam) {
+           return;
+        }
+
+        setLoading(true);
+        fetchingRef.current = typeParam;
+        lastLoadedType.current = typeParam;
+        
+        console.log(`[Annexure] Fetching data for ${typeParam} (Call: ${selectedCall?.call_no})`);
+        
+        try {
+          let data;
+          if (typeParam === 'chemical-analysis' && selectedCall?.call_no) {
+            data = await annexureService.getChemicalAnalysis(selectedCall.call_no);
+          } else if (typeParam === 'dimensional-check' && selectedCall?.call_no) {
+            data = await annexureService.getDimensionalCheck(selectedCall.call_no);
+          } else if (typeParam === 'final-chemical-analysis' && selectedCall?.call_no) {
+            const response = await annexureService.getFinalChemicalAnalysis(selectedCall.call_no);
+            data = response?.responseData || response || [];
+          } else if (typeParam === 'hardness-test' && selectedCall?.call_no) {
+            data = await annexureService.getFinalHardnessTest(selectedCall.call_no);
+          } else if (typeParam === 'toe-load-test' && selectedCall?.call_no) {
+            data = await annexureService.getFinalToeLoadTest(selectedCall.call_no);
+          } else if (typeParam === 'weight-test' && selectedCall?.call_no) {
+            data = await annexureService.getFinalWeightTest(selectedCall.call_no);
+          } else if (typeParam === 'dimension-test' && selectedCall?.call_no) {
+            const response = await annexureService.getFinalDimensionalInspection(selectedCall.call_no);
+            data = response?.responseData || response || [];
+          } else if (typeParam === 'final-inspection' && selectedCall?.call_no) {
+             // Annexure-III logic
+             data = await annexureService.getDimensionalCheck(selectedCall.call_no); // Fallback for now if same
+          } else if (typeParam === 'inclusion-rating' && selectedCall?.call_no) {
+            const response = await annexureService.getFinalInclusion(selectedCall.call_no);
+            data = response?.responseData || response || [];
+          } else if (typeParam === 'application-deflection' && selectedCall?.call_no) {
+            const response = await annexureService.getFinalApplicationDeflection(selectedCall.call_no);
+            data = response?.responseData || response || [];
+          } else if (typeParam === 'process-inspection' && selectedCall?.call_no) {
+            const selectedDate = searchParams.get('date');
+            const selectedShift = searchParams.get('shift');
+            const response = await annexureService.getProcessInspectionRegister(selectedCall.call_no, selectedDate, selectedShift);
+            data = response || [];
+          } else {
+            data = await fetchAnnexureData(typeParam);
+          }
+
+          setAnnexureData(prev => ({ ...prev, [typeParam]: data }));
+        } catch (error) {
+          const friendlyMessage = getAnnexureErrorMessage(error);
+          showNotification(friendlyMessage, 'error');
+          setAnnexureData(prev => ({ ...prev, [typeParam]: [] }));
+        } finally {
+          setLoading(false);
+          fetchingRef.current = null;
+        }
+      }
+    };
+
+    syncStateWithUrl();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [typeParam, selectedCall]); // Only re-run if URL param or call changes
+
+  // Handlers now only update the URL
+  const handleSelectAnnexure = (annexure) => {
+    setSearchParams({ type: annexure.id });
   };
 
   const handleBackToList = () => {
-    setSelectedAnnexure(null);
-  };
-
-  const handlePrint = () => {
-    window.print();
+    setSearchParams({});
   };
 
   const showNotification = (message, type = 'success') => {
@@ -171,129 +154,36 @@ const AnnexurePage = ({ onBack }) => {
     setPdfGenerating(true);
 
     try {
-      // Get current date for filename
+      const annexureElement = annexureRef.current;
       const today = new Date();
-      const dateStr = today.toISOString().split('T')[0]; // Format: YYYY-MM-DD
-      const filename = `${selectedAnnexure.code}_${dateStr}.pdf`;
+      const dateStr = today.toISOString().split('T')[0];
+      const filename = `${selectedAnnexure.code}_${selectedCall?.call_no || 'report'}_${dateStr}.pdf`;
 
-      // Find the actual annexure component (not the wrapper)
-      // Support both old annexure classes and new annexure-layout class
-      const annexureElement = annexureRef.current.querySelector(
-        '.chemical-analysis-annexure, .dimension-annexure, .final-inspection-annexure, .final-chemical-analysis-annexure, .inclusion-rating-annexure, .inspection-test-plan-annexure, .annexure-layout'
-      );
-
-      if (!annexureElement) {
-        showNotification('Unable to find annexure content. Please try again.', 'error');
-        setPdfGenerating(false);
-        return;
-      }
-
-      // A4 landscape dimensions in mm
-      const pdfWidth = 297;
-      const pdfHeight = 210;
-      const margin = 8;
-      const contentWidth = pdfWidth - (margin * 2);
-      const contentHeight = pdfHeight - (margin * 2);
-
-      // Set fixed width and hide scrollbars for consistent rendering
-      const originalWidth = annexureElement.style.width;
-      const originalOverflow = annexureElement.style.overflow;
-      annexureElement.style.width = '1100px';
-      annexureElement.style.overflow = 'visible';
-
-      // Hide all scrollbars in the element
-      const tableWrappers = annexureElement.querySelectorAll('.annexure-table-wrapper');
-      const originalWrapperStyles = [];
-      tableWrappers.forEach((wrapper, index) => {
-        originalWrapperStyles[index] = {
-          overflow: wrapper.style.overflow,
-          overflowX: wrapper.style.overflowX,
-          overflowY: wrapper.style.overflowY
-        };
-        wrapper.style.overflow = 'visible';
-        wrapper.style.overflowX = 'visible';
-        wrapper.style.overflowY = 'visible';
+      const pdfBlob = await captureElementToPdfBlob(annexureElement, {
+        filename,
+        orientation: selectedAnnexure.orientation || 'landscape'
       });
 
-      // Use dom-to-image-more for better CSS transform support
-      const dataUrl = await domtoimage.toPng(annexureElement, {
-        quality: 1,
-        width: 1100,
-        height: annexureElement.scrollHeight,
-        style: {
-          transform: 'scale(1)',
-          transformOrigin: 'top left',
-          width: '1100px',
-          maxWidth: '1100px',
-          overflow: 'visible'
-        },
-        filter: (node) => {
-          // Filter out buttons and navigation
-          if (node.tagName === 'BUTTON' || node.classList?.contains('annexure-page__back-button')) {
-            return false;
-          }
-          return true;
-        }
-      });
-
-      // Restore original styles
-      annexureElement.style.width = originalWidth;
-      annexureElement.style.overflow = originalOverflow;
-      tableWrappers.forEach((wrapper, index) => {
-        wrapper.style.overflow = originalWrapperStyles[index].overflow;
-        wrapper.style.overflowX = originalWrapperStyles[index].overflowX;
-        wrapper.style.overflowY = originalWrapperStyles[index].overflowY;
-      });
-
-      // Wait for image to load
-      await new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => {
-          // Calculate dimensions to fit the image into PDF page
-          const imgWidth = contentWidth;
-          const imgHeight = (img.height * imgWidth) / img.width;
-
-          // Create PDF
-          const pdf = new jsPDF({
-            orientation: 'landscape',
-            unit: 'mm',
-            format: 'a4',
-            compress: true
-          });
-
-          // If image height is greater than content height, scale it down
-          if (imgHeight > contentHeight) {
-            const scaledWidth = (img.width * contentHeight) / img.height;
-            const scaledHeight = contentHeight;
-            const xOffset = margin + (contentWidth - scaledWidth) / 2;
-            pdf.addImage(dataUrl, 'PNG', xOffset, margin, scaledWidth, scaledHeight);
-          } else {
-            // Center vertically if smaller than page
-            const yOffset = margin + (contentHeight - imgHeight) / 2;
-            pdf.addImage(dataUrl, 'PNG', margin, yOffset, imgWidth, imgHeight);
-          }
-
-          // Save the PDF
-          pdf.save(filename);
-          resolve();
-        };
-        img.onerror = reject;
-        img.src = dataUrl;
-      });
-
-      showNotification('PDF downloaded successfully!', 'success');
+      const url = URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.click();
+      
+      showNotification('PDF exported successfully!');
     } catch (error) {
-      console.error('Error generating PDF:', error);
-      showNotification('Failed to generate PDF. Please try again.', 'error');
+      const friendlyMessage = getAnnexureErrorMessage(error);
+      showNotification(friendlyMessage, 'error');
     } finally {
       setPdfGenerating(false);
     }
   };
 
+
   // If an annexure is selected, show it
   if (selectedAnnexure) {
     const AnnexureComponent = selectedAnnexure.component;
-    
+
     if (!AnnexureComponent) {
       return (
         <div className="annexure-page">
@@ -315,118 +205,157 @@ const AnnexurePage = ({ onBack }) => {
 
     return (
       <div className="annexure-page">
-        {/* Notification */}
         {notification && (
           <div className={`notification notification--${notification.type}`}>
             {notification.message}
           </div>
         )}
 
-        {/* PDF Generating Overlay */}
         {pdfGenerating && (
-          <div className="pdf-generating-overlay">
-            <div className="pdf-generating-content">
-              <div className="loading-spinner"></div>
-              <p>Generating PDF...</p>
-            </div>
-          </div>
+          <AnnexureLoader 
+            title="Generating PDF" 
+            subtitle="Preparing high-quality certificate export..." 
+          />
         )}
 
-        <div className="annexure-header-bar no-print">
-          <div className="annexure-header-left">
-            <button className="btn-back" onClick={handleBackToList}>
-              ← Back to Annexure List
+        <div className="annexure-view-header no-print">
+          <div className="header-section-left">
+            <button className="breadcrumb-item" onClick={handleBackToList}>
+              <span className="breadcrumb-icon">←</span>
+              <span className="breadcrumb-text">Back to Reports</span>
             </button>
-            <div className="annexure-header-info-bar">
-              <span className="annexure-code-badge">{selectedAnnexure.code}</span>
-              <span className="annexure-title-bar">{selectedAnnexure.title}</span>
-            </div>
           </div>
-          <div className="annexure-header-actions">
-            <button className="btn-action" onClick={handlePrint} disabled={pdfGenerating}>
-              🖨️ Print
-            </button>
-            <button className="btn-action" onClick={handleExportPDF} disabled={pdfGenerating}>
-              📄 Export PDF
+
+          <div className="view-title-group">
+            <span className="view-badge">{selectedAnnexure.code}</span>
+            <h2 className="view-title">{selectedAnnexure.title}</h2>
+          </div>
+
+          <div className="header-actions">
+            <button className="btn-action-premium" onClick={handleExportPDF} disabled={pdfGenerating}>
+              {pdfGenerating ? (
+                <span className="loading-dots">Generating...</span>
+              ) : (
+                <>
+                  <span className="action-icon">📄</span> Export PDF
+                </>
+              )}
             </button>
           </div>
         </div>
 
         <div className="annexure-content" ref={annexureRef}>
           {loading ? (
-            <div className="annexure-loading">
-              <div className="loading-spinner"></div>
-              <p>Loading annexure data...</p>
-            </div>
+            <AnnexureLoader 
+              title="Loading Report" 
+              subtitle="Fetching secure IC data from Sarthi..." 
+              fullScreen={false}
+            />
           ) : (
-            <AnnexureComponent data={annexureData[selectedAnnexure.id] || []} />
+            <AnnexureComponent
+              data={annexureData[selectedAnnexure.id] || []}
+              selectedCall={selectedCall}
+            />
           )}
         </div>
       </div>
     );
   }
 
+  // Filtering Logic based on Call Prefix
+  const getFilteredAnnexures = () => {
+    if (!selectedCall || !selectedCall.call_no) return annexureList;
+
+    const prefix = selectedCall.call_no.substring(0, 2).toUpperCase();
+
+    if (prefix === 'ER') {
+      // ER Prefix (Raw Material): ITP, Annexure-I, Annexure-II
+      return annexureList.filter(a =>
+        a.id === 'inspection-test-plan' ||
+        a.code === 'Annexure-I' ||
+        a.code === 'Annexure-II'
+      );
+    }
+
+    if (prefix === 'EF') {
+      // EF Prefix (Final): ITP, III, VI, VII, VIII, IX, X, XI, XV
+      const finalCodes = ['Annexure-III', 'Annexure-VI', 'Annexure-VII', 'Annexure-VIII', 'Annexure-IX', 'Annexure-X', 'Annexure-XI', 'Annexure-XV'];
+      return annexureList.filter(a =>
+        a.id === 'inspection-test-plan' ||
+        finalCodes.includes(a.code)
+      );
+    }
+
+    if (prefix === 'EP') {
+      // EP Prefix (Process Inspection): Process Inspection Register (F/ERC-01)
+      return annexureList.filter(a => a.id === 'process-inspection');
+    }
+
+    // Fallback: show all
+    return annexureList;
+  };
+
+  const filteredAnnexures = getFilteredAnnexures();
+
   // Show list of annexures
   return (
     <div className="annexure-page">
       <div className="annexure-page-header">
-        <div>
-          <h1 className="annexure-page-title">📋 Annexures</h1>
-          <p className="annexure-page-subtitle">
-            View and manage inspection annexures and test reports
-          </p>
+        <div className="header-top-row">
+          <div className="annexure-title-block">
+            <h1 className="annexure-page-title">Annexures</h1>
+          </div>
+
+          <div className="annexure-nav-breadcrumb no-print">
+            <button className="breadcrumb-item" onClick={onBack}>
+              <span className="breadcrumb-icon">←</span>
+              <span className="breadcrumb-text">Back to IC & Annexures</span>
+            </button>
+          </div>
         </div>
-        <button className="btn-outline" onClick={onBack}>
-          ← Back to Dashboard
-        </button>
+
+        {selectedCall && (
+          <div className="modern-info-bar">
+            <div className="info-card">
+              <span className="info-label">VENDER NAME</span>
+              <span className="info-value">{selectedCall.vendor_name || 'N/A'}</span>
+            </div>
+            <div className="info-card">
+              <span className="info-label">CALL NO</span>
+              <span className="info-value highlight">{selectedCall.call_no}</span>
+            </div>
+            <div className="info-card">
+              <span className="info-label">DATE</span>
+              <span className="info-value">15/04/2026</span>
+            </div>
+            <div className="info-card">
+              <span className="info-label">PRODUCT TYPE</span>
+              <span className="info-value">{selectedCall.product_type}</span>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="annexure-grid">
-        {annexureList.map((annexure) => (
-          <div
-            key={annexure.id}
-            className={`annexure-card ${!annexure.component ? 'disabled' : ''}`}
-            onClick={() => annexure.component && handleViewAnnexure(annexure)}
+        {filteredAnnexures.map((annexure) => (
+          <div 
+            key={annexure.id} 
+            className="modern-annexure-card"
+            onClick={() => handleSelectAnnexure(annexure)}
           >
-            <div className="annexure-card-icon">{annexure.icon}</div>
-            <div className="annexure-card-content">
-              <div className="annexure-card-header">
-                <h3 className="annexure-card-title">{annexure.title}</h3>
-                <span className="annexure-card-code">{annexure.code}</span>
-              </div>
-              <p className="annexure-card-subtitle">{annexure.subtitle}</p>
-              {!annexure.component && (
-                <span className="annexure-card-badge">Coming Soon</span>
-              )}
+            <div className={`icon-circle ${annexure.category}`}>
+              {annexure.icon}
             </div>
-            {annexure.component && (
-              <div className="annexure-card-action">
-                <span className="annexure-card-arrow">→</span>
-              </div>
-            )}
+            <div className="card-content">
+              <h3 className="annexure-card-title">{annexure.cardTitle}</h3>
+              <p className="annexure-card-code">{annexure.code}</p>
+            </div>
+            <button className="btn-view-annexure">View Report</button>
           </div>
         ))}
-      </div>
-
-      <div className="annexure-info-section">
-        <h3 className="annexure-info-title">ℹ️ About Annexures</h3>
-        <div className="annexure-info-content">
-          <p>
-            Annexures are standardized inspection and test report templates used for documenting
-            various stages of quality control and inspection processes.
-          </p>
-          <ul>
-            <li>Each annexure follows a specific format as per inspection standards</li>
-            <li>Data can be populated automatically from API or database</li>
-            <li>All headings are in <strong>black</strong>, dynamic data appears in <strong style={{ color: '#dc2626' }}>red</strong></li>
-            <li>Layouts are responsive and adapt to data volume</li>
-            <li>Print-ready format for official documentation</li>
-          </ul>
-        </div>
       </div>
     </div>
   );
 };
 
 export default AnnexurePage;
-

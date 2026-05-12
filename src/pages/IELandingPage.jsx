@@ -14,7 +14,7 @@ import { raiseBill, updateBillingStatus, approvePayment, BILLING_STATUS } from '
 import { getStoredUser } from '../services/authService';
 import { fetchUserPendingCalls, performTransitionAction, clearWorkflowCache, fetchLatestWorkflowTransition } from '../services/workflowService';
 import { markAsScheduled, isCallInitiated, getCallStatusData } from '../services/callStatusService';
-import { fetchCompletedCallsForIC, getCurrentUserId } from '../services/workflowApiService';
+import { fetchCompletedCallsForIC, fetchSignedCallsForIC, getCurrentUserId } from '../services/workflowApiService';
 // import { fetchRawMaterialCallsByStatus } from '../services/rawMaterial/rawMaterialApiService';
 import ProcessDefectSummaryCard from '../components/ProcessDefectSummaryCard';
 
@@ -49,6 +49,9 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
 
   // State for completed calls (for IC issuance)
   const [completedCalls, setCompletedCalls] = useState([]);
+  
+  // State for signed calls count (for Calls Completed tab)
+  const [signedCallsCount, setSignedCallsCount] = useState(0);
 
   // State for Enter Shift Details modal
   const [showEnterShiftDetailsModal, setShowEnterShiftDetailsModal] = useState(false);
@@ -96,9 +99,12 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
       }
 
       const calls = await fetchCompletedCallsForIC(userId);
-      setCompletedCalls(calls);
+      if (calls && calls.error) {
+        setCompletedCalls([]);
+      } else {
+        setCompletedCalls(calls || []);
+      }
     } catch (error) {
-      // console.error('❌ Error fetching completed calls:', error);
       setCompletedCalls([]);
     }
   }, []);
@@ -142,6 +148,22 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
+  // Fetch signed calls count silently on mount for the tab badge
+  useEffect(() => {
+    const fetchSignedCount = async () => {
+      try {
+        const userId = getCurrentUserId();
+        if (!userId) return;
+        const signed = await fetchSignedCallsForIC(userId);
+        const validSigned = signed.filter(c => c.status === 'Completed' || c.status === 'DSC_SIGN_IC' || c.originalStatus === 'DSC_SIGN_IC');
+        setSignedCallsCount(validSigned.length);
+      } catch (error) {
+        console.error('Failed to fetch signed calls count:', error);
+      }
+    };
+    fetchSignedCount();
+  }, []);
+
   // Use pending calls directly from API (includes Raw Material, Process, and Final)
   // No need to combine with mock data anymore
   const combinedPendingCalls = useMemo(() => {
@@ -165,9 +187,9 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
 
   const tabs = [
     { id: 'pending', label: 'List of Calls Pending', description: `${pendingCount} pending` },
-    { id: 'certificates', label: 'Issuance of IC', description: `${completedCount} ready for IC` },
+    { id: 'certificates', label: 'Issuance of IC & Annexures', description: `${completedCount} ready for IC` },
     { id: 'billing', label: 'Billing Stage', description: `${billingCount} in billing` },
-    { id: 'completed', label: 'Calls Completed', description: `${completedCount} completed` },
+    { id: 'completed', label: 'Calls Completed', description: `${signedCallsCount} completed` },
     { id: 'performance', label: 'Performance', description: 'KPI overview' },
     ...(isProcessIE ? [{ id: 'defect-summary', label: 'Process Defect Summary', description: 'Call-wise defect data' }] : []),
   ];
@@ -877,7 +899,7 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
   };
 
   return (
-    <div>
+    <div style={{ padding: '20px 40px' }}>
       {/* In-app Notification */}
       <Notification
         message={notification.message}

@@ -98,8 +98,8 @@ export async function generatePdfBase64(element, filename = null) {
     pdf.save(filename);
   }
 
-  // Return base64 string without the prefix
-  const base64String = pdf.output('datauristring').split(',')[1];
+  // Return clean base64 string without the prefix or spaces/newlines
+  const base64String = pdf.output('datauristring').split(',')[1].replace(/\s/g, '');
   return base64String;
 }
 

@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { mockUsers, USER_ROLES, REGIONS } from './utils/mockData';
+import { USER_ROLES, REGIONS } from './utils/mockData';
 import { filterBySearch, paginate } from './utils/helpers';
 import { DEFAULT_PAGE_SIZE } from './utils/constants';
 
-export const UserList = ({ onEdit, onDelete, onChangeRole, onChangeRegion, onCreateNew }) => {
+export const UserList = ({ users = [], loading, onEdit, onDelete, onChangeRegion, onCreateNew, refreshTrigger }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterRole, setFilterRole] = useState('');
     const [filterRegion, setFilterRegion] = useState('');
@@ -11,16 +11,16 @@ export const UserList = ({ onEdit, onDelete, onChangeRole, onChangeRegion, onCre
     const [pageSize] = useState(DEFAULT_PAGE_SIZE);
 
     const filteredUsers = useMemo(() => {
-        let result = mockUsers;
+        let result = users;
 
         // Search filter
         if (searchTerm) {
-            result = filterBySearch(result, searchTerm, ['name', 'rritesEmployeeCode', 'email']);
+            result = filterBySearch(result, searchTerm, ['fullName', 'employeeCode', 'email', 'userName']);
         }
 
         // Role filter
         if (filterRole) {
-            result = result.filter(user => user.role === filterRole);
+            result = result.filter(user => (user.roleName || '').includes(filterRole));
         }
 
         // Region filter
@@ -29,7 +29,7 @@ export const UserList = ({ onEdit, onDelete, onChangeRole, onChangeRegion, onCre
         }
 
         return result;
-    }, [searchTerm, filterRole, filterRegion]);
+    }, [users, searchTerm, filterRole, filterRegion]);
 
     const paginatedUsers = useMemo(() => {
         return paginate(filteredUsers, currentPage, pageSize);
@@ -37,9 +37,9 @@ export const UserList = ({ onEdit, onDelete, onChangeRole, onChangeRegion, onCre
 
     const totalPages = Math.ceil(filteredUsers.length / pageSize);
 
-    const activeUsers = mockUsers.filter(u => u.status === 'Active').length;
-    const inactiveUsers = mockUsers.filter(u => u.status === 'Inactive').length;
-    const totalUsers = mockUsers.length;
+    const activeUsers = users.filter(u => u.status !== 'Inactive').length;
+    const inactiveUsers = users.filter(u => u.status === 'Inactive').length;
+    const totalUsers = users.length;
 
     return (
         <div>
@@ -140,34 +140,46 @@ export const UserList = ({ onEdit, onDelete, onChangeRole, onChangeRegion, onCre
                             </tr>
                         </thead>
                         <tbody>
-                            {paginatedUsers.map(user => (
-                                <tr key={user.id}>
-                                    <td>{user.rritesEmployeeCode}</td>
-                                    <td>{user.name}</td>
-                                    <td>{user.role}</td>
+                            {loading ? (
+                                <tr>
+                                    <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>
+                                        Loading users...
+                                    </td>
+                                </tr>
+                            ) : paginatedUsers.length === 0 ? (
+                                <tr>
+                                    <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>
+                                        No users found.
+                                    </td>
+                                </tr>
+                            ) : (
+                                paginatedUsers.map(user => (
+                                    <tr key={user.userId || user.id}>
+                                    <td>{user.employeeCode}</td>
+                                    <td>{user.fullName}</td>
+                                    <td>{user.roleName}</td>
                                     <td>{user.rio}</td>
                                     <td>{user.email}</td>
                                     <td>
-                                        <span className={`badge badge-${user.status === 'Active' ? 'success' : 'danger'}`}>
-                                            {user.status}
+                                        <span className={`badge badge-${user.status === 'Inactive' ? 'danger' : 'success'}`}>
+                                            {user.status || 'Active'}
                                         </span>
                                     </td>
                                     <td>
-                                        <button className="btn btn-sm btn-primary" onClick={() => onEdit(user)}>
-                                            Edit
-                                        </button>
-                                        <button className="btn btn-sm btn-warning" onClick={() => onChangeRole(user)}>
-                                            Change Role
-                                        </button>
-                                        <button className="btn btn-sm btn-warning" onClick={() => onChangeRegion(user)}>
-                                            Change Region
-                                        </button>
-                                        <button className="btn btn-sm btn-danger" onClick={() => onDelete(user.id)}>
-                                            Delete
-                                        </button>
+                                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                                            <button className="btn btn-sm btn-primary" onClick={() => onEdit(user)}>
+                                                Edit
+                                            </button>
+                                            <button className="btn btn-sm btn-warning" onClick={() => onChangeRegion(user)}>
+                                                Change Region
+                                            </button>
+                                            <button className="btn btn-sm btn-danger" onClick={() => onDelete(user.userId || user.id)}>
+                                                Delete
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
-                            ))}
+                            )))}
                         </tbody>
                     </table>
                 </div>

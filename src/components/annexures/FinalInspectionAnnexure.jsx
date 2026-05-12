@@ -8,7 +8,7 @@ import AnnexureHeader from './AnnexureHeader';
  * Dimensions inspection with specified parameters
  */
 
-const FinalInspectionAnnexure = ({ data = [] }) => {
+const FinalInspectionAnnexure = ({ data = [], selectedCall }) => {
 
   // Sample data rows
   const sampleRows = data.length > 0 ? data : [
@@ -31,6 +31,7 @@ const FinalInspectionAnnexure = ({ data = [] }) => {
     <div className="annexure-template final-inspection-annexure">
       {/* HEADER SECTION */}
       <AnnexureHeader
+        selectedCall={selectedCall}
         pageNo="11 of 18"
         preparedBy="KJM"
         checkedBy="CSR"

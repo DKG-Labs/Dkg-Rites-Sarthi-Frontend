@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import EnhancedDataTable from '../../../../components/common/EnhancedDataTable';
-import { MOCK_WATER_HISTORY } from '../../../../utils/rawMaterialMockData';
 import TrendChart from '../../../../components/common/TrendChart';
+import { useToast } from '../../../../context/ToastContext';
+import { apiService } from '../../../../services/api';
 import '../cement/CementForms.css';
 
 const SubCard = ({ id, title, color, count, label, isActive, onClick }) => (
@@ -10,8 +11,13 @@ const SubCard = ({ id, title, color, count, label, isActive, onClick }) => (
         className={`asset-card ${isActive ? 'active' : ''}`}
         onClick={onClick}
         style={{
-            borderColor: isActive ? color : '#e2e8f0',
-            borderTop: `4px solid ${color}`,
+            borderWidth: '1px',
+            borderStyle: 'solid',
+            borderTopWidth: '4px',
+            borderTopColor: color,
+            borderRightColor: isActive ? color : '#e2e8f0',
+            borderBottomColor: isActive ? color : '#e2e8f0',
+            borderLeftColor: isActive ? color : '#e2e8f0',
             '--active-color-alpha': `${color}15`,
             cursor: 'pointer',
             flex: '1',
@@ -29,14 +35,31 @@ const SubCard = ({ id, title, color, count, label, isActive, onClick }) => (
 );
 
 const WaterTesting = ({ onBack }) => {
-    const [viewMode, setViewMode] = useState('history'); // Default to history
+    const [viewMode, setViewMode] = useState('history');
     const [showForm, setShowForm] = useState(false);
-    const [history, setHistory] = useState(MOCK_WATER_HISTORY.map(h => ({
-        ...h,
-        createdAt: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString()
-    })));
+    const toast = useToast();
+    const [history, setHistory] = useState([]);
+    const [editId, setEditId] = useState(null);
+    const userId = parseInt(localStorage.getItem('userId') || '119', 10);
 
-    // Water dummy data as requested
+    const fetchHistory = async () => {
+        try {
+            const res = await apiService.waterQuality.getByUser(userId);
+            if (res?.responseData) {
+                setHistory(res.responseData);
+            } else if (Array.isArray(res)) {
+                setHistory(res);
+            }
+        } catch (error) {
+            toast.error("Failed to fetch water quality history.");
+        }
+    };
+
+    useEffect(() => {
+        if (userId) fetchHistory();
+    }, [userId]);
+
+    // Water dummy data as requested for inventory
     const waterSources = [
         { id: 'W-01', vendor: 'Borewell No 1', receivedDate: '2026-01-01', status: 'Verified' },
         { id: 'W-02', vendor: 'Borewell No 2', receivedDate: '2026-01-01', status: 'Verified' },
@@ -55,32 +78,68 @@ const WaterTesting = ({ onBack }) => {
 
     const canModify = (createdAt) => {
         if (!createdAt) return false;
-        const entryTime = new Date(createdAt).getTime();
-        const now = new Date().getTime();
-        return (now - entryTime) < (60 * 60 * 1000); // 1 hour
+
+        let diffLocal, diffUTC;
+        const now = Date.now();
+
+        // Check if Spring Boot serialized LocalDateTime as an array like [2026, 4, 20, 14, 45, 0]
+        if (Array.isArray(createdAt)) {
+            const [year, month, day, hr = 0, min = 0, sec = 0] = createdAt;
+            diffLocal = Math.abs(now - new Date(year, month - 1, day, hr, min, sec).getTime());
+            diffUTC = Math.abs(now - Date.UTC(year, month - 1, day, hr, min, sec));
+        } else {
+            let dateStr = String(createdAt);
+            diffLocal = Math.abs(now - new Date(dateStr).getTime());
+            // Fake formatting to UTC to see if server meant UTC
+            if (!dateStr.endsWith('Z')) dateStr += 'Z';
+            diffUTC = Math.abs(now - new Date(dateStr).getTime());
+        }
+
+        // Accept whichever interpretation is closer to real-time, solving timezone mismatch from Azure
+        const diff = Math.min(diffLocal, diffUTC);
+        return diff < (60 * 60 * 1000); // 1 hour window
     };
 
-    const onSubmit = (data) => {
-        const ph = parseFloat(data.phValue);
-        const tds = parseFloat(data.tdsResult);
-        const isPass = ph >= 6 && ph <= 8 && tds <= 2000;
+    const onSubmit = async (data) => {
+        try {
+            const ph = parseFloat(data.phValue);
+            const tds = parseFloat(data.tdsResult);
+            const isPass = ph >= 6 && ph <= 8 && tds <= 2000;
+            
+            const payload = {
+                testDate: data.testDate,
+                phValue: ph,
+                tdsResult: tds,
+                result: isPass ? 'PASS' : 'FAIL',
+                createdBy: userId
+            };
 
-        const newRecord = {
-            id: Date.now(),
-            testDate: data.testDate,
-            createdAt: new Date().toISOString(),
-            ph: ph.toFixed(2),
-            tds: `${tds} ppm`,
-            status: isPass ? 'PASS' : 'FAIL'
-        };
-        setHistory([newRecord, ...history]);
-        setShowForm(false);
-        reset();
+            if (editId) {
+                await apiService.waterQuality.update(editId, payload);
+                toast.success("Water quality test record updated successfully!");
+            } else {
+                await apiService.waterQuality.create(payload);
+                toast.success("Water quality test record saved successfully!");
+            }
+            
+            fetchHistory();
+            setShowForm(false);
+            setEditId(null);
+            reset();
+        } catch (error) {
+            toast.error(error.message || "Failed to save water test record.");
+        }
     };
 
-    const handleDelete = (id) => {
-        if (window.confirm('Delete this record?')) {
-            setHistory(prev => prev.filter(h => h.id !== id));
+    const handleDelete = async (id) => {
+        if (window.confirm('Are you sure you want to delete this water test record?')) {
+            try {
+                await apiService.waterQuality.delete(id);
+                toast.success("Record deleted successfully!");
+                fetchHistory();
+            } catch (error) {
+                toast.error("Failed to delete record.");
+            }
         }
     };
 
@@ -95,6 +154,7 @@ const WaterTesting = ({ onBack }) => {
                 <button
                     className="btn-action mini"
                     onClick={() => {
+                        setEditId(null);
                         reset();
                         setShowForm(true);
                     }}
@@ -107,14 +167,14 @@ const WaterTesting = ({ onBack }) => {
 
     const historyColumns = [
         { key: 'testDate', label: 'Date', render: (val) => val ? val.split('-').reverse().join('/') : '' },
-        { key: 'ph', label: 'PH Value' },
-        { key: 'tds', label: 'TDS Result' },
+        { key: 'phValue', label: 'PH Value' },
+        { key: 'tdsResult', label: 'TDS Result', render: (val) => `${val || ''} ppm` },
         { 
-            key: 'status', 
+            key: 'result', 
             label: 'Result',
             render: (val, row) => {
-                const ph = parseFloat(row.ph);
-                const tds = parseFloat(row.tds);
+                const ph = parseFloat(row.phValue);
+                const tds = parseFloat(row.tdsResult);
                 const status = val || ( (!isNaN(ph) && ph >= 6 && ph <= 8 && !isNaN(tds) && tds <= 2000) ? 'PASS' : 'FAIL' );
                 return (
                     <span style={{
@@ -134,17 +194,19 @@ const WaterTesting = ({ onBack }) => {
             key: 'actions',
             label: 'Actions',
             render: (_, row) => {
-                const editable = canModify(row.createdAt);
+                const editable = canModify(row.createdDate || row.createdAt);
+                // Also allowing modification if there's no creation date for safety, but with API there will be.
                 return (
                     <div className="btn-group-center" style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                         <button
                             className={`btn-action mini ${!editable ? 'disabled-btn' : ''}`}
                             disabled={!editable}
                             onClick={() => {
+                                setEditId(row.id);
                                 reset({
                                     testDate: row.testDate,
-                                    phValue: row.ph,
-                                    tdsResult: row.tds.replace(' ppm', '')
+                                    phValue: row.phValue,
+                                    tdsResult: row.tdsResult
                                 });
                                 setShowForm(true);
                             }}
@@ -169,7 +231,7 @@ const WaterTesting = ({ onBack }) => {
             <div className="content-title-row" style={{ marginBottom: '24px' }}>
                 <h2 style={{ margin: 0 }}>Water Quality Testing</h2>
                 <div style={{ display: 'flex', gap: '12px' }}>
-                    <button className="toggle-btn mini" onClick={() => { reset(); setShowForm(true); }}>+ Add New (Periodic)</button>
+                    <button className="toggle-btn mini" onClick={() => { setEditId(null); reset(); setShowForm(true); }}>+ Add New (Periodic)</button>
                     <button className="toggle-btn secondary mini" onClick={onBack}>Back to Dashboard</button>
                 </div>
             </div>
@@ -185,11 +247,12 @@ const WaterTesting = ({ onBack }) => {
                         <TrendChart
                             data={history.map(h => ({
                                 ...h,
-                                tdsNum: parseFloat(h.tds) || 0
+                                tdsNum: parseFloat(h.tdsResult) || 0,
+                                phNum: parseFloat(h.phValue) || 0
                             }))}
                             xKey="testDate"
                             lines={[
-                                { key: 'ph', color: '#3b82f6', label: 'pH Value' },
+                                { key: 'phNum', color: '#3b82f6', label: 'pH Value' },
                                 { key: 'tdsNum', color: '#10b981', label: 'TDS (ppm)' }
                             ]}
                             title="Water Quality Analytics"
@@ -219,7 +282,7 @@ const WaterTesting = ({ onBack }) => {
                                 <div className="form-grid">
                                     <div className="input-group">
                                         <label>Date of Testing <span className="required">*</span></label>
-                                        <input type="text" value={new Date().toLocaleDateString('en-GB')} readOnly style={{ background: '#f1f5f9' }} />
+                                        <input type="date" {...register('testDate', { required: true })} style={{ background: '#f1f5f9' }} />
                                     </div>
                                     <div className="input-group">
                                         <label>pH Value <span className="required">*</span></label>
@@ -233,7 +296,7 @@ const WaterTesting = ({ onBack }) => {
                                     </div>
                                 </div>
                                 <div className="form-modal-footer" style={{ borderTop: 'none', padding: '24px 0 0' }}>
-                                    <button type="submit" className="btn-save">Save Result</button>
+                                    <button type="submit" className="btn-save">{editId ? 'Update Result' : 'Save Result'}</button>
                                     <button type="button" className="btn-save" style={{ background: '#64748b' }} onClick={() => setShowForm(false)}>Cancel</button>
                                 </div>
                             </form>
@@ -244,6 +307,5 @@ const WaterTesting = ({ onBack }) => {
         </div>
     );
 };
-
 
 export default WaterTesting;

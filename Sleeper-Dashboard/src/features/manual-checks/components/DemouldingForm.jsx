@@ -56,6 +56,7 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
     const [benches, setBenches] = useState([]);
     const [sleeperTypes, setSleeperTypes] = useState([]);
     const [availableLocations, setAvailableLocations] = useState([]);
+    const [availableSleepers, setAvailableSleepers] = useState(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']);
 
     const vendorId = contextVendorId || localStorage.getItem('vendorId') || "134";
 
@@ -189,7 +190,7 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
         if (formData.batch && !initialData) {
             const fetchBenches = async () => {
                 try {
-                    const response = await apiService.getAllProductionBenches(formData.batch);
+                    const response = await apiService.getAllProductionBenches(formData.batch, formData.location);
                     if (response?.responseData) {
                         const newBenches = response.responseData;
                         setBenches(newBenches);
@@ -227,7 +228,7 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
         if (formData.batch && formData.gangNo && !initialData) {
             const fetchSleeperTypes = async () => {
                 try {
-                    const response = await apiService.getAllProductionSleeperTypes(formData.batch, formData.gangNo);
+                    const response = await apiService.getAllProductionSleeperTypes(formData.batch, formData.gangNo, formData.location);
                     if (response?.responseData) {
                         const newTypes = response.responseData;
                         setSleeperTypes(newTypes);
@@ -249,12 +250,39 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
             setSleeperTypes([]);
         }
     }, [formData.batch, formData.gangNo, initialData]);
+    
+    // Fetch available sleepers when type changes
+    useEffect(() => {
+        if (formData.batch && formData.gangNo && formData.type && !initialData) {
+            const fetchSleepers = async () => {
+                try {
+                    const response = await apiService.getAllProductionSleepers(
+                        formData.batch, 
+                        formData.gangNo, 
+                        formData.type, 
+                        formData.location
+                    );
+                    if (response?.responseData && response.responseData.length > 0) {
+                        setAvailableSleepers(response.responseData);
+                    } else {
+                        setAvailableSleepers(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']);
+                    }
+                } catch (error) {
+                    console.error("Error fetching sleeper list:", error);
+                    setAvailableSleepers(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']);
+                }
+            };
+            fetchSleepers();
+        }
+    }, [formData.batch, formData.gangNo, formData.type, formData.location, initialData]);
 
     const handleChange = (field, value) => {
         setFormData(prev => {
             const newState = { ...prev, [field]: value };
 
-            // If selecting a new batch, reset sub-selections to allow fresh autofetch
+            if (field === 'batch' || field === 'gangNo') {
+                setAvailableSleepers(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']);
+            }
             if (field === 'batch') {
                 newState.gangNo = '';
                 newState.type = '';
@@ -277,15 +305,15 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
             const isAllRejectedDim = newState.dimCheck === 'All Rejected';
 
             if (isAllRejectedVisual || isAllRejectedDim) {
-                const ALL_SEQS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+                const ALL_SEQS = availableSleepers;
                 const currentDecls = [...newState.defectiveSleeperDetails];
 
                 ALL_SEQS.forEach(seq => {
-                    if (!currentDecls.find(d => d.sequence === seq)) {
+                    if (!currentDecls.find(d => d.sequence === seq || d.sleeperNo === seq)) {
                         currentDecls.push({
                             benchNo: newState.gangNo || '',
                             sequence: seq,
-                            sleeperNo: newState.gangNo ? `${newState.gangNo}${seq}` : seq,
+                            sleeperNo: seq,
                             visualReason: '',
                             dimReason: ''
                         });
@@ -343,13 +371,13 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
         // - "All OK": auto-send all 8 positions with empty reasons (backend requires non-empty array)
         // - Non-OK: use manually selected sleepers with their reasons
         const gangNo = formData.gangNo || '';
-        const allSleeperSeqs = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+        const allSleeperSeqs = availableSleepers;
 
         const mappedDefectiveSleepers = bothAllOk
             ? allSleeperSeqs.map(seq => ({
                 benchGangNo: gangNo,
                 sequenceNo: seq,
-                sleeperNo: gangNo ? `${gangNo}${seq}` : seq,
+                sleeperNo: seq,
                 visualReason: "",
                 dimReason: ""
             }))
@@ -605,9 +633,9 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                         border: '1px dashed #cbd5e1',
                         marginBottom: '20px'
                     }}>
-                        {['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map(seq => {
+                        {availableSleepers.map(seq => {
                             // Check if this sleeper is currently marked as defective
-                            const isDefective = formData.defectiveSleeperDetails.some(d => d.sequence === seq);
+                            const isDefective = formData.defectiveSleeperDetails.some(d => d.sequence === seq || d.sleeperNo === seq);
 
                             // Check if rejection is forced by "All Rejected" status
                             const isAllRejectedVisual = formData.visualCheck === 'All Rejected';
@@ -621,12 +649,12 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                                     const exists = prev.defectiveSleeperDetails.some(d => d.sequence === seq);
                                     let updated;
                                     if (exists) {
-                                        updated = prev.defectiveSleeperDetails.filter(d => d.sequence !== seq);
+                                        updated = prev.defectiveSleeperDetails.filter(d => d.sequence !== seq && d.sleeperNo !== seq);
                                     } else {
                                         updated = [...prev.defectiveSleeperDetails, {
                                             benchNo: prev.gangNo || '',
                                             sequence: seq,
-                                            sleeperNo: prev.gangNo ? `${prev.gangNo}${seq}` : seq,
+                                            sleeperNo: seq,
                                             visualReason: '',
                                             dimReason: ''
                                         }];
@@ -653,13 +681,14 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                                         transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                                         background: (isDefective || isForced) ? '#fee2e2' : '#fff',
                                         color: (isDefective || isForced) ? '#b91c1c' : '#64748b',
-                                        border: '2px solid',
+                                        borderWidth: '2px',
+                                        borderStyle: 'solid',
                                         borderColor: (isDefective || isForced) ? '#ef4444' : '#e2e8f0',
                                         boxShadow: (isDefective || isForced) ? '0 4px 12px rgba(239, 68, 68, 0.2)' : 'none',
                                         transform: (isDefective || isForced) ? 'scale(1.05)' : 'scale(1)'
                                     }}
                                 >
-                                    {formData.gangNo ? `${formData.gangNo}${seq}` : seq}
+                                    {seq}
                                 </div>
                             );
                         })}

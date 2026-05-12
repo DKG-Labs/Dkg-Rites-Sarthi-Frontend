@@ -13,8 +13,13 @@ const SteamCuringSubCard = ({ id, title, color, statusDetail, isActive, onClick 
                 flex: '1 1 200px',
                 padding: '16px 20px',
                 background: isActive ? '#fff' : '#f8fafc',
-                border: `1px solid ${isActive ? color : '#e2e8f0'}`,
-                borderTop: `4px solid ${color}`,
+                borderWidth: '1px',
+                borderStyle: 'solid',
+                borderTopWidth: '4px',
+                borderTopColor: color,
+                borderRightColor: isActive ? color : '#e2e8f0',
+                borderBottomColor: isActive ? color : '#e2e8f0',
+                borderLeftColor: isActive ? color : '#e2e8f0',
                 borderRadius: '12px',
                 display: 'flex',
                 flexDirection: 'column',
@@ -73,10 +78,29 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
     const { containers, allBatchDeclarations, dutyDate, vendorId, dutyUnit, fetchSteamCuring, vendorCode, selectedShift, userId } = useShift();
     const [viewMode, setViewMode] = useState('witnessed');
     const [availableLocations, setAvailableLocations] = useState([]);
+    const [availableChambers, setAvailableChambers] = useState([]);
     const [batchOptions, setBatchOptions] = useState([]);
     const [localSteamRecords, setLocalSteamRecords] = useState([]);
     const entries = propSteamRecords || localSteamRecords;
     const setEntries = propSetSteamRecords || setLocalSteamRecords;
+
+    // Filtered entries based on plantId, vendorCode, shift, createdBy and date
+    const filteredEntries = useMemo(() => {
+        const currentUserId = userId || localStorage.getItem('userId') || "134";
+        const formattedDutyDate = (dutyDate && dutyDate.includes('-')) 
+            ? dutyDate.split('-').reverse().join('/') 
+            : dutyDate;
+
+        return entries.filter(e => {
+            const matchesPlant = !e.plantId || e.plantId === dutyUnit;
+            const matchesVendor = !e.vendorCode || e.vendorCode === vendorCode;
+            const matchesShift = !e.shift || e.shift === selectedShift;
+            const matchesDate = !e.date || e.date === dutyDate || e.date === formattedDutyDate;
+            const matchesUser = !e.createdBy || String(e.createdBy) === String(currentUserId);
+            
+            return matchesPlant && matchesVendor && matchesShift && matchesDate && matchesUser;
+        });
+    }, [entries, dutyUnit, vendorCode, selectedShift, dutyDate, userId]);
 
     const [isSaving, setIsSaving] = useState(false);
 
@@ -140,6 +164,34 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
         grade: 'M60'
     });
 
+    // Local state for records added in the CURRENT session
+    const [sessionEntries, setSessionEntries] = useState([]);
+
+    // Clear session entries when form is opened
+    useEffect(() => {
+        if (showForm) {
+            if (editingId) {
+                const entryToEdit = entries.find(e => e.id === editingId);
+                setSessionEntries(entryToEdit ? [entryToEdit] : []);
+            } else {
+                setSessionEntries([]);
+                setManualForm({
+                    date: formatToIST(null, 'iso_date'),
+                    batchNo: '', 
+                    chamberNo: '', 
+                    benches: '', 
+                    minConstTemp: '', 
+                    maxConstTemp: '',
+                    location: activeContainer?.name || availableLocations[0] || '',
+                    dateOfCasting: dutyDate || formatToIST(null, 'iso_date'),
+                    grade: 'M60'
+                });
+                setSelectedBatch('');
+                setSelectedChamber('');
+            }
+        }
+    }, [showForm, editingId, dutyDate, activeContainer, availableLocations]);
+
     // Fetch Steam Curing data on mount
     useEffect(() => {
         if (fetchSteamCuring) {
@@ -150,7 +202,7 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
     // Fetch Dynamic Locations for current Unit (Matching Demoulding Card logic)
     useEffect(() => {
         const fetchLocations = async () => {
-            const vId = vendorId || localStorage.getItem('vendorId');
+            const vId = vendorId || userId || localStorage.getItem('vendorId') || localStorage.getItem('userId');
             if (dutyUnit && vId) {
                 try {
                     const response = await apiService.getPlantSheds(vId, dutyUnit);
@@ -264,7 +316,8 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
     useEffect(() => {
         const syncFormWithBatch = async () => {
             if (!selectedBatch) {
-                setManualForm(prev => ({ ...prev, batchNo: '' }));
+                setManualForm(prev => ({ ...prev, batchNo: '', chamberNo: '' }));
+                setAvailableChambers([]);
                 return;
             }
 
@@ -284,7 +337,10 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                     const data = response?.responseData;
                     if (data) {
                         const grade = data.mixDesignReference ? data.mixDesignReference.split(' - ')[0] : 'M60';
-                        const chamber = (data.chambers && data.chambers.length > 0) ? String(data.chambers[0].chamberNo) : '';
+                        const chamberList = (data.chambers || []).map(c => String(c.chamberNo));
+                        setAvailableChambers(chamberList);
+                        
+                        const chamber = chamberList.length > 0 ? chamberList[0] : '';
                         
                         setManualForm(prev => ({ 
                             ...prev, 
@@ -304,10 +360,12 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
             const allDecls = Object.values(allBatchDeclarations).flat();
             const localMatch = allDecls.find(b => String(b.batchNo) === batchNoStr);
             if (localMatch) {
+                const chamberList = (localMatch.chambers || []).map(c => String(c.chamberNo));
+                setAvailableChambers(chamberList);
                 setManualForm(prev => ({ 
                     ...prev, 
                     grade: localMatch.concreteGrade || localMatch.mixDesignReference || 'M60',
-                    chamberNo: localMatch.chambers?.[0]?.chamberNo || prev.chamberNo
+                    chamberNo: chamberList.length > 0 ? chamberList[0] : prev.chamberNo
                 }));
             }
 
@@ -372,23 +430,44 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
             status: (cycle.constant?.tempMin >= 55 && cycle.constant?.tempMax <= 60) ? 'OK' : 'NOT OK'
         };
         setEntries(prev => [newEntry, ...prev]);
+        setSessionEntries(prev => [newEntry, ...prev]);
         setScadaCycles(prev => prev.filter(c => c.id !== cycle.id));
         alert(`Cycle for Batch ${cycle.batchNo} / Chamber ${cycle.chamberNo} witnessed and added to session.`);
     };
 
-    const handleDelete = async (id) => {
+    const handleDelete = async (entry) => {
         if (window.confirm('Are you sure you want to delete this record?')) {
-            setEntries(prev => prev.filter(e => e.id !== id));
+            try {
+                // Determine the backend ID. In mapSteamCuringRecords, parentId is the SteamCuring entity ID.
+                const backendId = entry.parentId || entry.id;
+                
+                if (backendId && !isNaN(Number(backendId))) {
+                    await apiService.deleteSteamCuring(backendId);
+                    alert('Record deleted successfully from server.');
+                }
+
+                setEntries(prev => prev.filter(e => e.id !== entry.id));
+                setSessionEntries(prev => prev.filter(e => e.id !== entry.id));
+                
+                if (fetchSteamCuring) fetchSteamCuring();
+            } catch (error) {
+                console.error('Delete failed:', error);
+                alert(`Failed to delete record: ${error.message}`);
+            }
         }
     };
 
     const handleEdit = async (entry) => {
         try {
-            const fetchId = entry.parentId || entry.id;
-            const response = await apiService.getSteamCuringById(fetchId);
-            const fetchedBatch = response?.responseData;
-
             let target = entry;
+            let fetchedBatch = null;
+            
+            // Only fetch if we have a valid numeric parentId (backend record)
+            if (entry.parentId && !isNaN(Number(entry.parentId))) {
+                const response = await apiService.getSteamCuringById(entry.parentId);
+                fetchedBatch = response?.responseData;
+            }
+
             if (fetchedBatch) {
                 const found = (fetchedBatch.manualRecords || []).find(m => m.id === entry.manualId || m.id === entry.id);
                 if (found) target = { ...found, parentId: fetchedBatch.id };
@@ -396,19 +475,31 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
 
             setEditingId(entry.id);
             setEditParentId(target.parentId || null);
+
+            const recordDate = target.date || entry.date || '';
+            const yyyyDate = recordDate.includes('/') ? recordDate.split('/').reverse().join('-') : recordDate;
+
             setManualForm({
-                date: target.date || entry.date,
+                dateOfCasting: yyyyDate,
+                location: target.location || entry.location || '',
+                date: recordDate,
                 batchNo: target.batchNo || entry.batchNo,
                 chamberNo: target.chamberNo || entry.chamberNo,
                 benches: target.benches || entry.benches,
                 minConstTemp: target.minConstTemp ?? target.minTemp ?? entry.minConstTemp,
-                maxConstTemp: target.maxConstTemp ?? target.maxTemp ?? entry.maxConstTemp
+                maxConstTemp: target.maxConstTemp ?? target.maxTemp ?? entry.maxConstTemp,
+                grade: target.grade || entry.grade || 'M60'
             });
+
+            setSelectedBatch(target.parentId || entry.parentId || target.batchNo || entry.batchNo);
+            setSelectedChamber(target.chamberNo || entry.chamberNo);
+            
         } catch (error) {
             console.error('Fetch failed:', error);
             setEditingId(entry.id);
             setEditParentId(entry.parentId || null);
             setManualForm({
+                ...manualForm,
                 date: entry.date,
                 batchNo: entry.batchNo,
                 chamberNo: entry.chamberNo,
@@ -418,7 +509,7 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
             });
         }
         setShowForm(true);
-        setEditOnly(true);
+        setEditOnly(false); // User requested the whole form to be open, not just manual form
     };
 
     const handleSaveManual = async () => {
@@ -438,7 +529,11 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
             id: editingId || `m-${Date.now()}`,
             timestamp: new Date().toISOString(),
             source: 'Manual',
-            status: (minVal >= 55 && maxVal <= 60) ? 'OK' : 'NOT OK'
+            status: (minVal >= 55 && maxVal <= 60) ? 'OK' : 'NOT OK',
+            shift: selectedShift,
+            vendorCode: vendorCode,
+            plantId: dutyUnit,
+            createdBy: userId || localStorage.getItem('userId') || "134"
         };
 
         if (editingId) {
@@ -460,12 +555,26 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                             }
                             return m;
                         });
+
+                        if (batchData.scadaRecords) {
+                            batchData.scadaRecords = batchData.scadaRecords.map(s => {
+                                if (s.time && typeof s.time === 'object') {
+                                    const h = String(s.time.hour || 0).padStart(2, '0');
+                                    const min = String(s.time.minute || 0).padStart(2, '0');
+                                    const sec = String(s.time.second || 0).padStart(2, '0');
+                                    return { ...s, time: `${h}:${min}:${sec}` };
+                                }
+                                return s;
+                            });
+                        }
+
                         await apiService.updateSteamCuring(editParentId, batchData);
                     }
                 }
                 setEntries(prev => prev.map(e => e.id === editingId ? newEntry : e));
+                setSessionEntries(prev => prev.map(e => e.id === editingId ? newEntry : e));
                 alert('Record updated successfully');
-                if (fetchSteamCuring) await fetchSteamCuring(); 
+                // Redundant fetchSteamCuring removed as per user request
             } catch (error) {
                 console.error('Update failed:', error);
                 alert(`Update failed: ${error.message}`);
@@ -477,6 +586,7 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
             }
         } else {
             setEntries(prev => [newEntry, ...prev]);
+            setSessionEntries(prev => [newEntry, ...prev]);
             alert('Manual record added. Please remember to click "Save / Finish Batch" at the bottom to sync with the server.');
         }
         setManualForm({ 
@@ -493,20 +603,23 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
     };
 
     const handleFinalSave = async () => {
-        const batchToSave = selectedBatch || manualForm.batchNo;
-        if (!batchToSave) {
+        const batchNoStr = manualForm.batchNo;
+        if (!batchNoStr) {
             alert('Please select or enter a Batch Number');
             return;
         }
         setIsSaving(true);
         try {
-            const batchRecords = entries.filter(e => String(e.batchNo) === String(batchToSave));
+            // Use sessionEntries instead of entries to ensure only current form data is saved
+            const batchRecords = sessionEntries.filter(e => String(e.batchNo) === String(batchNoStr));
+            
+            console.log(`Saving batch ${batchNoStr} from current session. Found ${batchRecords.length} records.`, batchRecords);
 
             const manualRecords = batchRecords
                 .filter(e => e.source === 'Manual')
                 .map(e => ({
                     batchNo: String(e.batchNo),
-                    chamber: String(e.chamberNo),
+                    chamber: String(e.chamberNo || "0"),
                     minTemp: parseFloat(e.minConstTemp) || 0,
                     maxTemp: parseFloat(e.maxConstTemp) || 0
                 }));
@@ -547,26 +660,28 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
             const currentVendorCode = vendorCode || localStorage.getItem('vendorCode');
             const currentShift = selectedShift || localStorage.getItem('selectedShift');
             const currentPlantId = dutyUnit || localStorage.getItem('dutyUnit');
+            const currentUserIdInt = parseInt(userId || localStorage.getItem('userId') || "134");
 
             const payload = {
-                batchNo: String(batchToSave),
-                chamber: String(selectedChamber || manualForm.chamberNo || "0"),
-                grade: 'M60',
-                entryDate: manualForm.date ? manualForm.date.split('-').reverse().join('/') : formatToIST(null, 'date'),
+                batchNo: String(batchNoStr),
+                chamber: String(manualForm.chamberNo || "0"),
+                grade: manualForm.grade || 'M60',
+                entryDate: manualForm.date ? (manualForm.date.includes('-') ? manualForm.date.split('-').reverse().join('/') : manualForm.date) : formatToIST(null, 'date'),
                 location: manualForm.location,
                 vendorCode: currentVendorCode,
                 plantId: currentPlantId,
                 shift: currentShift,
-                createdBy: userId || localStorage.getItem('userId'),
+                createdBy: currentUserIdInt,
+                updatedBy: currentUserIdInt,
                 scadaRecords: scadaRecordsPayload,
                 manualRecords
             };
 
-            // Call create directly – avoids fetching the entire history first
+            console.log("Final Payload for Steam Curing:", payload);
             await apiService.createSteamCuring(payload);
 
-            setShowForm(false);
             alert('Steam curing data synced successfully.');
+            setShowForm(false);
             if (fetchSteamCuring) await fetchSteamCuring();
         } catch (error) {
             console.error('Save failed:', error);
@@ -732,8 +847,10 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                                     <select
                                         value={manualForm.location}
                                         onChange={e => {
-                                            setManualForm(prev => ({ ...prev, location: e.target.value, batchNo: '' }));
+                                            const val = e.target.value;
+                                            setManualForm(prev => ({ ...prev, location: val, batchNo: '', chamberNo: '' }));
                                             setSelectedBatch('');
+                                            setAvailableChambers([]);
                                         }}
                                         style={{ background: '#fff', fontSize: '13px', padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
                                     >
@@ -774,12 +891,30 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                                 </div>
                                 <div className="form-field">
                                     <label style={{ fontSize: '10px' }}>Chamber No.</label>
-                                    <input 
-                                        value={manualForm.chamberNo} 
-                                        readOnly 
-                                        placeholder={(manualForm.location || '').toLowerCase().includes('line') ? 'N/A (Long Line)' : 'Automated...'}
-                                        style={{ background: '#f8fafc', fontSize: '13px', padding: '6px', border: '1px solid #e2e8f0', color: '#64748b' }} 
-                                    />
+                                    {(manualForm.location || '').toLowerCase().includes('line') ? (
+                                        <input 
+                                            value="" 
+                                            readOnly
+                                            disabled
+                                            placeholder="Not Applicable (Line)"
+                                            style={{ background: '#f1f5f9', fontSize: '13px', padding: '6px', border: '1px solid #e2e8f0', color: '#94a3b8', cursor: 'not-allowed' }} 
+                                        />
+                                    ) : (
+                                        <select
+                                            value={manualForm.chamberNo}
+                                            onChange={e => {
+                                                const val = e.target.value;
+                                                setManualForm(prev => ({ ...prev, chamberNo: val }));
+                                                setSelectedChamber(val);
+                                            }}
+                                            style={{ background: '#fff', fontSize: '13px', padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+                                        >
+                                            <option value="">Select Chamber</option>
+                                            {availableChambers.map(ch => (
+                                                <option key={ch} value={ch}>{ch}</option>
+                                            ))}
+                                        </select>
+                                    )}
                                 </div>
                                 <div className="form-field">
                                     <label style={{ fontSize: '10px' }}>Concrete Grade</label>
@@ -871,14 +1006,21 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                                 <span style={{ background: '#64748b', color: '#fff', fontSize: '10px', fontWeight: '800', width: '20px', height: '20px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>4</span>
                                 <h4 style={{ margin: 0, fontSize: '0.9rem', color: '#1e293b', fontWeight: '800' }}>Recent Witness Logs</h4>
                             </div>
-                            <table className="ui-table" style={{ background: '#fff', fontSize: '12px' }}>
-                                <thead><tr><th>Source</th><th>Date</th><th>Batch</th><th>Chamber</th><th>Temp Range</th><th>Status</th><th>Actions</th></tr></thead>
+                            <table className="ui-table" style={{ background: '#fff', fontSize: '11px' }}>
+                                <thead><tr><th>Source</th><th>Date</th><th>Location</th><th>Batch</th><th>Chamber</th><th>Grade</th><th>Temp Range</th><th>Status</th><th>Actions</th></tr></thead>
                                 <tbody>
-                                    {entries.slice(0, 5).map(e => (
+                                    {sessionEntries
+                                        .filter(e => e.source === 'Manual' && (!manualForm.batchNo || String(e.batchNo) === String(manualForm.batchNo)))
+                                        .slice(0, 5)
+                                        .map(e => (
                                         <tr key={e.id}>
                                             <td><span className={`status-pill ${e.source === 'Manual' ? 'manual' : 'witnessed'}`}>{e.source}</span></td>
-                                            <td>{e.date ? e.date.split('-').reverse().join('/') : ''}</td>
-                                            <td>{e.batchNo}</td><td>{e.chamberNo}</td><td>{e.minConstTemp}–{e.maxConstTemp}°C</td>
+                                            <td>{e.date && e.date.includes('-') ? e.date.split('-').reverse().join('/') : (e.date || '—')}</td>
+                                            <td>{e.location || '—'}</td>
+                                            <td>{e.batchNo}</td>
+                                            <td>{e.chamberNo}</td>
+                                            <td>{e.grade || '—'}</td>
+                                            <td>{e.minConstTemp}{e.maxConstTemp !== '—' ? `–${e.maxConstTemp}°C` : ''}</td>
                                             <td>
                                                 <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '800', background: e.status === 'OK' ? '#ecfdf5' : '#fef2f2', color: e.status === 'OK' ? '#059669' : '#dc2626' }}>
                                                     {e.status || 'OK'}
@@ -887,12 +1029,12 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                                             <td>
                                                 <div style={{ display: 'flex', gap: '8px' }}>
                                                     {e.source === 'Manual' && <button className="btn-action" onClick={() => handleEdit(e)}>Edit</button>}
-                                                    <button className="btn-action" style={{ background: '#fee2e2', color: '#ef4444', border: 'none' }} onClick={() => handleDelete(e.id)}>Delete</button>
+                                                    <button className="btn-action" style={{ background: '#fee2e2', color: '#ef4444', border: 'none' }} onClick={() => handleDelete(e)}>Delete</button>
                                                 </div>
                                             </td>
                                         </tr>
                                     ))}
-                                    {entries.length === 0 && <tr><td colSpan="7" style={{ textAlign: 'center', padding: '1.5rem', color: '#94a3b8' }}>No records yet.</td></tr>}
+                                    {entries.length === 0 && <tr><td colSpan="9" style={{ textAlign: 'center', padding: '1.5rem', color: '#94a3b8' }}>No records yet.</td></tr>}
                                 </tbody>
                             </table>
                         </div>
@@ -927,20 +1069,23 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                             <h3 style={{ margin: 0 }}>Witnessed Curing Logs</h3>
                             <button className="toggle-btn" onClick={() => setShowForm(true)}>+ Add New Entry</button>
                         </div>
-                        <div className="table-outer-wrapper" style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                            <table className="ui-table">
-                                <thead><tr><th>Source</th><th>Date</th><th>Batch</th><th>Chamber</th><th>Temp Range</th><th>Status</th><th>Actions</th></tr></thead>
+                        <div className="table-outer-wrapper" style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', overflowX: 'auto' }}>
+                            <table className="ui-table" style={{ fontSize: '11px', minWidth: '800px' }}>
+                                <thead><tr><th>Source</th><th>Date</th><th>Location</th><th>Batch</th><th>Chamber</th><th>Grade</th><th>Temp Range</th><th>Status</th><th>Actions</th></tr></thead>
                                 <tbody>
-                                    {entries.map(e => (
+                                    {filteredEntries.filter(e => e.source === 'Manual' || e.source === 'Batch').map(e => (
                                         <tr key={e.id} style={{ background: e.isHeader ? '#f1f5f9' : 'transparent', fontWeight: e.isHeader ? '700' : '400' }}>
                                             <td>
                                                 <span className={`status-pill ${e.source === 'Manual' ? 'manual' : e.source === 'Batch' ? 'header' : 'witnessed'}`} 
-                                                      style={e.source === 'Batch' ? { background: '#e2e8f0', color: '#475569' } : {}}>
+                                                      style={e.source === 'Batch' ? { background: '#cbd5e1', color: '#334155' } : {}}>
                                                     {e.source}
                                                 </span>
                                             </td>
-                                            <td>{e.date ? e.date.split('-').reverse().join('/') : ''}</td>
-                                            <td>{e.batchNo}</td><td>{e.chamberNo}</td>
+                                            <td>{e.date && e.date.includes('-') ? e.date.split('-').reverse().join('/') : (e.date || '—')}</td>
+                                            <td>{e.location || '—'}</td>
+                                            <td>{e.batchNo}</td>
+                                            <td>{e.chamberNo}</td>
+                                            <td>{e.grade || '—'}</td>
                                             <td>{e.minConstTemp}{e.maxConstTemp !== '—' ? `–${e.maxConstTemp}°C` : ''}</td>
                                             <td>
                                                 <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '800', background: e.status === 'OK' || e.status === 'REGISTERED' ? '#ecfdf5' : '#fef2f2', color: e.status === 'OK' || e.status === 'REGISTERED' ? '#059669' : '#dc2626' }}>
@@ -950,12 +1095,12 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                                             <td>
                                                 <div style={{ display: 'flex', gap: '8px' }}>
                                                     {e.source === 'Manual' && <button className="btn-action" onClick={() => handleEdit(e)}>Edit</button>}
-                                                    {!e.isHeader && <button className="btn-action" style={{ background: '#fee2e2', color: '#ef4444', border: 'none' }} onClick={() => handleDelete(e.id)}>Delete</button>}
+                                                    {!e.isHeader && <button className="btn-action" style={{ background: '#fee2e2', color: '#ef4444', border: 'none' }} onClick={() => handleDelete(e)}>Delete</button>}
                                                 </div>
                                             </td>
                                         </tr>
                                     ))}
-                                    {entries.length === 0 && <tr><td colSpan="8" style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>No records found.</td></tr>}
+                                    {entries.length === 0 && <tr><td colSpan="9" style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>No records found.</td></tr>}
                                 </tbody>
                             </table>
                         </div>

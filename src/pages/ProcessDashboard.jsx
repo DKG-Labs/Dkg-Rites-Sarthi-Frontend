@@ -5775,22 +5775,22 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           </p>
         </div>
         <div className="process-submodule-buttons">
-          <button className="process-submodule-btn" onClick={() => onNavigateToSubModule('process-calibration-documents', { selectedLine, productionLines: localProductionLines, allCallOptions, mapping: lineDisplayMapping })}>
+          <button className="process-submodule-btn" onClick={() => onNavigateToSubModule('process-calibration-documents', { selectedLine, productionLines: localProductionLines, allCallOptions, mapping: lineDisplayMapping, lotNumbers: getAllSelectedLotsForCurrentLine() })}>
             <span className="process-submodule-btn-icon">📄</span>
             <p className="process-submodule-btn-title">Calibration & Documents</p>
             <p className="process-submodule-btn-desc">Verify instrument calibration</p>
           </button>
-          <button className="process-submodule-btn" onClick={() => onNavigateToSubModule('process-static-periodic-check', { selectedLine, productionLines: localProductionLines, allCallOptions, mapping: lineDisplayMapping })}>
+          <button className="process-submodule-btn" onClick={() => onNavigateToSubModule('process-static-periodic-check', { selectedLine, productionLines: localProductionLines, allCallOptions, mapping: lineDisplayMapping, lotNumbers: getAllSelectedLotsForCurrentLine() })}>
             <span className="process-submodule-btn-icon">⚙️</span>
             <p className="process-submodule-btn-title">Static Periodic Check</p>
             <p className="process-submodule-btn-desc">Equipment verification (includes Oil Tank Counter)</p>
           </button>
-          <button className="process-submodule-btn" onClick={() => onNavigateToSubModule('process-parameters-grid', { selectedLine, productionLines: localProductionLines, allCallOptions, callInitiationDataCache, mapping: lineDisplayMapping })}>
+          <button className="process-submodule-btn" onClick={() => onNavigateToSubModule('process-parameters-grid', { selectedLine, productionLines: localProductionLines, allCallOptions, callInitiationDataCache, mapping: lineDisplayMapping, lotNumbers: getAllSelectedLotsForCurrentLine() })}>
             <span className="process-submodule-btn-icon">🔬</span>
             <p className="process-submodule-btn-title">Process Parameters - 8 Hour Grid</p>
             <p className="process-submodule-btn-desc">Hourly production data entry</p>
           </button>
-          <button className="process-submodule-btn" onClick={() => onNavigateToSubModule('process-summary-reports', { selectedLine, productionLines: localProductionLines, allCallOptions, mapping: lineDisplayMapping })}>
+          <button className="process-submodule-btn" onClick={() => onNavigateToSubModule('process-summary-reports', { selectedLine, productionLines: localProductionLines, allCallOptions, mapping: lineDisplayMapping, lotNumbers: getAllSelectedLotsForCurrentLine() })}>
             <span className="process-submodule-btn-icon">📊</span>
             <p className="process-submodule-btn-title">Summary / Reports</p>
             <p className="process-submodule-btn-desc">View consolidated results</p>

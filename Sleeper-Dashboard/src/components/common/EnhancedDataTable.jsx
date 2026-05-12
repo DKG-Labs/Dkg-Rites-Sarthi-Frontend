@@ -90,7 +90,7 @@ const EnhancedDataTable = ({
               <tr>
                 <td colSpan={columns.length + (selectable ? 1 : 0)} style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-                    <div className="spinner-mini" style={{ width: '24px', height: '24px', border: '3px solid #f1f5f9', borderTopColor: '#42818c', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                    <div className="spinner-mini" style={{ width: '24px', height: '24px', borderWidth: '3px', borderStyle: 'solid', borderColor: '#f1f5f9', borderTopColor: '#42818c', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
                     <span style={{ fontSize: '12px', fontWeight: '700' }}>Loading results...</span>
                   </div>
                 </td>

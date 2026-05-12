@@ -78,9 +78,19 @@ const RoleBasedRedirect = () => {
   const user = getStoredUser();
   const roleName = user?.roleName;
 
-  // Handle external redirection for Sleeper Process IE
-  if (roleName === 'Sleeper Process IE' || (typeof roleName === 'string' && roleName.includes('Sleeper Process IE'))) {
+  // Handle external redirection for sub-apps
+  if (isSleeperRole(roleName)) {
     window.location.href = '/sleeper/';
+    return null;
+  }
+
+  if (isRailpadRole(roleName)) {
+    // If we are already on the railpad path, don't redirect to avoid loops.
+    // The server proxy should handle this, but if the main app loads, we stay silent.
+    if (window.location.pathname.startsWith('/railpad')) {
+      return null;
+    }
+    window.location.href = '/railpad/';
     return null;
   }
 
@@ -112,9 +122,18 @@ const LandingPageGuard = () => {
   const user = getStoredUser();
   const roleName = user?.roleName;
 
-  // Handle external redirection for Sleeper Process IE
-  if (roleName === 'Sleeper Process IE' || (typeof roleName === 'string' && roleName.includes('Sleeper Process IE'))) {
+  // Handle external redirection for sub-apps
+  if (isSleeperRole(roleName)) {
     window.location.href = '/sleeper/';
+    return null;
+  }
+
+  if (isRailpadRole(roleName)) {
+    // If we are already on the railpad path, don't redirect to avoid loops.
+    if (window.location.pathname.startsWith('/railpad')) {
+      return null;
+    }
+    window.location.href = '/railpad/';
     return null;
   }
 
@@ -253,6 +272,29 @@ const App = () => {
         </Routes>
       </InspectionProvider>
     </BrowserRouter>
+  );
+};
+
+/**
+ * Helper to identify if a role belongs to the Sleeper Dashboard
+ * Added at the bottom for better code readability as requested
+ */
+const isSleeperRole = (role) => {
+  if (!role) return false;
+  const sleeperRoles = ['Sleeper Process IE', 'Main IE'];
+  return sleeperRoles.some(r =>
+    role === r || (typeof role === 'string' && role.includes(r))
+  );
+};
+
+/**
+ * Helper to identify if a role belongs to the Railpad Dashboard
+ */
+const isRailpadRole = (role) => {
+  if (!role) return false;
+  const railpadRoles = ['Railpad IE'];
+  return railpadRoles.some(r =>
+    role === r || (typeof role === 'string' && role.includes(r))
   );
 };
 

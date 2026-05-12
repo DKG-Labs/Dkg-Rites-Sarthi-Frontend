@@ -30,8 +30,16 @@ const DimensionalTesting = ({ type }) => {
             
             // Use API-provided testedPercentage directly.
             // Only recalculate if sleeper-level detail is returned (rarely the case in list endpoints).
-            const processedData = (data || []).map(batch => {
-                let percentage = Number(batch.testedPercentage ?? 0);
+            const processedData = (data || [])
+                .filter(batch => {
+                    if (!currentPlantId) return true;
+                    // Flexible comparison for plantId (handling potential leading colons)
+                    const bPlant = String(batch.plantId || '').replace(':', '');
+                    const cPlant = String(currentPlantId).replace(':', '');
+                    return bPlant === cPlant;
+                })
+                .map(batch => {
+                    let percentage = Number(batch.testedPercentage ?? 0);
 
                 // If the list response happens to include a sleepers array, derive percentage from it
                 if (batch.sleepers && Array.isArray(batch.sleepers) && batch.sleepers.length > 0) {
@@ -64,7 +72,7 @@ const DimensionalTesting = ({ type }) => {
             setSelectedBatch(batch);
             const typeToModuleId = { visual: 1, critical: 2, noncritical: 3 };
             const moduleId = typeToModuleId[type] || 1;
-            const details = await apiService.getFinalInspectionBatchDetail(batch.batchId, moduleId);
+            const details = await apiService.getFinalInspectionBatchDetail(batch.batchId, moduleId, batch.sleeperType);
             // Merge list-level data with detail response to ensure all fields are present
             setBatchDetails({
                 ...batch,         // fallback: batchNumber, sleeperType, noOfSleepers, totalBatchQty from list
@@ -219,7 +227,7 @@ const DimensionalTesting = ({ type }) => {
                         ) : (
                             <EnhancedDataTable 
                                 columns={columns} 
-                                data={batches.filter(b => Number(b.testedPercentage) < 100)} 
+                                data={batches.filter(b => b.testingStatus !== 'Completed' && Number(b.testedPercentage) < 100)} 
                                 selectable={false} 
                             />
                         )}
@@ -232,7 +240,7 @@ const DimensionalTesting = ({ type }) => {
                         <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#059669' }}></div>
-                                <h4 style={{ margin: 0, color: '#1e293b', fontSize: '15px' }}>Completed Inspection Logs (100%)</h4>
+                                <h4 style={{ margin: 0, color: '#1e293b', fontSize: '15px' }}>Completed Inspection Logs</h4>
                             </div>
                             <div style={{ fontSize: '11px', color: '#059669', background: '#ecfdf5', padding: '4px 10px', borderRadius: '4px', fontWeight: '700' }}>
                                 ✓ Fully Verified
@@ -243,7 +251,7 @@ const DimensionalTesting = ({ type }) => {
                         ) : (
                             <EnhancedDataTable 
                                 columns={columns} 
-                                data={batches.filter(b => Number(b.testedPercentage) >= 100)} 
+                                data={batches.filter(b => b.testingStatus === 'Completed' || Number(b.testedPercentage) >= 100)} 
                                 selectable={false} 
                             />
                         )}

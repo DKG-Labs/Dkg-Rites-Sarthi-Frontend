@@ -5,28 +5,148 @@ import './CriticalDimensionForm.css'; // Reusing styles if applicable or ensurin
 
 const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
     const toast = useToast();
-    // Sleeper data from batch details
+    // Sleeper data from batch details (handle production declaration gangs/chambers if sleepers array is missing)
     const initialSleepers = useMemo(() => {
-        return (batch?.sleepers || [])
-            .map(s => {
-                const statusUpper = s.status?.toUpperCase();
-                return {
-                    ...s,
-                    id: s.sleeperId,
-                    displayNo: s.sleeperNo,
-                    status: statusUpper === 'REJECTED' ? 'rejected' : 
-                            (statusUpper === 'PENDING' ? 'pending' : 
-                             (statusUpper === 'OK' || statusUpper === 'PASSED' ? 'passed' : 'rejected'))
-                };
-            });
+        let rawList = batch?.sleepers || batch?.sleeperCheckDto || [];
+
+        // FALLBACK: If sleepers array is empty, reconstruct from gangs/chambers (Production Declaration structure)
+        if (rawList.length === 0) {
+            const reconstructed = [];
+            const seenSleeperIds = new Set();
+
+            // Long Line / Gangs
+            if (batch?.gangs && Array.isArray(batch.gangs)) {
+                batch.gangs.forEach(gang => {
+                    gang.sleepers?.forEach(s => {
+                        if (s && !seenSleeperIds.has(s)) {
+                            seenSleeperIds.add(s);
+                            reconstructed.push({
+                                sleeperId: s,
+                                sleeperNo: s,
+                                status: 'pending',
+                                benchNo: String(gang.gangNo || '')
+                            });
+                        }
+                    });
+                });
+            }
+
+            // Stress Bench / Chambers
+            if (batch?.chambers && Array.isArray(batch.chambers)) {
+                batch.chambers.forEach(chamber => {
+                    chamber.benchGroups?.forEach(group => {
+                        group.sleepers?.forEach(s => {
+                            if (s && !seenSleeperIds.has(s)) {
+                                seenSleeperIds.add(s);
+                                reconstructed.push({
+                                    sleeperId: s,
+                                    sleeperNo: s,
+                                    status: 'pending',
+                                    benchNo: String(group.benchNo || '')
+                                });
+                            }
+                        });
+                    });
+                });
+            }
+            rawList = reconstructed;
+        }
+
+        return rawList.map(s => {
+            const statusUpper = s.status?.toUpperCase() || 'PENDING';
+            return {
+                ...s,
+                id: s.sleeperId || s.sleeperNo,
+                displayNo: s.sleeperNo || s.sleeperId,
+                status: statusUpper === 'REJECTED' ? 'rejected' : 
+                        (statusUpper === 'OK' || statusUpper === 'PASSED' ? 'passed' : 'pending')
+            };
+        });
     }, [batch]);
 
     const [sleepers, setSleepers] = useState(initialSleepers);
+    const [searchTerm, setSearchTerm] = useState('');
     const [selectedSleepers, setSelectedSleepers] = useState(() => 
         // Select both passed AND rejected sleepers for re-inspection by default
         initialSleepers.filter(s => s.status === 'passed' || s.status === 'rejected').map(s => s.id)
     );
     const [saving, setSaving] = useState(false);
+
+    const filteredSleepers = useMemo(() => {
+        if (!searchTerm) return sleepers;
+        const lowTerm = searchTerm.toLowerCase();
+        return sleepers.filter(s => s.displayNo?.toString().toLowerCase().includes(lowTerm));
+    }, [sleepers, searchTerm]);
+
+    const renderSleeperList = (list, type) => {
+        // Group by Bench
+        const groups = {};
+        list.forEach(s => {
+            // Derive bench from sleeperNo prefix (e.g., "21" from "21A") if benchNo is missing
+            const derivedBench = s.displayNo ? String(s.displayNo).match(/^\d+/)?.[0] : null;
+            const b = s.benchNo || derivedBench || 'Batch Items';
+            if (!groups[b]) groups[b] = [];
+            groups[b].push(s);
+        });
+
+        const sortedBenches = Object.keys(groups).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+        if (list.length === 0) return <div style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic', padding: '10px' }}>No sleepers found</div>;
+
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                {sortedBenches.map(bench => (
+                    <div key={bench}>
+                        <div style={{ fontSize: '9px', fontWeight: '800', color: type === 'rejected' ? '#ef4444' : type === 'passed' ? '#15803d' : '#64748b', textTransform: 'uppercase', marginBottom: '8px', borderBottom: '1px solid currentColor', paddingBottom: '2px', opacity: 0.7 }}>
+                            Bench: {bench} ({groups[bench].length})
+                        </div>
+                        <div 
+                            className="custom-scrollbar"
+                            style={{ 
+                                display: 'flex', 
+                                flexWrap: 'nowrap', 
+                                gap: '6px', 
+                                overflowX: 'auto', 
+                                paddingBottom: '8px',
+                                scrollbarWidth: 'thin'
+                            }}
+                        >
+                            {groups[bench]
+                                .sort((a, b) => (a.displayNo || '').toString().localeCompare((b.displayNo || '').toString(), undefined, { numeric: true }))
+                                .map(s => {
+                                    const isSelected = selectedSleepers.includes(s.id);
+                                    let bg = '#fff';
+                                    let fg = type === 'rejected' ? '#b91c1c' : type === 'passed' ? '#15803d' : '#475569';
+                                    let border = type === 'rejected' ? '#fca5a5' : type === 'passed' ? '#86efac' : '#cbd5e1';
+
+                                    if (isSelected) {
+                                        bg = type === 'rejected' ? '#ef4444' : type === 'passed' ? '#22c55e' : '#42818c';
+                                        fg = '#fff';
+                                        border = 'transparent';
+                                    }
+
+                                    return (
+                                        <div
+                                            key={s.id}
+                                            onClick={() => !saving && toggleSleeperSelection(s.id)}
+                                            style={{
+                                                padding: '4px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '700', cursor: saving ? 'not-allowed' : 'pointer',
+                                                background: bg, color: fg, border: `1px solid ${border}`,
+                                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                                                minWidth: '32px', textAlign: 'center',
+                                                flexShrink: 0
+                                            }}
+                                        >
+                                            {s.displayNo}
+                                        </div>
+                                    );
+                                })}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
+    };
 
     const toggleSleeperSelection = async (id) => {
         const sleeper = sleepers.find(s => s.id === id);
@@ -77,6 +197,23 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
         } else {
             // Selecting: Just add to current selection state
             setSelectedSleepers(prev => [...prev, id]);
+        }
+    };
+
+    const filteredPendingSleepers = useMemo(() => filteredSleepers.filter(s => s.status === 'pending'), [filteredSleepers]);
+    const allPendingSelected = useMemo(() => {
+        if (filteredPendingSleepers.length === 0) return false;
+        return filteredPendingSleepers.every(s => selectedSleepers.includes(s.id));
+    }, [filteredPendingSleepers, selectedSleepers]);
+
+    const handleSelectAllPending = (e) => {
+        const checked = e.target.checked;
+        if (checked) {
+            const idsToAdd = filteredPendingSleepers.map(s => s.id);
+            setSelectedSleepers(prev => [...new Set([...prev, ...idsToAdd])]);
+        } else {
+            const idsToRemove = filteredPendingSleepers.map(s => s.id);
+            setSelectedSleepers(prev => prev.filter(id => !idsToRemove.includes(id)));
         }
     };
 
@@ -222,7 +359,7 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
             switch (reason) {
                 case 'Rail Seat Damage': return ['Damage LT', 'Damage RT', 'Crack', 'Spalling'];
                 case 'Surface Honeycomb': return ['Major Honeycomb', 'Minor Honeycomb', 'Side Face', 'Bottom Face'];
-                case 'Surface Damage': return ['Corner Chipped', 'Edge Damage', 'Scratch'];
+                case 'Surface Damage': return ['Corner Chipped', 'Edge Damage', 'Scratch', 'End Damage'];
                 case 'Position of HTS Wire': return ['Shifted LT', 'Shifted RT', 'Too High', 'Too Low'];
                 case 'Foreign Object in Sleeper': return ['Wood', 'Stone', 'Metal Part'];
                 default: return ['Others'];
@@ -244,16 +381,16 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
         sections.forEach(sect => {
             const sectState = sectionStates[sect.id];
             if (sectState.result === 'all-rejected') {
-                if (!sectState.globalReason) hasMissingReason = true;
-                const subs = getSubReasons(sectState.globalReason, sect.id);
-                if (subs.length > 0 && !sectState.globalSubReason) hasMissingReason = true;
+                if (!sectState.globalReason && sect.id !== 'ftc') hasMissingReason = true;
+                const subs = getSubReasons(sect.id, sectState.globalReason);
+                if (sect.id !== 'ftc' && subs.length > 0 && !sectState.globalSubReason) hasMissingReason = true;
             } else if (sectState.result === 'partial-ok') {
                 sectState.failedSleepers.forEach(fid => {
                      const details = sectState.rejectionDetails[fid] || {};
                      if (!details.reason) hasMissingReason = true;
                      else {
-                         const subs = getSubReasons(details.reason, sect.id);
-                         if (subs.length > 0 && !details.subReason) hasMissingReason = true;
+                         const subs = getSubReasons(sect.id, details.reason);
+                         if (sect.id !== 'ftc' && subs.length > 0 && !details.subReason) hasMissingReason = true;
                      }
                 });
             }
@@ -355,110 +492,69 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
 
                 {/* 2. Sleeper Pool (Grouped Divisions) */}
                 <section className="critical-section">
-                    <h4 className="section-label">2. Sleeper Pool & Verification Status</h4>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', minHeight: '150px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <h4 className="section-label" style={{ margin: 0 }}>2. Sleeper Pool & Verification Status</h4>
+                        <div style={{ position: 'relative' }}>
+                            <input 
+                                type="text"
+                                placeholder="Search Sleeper No..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                style={{
+                                    padding: '6px 12px 6px 30px',
+                                    fontSize: '12px',
+                                    borderRadius: '20px',
+                                    border: '1px solid #cbd5e1',
+                                    width: '200px',
+                                    outline: 'none',
+                                    background: '#fff'
+                                }}
+                            />
+                            <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: '#94a3b8' }}>🔍</span>
+                        </div>
+                    </div>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
                         
-                        {/* Column 1: Rejected Sleepers (Grouped by Module) */}
-                        <div style={{ background: '#fef2f2', padding: '12px', borderRadius: '8px', border: '1px solid #fee2e2' }}>
+                        {/* Column 1: Rejected Sleepers */}
+                        <div style={{ background: '#fef2f2', padding: '12px', borderRadius: '8px', border: '1px solid #fee2e2', display: 'flex', flexDirection: 'column' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', color: '#b91c1c', fontWeight: '700', fontSize: '11px', marginBottom: '15px', borderBottom: '1px solid #fecaca', paddingBottom: '4px' }}>
                                 <span>REJECTED SLEEPERS</span>
                                 <span>{sleepers.filter(s => s.status === 'rejected').length}</span>
                             </div>
-
-                            {[
-                                { id: 1, label: 'Visual and Check Measurements' },
-                                { id: 2, label: 'Critical Dimensions' },
-                                { id: 3, label: 'Non-Critical Dimensions' },
-                                { id: 4, label: 'Demoulding' }
-                            ].map(group => {
-                                const groupSleepers = sleepers.filter(s => s.status === 'rejected' && s.moduleId === group.id);
-                                if (groupSleepers.length === 0) return null;
-                                return (
-                                    <div key={group.id} style={{ marginBottom: '12px' }}>
-                                        <div style={{ fontSize: '9px', fontWeight: '800', color: '#ef4444', textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.5px' }}>
-                                            {group.label} ({groupSleepers.length})
-                                        </div>
-                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                                            {groupSleepers.map(s => {
-                                                const isSelected = selectedSleepers.includes(s.id);
-                                                return (
-                                                    <div
-                                                        key={s.id}
-                                                        onClick={() => !saving && toggleSleeperSelection(s.id)}
-                                                        style={{
-                                                            padding: '4px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '700', cursor: saving ? 'not-allowed' : 'pointer',
-                                                            background: isSelected ? '#ef4444' : '#fff',
-                                                            color: isSelected ? '#fff' : '#b91c1c',
-                                                            border: `1px solid ${isSelected ? 'transparent' : '#fca5a5'}`,
-                                                            boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                                                        }}
-                                                    >
-                                                        {s.displayNo}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                            {sleepers.filter(s => s.status === 'rejected').length === 0 && <div style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic' }}>No rejections found</div>}
+                            <div style={{ height: '300px', overflowY: 'auto', paddingRight: '4px' }} className="custom-scrollbar">
+                                {renderSleeperList(filteredSleepers.filter(s => s.status === 'rejected'), 'rejected')}
+                            </div>
                         </div>
 
                         {/* Column 2: Verified Sleepers */}
-                        <div style={{ background: '#f0fdf4', padding: '12px', borderRadius: '8px', border: '1px solid #dcfce7' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#15803d', fontWeight: '700', fontSize: '11px', marginBottom: '10px' }}>
+                        <div style={{ background: '#f0fdf4', padding: '12px', borderRadius: '8px', border: '1px solid #dcfce7', display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#15803d', fontWeight: '700', fontSize: '11px', marginBottom: '15px', borderBottom: '1px solid #bbf7d0', paddingBottom: '4px' }}>
                                 <span>VERIFIED / PASSED</span>
                                 <span>{sleepers.filter(s => s.status === 'passed').length}</span>
                             </div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                                {sleepers.filter(s => s.status === 'passed').map(s => {
-                                    const isSelected = selectedSleepers.includes(s.id);
-                                    return (
-                                        <div
-                                            key={s.id}
-                                            onClick={() => !saving && toggleSleeperSelection(s.id)}
-                                            style={{
-                                                padding: '4px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '700', cursor: saving ? 'not-allowed' : 'pointer',
-                                                background: isSelected ? '#22c55e' : '#fff',
-                                                color: isSelected ? '#fff' : '#15803d',
-                                                border: `1px solid ${isSelected ? 'transparent' : '#86efac'}`,
-                                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                                            }}
-                                        >
-                                            {s.displayNo}
-                                        </div>
-                                    );
-                                })}
-                                {sleepers.filter(s => s.status === 'passed').length === 0 && <div style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic' }}>None</div>}
+                            <div style={{ height: '300px', overflowY: 'auto', paddingRight: '4px' }} className="custom-scrollbar">
+                                {renderSleeperList(filteredSleepers.filter(s => s.status === 'passed'), 'passed')}
                             </div>
                         </div>
 
                         {/* Column 3: Pending Sleepers */}
-                        <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', fontWeight: '700', fontSize: '11px', marginBottom: '10px' }}>
-                                <span>PENDING INSPECTION</span>
+                        <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#64748b', fontWeight: '700', fontSize: '11px', marginBottom: '15px', borderBottom: '1px solid #e2e8f0', paddingBottom: '4px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <input 
+                                        type="checkbox" 
+                                        checked={allPendingSelected} 
+                                        onChange={handleSelectAllPending}
+                                        title="Select All Pending"
+                                        style={{ cursor: 'pointer', width: '13px', height: '13px' }}
+                                    />
+                                    <span>PENDING INSPECTION</span>
+                                </div>
                                 <span>{sleepers.filter(s => s.status === 'pending').length}</span>
                             </div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                                {sleepers.filter(s => s.status === 'pending').map(s => {
-                                    const isSelected = selectedSleepers.includes(s.id);
-                                    return (
-                                        <div
-                                            key={s.id}
-                                            onClick={() => !saving && toggleSleeperSelection(s.id)}
-                                            style={{
-                                                padding: '4px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '700', cursor: saving ? 'not-allowed' : 'pointer',
-                                                background: isSelected ? '#42818c' : '#fff',
-                                                color: isSelected ? '#fff' : '#475569',
-                                                border: `1px solid ${isSelected ? 'transparent' : '#cbd5e1'}`,
-                                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                                            }}
-                                        >
-                                            {s.displayNo}
-                                        </div>
-                                    );
-                                })}
-                                {sleepers.filter(s => s.status === 'pending').length === 0 && <div style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic' }}>None</div>}
+                            <div style={{ height: '300px', overflowY: 'auto', paddingRight: '4px' }} className="custom-scrollbar">
+                                {renderSleeperList(filteredPendingSleepers, 'pending')}
                             </div>
                         </div>
 

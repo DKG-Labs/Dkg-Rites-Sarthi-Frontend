@@ -11,15 +11,15 @@
  */
 
 // Get API URL from environment variable or fallback to Azure production URL
-// const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-// export const API_BASE_URL = isLocal
-//     ? 'http://localhost:8080/sarthi-backend'
-//     : 'https://sarthibackendservice-bfe2eag3byfkbsa6.canadacentral-01.azurewebsites.net/sarthi-backend';
+const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+export const API_BASE_URL = isLocal
+   ? 'http://localhost:8080/sarthi-backend'
+   : 'https://sarthibackendservice-bfe2eag3byfkbsa6.canadacentral-01.azurewebsites.net/sarthi-backend';
 
 // API Configuration determined by exports above
 //export const API_BASE_URL = 'https://sarthibackendservice-bfe2eag3byfkbsa6.canadacentral-01.azurewebsites.net/sarthi-backend';
 //Base url for prd
-export const API_BASE_URL ="https://api.ritesqasarthi.com/sarthi-backend";
+//export const API_BASE_URL = "https://api.ritesqasarthi.com/sarthi-backend";
 
 /**
  * Common API endpoint
@@ -52,6 +52,7 @@ export const API_ENDPOINTS = {
 
     // Certificates
     CERTIFICATES: `${API_BASE_URL}/api/certificate`,
+    CERTIFICATE_STORAGE: `${API_BASE_URL}/api/certificate-storage`,
 
     // Schedule
     SCHEDULE: `${API_BASE_URL}/api/inspection-schedule`,
@@ -64,6 +65,9 @@ export const API_ENDPOINTS = {
 
     // Reports
     REPORTS: `${API_BASE_URL}/api/reports`,
+
+    // Sleeper Dashboard
+    SLEEPER_DASHBOARD: `${API_BASE_URL}/api/sleeper-dashboard`,
 };
 
 /**

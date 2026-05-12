@@ -26,6 +26,15 @@ const BatchEntryForm = ({
     const [witnessInfo, setWitnessInfo] = useState({ verifiedBy: '', remarks: '' });
     const [sensorConfig, setSensorConfig] = useState(sessionConfig || { sensorStatus: 'working', sandType: 'River Sand' });
     const [activeBatchDeclarations, setActiveBatchDeclarations] = useState([]);
+    const [sessionRecordIds, setSessionRecordIds] = useState([]);
+
+    // Locally intercept witnessed record additions to track session history
+    const handleLocalWitnessSave = (record) => {
+        if (!sessionRecordIds.includes(record.id)) {
+            setSessionRecordIds(prev => [...prev, record.id]);
+        }
+        handleSaveWitness(record);
+    };
 
     // Logic to handle internal updates and also update the parent state
     const handleBatchUpdate = (newBatches) => {
@@ -41,28 +50,61 @@ const BatchEntryForm = ({
     };
 
     const handleFinalSave = async () => {
+        // --- MANDATORY VALIDATIONS ---
+        
+        // 1. Section 1: Initial Declaration Validation
+        const isSection1Complete = 
+            sensorConfig.batchNo && 
+            sensorConfig.location && 
+            sensorConfig.moistureAnalysis && 
+            sensorConfig.sandType &&
+            sensorConfig.sensorStatus &&
+            sensorConfig.castingDate &&
+            activeBatchDeclarations.length > 0;
+
+        if (!isSection1Complete) {
+            alert("MANDATORY ERROR (Section 1): Please complete the Initial Declaration. You must select Sensor Status, Sand Type, Location, Moisture Analysis, Casting Date, and Batch No.");
+            return;
+        }
+
+        // 2. Section 3 & 4: Manual Verification Validation
+        const hasManualRecords = witnessedRecords.some(r => 
+            sessionRecordIds.includes(r.id) && 
+            r.source?.toLowerCase().includes('manual')
+        );
+
+        if (!hasManualRecords) {
+            alert("MANDATORY ERROR (Section 3 & 4): At least one Manual Verification entry is required to proceed with Confirm & Save.");
+            return;
+        }
+
+        // -----------------------------
+
         setIsSaving(true);
         try {
             const [y, m, d] = (dutyDate || new Date().toISOString().split('T')[0]).split('-');
             const formattedDate = `${d}/${m}/${y}`;
 
+            const currentUserIdStr = userId || localStorage.getItem('userId') || "0";
+            const currentUserId = parseInt(currentUserIdStr, 10) || 0;
+
             const payload = {
                 lineNo: activeContainer?.name || "Line I",
-                location: activeContainer?.name || 'Line I',
-                locationType: (activeContainer?.name || 'Line I').toLowerCase().includes('shed') ? 'Shed' : 'Line',
                 entryDate: formattedDate,
                 sandType: sensorConfig.sandType || "River Sand",
                 moistureSensorStatus: (sensorConfig.sensorStatus || "WORKING").toUpperCase(),
                 verifiedBy: witnessInfo.verifiedBy || "Operator",
                 remarks: witnessInfo.remarks || "Batch session sync",
                 entryMode: "MIXED",
+                createdBy: currentUserId,
+                updatedBy: currentUserId,
                 vendorCode: vendorCode || localStorage.getItem('vendorCode'),
                 plantId: dutyUnit || localStorage.getItem('dutyUnit'),
                 shift: selectedShift || localStorage.getItem('selectedShift'),
-                date: formattedDate,
-                createdBy: userId || localStorage.getItem('userId'),
-                updatedBy: userId || localStorage.getItem('userId'),
-                batchDetails: batchDeclarations.map(d => ({
+                location: sensorConfig.location || activeContainer?.name || null,
+                batchNumber: sensorConfig.batchNo ? String(sensorConfig.batchNo) : null,
+                moistureAnalysis: sensorConfig.moistureAnalysis || null,
+                batchDetails: activeBatchDeclarations.map(d => ({
                     id: (typeof d.id === 'number' && d.id < 1000000) ? d.id : 0,
                     batchNo: String(d.batchNo || "0"),
                     proportionStatus: d.proportionMatch || "OK",
@@ -79,10 +121,10 @@ const BatchEntryForm = ({
                     waterSet: parseFloat(d.setValues?.water) || 0,
                     admixtureSet: parseFloat(d.setValues?.admixture) || 0
                 })),
-                scadaRecords: witnessedRecords.filter(r => r.source?.toLowerCase().includes('scada')).map(r => ({
+                scadaRecords: witnessedRecords.filter(r => sessionRecordIds.includes(r.id) && r.source?.toLowerCase().includes('scada')).map(r => ({
                     id: (typeof r.id === 'number' && r.id < 1000000) ? r.id : 0,
                     batchNo: String(r.batchNo || "0"),
-                    date: (r.date && String(r.date).includes('-')) ? r.date.split('-').reverse().join('/') : (String(r.date).includes('/') ? r.date : new Date().toLocaleDateString('en-GB')),
+                    date: (r.date && String(r.date).includes('-')) ? r.date.split('-').reverse().join('/') : (String(r.date).includes('/') ? r.date : formattedDate),
                     time: (r.time && String(r.time).length >= 5) ? String(r.time).substring(0, 5) : "00:00",
                     ca1Set: parseFloat(r.ca1Set || r.mm20_set) || 0,
                     ca1Actual: parseFloat(r.ca1Actual || r.ca1) || 0,
@@ -98,11 +140,17 @@ const BatchEntryForm = ({
                     admixtureActual: parseFloat(r.admixtureActual || r.admixture) || 0,
                     total: parseFloat(r.total) || 0
                 })),
-                manualRecords: witnessedRecords.filter(r => r.source?.toLowerCase().includes('manual')).map(r => ({
+                manualRecords: witnessedRecords.filter(r => sessionRecordIds.includes(r.id) && r.source?.toLowerCase().includes('manual')).map(r => ({
                     id: (typeof r.id === 'number' && r.id < 1000000) ? r.id : 0,
                     batchNo: String(r.batchNo || "0"),
-                    date: (r.date && String(r.date).includes('-')) ? r.date.split('-').reverse().join('/') : (String(r.date).includes('/') ? r.date : new Date().toLocaleDateString('en-GB')),
+                    date: (r.date && String(r.date).includes('-')) ? r.date.split('-').reverse().join('/') : (String(r.date).includes('/') ? r.date : formattedDate),
                     time: (r.time && String(r.time).length >= 5) ? String(r.time).substring(0, 5) : "00:00",
+                    ca1Set: parseFloat(r.ca1Set) || 0,
+                    ca2Set: parseFloat(r.ca2Set) || 0,
+                    faSet: parseFloat(r.faSet) || 0,
+                    cementSet: parseFloat(r.cementSet) || 0,
+                    waterSet: parseFloat(r.waterSet) || 0,
+                    admixtureSet: parseFloat(r.admixtureSet) || 0,
                     ca1Actual: parseFloat(r.ca1Actual || r.ca1) || 0,
                     ca2Actual: parseFloat(r.ca2Actual || r.ca2) || 0,
                     faActual: parseFloat(r.faActual || r.fa) || 0,
@@ -186,7 +234,12 @@ const BatchEntryForm = ({
                             </div>
                             {formSections.scada && (
                                 <div style={{ padding: '0 1.5rem 1.5rem 1.5rem', borderTop: '1px solid #fcd34d', paddingTop: '1.5rem' }}>
-                                    <WeightBatching onWitness={handleSaveWitness} batches={activeBatchDeclarations} selectedBatchNo={activeBatchDeclarations[0]?.batchNo || selectedBatchNo} />
+                                    <WeightBatching 
+                                        onWitness={handleLocalWitnessSave} 
+                                        batches={activeBatchDeclarations} 
+                                        searchBatchNo={activeBatchDeclarations[0]?.refBatchNo || sensorConfig.batchNo || selectedBatchNo}
+                                        displayBatchNo={sensorConfig.batchNo || activeBatchDeclarations[0]?.batchNo || selectedBatchNo} 
+                                    />
                                 </div>
                             )}
                         </div>
@@ -205,7 +258,7 @@ const BatchEntryForm = ({
                             </div>
                             {formSections.manual && (
                                 <div style={{ padding: '0 1.5rem 1.5rem 1.5rem', borderTop: '1px solid #86efac', paddingTop: '1.5rem' }}>
-                                    <ManualDataEntry batches={activeBatchDeclarations} witnessedRecords={witnessedRecords} onSave={handleSaveWitness} activeContainer={activeContainer} onDelete={handleDelete} hideHistory={true} globalConfig={sensorConfig} />
+                                    <ManualDataEntry batches={activeBatchDeclarations} witnessedRecords={witnessedRecords} onSave={handleLocalWitnessSave} activeContainer={activeContainer} onDelete={handleDelete} hideHistory={true} globalConfig={sensorConfig} />
                                 </div>
                             )}
                         </div>
@@ -229,7 +282,7 @@ const BatchEntryForm = ({
                                     </div>
                                     <BatchLogs 
                                         batchDeclarations={batchDeclarations}
-                                        witnessedRecords={witnessedRecords} 
+                                        witnessedRecords={witnessedRecords.filter(r => sessionRecordIds.includes(r.id))} 
                                         handleDelete={handleDelete} 
                                         small={true}
                                     />

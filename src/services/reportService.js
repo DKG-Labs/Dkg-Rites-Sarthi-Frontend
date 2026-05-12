@@ -307,6 +307,199 @@ const reportService = {
         });
         return handleResponse(response);
     },
+
+    getDemouldingRejectedCount: async () => {
+        const response = await fetch(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/demoulding-process-rejected-count`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getFinalRejectedCount: async () => {
+        const response = await fetch(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/Final-inspection-rejected-count`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getRejectionPercentage: async () => {
+        const response = await fetch(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/rejection-percentage`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getSleeperMonthlyAnalysis: async (startDate, endDate) => {
+        const formatDate = (dateStr) => {
+            if (!dateStr || !dateStr.includes('-')) return dateStr;
+            const [year, month, day] = dateStr.split('-');
+            return `${day}/${month}/${year}`;
+        };
+
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/monthly-analysis`);
+        url.searchParams.append('startDate', formatDate(startDate));
+        url.searchParams.append('endDate', formatDate(endDate));
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    /**
+     * Get list of companies/manufacturers for Sleeper Dashboard
+     * Hits: /api/sleeper-dashboard/companies
+     */
+    getSleeperCompanies: async () => {
+        const response = await fetch(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/companies`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    /**
+     * Get list of plants for a specific vendor
+     * Hits: /api/sleeper-dashboard/plants?vendorCode={vendorCode}
+     * @param {string} vendorCode 
+     */
+    getSleeperPlants: async (vendorCode) => {
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/plants`);
+        url.searchParams.append('vendorCode', vendorCode);
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    /**
+     * Get list of batches for a specific plant
+     * Hits: /api/sleeper-dashboard/batches?plantId={plantId}
+     * @param {string} plantId 
+     */
+    getSleeperBatches: async (plantId) => {
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/batches`);
+        url.searchParams.append('plantId', plantId);
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    /**
+     * Get Lot Wise Closed Loop Analysis data
+     * Hits: /api/sleeper-dashboard/LifeCycle/LotWise?id={id}&batchId={batchId}
+     * @param {Object} params - { id, batchId }
+     */
+    getSleeperLotWiseAnalysis: async (params) => {
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/LifeCycle/LotWise`);
+        if (params.id) url.searchParams.append('id', params.id);
+        if (params.batchId) url.searchParams.append('batchId', params.batchId);
+        
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    /**
+     * Get Sleeper Monthly Progress Report Data
+     * Hits: /api/sleeper-dashboard/mpr
+     * @param {Object} params - { startDate, endDate }
+     */
+    getSleeperMonthlyProgressReport: async (params) => {
+        const { startDate, endDate } = params || {};
+        
+        const formatDate = (dateStr) => {
+            if (!dateStr || !dateStr.includes('-')) return dateStr;
+            const [year, month, day] = dateStr.split('-');
+            return `${day}/${month}/${year}`;
+        };
+
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/mpr`);
+        if (startDate) url.searchParams.append('startDate', formatDate(startDate));
+        if (endDate) url.searchParams.append('endDate', formatDate(endDate));
+
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    /**
+     * Get Defect Distribution Analysis Data for Sleeper Dashboard
+     * Hits: /api/sleeper-dashboard/defect-distribution-analysis
+     * @param {Object} params - { startDate, endDate }
+     */
+    getSleeperDefectDistribution: async (params) => {
+        const { startDate, endDate } = params || {};
+        
+        const formatDate = (dateStr) => {
+            if (!dateStr || !dateStr.includes('-')) return dateStr;
+            const [year, month, day] = dateStr.split('-');
+            return `${day}/${month}/${year}`;
+        };
+
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/defect-distribution-analysis`);
+        if (startDate) url.searchParams.append('startDate', formatDate(startDate));
+        if (endDate) url.searchParams.append('endDate', formatDate(endDate));
+
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    /**
+     * Get Pareto Analysis Data for Sleeper Dashboard
+     * Hits: /api/sleeper-dashboard/pareto-analysis
+     * @param {Object} params - { startDate, endDate }
+     */
+    getSleeperParetoAnalysis: async (params) => {
+        const { startDate, endDate } = params || {};
+        
+        const formatDate = (dateStr) => {
+            if (!dateStr || !dateStr.includes('-')) return dateStr;
+            const [year, month, day] = dateStr.split('-');
+            return `${day}/${month}/${year}`;
+        };
+
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/pareto-analysis`);
+        if (startDate) url.searchParams.append('startDate', formatDate(startDate));
+        if (endDate) url.searchParams.append('endDate', formatDate(endDate));
+
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    /**
+     * Get Manufacturer Performance Data for a specific plant
+     * Hits: /api/sleeper-dashboard/manufacturer-performance/{plantId}?plantId={plantId}
+     * Note: Backend uses literal '{plantId}' in path but takes actual value as @RequestParam
+     * @param {string} plantId 
+     */
+    getManufacturerPerformance: async (plantId) => {
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/manufacturer-performance/{plantId}`);
+        url.searchParams.append('plantId', plantId);
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    /**
+     * Get Process Defect Distribution Data for a specific plant
+     * Hits: /api/sleeper-dashboard/process-defect-distribution?plantId={plantId}
+     * @param {string} plantId 
+     */
+    getProcessDefectDistribution: async (plantId) => {
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/process-defect-distribution`);
+        url.searchParams.append('plantId', plantId);
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
 };
 
 export default reportService;

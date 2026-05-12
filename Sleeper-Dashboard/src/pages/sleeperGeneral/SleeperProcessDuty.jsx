@@ -19,6 +19,7 @@ import MouldBenchCheck from '../../features/mould-bench-check/MouldBenchCheck';
 import SteamCuring from '../../features/steam-curing/SteamCuring';
 import SteamCubeTesting from '../../features/steam-cube-testing/SteamCubeTesting';
 import RawMaterialInventory from '../../features/inventory/RawMaterialInventory';
+import EpoxyTreatedSleepers from './finalInspection/EpoxyTreatedSleepers';
 
 import { apiService } from '../../services/api';
 import './SleeperProcessDuty.css';
@@ -104,6 +105,7 @@ const SleeperProcessDuty = () => {
         { id: 'Steam Curing', title: 'Steam Curing', description: 'Chamber temperature profile logs' },
         { id: 'Mould & Bench Checking', title: 'Mould & Bench Checking', description: 'Asset integrity & dimensional check' },
         { id: 'Steam Cube Testing', title: 'Steam Cube Testing', description: '7-hour & 28-day strength analysis' },
+        { id: 'Epoxy Treated Sleepers', title: 'Epoxy Treated Sleepers', description: 'Digital defect log & tracking' },
         { id: 'Raw Material Inventory', title: 'Inventory Levels', description: 'Daily stock & consumption tracking' }
     ];
 
@@ -236,6 +238,7 @@ const SleeperProcessDuty = () => {
                                 }}
                                 showForm={showCompactionForm}
                                 setShowForm={setShowCompactionForm}
+                                loadShiftData={fetchCompaction}
                             />
                         </div>
                     )}
@@ -276,6 +279,12 @@ const SleeperProcessDuty = () => {
                             setTestedRecords={setTestedRecords}
                             activeContainer={activeContainer}
                         />
+                    )}
+
+                    {activeTab === 'Epoxy Treated Sleepers' && (
+                        <div style={{ width: '100%', marginTop: '-1rem' }}>
+                            <EpoxyTreatedSleepers />
+                        </div>
                     )}
 
                     {activeTab === 'Raw Material Inventory' && (
@@ -348,7 +357,17 @@ const SleeperProcessDuty = () => {
                                 loadShiftData={fetchWireTension}
                             />
                         ) : activeTab === 'Compaction of Concrete (Vibrator Report)' ? (
-                            <CompactionConcrete onBack={() => setDetailView('dashboard')} onSave={() => { }} />
+                            <CompactionConcrete 
+                                onBack={() => setDetailView('dashboard')} 
+                                onSave={() => { }} 
+                                batches={batchDeclarations}
+                                activeContainer={activeContainer}
+                                sharedState={{
+                                    compactionRecords,
+                                    setAllCompactionRecords: (data) => setAllCompactionRecords(prev => ({ ...prev, [activeContainerId]: typeof data === 'function' ? data(prev[activeContainerId] || []) : data }))
+                                }}
+                                loadShiftData={fetchCompaction}
+                            />
                         ) : activeTab === 'Mould & Bench Checking' ? (
                             <MouldBenchCheck
                                 onBack={() => setDetailView('dashboard')}
@@ -374,6 +393,8 @@ const SleeperProcessDuty = () => {
                                 testedRecords={testedRecords}
                                 setTestedRecords={setTestedRecords}
                             />
+                        ) : activeTab === 'Epoxy Treated Sleepers' ? (
+                            <EpoxyTreatedSleepers onBack={() => setDetailView('dashboard')} initialShowForm={viewMode === 'entry'} />
                         ) : activeTab === 'Raw Material Inventory' && (
                             <RawMaterialInventory onBack={() => setDetailView('dashboard')} />
                         )}

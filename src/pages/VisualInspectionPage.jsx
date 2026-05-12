@@ -6,6 +6,12 @@ import './VisualInspectionPage.css';
 
 const STORAGE_KEY = 'visual_inspection_draft_data';
 
+// Helper to get current shift from sessionStorage for shift-specific storage
+const getShiftSuffix = () => {
+  const shift = sessionStorage.getItem('inspectionShift');
+  return shift ? `_${shift}` : '';
+};
+
 // Weight calculation factors per metre
 const WEIGHT_FACTORS = {
   'MK-III': 0.00263,  // tonnes per metre
@@ -42,7 +48,7 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
 
   // Load draft data from localStorage or initialize empty
   const loadDraftData = useCallback(() => {
-    const storageKey = `${STORAGE_KEY}_${inspectionCallNo}`;
+    const storageKey = `${STORAGE_KEY}_${inspectionCallNo}${getShiftSuffix()}`;
     const savedDraft = localStorage.getItem(storageKey);
     if (savedDraft) {
       try {
@@ -54,35 +60,59 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
     return null;
   }, [inspectionCallNo]);
 
-  // Per-heat Visual state
+  // Per-heat Visual state - now keyed by heatNo for stability
   const [heatVisualData, setHeatVisualData] = useState(() => {
     const draft = loadDraftData();
-    if (draft && draft.length > 0) {
-      return draft;
-    }
-    return heats.map(() => ({
-      selectedDefects: defectList.reduce((acc, d) => { acc[d] = false; return acc; }, {}),
-      defectCounts: defectList.reduce((acc, d) => { acc[d] = ''; return acc; }, {}),
-      otherRemarks: ''
-    }));
+    const state = {};
+    
+    // Migration/Initialization logic
+    heats.forEach((h, idx) => {
+      const hNo = h.heatNo || h.heat_no || `Heat-${idx + 1}`;
+      
+      // 1. Try to find in draft by heatNo (New robust format)
+      if (draft && typeof draft === 'object' && !Array.isArray(draft) && draft[hNo]) {
+        state[hNo] = draft[hNo];
+      } 
+      // 2. Fallback: Try to find in draft by index (Old fragile format)
+      else if (draft && Array.isArray(draft) && draft[idx]) {
+        state[hNo] = draft[idx];
+      }
+      // 3. Default: Empty state
+      else {
+        state[hNo] = {
+          selectedDefects: defectList.reduce((acc, d) => { acc[d] = false; return acc; }, {}),
+          defectCounts: defectList.reduce((acc, d) => { acc[d] = ''; return acc; }, {}),
+          otherRemarks: ''
+        };
+      }
+    });
+    return state;
   });
 
   // Keep heatVisualData in sync when heats change
   useEffect(() => {
     setHeatVisualData(prev => {
-      const next = heats.map((_, idx) => prev[idx] || {
-        selectedDefects: defectList.reduce((acc, d) => { acc[d] = false; return acc; }, {}),
-        defectCounts: defectList.reduce((acc, d) => { acc[d] = ''; return acc; }, {}),
-        otherRemarks: ''
+      const next = { ...prev };
+      let changed = false;
+      heats.forEach((h, idx) => {
+        const hNo = h.heatNo || h.heat_no || `Heat-${idx + 1}`;
+        if (!next[hNo]) {
+          next[hNo] = {
+            selectedDefects: defectList.reduce((acc, d) => { acc[d] = false; return acc; }, {}),
+            defectCounts: defectList.reduce((acc, d) => { acc[d] = ''; return acc; }, {}),
+            otherRemarks: ''
+          };
+          changed = true;
+        }
       });
-      if (activeHeatTab >= heats.length) setActiveHeatTab(Math.max(0, heats.length - 1));
-      return next;
+      return changed ? next : prev;
     });
+    if (activeHeatTab >= heats.length) setActiveHeatTab(Math.max(0, heats.length - 1));
   }, [heats, defectList, activeHeatTab]);
 
   // Auto-save to localStorage on heatVisualData change (persist while switching tabs/submodules)
   useEffect(() => {
-    const storageKey = `${STORAGE_KEY}_${inspectionCallNo}`;
+    const storageKey = `${STORAGE_KEY}_${inspectionCallNo}${getShiftSuffix()}`;
     localStorage.setItem(storageKey, JSON.stringify(heatVisualData));
   }, [heatVisualData, inspectionCallNo]);
 
@@ -111,9 +141,11 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
         const passedMap = {};
 
         data.forEach(item => {
-          const heatIdx = item.heatIndex || 0;
-          if (!heatDataMap[heatIdx]) {
-            heatDataMap[heatIdx] = {
+          const hNo = (item.heatNo || '').toString().trim().toUpperCase();
+          if (!hNo) return;
+
+          if (!heatDataMap[hNo]) {
+            heatDataMap[hNo] = {
               selectedDefects: defectList.reduce((acc, d) => { acc[d] = false; return acc; }, {}),
               defectCounts: defectList.reduce((acc, d) => { acc[d] = ''; return acc; }, {}),
               otherRemarks: '',
@@ -121,9 +153,11 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
             };
           }
 
+          const currentHeatData = heatDataMap[hNo];
+
           // Load other remarks if present
           if (item.otherRemarks) {
-            heatDataMap[heatIdx].otherRemarks = item.otherRemarks;
+            currentHeatData.otherRemarks = item.otherRemarks;
           }
 
           // NEW FORMAT: Backend returns one record per heat with defects and defectLengths maps
@@ -131,7 +165,7 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
             // Convert defects map to selectedDefects
             Object.entries(item.defects).forEach(([defectName, isSelected]) => {
               if (isSelected) {
-                heatDataMap[heatIdx].selectedDefects[defectName] = true;
+                currentHeatData.selectedDefects[defectName] = true;
               }
             });
           }
@@ -140,34 +174,24 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
           if (item.defectLengths) {
             Object.entries(item.defectLengths).forEach(([defectName, length]) => {
               if (length !== null && length !== undefined) {
-                heatDataMap[heatIdx].defectCounts[defectName] = length.toString();
+                currentHeatData.defectCounts[defectName] = length.toString();
               }
             });
           }
 
           // Mark as passed if passedAt is set
           if (item.passedAt) {
-            heatDataMap[heatIdx].isPassed = true;
-            passedMap[item.heatNo] = true;
+            currentHeatData.isPassed = true;
+            passedMap[hNo] = true;
           }
         });
 
-        // Set backend data to state (only runs if localStorage was empty)
-        setHeatVisualData(prev => {
-          return prev.map((heatData, idx) => {
-            if (heatDataMap[idx]) {
-              return {
-                ...heatData,
-                ...heatDataMap[idx]
-              };
-            }
-            return heatData;
-          });
-        });
-
+        // Set backend data to state (merged into existing object state)
+        setHeatVisualData(prev => ({ ...prev, ...heatDataMap }));
+        
         // Update passed heats map
         setPassedHeats(passedMap);
-        console.log('✅ Visual inspection data loaded from backend and saved to state');
+        console.log('✅ Visual inspection data loaded and merged by heat number');
       }
     } catch (error) {
       console.error('❌ Error loading visual inspection data from backend:', error);
@@ -184,9 +208,12 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
 
   // Defect handlers
   const handleDefectToggle = useCallback((defectName) => {
+    const currentHeat = heats[activeHeatTab];
+    const hNo = (currentHeat.heatNo || currentHeat.heat_no || `Heat-${activeHeatTab + 1}`).toString().trim().toUpperCase();
+
     setHeatVisualData(prev => {
-      const next = [...prev];
-      const hv = { ...next[activeHeatTab] };
+      const next = { ...prev };
+      const hv = { ...next[hNo] };
       const sel = { ...hv.selectedDefects };
       const counts = { ...hv.defectCounts };
       if (defectName === 'No Defect') {
@@ -207,34 +234,44 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
       }
       hv.selectedDefects = sel;
       hv.defectCounts = counts;
-      next[activeHeatTab] = hv;
+      next[hNo] = hv;
       return next;
     });
-  }, [activeHeatTab]);
+  }, [activeHeatTab, heats]);
 
   const handleDefectCountChange = useCallback((defectName, value) => {
+    const currentHeat = heats[activeHeatTab];
+    const hNo = (currentHeat.heatNo || currentHeat.heat_no || `Heat-${activeHeatTab + 1}`).toString().trim().toUpperCase();
+
     setHeatVisualData(prev => {
-      const next = [...prev];
-      const hv = { ...next[activeHeatTab] };
+      const next = { ...prev };
+      const hv = { ...next[hNo] };
       hv.defectCounts = { ...hv.defectCounts, [defectName]: value };
-      next[activeHeatTab] = hv;
+      next[hNo] = hv;
       return next;
     });
-  }, [activeHeatTab]);
+  }, [activeHeatTab, heats]);
 
   const handleOtherRemarksChange = useCallback((value) => {
+    const currentHeat = heats[activeHeatTab];
+    const hNo = (currentHeat.heatNo || currentHeat.heat_no || `Heat-${activeHeatTab + 1}`).toString().trim().toUpperCase();
+
     setHeatVisualData(prev => {
-      const next = [...prev];
-      const hv = { ...next[activeHeatTab] };
+      const next = { ...prev };
+      const hv = { ...next[hNo] };
       hv.otherRemarks = value;
-      next[activeHeatTab] = hv;
+      next[hNo] = hv;
       return next;
     });
-  }, [activeHeatTab]);
+  }, [activeHeatTab, heats]);
 
   // Validation: ensure that if any length-defect is selected, its value must be filled
   const validateHeatData = useCallback((heatIdx) => {
-    const hv = heatVisualData[heatIdx] || {};
+    const heat = heats[heatIdx];
+    if (!heat) return true;
+    const hNo = (heat.heatNo || heat.heat_no || `Heat-${heatIdx + 1}`).toString().trim().toUpperCase();
+    
+    const hv = heatVisualData[hNo] || {};
     const selected = hv.selectedDefects || {};
     const counts = hv.defectCounts || {};
 
@@ -248,7 +285,7 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
       }
     }
     return true;
-  }, [heatVisualData]);
+  }, [heatVisualData, heats]);
 
   const handleSelectHeat = useCallback((idx) => {
     // If trying to leave current heat, validate current heat
@@ -305,7 +342,8 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
   }, [productModel]);
 
   // Calculate values for current heat
-  const currentHeatData = heatVisualData[activeHeatTab] || {};
+  const activeHeatNo = (heats[activeHeatTab]?.heatNo || heats[activeHeatTab]?.heat_no || `Heat-${activeHeatTab + 1}`).toString().trim().toUpperCase();
+  const currentHeatData = heatVisualData[activeHeatNo] || {};
   const totalDefectiveLength = calculateTotalDefectiveLength(currentHeatData);
   const weightRejected = calculateWeightRejected(totalDefectiveLength);
 
@@ -324,7 +362,8 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
     }
 
     // Get selected defects for current heat
-    const currentHeatData = heatVisualData[activeHeatTab];
+    const hNo = (heats[activeHeatTab]?.heatNo || heats[activeHeatTab]?.heat_no || `Heat-${activeHeatTab + 1}`).toString().trim().toUpperCase();
+    const currentHeatData = heatVisualData[hNo] || {};
     const selectedDefects = Object.keys(currentHeatData.selectedDefects || {})
       .filter(defect => currentHeatData.selectedDefects[defect]);
 
@@ -364,10 +403,13 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
       // This ensures the status badge shows "Pass" in the dashboard
       // AND data persists in the Visual Inspection page
       const storageKey = `${STORAGE_KEY}_${inspectionCallNo}`;
-      const updatedDraft = [...heatVisualData];
-      if (updatedDraft[activeHeatTab]) {
+      const updatedDraft = { ...heatVisualData };
+      if (updatedDraft[hNo]) {
         // Mark as passed but keep all the data intact
-        updatedDraft[activeHeatTab].isPassed = true;
+        updatedDraft[hNo] = {
+          ...updatedDraft[hNo],
+          isPassed: true
+        };
         // Data (selectedDefects, defectCounts) remains unchanged
       }
       localStorage.setItem(storageKey, JSON.stringify(updatedDraft));
@@ -523,7 +565,8 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
         {/* Visual Defects Grid */}
         <div className="visual-defect-grid">
           {(() => {
-            const hv = heatVisualData[activeHeatTab] || {};
+            const hNo = (heats[activeHeatTab]?.heatNo || heats[activeHeatTab]?.heat_no || `Heat-${activeHeatTab + 1}`).toString().trim().toUpperCase();
+            const hv = heatVisualData[hNo] || {};
             const selected = hv.selectedDefects || {};
             const counts = hv.defectCounts || {};
             return defectList.map((d) => {

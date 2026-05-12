@@ -2,13 +2,13 @@ import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useShift } from "../../../../context/ShiftContext";
 import { useToast } from "../../../../context/ToastContext";
-import { saveAggregateSoundness, getAggregateSoundnessByReqId } from "../../../../services/workflowService";
+import { saveAggregateSoundness, getAggregateSoundnessByReqId, getAggregateSoundnessById } from "../../../../services/workflowService";
 
-export default function SoundnessTestForm({ onSave, onCancel, inventoryData = [], initialType = "New Inventory", activeRequestId, editData }) {
+export default function SoundnessTestForm({ onSave, onCancel, inventoryData = [], initialType = "New Inventory", activeRequestId, editId, editData }) {
     const { selectedShift, dutyLocation, dutyDate } = useShift();
     const toast = useToast();
     const [submitting, setSubmitting] = useState(false);
-    const [editId, setEditId] = useState(null);
+    const [editIdState, setEditIdState] = useState(editId || null);
 
     const { register, watch, setValue, handleSubmit, reset, formState: { errors } } = useForm({
         defaultValues: {
@@ -18,22 +18,48 @@ export default function SoundnessTestForm({ onSave, onCancel, inventoryData = []
     });
 
     useEffect(() => {
+        console.log("SoundnessForm Props:", { initialType, editId, editData });
+        
+        const handleRecord = (record) => {
+            if (!record) return;
+            console.log("Processing Soundness Record:", record);
+            if (record.id) setEditIdState(record.id);
+            reset({
+                ...record,
+                typeOfTesting: record.typeOfTesting || "Periodic",
+                consignmentNo: record.consignmentNo || record.consignment || watch("consignmentNo"),
+                testDate: record.testDate ? record.testDate.substring(0, 10) : new Date().toISOString().split('T')[0]
+            });
+        };
+
         if (activeRequestId) {
             const row = inventoryData.find(i => i.requestId === activeRequestId);
-            if (row) {
-                setValue("consignmentNo", row.consignmentNo);
-            }
+            if (row) setValue("consignmentNo", row.consignmentNo);
+            
             getAggregateSoundnessByReqId(activeRequestId).then(record => {
-                if (record && record.id) {
-                    setEditId(record.id);
-                    reset({
-                        ...record,
-                        testDate: record.testDate ? record.testDate.substring(0, 10) : new Date().toISOString().split('T')[0]
-                    });
+                if (record && (record.id || record.consignmentNo)) {
+                    handleRecord(record);
+                } else {
+                    toast.info("No previous Soundness data found. You can start entering new test results.");
                 }
             });
+        } else if (initialType === "Periodic" && (editId || editData)) {
+            // Priority 1: Immediate population (Props)
+            if (editData && (editData.consignmentNo || editData.lossPercent || editData.result)) {
+                handleRecord(editData);
+            }
+            // Priority 2: Backend Sync (Latest from DB)
+            if (editId) {
+                getAggregateSoundnessById(editId).then(record => {
+                    if (record) {
+                        handleRecord(record);
+                    } else {
+                        toast.info("No existing record found in history for this test.");
+                    }
+                });
+            }
         }
-    }, [activeRequestId, inventoryData, reset, setValue]);
+    }, [activeRequestId, editId, editData, initialType, reset, setValue, inventoryData]);
 
     const initialWt = watch("initialWt");
     const finalWt = watch("finalWt");
@@ -80,13 +106,13 @@ export default function SoundnessTestForm({ onSave, onCancel, inventoryData = []
                 createdBy: parseInt(localStorage.getItem('userId') || '1', 10)
             };
 
-            await saveAggregateSoundness(payload, editId);
-            toast.success(`Soundness Test report ${editId ? 'updated' : 'saved'} successfully!`);
-            reset();
-            onSave && onSave(payload);
+            const resultSaved = await saveAggregateSoundness(payload, editIdState);
+            if (onSave) onSave(resultSaved || payload);
+            
+            toast.success(`Soundness Test report ${editIdState ? 'updated' : 'saved'} successfully!`);
         } catch (error) {
             console.error("Error saving soundness data:", error);
-            toast.error("Failed to save Soundness report.");
+            toast.error(error.message || "Failed to save Soundness report.");
         } finally {
             setSubmitting(false);
         }
@@ -103,7 +129,7 @@ export default function SoundnessTestForm({ onSave, onCancel, inventoryData = []
                     <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '1.5rem' }}>
                         <div className="input-group">
                             <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#475569' }}>Date of Testing <span className="required" style={{ color: 'red' }}>*</span></label>
-                            <input type="date" {...register("testDate", { required: "Required" })} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                            <input type="date" {...register("testDate", { required: "Required" })} style={{ width: '100%', padding: '10px', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
                         </div>
 
                         <div className="input-group">
@@ -113,20 +139,20 @@ export default function SoundnessTestForm({ onSave, onCancel, inventoryData = []
                                     type="text"
                                     readOnly
                                     className="readOnly"
-                                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc' }}
+                                    style={{ width: '100%', padding: '10px', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', boxSizing: 'border-box' }}
                                     {...register("consignmentNo")}
                                 />
                             ) : initialType === "Periodic" ? (
                                 <input
                                     type="text"
                                     placeholder="Enter Consignment No"
-                                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                                    style={{ width: '100%', padding: '10px', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
                                     {...register("consignmentNo", { required: "Required" })}
                                 />
                             ) : (
                                 <select
                                     {...register("consignmentNo", { required: "Required" })}
-                                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                                    style={{ width: '100%', padding: '10px', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
                                 >
                                     <option value="">-- Select --</option>
                                     {inventoryData.map((c, i) => (
@@ -140,7 +166,7 @@ export default function SoundnessTestForm({ onSave, onCancel, inventoryData = []
                     <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '1.5rem' }}>
                         <div className="input-group">
                             <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#475569' }}>Material Type <span className="required" style={{ color: 'red' }}>*</span></label>
-                            <select {...register("materialType", { required: "Required" })} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                            <select {...register("materialType", { required: "Required" })} style={{ width: '100%', padding: '10px', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}>
                                 <option value="">-- Select --</option>
                                 <option value="Fine Aggregate">Fine Aggregate</option>
                                 <option value="Coarse Aggregate">Coarse Aggregate</option>
@@ -154,7 +180,7 @@ export default function SoundnessTestForm({ onSave, onCancel, inventoryData = []
                     <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
                         <div className="input-group">
                             <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#475569' }}>Test Method <span className="required" style={{ color: 'red' }}>*</span></label>
-                            <select {...register("method", { required: "Required" })} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                            <select {...register("method", { required: "Required" })} style={{ width: '100%', padding: '10px', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}>
                                 <option value="">-- Select --</option>
                                 <option value="Sodium Sulphate">Sodium Sulphate</option>
                                 <option value="Magnesium Sulphate">Magnesium Sulphate</option>
@@ -163,7 +189,7 @@ export default function SoundnessTestForm({ onSave, onCancel, inventoryData = []
 
                         <div className="input-group">
                             <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#475569' }}>No. of Cycles</label>
-                            <input type="number" {...register("cycles")} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                            <input type="number" {...register("cycles")} style={{ width: '100%', padding: '10px', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
                         </div>
                     </div>
 
@@ -172,33 +198,33 @@ export default function SoundnessTestForm({ onSave, onCancel, inventoryData = []
                     <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
                         <div className="input-group">
                             <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#475569' }}>Initial Weight of Sample (gms) <span className="required" style={{ color: 'red' }}>*</span></label>
-                            <input type="number" step="0.01" {...register("initialWt", { required: "Required" })} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                            <input type="number" step="0.01" {...register("initialWt", { required: "Required" })} style={{ width: '100%', padding: '10px', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
                         </div>
 
                         <div className="input-group">
                             <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#475569' }}>Weight after test (gms) <span className="required" style={{ color: 'red' }}>*</span></label>
-                            <input type="number" step="0.01" {...register("finalWt", { required: "Required" })} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                            <input type="number" step="0.01" {...register("finalWt", { required: "Required" })} style={{ width: '100%', padding: '10px', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
                         </div>
 
                         <div className="input-group">
                             <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#475569' }}>Loss in Weight (gms)</label>
-                            <input type="number" readOnly className="readOnly" {...register("lossWt")} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f1f5f9' }} />
+                            <input type="number" readOnly className="readOnly" {...register("lossWt")} style={{ width: '100%', padding: '10px', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f1f5f9', boxSizing: 'border-box' }} />
                         </div>
 
                         <div className="input-group">
                             <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#475569' }}>Percentage Loss (%)</label>
-                            <input type="number" readOnly className="readOnly" {...register("lossPercent")} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f1f5f9', fontWeight: '700' }} />
+                            <input type="number" readOnly className="readOnly" {...register("lossPercent")} style={{ width: '100%', padding: '10px', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f1f5f9', fontWeight: '700', boxSizing: 'border-box' }} />
                         </div>
 
                         <div className="input-group">
                             <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#475569' }}>Result</label>
-                            <input type="text" readOnly className="readOnly" {...register("result")} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f0fdf4', color: '#166534', fontWeight: '700' }} />
+                            <input type="text" readOnly className="readOnly" {...register("result")} style={{ width: '100%', padding: '10px', height: '42px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f0fdf4', color: '#166534', fontWeight: '700', boxSizing: 'border-box' }} />
                         </div>
                     </div>
 
                     <div style={{ marginTop: '32px', display: 'flex', gap: '16px' }}>
                         <button type="submit" className="btn-save" style={{ flex: 1, padding: '12px', background: '#42818c', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }} disabled={submitting}>
-                            {submitting ? 'Saving...' : editId ? 'Update Test Report' : 'Save Test Report'}
+                            {submitting ? 'Saving...' : editIdState ? 'Update Test Report' : 'Save Test Report'}
                         </button>
                         {onCancel && <button type="button" onClick={onCancel} className="btn-save" style={{ flex: 1, padding: '12px', background: '#64748b', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }} disabled={submitting}>Cancel</button>}
                     </div>

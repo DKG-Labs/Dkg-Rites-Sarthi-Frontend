@@ -1,5 +1,7 @@
 
 import React, { useState } from 'react';
+import { useShift } from '../../../../context/ShiftContext';
+import { useToast } from '../../../../context/ToastContext';
 import EnhancedDataTable from '../../../../components/common/EnhancedDataTable';
 import CrushingImpactAbrasion10mm from './CrushingImpactAbrasion10mm';
 import CrushingImpactAbrasion20mm from './CrushingImpactAbrasion20mm';
@@ -7,17 +9,40 @@ import CombinedFlakinessElongation from './CombinedFlakinessElongation';
 import CombinedGranulometricCurve from './CombinedGranulometricCurve';
 import SoundnessTestForm from './SoundnessTestForm';
 import { MOCK_INVENTORY, MOCK_AGGREGATES_HISTORY } from '../../../../utils/rawMaterialMockData';
-import { getAggregateBulkStatus, getAggregate10mmQualityByReqId, getAggregate20mmQualityByReqId } from '../../../../services/workflowService';
+import { 
+    getAggregateBulkStatus, 
+    getAggregate10mmQualityByReqId, 
+    getAggregate20mmQualityByReqId,
+    getPeriodicAggregate10mmQuality,
+    getPeriodicAggregate20mmQuality,
+    getPeriodicAggregateFlakiness,
+    getPeriodicAggregateGranulometric,
+    getPeriodicAggregateSoundness,
+    deletePeriodicRecord
+} from '../../../../services/workflowService';
 import TrendChart from '../../../../components/common/TrendChart';
 import '../cement/CementForms.css';
+
+const AGGREGATE_TABS = [
+    { id: 1, label: '10mm Quality' },
+    { id: 2, label: '20mm Quality' },
+    { id: 3, label: 'Flakiness & Elongation' },
+    { id: 4, label: 'Granulometric Curve' },
+    { id: 5, label: 'Soundness Test' }
+];
 
 const SubCard = ({ id, title, color, count, label, isActive, onClick }) => (
     <div
         className={`asset-card ${isActive ? 'active' : ''}`}
         onClick={onClick}
         style={{
-            borderColor: isActive ? color : '#e2e8f0',
-            borderTop: `4px solid ${color}`,
+            borderWidth: '1px',
+            borderStyle: 'solid',
+            borderTopWidth: '4px',
+            borderTopColor: color,
+            borderRightColor: isActive ? color : '#e2e8f0',
+            borderBottomColor: isActive ? color : '#e2e8f0',
+            borderLeftColor: isActive ? color : '#e2e8f0',
             '--active-color-alpha': `${color}15`,
             cursor: 'pointer',
             flex: '1',
@@ -35,6 +60,7 @@ const SubCard = ({ id, title, color, count, label, isActive, onClick }) => (
 );
 
 const AggregateTesting = ({ onBack, inventoryData = [] }) => {
+    const toast = useToast();
     const [viewMode, setViewMode] = useState('new-stocks');
     const [showForm, setShowForm] = useState(false);
     const [activeFormSection, setActiveFormSection] = useState(1);
@@ -46,10 +72,7 @@ const AggregateTesting = ({ onBack, inventoryData = [] }) => {
 
     const pendingStocks = inventoryData;
 
-    const [periodicHistory, setPeriodicHistory] = useState(MOCK_AGGREGATES_HISTORY.filter(h => h.testType === 'Periodic').map(item => ({
-        ...item,
-        createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString()
-    })));
+    const [periodicHistory, setPeriodicHistory] = useState([]);
 
     const [statusMap, setStatusMap] = useState({});
     const [activeRequestId, setActiveRequestId] = useState(null);
@@ -86,7 +109,13 @@ const AggregateTesting = ({ onBack, inventoryData = [] }) => {
                     setHistory(prev => {
                         const existingIds = new Set(prev.map(p => p.id));
                         const newRecords = fetchedHistory.filter(f => !existingIds.has(f.id));
-                        return [...newRecords, ...prev];
+                        const combined = [...newRecords, ...prev];
+                        return combined.sort((a,b) => {
+                            const dateA = new Date(a.testDate || 0);
+                            const dateB = new Date(b.testDate || 0);
+                            if (dateB - dateA !== 0) return dateB - dateA;
+                            return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+                        });
                     });
                 }
             }
@@ -94,6 +123,67 @@ const AggregateTesting = ({ onBack, inventoryData = [] }) => {
         fetchStatus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [pendingStocks]);
+
+    React.useEffect(() => {
+        const fetchPeriodic = async () => {
+            try {
+                const [agg10, agg20, flakiness, granulometric, soundness] = await Promise.all([
+                    getPeriodicAggregate10mmQuality(),
+                    getPeriodicAggregate20mmQuality(),
+                    getPeriodicAggregateFlakiness(),
+                    getPeriodicAggregateGranulometric(),
+                    getPeriodicAggregateSoundness()
+                ]);
+
+                // Consolidation logic: Group by consignmentNo and testDate
+                const consolidated = {};
+
+                const processList = (list, sourceId) => {
+                    list.forEach(item => {
+                        const key = `${item.consignmentNo}_${(item.testDate || '').substring(0, 10)}`;
+                        if (!consolidated[key]) {
+                            consolidated[key] = {
+                                id: item.id,
+                                consignmentNo: item.consignmentNo,
+                                testDate: item.testDate,
+                                testType: 'Periodic',
+                                createdAt: item.createdAt,
+                                formEntries: {}
+                            };
+                        }
+                        consolidated[key].formEntries[sourceId] = item;
+                        
+                        // Summary fields mapping
+                        if (sourceId === 1) consolidated[key].crushing10 = item.crushingValue || item.impactValue || item.abrasionValue || '-';
+                        if (sourceId === 2) consolidated[key].crushing20 = item.crushingValue || item.impactValue || item.abrasionValue || '-';
+                        if (sourceId === 3) {
+                            const v10 = item.combinedIndex10mm;
+                            const v20 = item.combinedIndex20mm;
+                            if (v10 && v20) consolidated[key].flakiness = `${v10}% / ${v20}%`;
+                            else consolidated[key].flakiness = v10 || v20 || item.combinedIndex || item.flakiness || '-';
+                        }
+                        if (sourceId === 5) consolidated[key].soundness = item.result || item.soundness || '-';
+                    });
+                };
+
+                processList(agg10, 1);
+                processList(agg20, 2);
+                processList(flakiness, 3);
+                processList(granulometric, 4);
+                processList(soundness, 5);
+
+                setPeriodicHistory(Object.values(consolidated).sort((a,b) => {
+                    const dateA = new Date(a.testDate || 0);
+                    const dateB = new Date(b.testDate || 0);
+                    if (dateB - dateA !== 0) return dateB - dateA;
+                    return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+                }));
+            } catch (err) {
+                console.error("Failed to fetch aggregate periodic data:", err);
+            }
+        };
+        fetchPeriodic();
+    }, []);
 
     const canModify = (createdAt) => {
         if (!createdAt) return false;
@@ -138,7 +228,15 @@ const AggregateTesting = ({ onBack, inventoryData = [] }) => {
             if (completedSectionId === 5) updatedData.soundness = savedData?.result || savedData?.soundness || '-';
 
             if (currentRecord && currentRecord.id) {
-                setPeriodicHistory(prev => prev.map(r => r.id === currentRecord.id ? { ...r, ...updatedData } : r));
+                setPeriodicHistory(prev => {
+                    const updated = prev.map(r => r.id === currentRecord.id ? { ...r, ...updatedData } : r);
+                    return updated.sort((a,b) => {
+                        const dateA = new Date(a.testDate || 0);
+                        const dateB = new Date(b.testDate || 0);
+                        if (dateB - dateA !== 0) return dateB - dateA;
+                        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+                    });
+                });
                 setEditItem({ ...currentRecord, ...updatedData });
             } else {
                 const newRecord = {
@@ -147,26 +245,69 @@ const AggregateTesting = ({ onBack, inventoryData = [] }) => {
                     crushing10: '-', crushing20: '-', flakiness: '-', soundness: '-',
                     ...updatedData
                 };
-                setPeriodicHistory(prev => [newRecord, ...prev]);
+                setPeriodicHistory(prev => {
+                    const combined = [newRecord, ...prev];
+                    return combined.sort((a,b) => {
+                        const dateA = new Date(a.testDate || 0);
+                        const dateB = new Date(b.testDate || 0);
+                        if (dateB - dateA !== 0) return dateB - dateA;
+                        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+                    });
+                });
                 setEditItem(newRecord);
             }
         }
+ 
+        // Standardized routing to next section or close if last
+        const sectionId = Number(completedSectionId);
+        const currentIndex = AGGREGATE_TABS.findIndex(s => s.id === sectionId);
 
-        if (completedSectionId < 5) {
-            setActiveFormSection(completedSectionId + 1);
-        } else {
+        console.log(`Aggregates Save Triggered - Section: ${completedSectionId} (Mapped ID: ${sectionId}), Index: ${currentIndex}`);
+
+        if (currentIndex !== -1 && currentIndex < AGGREGATE_TABS.length - 1) {
+            const nextSectionId = AGGREGATE_TABS[currentIndex + 1].id;
+            console.log(`Routing from aggregates section ${sectionId} to ${nextSectionId}`);
+            setActiveFormSection(nextSectionId);
+        } else if (currentIndex !== -1) {
+            console.log(`Final aggregates section ${sectionId} completed. Closing form.`);
             setShowForm(false);
             setEditItem(null);
             setInitialType("New Inventory");
+        } else {
+            console.warn(`Could not determine next section for aggregates sectionId: ${completedSectionId}. Staying on current section.`);
         }
     };
 
-    const handleDelete = (id, isPeriodic = false) => {
+    const handleDelete = async (row, isPeriodic = false) => {
         if (window.confirm('Are you sure you want to delete this record?')) {
-            if (isPeriodic) {
-                setPeriodicHistory(prev => prev.filter(h => h.id !== id));
-            } else {
-                setHistory(prev => prev.filter(h => h.id !== id));
+            try {
+                if (isPeriodic) {
+                    const deletePromises = [];
+                    const endpointMap = {
+                        1: 'aggregate-10mm-quality',
+                        2: 'aggregate-20mm-quality',
+                        3: 'aggregate-flakiness',
+                        4: 'aggregate-granulometric',
+                        5: 'aggregate-soundness'
+                    };
+                    
+                    Object.keys(row.formEntries || {}).forEach(sectionId => {
+                        const id = row.formEntries[sectionId].id;
+                        if (id) {
+                            deletePromises.push(deletePeriodicRecord(endpointMap[sectionId], id));
+                        }
+                    });
+                    
+                    await Promise.all(deletePromises);
+                    setPeriodicHistory(prev => prev.filter(h => h.id !== row.id));
+                    toast.success("Periodic record deleted successfully.");
+                } else {
+                    setHistory(prev => prev.filter(h => h.id !== row.id));
+                    toast.info("Inventory record removed from local history.");
+                }
+            } catch (err) {
+                console.error("Deletion error:", err);
+                toast.error(err.message || "Failed to delete record. Please try again.");
             }
         }
     };
@@ -199,6 +340,7 @@ const AggregateTesting = ({ onBack, inventoryData = [] }) => {
                         className="btn-action mini"
                         onClick={() => {
                             setActiveRequestId(row.requestId);
+                            setEditItem(null); // Clear periodic state
                             setInitialType("New Inventory");
                             setActiveFormSection(1);
                             setShowForm(true);
@@ -230,6 +372,7 @@ const AggregateTesting = ({ onBack, inventoryData = [] }) => {
                             disabled={!editable}
                             onClick={() => {
                                 setActiveRequestId(row.requestId);
+                                setEditItem(null); // Clear periodic state
                                 setActiveFormSection(1);
                                 setInitialType("New Inventory");
                                 setShowForm(true);
@@ -241,7 +384,7 @@ const AggregateTesting = ({ onBack, inventoryData = [] }) => {
                         <button
                             className={`btn-action mini danger ${!editable ? 'disabled-btn' : ''}`}
                             disabled={!editable}
-                            onClick={() => handleDelete(row.id)}
+                            onClick={() => handleDelete(row)}
                         >
                             Delete
                         </button>
@@ -295,6 +438,7 @@ const AggregateTesting = ({ onBack, inventoryData = [] }) => {
                         className="btn-action mini"
                         onClick={() => {
                             setInitialType("Periodic");
+                            setActiveRequestId(null); // Clear inventory state
                             setActiveFormSection(1);
                             setEditItem(row);
                             setEditMode(true);
@@ -305,7 +449,7 @@ const AggregateTesting = ({ onBack, inventoryData = [] }) => {
                     </button>
                     <button
                         className="btn-action mini danger"
-                        onClick={() => handleDelete(row.id, true)}
+                        onClick={() => handleDelete(row, true)}
                     >
                         Delete
                     </button>
@@ -321,26 +465,65 @@ const AggregateTesting = ({ onBack, inventoryData = [] }) => {
             onCancel: () => setShowForm(false),
             initialType: initialType,
             activeRequestId: activeRequestId,
-            editData: editItem
         };
 
+        const fallbackData = editItem ? { ...editItem, id: undefined } : null;
+
         switch (activeFormSection) {
-            case 1: return <CrushingImpactAbrasion10mm {...props} editData={initialType === "Periodic" ? editItem?.formEntries?.[1] : editItem} />;
-            case 2: return <CrushingImpactAbrasion20mm {...props} editData={initialType === "Periodic" ? editItem?.formEntries?.[2] : editItem} />;
-            case 3: return <CombinedFlakinessElongation {...props} editData={initialType === "Periodic" ? editItem?.formEntries?.[3] : editItem} />;
-            case 4: return <CombinedGranulometricCurve {...props} editData={initialType === "Periodic" ? editItem?.formEntries?.[4] : editItem} />;
-            case 5: return <SoundnessTestForm {...props} editData={initialType === "Periodic" ? editItem?.formEntries?.[5] : editItem} />;
+            case 1: 
+                return (
+                    <CrushingImpactAbrasion10mm 
+                        key={activeFormSection}
+                        {...props} 
+                        onSave={(data) => handleSaveTest(1, data)}
+                        editId={initialType === "Periodic" ? editItem?.formEntries?.[1]?.id : null} 
+                        editData={initialType === "Periodic" ? (editItem?.formEntries?.[1] || fallbackData) : fallbackData} 
+                    />
+                );
+            case 2: 
+                return (
+                    <CrushingImpactAbrasion20mm 
+                        key={activeFormSection}
+                        {...props} 
+                        onSave={(data) => handleSaveTest(2, data)}
+                        editId={initialType === "Periodic" ? editItem?.formEntries?.[2]?.id : null} 
+                        editData={initialType === "Periodic" ? (editItem?.formEntries?.[2] || fallbackData) : fallbackData} 
+                    />
+                );
+            case 3: 
+                return (
+                    <CombinedFlakinessElongation 
+                        key={activeFormSection}
+                        {...props} 
+                        onSave={(data) => handleSaveTest(3, data)}
+                        editId={initialType === "Periodic" ? editItem?.formEntries?.[3]?.id : null} 
+                        editData={initialType === "Periodic" ? (editItem?.formEntries?.[3] || fallbackData) : fallbackData} 
+                    />
+                );
+            case 4: 
+                return (
+                    <CombinedGranulometricCurve 
+                        key={activeFormSection}
+                        {...props} 
+                        onSave={(data) => handleSaveTest(4, data)}
+                        editId={initialType === "Periodic" ? editItem?.formEntries?.[4]?.id : null} 
+                        editData={initialType === "Periodic" ? (editItem?.formEntries?.[4] || fallbackData) : fallbackData} 
+                    />
+                );
+            case 5: 
+                return (
+                    <SoundnessTestForm 
+                        key={activeFormSection}
+                        {...props} 
+                        onSave={(data) => handleSaveTest(5, data)}
+                        editId={initialType === "Periodic" ? editItem?.formEntries?.[5]?.id : null} 
+                        editData={initialType === "Periodic" ? (editItem?.formEntries?.[5] || fallbackData) : fallbackData} 
+                    />
+                );
             default: return null;
         }
     };
 
-    const formTabs = [
-        { id: 1, label: '10mm Quality' },
-        { id: 2, label: '20mm Quality' },
-        { id: 3, label: 'Flakiness & Elongation' },
-        { id: 4, label: 'Granulometric Curve' },
-        { id: 5, label: 'Soundness Test' }
-    ];
 
     return (
         <div className="aggregate-testing-root cement-forms-scope fade-in">
@@ -349,6 +532,7 @@ const AggregateTesting = ({ onBack, inventoryData = [] }) => {
                 <div style={{ display: 'flex', gap: '12px' }}>
                     <button className="toggle-btn mini" onClick={() => { 
                         setInitialType("Periodic");
+                        setActiveRequestId(null); // Clear inventory state
                         setActiveFormSection(1); 
                         setEditMode(false);
                         setEditItem(null);
@@ -428,7 +612,7 @@ const AggregateTesting = ({ onBack, inventoryData = [] }) => {
 
                         <div style={{ background: '#ffffff', padding: '12px 24px', borderBottom: '1px solid #e5e7eb' }}>
                             <div className="nav-tabs" style={{ marginBottom: 0, borderBottom: 'none' }}>
-                                {formTabs.map(s => (
+                                {AGGREGATE_TABS.map(s => (
                                     <button
                                         key={s.id}
                                         className={`nav-tab ${activeFormSection === s.id ? 'active' : ''}`}

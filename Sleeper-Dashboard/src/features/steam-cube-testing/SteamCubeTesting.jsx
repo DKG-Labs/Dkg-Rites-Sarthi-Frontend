@@ -6,6 +6,7 @@ import './SteamCubeTesting.css';
 import { formatDateForBackend } from '../../utils/helpers';
 
 const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedRecords: propSetTestedRecords, activeContainer }) => {
+    const { dutyUnit, vendorCode, selectedShift, userId, dutyDate } = useShift();
     const [viewMode, setViewMode] = useState('statistics'); // 'statistics', 'declared', 'tested'
     const [showDeclareModal, setShowDeclareModal] = useState(false);
     const [showTestModal, setShowTestModal] = useState(false);
@@ -47,39 +48,57 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
     const loadData = async () => {
         setIsLoading(true);
         try {
-            const response = await apiService.getAllSteamCubes();
-            if (response && response.responseData) {
-                // Normalize dates from backend (dd/mm/yyyy) to internal (yyyy-mm-dd)
-                // Process all records to handle dates and status
-                const allRecords = response.responseData.map(r => {
-                    // A record is "tested" if it has strength data
-                    const isTested = !!r.avgStrength || (r.cubeResults && r.cubeResults.some(cr => cr.strength && cr.strength !== ""));
-                    
-                    // Normalize creation timestamp for 8-hour window logic
-                    // If backend doesn't provide time, we assume 00:00 or current time for new logs
-                    const createdTimeStr = r.createdTime || r.lbcTime || '00:00';
-                    const createdAt = new Date(`${DateUtils.formatFromBackend(r.entryDate || r.castingDate)}T${createdTimeStr}`);
+            const params = {
+                plantId: dutyUnit || localStorage.getItem('dutyUnit'),
+                vendorCode: vendorCode || localStorage.getItem('vendorCode'),
+                shift: selectedShift || localStorage.getItem('selectedShift'),
+                createdBy: userId || localStorage.getItem('userId'),
+                date: DateUtils.formatToBackend(dutyDate || localStorage.getItem('dutyDate'))
+            };
 
-                    return {
-                        ...r,
-                        status: isTested ? 'Completed' : 'Testing Pending',
-                        isTested: isTested,
-                        createdAt: createdAt,
-                        castingDate: DateUtils.formatFromBackend(r.castingDate),
-                        testDate: DateUtils.formatFromBackend(r.testDate),
-                        cubeResults: (r.cubeResults || []).map(cr => ({
-                            ...cr,
-                            testDate: DateUtils.formatFromBackend(cr.testDate)
-                        }))
-                    };
-                });
-                
-                const tested = allRecords.filter(r => r.isTested);
-                const declared = allRecords.filter(r => !r.isTested);
+            // 1. Fetch Declared Samples (Testing Pending)
+            const declaredRes = await apiService.getSteamCubeData(params);
+            
+            // 2. Fetch Test Results (Witnessed Logs)
+            const testedRes = await apiService.steamCubeResults.getResults(params);
 
-                setDeclaredSamples(declared);
-                setTestedRecords(tested);
-            }
+            // Process Declared Samples
+            const activePlantId = dutyUnit || localStorage.getItem('dutyUnit');
+            const declared = (declaredRes?.responseData || [])
+                .filter(r => r.plantId === activePlantId)
+                .map(r => ({
+                ...r,
+                status: 'Testing Pending',
+                isTested: false,
+                // Use backend createdDate if available (Date & time of Log)
+                createdAt: r.createdDate || r.updatedDate || new Date(),
+                castingDate: DateUtils.formatFromBackend(r.castingDate)
+            }));
+
+            // Process Tested Results
+            const tested = (testedRes?.responseData || [])
+                .filter(r => r.plantId === activePlantId)
+                .map(r => ({
+                ...r,
+                steamCubeId: r.sampleId || r.steamCubeId || r.id, // Ensure we track the declaration ID
+                status: 'Completed',
+                isTested: true,
+                // Use backend createdDate if available (Date & time of Log)
+                createdAt: r.createdDate || r.updatedDate || new Date(),
+                castingDate: DateUtils.formatFromBackend(r.dateOfCasting),
+                testDate: r.cubeDetails?.[0]?.dateOfTesting ? DateUtils.formatFromBackend(r.cubeDetails[0].dateOfTesting) : null,
+                cubeResults: (r.cubeDetails || []).map(cd => ({
+                    cubeCode: cd.cubeNo,
+                    strength: cd.strength,
+                    load: cd.loadKn,
+                    weight: cd.weightKgs,
+                    testDate: DateUtils.formatFromBackend(cd.dateOfTesting),
+                    testTime: cd.time
+                }))
+            }));
+
+            setDeclaredSamples(declared);
+            setTestedRecords(tested);
         } catch (error) {
             console.error('Error loading Steam Cube data:', error);
         } finally {
@@ -118,9 +137,9 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
     };
 
     const handleModifySample = async (sample) => {
-        // Enforce 8-hour restriction for modification
-        const declarationTime = new Date(sample.castingDate + 'T' + (sample.lbcTime || '00:00'));
-        const diffMs = Date.now() - declarationTime.getTime();
+        // Enforce 8-hour restriction for modification starting from Log time (createdAt)
+        const logTime = new Date(sample.createdAt);
+        const diffMs = Date.now() - logTime.getTime();
         const hoursPassed = diffMs / (1000 * 60 * 60);
 
         if (hoursPassed > 8) {
@@ -138,9 +157,10 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
                         ...response.responseData,
                         castingDate: DateUtils.formatFromBackend(response.responseData.castingDate),
                         testDate: DateUtils.formatFromBackend(response.responseData.testDate),
-                        cubeResults: (response.responseData.cubeResults || []).map(cr => ({
+                        cubeResults: (response.responseData.cubeDetails || response.responseData.cubeResults || []).map(cr => ({
                             ...cr,
-                            testDate: DateUtils.formatFromBackend(cr.testDate)
+                            testDate: DateUtils.formatFromBackend(cr.dateOfTesting || cr.testDate),
+                            testTime: cr.time || cr.testTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
                         }))
                     };
                 }
@@ -159,6 +179,7 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
 
     const handleEnterTestDetails = (sample) => {
         setSelectedSample(sample);
+        setIsModifying(!!sample.isTested);
         setShowTestModal(true);
         setShowDetailsModal(false);
     };
@@ -180,6 +201,10 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
                 batchNo: String(formData.batchNo),
                 concreteGrade: formData.concreteGrade,
                 chamberNo: formData.chamberNo || null,
+                vendorCode: vendorCode || localStorage.getItem('vendorCode'),
+                plantId: dutyUnit || localStorage.getItem('dutyUnit'),
+                shift: selectedShift || localStorage.getItem('selectedShift'),
+                createdBy: parseInt(userId || localStorage.getItem('userId')) || 0,
                 cubes: (formData.cubes || []).map(cube => ({
                     benchNo: String(cube.benchNo)
                 })),
@@ -210,30 +235,40 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
 
     const saveTestDetails = async (testData) => {
         try {
-            const completedTest = {
-                ...selectedSample,
-                ...testData,
-                castingDate: DateUtils.formatToBackend(selectedSample.castingDate),
-                testDate: DateUtils.formatToBackend(testData.testDate),
-                cubeResults: (testData.cubeResults || []).map(cube => ({
-                    ...cube,
-                    testDate: DateUtils.formatToBackend(cube.testDate)
-                }))
+            const payload = {
+                location: selectedSample.location || selectedSample.lineNo || selectedSample.shedNo,
+                dateOfCasting: DateUtils.formatToBackend(selectedSample.castingDate),
+                batchNo: String(selectedSample.batchNo),
+                lbcTime: selectedSample.lbcTime,
+                concreteGrade: selectedSample.concreteGrade || selectedSample.grade,
+                avgStrength: parseFloat(testData.avgStrength) || 0,
+                result: testData.result || 'OK',
+                vendorCode: vendorCode || localStorage.getItem('vendorCode'),
+                plantId: dutyUnit || localStorage.getItem('dutyUnit'),
+                shift: selectedShift || localStorage.getItem('selectedShift'),
+                createdBy: parseInt(userId || localStorage.getItem('userId')) || 0,
+                chamberNo: selectedSample.chamberNo || "",
+                cubeDetails: (testData.cubeResults || []).map(cube => ({
+                    id: cube.id || null, // ensure JPA knows we are updating existing children
+                    cubeNo: cube.cubeNo,
+                    dateOfTesting: DateUtils.formatToBackend(cube.testDate),
+                    time: cube.testTime || "",
+                    ageHours: parseFloat(cube.ageHrs) || parseFloat(cube.ageHours) || 0,
+                    weightKgs: parseFloat(cube.weight) || parseFloat(cube.weightKgs) || 0,
+                    loadKn: parseFloat(cube.load) || parseFloat(cube.loadKn) || 0,
+                    strength: parseFloat(cube.strength) || 0
+                })),
+                steamCubeId: parseInt(selectedSample.steamCubeId || selectedSample.sampleId || selectedSample.id) || 0
             };
             
-            // Map back to backend structure if needed
-            const payload = {
-                ...completedTest,
-                batchNo: String(completedTest.batchNo)
-            };
+            if (isModifying && selectedSample.id) {
+                await apiService.steamCubeResults.update(selectedSample.id, payload);
+            } else {
+                await apiService.steamCubeResults.create(payload);
+            }
 
-            await apiService.updateSteamCube(selectedSample.id, payload);
-
-            // Immediate UI closure
             setShowTestModal(false);
             setIsModifying(false);
-
-            // Background refresh
             loadData().catch(console.error);
         } catch (error) {
             console.error('Error saving test details:', error);
@@ -244,7 +279,7 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
     const handleDeleteTest = async (id, sampleData) => {
         if (!id) return;
 
-        // Check 8-hour window based on creation time
+        // Check 8-hour window based on log creation time
         const diffMs = Date.now() - new Date(sampleData.createdAt).getTime();
         const hoursPassed = diffMs / (1000 * 60 * 60);
 
@@ -253,38 +288,43 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
             return;
         }
 
-        const msg = sampleData.isTested 
-            ? "Are you sure you want to remove this test result and move it back to 'Pending'?" 
+        const isResultDeletion = !!sampleData.isTested;
+        const msg = isResultDeletion 
+            ? "Are you sure you want to remove this test result? The sample will move back to 'Testing Pending' table." 
             : "Are you sure you want to delete this sample declaration?";
 
         if (window.confirm(msg)) {
             try {
-                if (sampleData.isTested) {
-                    // "Delete" for tested records means resetting the test data
-                    const payload = {
+                if (isResultDeletion) {
+                    // Delete test result — this should restore the declaration's status on the backend
+                    await apiService.steamCubeResults.delete(id);
+                    
+                    // Immediate UI feedback: update local state before refreshing
+                    setTestedRecords(prev => prev.filter(r => r.id !== id));
+                    
+                    // Re-construct the pending record from the tested ones to show it immediately
+                    const restoredSample = {
                         ...sampleData,
-                        avgStrength: null,
-                        result: null,
-                        testDate: null,
-                        cubeResults: (sampleData.cubeResults || []).map(cr => ({
-                            ...cr,
-                            strength: "",
-                            load: "",
-                            weight: "",
-                            testDate: null
-                        }))
+                        id: sampleData.steamCubeId || id,
+                        status: 'Testing Pending',
+                        isTested: false,
+                        cubeResults: [] // Clear results
                     };
-                    await apiService.updateSteamCube(id, payload);
+                    setDeclaredSamples(prev => [restoredSample, ...prev]);
+                    
+                    alert('Test result removed. The record has been moved back to the Pending list.');
                 } else {
-                    // "Delete" for declared records is a hard delete
+                    // Hard delete for sample declaration
                     await apiService.deleteSteamCube(id);
+                    setDeclaredSamples(prev => prev.filter(s => s.id !== id));
+                    alert('Sample declaration deleted successfully.');
                 }
                 
-                alert('Action success.');
+                // Final sync with backend
                 loadData();
             } catch (error) {
                 console.error('Error in delete action:', error);
-                alert('Failed: ' + error.message);
+                alert('Failed to complete action: ' + error.message);
             }
         }
     };
@@ -297,6 +337,7 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
             label: 'Location (Line/Shed)',
             render: (_, row) => row.location || row.lineNo || row.shedNo || '-'
         },
+        { key: 'chamberNo', label: 'Chamber No.', render: (val) => val || '-' },
         { key: 'batchNo', label: 'Batch No.' },
         { 
             key: 'castingDateTime', 
@@ -362,6 +403,7 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
             label: 'Location (Shed/Line)', 
             render: (_, row) => row.location || row.shedNo || row.lineNo || '-'
         },
+        { key: 'chamberNo', label: 'Chamber No.', render: (val) => val || '-' },
         { key: 'batchNo', label: 'Batch No.' },
         { 
             key: 'castingDate', 
@@ -590,8 +632,13 @@ const cardTabStyle = (active, color) => ({
     flex: '1 1 200px',
     padding: '16px 20px',
     background: active ? '#fff' : '#f8fafc',
-    border: `1px solid ${active ? color : '#e2e8f0'}`,
-    borderTop: `4px solid ${color}`,
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderTopWidth: '4px',
+    borderTopColor: color,
+    borderRightColor: active ? color : '#e2e8f0',
+    borderBottomColor: active ? color : '#e2e8f0',
+    borderLeftColor: active ? color : '#e2e8f0',
     borderRadius: '12px',
     display: 'flex',
     flexDirection: 'column',
@@ -615,6 +662,7 @@ const SteamCubeDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelet
     const details = [
         { label: 'Status', value: sample.status || 'Testing Pending' },
         { label: 'Location (Line/Shed)', value: sample.location || sample.lineNo || sample.shedNo || '-' },
+        { label: 'Chamber No.', value: sample.chamberNo || '-' },
         { label: 'Batch No.', value: sample.batchNo || '-' },
         { 
             label: 'Date & Time of Casting', 
@@ -715,7 +763,7 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
     const [moistureReports, setMoistureReports] = useState([]);
     const [availableLocations, setAvailableLocations] = useState([]);
     const { vendorId, dutyUnit, userId } = useShift();
-    const effectiveVendorId = userId || vendorId || localStorage.getItem('userId');
+    const effectiveVendorId = vendorId || userId || localStorage.getItem('vendorId') || localStorage.getItem('userId');
     const effectivePlantId = dutyUnit || localStorage.getItem('dutyUnit');
     
     const [formData, setFormData] = useState({
@@ -761,20 +809,33 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
         fetchLocations();
     }, [effectivePlantId, effectiveVendorId]);
 
-    // Fetch batch numbers from moisture reports
+    // Fetch production batches based on selected location and date
+    const [productionBatches, setProductionBatches] = useState([]);
     useEffect(() => {
-        const fetchReports = async () => {
-            try {
-                const res = await apiService.getLastFiveMoisture();
-                if (res?.responseData) {
-                    setMoistureReports(res.responseData);
+        const fetchBatches = async () => {
+            const location = formData.lineNo || formData.shedNo;
+            if (formData.castingDate && location) {
+                try {
+                    const formattedDate = formData.castingDate.split('-').reverse().join('/');
+                    const res = await apiService.getAllProductionBatches(
+                        effectiveVendorId,
+                        formattedDate,
+                        effectivePlantId,
+                        location
+                    );
+                    if (res?.responseData) {
+                        setProductionBatches(res.responseData);
+                    } else {
+                        setProductionBatches([]);
+                    }
+                } catch (err) {
+                    console.error("Failed to fetch production batches:", err);
+                    setProductionBatches([]);
                 }
-            } catch (err) {
-                console.error("Failed to fetch batches:", err);
             }
         };
-        fetchReports();
-    }, []);
+        fetchBatches();
+    }, [formData.castingDate, formData.lineNo, formData.shedNo, effectiveVendorId, effectivePlantId]);
 
     // Auto-generate Cube Code when bench or sequence changes
     useEffect(() => {
@@ -819,6 +880,21 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
             cubes: formData.cubes.filter((_, i) => i !== index),
             otherBenches: formData.otherBenches.filter((_, i) => i !== index)
         });
+    };
+
+    const handleLocalSave = () => {
+        if (!formData.cubes || formData.cubes.length === 0) {
+            alert("add atleast one cube for testing");
+            return;
+        }
+
+        // New requirement: Minimum 3 cubes for Line casting
+        if (formData.lineNo && formData.cubes.length < 3) {
+            alert("add atleast 3 cubes for testing in case of line");
+            return;
+        }
+
+        onSave(formData);
     };
 
     // Removal of selectedContainerId as it was tied to the old containers list which is no longer used.
@@ -866,17 +942,43 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
                             />
                         </div>
                         <div className="input-group">
-                            <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569', marginBottom: '4px' }}>Batch No. (From Moisture Reports)</label>
+                            <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569', marginBottom: '4px' }}>Batch No.</label>
                             <select 
                                 value={formData.batchNo} 
-                                onChange={e => setFormData({ ...formData, batchNo: e.target.value })}
+                                onChange={e => {
+                                    const val = e.target.value;
+                                    // Find if it's an object or just use as string
+                                    const selectedBatch = productionBatches.find(b => 
+                                        typeof b === 'object' ? String(b.id) === String(val) || String(b.batchNo) === String(val) : String(b) === String(val)
+                                    );
+                                    
+                                    if (selectedBatch && typeof selectedBatch === 'object') {
+                                        setFormData({
+                                            ...formData,
+                                            batchNo: selectedBatch.batchNo,
+                                            concreteGrade: selectedBatch.concreteGrade || formData.concreteGrade,
+                                            chamberNo: selectedBatch.chamberNo || formData.chamberNo || ""
+                                        });
+                                    } else {
+                                        setFormData({ ...formData, batchNo: val });
+                                    }
+                                }}
                                 style={{ width: '100%', padding: '0 12px', height: '42px', borderRadius: '8px', border: '1.5px solid #e2e8f0', fontSize: '14px', color: '#1e293b', outline: 'none', background: '#fff' }}
                             >
                                 <option value="">-- Select Batch --</option>
-                                {moistureReports.map(report => (
-                                    <option key={report.id} value={report.batchNo}>{report.batchNo}</option>
-                                ))}
-                                {formData.batchNo && !moistureReports.find(r => String(r.batchNo) === String(formData.batchNo)) && (
+                                {productionBatches.map((batch, idx) => {
+                                    const isObj = typeof batch === 'object' && batch !== null;
+                                    const bNo = isObj ? batch.batchNo : batch;
+                                    const bId = isObj ? (batch.id || batch.batchNo) : batch;
+                                    return (
+                                        <option key={idx} value={bId}>
+                                            {bNo} {isObj && batch.chamberNo ? `(Chamber: ${batch.chamberNo})` : ''}
+                                        </option>
+                                    );
+                                })}
+                                {formData.batchNo && !productionBatches.some(b => 
+                                    (typeof b === 'object' ? String(b.batchNo) : String(b)) === String(formData.batchNo)
+                                ) && (
                                     <option value={formData.batchNo}>{formData.batchNo}</option>
                                 )}
                             </select>
@@ -903,6 +1005,18 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
                                 <option>M-60</option>
                             </select>
                         </div>
+                        {formData.shedNo && (
+                            <div className="input-group">
+                                <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569', marginBottom: '4px' }}>Chamber No. (Required for Shed)</label>
+                                <input 
+                                    type="number" 
+                                    value={formData.chamberNo} 
+                                    onChange={e => setFormData({ ...formData, chamberNo: e.target.value })} 
+                                    placeholder="Enter Chamber No."
+                                    style={{ width: '100%', padding: '0 12px', height: '42px', borderRadius: '8px', border: '1.5px solid #e2e8f0', fontSize: '14px', color: '#1e293b', outline: 'none' }}
+                                />
+                            </div>
+                        )}
                     </div>
 
                     {/* Cube Addition Section */}
@@ -991,8 +1105,8 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
                         <button
                             className="btn-verify"
                             style={{ padding: '8px 24px', fontSize: '12px', height: '36px', width: 'auto' }}
-                            onClick={() => onSave(formData)}
-                            disabled={!formData.batchNo || !formData.concreteGrade || formData.cubes.length === 0}
+                            onClick={handleLocalSave}
+                            disabled={!formData.batchNo || !formData.concreteGrade || (formData.shedNo && !formData.chamberNo)}
                         >
                             {isModifying ? 'Update Declaration' : 'Save Declaration'}
                         </button>
@@ -1017,6 +1131,9 @@ const TestDetailsModal = ({ sample, onClose, onSave, onDelete, isModifying, acti
         testTime: sample.testTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
         cubeResults: sample.cubeResults?.length ? sample.cubeResults.map(cr => ({
             ...cr,
+            weight: cr.weight || cr.weightKgs || '',
+            load: cr.load || cr.loadKn || '',
+            ageHrs: cr.ageHrs || cr.ageHours || '0.0',
             testDate: cr.testDate || new Date().toISOString().split('T')[0],
             testTime: cr.testTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
         })) : (sample.cubes || []).map(cube => ({
@@ -1155,10 +1272,9 @@ const TestDetailsModal = ({ sample, onClose, onSave, onDelete, isModifying, acti
                                             <td style={{ padding: '6px 8px' }}>
                                                 <input
                                                     type="text"
+                                                    readOnly
                                                     value={cube.cubeNo}
-                                                    onChange={e => updateCubeData(idx, 'cubeNo', e.target.value)}
-                                                    placeholder="e.g. 401"
-                                                    style={{ width: '100%', padding: '8px 6px', border: '1.5px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', fontWeight: '800', color: '#13343b', outline: 'none' }}
+                                                    style={{ width: '100%', padding: '8px 6px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '13px', background: '#f8fafc', fontWeight: '800', color: '#13343b', outline: 'none' }}
                                                 />
                                             </td>
                                             <td style={{ padding: '6px 8px' }}>
@@ -1211,15 +1327,11 @@ const TestDetailsModal = ({ sample, onClose, onSave, onDelete, isModifying, acti
                                                     style={{ width: '100%', padding: '8px 6px', border: '1px solid #e2e8f0', borderRadius: '6px', background: '#f0fdf4', fontWeight: '800', color: '#166534', fontSize: '14px', textAlign: 'center' }}
                                                 />
                                             </td>
-                                            <td style={{ padding: '6px 8px' }}>
-                                                <button onClick={() => removeCubeRow(idx)} style={{ border: 'none', background: '#fee2e2', color: '#ef4444', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer', fontWeight: '700' }}>×</button>
-                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
                         </div>
-                        <button onClick={addCubeRow} style={{ marginTop: '12px', background: '#f5f3ff', color: '#7c3aed', border: '1px dashed #7c3aed', borderRadius: '16px', padding: '6px 16px', fontSize: '11px', fontWeight: '700', cursor: 'pointer', height: '32px', display: 'flex', alignItems: 'center' }}>+ Add Cube</button>
                     </div>
 
                     {/* Summary Section */}

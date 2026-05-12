@@ -29,6 +29,7 @@ const SummaryReportsPage = ({ onBack, heats = [], onNavigateSubmodule }) => {
       />
 
       <div className="card">
+        {/* Commented out hardcoded summary as per user request
         <div className="card-header">
           <h3 className="card-title">Raw Material Inspection Summary - Auto-Compiled</h3>
           <p className="card-subtitle">Consolidated results from all RM inspection modules</p>
@@ -59,7 +60,43 @@ const SummaryReportsPage = ({ onBack, heats = [], onNavigateSubmodule }) => {
             <li>Depth of Decarb: 0.2mm</li>
           </ul>
         </div>
+        */}
+
+        {/* Work in Progress UI */}
+        <div style={{ textAlign: 'center', padding: '60px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div style={{ fontSize: '64px', marginBottom: '24px', animation: 'bounce 2s infinite' }}>🚧</div>
+          <h3 style={{ fontSize: '28px', fontWeight: '700', color: '#1e293b', marginBottom: '16px' }}>
+            Summary Module Under Development
+          </h3>
+          <p style={{ color: '#64748b', fontSize: '17px', maxWidth: '500px', margin: '0 auto', lineHeight: '1.6' }}>
+            We are currently working on a dynamic summary engine that will provide live, data-driven reports consolidated across all your inspection heats.
+          </p>
+          
+          <div style={{ 
+            marginTop: '40px', 
+            padding: '16px 32px', 
+            background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)', 
+            border: '1px solid #bae6fd', 
+            borderRadius: '12px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '12px',
+            color: '#0369a1',
+            fontWeight: '600',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+          }}>
+            <span style={{ fontSize: '20px' }}>⏳</span>
+            Coming Soon: Live Report Compilation
+          </div>
+        </div>
       </div>
+
+      <style>{`
+        @keyframes bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-10px); }
+        }
+      `}</style>
     </div>
   );
 };

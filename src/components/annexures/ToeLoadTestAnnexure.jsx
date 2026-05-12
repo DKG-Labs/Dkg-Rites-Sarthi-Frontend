@@ -1,110 +1,111 @@
 import React from "react";
-import AnnexureLayout from "./AnnexureLayout";
 import AnnexureHeader from "./AnnexureHeader";
-import AnnexureTable from "./AnnexureTable";
 import AnnexureFooter from "./AnnexureFooter";
+import AnnexureEmptyState from "./AnnexureEmptyState";
+import '../AnnexureTemplate.css';
 
-const toeLoadHeaderRows = [
-  [
-    { label: "S. No", rowSpan: 2 },
-    { label: "Cast Heat No.", rowSpan: 2 },
-    { label: "Lot No.", rowSpan: 2 },
-    { label: "Colour Code", rowSpan: 2 },
-    { label: "Qty. (Nos.)", rowSpan: 2 },
-    { label: "Sample size", rowSpan: 2 },
-    {
-      label:
-        "Toe Load test (ERC MK-III: 850–110 kgs) (ERC MK-V: 1200–1500 kgs)",
-      colSpan: 10,
-    },
-    { label: "No. of defectives", rowSpan: 2 },
-    { label: "Cumulative No. of defectives", rowSpan: 2 },
-    { label: "Accepted / Not accepted", rowSpan: 2 },
-  ],
-  [
-    { label: "1" }, { label: "2" }, { label: "3" }, { label: "4" },
-    { label: "5" }, { label: "6" }, { label: "7" }, { label: "8" },
-    { label: "9" }, { label: "10" },
-  ],
-];
+const ToeLoadTestAnnexure = ({ data, selectedCall }) => {
+  // Each sampling round gets its own page
+  const reportData = data?.responseData || data || {};
+  const pages = reportData.pages || [];
 
-const toeLoadSampleData = [
-  {
-    heatNo: "H-1301",
-    lotNo: "LOT-01",
-    colour: "Red",
-    qty: 500,
-    sampleSize: 10,
-    toeLoad: [980, 995, 1005, 990, 985, 1000, 995, 990, 1002, 998],
-    defectives: 0,
-    result: "Accepted",
-  },
-  {
-    heatNo: "H-1302",
-    lotNo: "LOT-02",
-    colour: "Blue",
-    qty: 450,
-    sampleSize: 10,
-    toeLoad: [970, 980, 990, 985, 975, 980, 988, 982, 990, 978],
-    defectives: 0,
-    result: "Accepted",
-  }
-];
-
-const ToeLoadTestAnnexure = () => {
-  return (
-    <AnnexureLayout>
-
-      <AnnexureHeader
-        pageNo="17 of 18"
-        preparedBy="KJM"
-        checkedBy="CSR"
-        approvedBy="GM(I)/WR"
-        title="Final Inspection Report"
-        subtitle="Test results of - Toe load test"
-        annexureNumber="Annexure-XI"
-        annexureCode="IRST-31-2025"
+  if (pages.length === 0) {
+    return (
+      <AnnexureEmptyState 
+        title="No Toe Load Test Data" 
+        message="Toe load inspection results have not been recorded for this inspection call."
       />
+    );
+  }
 
-      <AnnexureTable headerRows={toeLoadHeaderRows}>
-  {toeLoadSampleData.map((row, batchIndex) =>
-    row.toeLoad.map((value, i) => (
-      <tr key={`${batchIndex}-${i}`}>
+  return (
+    <div className="annexure-template toe-load-test-annexure">
+      {pages.map((page, pageIdx) => (
+        <div key={pageIdx} className="annexure-page-wrapper">
+          <AnnexureHeader
+            pageNo={`${pageIdx + 1} of ${pages.length}`}
+            preparedBy="KJM"
+            checkedBy="CSR"
+            approvedBy="GM(I)/WR"
+            title="Final Inspection Report"
+            subtitle="Test results of - Toe load test"
+            annexureNumber="Annexure-XI"
+            annexureCode="IRST-31-2025"
+            selectedCall={selectedCall}
+            manufacturer={reportData.manufacturer}
+            vendor={reportData.vendor}
+            firmName={reportData.vendor}
+            productName={reportData.productName}
+            dateOfInspection={reportData.dateOfInspection}
+          />
 
-        
-        {i === 0 && (
-          <>
-            <td rowSpan={row.sampleSize}>{batchIndex + 1}</td>
-            <td rowSpan={row.sampleSize}>{row.heatNo}</td>
-            <td rowSpan={row.sampleSize}>{row.lotNo}</td>
-            <td rowSpan={row.sampleSize}>{row.colour}</td>
-            <td rowSpan={row.sampleSize}>{row.qty}</td>
-            <td rowSpan={row.sampleSize}>{row.sampleSize}</td>
-          </>
-        )}
+          <div className="annexure-table-container">
+            <table className="annexure-table">
+              <thead>
+                <tr>
+                  <th rowSpan={2} className="annexure-th">S. No</th>
+                  <th rowSpan={2} className="annexure-th">Cast Heat No.</th>
+                  <th rowSpan={2} className="annexure-th">Lot No.</th>
+                  <th rowSpan={2} className="annexure-th">Colour Code</th>
+                  <th rowSpan={2} className="annexure-th">Qty. (Nos.)</th>
+                  <th rowSpan={2} className="annexure-th">Sample size</th>
+                  <th colSpan={10} className="annexure-th">Toe Load test (ERC MK-III: 850-1100 kgs) (ERC MK-V: 1200-1500 kgs)</th>
+                  <th rowSpan={2} className="annexure-th">No. of defectives</th>
+                  <th rowSpan={2} className="annexure-th">Cumulative No. of defectives</th>
+                  <th rowSpan={2} className="annexure-th">Accepted / Not accepted</th>
+                </tr>
+                <tr>
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
+                    <th key={n} className="annexure-th">{n}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {page.rows?.map((batch, batchIdx) => {
+                  const readings = batch.readings || [[]];
+                  const rowSpan = readings.length || 1;
 
-      
-        {row.toeLoad.map((v, idx) => (
-            <td key={idx}>{v}</td>
-        ))}
+                  return readings.map((readingRow, rowIndex) => (
+                    <tr key={`${batchIdx}-${rowIndex}`}>
+                      {rowIndex === 0 && (
+                        <>
+                          <td rowSpan={rowSpan} className="annexure-td">{batchIdx + 1}</td>
+                          <td rowSpan={rowSpan} className="annexure-td data-cell">{batch.heatNo || '-'}</td>
+                          <td rowSpan={rowSpan} className="annexure-td data-cell">{batch.lotNo || '-'}</td>
+                          <td rowSpan={rowSpan} className="annexure-td data-cell">{batch.colourCode || 'N/A'}</td>
+                          <td rowSpan={rowSpan} className="annexure-td data-cell">{batch.qty || 0}</td>
+                          <td rowSpan={rowSpan} className="annexure-td data-cell">{batch.sampleSize || 0}</td>
+                        </>
+                      )}
 
-       
-        {i === 0 && (
-          <>
-            <td rowSpan={row.sampleSize}>{row.defectives}</td>
-            <td rowSpan={row.sampleSize}>{row.defectives}</td>
-            <td rowSpan={row.sampleSize}>{row.result}</td>
-          </>
-        )}
+                      {[...Array(10)].map((_, i) => (
+                        <td key={i} className="annexure-td data-cell reading-cell">
+                          {readingRow[i] !== undefined ? readingRow[i].toString() : ""}
+                        </td>
+                      ))}
 
-      </tr>
-    ))
-  )}
-</AnnexureTable>
-
-      <AnnexureFooter />
-
-    </AnnexureLayout>
+                      {rowIndex === 0 && (
+                        <>
+                          <td rowSpan={rowSpan} className="annexure-td data-cell">{batch.defectives || 0}</td>
+                          <td rowSpan={rowSpan} className="annexure-td data-cell">{batch.cumulativeDefectives || 0}</td>
+                          <td rowSpan={rowSpan} className="annexure-td data-cell status-cell">
+                            <span className={`status-badge ${batch.status === 'Accepted' ? 'status-ok' : 'status-not-ok'}`}>
+                              {batch.status || 'Accepted'}
+                            </span>
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  ));
+                })}
+              </tbody>
+            </table>
+          </div>
+          <AnnexureFooter />
+          {pageIdx < pages.length - 1 && <div className="page-break" />}
+        </div>
+      ))}
+    </div>
   );
 };
 

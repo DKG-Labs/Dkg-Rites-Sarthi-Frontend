@@ -289,3 +289,32 @@
         padding: 20px;
     }
 }
+
+/* ── Under Development State ── */
+.ie-sub-nav-card.under-development {
+    opacity: 0.8;
+    cursor: default;
+    background: #fdfaf5;
+    border-style: dotted;
+}
+
+.ie-sub-nav-card.under-development:hover {
+    transform: none;
+    box-shadow: none;
+    border-color: #e2e8f0;
+}
+
+.dev-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: #fef3c7;
+    color: #92400e;
+    font-size: 8px;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 10px;
+    text-transform: uppercase;
+    border: 1px solid #fde68a;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}

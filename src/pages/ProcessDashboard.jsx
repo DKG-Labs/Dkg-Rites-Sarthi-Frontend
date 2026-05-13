@@ -212,6 +212,18 @@ const staticDataStyles = `
     color: #1f2937;
   }
 
+  .btn-success {
+    background: #22c55e !important;
+    color: white !important;
+    opacity: 1 !important;
+  }
+
+  .btn-danger {
+    background: #ef4444 !important;
+    color: white !important;
+    opacity: 1 !important;
+  }
+
   .quantity-cell-manufactured {
     color: #3b82f6;
     font-weight: 500;

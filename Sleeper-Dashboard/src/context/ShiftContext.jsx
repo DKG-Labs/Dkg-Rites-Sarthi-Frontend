@@ -88,10 +88,26 @@ export const ShiftProvider = ({ children }) => {
                 if (!currentUserId) return;
                 try {
                     const res = await apiService.getCompanyUnitsByUser(currentUserId);
-                    const data = res?.responseData || {};
-                    if (data.companyName) setCompanyName(data.companyName);
-                    if (data.vendorCode) setVendorCode(data.vendorCode);
-                    if (data.vendorId) setVendorId(data.vendorId);
+                    const responseData = res?.responseData || [];
+                    
+                    if (Array.isArray(responseData) && responseData.length > 0) {
+                        const currentUnit = dutyUnit || localStorage.getItem('dutyUnit');
+                        let targetComp = responseData[0]; // Default to first
+
+                        if (currentUnit) {
+                            const found = responseData.find(c => c.unitNames?.includes(currentUnit));
+                            if (found) targetComp = found;
+                        }
+
+                        if (targetComp.companyName) setCompanyName(targetComp.companyName.trim());
+                        if (targetComp.vendorCode) setVendorCode(targetComp.vendorCode);
+                        if (targetComp.vendorId) setVendorId(targetComp.vendorId);
+                    } else if (responseData && !Array.isArray(responseData)) {
+                        // Legacy object format
+                        if (responseData.companyName) setCompanyName(responseData.companyName.trim());
+                        if (responseData.vendorCode) setVendorCode(responseData.vendorCode);
+                        if (responseData.vendorId) setVendorId(responseData.vendorId);
+                    }
                 } catch (err) {
                     console.error("Header mapping fetch error:", err);
                 }

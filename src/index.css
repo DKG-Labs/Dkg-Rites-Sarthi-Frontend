@@ -682,6 +682,39 @@ pre code {
   border-radius: var(--radius-md);
 }
 
+.btn-success {
+  background: var(--color-success, #22c55e) !important;
+  color: white !important;
+  border: none !important;
+  opacity: 1 !important;
+}
+
+.btn-success:hover {
+  background: #16a34a !important;
+}
+
+.btn-danger {
+  background: var(--color-error, #ef4444) !important;
+  color: white !important;
+  border: none !important;
+  opacity: 1 !important;
+}
+
+.btn-danger:hover {
+  background: #dc2626 !important;
+}
+
+.btn-warning {
+  background: #f59e0b !important;
+  color: white !important;
+  border: none !important;
+  opacity: 1 !important;
+}
+
+.btn-warning:hover {
+  background: #d97706 !important;
+}
+
 .btn--full-width {
   width: 100%;
 }

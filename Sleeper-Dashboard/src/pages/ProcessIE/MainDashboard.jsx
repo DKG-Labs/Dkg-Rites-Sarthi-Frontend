@@ -25,6 +25,7 @@ const DASHBOARD_CARDS = [
         title: () => 'Batch-wise Sleeper Report',
         desc: () => 'End-to-end traceability and lifecycle summary of batches.',
         target: 'BatchWiseSleeperReport',
+        isUnderDevelopment: true,
     },
     {
         id: 'shift-report',
@@ -33,6 +34,7 @@ const DASHBOARD_CARDS = [
         title: () => 'Last Shift Report',
         desc: () => 'Immediate snapshot and alerts from the previous shift.',
         target: 'LastShiftReport',
+        isUnderDevelopment: true,
     },
     {
         id: 'monthly-report',
@@ -41,6 +43,7 @@ const DASHBOARD_CARDS = [
         title: () => 'Monthly Report',
         desc: () => 'High-level plant-wide monthly KPI dashboard.',
         target: 'MonthlyReport',
+        isUnderDevelopment: true,
     },
     {
         id: 'production-verification',
@@ -102,34 +105,73 @@ const MainDashboard = () => {
             if (userId) {
                 const response = await getCompanyMappingByUser(userId);
                 if (response) {
-                    if (response.vendorCode) {
-                        localStorage.setItem('vendorCode', response.vendorCode);
-                        setVendorCode(response.vendorCode);
-                    }
-                    if (response.vendorId) {
-                        localStorage.setItem('vendorId', response.vendorId);
-                        setVendorId(response.vendorId);
-                    }
-                    if (response.unitVendorMap) {
-                        setUnitVendorMap(response.unitVendorMap);
-                    }
-                    if (response.unitNames) {
-                        setAvailableUnitNames(response.unitNames);
-                    }
-                    if (response.companyUnitMap) {
-                        setCompanyUnitMap(response.companyUnitMap);
-                    }
-                    if (response.companyNames) {
-                        setCompanyNames(response.companyNames);
-                        if (response.companyNames.length === 1) {
-                            setFormData(prev => ({ ...prev, companyName: response.companyNames[0] }));
-                            setCompanyName(response.companyNames[0]);
+                    if (Array.isArray(response)) {
+                        // Handle new array format
+                        const companies = [];
+                        const uVMap = {};
+                        const cUMap = {};
+
+                        response.forEach(comp => {
+                            // Clean up company name: trim whitespace and collapse internal extra spaces/tabs
+                            const rawCName = comp.companyName || "";
+                            const cName = rawCName.replace(/\s+/g, ' ').trim();
+
+                            if (cName) {
+                                companies.push(cName);
+                                
+                                // Clean up unit names similarly
+                                const cleanedUnits = (comp.unitNames || []).map(u => u.replace(/\s+/g, ' ').trim());
+                                cUMap[cName] = cleanedUnits;
+                                
+                                cleanedUnits.forEach(uName => {
+                                    uVMap[uName] = {
+                                        vendorId: comp.vendorId,
+                                        vendorCode: comp.vendorCode
+                                    };
+                                });
+                            }
+                        });
+
+                        setCompanyNames(companies);
+                        setUnitVendorMap(uVMap);
+                        setCompanyUnitMap(cUMap);
+
+                        if (companies.length === 1) {
+                            const firstCompName = companies[0];
+                            setFormData(prev => ({ ...prev, companyName: firstCompName }));
+                            setCompanyName(firstCompName);
+                            setAvailableUnitNames(cUMap[firstCompName] || []);
                         }
-                    } else if (response.companyName) {
-                        // Fallback
-                        setCompanyNames([response.companyName]);
-                        setFormData(prev => ({ ...prev, companyName: response.companyName }));
-                        setCompanyName(response.companyName);
+                    } else {
+                        // Legacy object format fallback
+                        if (response.vendorCode) {
+                            localStorage.setItem('vendorCode', response.vendorCode);
+                            setVendorCode(response.vendorCode);
+                        }
+                        if (response.vendorId) {
+                            localStorage.setItem('vendorId', response.vendorId);
+                            setVendorId(response.vendorId);
+                        }
+                        if (response.unitVendorMap) {
+                            setUnitVendorMap(response.unitVendorMap);
+                        }
+                        if (response.unitNames) {
+                            setAvailableUnitNames(response.unitNames);
+                        }
+                        if (response.companyUnitMap) {
+                            setCompanyUnitMap(response.companyUnitMap);
+                        }
+                        if (response.companyNames) {
+                            setCompanyNames(response.companyNames);
+                            if (response.companyNames.length === 1) {
+                                setFormData(prev => ({ ...prev, companyName: response.companyNames[0] }));
+                                setCompanyName(response.companyNames[0]);
+                            }
+                        } else if (response.companyName) {
+                            setCompanyNames([response.companyName]);
+                            setFormData(prev => ({ ...prev, companyName: response.companyName }));
+                            setCompanyName(response.companyName);
+                        }
                     }
                 }
             }
@@ -144,6 +186,12 @@ const MainDashboard = () => {
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
+
+        if (name === 'companyName') {
+            setCompanyName(value);
+            setAvailableUnitNames(companyUnitMap[value] || []);
+            setFormData(prev => ({ ...prev, unit: '' })); // Reset unit when company changes
+        }
     };
 
     const handleSubmit = (e) => {
@@ -155,11 +203,19 @@ const MainDashboard = () => {
         setDutyDate(formData.date);
         setDutyUnit(formData.unit);
 
-        // Save numeric vendorId for API calls
-        const mappedVendorId = unitVendorMap[formData.unit];
-        if (mappedVendorId) {
-            localStorage.setItem('vendorId', mappedVendorId);
-            setVendorId(mappedVendorId);
+        // Save vendor credentials for API calls
+        const mappedVendorData = unitVendorMap[formData.unit];
+        if (mappedVendorData) {
+            if (typeof mappedVendorData === 'object') {
+                localStorage.setItem('vendorId', mappedVendorData.vendorId);
+                setVendorId(mappedVendorData.vendorId);
+                localStorage.setItem('vendorCode', mappedVendorData.vendorCode);
+                setVendorCode(mappedVendorData.vendorCode);
+            } else {
+                // Legacy fallback if map just contains vendorId string
+                localStorage.setItem('vendorId', mappedVendorData);
+                setVendorId(mappedVendorData);
+            }
         }
 
         // Find or create container ID based on default
@@ -224,13 +280,14 @@ const MainDashboard = () => {
                     return (
                         <div
                             key={card.id}
-                            className={`ie-sub-nav-card ${isRestricted ? 'restricted' : ''}`}
-                            onClick={() => !isRestricted && handleCardClick(card)}
-                            title={isRestricted ? 'Please start duty first' : ''}
+                            className={`ie-sub-nav-card ${isRestricted ? 'restricted' : ''} ${card.isUnderDevelopment ? 'under-development' : ''}`}
+                            onClick={() => !isRestricted && !card.isUnderDevelopment && handleCardClick(card)}
+                            title={isRestricted ? 'Please start duty first' : card.isUnderDevelopment ? 'Under Development' : ''}
                         >
                             <div className="card-icon-wrapper">
                                 <span className="card-icon-symbol-modern">{card.icon}</span>
                                 {isRestricted && <span className="lock-badge">🔒</span>}
+                                {card.isUnderDevelopment && <span className="dev-badge">Under Development</span>}
                             </div>
                             <div className="card-info">
                                 <h3 className="ie-sub-nav-card-title">{card.title(hasActiveDuty)}</h3>
@@ -279,7 +336,9 @@ const MainDashboard = () => {
                                     >
                                         <option value="">Select Company</option>
                                         {companyNames.map((name, idx) => (
-                                            <option key={idx} value={name}>{name}</option>
+                                            <option key={idx} value={name} title={name}>
+                                                {name.length > 45 ? `${name.substring(0, 42)}...` : name}
+                                            </option>
                                         ))}
                                     </select>
                                 </label>
@@ -306,7 +365,9 @@ const MainDashboard = () => {
                                         <option value="">Select Unit</option>
                                         {availableUnitNames && availableUnitNames.length > 0 ? (
                                             availableUnitNames.map((unitName, idx) => (
-                                                <option key={idx} value={unitName}>{unitName}</option>
+                                                <option key={idx} value={unitName} title={unitName}>
+                                                    {unitName.length > 45 ? `${unitName.substring(0, 42)}...` : unitName}
+                                                </option>
                                             ))
                                         ) : (
                                             (() => {
@@ -315,17 +376,10 @@ const MainDashboard = () => {
                                                     companyUnitMap[formData.companyName].forEach((unitName, idx) => {
                                                         const profile = plantVerificationData?.profiles?.find(p => p.plantName === unitName);
                                                         const statusText = (profile && profile.status !== 'Verified') ? ` (${profile.status})` : '';
+                                                        const fullText = `${unitName}${statusText}`;
                                                         options.push(
-                                                            <option key={`${unitName}-${idx}`} value={unitName}>
-                                                                {unitName}{statusText}
-                                                            </option>
-                                                        );
-                                                    });
-                                                } else {
-                                                    plantVerificationData?.profiles?.forEach(profile => {
-                                                        options.push(
-                                                            <option key={profile.id} value={profile.plantName}>
-                                                                {profile.plantName} {profile.status !== 'Verified' ? `(${profile.status})` : ''}
+                                                            <option key={`${unitName}-${idx}`} value={unitName} title={fullText}>
+                                                                {fullText.length > 45 ? `${fullText.substring(0, 42)}...` : fullText}
                                                             </option>
                                                         );
                                                     });

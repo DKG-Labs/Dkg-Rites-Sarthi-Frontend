@@ -620,39 +620,44 @@
 
 /* Action Buttons */
 .pdv-verify-btn, .pdv-return-btn, .pdv-view-mini, .pdv-view-full {
-    padding: 6px 12px;
+    padding: 8px 16px;
     border-radius: 8px;
-    font-weight: 700;
+    font-weight: 800;
     font-size: 11px;
     cursor: pointer;
     border: none;
     transition: all 0.2s ease;
+    opacity: 1 !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
 .pdv-verify-btn {
-    background: #10b981;
-    color: #fff;
+    background: #10b981 !important;
+    color: #fff !important;
 }
-.pdv-verify-btn:hover { background: #059669; }
+.pdv-verify-btn:hover { background: #059669 !important; transform: translateY(-1px); }
 
 .pdv-return-btn {
-    background: #ef4444;
-    color: #fff;
+    background: #ef4444 !important;
+    color: #fff !important;
 }
-.pdv-return-btn:hover { background: #dc2626; }
+.pdv-return-btn:hover { background: #dc2626 !important; transform: translateY(-1px); }
 
 .pdv-view-mini {
-    background: #f1f5f9;
-    color: #475569;
-    border: 1px solid #e2e8f0;
+    background: #f1f5f9 !important;
+    color: #475569 !important;
+    border: 1px solid #e2e8f0 !important;
 }
-.pdv-view-mini:hover { background: #e2e8f0; }
+.pdv-view-mini:hover { background: #e2e8f0 !important; }
 
 .pdv-view-full {
-    background: #7c3aed;
-    color: #fff;
+    background: #7c3aed !important;
+    color: #fff !important;
 }
-.pdv-view-full:hover { background: #6d28d9; }
+.pdv-view-full:hover { background: #6d28d9 !important; transform: translateY(-1px); }
 
 .pdv-bench-toggle {
     display: flex;

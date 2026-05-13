@@ -247,6 +247,7 @@ const MouldPrepForm = ({ onSave, onCancel, isLongLine, existingEntries = [], ini
                         onChange={e => handleChange('sleeperType', e.target.value)}
                     >
                         <option value="RT-8746">RT-8746</option>
+                        <option value="RT-2496">RT-2496</option>
                     </select>
                 </div>
 

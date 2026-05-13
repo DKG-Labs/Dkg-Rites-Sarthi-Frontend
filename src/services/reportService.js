@@ -329,7 +329,8 @@ const reportService = {
         return handleResponse(response);
     },
 
-    getSleeperMonthlyAnalysis: async (startDate, endDate) => {
+    getSleeperMonthlyAnalysis: async (params) => {
+        const { startDate, endDate } = params || {};
         const formatDate = (dateStr) => {
             if (!dateStr || !dateStr.includes('-')) return dateStr;
             const [year, month, day] = dateStr.split('-');
@@ -337,8 +338,8 @@ const reportService = {
         };
 
         const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/monthly-analysis`);
-        url.searchParams.append('startDate', formatDate(startDate));
-        url.searchParams.append('endDate', formatDate(endDate));
+        if (startDate) url.searchParams.append('startDate', formatDate(startDate));
+        if (endDate) url.searchParams.append('endDate', formatDate(endDate));
         const response = await fetch(url.toString(), {
             headers: getAuthHeaders(),
         });

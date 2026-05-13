@@ -596,7 +596,10 @@ const ProfessionalCardSection = ({
                                 />;
                             }
                             if (isRailPad) {
-                                return <RailPadQuality />;
+                                return <RailPadQuality 
+                                    paretoData={paretoAnalysisData}
+                                    rejectionTrendData={monthlyRejectionTrendData}
+                                />;
                             }
                             return (
 
@@ -1018,7 +1021,7 @@ const ProfessionalCardSection = ({
                                             (() => {
                                                 switch (activeReport) {
                                                     case 'mpr': return <SleeperMprReport mprData={mprData} loading={mprLoading} />;
-                                                    case 'mau': return <SleeperMauReport mauData={mauData} loading={mauLoading} />;
+                                                    case 'mau': return <SleeperMauReport mauData={mauData} loading={mauLoading} startDate={fromDate} endDate={toDate} />;
                                                     case 'lwcl': return <SleeperLwclReport lwclData={lwclData} loading={lwclLoading} callNo={lwclCallNo} setCallNo={setLwclCallNo} lotNo={lwclLotNo} setLotNo={setLwclLotNo} requestIds={lwclRequestIds} lotNumbers={lwclLotNumbers} />;
                                                     default: return <SleeperMprReport mprData={mprData} />;
                                                 }

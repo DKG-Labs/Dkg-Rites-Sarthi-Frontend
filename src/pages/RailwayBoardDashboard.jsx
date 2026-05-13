@@ -121,7 +121,8 @@ const RailwayBoardDashboard = () => {
     }), [mauPage, mauRowsPerPage, dashboardFilters]);
 
     const { data: mauData, pagination: mauPagination, loading: mauLoading } = useReportData(
-        reportService.getMonthlyAnalysisOfUnits, activeMainCard === 'reports' ? mauParams : undefined
+        selectedProduct === 'Sleeper' ? reportService.getSleeperMonthlyAnalysis : reportService.getMonthlyAnalysisOfUnits, 
+        activeMainCard === 'reports' ? mauParams : undefined
     );
 
     const [mpiaPage, setMpiaPage] = useState(0);

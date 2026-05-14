@@ -25,6 +25,7 @@ import RailPadMprReport from './railpad-board/RailPadMprReport';
 import RailPadMauReport from './railpad-board/RailPadMauReport';
 import RailPadLwcpReport from './railpad-board/RailPadLwcpReport';
 import ShiftWiseProductionReport from './ShiftWiseProductionReport';
+import PoWiseMonthlyReport from './PoWiseMonthlyReport';
 import SleeperShiftWiseProductionReport from './sleeper-board/SleeperShiftWiseProductionReport';
 
 
@@ -1014,6 +1015,9 @@ const ProfessionalCardSection = ({
                                         {!isSleeper && !isRailPad && (
                                             <div className={`sub-tab-btn ${activeReport === 'mpia' ? 'active' : ''}`} onClick={() => { setActiveReport('mpia'); onReportTabChange('mpia'); }}>⚙️ VMR</div>
                                         )}
+                                        {!isSleeper && !isRailPad && (
+                                            <div className={`sub-tab-btn ${activeReport === 'pwmr' ? 'active' : ''}`} onClick={() => { setActiveReport('pwmr'); onReportTabChange('pwmr'); }}>📊 PWMR</div>
+                                        )}
                                     </div>
 
                                     <div className="report-viewer-content">
@@ -1361,13 +1365,14 @@ const ProfessionalCardSection = ({
                                                         );
                                                     case 'swp':
                                                         return <ShiftWiseProductionReport />;
+                                                    case 'pwmr':
+                                                        return <PoWiseMonthlyReport />;
                                                     default:
                                                         return null;
                                                 }
                                             })()
                                         )
                                     }
-                                        )}
                                     </div>
                                 </div>
                             );

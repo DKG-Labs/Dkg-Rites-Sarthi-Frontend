@@ -390,6 +390,9 @@ const RailwayBoardDashboard = () => {
                                 {selectedProduct === 'ERC' && (
                                     <div className={`report-link ${activeReport === 'mpia' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpia')}>Vendor wise Monthly Report</div>
                                 )}
+                                {selectedProduct === 'ERC' && (
+                                    <div className={`report-link ${activeReport === 'pwmr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('pwmr')}>PO Wise Monthly Report</div>
+                                )}
                             </div>
                         )}
                         <div className={`nav-item ${activeMainCard === 'scada' ? 'active' : ''}`} onClick={() => handleSwitchTab('scada')}>

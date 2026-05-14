@@ -1,0 +1,280 @@
+.pwmr-container {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+    margin-bottom: 30px;
+    overflow: hidden;
+}
+
+.pwmr-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 24px;
+    gap: 20px;
+}
+
+.pwmr-title-section h2 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 800;
+    color: #1e293b;
+    letter-spacing: -0.5px;
+}
+
+.pwmr-subtitle {
+    margin: 4px 0 0;
+    color: #64748b;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.pwmr-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.pwmr-search-wrapper {
+    position: relative;
+    width: 300px;
+}
+
+.pwmr-search-wrapper i {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    font-size: 14px;
+}
+
+.pwmr-search-wrapper input {
+    width: 100%;
+    padding: 10px 14px 10px 40px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 14px;
+    transition: all 0.2s;
+    background: #f8fafc;
+}
+
+.pwmr-search-wrapper input:focus {
+    outline: none;
+    border-color: #10b981;
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+}
+
+.pwmr-export-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: #10b981;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+}
+
+.pwmr-export-btn:hover {
+    background: #059669;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 15px rgba(16, 185, 129, 0.3);
+}
+
+.pwmr-table-wrapper {
+    overflow-x: auto;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    position: relative;
+}
+
+.pwmr-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 12px;
+}
+
+.pwmr-table th {
+    background: #f8fafc;
+    color: #475569;
+    font-weight: 700;
+    padding: 12px 8px;
+    text-align: center;
+    border-bottom: 2px solid #e2e8f0;
+    border-right: 1px solid #e2e8f0;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.3px;
+    white-space: normal;
+    vertical-align: middle;
+}
+
+.pwmr-table th.rejection-main-header {
+    background: #fff1f2;
+    color: #be123c;
+    border-bottom: 1px solid #fecdd3;
+}
+
+.pwmr-table td {
+    padding: 12px 8px;
+    border-bottom: 1px solid #f1f5f9;
+    border-right: 1px solid #f1f5f9;
+    color: #334155;
+    vertical-align: middle;
+}
+
+.pwmr-table tr:hover td {
+    background-color: #f1f5f9;
+}
+
+.pwmr-table .row-even td {
+    background-color: #fff;
+}
+
+.pwmr-table .row-odd td {
+    background-color: #f8fafc;
+}
+
+.pwmr-table .subtotal-row td {
+    background-color: #f1f5f9;
+    color: #1e293b;
+    border-top: 2px solid #cbd5e1;
+}
+
+.pwmr-table .text-right {
+    text-align: right;
+}
+
+.pwmr-table .text-center {
+    text-align: center;
+}
+
+.pwmr-table .font-bold {
+    font-weight: 700;
+}
+
+.pwmr-table .text-red-600 {
+    color: #dc2626;
+}
+
+.remarks-cell {
+    min-width: 150px;
+    font-style: italic;
+    color: #64748b;
+}
+
+/* Sticky Columns */
+.sticky-col {
+    position: sticky;
+    z-index: 10;
+    background: #fff !important;
+    border-right: 2px solid #e2e8f0 !important;
+}
+
+th.sticky-col {
+    z-index: 20;
+    background: #f8fafc !important;
+}
+
+.col-sno {
+    left: 0;
+    min-width: 50px;
+    width: 50px;
+}
+
+.col-railway {
+    left: 50px;
+    min-width: 100px;
+    width: 100px;
+}
+
+.col-vendor {
+    left: 150px;
+    min-width: 180px;
+    width: 180px;
+}
+
+.col-type {
+    min-width: 150px;
+    width: 150px;
+}
+
+/* Ensure subtotal row also respects sticky columns */
+.subtotal-row .sticky-col {
+    background-color: #f1f5f9 !important;
+}
+
+/* Fix for the main title row which should NOT be sticky in the same way or should have higher z-index if it is */
+.excel-main-title-row {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: #fff;
+}
+
+/* Specific Header Colors based on Excel */
+.excel-main-title-row th {
+    background: #fff !important;
+    border: none !important;
+    text-transform: none !important;
+    font-size: 14px !important;
+}
+
+.excel-title {
+    color: #1e293b !important;
+    font-weight: 800 !important;
+    text-align: center !important;
+}
+
+.excel-month {
+    color: #be123c !important;
+    font-weight: 800 !important;
+    text-align: right !important;
+    padding-right: 20px !important;
+}
+
+.pwmr-table thead tr:nth-child(3) th:nth-child(2) { background: #fef9c3 !important; color: #854d0e; } /* RM Check - shifted by 1 row */
+.pwmr-table thead tr:nth-child(3) th:nth-child(3) { background: #dcfce7 !important; color: #166534; } /* Process */
+.pwmr-table thead tr:nth-child(3) th:nth-child(4) { background: #ffedd5 !important; color: #9a3412; } /* Acceptance */
+
+/* Custom scrollbar for the table */
+.pwmr-table-wrapper::-webkit-scrollbar {
+    height: 10px;
+}
+
+.pwmr-table-wrapper::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+
+.pwmr-table-wrapper::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 5px;
+}
+
+.pwmr-table-wrapper::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+@keyframes animateUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-up {
+    animation: animateUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

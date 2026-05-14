@@ -1,16 +1,79 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { getStoredUser } from '../services/authService';
+import { getBaseUrl, API_ENDPOINTS, getDefaultHeaders } from '../services/apiConfig';
 
-const ShiftDutyForm = ({ onSubmit, onCancel }) => {
+const ShiftDutyForm = ({ onSubmit, onCancel, hideCompanyAndUnit = false, initialData = {} }) => {
   const [formData, setFormData] = useState({
-    shift: '',
-    company: '',
-    date: new Date().toISOString().split('T')[0],
-    unit: ''
+    shift: initialData.shift || '',
+    company: initialData.company || '',
+    date: initialData.date || new Date().toISOString().split('T')[0],
+    unit: initialData.unit || ''
   });
+  const [companies, setCompanies] = useState([]);
+  const [isLoadingCompanies, setIsLoadingCompanies] = useState(false);
+  const [units, setUnits] = useState([]);
+  const [isLoadingUnits, setIsLoadingUnits] = useState(false);
+
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      setIsLoadingCompanies(true);
+      try {
+        const user = getStoredUser();
+        if (!user || !user.userId) return;
+
+        const response = await fetch(`${getBaseUrl()}${API_ENDPOINTS.RAILPAD_WORKFLOW.GET_MAPPED_COMPANIES}?userId=${user.userId}`, {
+          headers: getDefaultHeaders(user.token)
+        });
+        
+        const data = await response.json();
+        if (data.responseStatus?.statusCode === 0) {
+          setCompanies(data.responseData || []);
+        }
+      } catch (error) {
+        console.error('Error fetching companies:', error);
+      } finally {
+        setIsLoadingCompanies(false);
+      }
+    };
+
+    fetchCompanies();
+  }, []);
+
+  useEffect(() => {
+    const fetchUnits = async () => {
+      if (!formData.company) {
+        setUnits([]);
+        return;
+      }
+
+      setIsLoadingUnits(true);
+      try {
+        const user = getStoredUser();
+        const response = await fetch(`${getBaseUrl()}${API_ENDPOINTS.RAILPAD_WORKFLOW.GET_PLANTS_BY_COMPANY}?companyName=${encodeURIComponent(formData.company)}`, {
+          headers: getDefaultHeaders(user?.token)
+        });
+        
+        const data = await response.json();
+        if (data.responseStatus?.statusCode === 0) {
+          setUnits(data.responseData || []);
+        }
+      } catch (error) {
+        console.error('Error fetching units:', error);
+      } finally {
+        setIsLoadingUnits(false);
+      }
+    };
+
+    fetchUnits();
+  }, [formData.company]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => ({ 
+      ...prev, 
+      [name]: value,
+      ...(name === 'company' ? { unit: '' } : {}) // Reset unit when company changes
+    }));
   };
 
   const handleSubmit = (e) => {
@@ -95,35 +158,38 @@ const ShiftDutyForm = ({ onSubmit, onCancel }) => {
           </div>
 
           {/* Company Name */}
-          <div style={{ marginBottom: '24px' }}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#8b9bb4', marginBottom: '8px' }}>
-              Company Name
-            </label>
-            <select 
-              name="company" 
-              value={formData.company} 
-              onChange={handleChange}
-              required
-              style={{
-                width: '100%',
-                height: '46px',
-                padding: '0 16px',
-                borderRadius: '10px',
-                border: '1px solid #d1dbe5',
-                background: 'white',
-                fontSize: '14px',
-                color: formData.company ? '#1e293b' : '#94a3b8',
-                fontWeight: '500',
-                outline: 'none',
-                cursor: 'pointer'
-              }}
-            >
-              <option value="" disabled>Select Company</option>
-              <option value="DKG Plastics">DKG Plastics</option>
-              <option value="Rites Ltd">Rites Ltd</option>
-              <option value="Sarthi Infra">Sarthi Infra</option>
-            </select>
-          </div>
+          {!hideCompanyAndUnit && (
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#8b9bb4', marginBottom: '8px' }}>
+                Company Name
+              </label>
+              <select 
+                name="company" 
+                value={formData.company} 
+                onChange={handleChange}
+                required
+                disabled={isLoadingCompanies}
+                style={{
+                  width: '100%',
+                  height: '46px',
+                  padding: '0 16px',
+                  borderRadius: '10px',
+                  border: '1px solid #d1dbe5',
+                  background: 'white',
+                  fontSize: '14px',
+                  color: formData.company ? '#1e293b' : '#94a3b8',
+                  fontWeight: '500',
+                  outline: 'none',
+                  cursor: isLoadingCompanies ? 'wait' : 'pointer'
+                }}
+              >
+                <option value="" disabled>{isLoadingCompanies ? 'Loading...' : 'Select Company'}</option>
+                {companies.map((company, index) => (
+                  <option key={index} value={company}>{company}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Casting Date */}
           <div style={{ marginBottom: '24px' }}>
@@ -153,35 +219,40 @@ const ShiftDutyForm = ({ onSubmit, onCancel }) => {
           </div>
 
           {/* Production Unit */}
-          <div style={{ marginBottom: '24px' }}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#8b9bb4', marginBottom: '8px' }}>
-              Production Unit
-            </label>
-            <select 
-              name="unit" 
-              value={formData.unit} 
-              onChange={handleChange}
-              required
-              style={{
-                width: '100%',
-                height: '46px',
-                padding: '0 16px',
-                borderRadius: '10px',
-                border: '1px solid #d1dbe5',
-                background: 'white',
-                fontSize: '14px',
-                color: formData.unit ? '#1e293b' : '#94a3b8',
-                fontWeight: '500',
-                outline: 'none',
-                cursor: 'pointer'
-              }}
-            >
-              <option value="" disabled>Select Unit</option>
-              <option value="Unit 1 - Moulding">Unit 1 - Moulding</option>
-              <option value="Unit 2 - Finishing">Unit 2 - Finishing</option>
-              <option value="Unit 3 - QA">Unit 3 - QA</option>
-            </select>
-          </div>
+          {!hideCompanyAndUnit && (
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#8b9bb4', marginBottom: '8px' }}>
+                Production Unit
+              </label>
+              <select 
+                name="unit" 
+                value={formData.unit} 
+                onChange={handleChange}
+                required
+                disabled={isLoadingUnits || !formData.company}
+                style={{
+                  width: '100%',
+                  height: '46px',
+                  padding: '0 16px',
+                  borderRadius: '10px',
+                  border: '1px solid #d1dbe5',
+                  background: 'white',
+                  fontSize: '14px',
+                  color: formData.unit ? '#1e293b' : '#94a3b8',
+                  fontWeight: '500',
+                  outline: 'none',
+                  cursor: (isLoadingUnits || !formData.company) ? 'not-allowed' : 'pointer'
+                }}
+              >
+                <option value="" disabled>
+                  {!formData.company ? 'Select company first' : (isLoadingUnits ? 'Loading units...' : 'Select Unit')}
+                </option>
+                {units.map((unit, index) => (
+                  <option key={index} value={unit}>{unit}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div style={{
             height: '1px',

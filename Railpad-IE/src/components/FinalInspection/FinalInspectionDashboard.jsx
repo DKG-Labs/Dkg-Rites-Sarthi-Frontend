@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { fetchInspectionCallById, fetchInspectionCallByCallNo } from '../../services/inspectionService';
 
 const HardnessCell = ({ value, onChange, min, max }) => {
   const [isEditing, setIsEditing] = React.useState(false);
@@ -71,17 +72,44 @@ const HardnessCell = ({ value, onChange, min, max }) => {
   );
 };
 
-const lots = [
-  { id: 'LOT-2024-001', size: 1500, status: 'Pending', drawingNo: 'RDSO/T-8528', railpadType: '10mm CGRSP' },
-  { id: 'LOT-2024-002', size: 2000, status: 'Under Testing', drawingNo: 'RDSO/T-6618', railpadType: '6.2mm CGRSP' },
-  { id: 'LOT-2024-003', size: 1200, status: 'Passed', drawingNo: 'RDSO/T-3711', railpadType: '6mm GRSP' },
-  { id: 'LOT-2024-004', size: 1800, status: 'Rejected', drawingNo: 'RDSO/T-8747', railpadType: '10mm CGRSP' },
-];
 
-const FinalInspectionDashboard = ({ user, isShiftActive }) => {
-  console.log("Rendering FinalInspectionDashboard", { user, isShiftActive });
+const FinalInspectionSkeleton = () => (
+  <div style={{ display: 'flex', height: '100%', gap: '16px', width: '100%' }}>
+    {/* Sidebar Skeleton */}
+    <div style={{ width: '200px', background: 'white', borderRadius: '20px', padding: '16px', border: '1px solid #e2e8f0' }}>
+      <div className="skeleton-box" style={{ height: '20px', width: '100px', marginBottom: '20px' }}></div>
+      <div className="skeleton-box" style={{ height: '40px', width: '100%', marginBottom: '20px' }}></div>
+      {[1, 2, 3, 4, 5].map(i => (
+        <div key={i} className="skeleton-box" style={{ height: '80px', width: '100%', marginBottom: '12px', borderRadius: '12px' }}></div>
+      ))}
+    </div>
+    {/* Main Content Skeleton */}
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div style={{ background: 'white', borderRadius: '20px', padding: '16px', border: '1px solid #e2e8f0', display: 'flex', gap: '12px' }}>
+        {[1, 2, 3, 4, 5].map(i => (
+          <div key={i} className="skeleton-box" style={{ height: '32px', width: '120px', borderRadius: '20px' }}></div>
+        ))}
+      </div>
+      <div style={{ flex: 1, background: 'white', borderRadius: '20px', padding: '24px', border: '1px solid #e2e8f0' }}>
+        <div className="skeleton-box" style={{ height: '30px', width: '200px', marginBottom: '30px' }}></div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '24px' }}>
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <div key={i}>
+              <div className="skeleton-box" style={{ height: '12px', width: '80px', marginBottom: '8px' }}></div>
+              <div className="skeleton-box" style={{ height: '42px', width: '100%' }}></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+const FinalInspectionDashboard = ({ user, isShiftActive, call }) => {
+  const [lots, setLots] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('visual');
-  const [selectedLot, setSelectedLot] = useState('LOT-2024-001');
+  const [selectedLot, setSelectedLot] = useState(null);
   const [reTestActive, setReTestActive] = useState(false);
   const [reOfferActive, setReOfferActive] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -315,6 +343,54 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
     }
   });
 
+  // --- PERSISTENCE LOGIC (Survive Refresh & Lot Switching) ---
+  useEffect(() => {
+    if (!selectedLot || !call?.callNo) return;
+    
+    const draftKey = `railpad_draft_${call.callNo}_${selectedLot}`;
+    const draftData = {
+      activeTab,
+      visualData,
+      weightData,
+      physicalData,
+      elecData,
+      specData,
+      specType,
+      reTestActive,
+      reOfferActive
+    };
+    
+    sessionStorage.setItem(draftKey, JSON.stringify(draftData));
+    // If data was entered, mark as dirty
+    if (visualData.dv || visualData.dd || weightData.samples1.some(s => s !== '')) {
+      setIsDirty(true);
+    }
+  }, [selectedLot, call?.callNo, activeTab, visualData, weightData, physicalData, elecData, specData, specType, reTestActive, reOfferActive]);
+
+  useEffect(() => {
+    if (!selectedLot || !call?.callNo) return;
+    
+    const draftKey = `railpad_draft_${call.callNo}_${selectedLot}`;
+    const saved = sessionStorage.getItem(draftKey);
+    
+    if (saved) {
+      try {
+        const draft = JSON.parse(saved);
+        if (draft.activeTab) setActiveTab(draft.activeTab);
+        if (draft.visualData) setVisualData(draft.visualData);
+        if (draft.weightData) setWeightData(draft.weightData);
+        if (draft.physicalData) setPhysicalData(draft.physicalData);
+        if (draft.elecData) setElecData(draft.elecData);
+        if (draft.specData) setSpecData(draft.specData);
+        if (draft.specType) setSpecType(draft.specType);
+        if (draft.reTestActive !== undefined) setReTestActive(draft.reTestActive);
+        if (draft.reOfferActive !== undefined) setReOfferActive(draft.reOfferActive);
+      } catch (e) {
+        console.error("Error loading draft:", e);
+      }
+    }
+  }, [selectedLot, call?.callNo]);
+
   // Browser Warning for Unsaved Changes
   useEffect(() => {
     const handleBeforeUnload = (e) => {
@@ -329,8 +405,41 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
 
   // Initialize Default Lot
   useEffect(() => {
-    loadLotData(selectedLot);
-  }, []);
+    if (selectedLot) {
+      loadLotData(selectedLot);
+    }
+  }, [selectedLot]);
+
+  useEffect(() => {
+    const loadCallDetails = async () => {
+      const callId = call?.requestId || call?.id || call?.callNo;
+      if (callId) {
+        setLoading(true);
+        try {
+          const data = await fetchInspectionCallByCallNo(callId);
+          if (data && data.lots) {
+            // Map backend lot data to frontend format if needed
+            const formattedLots = data.lots.map(l => ({
+              id: l.lotNo,
+              size: l.lotSize,
+              status: l.status || 'Pending',
+              drawingNo: data.drawingNo || 'N/A',
+              railpadType: data.railPadType || 'GRSP'
+            }));
+            setLots(formattedLots);
+            if (formattedLots.length > 0) {
+              setSelectedLot(formattedLots[0].id);
+            }
+          }
+        } catch (error) {
+          console.error("Error loading call details:", error);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+    loadCallDetails();
+  }, [call]);
 
   const markDirty = () => {
     if (!isDirty) setIsDirty(true);
@@ -789,6 +898,14 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
     { id: 'specialized', label: 'Dynamic & Durability Test' },
     { id: 'ncrgrsp', label: 'NCRGRSP Test' },
   ];
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', height: 'calc(100vh - 140px)', background: '#f8fafc', gap: '16px', padding: '0 16px 16px 16px', boxSizing: 'border-box' }}>
+        <FinalInspectionSkeleton />
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', height: 'calc(100vh - 140px)', background: '#f8fafc', gap: '16px', padding: '0 16px 16px 16px', boxSizing: 'border-box', position: 'relative' }}>
@@ -1536,7 +1653,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
                 <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
                   <div style={{ background: '#f8fafc', padding: '12px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>1) Hardness Shore 'A'</h4>
+                      <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>Hardness Shore 'A'</h4>
                       <div style={{ fontSize: '10px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>FOR: {activeRailpadType}</div>
                     </div>
                     <div style={{ display: 'flex', gap: '20px' }}>
@@ -1618,7 +1735,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
                 <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
                   <div style={{ background: '#f8fafc', padding: '12px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>2) Tensile Strength (kg/cm²)</h4>
+                      <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>Tensile Strength (kg/cm²)</h4>
                       <div style={{ fontSize: '10px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>FOR: {activeRailpadType}</div>
                     </div>
                     <div style={{ display: 'flex', gap: '20px' }}>
@@ -1711,7 +1828,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive }) => {
                 <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
                   <div style={{ background: '#f8fafc', padding: '12px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>3) Elongation at Break (%)</h4>
+                      <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>Elongation at Break (%)</h4>
                       <div style={{ fontSize: '10px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>FOR: {activeRailpadType}</div>
                     </div>
                     <div style={{ display: 'flex', gap: '20px' }}>

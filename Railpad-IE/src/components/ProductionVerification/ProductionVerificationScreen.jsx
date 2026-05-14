@@ -11,19 +11,23 @@ const REJECTION_REASONS = [
   'Others'
 ];
 
-const ProductionVerificationScreen = ({ declaration, onBack, onVerify }) => {
-  const [rejections, setRejections] = useState([]);
+const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn }) => {
+  const isReadOnly = declaration.status === 'Verified' && !declaration.forceEdit;
+  const [rejections, setRejections] = useState(declaration.rejections || []);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnRemarks, setReturnRemarks] = useState('');
 
   // Flatten products and batches for the dropdowns
   const availableBatches = useMemo(() => {
     const map = {};
     declaration.items.forEach(item => {
       map[item.productType] = item.batches.map(b => {
+        const batchValue = b.batchNo || (b.compoundA && b.compoundB ? `${b.compoundA} + ${b.compoundB}` : '');
         let label = b.batchNo;
         if (b.compoundA && b.compoundB) {
           label = `Comp A: ${b.compoundA} | Comp B: ${b.compoundB}`;
         }
-        return { value: b.batchNo, label: label };
+        return { value: batchValue, label: label || batchValue };
       });
     });
     return map;
@@ -95,15 +99,64 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify }) => {
     });
   };
 
+  const handleConfirmReturn = () => {
+    if (!returnRemarks.trim()) {
+      alert('Remarks are required to return to vendor.');
+      return;
+    }
+    onReturn(returnRemarks);
+    setShowReturnModal(false);
+  };
+
   return (
     <div className="pv-screen">
+      {showReturnModal && (
+        <div className="modal-overlay">
+          <div className="modal-content remarks-modal">
+            <div className="modal-header">
+              <h3>Return to Vendor</h3>
+              <button className="modal-close-btn" onClick={() => setShowReturnModal(false)}>×</button>
+            </div>
+            <div className="modal-body ultra-compact">
+              <div className="modal-context-info-slim">
+                <span><b>{declaration.vendorName}</b> (#{declaration.id}) | {declaration.date}</span>
+              </div>
+
+              <div className="modal-input-section">
+                <textarea 
+                  className="remarks-textarea ultra-compact"
+                  placeholder="Reason for returning (required)..."
+                  value={returnRemarks}
+                  onChange={(e) => setReturnRemarks(e.target.value)}
+                  rows={2}
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="modal-cancel-btn" onClick={() => setShowReturnModal(false)}>Cancel</button>
+              <button className="modal-confirm-btn" onClick={handleConfirmReturn}>Confirm & Send to Vendor</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="pv-screen-header">
         <button className="pv-back-btn" onClick={onBack}>← Back</button>
         <div className="pv-screen-title">
           <h2>Shift Production Verification</h2>
           <span>{declaration.vendorName} | {declaration.date} | Shift {declaration.shift}</span>
         </div>
-        <button className="pv-submit-btn" onClick={handleFinalSubmit}>Finalize & Accept</button>
+        {!isReadOnly && (
+          <div className="pv-header-actions">
+            <button className="pv-return-btn" onClick={() => {
+              window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+              setTimeout(() => setShowReturnModal(true), 500);
+            }}>Return to Vendor</button>
+            <button className="pv-submit-btn" onClick={handleFinalSubmit}>
+              {declaration.forceEdit ? 'Update Verification' : 'Finalize & Accept'}
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="pv-sections-container">
@@ -158,7 +211,7 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify }) => {
           <div className="pv-section-header">
             <span className="pv-section-num">2</span>
             <h3>Log Physical Rejections</h3>
-            <button className="pv-add-rej-btn" onClick={handleAddRejection}>+ Add Rejection</button>
+            {!isReadOnly && <button className="pv-add-rej-btn" onClick={handleAddRejection}>+ Add Rejection</button>}
           </div>
 
           {rejections.length === 0 ? (
@@ -183,6 +236,7 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify }) => {
                       <select 
                         value={rej.productType}
                         onChange={(e) => handleUpdateRejection(rej.id, 'productType', e.target.value)}
+                        disabled={isReadOnly}
                       >
                         {productTypes.map(type => <option key={type} value={type}>{type}</option>)}
                       </select>
@@ -191,6 +245,7 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify }) => {
                       <select 
                         value={rej.batchNo}
                         onChange={(e) => handleUpdateRejection(rej.id, 'batchNo', e.target.value)}
+                        disabled={isReadOnly}
                       >
                         {availableBatches[rej.productType].map(b => (
                           <option key={b.value} value={b.value}>{b.label}</option>
@@ -203,18 +258,20 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify }) => {
                         value={rej.rejectedQty}
                         onChange={(e) => handleUpdateRejection(rej.id, 'rejectedQty', e.target.value)}
                         min="0"
+                        disabled={isReadOnly}
                       />
                     </td>
                     <td>
                       <select 
                         value={rej.reason}
                         onChange={(e) => handleUpdateRejection(rej.id, 'reason', e.target.value)}
+                        disabled={isReadOnly}
                       >
                         {REJECTION_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
                       </select>
                     </td>
                     <td>
-                      <button className="pv-remove-btn" onClick={() => handleRemoveRejection(rej.id)}>×</button>
+                      {!isReadOnly && <button className="pv-remove-btn" onClick={() => handleRemoveRejection(rej.id)}>×</button>}
                     </td>
                   </tr>
                 ))}
@@ -233,7 +290,7 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify }) => {
           </div>
           <div className="pv-summary-item rejected">
             <label>Total Pieces Rejected</label>
-            <div className="pv-value">-{totalRejected.toLocaleString()}</div>
+            <div className="pv-value">{totalRejected.toLocaleString()}</div>
           </div>
           <div className="pv-summary-item accepted">
             <label>Total Accepted Pieces</label>

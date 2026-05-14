@@ -1,33 +1,9 @@
 import { getBaseUrl } from './apiConfig';
 
 /**
- * Hardcoded credentials for fallback/demo
- */
-const HARDCODED_USERS = {
-  'Railpad-IE': {
-    password: 'password',
-    userData: {
-      userId: 'Railpad-IE',
-      userName: 'Railpad-IE',
-      roleName: 'RAILPAD_IE',
-      token: 'railpad-ie-token-' + Date.now()
-    }
-  }
-};
-
-/**
  * Login user with loginId, password and loginType
  */
 export const loginUser = async (loginId, password, loginType = 'IE') => {
-  // Check for hardcoded users first
-  if (HARDCODED_USERS[loginId]) {
-    if (HARDCODED_USERS[loginId].password === password) {
-      return HARDCODED_USERS[loginId].userData;
-    } else {
-      throw new Error('Invalid password');
-    }
-  }
-
   try {
     const response = await fetch(`${getBaseUrl()}/auth/loginBasedOnType`, {
       method: 'POST',

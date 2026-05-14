@@ -16,6 +16,8 @@ import RawMaterialVerificationList from './components/RawMaterialVerificationLis
 import ProductionVerificationDashboard from './components/ProductionVerification/ProductionVerificationDashboard';
 import PortalHome from './components/PortalHome';
 import FinalInspectionDashboard from './components/FinalInspection/FinalInspectionDashboard';
+import AttendingCallsDashboard from './components/AttendingCallsDashboard';
+import InspectionInitiationPage from './pages/InspectionInitiationPage';
 
 const SUB_CARDS = [
   { id: 'raw-material', title: 'Raw Material Weighment', description: 'Monitor and log raw material proportions' },
@@ -77,13 +79,21 @@ const MODULES = [
 ];
 
 const App = () => {
-  const [activeItem, setActiveItem] = useState('PortalHome');
-  const [selectedModule, setSelectedModule] = useState('batch-prep');
-  const [activeCard, setActiveCard] = useState('raw-material');
+  const [activeItem, setActiveItem] = useState(() => {
+    return localStorage.getItem('railpad_ie_active_item') || 'PortalHome';
+  });
+  const [selectedModule, setSelectedModule] = useState(() => {
+    return localStorage.getItem('railpad_ie_selected_module') || 'batch-prep';
+  });
+  const [activeCard, setActiveCard] = useState(() => {
+    return localStorage.getItem('railpad_ie_active_card') || 'raw-material';
+  });
   const [showForm, setShowForm] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [editIndex, setEditIndex] = useState(-1);
-  const [isShiftActive, setIsShiftActive] = useState(false);
+  const [isShiftActive, setIsShiftActive] = useState(() => {
+    return localStorage.getItem('railpad_ie_shift_active') === 'true';
+  });
   const [entries, setEntries] = useState({
     'mould-verification': [],
     'raw-material': [],
@@ -101,25 +111,62 @@ const App = () => {
     'carbon-black': []
   });
 
+  const [selectedCallForInitiation, setSelectedCallForInitiation] = useState(() => {
+    const saved = localStorage.getItem('railpad_ie_selected_call');
+    try {
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
   const [confirmConfig, setConfirmConfig] = useState({
     isOpen: false,
     title: '',
     message: '',
-    onConfirm: () => {},
+    onConfirm: () => { },
     type: 'info'
   });
 
   const loggedInUser = getStoredUser();
 
-  const [currentShift, setCurrentShift] = useState({
-    user: loggedInUser ? `Process IE - ${loggedInUser.userName}` : 'Process IE - Railpad-IE',
-    shift: 'A',
-    date: new Date().toLocaleDateString()
+  const [currentShift, setCurrentShift] = useState(() => {
+    const saved = localStorage.getItem('railpad_ie_current_shift');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        // Fallback below
+      }
+    }
+    return {
+      user: loggedInUser ? `Process IE - ${loggedInUser.userName}` : 'Process IE - Railpad-IE',
+      shift: 'A',
+      date: new Date().toLocaleDateString()
+    };
   });
 
+  // Persist shift state
+  React.useEffect(() => {
+    localStorage.setItem('railpad_ie_shift_active', isShiftActive);
+    localStorage.setItem('railpad_ie_current_shift', JSON.stringify(currentShift));
+  }, [isShiftActive, currentShift]);
+
+  // Persist navigation state
+  React.useEffect(() => {
+    localStorage.setItem('railpad_ie_active_item', activeItem);
+    localStorage.setItem('railpad_ie_selected_module', selectedModule);
+    localStorage.setItem('railpad_ie_active_card', activeCard);
+    
+    if (selectedCallForInitiation) {
+      localStorage.setItem('railpad_ie_selected_call', JSON.stringify(selectedCallForInitiation));
+    } else {
+      localStorage.removeItem('railpad_ie_selected_call');
+    }
+  }, [activeItem, selectedModule, activeCard, selectedCallForInitiation]);
+
   if (!isAuthenticated()) {
-    window.location.href = '/';
-    return null;
+    return <LoginPage />;
   }
 
   const handleAddEntry = (newData) => {
@@ -158,6 +205,12 @@ const App = () => {
       type: 'warning',
       onConfirm: () => {
         setIsShiftActive(false);
+        localStorage.removeItem('railpad_ie_shift_active');
+        localStorage.removeItem('railpad_ie_current_shift');
+        localStorage.removeItem('railpad_ie_active_item');
+        localStorage.removeItem('railpad_ie_selected_module');
+        localStorage.removeItem('railpad_ie_active_card');
+        localStorage.removeItem('railpad_ie_selected_call');
         setActiveItem('PortalHome');
         setConfirmConfig(prev => ({ ...prev, isOpen: false }));
       }
@@ -173,7 +226,12 @@ const App = () => {
       confirmText: 'Logout',
       onConfirm: () => {
         logoutUser();
-        window.location.href = '/';
+        localStorage.removeItem('railpad_ie_shift_active');
+        localStorage.removeItem('railpad_ie_current_shift');
+        localStorage.removeItem('railpad_ie_active_item');
+        localStorage.removeItem('railpad_ie_selected_module');
+        localStorage.removeItem('railpad_ie_active_card');
+        setActiveItem('PortalHome');
       }
     });
   };
@@ -181,20 +239,26 @@ const App = () => {
   const activeDoc = [...SUB_CARDS, ...PRE_SHIFT_SUB_CARDS, ...MOULDING_INSPECTION_SUB_CARDS, ...VERIFICATION_SUB_CARDS].find(c => c.id === activeCard);
 
   return (
-    <MainLayout 
-      activeItem={activeItem} 
+    <MainLayout
+      activeItem={activeItem}
       onItemClick={(item) => setActiveItem(item)}
       onLogout={handleLogout}
       user={loggedInUser}
       isShiftActive={isShiftActive}
     >
       {activeItem === 'PortalHome' ? (
-        <PortalHome 
-          user={loggedInUser} 
+        <PortalHome
+          user={loggedInUser}
           isShiftActive={isShiftActive}
-          onModuleSelect={(moduleId) => {
+          onModuleSelect={(moduleId, shiftData) => {
             if (moduleId === 'IE') {
               setIsShiftActive(true);
+              if (shiftData) {
+                setCurrentShift({
+                  ...shiftData,
+                  user: loggedInUser ? `${loggedInUser.userName}` : 'Railpad-IE'
+                });
+              }
               setActiveItem('IE');
               setSelectedModule('batch-prep');
               setActiveCard('raw-material');
@@ -203,23 +267,57 @@ const App = () => {
             } else {
               setActiveItem(moduleId);
             }
-          }} 
+          }}
         />
       ) : activeItem === 'FINAL_INSPECTION' ? (
         <div className="dashboard-container" style={{ padding: '24px', background: '#f8fafc', minHeight: '100vh', width: '100%' }}>
           <header style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
-              <h1 style={{
-                fontSize: '32px',
-                fontWeight: '800',
-                color: '#0f172a',
-                letterSpacing: '-0.025em',
-                margin: '0 0 4px 0'
-              }}>
-                Final Inspection
-              </h1>
-              <p style={{ margin: 0, color: '#64748b', fontSize: '15px' }}>
-                Rail Pad quality acceptance and multi-layer verification
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
+                <button 
+                  onClick={() => setActiveItem('ATTENDING_CALLS')}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '10px',
+                    border: '1px solid #e2e8f0',
+                    background: 'white',
+                    color: '#64748b',
+                    fontSize: '12px',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                >
+                  ← BACK TO DASHBOARD
+                </button>
+                <h1 style={{
+                  fontSize: '32px',
+                  fontWeight: '800',
+                  color: '#0f172a',
+                  letterSpacing: '-0.025em',
+                  margin: 0
+                }}>
+                  Final Inspection {selectedCallForInitiation?.requestId && `- ${selectedCallForInitiation.requestId}`}
+                </h1>
+              </div>
+              <p style={{ margin: 0, color: '#64748b', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span>Rail Pad quality acceptance and multi-layer verification</span>
+                <span style={{ color: '#cbd5e1', fontWeight: '300' }}>|</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ color: '#94a3b8', textTransform: 'uppercase', fontSize: '11px', fontWeight: '800' }}>Shift:</span>
+                  <span style={{ fontWeight: '700', color: '#1e293b' }}>{currentShift?.shift || 'N/A'}</span>
+                </span>
+                <span style={{ color: '#cbd5e1', fontWeight: '300' }}>|</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ color: '#94a3b8', textTransform: 'uppercase', fontSize: '11px', fontWeight: '800' }}>Unit:</span>
+                  <span style={{ fontWeight: '700', color: '#1e293b' }}>{currentShift?.unit || selectedCallForInitiation?.plantId || 'N/A'}</span>
+                </span>
               </p>
             </div>
             <div style={{
@@ -242,8 +340,70 @@ const App = () => {
               </div>
             </div>
           </header>
-          <FinalInspectionDashboard user={loggedInUser} isShiftActive={isShiftActive} />
+
+          <div style={{
+            background: 'white',
+            borderRadius: '16px',
+            padding: '16px 24px',
+            marginBottom: '24px',
+            border: '1px solid #e2e8f0',
+            display: 'flex',
+            gap: '64px',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
+          }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>RLY PO SR NO</span>
+              <span style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b' }}>{selectedCallForInitiation?.poNo || 'N/A'}</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>VENDOR NAME</span>
+              <span style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b' }}>{selectedCallForInitiation?.vendorName || selectedCallForInitiation?.vendorCode || 'N/A'}</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>PLANT ID</span>
+              <span style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b' }}>{selectedCallForInitiation?.plantId || 'N/A'}</span>
+            </div>
+          </div>
+
+          <FinalInspectionDashboard 
+            user={loggedInUser} 
+            isShiftActive={isShiftActive} 
+            call={selectedCallForInitiation} 
+          />
         </div>
+      ) : activeItem === 'ATTENDING_CALLS' ? (
+        <AttendingCallsDashboard 
+          onStart={(call) => {
+            setSelectedCallForInitiation(call);
+            setActiveItem('INSPECTION_INITIATION');
+          }} 
+          onResume={(call, shiftData) => {
+            setSelectedCallForInitiation(call);
+            setIsShiftActive(true);
+            if (shiftData) {
+              setCurrentShift({
+                ...shiftData,
+                user: loggedInUser ? `${loggedInUser.userName}` : 'Railpad-IE'
+              });
+            }
+            setActiveItem('FINAL_INSPECTION');
+          }}
+        />
+      ) : activeItem === 'INSPECTION_INITIATION' ? (
+        <InspectionInitiationPage 
+          call={selectedCallForInitiation}
+          onProceed={(shiftData) => {
+            setIsShiftActive(true);
+            if (shiftData) {
+              setCurrentShift({
+                ...shiftData,
+                user: loggedInUser ? `${loggedInUser.userName}` : 'Railpad-IE'
+              });
+            }
+            setActiveItem('FINAL_INSPECTION');
+          }}
+          onBack={() => setActiveItem('ATTENDING_CALLS')}
+        />
       ) : (
         <div className="dashboard-container" style={{ padding: '24px', background: '#f8fafc', minHeight: '100vh', width: '100%' }}>
           <header style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -280,7 +440,7 @@ const App = () => {
                 </div>
               </div>
               {isShiftActive && (
-                <button 
+                <button
                   onClick={handleCompleteShift}
                   style={{
                     background: '#10b981',
@@ -301,6 +461,76 @@ const App = () => {
               )}
             </div>
           </header>
+
+          {/* Shift Details Bar */}
+          {isShiftActive && currentShift && (
+            <div style={{
+              background: 'white',
+              borderRadius: '16px',
+              padding: '20px 24px',
+              marginBottom: '24px',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '32px',
+              alignItems: 'center'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '40px', height: '40px', background: '#f0f9ff', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0ea5e9' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ margin: 'auto' }}>
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  </svg>
+                </div>
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Current Shift</div>
+                  <div style={{ fontSize: '15px', fontWeight: '700', color: '#1e293b' }}>Shift {currentShift.shift}</div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '40px', height: '40px', background: '#f5f3ff', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8b5cf6' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ margin: 'auto' }}>
+                    <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                    <polyline points="9 22 9 12 15 12 15 22" />
+                  </svg>
+                </div>
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Company</div>
+                  <div style={{ fontSize: '15px', fontWeight: '700', color: '#1e293b' }}>{currentShift.company}</div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '40px', height: '40px', background: '#fff7ed', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f97316' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ margin: 'auto' }}>
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                  </svg>
+                </div>
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Casting Date</div>
+                  <div style={{ fontSize: '15px', fontWeight: '700', color: '#1e293b' }}>{currentShift.date}</div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '40px', height: '40px', background: '#f0fdf4', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#22c55e' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ margin: 'auto' }}>
+                    <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" />
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                    <line x1="12" y1="22.08" x2="12" y2="12" />
+                  </svg>
+                </div>
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Production Unit</div>
+                  <div style={{ fontSize: '15px', fontWeight: '700', color: '#1e293b' }}>{currentShift.unit}</div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div style={{
             background: 'white',
@@ -616,17 +846,17 @@ const App = () => {
                           height: '100%',
                           background: card.pending > 0 ? '#ef4444' : '#10b981'
                         }} />
-                        
+
                         <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', marginBottom: '16px' }}>
                           {card.title}
                         </h3>
-                        
+
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '500' }}>Balance Inventory</span>
                             <span style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a' }}>{card.balance}</span>
                           </div>
-                          
+
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '500' }}>Pending Verification</span>
                             <div style={{
@@ -641,7 +871,7 @@ const App = () => {
                             </div>
                           </div>
                         </div>
-                        
+
                         <div style={{
                           marginTop: '20px',
                           paddingTop: '16px',
@@ -662,7 +892,7 @@ const App = () => {
                 ) : (
                   <div className="ie-content-area fade-in">
                     <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <button 
+                      <button
                         onClick={() => setActiveCard('verification-dashboard')}
                         style={{
                           background: 'white',
@@ -686,7 +916,7 @@ const App = () => {
                     </div>
 
                     <div className="table-card">
-                      <RawMaterialVerificationList 
+                      <RawMaterialVerificationList
                         materialId={activeCard}
                         loggedInUser={loggedInUser}
                       />
@@ -696,9 +926,11 @@ const App = () => {
               </div>
             ) : selectedModule === 'production-verification' ? (
               <div className="fade-in">
-                <ProductionVerificationDashboard 
+                <ProductionVerificationDashboard
                   activeCard={activeCard}
                   setActiveCard={setActiveCard}
+                  currentShift={currentShift}
+                  user={loggedInUser}
                 />
               </div>
             ) : (
@@ -769,8 +1001,8 @@ const App = () => {
           )}
         </div>
       )}
-      
-      <ConfirmationModal 
+
+      <ConfirmationModal
         isOpen={confirmConfig.isOpen}
         title={confirmConfig.title}
         message={confirmConfig.message}

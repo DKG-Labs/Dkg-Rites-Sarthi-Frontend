@@ -261,21 +261,42 @@ const SleeperReportPage = ({ plantName }) => {
     );
 };
 
-const SleeperMauReport = ({ startDate, endDate }) => {
+const SleeperMauReport = ({ startDate, endDate, mauData: propMauData, loading: propLoading }) => {
     const [selectedPlant, setSelectedPlant] = useState(null);
     const [batchReportData, setBatchReportData] = useState(null);
     const [isPreparingBatchPdf, setIsPreparingBatchPdf] = useState(false);
     const [batchProgress, setBatchProgress] = useState(0);
-    const [mauData, setMauData] = useState([]);
-    const [loading, setLoading] = useState(false);
+    const [mauData, setMauData] = useState(propMauData || []);
+    const [loading, setLoading] = useState(propLoading || false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [sortConfig, setSortConfig] = useState({ key: 'plantName', direction: 'asc' });
+
+    const handleSort = (key) => {
+        let direction = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    // Sync state with props if provided by parent
+    useEffect(() => {
+        if (propMauData) setMauData(propMauData);
+    }, [propMauData]);
 
     useEffect(() => {
+        if (propLoading !== undefined) setLoading(propLoading);
+    }, [propLoading]);
+
+    useEffect(() => {
+        // Only fetch locally if data isn't provided via props
+        if (propMauData) return;
+
         const fetchMauData = async () => {
             if (!startDate || !endDate) return;
             setLoading(true);
             try {
-                const response = await reportService.getSleeperMonthlyAnalysis(startDate, endDate);
+                const response = await reportService.getSleeperMonthlyAnalysis({ startDate, endDate });
                 const data = response.responseData || response || [];
                 setMauData(Array.isArray(data) ? data : []);
             } catch (error) {
@@ -286,10 +307,32 @@ const SleeperMauReport = ({ startDate, endDate }) => {
             }
         };
         fetchMauData();
-    }, [startDate, endDate]);
+    }, [startDate, endDate, propMauData]);
+
+    // Sort data first
+    const sortedData = [...mauData].sort((a, b) => {
+        const { key, direction } = sortConfig;
+        let valA = a[key];
+        let valB = b[key];
+
+        // Handle numeric values
+        if (key === 'production' || key === 'acceptance' || key === 'processRejection' || key === 'finalRejection' || key === 'rejectionPercentage') {
+            valA = Number(valA) || 0;
+            valB = Number(valB) || 0;
+            return direction === 'asc' ? valA - valB : valB - valA;
+        }
+
+        // Handle string values (case insensitive)
+        valA = String(valA || '').toLowerCase();
+        valB = String(valB || '').toLowerCase();
+
+        if (valA < valB) return direction === 'asc' ? -1 : 1;
+        if (valA > valB) return direction === 'asc' ? 1 : -1;
+        return 0;
+    });
 
     // Filtered data based on search
-    const filteredData = mauData.filter(plant =>
+    const filteredData = sortedData.filter(plant =>
         (plant.plantName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (plant.inspectedBy || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -395,14 +438,28 @@ const SleeperMauReport = ({ startDate, endDate }) => {
                         <table className="prof-table">
                             <thead>
                                 <tr>
-                                    <th>S.NO.</th>
-                                    <th>PLANT NAME</th>
-                                    <th>INSPECTED BY</th>
-                                    <th className="text-right">PRODUCTION (NOS.)</th>
-                                    <th className="text-right">ACCEPTANCE (NOS.)</th>
-                                    <th className="text-right">PROCESS REJECTION</th>
-                                    <th className="text-right">FINAL REJECTION</th>
-                                    <th className="text-right">% REJECTION</th>
+                                    <th style={{ cursor: 'default' }}>S.NO.</th>
+                                    <th onClick={() => handleSort('plantName')} style={{ cursor: 'pointer' }}>
+                                        PLANT NAME
+                                    </th>
+                                    <th onClick={() => handleSort('inspectedBy')} style={{ cursor: 'pointer' }}>
+                                        INSPECTED BY
+                                    </th>
+                                    <th onClick={() => handleSort('production')} style={{ cursor: 'pointer' }} className="text-right">
+                                        PRODUCTION (NOS.)
+                                    </th>
+                                    <th onClick={() => handleSort('acceptance')} style={{ cursor: 'pointer' }} className="text-right">
+                                        ACCEPTANCE (NOS.)
+                                    </th>
+                                    <th onClick={() => handleSort('processRejection')} style={{ cursor: 'pointer' }} className="text-right">
+                                        PROCESS REJECTION
+                                    </th>
+                                    <th onClick={() => handleSort('finalRejection')} style={{ cursor: 'pointer' }} className="text-right">
+                                        FINAL REJECTION
+                                    </th>
+                                    <th onClick={() => handleSort('rejectionPercentage')} style={{ cursor: 'pointer' }} className="text-right">
+                                        % REJECTION
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>

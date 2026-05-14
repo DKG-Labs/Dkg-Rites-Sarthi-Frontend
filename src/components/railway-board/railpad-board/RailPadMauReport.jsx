@@ -16,11 +16,11 @@ const RailPadMauReport = () => {
                         <tr>
                             <th>Plant Name</th>
                             <th>RITES RIO</th>
-                            <th className="text-right">Production (with UoM)</th>
-                            <th className="text-right">Acceptance (with UoM)</th>
-                            <th className="text-right">Process Rejection (with UoM)</th>
+                            <th className="text-right">Production</th>
+                            <th className="text-right">Acceptance</th>
+                            <th className="text-right">Process Rejection</th>
                             <th className="text-right">Process Rej %</th>
-                            <th className="text-right">Final Rejection (with UoM)</th>
+                            <th className="text-right">Final Rejection</th>
                             <th className="text-right">Final Rej %</th>
                             <th className="text-right">Total Rej %</th>
                         </tr>
@@ -30,11 +30,11 @@ const RailPadMauReport = () => {
                             <tr key={i}>
                                 <td style={{ fontWeight: '600' }}>{row.plant}</td>
                                 <td>{row.rio}</td>
-                                <td className="text-right">{row.production.toLocaleString()}</td>
-                                <td className="text-right" style={{ color: '#16a34a' }}>{row.acceptance.toLocaleString()}</td>
-                                <td className="text-right" style={{ color: '#f59e0b' }}>{row.procRej.toLocaleString()}</td>
+                                <td className="text-right">{row.production.toLocaleString()}Nos.</td>
+                                <td className="text-right" style={{ color: '#16a34a' }}>{row.acceptance.toLocaleString()}Nos.</td>
+                                <td className="text-right" style={{ color: '#f59e0b' }}>{row.procRej.toLocaleString()}Nos.</td>
                                 <td className="text-right">{row.procRejPct}%</td>
-                                <td className="text-right" style={{ color: '#ef4444' }}>{row.finalRej.toLocaleString()}</td>
+                                <td className="text-right" style={{ color: '#ef4444' }}>{row.finalRej.toLocaleString()}Nos.</td>
                                 <td className="text-right">{row.finalRejPct}%</td>
                                 <td className="text-right" style={{ fontWeight: 'bold' }}>{row.totalRejPct}%</td>
                             </tr>

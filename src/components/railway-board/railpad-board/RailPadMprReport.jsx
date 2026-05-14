@@ -14,8 +14,7 @@ const RailPadMprReport = () => {
                 <table className="prof-table">
                     <thead>
                         <tr>
-                            <th>Rly Short Name</th>
-                            <th>PO Number</th>
+                            <th>Rly - PO Number</th>
                             <th>Manufacturer</th>
                             <th className="text-right">PO Qty</th>
                             <th className="text-right">Dispatched (Monthly)</th>
@@ -26,8 +25,7 @@ const RailPadMprReport = () => {
                     <tbody>
                         {mockData.map((row, i) => (
                             <tr key={i}>
-                                <td>{row.rly}</td>
-                                <td style={{ fontWeight: '600' }}>{row.poNo}</td>
+                                <td style={{ fontWeight: '600' }}>{row.rly} - {row.poNo}</td>
                                 <td>{row.manufacturer}</td>
                                 <td className="text-right">{row.poQty.toLocaleString()}</td>
                                 <td className="text-right" style={{ color: '#0369a1', fontWeight: 'bold' }}>{row.monthlyDisp.toLocaleString()}</td>

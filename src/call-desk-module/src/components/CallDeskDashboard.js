@@ -313,6 +313,13 @@ const CallDeskDashboard = () => {
             <span className="switcher-icon">🛤️</span>
             Sleeper Calls
           </button>
+          <button 
+            className={`switcher-btn ${callType === 'RAILPAD' ? 'active' : ''}`}
+            onClick={() => setCallType('RAILPAD')}
+          >
+            <span className="switcher-icon">📦</span>
+            Railpad Calls
+          </button>
         </div>
       </div>
 

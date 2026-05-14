@@ -68,6 +68,9 @@ export const API_ENDPOINTS = {
 
     // Sleeper Dashboard
     SLEEPER_DASHBOARD: `${API_BASE_URL}/api/sleeper-dashboard`,
+
+    // Railpad Schedule
+    RAIL_SCHEDULE: `${API_BASE_URL}/api/rail-inspection-schedule`,
 };
 
 /**

@@ -203,15 +203,17 @@ const LoginPage = () => {
       }
 
       // Handle Railpad Role
-      if (roles.some(r => r === 'Railpad IE')) {
+      if (roles.some(r => r === 'Railpad IE' || r === 'Rail Process IE')) {
+        const isProcessRole = roles.includes('Rail Process IE') && !roles.includes('Railpad IE');
         options.push({
           id: 'railpad_option',
-          label: 'Railpad Dashboard',
-          description: 'Access Railpad IE modules',
+          label: isProcessRole ? 'Railpad Process IE Dashboard' : 'Railpad Dashboard',
+          description: isProcessRole ? 'Access Railpad Process IE platform' : 'Access Railpad IE modules',
           icon: '🛤️',
           roleToStore: 'Railpad IE'
         });
         seenConsolidated.add('Railpad IE');
+        seenConsolidated.add('Rail Process IE');
       }
 
       // Handle any other roles that aren't part of the specific consolidation requirement

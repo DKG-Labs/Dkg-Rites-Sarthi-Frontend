@@ -33,6 +33,8 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
     
     const endpoint = callType === 'SLEEPER'
       ? `${BASE_URL}/api/sleeper-workflow/allPendingWorkflowTransition`
+      : callType === 'RAILPAD'
+      ? `${BASE_URL}/api/railpad-workflow/allPendingWorkflowTransition`
       : `${BASE_URL}/allPendingWorkflowTransition`;
 
     const response = await axios.get(
@@ -55,6 +57,11 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
 
     // Filter by RIO - match logged-in user's RIO with call's RIO
     const filteredCalls = allCalls.filter(item => {
+      // For Railpad, if RIO is not yet set, show it to everyone in the role
+      if (callType === 'RAILPAD' && (!item.rio || item.rio === null || item.rio === '')) {
+        return true;
+      }
+      
       if (!item.rio || item.rio === null || item.rio === '') return false;
       const itemRio = String(item.rio).trim();
       const userRio = String(user?.rio || '').trim();
@@ -86,8 +93,8 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
         poNumber: actualPoNo,
         poSerialNo: actualSerialNo,
         rlyPoSr: item.poNo || '-',
-        product: item.productType || (callType === 'SLEEPER' ? 'Sleeper' : '-'),
-        productStage: item.productType || (callType === 'SLEEPER' ? 'Final' : '-'),
+        product: item.productType || (callType === 'SLEEPER' ? 'Sleeper' : callType === 'RAILPAD' ? 'Rail Pad' : '-'),
+        productStage: item.productType || (callType === 'SLEEPER' ? 'Final' : callType === 'RAILPAD' ? 'Final' : '-'),
         desiredInspectionDate: item.desiredInspectionDate || item.createdDate,
         placeOfInspection: item.placeOfInspection || item.poiCode || '-',
         dpDate: item.dpDate,
@@ -134,6 +141,8 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
     
     const endpoint = callType === 'SLEEPER'
       ? `${BASE_URL}/api/sleeper-workflow/allCompletedCalls`
+      : callType === 'RAILPAD'
+      ? `${BASE_URL}/api/railpad-workflow/allCompletedCalls`
       : `${BASE_URL}/allVerifiedWorkflowTransitions`;
 
     const response = await axios.get(
@@ -184,8 +193,8 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
         vendor: { name: item.vendorName || item.vendorCode || '-' },
         submissionDateTime: item.createdDate,
         poNumber: actualPoNo,
-        product: item.productType || (callType === 'SLEEPER' ? 'Sleeper' : '-'),
-        productStage: item.productType || (callType === 'SLEEPER' ? 'Final' : '-'),
+        product: item.productType || (callType === 'SLEEPER' ? 'Sleeper' : callType === 'RAILPAD' ? 'Rail Pad' : '-'),
+        productStage: item.productType || (callType === 'SLEEPER' ? 'Final' : callType === 'RAILPAD' ? 'Final' : '-'),
         desiredInspectionDate: item.desiredInspectionDate || item.createdDate,
         placeOfInspection: item.placeOfInspection || item.poiCode || '-',
         status: internalStatus,

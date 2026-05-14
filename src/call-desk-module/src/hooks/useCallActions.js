@@ -43,6 +43,15 @@ export const useCallActions = () => {
           actionBy: Number(user.userId)
         };
         endpoint = `${API_BASE_URL}/api/sleeper-workflow/performTransitionAction`;
+      } else if (callType === 'RAILPAD') {
+        payload = {
+          workflowTransitionId: Number(workflowTransitionId),
+          requestId: selectedCall.callNumber,
+          action: 'VERIFY',
+          remarks: remarks || null,
+          actionBy: Number(user.userId)
+        };
+        endpoint = `${API_BASE_URL}/api/railpad-workflow/performTransitionAction`;
       } else {
         payload = {
           workflowTransitionId: workflowTransitionId,
@@ -127,6 +136,15 @@ export const useCallActions = () => {
           actionBy: Number(user.userId)
         };
         endpoint = `${API_BASE_URL}/api/sleeper-workflow/performTransitionAction`;
+      } else if (callType === 'RAILPAD') {
+        payload = {
+          workflowTransitionId: Number(workflowTransitionId),
+          requestId: selectedCall.callNumber,
+          action: 'RETURN_TO_VENDOR',
+          remarks: remarks,
+          actionBy: Number(user.userId)
+        };
+        endpoint = `${API_BASE_URL}/api/railpad-workflow/performTransitionAction`;
       } else {
         payload = {
           workflowTransitionId: workflowTransitionId,
@@ -211,6 +229,16 @@ export const useCallActions = () => {
           rioRouteChange: targetRIO,
         };
         endpoint = `${API_BASE_URL}/api/sleeper-workflow/performTransitionAction`;
+      } else if (callType === 'RAILPAD') {
+        payload = {
+          workflowTransitionId: Number(workflowTransitionId),
+          requestId: selectedCall.callNumber,
+          action: 'FIX_ROUTING',
+          remarks,
+          actionBy: Number(user.userId),
+          rioRouteChange: targetRIO,
+        };
+        endpoint = `${API_BASE_URL}/api/railpad-workflow/performTransitionAction`;
       } else {
         payload = {
           workflowTransitionId,
@@ -273,6 +301,8 @@ export const useCallActions = () => {
   const viewCallHistory = async (requestId, callType = 'ERC') => {
     const endpoint = callType === 'SLEEPER'
       ? `${BASE_URL}/api/sleeper-workflow/WorkflowTransitionHistory`
+      : callType === 'RAILPAD'
+      ? `${BASE_URL}/api/railpad-workflow/WorkflowTransitionHistory`
       : `${BASE_URL}/workflowTransitionHistory`;
 
     const response = await axios.get(

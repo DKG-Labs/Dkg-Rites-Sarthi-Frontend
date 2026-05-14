@@ -142,6 +142,9 @@ const RailwayBoardDashboard = () => {
         setMprPage(0);
         setMauPage(0);
         setMpiaPage(0);
+        setExpandedPo(null);
+        setExpandedSerial(null);
+        setExpandedCall(null);
     }, [dashboardFilters]);
 
     const [lwclCallNo, setLwclCallNo] = useState('');
@@ -337,14 +340,12 @@ const RailwayBoardDashboard = () => {
                     </tbody>
                 </table>
             </div>
-            {!expandedPo && (
-                <Pagination
-                    currentPage={page} totalPages={Math.ceil(count / rowsPerPage)}
-                    start={page * rowsPerPage} end={Math.min((page + 1) * rowsPerPage, count)}
-                    totalCount={count} onPageChange={handleChangePage}
-                    rows={rowsPerPage} onRowsChange={handleChangeRowsPerPage}
-                />
-            )}
+            <Pagination
+                currentPage={page} totalPages={Math.ceil(count / rowsPerPage)}
+                start={page * rowsPerPage} end={Math.min((page + 1) * rowsPerPage, count)}
+                totalCount={count} onPageChange={handleChangePage}
+                rows={rowsPerPage} onRowsChange={handleChangeRowsPerPage}
+            />
         </div>
     );
 
@@ -372,11 +373,9 @@ const RailwayBoardDashboard = () => {
                         <div className={`nav-item ${activeMainCard === 'lifecycle' ? 'active' : ''}`} onClick={() => handleSwitchTab('lifecycle')}>
                             <i className="fa-solid fa-file-contract"></i> {!isSidebarCollapsed && <span>PO Lifecycle</span>}
                         </div>
-                        {selectedProduct !== 'Sleeper' && (
-                            <div className={`nav-item ${activeMainCard === 'performance' ? 'active' : ''}`} onClick={() => handleSwitchTab('performance')}>
-                                <i className="fa-solid fa-trophy"></i> {!isSidebarCollapsed && <span>Performance</span>}
-                            </div>
-                        )}
+                        <div className={`nav-item ${activeMainCard === 'performance' ? 'active' : ''}`} onClick={() => handleSwitchTab('performance')}>
+                            <i className="fa-solid fa-trophy"></i> {!isSidebarCollapsed && <span>Performance</span>}
+                        </div>
                         <div className={`nav-item ${activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleSwitchTab('reports')}>
                             <i className="fa-solid fa-file-lines"></i> {!isSidebarCollapsed && <span>Reports</span>}
                         </div>
@@ -385,8 +384,11 @@ const RailwayBoardDashboard = () => {
                                 <div className={`report-link ${activeReport === 'mpr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpr')}>Monthly Progress Report</div>
                                 <div className={`report-link ${activeReport === 'mau' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mau')}>Monthly Analysis of Units</div>
                                 <div className={`report-link ${activeReport === 'lwcl' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('lwcl')}>Lot Wise Closed Loop</div>
-                                {selectedProduct !== 'Sleeper' && selectedProduct !== 'Rail Pad' && (
-                                    <div className={`report-link ${activeReport === 'mpia' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpia')}>Manufacture Process Inspection Analysis</div>
+                                {selectedProduct !== 'Rail Pad' && (
+                                    <div className={`report-link ${activeReport === 'swp' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('swp')}>Shift Wise Production Report</div>
+                                )}
+                                {selectedProduct === 'ERC' && (
+                                    <div className={`report-link ${activeReport === 'mpia' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpia')}>Vendor wise Monthly Report</div>
                                 )}
                             </div>
                         )}
@@ -407,7 +409,6 @@ const RailwayBoardDashboard = () => {
                         <button className={`sub-tab-btn ${selectedProduct === 'ERC' ? 'active' : ''}`} onClick={() => setSelectedProduct('ERC')}>ERC</button>
                         <button className={`sub-tab-btn ${selectedProduct === 'Sleeper' ? 'active' : ''}`} onClick={() => {
                             setSelectedProduct('Sleeper');
-                            if (activeMainCard === 'performance') handleSwitchTab('summary');
                             if (activeReport === 'mpia') setActiveReport('mpr');
                         }}>Sleeper</button>
                         <button className={`sub-tab-btn ${selectedProduct === 'Rail Pad' ? 'active' : ''}`} onClick={() => setSelectedProduct('Rail Pad')}>Rail Pad</button>

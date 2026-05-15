@@ -274,7 +274,8 @@ const AttendingCallsDashboard = ({ onStart, onResume }) => {
             </thead>
             <tbody>
               {calls.filter(call => 
-                (call.status !== 'CREATED' && call.jobStatus !== 'CREATED') && (
+                (call.status !== 'CREATED' && call.jobStatus !== 'CREATED') && 
+                (call.accessibleUserIds?.includes(Number(user?.userId))) && (
                   (call.requestId?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
                   (call.vendorCode?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
                   (call.vendorName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||

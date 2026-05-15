@@ -1,14 +1,12 @@
 import React, { useState, useMemo } from 'react';
 
 const REJECTION_REASONS = [
-  'Porosity',
-  'Blow holes',
-  'Improper dimensions',
-  'Foreign particles',
-  'Flash defects',
-  'Surface cracks',
-  'Improper curing',
-  'Others'
+  'NIL',
+  'Short Moulding',
+  'Bubbles/Blisters',
+  'Uneven Edges',
+  'Surface Roughness',
+  'Improper Side Cut'
 ];
 
 const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn, isSubmitting }) => {
@@ -40,10 +38,10 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
       ...rejections,
       { 
         id: Date.now(), 
-        productType: productTypes[0], 
-        batchNo: availableBatches[productTypes[0]][0]?.value || '', 
-        rejectedQty: 0, 
-        reason: REJECTION_REASONS[0] 
+        productType: '', 
+        batchNo: '', 
+        rejectedQty: '', 
+        reason: 'NIL' 
       }
     ]);
   };
@@ -51,11 +49,29 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
   const handleUpdateRejection = (id, field, value) => {
     setRejections(rejections.map(rej => {
       if (rej.id === id) {
-        const updated = { ...rej, [field]: value };
-        // If product type changed, reset batch no to the first one available for that type
+        let updated = { ...rej, [field]: value };
+        
+        // If product type changed, reset batch no to empty string
         if (field === 'productType') {
-          updated.batchNo = availableBatches[value][0]?.value || '';
+          updated.batchNo = '';
         }
+
+        // Logic for 0 Rejection -> NIL Reason
+        if (field === 'rejectedQty') {
+          const qty = parseInt(value) || 0;
+          if (qty === 0) {
+            updated.reason = 'NIL';
+          } else if (updated.reason === 'NIL') {
+            updated.reason = REJECTION_REASONS[1];
+          }
+        }
+
+        if (field === 'reason' && value === 'NIL') {
+          updated.rejectedQty = 0;
+        } else if (field === 'reason' && value !== 'NIL' && parseInt(updated.rejectedQty) === 0) {
+          updated.rejectedQty = 1;
+        }
+
         return updated;
       }
       return rej;
@@ -84,6 +100,13 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
   const totalAccepted = totalProduced - totalRejected;
 
   const handleFinalSubmit = () => {
+    // Basic validation
+    const hasIncomplete = rejections.some(r => !r.productType || !r.batchNo);
+    if (hasIncomplete) {
+      alert('Please complete all rejection entries (Select Product and Batch).');
+      return;
+    }
+
     if (totalAccepted < 0) {
       alert('Total accepted pieces cannot be negative. Please check rejections.');
       return;
@@ -247,7 +270,9 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
                         value={rej.productType}
                         onChange={(e) => handleUpdateRejection(rej.id, 'productType', e.target.value)}
                         disabled={isReadOnly}
+                        style={{ border: !rej.productType ? '1px solid #fda4af' : '1px solid #e2e8f0' }}
                       >
+                        <option value="">-- Select Product --</option>
                         {productTypes.map(type => <option key={type} value={type}>{type}</option>)}
                       </select>
                     </td>
@@ -255,9 +280,11 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
                       <select 
                         value={rej.batchNo}
                         onChange={(e) => handleUpdateRejection(rej.id, 'batchNo', e.target.value)}
-                        disabled={isReadOnly}
+                        disabled={isReadOnly || !rej.productType}
+                        style={{ border: !rej.batchNo ? '1px solid #fda4af' : '1px solid #e2e8f0' }}
                       >
-                        {availableBatches[rej.productType].map(b => (
+                        <option value="">-- Select Batch --</option>
+                        {rej.productType && availableBatches[rej.productType]?.map(b => (
                           <option key={b.value} value={b.value}>{b.label}</option>
                         ))}
                       </select>

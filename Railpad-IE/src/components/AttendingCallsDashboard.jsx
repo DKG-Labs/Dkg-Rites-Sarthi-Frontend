@@ -32,11 +32,11 @@ const AttendingCallsDashboard = ({ onStart, onResume }) => {
     try {
       let data = [];
       if (activeTab === 'pending') {
-        data = await fetchPendingWorkflowTransitions(user?.roleName || 'Rail Main IE');
+        data = await fetchPendingWorkflowTransitions('Rail Main IE');
       } else if (activeTab === 'completed') {
         data = await fetchCompletedCalls();
       } else if (activeTab === 'certificates') {
-        data = await fetchPendingWorkflowTransitions(user?.roleName || 'Rail Main IE');
+        data = await fetchPendingWorkflowTransitions('Rail Main IE');
         data = data.filter(c => c.status === 'INSPECTION_DONE' || c.status === 'CERTIFICATE_PENDING');
       }
       setCalls(data);

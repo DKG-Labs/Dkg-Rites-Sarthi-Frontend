@@ -531,7 +531,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                         <div className="verification-collapsible-card">
                             <div className="card-header-toggle" onClick={() => setSectionAExpanded(!sectionAExpanded)}>
                                 <h3>SECTION A: Main PO Information - {poForm.poNo}</h3>
-                                <button className="toggle-btn">{sectionAExpanded ? '-' : '+'}</button>
+                                <button className="accordion-toggle-btn">{sectionAExpanded ? '-' : '+'}</button>
                             </div>
                             
                             {sectionAExpanded && (
@@ -595,7 +595,7 @@ const FinalInspectionScreen = ({ call, onBack }) => {
                             <div className="verification-collapsible-card">
                                 <div className="card-header-toggle" onClick={() => setSectionBExpanded(!sectionBExpanded)}>
                                     <h3>SECTION B: Inspection Call Details - {poForm.poNo}</h3>
-                                    <button className="toggle-btn">{sectionBExpanded ? '-' : '+'}</button>
+                                    <button className="accordion-toggle-btn">{sectionBExpanded ? '-' : '+'}</button>
                                 </div>
 
                                 {sectionBExpanded && (

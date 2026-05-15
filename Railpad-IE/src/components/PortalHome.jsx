@@ -146,7 +146,8 @@ const PortalHome = ({ user, onModuleSelect, isShiftActive }) => {
             </div>
           </div>
 
-          {/* Rail Pad Final Inspection Card */}
+          {/* Rail Pad Final Inspection Card - Hidden as per user request */}
+          {/* 
           <div 
             onClick={() => {
               onModuleSelect('FINAL_INSPECTION');
@@ -233,6 +234,7 @@ const PortalHome = ({ user, onModuleSelect, isShiftActive }) => {
               </div>
             </div>
           </div>
+          */}
 
           {/* Attending the Call Raised Card */}
           <div 

@@ -7,7 +7,7 @@ import Notification from '../components/Notification';
 import { getBaseUrl, getDefaultHeaders } from '../services/apiConfig';
 import './InspectionInitiationPage.css';
 
-const InspectionInitiationPage = ({ call, onProceed, onBack }) => {
+const InspectionInitiationPage = ({ call, onProceed, onBack, onUpdateCall }) => {
   const [loading, setLoading] = useState(true);
   const [fetchedDetails, setFetchedDetails] = useState(null);
   const [sectionAStatus, setSectionAStatus] = useState('pending'); // 'pending', 'approved', 'rejected'
@@ -43,6 +43,15 @@ const InspectionInitiationPage = ({ call, onProceed, onBack }) => {
             callQty: data.totalOfferedQty || prev.callQty,   // RailPoSummaryDto uses totalOfferedQty
             qtyUnit: data.unit || prev.qtyUnit
           }));
+
+          // Update parent call object for header display
+          if (onUpdateCall) {
+            onUpdateCall({
+              ...data,
+              rlyPoSrNo: data.rlyPoNoSerial, // Map summary field to header field
+              railPadType: data.ercType   // Map summary field to header field
+            });
+          }
         }
       } catch (error) {
         console.error('Failed to fetch call summary:', error);
@@ -277,7 +286,7 @@ const InspectionInitiationPage = ({ call, onProceed, onBack }) => {
                     <label>PO_QTY</label>
                     <div className="value-mock">{fetchedDetails?.poQty || 'N/A'}</div>
                   </div>
-                  <div className="data-item">
+                   <div className="data-item">
                     <label>VENDOR_NAME</label>
                     <div className="value-mock">{fetchedDetails?.vendorName || 'N/A'}</div>
                   </div>

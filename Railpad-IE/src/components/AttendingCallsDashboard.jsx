@@ -265,7 +265,7 @@ const AttendingCallsDashboard = ({ onStart, onResume }) => {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                {['TRANSITION ID', 'REQUEST ID', 'VENDOR CODE', 'PLANT ID', 'POI CODE', 'CREATED DATE', 'STATUS', 'ACTIONS'].map(header => (
+                {['TRANSITION ID', 'REQUEST ID', 'VENDOR NAME', 'PLANT ID', 'POI CODE', 'CREATED DATE', 'STATUS', 'ACTIONS'].map(header => (
                   <th key={header} style={{ padding: '12px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     {header}
                   </th>
@@ -277,13 +277,14 @@ const AttendingCallsDashboard = ({ onStart, onResume }) => {
                 (call.status !== 'CREATED' && call.jobStatus !== 'CREATED') && (
                   (call.requestId?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
                   (call.vendorCode?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                  (call.vendorName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
                   (call.plantId?.toLowerCase() || '').includes(searchTerm.toLowerCase())
                 )
               ).map((call, index) => (
                 <tr key={index} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                   <td style={{ padding: '12px 16px', fontSize: '13px', color: '#64748b' }}>{call.workflowTransitionId}</td>
                   <td style={{ padding: '12px 16px', fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>{call.requestId}</td>
-                  <td style={{ padding: '12px 16px', fontSize: '13px', color: '#475569' }}>{call.vendorCode}</td>
+                  <td style={{ padding: '12px 16px', fontSize: '13px', color: '#475569' }}>{call.vendorName || call.vendorCode}</td>
                   <td style={{ padding: '12px 16px', fontSize: '13px', color: '#475569' }}>{call.plantId}</td>
                   <td style={{ padding: '12px 16px', fontSize: '13px', color: '#475569' }}>{call.poiCode}</td>
                   <td style={{ padding: '12px 16px', fontSize: '13px', color: '#64748b' }}>

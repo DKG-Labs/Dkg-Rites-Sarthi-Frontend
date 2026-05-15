@@ -11,7 +11,7 @@ const REJECTION_REASONS = [
   'Others'
 ];
 
-const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn }) => {
+const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn, isSubmitting }) => {
   const isReadOnly = declaration.status === 'Verified' && !declaration.forceEdit;
   const [rejections, setRejections] = useState(declaration.rejections || []);
   const [showReturnModal, setShowReturnModal] = useState(false);
@@ -148,12 +148,22 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn 
         </div>
         {!isReadOnly && (
           <div className="pv-header-actions">
-            <button className="pv-return-btn" onClick={() => {
-              window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-              setTimeout(() => setShowReturnModal(true), 500);
-            }}>Return to Vendor</button>
-            <button className="pv-submit-btn" onClick={handleFinalSubmit}>
-              {declaration.forceEdit ? 'Update Verification' : 'Finalize & Accept'}
+            <button 
+              className="pv-return-btn" 
+              disabled={isSubmitting}
+              onClick={() => {
+                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+                setTimeout(() => setShowReturnModal(true), 500);
+              }}
+            >
+              Return to Vendor
+            </button>
+            <button 
+              className="pv-submit-btn" 
+              onClick={handleFinalSubmit}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Processing...' : (declaration.forceEdit ? 'Update Verification' : 'Finalize & Accept')}
             </button>
           </div>
         )}

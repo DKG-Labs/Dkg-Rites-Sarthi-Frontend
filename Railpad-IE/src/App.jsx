@@ -166,7 +166,8 @@ const App = () => {
   }, [activeItem, selectedModule, activeCard, selectedCallForInitiation]);
 
   if (!isAuthenticated()) {
-    return <LoginPage />;
+    window.location.href = '/';
+    return null;
   }
 
   const handleAddEntry = (newData) => {
@@ -231,7 +232,7 @@ const App = () => {
         localStorage.removeItem('railpad_ie_active_item');
         localStorage.removeItem('railpad_ie_selected_module');
         localStorage.removeItem('railpad_ie_active_card');
-        setActiveItem('PortalHome');
+        window.location.href = '/';
       }
     });
   };

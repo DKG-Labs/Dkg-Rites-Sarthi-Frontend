@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import RawMaterialForm from './components/RawMaterialForm';
 import MixingForm from './components/MixingForm';
 import SheetingForm from './components/SheetingForm';
@@ -147,13 +147,13 @@ const App = () => {
   });
 
   // Persist shift state
-  React.useEffect(() => {
+  useEffect(() => {
     localStorage.setItem('railpad_ie_shift_active', isShiftActive);
     localStorage.setItem('railpad_ie_current_shift', JSON.stringify(currentShift));
   }, [isShiftActive, currentShift]);
 
   // Persist navigation state
-  React.useEffect(() => {
+  useEffect(() => {
     localStorage.setItem('railpad_ie_active_item', activeItem);
     localStorage.setItem('railpad_ie_selected_module', selectedModule);
     localStorage.setItem('railpad_ie_active_card', activeCard);

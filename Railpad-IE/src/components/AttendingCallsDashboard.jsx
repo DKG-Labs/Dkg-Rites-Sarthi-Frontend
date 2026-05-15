@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { fetchPendingWorkflowTransitions, fetchCompletedCalls, performTransitionAction } from '../services/workflowService';
 import { scheduleInspection } from '../services/scheduleService';
-import Notification from '../../../src/components/Notification';
+import Notification from './Notification';
 import { getStoredUser } from '../services/authService';
 
 import ShiftDutyForm from './ShiftDutyForm';

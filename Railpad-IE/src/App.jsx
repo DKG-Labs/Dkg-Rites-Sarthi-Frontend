@@ -271,106 +271,222 @@ const App = () => {
           }}
         />
       ) : activeItem === 'FINAL_INSPECTION' ? (
-        <div className="dashboard-container" style={{ padding: '24px', background: '#f8fafc', minHeight: '100vh', width: '100%' }}>
-          <header style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div className="dashboard-container" style={{ 
+          padding: '40px', 
+          background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)', 
+          minHeight: '100vh', 
+          width: '100%',
+          fontFamily: "'Inter', system-ui, -apple-system, sans-serif"
+        }}>
+          {/* Main Header Section */}
+          <header style={{ 
+            marginBottom: '40px', 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center' 
+          }}>
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
-                <button 
-                  onClick={() => setActiveItem('ATTENDING_CALLS')}
-                  style={{
-                    padding: '8px 16px',
-                    borderRadius: '10px',
-                    border: '1px solid #e2e8f0',
-                    background: 'white',
-                    color: '#64748b',
-                    fontSize: '12px',
-                    fontWeight: '800',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'white'}
-                >
-                  ← BACK TO DASHBOARD
-                </button>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '16px', marginBottom: '16px' }}>
+                <div style={{
+                  width: '12px',
+                  height: '12px',
+                  borderRadius: '50%',
+                  background: '#3b82f6',
+                  boxShadow: '0 0 0 4px rgba(59, 130, 246, 0.1)',
+                  animation: 'pulse 2s infinite'
+                }} />
                 <h1 style={{
-                  fontSize: '32px',
-                  fontWeight: '800',
+                  fontSize: '36px',
+                  fontWeight: '900',
                   color: '#0f172a',
-                  letterSpacing: '-0.025em',
-                  margin: 0
+                  letterSpacing: '-0.02em',
+                  margin: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '16px'
                 }}>
-                  Final Inspection {selectedCallForInitiation?.requestId && `- ${selectedCallForInitiation.requestId}`}
+                  Final Inspection
+                  {selectedCallForInitiation?.requestId && (
+                    <span style={{ 
+                      fontSize: '14px',
+                      fontWeight: '700',
+                      color: '#3b82f6',
+                      background: '#eff6ff',
+                      padding: '6px 14px',
+                      borderRadius: '8px',
+                      border: '1px solid #dbeafe',
+                      letterSpacing: '0.05em',
+                      boxShadow: '0 1px 2px rgba(59, 130, 246, 0.05)'
+                    }}>
+                      {selectedCallForInitiation.requestId}
+                    </span>
+                  )}
                 </h1>
               </div>
-              <p style={{ margin: 0, color: '#64748b', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span>Rail Pad quality acceptance and multi-layer verification</span>
-                <span style={{ color: '#cbd5e1', fontWeight: '300' }}>|</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ color: '#94a3b8', textTransform: 'uppercase', fontSize: '11px', fontWeight: '800' }}>Shift:</span>
-                  <span style={{ fontWeight: '700', color: '#1e293b' }}>{currentShift?.shift || 'N/A'}</span>
-                </span>
-                <span style={{ color: '#cbd5e1', fontWeight: '300' }}>|</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ color: '#94a3b8', textTransform: 'uppercase', fontSize: '11px', fontWeight: '800' }}>Unit:</span>
-                  <span style={{ fontWeight: '700', color: '#1e293b' }}>{currentShift?.unit || selectedCallForInitiation?.plantId || 'N/A'}</span>
-                </span>
-              </p>
-            </div>
-            <div style={{
-              background: isShiftActive ? '#ecfdf5' : '#fef2f2',
-              border: `1px solid ${isShiftActive ? '#10b981' : '#ef4444'}`,
-              padding: '12px 20px',
-              borderRadius: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '16px',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
-            }}>
-              <div>
-                <div style={{ fontSize: '10px', color: isShiftActive ? '#059669' : '#b91c1c', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Shift Status
+              
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '24px',
+                color: '#475569',
+                fontSize: '14px',
+                fontWeight: '500'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '18px', filter: 'grayscale(0.5)' }}>📋</span>
+                  <span>Verification Mode</span>
                 </div>
-                <div style={{ fontWeight: '700', color: isShiftActive ? '#065f46' : '#991b1b', fontSize: '14px' }}>
-                  {isShiftActive ? 'ACTIVE (Ongoing Duty)' : 'COMPLETED (Duty Locked)'}
+                
+                <div style={{ width: '1px', height: '14px', background: '#cbd5e1' }} />
+                
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ color: '#94a3b8', textTransform: 'uppercase', fontSize: '10px', fontWeight: '800', letterSpacing: '0.1em' }}>Shift</span>
+                  <span style={{ 
+                    padding: '2px 10px', 
+                    background: '#f1f5f9', 
+                    borderRadius: '6px', 
+                    fontSize: '12px', 
+                    fontWeight: '800', 
+                    color: '#334155',
+                    border: '1px solid #e2e8f0'
+                  }}>
+                    {currentShift?.shift || 'N/A'}
+                  </span>
+                </div>
+
+                <div style={{ width: '1px', height: '14px', background: '#cbd5e1' }} />
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ color: '#94a3b8', textTransform: 'uppercase', fontSize: '10px', fontWeight: '800', letterSpacing: '0.1em' }}>Location</span>
+                  <span style={{ 
+                    color: '#1e293b',
+                    fontWeight: '700',
+                    fontSize: '13px'
+                  }}>
+                    {currentShift?.unit || selectedCallForInitiation?.plantId || 'N/A'}
+                  </span>
                 </div>
               </div>
             </div>
+            
+            <button 
+              onClick={() => setActiveItem('ATTENDING_CALLS')}
+              style={{
+                padding: '12px 24px',
+                borderRadius: '14px',
+                border: '1px solid #e2e8f0',
+                background: 'rgba(255, 255, 255, 0.8)',
+                backdropFilter: 'blur(10px)',
+                color: '#475569',
+                fontSize: '13px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1)';
+                e.currentTarget.style.background = 'white';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.05)';
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.8)';
+              }}
+            >
+              <span style={{ fontSize: '16px' }}>←</span>
+              BACK TO DASHBOARD
+            </button>
           </header>
 
+          {/* Enriched Data Floating Card */}
           <div style={{
             background: 'white',
-            borderRadius: '16px',
-            padding: '16px 24px',
-            marginBottom: '24px',
-            border: '1px solid #e2e8f0',
+            borderRadius: '24px',
+            padding: '28px 32px',
+            marginBottom: '40px',
             display: 'flex',
-            gap: '64px',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02)',
+            border: '1px solid rgba(255, 255, 255, 0.8)',
+            position: 'relative',
+            overflow: 'hidden'
           }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '11px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>RLY PO SR NO</span>
-              <span style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b' }}>{selectedCallForInitiation?.poNo || 'N/A'}</span>
+            {/* Subtle background decoration */}
+            <div style={{ 
+              position: 'absolute', 
+              top: 0, 
+              right: 0, 
+              bottom: 0, 
+              width: '4px', 
+              background: 'linear-gradient(to bottom, #3b82f6, #6366f1)' 
+            }} />
+
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>RLY PO SR NO</span>
+              <span style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b' }}>
+                {selectedCallForInitiation?.rlyPoSrNo || 'N/A'}
+              </span>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '11px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>VENDOR NAME</span>
-              <span style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b' }}>{selectedCallForInitiation?.vendorName || selectedCallForInitiation?.vendorCode || 'N/A'}</span>
+            
+            <div style={{ width: '1px', height: '40px', background: '#f1f5f9', margin: '0 32px' }} />
+
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>VENDOR NAME</span>
+              <span style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b' }}>
+                {selectedCallForInitiation?.vendorName || 'N/A'}
+              </span>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '11px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>PLANT ID</span>
-              <span style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b' }}>{selectedCallForInitiation?.plantId || 'N/A'}</span>
+
+            <div style={{ width: '1px', height: '40px', background: '#f1f5f9', margin: '0 32px' }} />
+
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>RAILPADTYPE</span>
+              <span style={{ 
+                fontSize: '16px', 
+                fontWeight: '700', 
+                color: '#3b82f6',
+                background: '#eff6ff',
+                padding: '4px 12px',
+                borderRadius: '8px',
+                width: 'fit-content'
+              }}>
+                {selectedCallForInitiation?.railPadType || 'N/A'}
+              </span>
+            </div>
+
+            <div style={{ width: '1px', height: '40px', background: '#f1f5f9', margin: '0 32px' }} />
+
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>PLANT ID</span>
+              <span style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b' }}>
+                {selectedCallForInitiation?.plantId || 'N/A'}
+              </span>
             </div>
           </div>
 
-          <FinalInspectionDashboard 
-            user={loggedInUser} 
-            isShiftActive={isShiftActive} 
-            call={selectedCallForInitiation} 
-          />
+          {/* Main Work Area Container */}
+          <div style={{
+            marginTop: '16px',
+            animation: 'fadeInUp 0.6s ease-out'
+          }}>
+            <FinalInspectionDashboard 
+              user={loggedInUser} 
+              isShiftActive={isShiftActive} 
+              call={selectedCallForInitiation} 
+              onUpdateCall={(updatedData) => {
+                setSelectedCallForInitiation(prev => ({
+                  ...prev,
+                  ...updatedData
+                }));
+              }}
+            />
+          </div>
         </div>
       ) : activeItem === 'ATTENDING_CALLS' ? (
         <AttendingCallsDashboard 
@@ -393,6 +509,12 @@ const App = () => {
       ) : activeItem === 'INSPECTION_INITIATION' ? (
         <InspectionInitiationPage 
           call={selectedCallForInitiation}
+          onUpdateCall={(updatedData) => {
+            setSelectedCallForInitiation(prev => ({
+              ...prev,
+              ...updatedData
+            }));
+          }}
           onProceed={(shiftData) => {
             setIsShiftActive(true);
             if (shiftData) {

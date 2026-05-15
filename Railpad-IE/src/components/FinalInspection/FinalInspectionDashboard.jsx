@@ -105,7 +105,7 @@ const FinalInspectionSkeleton = () => (
   </div>
 );
 
-const FinalInspectionDashboard = ({ user, isShiftActive, call }) => {
+const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall }) => {
   const [lots, setLots] = useState([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('visual');
@@ -430,6 +430,10 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call }) => {
             if (formattedLots.length > 0) {
               setSelectedLot(formattedLots[0].id);
             }
+            // Notify parent about the full call details (for the header)
+            if (onUpdateCall) {
+              onUpdateCall(data);
+            }
           }
         } catch (error) {
           console.error("Error loading call details:", error);
@@ -439,7 +443,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call }) => {
       }
     };
     loadCallDetails();
-  }, [call]);
+  }, [call?.requestId, call?.id, call?.callNo]);
 
   const markDirty = () => {
     if (!isDirty) setIsDirty(true);

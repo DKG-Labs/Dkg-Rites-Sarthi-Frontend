@@ -122,7 +122,7 @@
     flex-wrap: wrap;
 }
 
-.toggle-btn {
+.inventory-tab-btn {
     padding: 8px 16px;
     border-radius: 20px;
     border: 1px solid #cbd5e0;
@@ -133,7 +133,7 @@
     transition: all 0.2s;
 }
 
-.toggle-btn.active {
+.inventory-tab-btn.active {
     background: #13343b;
     color: white;
     border-color: #13343b;

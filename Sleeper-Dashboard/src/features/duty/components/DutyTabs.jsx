@@ -11,17 +11,17 @@ const DutyTabs = ({ tabs, activeTab, setActiveTab, witnessedRecordsCount }) => {
             {tabs.map((tab) => (
                 <div
                     key={tab.id}
-                    onClick={() => !tab.isUnderDevelopment && setActiveTab(tab.id)}
+                    onClick={() => setActiveTab(tab.id)}
                     style={{
                         background: tab.isUnderDevelopment ? '#fdfaf5' : (activeTab === tab.id ? '#f0f9fa' : 'white'),
                         border: `2px ${tab.isUnderDevelopment ? 'dotted' : 'solid'} ${activeTab === tab.id ? '#42818c' : '#e2e8f0'}`,
                         borderRadius: '16px',
                         padding: '16px',
-                        cursor: tab.isUnderDevelopment ? 'default' : 'pointer',
+                        cursor: 'pointer',
                         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                         position: 'relative',
-                        boxShadow: (activeTab === tab.id && !tab.isUnderDevelopment) ? '0 10px 15px -3px rgba(66, 129, 140, 0.1)' : 'none',
-                        transform: (activeTab === tab.id && !tab.isUnderDevelopment) ? 'translateY(-2px)' : 'none',
+                        boxShadow: (activeTab === tab.id) ? '0 10px 15px -3px rgba(66, 129, 140, 0.1)' : 'none',
+                        transform: (activeTab === tab.id) ? 'translateY(-2px)' : 'none',
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'space-between',
@@ -58,7 +58,7 @@ const DutyTabs = ({ tabs, activeTab, setActiveTab, witnessedRecordsCount }) => {
                                         tab.id === 'Compaction of Concrete (Vibrator Report)' ? 'Scada Live' : 'Active'
                             )}
                         </span>
-                        {activeTab === tab.id && !tab.isUnderDevelopment && (
+                        {activeTab === tab.id && (
                             <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#42818c' }}></span>
                         )}
                     </div>

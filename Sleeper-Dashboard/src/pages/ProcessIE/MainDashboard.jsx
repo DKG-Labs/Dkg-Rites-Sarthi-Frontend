@@ -281,7 +281,7 @@ const MainDashboard = () => {
                         <div
                             key={card.id}
                             className={`ie-sub-nav-card ${isRestricted ? 'restricted' : ''} ${card.isUnderDevelopment ? 'under-development' : ''}`}
-                            onClick={() => !isRestricted && !card.isUnderDevelopment && handleCardClick(card)}
+                            onClick={() => !isRestricted && handleCardClick(card)}
                             title={isRestricted ? 'Please start duty first' : card.isUnderDevelopment ? 'Under Development' : ''}
                         >
                             <div className="card-icon-wrapper">

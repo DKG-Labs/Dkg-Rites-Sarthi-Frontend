@@ -20,6 +20,7 @@ const AttendingCallsDashboard = ({ onStart, onResume }) => {
   const [notification, setNotification] = useState({ message: '', type: 'info' });
   const [showResumeModal, setShowResumeModal] = useState(false);
   const [callToResume, setCallToResume] = useState(null);
+  const [remarks, setRemarks] = useState('');
   const user = getStoredUser();
 
   useEffect(() => {
@@ -31,11 +32,11 @@ const AttendingCallsDashboard = ({ onStart, onResume }) => {
     try {
       let data = [];
       if (activeTab === 'pending') {
-        data = await fetchPendingWorkflowTransitions('Rail Main IE');
+        data = await fetchPendingWorkflowTransitions(user?.roleName || 'Rail Main IE');
       } else if (activeTab === 'completed') {
         data = await fetchCompletedCalls();
       } else if (activeTab === 'certificates') {
-        data = await fetchPendingWorkflowTransitions('Rail Main IE');
+        data = await fetchPendingWorkflowTransitions(user?.roleName || 'Rail Main IE');
         data = data.filter(c => c.status === 'INSPECTION_DONE' || c.status === 'CERTIFICATE_PENDING');
       }
       setCalls(data);

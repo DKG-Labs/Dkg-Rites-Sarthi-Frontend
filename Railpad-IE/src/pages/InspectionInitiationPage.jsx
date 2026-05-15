@@ -3,7 +3,7 @@ import { getStoredUser } from '../services/authService';
 import { performTransitionAction } from '../services/workflowService';
 import { fetchInspectionCallSummary } from '../services/inspectionService';
 import ShiftDutyForm from '../components/ShiftDutyForm';
-import Notification from '../../../src/components/Notification';
+import Notification from '../components/Notification';
 import { getBaseUrl, getDefaultHeaders } from '../services/apiConfig';
 import './InspectionInitiationPage.css';
 

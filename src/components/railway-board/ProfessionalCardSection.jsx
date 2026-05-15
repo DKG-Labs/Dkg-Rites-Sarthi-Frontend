@@ -1914,32 +1914,20 @@ const ScadaMonitor = ({ selectedProduct }) => {
                 size: '30'
             });
 
-            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            
-            // Using a secure proxy to fetch insecure SCADA data in production to bypass Mixed Content blocks
-            const scadaUrl = `http://20.168.13.113:8080/api/scada/scada?${params.toString()}`;
-            const baseUrls = isLocal 
-                ? ['http://20.168.13.113:8080'] 
-                : [`https://api.allorigins.win/raw?url=${encodeURIComponent(scadaUrl)}`]; 
+            const baseUrls = ['http://20.168.13.113:8080'];
                 
             let success = false;
             let finalData = [];
             
             for (const baseUrl of baseUrls) {
                 try {
-                    // Construction of fullUrl changes depending on whether we use proxy or direct IP
-                    const fullUrl = baseUrl.includes('allorigins') 
-                        ? baseUrl 
-                        : `${baseUrl}/api/scada/scada?${params.toString()}`;
-                    // Use simple headers for proxy to avoid CORS preflight errors
-                    const fetchOptions = baseUrl.includes('allorigins')
-                        ? {} 
-                        : {
-                            headers: {
-                                'Content-Type': 'application/json',
-                                ...(localStorage.getItem('authToken') && { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` })
-                            }
-                        };
+                    const fullUrl = `${baseUrl}/api/scada/scada?${params.toString()}`;
+                    const fetchOptions = {
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...(localStorage.getItem('authToken') && { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` })
+                        }
+                    };
 
                     const response = await fetch(fullUrl, fetchOptions);
 

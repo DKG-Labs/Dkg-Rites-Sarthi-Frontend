@@ -106,10 +106,7 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
                 size: '30'
             });
             
-            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            const baseUrls = isLocal 
-                ? ['http://localhost:8080/sarthi-backend', 'http://localhost:8080', 'http://20.168.13.113:8080'] 
-                : ['/scada-proxy', 'https://sarthibackendservice-bfe2eag3byfkbsa6.canadacentral-01.azurewebsites.net/sarthi-backend', 'http://20.168.13.113:8080'];
+            const baseUrls = ['http://20.168.13.113:8080'];
                 
             let success = false;
             let finalData = [];

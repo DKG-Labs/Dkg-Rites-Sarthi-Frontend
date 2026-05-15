@@ -18,6 +18,10 @@ export const fetchPendingWorkflowTransitions = async (roleName) => {
 export const fetchCompletedCalls = async () => {
   try {
     const user = getStoredUser();
+    if (!user || !user.userId) {
+      console.warn('No user found in storage for completed calls fetch');
+      return [];
+    }
     const response = await fetch(`${getBaseUrl()}${API_ENDPOINTS.RAILPAD_WORKFLOW.ALL_COMPLETED_CALLS}?userId=${user.userId}`);
     const data = await response.json();
     if (data.responseStatus?.statusCode === 0) {

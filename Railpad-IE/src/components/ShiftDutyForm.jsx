@@ -78,7 +78,10 @@ const ShiftDutyForm = ({ onSubmit, onCancel, hideCompanyAndUnit = false, initial
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (formData.shift && formData.company && formData.date && formData.unit) {
+    const isCompanyValid = hideCompanyAndUnit || formData.company;
+    const isUnitValid = hideCompanyAndUnit || formData.unit;
+
+    if (formData.shift && isCompanyValid && formData.date && isUnitValid) {
       onSubmit(formData);
     }
   };

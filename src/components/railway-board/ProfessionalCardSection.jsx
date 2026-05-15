@@ -1914,17 +1914,21 @@ const ScadaMonitor = ({ selectedProduct }) => {
                 size: '30'
             });
 
-            const baseUrls = ['http://20.168.13.113:8080'];
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const scadaUrl = `http://20.168.13.113:8080/api/scada/scada?${params.toString()}`;
+            const baseUrls = isLocal 
+                ? ['http://20.168.13.113:8080'] 
+                : [`https://api.allorigins.win/raw?url=${encodeURIComponent(scadaUrl)}`]; 
                 
             let success = false;
             let finalData = [];
             
             for (const baseUrl of baseUrls) {
                 try {
-                    const fullUrl = `${baseUrl}/api/scada/scada?${params.toString()}`;
+                    const fullUrl = baseUrl.includes('allorigins') ? baseUrl : `${baseUrl}/api/scada/scada?${params.toString()}`;
                     const fetchOptions = {
                         headers: {
-                            'Content-Type': 'application/json',
+                            ...(baseUrl.includes('allorigins') ? {} : { 'Content-Type': 'application/json' }),
                             ...(localStorage.getItem('authToken') && { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` })
                         }
                     };

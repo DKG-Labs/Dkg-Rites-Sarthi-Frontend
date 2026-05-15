@@ -252,6 +252,11 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
       setPendingDeclarations(prev => prev.filter(d => d.id !== declaration.id));
       setSelectedDeclaration(null);
       showNotification('Production successfully verified and accepted!');
+      
+      // Refresh the page after 2 seconds to ensure clean state as requested
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
     } catch (error) {
       console.error('Error during verification:', error);
       showNotification('Error: ' + error.message, 'error');
@@ -295,6 +300,11 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
       setPendingDeclarations(prev => prev.filter(d => d.id !== declaration.id));
       setSelectedDeclaration(null);
       showNotification('Production successfully returned to vendor.');
+      
+      // Refresh the page after 2 seconds to ensure clean state as requested
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
     } catch (error) {
       console.error('Error during return:', error);
       showNotification('Error: ' + error.message, 'error');
@@ -326,6 +336,7 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
       <>
         <ProductionVerificationScreen 
           declaration={selectedDeclaration}
+          isSubmitting={isLoading}
           onBack={() => setSelectedDeclaration(null)}
           onVerify={(rejectionData) => handleVerify(selectedDeclaration, rejectionData)}
           onReturn={(remarks) => handleReturn(selectedDeclaration, remarks)}

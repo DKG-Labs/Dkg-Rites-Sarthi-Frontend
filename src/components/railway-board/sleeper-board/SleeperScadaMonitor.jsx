@@ -118,12 +118,15 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
             for (const baseUrl of baseUrls) {
                 try {
                     const fullUrl = baseUrl.includes('allorigins') ? baseUrl : `${baseUrl}/api/scada/scada-data?${params.toString()}`;
-                    const response = await fetch(fullUrl, {
-                        headers: {
-                            ...(baseUrl.includes('allorigins') ? {} : { 'Content-Type': 'application/json' }),
-                            ...(localStorage.getItem('authToken') && { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` })
-                        }
-                    });
+                    const fetchOptions = baseUrl.includes('allorigins') 
+                        ? {} 
+                        : {
+                            headers: {
+                                'Content-Type': 'application/json',
+                                ...(localStorage.getItem('authToken') && { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` })
+                            }
+                        };
+                    const response = await fetch(fullUrl, fetchOptions);
                     
                     if (response.ok) {
                         const resData = await response.json();

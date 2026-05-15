@@ -1926,12 +1926,14 @@ const ScadaMonitor = ({ selectedProduct }) => {
             for (const baseUrl of baseUrls) {
                 try {
                     const fullUrl = baseUrl.includes('allorigins') ? baseUrl : `${baseUrl}/api/scada/scada?${params.toString()}`;
-                    const fetchOptions = {
-                        headers: {
-                            ...(baseUrl.includes('allorigins') ? {} : { 'Content-Type': 'application/json' }),
-                            ...(localStorage.getItem('authToken') && { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` })
-                        }
-                    };
+                    const fetchOptions = baseUrl.includes('allorigins') 
+                        ? {} 
+                        : {
+                            headers: {
+                                'Content-Type': 'application/json',
+                                ...(localStorage.getItem('authToken') && { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` })
+                            }
+                        };
 
                     const response = await fetch(fullUrl, fetchOptions);
 

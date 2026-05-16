@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-    ReferenceLine, Label, Area, AreaChart
+    ReferenceLine, Label
 } from 'recharts';
 import './SqcAnalysis.css';
 

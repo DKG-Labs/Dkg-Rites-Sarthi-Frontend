@@ -68,12 +68,15 @@ const SqcAnalysis = ({ selectedProduct }) => {
             for (const baseUrl of baseUrls) {
                 try {
                     const fullUrl = baseUrl.includes('allorigins') ? baseUrl : `${baseUrl}/api/scada/scada?${params.toString()}`;
-                    const response = await fetch(fullUrl, {
-                        headers: {
-                            'Content-Type': 'application/json',
-                            ...(localStorage.getItem('authToken') && { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` })
-                        }
-                    });
+                    const fetchOptions = baseUrl.includes('allorigins')
+                        ? {} 
+                        : {
+                            headers: {
+                                'Content-Type': 'application/json',
+                                ...(localStorage.getItem('authToken') && { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` })
+                            }
+                        };
+                    const response = await fetch(fullUrl, fetchOptions);
 
                     if (response.ok) {
                         const resData = await response.json();

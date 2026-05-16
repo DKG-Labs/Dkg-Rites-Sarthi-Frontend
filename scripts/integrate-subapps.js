@@ -19,7 +19,11 @@ function copyRecursiveSync(src, dest) {
 try {
     // 1. Build main app (using build:main command from package.json)
     console.log('--- Building main React app ---');
-    execSync('npm run build:main', { stdio: 'inherit' });
+    // Set GENERATE_SOURCEMAP=false to save memory and increase heap size to 4GB
+    execSync('npm run build:main', { 
+        stdio: 'inherit',
+        env: { ...process.env, GENERATE_SOURCEMAP: 'false', NODE_OPTIONS: '--max-old-space-size=4096' }
+    });
 
     // 2. Build Sub-apps
     const subApps = [

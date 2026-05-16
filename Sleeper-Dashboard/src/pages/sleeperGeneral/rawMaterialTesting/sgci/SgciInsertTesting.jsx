@@ -64,7 +64,24 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
                     if (stock.requestId) {
                         const record = await getSgciInsertAuditByRequestId(stock.requestId);
                         if (record && record.id) {
-                            newStatusMap[stock.requestId] = "Completed";
+                            // Fetch all records for this requestId to check total inspected vs required
+                            // For now, using the record we just fetched and existing history
+                            const allAuditsForThis = history.filter(h => h.requestId === stock.requestId);
+                            const totalInspected = allAuditsForThis.reduce((sum, h) => sum + (h.checked || 0), 0);
+                            const required = Math.ceil((parseInt(stock.details?.totalQtyReceived || 0, 10)) * 0.01);
+                            
+                            // User requirement: Only move to completed when all required testing completed
+                            if (totalInspected >= required && required > 0) {
+                                newStatusMap[stock.requestId] = "Completed";
+                            } else {
+                                newStatusMap[stock.requestId] = "In Progress";
+                            }
+
+                            newStatusMap[stock.requestId] = "Completed"; // Fallback for existing logic if preferred, but user said "only when completed"
+                            // Actually, I'll stick to the user's logic:
+                            const isFullyTested = totalInspected >= required && required > 0;
+                            newStatusMap[stock.requestId] = isFullyTested ? "Completed" : "In Progress";
+
                             fetchedHistory.push({
                                 ...record,
                                 id: record.id,
@@ -124,6 +141,41 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
         name: "readings"
     });
 
+    const selectedConsignment = watch('consignmentNo');
+    const activeInventoryId = watch('inventoryId');
+
+    // Auto-fetch details when consignment changes
+    useEffect(() => {
+        if (selectedConsignment && !activeRequestId && !editId) {
+            const stock = inventoryData.find(s => s.consignmentNo === selectedConsignment);
+            if (stock) {
+                setValue('supplier', stock.vendor);
+                setValue('ritesIc', stock.details?.ritesIcNumber || '');
+                // Auto-fetch IC Date if available (using receivedDate as fallback)
+                const rawDate = stock.details?.ritesIcDate || stock.receivedDate || '';
+                let formattedDate = '';
+                if (rawDate && rawDate !== 'N/A') {
+                    // Try to handle DD/MM/YYYY or DD-MM-YYYY to YYYY-MM-DD
+                    if (rawDate.includes('/') || rawDate.includes('-')) {
+                        const parts = rawDate.split(/[/|-]/);
+                        if (parts.length === 3) {
+                            if (parts[0].length === 4) { // YYYY-MM-DD
+                                formattedDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+                            } else { // DD-MM-YYYY
+                                formattedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                            }
+                        }
+                    } else if (!isNaN(Date.parse(rawDate))) {
+                        formattedDate = new Date(rawDate).toISOString().split('T')[0];
+                    }
+                }
+                setValue('ritesIcDate', formattedDate);
+                setValue('type', stock.details?.gradeType || '');
+                setValue('inventoryId', stock.requestId);
+            }
+        }
+    }, [selectedConsignment, inventoryData, setValue, activeRequestId, editId]);
+
     useEffect(() => {
         if (activeRequestId) {
             getSgciInsertAuditByRequestId(activeRequestId).then(record => {
@@ -143,6 +195,22 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
         }
     }, [activeRequestId, reset]);
 
+    const auditStats = useMemo(() => {
+        const stock = inventoryData.find(s => s.requestId === activeInventoryId) || 
+                      inventoryData.find(s => s.consignmentNo === selectedConsignment);
+        
+        if (!stock) return { A: 0, B: 0, C: 0, D: 0 };
+        
+        const A = parseInt(stock.details?.totalQtyReceived || 0, 10);
+        const B = Math.ceil(A * 0.01);
+        const C = history
+            .filter(h => h.requestId === (stock.requestId || activeInventoryId))
+            .reduce((sum, h) => sum + (h.checked || 0), 0);
+        const D = Math.max(0, B - C);
+        
+        return { A, B, C, D };
+    }, [inventoryData, activeInventoryId, selectedConsignment, history]);
+
     const readings = watch('readings');
     const selectedType = watch('type');
 
@@ -160,36 +228,31 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
     };
 
     // Compute result inline (real-time) from current field values — no useEffect needed
+    const checkWeightOk = (w, type) => {
+        if (isNaN(w) || w === '' || w === undefined) return null;
+        const typeKey = (type || '');
+        if (!typeKey) return null;
+        if (typeKey === 'T-6901') return w >= 1.440 && w <= 1.484;
+        if (typeKey === 'T-3815' || typeKey === 'T-381') return w >= 1.504 && w <= 1.560;
+        if (typeKey === 'T-3705') return w >= 1.880 && w <= 1.940;
+        return w > 0;
+    };
+
     const computeResult = (reading, type) => {
         const w = parseFloat(reading.weight);
-        if (isNaN(w) || reading.weight === '' || reading.weight === undefined) return null; // blank = no result yet
-        
-        // Negative weight should not be allowed
-        if (w < 0) return 'FAIL';
-
-        const typeKey = (type || '');
-        if (!typeKey) return null; // Logic needs type select first
-
-        let isWeightOk = false;
-        
-        if (typeKey === 'T-6901') {
-            isWeightOk = w >= 1.440 && w <= 1.484;
-        } else if (typeKey === 'T-3815' || typeKey === 'T-381') {
-            isWeightOk = w >= 1.504 && w <= 1.560;
-        } else if (typeKey === 'T-3705') {
-            isWeightOk = w >= 1.880 && w <= 1.940;
-        } else {
-            isWeightOk = w > 0; // fallback
-        }
-        
-        return (isWeightOk && !reading.dimensionalNotOk && !reading.hammerNotOk && w >= 0) ? 'PASS' : 'FAIL';
+        const isWeightOk = checkWeightOk(w, type);
+        if (isWeightOk === null) return null;
+        return (isWeightOk && !reading.dimensionalNotOk && !reading.hammerNotOk) ? 'PASS' : 'FAIL';
     };
 
     const summary = useMemo(() => {
-        const results = readings.map(r => computeResult(r, selectedType));
-        const withResult = results.filter(r => r !== null);
-        const total = withResult.length;
-        const passed = withResult.filter(r => r === 'PASS').length;
+        // Count all rows that have ANY data
+        const rowsWithData = readings.filter(r => 
+            r.heatNo || r.patternNo || (r.weight !== '' && r.weight !== undefined) || r.dimensionalNotOk || r.hammerNotOk
+        );
+        const total = rowsWithData.length;
+        const results = rowsWithData.map(r => computeResult(r, selectedType));
+        const passed = results.filter(r => r === 'PASS').length;
         const rejected = total - passed;
         const rejectionPct = total > 0 ? ((rejected / total) * 100).toFixed(2) : 0;
         return { total, passed, rejected, rejectionPct };
@@ -536,8 +599,42 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
                                         <input type="text" placeholder="Enter Supplier" {...register('supplier')} />
                                     </div>
                                     <div className="input-group">
-                                        <label>Validity</label>
-                                        <input type="text" placeholder="Enter Validity" {...register('approvalValidity')} />
+                                        <label>RM IC NO</label>
+                                        <input type="text" placeholder="Enter IC No" {...register('ritesIc')} />
+                                    </div>
+                                    <div className="input-group">
+                                        <label>RM IC DATE</label>
+                                        <input type="date" {...register('ritesIcDate')} />
+                                    </div>
+                                </div>
+
+                                <div className="section-divider"></div>
+                                <h3 style={{ fontSize: '14px', marginBottom: '12px' }}>Audit Statistics</h3>
+                                <div className="summary-box" style={{ 
+                                    background: '#f8fafc', 
+                                    padding: '16px', 
+                                    borderRadius: '12px', 
+                                    border: '1px solid #e2e8f0', 
+                                    display: 'grid', 
+                                    gridTemplateColumns: 'repeat(4, 1fr)', 
+                                    gap: '12px',
+                                    marginBottom: '20px'
+                                }}>
+                                    <div style={{ textAlign: 'center' }}>
+                                        <label style={{ fontSize: '9px', color: '#64748b', fontWeight: '600' }}>A = IC PASSED QTY</label>
+                                        <div style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a' }}>{auditStats.A}</div>
+                                    </div>
+                                    <div style={{ textAlign: 'center' }}>
+                                        <label style={{ fontSize: '9px', color: '#64748b', fontWeight: '600' }}>B = SAMPLES REQUIRED (1%)</label>
+                                        <div style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a' }}>{auditStats.B}</div>
+                                    </div>
+                                    <div style={{ textAlign: 'center' }}>
+                                        <label style={{ fontSize: '9px', color: '#64748b', fontWeight: '600' }}>C = SAMPLES TESTED SO FAR</label>
+                                        <div style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a' }}>{auditStats.C}</div>
+                                    </div>
+                                    <div style={{ textAlign: 'center' }}>
+                                        <label style={{ fontSize: '9px', color: '#64748b', fontWeight: '600' }}>D = BALANCE TO TEST (B-C)</label>
+                                        <div style={{ fontSize: '16px', fontWeight: '700', color: '#ef4444' }}>{auditStats.D}</div>
                                     </div>
                                 </div>
 
@@ -593,7 +690,7 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
                                                 </th>
                                                 <th>Dim Not OK</th>
                                                 <th>Reason of Rejection</th>
-                                                <th>Hammer Not OK</th>
+                                                <th>Hammer Test Not OK</th>
                                                 <th>Result</th>
                                                 <th></th>
                                             </tr>
@@ -617,7 +714,7 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
                                                                     }
                                                                 }}
                                                                 style={{
-                                                                    borderColor: readings[index]?.weight && rowResult === 'FAIL' ? '#ef4444' : readings[index]?.weight && rowResult === 'PASS' ? '#10b981' : undefined,
+                                                                    borderColor: checkWeightOk(parseFloat(readings[index]?.weight), selectedType) === false ? '#ef4444' : checkWeightOk(parseFloat(readings[index]?.weight), selectedType) === true ? '#10b981' : undefined,
                                                                     borderWidth: readings[index]?.weight ? '2px' : undefined
                                                                 }}
                                                                 {...register(`readings.${index}.weight`, { 
@@ -626,7 +723,11 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
                                                                 })}
                                                             />
                                                         </td>
-                                                        <td style={{ textAlign: 'center' }}><input type="checkbox" disabled={!selectedType} {...register(`readings.${index}.dimensionalNotOk`)} /></td>
+                                                        <td style={{ textAlign: 'center' }}>
+                                                            <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                                                <input type="checkbox" disabled={!selectedType} {...register(`readings.${index}.dimensionalNotOk`)} />
+                                                            </div>
+                                                        </td>
                                                         <td>
                                                             {readings[index]?.dimensionalNotOk && (
                                                                 <select 
@@ -646,7 +747,11 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
                                                                 </select>
                                                             )}
                                                         </td>
-                                                        <td style={{ textAlign: 'center' }}><input type="checkbox" disabled={!selectedType} {...register(`readings.${index}.hammerNotOk`)} /></td>
+                                                        <td style={{ textAlign: 'center' }}>
+                                                            <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                                                <input type="checkbox" disabled={!selectedType} {...register(`readings.${index}.hammerNotOk`)} />
+                                                            </div>
+                                                        </td>
                                                         <td style={{ textAlign: 'center' }}>
                                                             {rowResult === null ? (
                                                                 <span style={{ color: '#94a3b8', fontSize: '11px' }}>—</span>

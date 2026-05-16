@@ -286,13 +286,34 @@ const WaterTesting = ({ onBack }) => {
                                     </div>
                                     <div className="input-group">
                                         <label>pH Value <span className="required">*</span></label>
-                                        <input type="number" step="0.01" {...register('phValue', { required: true })} placeholder="6.0–8.0" />
-                                        <span style={{ fontSize: '10px', color: '#64748b' }}>Required: 6 to 8</span>
+                                        <input 
+                                            type="number" 
+                                            step="0.01" 
+                                            min="6"
+                                            max="8"
+                                            {...register('phValue', { 
+                                                required: "pH value is required",
+                                                min: { value: 6, message: "pH must be between 6 and 8" },
+                                                max: { value: 8, message: "pH must be between 6 and 8" }
+                                            })} 
+                                            placeholder="6.0–8.0" 
+                                        />
+                                        {errors.phValue && <span className="error-msg" style={{ color: '#ef4444', fontSize: '10px', marginTop: '4px', display: 'block' }}>{errors.phValue.message}</span>}
+                                        <span style={{ fontSize: '10px', color: '#64748b', marginTop: errors.phValue ? '2px' : '4px', display: 'block' }}>Required: 6 to 8</span>
                                     </div>
                                     <div className="input-group">
                                         <label>TDS (ppm) <span className="required">*</span></label>
-                                        <input type="number" {...register('tdsResult', { required: true })} placeholder="Max 2000" />
-                                        <span style={{ fontSize: '10px', color: '#64748b' }}>Required: Max 2000 PPM</span>
+                                        <input 
+                                            type="number" 
+                                            max="2000"
+                                            {...register('tdsResult', { 
+                                                required: "TDS result is required",
+                                                max: { value: 2000, message: "TDS must be maximum 2000 PPM" }
+                                            })} 
+                                            placeholder="Max 2000" 
+                                        />
+                                        {errors.tdsResult && <span className="error-msg" style={{ color: '#ef4444', fontSize: '10px', marginTop: '4px', display: 'block' }}>{errors.tdsResult.message}</span>}
+                                        <span style={{ fontSize: '10px', color: '#64748b', marginTop: errors.tdsResult ? '2px' : '4px', display: 'block' }}>Required: Max 2000 PPM</span>
                                     </div>
                                 </div>
                                 <div className="form-modal-footer" style={{ borderTop: 'none', padding: '24px 0 0' }}>

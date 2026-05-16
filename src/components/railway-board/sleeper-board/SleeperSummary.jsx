@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './SleeperSummary.css';
 import reportService from '../../../services/reportService';
 
-const SleeperSummary = ({ summaryData = {} }) => {
+const SleeperSummary = ({ summaryData = {}, onPoIssuedClick }) => {
     const [rejectedInProcess, setRejectedInProcess] = useState(0);
     const [rejectedInFinal, setRejectedInFinal] = useState(0);
     const [rejectionPercentage, setRejectionPercentage] = useState(0);
@@ -52,7 +52,10 @@ const SleeperSummary = ({ summaryData = {} }) => {
         <div className="sleeper-summary-container fade-in">
             {/* KPI Cards Row 1 */}
             <div className="g3 mb">
-                <div className="prof-card card-dark-green" style={{ textAlign: 'center' }}>
+                <div className="prof-card card-dark-green" 
+                    style={{ textAlign: 'center', cursor: 'pointer' }}
+                    onClick={onPoIssuedClick}
+                >
                     <div className="kpi-lbl">PO Issued</div>
                     <div className="kpi-val">{data.poIssued.toLocaleString()}</div>
                     <div className="kpi-sub">Sum of all POs</div>
@@ -95,11 +98,6 @@ const SleeperSummary = ({ summaryData = {} }) => {
 
             {/* KPI Cards Row 2 */}
             <div className="g3 mb">
-                {/* <div className="prof-card card-spring-green" style={{ textAlign: 'center' }}>
-                    <div className="kpi-lbl">New Sleepers in Pipeline</div>
-                    <div className="kpi-val">{data.newSleepersInPipeline.toLocaleString()}</div>
-                    <div className="kpi-sub">Manufactured but not cleared</div>
-                </div> */}
                 <div className="prof-card card-mint" style={{ textAlign: 'center' }}>
                     <div className="kpi-lbl">Sleepers Rejected in Process</div>
                     <div className="kpi-val">{data.sleepersRejectedInProcess.toLocaleString()}</div>
@@ -117,6 +115,20 @@ const SleeperSummary = ({ summaryData = {} }) => {
                         <div className="prof-prog-f" style={{ width: `${Math.min(100, data.rejectionPercentage * 10)}%`, background: '#eab308' }}></div>
                     </div>
                     <div className="kpi-sub">(Process + Final) / Total Manufactured</div>
+                </div>
+            </div>
+
+            {/* KPI Cards Row 3 */}
+            <div className="g2 mb">
+                <div className="prof-card card-amber" style={{ textAlign: 'center' }}>
+                    <div className="kpi-lbl">Final Inspection Call Status (Pending)</div>
+                    <div className="kpi-val">0</div>
+                    <div className="kpi-sub">Calls awaiting inspection</div>
+                </div>
+                <div className="prof-card card-blue" style={{ textAlign: 'center' }}>
+                    <div className="kpi-lbl">Final Inspection Call Status (Under Inspection)</div>
+                    <div className="kpi-val">0</div>
+                    <div className="kpi-sub">Calls currently being inspected</div>
                 </div>
             </div>
 

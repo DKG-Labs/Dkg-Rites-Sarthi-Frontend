@@ -501,6 +501,15 @@ const reportService = {
         });
         return handleResponse(response);
     },
+
+    getPoIssuedDetails: async (itemCatDescr) => {
+        const url = new URL(`${API_ENDPOINTS.REPORTS}/poIssuedDetails`);
+        url.searchParams.append('itemCatDescr', itemCatDescr);
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
 };
 
 export default reportService;

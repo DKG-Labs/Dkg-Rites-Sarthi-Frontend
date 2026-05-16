@@ -395,6 +395,9 @@ const RailwayBoardDashboard = () => {
                                 )}
                             </div>
                         )}
+                        <div className={`nav-item ${activeMainCard === 'sqc' ? 'active' : ''}`} onClick={() => handleSwitchTab('sqc')}>
+                            <i className="fa-solid fa-chart-line"></i> {!isSidebarCollapsed && <span>SQC Analysis</span>}
+                        </div>
                         <div className={`nav-item ${activeMainCard === 'scada' ? 'active' : ''}`} onClick={() => handleSwitchTab('scada')}>
                             <i className="fa-solid fa-desktop"></i> {!isSidebarCollapsed && <span>Scada Monitor</span>}
                         </div>
@@ -417,8 +420,8 @@ const RailwayBoardDashboard = () => {
                         <button className={`sub-tab-btn ${selectedProduct === 'Rail Pad' ? 'active' : ''}`} onClick={() => setSelectedProduct('Rail Pad')}>Rail Pad</button>
                     </div>
 
-                    {/* TOPBAR / FILTERS - Hidden on Dashboard (summary), Quality, Lifecycle, Feedback, and Scada Monitor tabs */}
-                    {activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'scada' && (
+                    {/* TOPBAR / FILTERS - Hidden on Dashboard (summary), Quality, Lifecycle, Feedback, Scada Monitor, and SQC tabs */}
+                    {activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'scada' && activeMainCard !== 'sqc' && (
                         <div id="prof-topbar">
                             <label>From</label>
                             <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />

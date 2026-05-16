@@ -16,6 +16,12 @@
     gap: 1.5rem;
 }
 
+.sleeper-summary-container .g2 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
 .sleeper-summary-container .g2-charts {
     display: grid;
     grid-template-columns: repeat(2, 1fr);

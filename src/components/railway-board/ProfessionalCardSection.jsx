@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'; // Re-adding hooks
+import { ExportButton, downloadExcel } from './SharedComponents';
 import reportService from '../../services/reportService';
 import Pagination from '../Pagination';
 import {
@@ -27,6 +28,8 @@ import RailPadLwcpReport from './railpad-board/RailPadLwcpReport';
 import ShiftWiseProductionReport from './ShiftWiseProductionReport';
 import PoWiseMonthlyReport from './PoWiseMonthlyReport';
 import SleeperShiftWiseProductionReport from './sleeper-board/SleeperShiftWiseProductionReport';
+import SqcAnalysis from './SqcAnalysis';
+import PoIssuedModal from './PoIssuedModal';
 
 
 // --- Static Data moved outside component to fix ESLint re-render warnings ---
@@ -127,6 +130,22 @@ const ProfessionalCardSection = ({
     const [drilldownManufacturer, setDrilldownManufacturer] = useState(null);
     const [drilldownData, setDrilldownData] = useState([]);
     const [isDrilldownLoading, setIsDrilldownLoading] = useState(false);
+
+    // PO Issued Modal State
+    const [isPoModalOpen, setIsPoModalOpen] = useState(false);
+    const [poModalData, setPoModalData] = useState([]);
+
+    const handlePoIssuedClick = async () => {
+        try {
+            const itemCatDescr = selectedProduct === 'Sleeper' ? 'PSC Mainline Sleeper' : 'Elastic Rail Clips';
+            const response = await reportService.getPoIssuedDetails(itemCatDescr);
+            const data = response.responseData || response || [];
+            setPoModalData(data);
+            setIsPoModalOpen(true);
+        } catch (error) {
+            console.error("Error fetching PO issued details:", error);
+        }
+    };
 
     // Fetch Drill-down data when manufacturer is selected
     useEffect(() => {
@@ -446,7 +465,7 @@ const ProfessionalCardSection = ({
                     switch (activeMainCard) {
                         case 'summary':
                             if (isSleeper) {
-                                return <SleeperSummary summaryData={summaryData} />;
+                                return <SleeperSummary summaryData={summaryData} onPoIssuedClick={handlePoIssuedClick} />;
                             }
                             if (isRailPad) {
                                 return <RailPadSummary summaryData={summaryData} />;
@@ -456,7 +475,10 @@ const ProfessionalCardSection = ({
                             return (
                                 <div className="summary-tab-content">
                                     <div className="g3 mb">
-                                        <div className="prof-card card-dark-green" style={{ textAlign: 'center' }}>
+                                        <div className="prof-card card-dark-green" 
+                                            style={{ textAlign: 'center', cursor: 'pointer' }}
+                                            onClick={handlePoIssuedClick}
+                                        >
                                             <div className="kpi-lbl">PO Issued</div>
                                             <div className="kpi-val">{(s.poIssued || 412).toLocaleString()}</div>
                                             <div className="kpi-sub">Nos.</div>
@@ -1183,7 +1205,7 @@ const ProfessionalCardSection = ({
                                                                             onClick={() => {
                                                                                 const flattened = level4Data.map((row, idx) => ({
                                                                                     sl: idx + 1,
-                                                                                    date: row.basicDetails?.date ? new Date(row.basicDetails.date).toLocaleDateString() : 'N/A',
+                                                                                    date: row.basicDetails?.date ? new Date(row.basicDetails.date).toLocaleDateString('en-GB') : 'N/A',
                                                                                     shift: row.basicDetails?.shift || '-',
                                                                                     poSrNo: row.basicDetails?.poSrNo || '-',
                                                                                     lotNumber: row.basicDetails?.lotNumber || '-',
@@ -1210,8 +1232,8 @@ const ProfessionalCardSection = ({
                                                                                         { label: 'SHIFT', key: 'shift' },
                                                                                         { label: 'PO_SR. NO.', key: 'poSrNo' },
                                                                                         { label: 'LOT NO.', key: 'lotNumber' },
-                                                                                        { label: 'ACCEPTED QTY', key: 'acceptedQty' },
-                                                                                        { label: 'REJECTED QTY', key: 'rejectedQty' },
+                                                                                        { label: 'Accepted Qty (Nos.)', key: 'acceptedQty' },
+                                                                                        { label: 'Rejected Qty (Nos.)', key: 'rejectedQty' },
                                                                                         { label: 'SHEARING PROD', key: 'shearingProd' },
                                                                                         { label: 'SHEARING REJ', key: 'shearingRej' },
                                                                                         { label: 'TURNING PROD', key: 'turningProd' },
@@ -1379,6 +1401,8 @@ const ProfessionalCardSection = ({
 
                         case 'feedback':
                             return <FeedbackSection selectedProduct={selectedProduct} />;
+                        case 'sqc':
+                            return <SqcAnalysis selectedProduct={selectedProduct} />;
                         case 'scada':
                             return isSleeper ? <SleeperScadaMonitor selectedProduct={selectedProduct} /> : <ScadaMonitor selectedProduct={selectedProduct} />;
                         default:
@@ -1399,19 +1423,20 @@ const ProfessionalCardSection = ({
                     ))}
                 </div>
             )}
+
+            {/* PO Issued Details Modal */}
+            <PoIssuedModal 
+                isOpen={isPoModalOpen}
+                onClose={() => setIsPoModalOpen(false)}
+                data={poModalData}
+                title={selectedProduct}
+            />
         </div>
     );
 };
 
 export default ProfessionalCardSection;
 
-/**
- * ────────────────────────────────────────────────────────────────────────────────
- * NEW CODE ADDED AT BOTTOM FOR BETTER UNDERSTANDABILITY
- * ────────────────────────────────────────────────────────────────────────────────
- * Component to render the 4th Level Report (Process Defect Summary)
- * This table is very wide and includes details for All Production Stages.
- */
 const Level4ReportTable = ({ data }) => {
     if (!data || data.length === 0) {
         return (
@@ -1425,15 +1450,13 @@ const Level4ReportTable = ({ data }) => {
         <div className="report-table-wrapper sticky-header level-4-enhanced">
             <table className="report-data-table level-4-table">
                 <thead>
-                    {/* Multi-level Headers */}
                     <tr>
                         <th rowSpan="2">DATE</th>
                         <th rowSpan="2">SHIFT</th>
-                        <th rowSpan="2">SL</th>
                         <th rowSpan="2">PO_SR. NO.</th>
                         <th rowSpan="2">LOT NO.</th>
-                        <th rowSpan="2" className="bg-emerald-50 text-emerald-700">ACCEPTED QTY</th>
-                        <th rowSpan="2" className="bg-red-50 text-red-700">REJECTED QTY</th>
+                        <th rowSpan="2" className="bg-emerald-50 text-emerald-700">Accepted Qty (Nos.)</th>
+                        <th rowSpan="2" className="bg-red-50 text-red-700">Rejected Qty (Nos.)</th>
 
                         <th colSpan="2" className="stage-header shearing">SHEARING</th>
                         <th colSpan="2" className="stage-header turning">TURNING</th>
@@ -1451,15 +1474,12 @@ const Level4ReportTable = ({ data }) => {
                         <th colSpan="2" className="defect-header dimensional">Dimensional</th>
                     </tr>
                     <tr className="sub-header">
-                        {/* Stage Details */}
                         <th>Prod</th><th>Rej</th>
                         <th>Prod</th><th>Rej</th>
                         <th>Prod</th><th>Rej</th>
                         <th>Prod</th><th>Rej</th>
                         <th>Prod</th><th>Rej</th>
                         <th>Prod</th><th>Rej</th>
-
-                        {/* Defect Specifics */}
                         <th>Cut Len</th><th>Ovality</th><th>Sharp Edges</th><th>Cracks</th>
                         <th>Pass Len</th><th>Full Turn</th><th>Turn Dia</th>
                         <th>MPI Rej</th>
@@ -1482,46 +1502,84 @@ const Level4ReportTable = ({ data }) => {
 
                         return (
                             <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
-                                <td>{basic.date ? new Date(basic.date).toLocaleDateString() : 'N/A'}</td>
+                                <td>{basic.date ? new Date(basic.date).toLocaleDateString('en-GB') : 'N/A'}</td>
                                 <td className="text-center"><span className="shift-badge">{basic.shift || '-'}</span></td>
-                                <td className="text-center font-medium text-slate-400">{idx + 1}</td>
-                                <td>{basic.poSrNo || '-'}</td>
-                                <td>{basic.lotNumber || '-'}</td>
-                                <td className="text-right text-emerald-600 bg-emerald-50/30">{basic.totalAcceptedQty?.toLocaleString() || 0}</td>
-                                <td className="text-right text-red-600 bg-red-50/30">{basic.totalRejectionQty?.toLocaleString() || 0}</td>
-
-                                {/* Stage Data */}
-                                <td className="text-right">{qty.shearingProductionQty || 0}</td><td className="text-right text-red-400">{qty.shearingRejectionQty || 0}</td>
-                                <td className="text-right">{qty.turningProductionQty || 0}</td><td className="text-right text-red-400">{qty.turningRejectionQty || 0}</td>
-                                <td className="text-right">{qty.mpiProductionQty || 0}</td><td className="text-right text-red-400">{qty.mpiRejectionQty || 0}</td>
-                                <td className="text-right">{qty.forgingProductionQty || 0}</td><td className="text-right text-red-400">{qty.forgingRejectionQty || 0}</td>
-                                <td className="text-right">{qty.quenchingProductionQty || 0}</td><td className="text-right text-red-400">{qty.quenchingRejectionQty || 0}</td>
-                                <td className="text-right">{qty.temperingProductionQty || 0}</td><td className="text-right text-red-400">{qty.temperingRejectionQty || 0}</td>
-
-                                {/* Defect Details */}
-                                <td className="text-right">{sDef.lengthOfCutBar || 0}</td><td className="text-right">{sDef.ovalityImproperDiaAtEnd || 0}</td><td className="text-right">{sDef.sharpEdges || 0}</td><td className="text-right">{sDef.crackedEdges || 0}</td>
-                                <td className="text-right">{tDef.parallelLength || 0}</td><td className="text-right">{tDef.fullTurningLength || 0}</td><td className="text-right">{tDef.turningDia || 0}</td>
-                                <td className="text-right">{qty.mpiRejectionQty || 0}</td>
-                                <td className="text-right">{fDef.forgingTemperature || 0}</td><td className="text-right">{fDef.forgingStabilisationRejection || 0}</td><td className="text-right">{fDef.improperForging || 0}</td><td className="text-right">{fDef.forgingMarksNotches || 0}</td>
-                                <td className="text-right">{qDef.quenchingHardness || 0}</td>
-                                <td className="text-right">{tempDef.temperingTemp || 0}</td><td className="text-right">{tempDef.temperingDuration || 0}</td>
-                                <td className="text-right">{dDef.boxGauge || 0}</td><td className="text-right">{dDef.flatBearingArea || 0}</td>
+                                <td className="text-center">{basic.poSrNo || '-'}</td>
+                                <td className="text-center">{basic.lotNumber || '-'}</td>
+                                <td className="text-center text-emerald-600 bg-emerald-50/30 font-bold">{basic.totalAcceptedQty?.toLocaleString() || 0}</td>
+                                <td className="text-center text-red-600 bg-red-50/30 font-bold">{basic.totalRejectionQty?.toLocaleString() || 0}</td>
+                                <td className="text-center">{qty.shearingProductionQty || 0}</td><td className="text-center text-red-400">{qty.shearingRejectionQty || 0}</td>
+                                <td className="text-center">{qty.turningProductionQty || 0}</td><td className="text-center text-red-400">{qty.turningRejectionQty || 0}</td>
+                                <td className="text-center">{qty.mpiProductionQty || 0}</td><td className="text-center text-red-400">{qty.mpiRejectionQty || 0}</td>
+                                <td className="text-center">{qty.forgingProductionQty || 0}</td><td className="text-center text-red-400">{qty.forgingRejectionQty || 0}</td>
+                                <td className="text-center">{qty.quenchingProductionQty || 0}</td><td className="text-center text-red-400">{qty.quenchingRejectionQty || 0}</td>
+                                <td className="text-center">{qty.temperingProductionQty || 0}</td><td className="text-center text-red-400">{qty.temperingRejectionQty || 0}</td>
+                                <td className="text-center">{sDef.lengthOfCutBar || 0}</td><td className="text-center">{sDef.ovalityImproperDiaAtEnd || 0}</td><td className="text-center">{sDef.sharpEdges || 0}</td><td className="text-center">{sDef.crackedEdges || 0}</td>
+                                <td className="text-center">{tDef.parallelLength || 0}</td><td className="text-center">{tDef.fullTurningLength || 0}</td><td className="text-center">{tDef.turningDia || 0}</td>
+                                <td className="text-center">{qty.mpiRejectionQty || 0}</td>
+                                <td className="text-center">{fDef.forgingTemperature || 0}</td><td className="text-center">{fDef.forgingStabilisationRejection || 0}</td><td className="text-center">{fDef.improperForging || 0}</td><td className="text-center">{fDef.forgingMarksNotches || 0}</td>
+                                <td className="text-center">{qDef.quenchingHardness || 0}</td>
+                                <td className="text-center">{tempDef.temperingTemp || 0}</td><td className="text-center">{tempDef.temperingDuration || 0}</td>
+                                <td className="text-center">{dDef.boxGauge || 0}</td><td className="text-center">{dDef.flatBearingArea || 0}</td>
                             </tr>
                         );
                     })}
                 </tbody>
             </table>
+            <style jsx="true">{`
+                .level-4-enhanced.sticky-header {
+                    max-height: 75vh;
+                    overflow: auto;
+                    border-radius: 12px;
+                    border: 1px solid #e2e8f0;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+                }
+                
+                .level-4-table {
+                    border-collapse: separate;
+                    border-spacing: 0;
+                    width: 100%;
+                }
+                
+                .level-4-table thead th {
+                    position: sticky;
+                    top: 0;
+                    z-index: 50;
+                    background: #f8fafc !important;
+                    box-shadow: inset 0 -1px 0 #e2e8f0, inset 0 1px 0 #e2e8f0;
+                    padding: 12px 8px;
+                    font-size: 11px;
+                    white-space: nowrap;
+                }
+                
+                .level-4-table thead tr:nth-child(2) th {
+                    top: 41px;
+                    z-index: 49;
+                }
+                
+                .level-4-table td {
+                    padding: 10px 8px;
+                    border-bottom: 1px solid #f1f5f9;
+                    border-right: 1px solid #f1f5f9;
+                    font-size: 13px;
+                }
+                
+                .level-4-table .text-center {
+                    text-align: center !important;
+                }
+                
+                .level-4-table .stage-header {
+                    border-bottom: 2px solid #e2e8f0 !important;
+                }
+                
+                .level-4-table tr:hover td {
+                    background-color: #f8fafc !important;
+                }
+            `}</style>
         </div>
     );
 };
 
-/**
- * ────────────────────────────────────────────────────────────────────────────────
- * CUSTOM CHART COMPONENTS
- * ────────────────────────────────────────────────────────────────────────────────
- * Custom X-Axis Tick for Pareto Analysis Chart
- * Improves readability by rotating labels and aligning them properly with columns.
- */
 const ParetoXAxisTick = (props) => {
     const { x, y, payload } = props;
     return (
@@ -1546,9 +1604,6 @@ const ParetoXAxisTick = (props) => {
     );
 };
 
-// ────────────────────────────────────────────────────────────────────────────────
-// NEW: MpiaDrillDown - Details for a specific manufacturer
-// ────────────────────────────────────────────────────────────────────────────────
 const MpiaDrillDown = ({ data = [], manufacturer, onBack, loading }) => {
     const [isPrinting, setIsPrinting] = useState(false);
 
@@ -1563,7 +1618,6 @@ const MpiaDrillDown = ({ data = [], manufacturer, onBack, loading }) => {
 
     const handlePrint = () => {
         setIsPrinting(true);
-        // Delay to allow Recharts to stabilize before browser capture
         setTimeout(() => {
             window.print();
             setIsPrinting(false);
@@ -1603,96 +1657,7 @@ const MpiaDrillDown = ({ data = [], manufacturer, onBack, loading }) => {
 };
 
 
-/**
- * ────────────────────────────────────────────────────────────────────────────────
- * EXPORT UTILITIES & COMPONENTS
- * ────────────────────────────────────────────────────────────────────────────────
- */
-
-/**
- * Professional Export Button Component with Icon, Loading & Disabled States
- */
-const ExportButton = ({ onClick, label = "Export Excel", disabled = false }) => (
-    <button
-        className={`btn-export-excel ${disabled ? 'disabled' : ''}`}
-        onClick={disabled ? null : onClick}
-        disabled={disabled}
-        title={disabled ? "Processing..." : "Download Excel Report"}
-    >
-        {disabled ? (
-            <div className="spinner-small"></div>
-        ) : (
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 3V16M12 16L7 11M12 16L17 11M5 21H19" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-        )}
-        <span>{label}</span>
-    </button>
-);
-
-/**
- * Professional Excel Export Utility (CSV-based with UTF-8 support)
- * Handles data formatting, escaping, and triggers browser download.
- */
-const downloadExcel = (data, headers, filename) => {
-    if (!data || data.length === 0) {
-        alert("No data available to export.");
-        return;
-    }
-
-    // Header Row
-    const headerRow = headers.map(h => h.label).join(',');
-
-    // Data Rows
-    const dataRows = data.map(row => {
-        return headers.map(header => {
-            let cellValue = row[header.key];
-
-            // Handle null/undefined
-            if (cellValue === null || cellValue === undefined) {
-                cellValue = '';
-            }
-
-            // Format numbers to strings if needed
-            const stringValue = String(cellValue);
-
-            // Force Excel to treat long numeric strings as text (fixes scientific notation & leading zeros)
-            if (/^\d+$/.test(stringValue) && (stringValue.length > 10 || stringValue.startsWith('0'))) {
-                return `="${stringValue}"`;
-            }
-
-            // Escape double quotes and surround with quotes if necessary
-            const escaped = stringValue.replace(/"/g, '""');
-            return escaped.includes(',') || escaped.includes('\n') || escaped.includes('"')
-                ? `"${escaped}"`
-                : escaped;
-        }).join(',');
-    });
-
-    // Combine with UTF-8 BOM to ensure Excel opens with correct encoding
-    const csvContent = '\uFEFF' + [headerRow, ...dataRows].join('\n');
-
-    // Create Blob and trigger download
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-
-    link.setAttribute('href', url);
-    link.setAttribute('download', `${filename}_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.display = 'none';
-
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-};
-
-
-/**
- * Component to render a full A4 page report for a single manufacturer
- * Reusable for both individual drill-down and consolidated batch PDF.
- */
 const MpiaReportPage = ({ manufacturer, data, showFooter = true }) => {
-    // Process Defects for Pie Chart (Aggregation)
     const defectAgg = {
         'Shearing': 0, 'Turning': 0, 'Forging': 0, 'Finishing': 0, 'Quenching': 0, 'Tempering': 0
     };
@@ -1739,16 +1704,13 @@ const MpiaReportPage = ({ manufacturer, data, showFooter = true }) => {
                 background: 'white'
             }}
         >
-            {/* Header */}
             <div className="text-center mb-2">
                 <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">{manufacturer}</h2>
                 <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mt-1">Manufacturer Performance Analysis (Monthly)</p>
                 <div className="h-1 w-20 bg-emerald-500 mx-auto mt-4 rounded-full"></div>
             </div>
 
-            {/* Graphs & Table Row */}
             <div className="grid grid-cols-2 gap-8 items-start">
-                {/* Left: Defect Pie Chart */}
                 <div className="flex flex-col items-center">
                     <h3 className="font-bold text-slate-700 mb-2 text-sm uppercase">Process Defect Distribution</h3>
                     {pieData.length > 0 ? (
@@ -1793,7 +1755,6 @@ const MpiaReportPage = ({ manufacturer, data, showFooter = true }) => {
                     </div>
                 </div>
 
-                {/* Right: Monthly Table */}
                 <div>
                     <h3 className="font-bold text-slate-700 mb-6 text-sm flex items-center gap-2 uppercase">Monthly Performance</h3>
                     <div className="overflow-hidden border border-slate-100 rounded-xl">
@@ -1832,7 +1793,6 @@ const MpiaReportPage = ({ manufacturer, data, showFooter = true }) => {
                         </table>
                     </div>
 
-                    {/* KPI Widgets */}
                     <div className="mt-8 grid grid-cols-3 gap-4">
                         <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
                             <p className="text-[9px] text-slate-400 font-bold mb-1">INSPECTED (Nos.)</p>
@@ -1862,9 +1822,6 @@ const MpiaReportPage = ({ manufacturer, data, showFooter = true }) => {
     );
 };
 
-// ────────────────────────────────────────────────────────────────────────────────
-// NEW: ScadaMonitor Component with API Integration
-// ────────────────────────────────────────────────────────────────────────────────
 const SCADA_MANUFACTURERS = [
     { label: 'Patil Rail Infrastructure Pvt. Ltd.', value: 'PRIL' }
 ];
@@ -1896,7 +1853,7 @@ const ScadaMonitor = ({ selectedProduct }) => {
 
     useEffect(() => {
         const fetchScadaData = async () => {
-            if (selectedProduct === 'Rail Pad') return; // Don't fetch if Rail Pad
+            if (selectedProduct === 'Rail Pad') return;
             
             if (!manufacturer || !unit || !line || !stage) {
                 setData([]);
@@ -1922,7 +1879,6 @@ const ScadaMonitor = ({ selectedProduct }) => {
 
             const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
             
-            // Using a secure proxy to fetch insecure SCADA data in production to bypass Mixed Content blocks
             const scadaUrl = `http://20.168.13.113:8080/api/scada/scada?${params.toString()}`;
             const baseUrls = isLocal 
                 ? ['http://20.168.13.113:8080'] 
@@ -1933,11 +1889,9 @@ const ScadaMonitor = ({ selectedProduct }) => {
             
             for (const baseUrl of baseUrls) {
                 try {
-                    // Construction of fullUrl changes depending on whether we use proxy or direct IP
                     const fullUrl = baseUrl.includes('allorigins') 
                         ? baseUrl 
                         : `${baseUrl}/api/scada/scada?${params.toString()}`;
-                    // Use simple headers for proxy to avoid CORS preflight errors
                     const fetchOptions = baseUrl.includes('allorigins')
                         ? {} 
                         : {
@@ -1956,7 +1910,6 @@ const ScadaMonitor = ({ selectedProduct }) => {
                         break;
                     }
                 } catch (err) {
-                    // silent fail to try next URL
                 }
             }
 
@@ -2026,7 +1979,6 @@ const ScadaMonitor = ({ selectedProduct }) => {
         );
     }
 
-    // Column sequences mapping - Time is now first, and unwanted columns are excluded
     const COLUMN_ORDER = ['time', 'PO_No', 'Heat_Code', 'sample', 'length', 'end'];
     const EXCLUDED_COLUMNS = ['line', 'module', 'plant', 'topic', 'machine', 'host', 'result', 'table'];
 
@@ -2060,8 +2012,6 @@ const ScadaMonitor = ({ selectedProduct }) => {
     const start = currentPage * rowsPerPage;
     const end = start + data.length;
     const totalElements = data.length === 30 ? (currentPage + 2) * 30 : (currentPage * 30 + data.length);
-
-
 
     return (
         <div className="scada-monitor-container fade-in" style={{ padding: '10px 0' }}>
@@ -2124,9 +2074,7 @@ const ScadaMonitor = ({ selectedProduct }) => {
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', borderTop: '1px solid #d1fae5', paddingTop: '15px', marginTop: '15px' }}>
-
                     <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-
                         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                             <span style={{
                                 width: '10px', height: '10px', borderRadius: '50%',

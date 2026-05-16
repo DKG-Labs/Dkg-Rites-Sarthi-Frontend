@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ExportButton, downloadExcel } from './SharedComponents';
 
 const ShiftWiseProductionReport = () => {
     const [manufacturer, setManufacturer] = useState('All Manufacturers');
@@ -23,8 +24,23 @@ const ShiftWiseProductionReport = () => {
     return (
         <div className="report-content fade-in">
             <div className="prof-card" style={{ marginBottom: '20px', padding: '20px' }}>
-                <div className="sec-title" style={{ color: '#166534', fontWeight: 'bold', fontSize: '16px', marginBottom: '20px' }}>
-                    Shift Wise Production Report - ERC
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <div className="sec-title" style={{ color: '#166534', fontWeight: 'bold', fontSize: '16px', margin: 0 }}>
+                        Shift Wise Production Report - ERC
+                    </div>
+                    <ExportButton onClick={() => {
+                        const headers = [
+                            { label: 'Date', key: 'date' },
+                            { label: 'Shift', key: 'shift' },
+                            { label: 'Rly + PO Number + Sr.No.', key: 'rlyPoSr' },
+                            { label: 'Lot No.', key: 'lot' },
+                            { label: 'Production in Shearing', key: 'prodShearing' },
+                            { label: 'Production in Tempering', key: 'prodTempering' },
+                            { label: 'Accepted Quantity in Tempering', key: 'accTempering' },
+                            { label: 'Total Rejection', key: 'rejShift' }
+                        ];
+                        downloadExcel(mockData, headers, 'Shift_Wise_Production_Report');
+                    }} />
                 </div>
                 
                 {/* Filters Row */}

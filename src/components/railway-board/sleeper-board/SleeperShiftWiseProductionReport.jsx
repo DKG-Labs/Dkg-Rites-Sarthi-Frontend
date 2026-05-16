@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ExportButton, downloadExcel } from '../SharedComponents';
 
 const SleeperShiftWiseProductionReport = () => {
     const [manufacturer, setManufacturer] = useState('All Manufacturers');
@@ -52,8 +53,24 @@ const SleeperShiftWiseProductionReport = () => {
     return (
         <div className="report-content fade-in">
             <div className="prof-card" style={{ marginBottom: '20px', padding: '20px' }}>
-                <div className="sec-title" style={{ color: '#1e40af', fontWeight: 'bold', fontSize: '16px', marginBottom: '20px' }}>
-                    Record - Shift Wise Production (Sleeper)
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <div className="sec-title" style={{ color: '#1e40af', fontWeight: 'bold', fontSize: '16px', margin: 0 }}>
+                        Record - Shift Wise Production (Sleeper)
+                    </div>
+                    <ExportButton onClick={() => {
+                        const headers = [
+                            { label: 'Date', key: 'date' },
+                            { label: 'Shift', key: 'shift' },
+                            { label: 'Line / Shed No.', key: 'lineShed' },
+                            { label: 'No. of Batches', key: 'batches' },
+                            { label: 'No. of Sleepers', key: 'totalSleepers' },
+                            { label: 'Sleeper Types & Counts', key: 'types' },
+                            { label: 'Rej. (Process)', key: 'rejProcess' },
+                            { label: 'Rej. (Final)', key: 'rejFinal' },
+                            { label: 'ET Sleepers', key: 'etSleepers' }
+                        ];
+                        downloadExcel(mockData, headers, 'Sleeper_Shift_Wise_Production_Report');
+                    }} />
                 </div>
                 
                 {/* Filters Row */}

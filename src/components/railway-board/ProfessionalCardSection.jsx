@@ -1879,9 +1879,9 @@ const ScadaMonitor = ({ selectedProduct }) => {
 
             const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
             
-            const scadaUrl = `http://20.168.13.113:8080/api/scada/scada?${params.toString()}`;
+            const scadaUrl = `https://scada.ritesqasarthi.com/api/scada/scada?${params.toString()}`;
             const baseUrls = isLocal 
-                ? ['http://20.168.13.113:8080'] 
+                ? ['https://scada.ritesqasarthi.com'] 
                 : [`https://api.allorigins.win/raw?url=${encodeURIComponent(scadaUrl)}`]; 
                 
             let success = false;

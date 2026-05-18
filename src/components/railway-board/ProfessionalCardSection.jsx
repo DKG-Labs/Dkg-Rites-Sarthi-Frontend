@@ -1920,38 +1920,28 @@ const ScadaMonitor = ({ selectedProduct }) => {
                 size: '30'
             });
 
-            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
             const scadaUrl = `https://scada.ritesqasarthi.com/api/scada/scada?${params.toString()}`;
-            const baseUrls = isLocal 
-                ? ['https://scada.ritesqasarthi.com'] 
-                : [`https://api.allorigins.win/raw?url=${encodeURIComponent(scadaUrl)}`]; 
                 
             let success = false;
             let finalData = [];
             
-            for (const baseUrl of baseUrls) {
-                try {
-                    const fullUrl = baseUrl.includes('allorigins') ? baseUrl : `${baseUrl}/api/scada/scada?${params.toString()}`;
-                    const fetchOptions = baseUrl.includes('allorigins') 
-                        ? {} 
-                        : {
-                            headers: {
-                                'Content-Type': 'application/json',
-                                ...(localStorage.getItem('authToken') && { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` })
-                            }
-                        };
-
-                    const response = await fetch(fullUrl, fetchOptions);
-
-                    if (response.ok) {
-                        const resData = await response.json();
-                        finalData = Array.isArray(resData) ? resData : (resData.content || []);
-                        success = true;
-                        break;
+            try {
+                const fetchOptions = {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(localStorage.getItem('authToken') && { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` })
                     }
-                } catch (err) {
-                    // silent fail to try next URL
+                };
+
+                const response = await fetch(scadaUrl, fetchOptions);
+
+                if (response.ok) {
+                    const resData = await response.json();
+                    finalData = Array.isArray(resData) ? resData : (resData.content || []);
+                    success = true;
                 }
+            } catch (err) {
+                // silent fail
             }
 
             if (success) {

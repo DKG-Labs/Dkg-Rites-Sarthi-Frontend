@@ -1974,9 +1974,9 @@ const ScadaMonitor = ({ selectedProduct }) => {
         'time': 'Time',
         'PO_No': 'Po',
         'Heat_Code': 'Heat',
-        'length': 'Len',
+        'length': 'Length(mm)',
         'sample': 'Sam',
-        'end': 'End'
+        'end': 'End Squareness (mm)'
     };
 
     const rawKeys = data.length > 0

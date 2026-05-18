@@ -22,6 +22,10 @@ export const AdminDashboard = () => {
     const [users, setUsers] = useState([]);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const refreshData = () => setRefreshTrigger(prev => prev + 1);
+
+    // Custom Success Modal State
+    const [successOpen, setSuccessOpen] = useState(false);
+    const [successDetails, setSuccessDetails] = useState({ title: '', message: '', employeeCode: '' });
 // Fetch roles for dropdown
     React.useEffect(() => {
         const fetchRoles = async () => {
@@ -89,16 +93,24 @@ export const AdminDashboard = () => {
                 createdBy: currentUser?.userId || 'Admin'
             };
 
+            let responseData;
             if (selectedItem || dataToSubmit.userId || dataToSubmit.id) {
-                await updateUserApi(dataToSubmit);
+                responseData = await updateUserApi(dataToSubmit);
             } else {
-                await createUserApi(dataToSubmit);
+                responseData = await createUserApi(dataToSubmit);
             }
             
             refreshData();
             setModalOpen(false);
             setSelectedItem(null);
-            window.alert('User saved successfully!');
+            
+            const isZonalRailway = formData.roleNames.includes('ZONAL RAILWAY');
+            setSuccessDetails({
+                title: 'Success!',
+                message: selectedItem ? 'User has been updated successfully.' : 'User has been created successfully.',
+                employeeCode: (!selectedItem && isZonalRailway) ? responseData?.employeeCode : null
+            });
+            setSuccessOpen(true);
         } catch (error) {
             console.error('Error submitting user:', error);
             window.alert(`Failed to save user: ${error.message}`);
@@ -420,6 +432,88 @@ export const AdminDashboard = () => {
                         getSleeperMappedEmployees={getSleeperMappedEmployeesApi}
                     />
                 )}
+            </Modal>
+
+            {/* Custom Success Dialog Modal */}
+            <Modal
+                isOpen={successOpen}
+                title={successDetails.title}
+                onClose={() => setSuccessOpen(false)}
+            >
+                <div style={{ padding: '10px 0', textAlign: 'center', fontFamily: '"Outfit", "Inter", sans-serif' }}>
+                    <div style={{ 
+                        width: '70px', 
+                        height: '70px', 
+                        borderRadius: '50%', 
+                        background: '#e8f5e9', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center', 
+                        margin: '0 auto 20px auto',
+                        boxShadow: '0 4px 10px rgba(76, 175, 80, 0.15)'
+                    }}>
+                        <span style={{ fontSize: '36px', color: '#4caf50', fontWeight: 'bold' }}>✓</span>
+                    </div>
+                    
+                    <h3 style={{ fontSize: '18px', color: '#2d3748', margin: '0 0 10px 0', fontWeight: '600' }}>
+                        {successDetails.message}
+                    </h3>
+                    
+                    {successDetails.employeeCode && (
+                        <div style={{ 
+                            background: 'linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%)', 
+                            padding: '16px 20px', 
+                            borderRadius: '12px', 
+                            border: '1px solid #d1d5db',
+                            margin: '20px auto',
+                            display: 'inline-block',
+                            minWidth: '250px',
+                            boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.02)'
+                        }}>
+                            <span style={{ 
+                                fontSize: '11px', 
+                                color: '#4a5568', 
+                                textTransform: 'uppercase', 
+                                letterSpacing: '1.5px', 
+                                display: 'block', 
+                                marginBottom: '6px',
+                                fontWeight: '700'
+                            }}>
+                                Generated RITES Employee Code
+                            </span>
+                            <strong style={{ 
+                                fontSize: '24px', 
+                                color: '#1a365d', 
+                                fontFamily: '"Courier New", Courier, monospace',
+                                letterSpacing: '0.5px'
+                            }}>
+                                {successDetails.employeeCode}
+                            </strong>
+                        </div>
+                    )}
+                    
+                    <div style={{ marginTop: '25px' }}>
+                        <button 
+                            className="btn btn-primary" 
+                            style={{ 
+                                minWidth: '130px', 
+                                padding: '12px 24px', 
+                                fontSize: '14px', 
+                                fontWeight: '600',
+                                borderRadius: '8px', 
+                                border: 'none',
+                                background: '#1e3a8a',
+                                color: '#ffffff',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                                boxShadow: '0 4px 6px rgba(30, 58, 138, 0.15)'
+                            }}
+                            onClick={() => setSuccessOpen(false)}
+                        >
+                            OK
+                        </button>
+                    </div>
+                </div>
             </Modal>
         </div>
     );

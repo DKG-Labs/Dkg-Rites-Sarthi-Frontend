@@ -158,7 +158,7 @@ export const UserList = ({ users = [], loading, onEdit, onDelete, onChangeRegion
                                     <td>{user.employeeCode}</td>
                                     <td>{user.fullName}</td>
                                     <td>{user.roleName}</td>
-                                    <td>{user.rio}</td>
+                                    <td>{user.rio || (user.employeeCode && user.employeeCode.startsWith('ZR') && user.employeeCode.match(/^ZR([A-Z]+)\d+$/)?.[1]) || ''}</td>
                                     <td>{user.email}</td>
                                     <td>
                                         <span className={`badge badge-${user.status === 'Inactive' ? 'danger' : 'success'}`}>

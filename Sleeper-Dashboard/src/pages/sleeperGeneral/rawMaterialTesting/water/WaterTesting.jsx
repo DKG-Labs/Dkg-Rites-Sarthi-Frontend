@@ -292,27 +292,39 @@ const WaterTesting = ({ onBack }) => {
                                             min="6"
                                             max="8"
                                             {...register('phValue', { 
-                                                required: "pH value is required",
-                                                min: { value: 6, message: "pH must be between 6 and 8" },
-                                                max: { value: 8, message: "pH must be between 6 and 8" }
+                                                required: "pH Value is required",
+                                                min: { value: 6, message: "pH Value must be between 6 and 8" },
+                                                max: { value: 8, message: "pH Value must be between 6 and 8" }
                                             })} 
-                                            placeholder="6.0–8.0" 
+                                            placeholder="6.0–8.0"
+                                            style={errors.phValue ? { borderColor: '#ef4444' } : {}}
                                         />
-                                        {errors.phValue && <span className="error-msg" style={{ color: '#ef4444', fontSize: '10px', marginTop: '4px', display: 'block' }}>{errors.phValue.message}</span>}
+                                        {errors.phValue && (
+                                            <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                                                ⚠ {errors.phValue.message}
+                                            </span>
+                                        )}
                                         <span style={{ fontSize: '10px', color: '#64748b', marginTop: errors.phValue ? '2px' : '4px', display: 'block' }}>Required: 6 to 8</span>
                                     </div>
                                     <div className="input-group">
                                         <label>TDS (ppm) <span className="required">*</span></label>
                                         <input 
-                                            type="number" 
+                                            type="number"
+                                            min="0"
                                             max="2000"
                                             {...register('tdsResult', { 
-                                                required: "TDS result is required",
-                                                max: { value: 2000, message: "TDS must be maximum 2000 PPM" }
+                                                required: "TDS (ppm) is required",
+                                                min: { value: 0, message: "TDS cannot be negative" },
+                                                max: { value: 2000, message: "TDS value cannot exceed 2000 PPM" }
                                             })} 
-                                            placeholder="Max 2000" 
+                                            placeholder="Max 2000"
+                                            style={errors.tdsResult ? { borderColor: '#ef4444' } : {}}
                                         />
-                                        {errors.tdsResult && <span className="error-msg" style={{ color: '#ef4444', fontSize: '10px', marginTop: '4px', display: 'block' }}>{errors.tdsResult.message}</span>}
+                                        {errors.tdsResult && (
+                                            <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                                                ⚠ {errors.tdsResult.message}
+                                            </span>
+                                        )}
                                         <span style={{ fontSize: '10px', color: '#64748b', marginTop: errors.tdsResult ? '2px' : '4px', display: 'block' }}>Required: Max 2000 PPM</span>
                                     </div>
                                 </div>

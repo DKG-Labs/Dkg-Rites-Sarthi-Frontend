@@ -397,8 +397,23 @@ const HtsWireTesting = ({ onBack, inventoryData = [] }) => {
                                         <input type="number" step="0.01" {...register('layLength', { required: true })} />
                                     </div>
                                     <div className="input-group">
-                                        <label>Strand Diameter <span className="required">*</span></label>
-                                        <input type="number" step="0.01" {...register('strandDiameter', { required: true })} />
+                                        <label>Nominal Diameter <span className="required">*</span></label>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            placeholder="2.97 – 3.03 mm"
+                                            {...register('strandDiameter', {
+                                                required: 'Nominal Diameter is required',
+                                                min: { value: 2.97, message: 'Min value is 2.97 mm' },
+                                                max: { value: 3.03, message: 'Max value is 3.03 mm' }
+                                            })}
+                                            style={errors.strandDiameter ? { borderColor: '#ef4444' } : {}}
+                                        />
+                                        {errors.strandDiameter && (
+                                            <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                                                {errors.strandDiameter.message}
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="form-modal-footer" style={{ borderTop: 'none', padding: '24px 0 0' }}>

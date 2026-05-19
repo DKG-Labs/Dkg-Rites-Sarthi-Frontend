@@ -123,6 +123,87 @@ const HtsWireTesting = ({ onBack, inventoryData = [] }) => {
         }
     });
 
+    // Helper to find consignment/request details
+    const selectedStock = (pendingStocks || []).find(s => s.requestId === activeRequestId) || 
+                          (pendingStocks || []).find(s => s.consignmentNo === watch('consignmentNo')) ||
+                          (inventoryData || []).find(s => s.requestId === activeRequestId) ||
+                          (inventoryData || []).find(s => s.consignmentNo === watch('consignmentNo'));
+
+    const formatDate = (dateStr) => {
+        if (!dateStr) return 'N/A';
+        if (dateStr.includes('/')) return dateStr;
+        if (dateStr.includes('T')) dateStr = dateStr.split('T')[0];
+        const parts = dateStr.split('-');
+        if (parts.length === 3) {
+            if (parts[0].length === 4) {
+                return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            } else {
+                return `${parts[0]}/${parts[1]}/${parts[2]}`;
+            }
+        }
+        return dateStr;
+    };
+
+    const getValidityDate = (dateStr) => {
+        if (!dateStr) return 'N/A';
+        
+        let date;
+        if (dateStr.includes('/')) {
+            const parts = dateStr.split('/');
+            if (parts.length === 3) {
+                date = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+            }
+        } else if (dateStr.includes('-')) {
+            const parts = dateStr.split('-');
+            if (parts.length === 3) {
+                if (parts[0].length === 4) {
+                    date = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+                } else {
+                    date = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+                }
+            }
+        }
+        
+        if (!date || isNaN(date.getTime())) {
+            date = new Date(dateStr);
+        }
+        
+        if (isNaN(date.getTime())) return 'N/A';
+        
+        date.setFullYear(date.getFullYear() + 1);
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${d}/${m}/${y}`;
+    };
+
+    const layLengthVal = watch('layLength');
+    const strandDiameterVal = watch('strandDiameter');
+    const nominalWeightVal = watch('nominalWeight');
+
+    const getLayLengthStatus = (val) => {
+        if (val === undefined || val === null || val === '') return { text: 'Pending', color: '#64748b', bg: '#f1f5f9' };
+        const num = parseFloat(val);
+        if (isNaN(num)) return { text: 'Invalid', color: '#ef4444', bg: '#fee2e2' };
+        if (num >= 72 && num <= 108) return { text: 'PASSED', color: '#166534', bg: '#dcfce7' };
+        return { text: 'FAILED', color: '#991b1b', bg: '#fef2f2' };
+    };
+
+    const getStrandDiameterStatus = (val) => {
+        if (val === undefined || val === null || val === '') return { text: 'Pending', color: '#64748b', bg: '#f1f5f9' };
+        const num = parseFloat(val);
+        if (isNaN(num)) return { text: 'Invalid', color: '#ef4444', bg: '#fee2e2' };
+        if (num >= 2.97 && num <= 3.03) return { text: 'PASSED', color: '#166534', bg: '#dcfce7' };
+        return { text: 'FAILED', color: '#991b1b', bg: '#fef2f2' };
+    };
+
+    const getNominalWeightStatus = (val) => {
+        if (val === undefined || val === null || val === '') return { text: 'Optional', color: '#64748b', bg: '#f1f5f9' };
+        const num = parseFloat(val);
+        if (isNaN(num)) return { text: 'Invalid', color: '#ef4444', bg: '#fee2e2' };
+        return { text: 'PASSED', color: '#166534', bg: '#dcfce7' };
+    };
+
     useEffect(() => {
         if (activeRequestId) {
             getHtsWireDailyTestByReqId(activeRequestId).then(record => {
@@ -138,6 +219,14 @@ const HtsWireTesting = ({ onBack, inventoryData = [] }) => {
             });
         }
     }, [activeRequestId, reset]);
+
+    useEffect(() => {
+        if (selectedStock?.details?.coilDetails && selectedStock.details.coilDetails.length > 0) {
+            setValue('lotNo', selectedStock.details.coilDetails[0].lotNo || '');
+        } else if (selectedStock?.lotNo) {
+            setValue('lotNo', selectedStock.lotNo);
+        }
+    }, [selectedStock, setValue]);
 
     // Removed coilNo watch and useEffect
 
@@ -267,6 +356,8 @@ const HtsWireTesting = ({ onBack, inventoryData = [] }) => {
                             disabled={!editable}
                             onClick={() => {
                                 reset(row);
+                                setActiveRequestId(row.requestId || null);
+                                setEditId(row.id || null);
                                 setShowForm(true);
                             }}
                             title={!editable ? "Expired" : ""}
@@ -353,8 +444,12 @@ const HtsWireTesting = ({ onBack, inventoryData = [] }) => {
                             <button className="form-modal-close" onClick={() => setShowForm(false)}>✕</button>
                         </div>
                         <div className="form-modal-body" style={{ background: '#f8fafc' }}>
-                            <form onSubmit={handleSubmit(onSubmit)}>
-                                <div className="form-grid">
+                            <form onSubmit={handleSubmit(onSubmit)} className="cement-forms-scope">
+                                {/* Hidden lotNo register to avoid breaking form expectations */}
+                                <input type="hidden" {...register('lotNo')} />
+
+                                {/* Top Header Info */}
+                                <div className="form-grid" style={{ marginBottom: '20px' }}>
                                     <div className="input-group">
                                         <label>Date of Testing <span className="required">*</span></label>
                                         <input type="text" value={new Date().toLocaleDateString('en-GB')} readOnly style={{ background: '#f1f5f9' }} />
@@ -384,38 +479,265 @@ const HtsWireTesting = ({ onBack, inventoryData = [] }) => {
                                             </select>
                                         )}
                                     </div>
-                                    <div className="input-group">
-                                        <label>Lot No. <span className="required">*</span></label>
-                                        <input type="text" {...register('lotNo', { required: 'Lot No. is required' })} />
-                                    </div>
-                                    <div className="input-group">
-                                        <label>Nominal Weight <span className="required">*</span></label>
-                                        <input type="number" step="0.001" {...register('nominalWeight', { required: true })} />
-                                    </div>
-                                    <div className="input-group">
-                                        <label>Lay Length <span className="required">*</span></label>
-                                        <input type="number" step="0.01" {...register('layLength', { required: true })} />
-                                    </div>
-                                    <div className="input-group">
-                                        <label>Nominal Diameter <span className="required">*</span></label>
-                                        <input
-                                            type="number"
-                                            step="0.01"
-                                            placeholder="2.97 – 3.03 mm"
-                                            {...register('strandDiameter', {
-                                                required: 'Nominal Diameter is required',
-                                                min: { value: 2.97, message: 'Min value is 2.97 mm' },
-                                                max: { value: 3.03, message: 'Max value is 3.03 mm' }
-                                            })}
-                                            style={errors.strandDiameter ? { borderColor: '#ef4444' } : {}}
-                                        />
-                                        {errors.strandDiameter && (
-                                            <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'block' }}>
-                                                {errors.strandDiameter.message}
-                                            </span>
-                                        )}
+                                </div>
+
+                                {/* Table 1: Basic Information */}
+                                <div style={{ marginBottom: '24px', background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                                    <h3 style={{ fontSize: '13px', fontWeight: '700', color: '#13343b', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#42818c' }}></span>
+                                        Table 1: Basic Information (Vendor End Data - Auto Fetched)
+                                    </h3>
+                                    
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', border: '1px solid #e2e8f0', marginBottom: '16px' }}>
+                                        <tbody>
+                                            <tr>
+                                                <td style={{ padding: '8px 12px', fontWeight: '600', color: '#475569', background: '#f8fafc', width: '25%', border: '1px solid #e2e8f0' }}>Date of HTS Wire Receipt</td>
+                                                <td style={{ padding: '8px 12px', border: '1px solid #e2e8f0', color: '#334155' }}>{formatDate(selectedStock?.details?.dateOfReceipt)}</td>
+                                                <td style={{ padding: '8px 12px', fontWeight: '600', color: '#475569', background: '#f8fafc', width: '25%', border: '1px solid #e2e8f0' }}>Grade / Specification</td>
+                                                <td style={{ padding: '8px 12px', border: '1px solid #e2e8f0', color: '#334155' }}>{selectedStock?.details?.gradeSpec || 'N/A'}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style={{ padding: '8px 12px', fontWeight: '600', color: '#475569', background: '#f8fafc', border: '1px solid #e2e8f0' }}>Manufacturer</td>
+                                                <td style={{ padding: '8px 12px', border: '1px solid #e2e8f0', color: '#334155' }}>{selectedStock?.details?.manufacturer || 'N/A'}</td>
+                                                <td style={{ padding: '8px 12px', fontWeight: '600', color: '#475569', background: '#f8fafc', border: '1px solid #e2e8f0' }}>Invoice Number & Date</td>
+                                                <td style={{ padding: '8px 12px', border: '1px solid #e2e8f0', color: '#334155' }}>
+                                                    {selectedStock?.details?.invoiceNumber || 'N/A'}
+                                                    {selectedStock?.details?.invoiceDate ? ` & ${formatDate(selectedStock.details.invoiceDate)}` : ''}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style={{ padding: '8px 12px', fontWeight: '600', color: '#475569', background: '#f8fafc', border: '1px solid #e2e8f0' }}>RITES IC Number & Date</td>
+                                                <td style={{ padding: '8px 12px', border: '1px solid #e2e8f0', color: '#334155' }}>
+                                                    {selectedStock?.details?.ritesIcNumber || 'N/A'}
+                                                    {selectedStock?.details?.ritesIcDate ? ` & ${formatDate(selectedStock.details.ritesIcDate)}` : ''}
+                                                </td>
+                                                <td style={{ padding: '8px 12px', fontWeight: '600', color: '#475569', background: '#f8fafc', border: '1px solid #e2e8f0' }}>Relaxation Test No & Date</td>
+                                                <td style={{ padding: '8px 12px', border: '1px solid #e2e8f0', color: '#334155' }}>
+                                                    {selectedStock?.details?.relaxationTest || 'N/A'}
+                                                    {selectedStock?.details?.relaxationTestDate ? ` & ${formatDate(selectedStock.details.relaxationTestDate)}` : ''}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style={{ padding: '8px 12px', fontWeight: '600', color: '#475569', background: '#f8fafc', border: '1px solid #e2e8f0' }}>Relaxation Test Validity</td>
+                                                <td style={{ padding: '8px 12px', border: '1px solid #e2e8f0', color: '#334155', fontWeight: '600' }}>{getValidityDate(selectedStock?.details?.relaxationTestDate)}</td>
+                                                <td style={{ padding: '8px 12px', fontWeight: '600', color: '#475569', background: '#f8fafc', border: '1px solid #e2e8f0' }}>Total Qty Received (Kg)</td>
+                                                <td style={{ padding: '8px 12px', border: '1px solid #e2e8f0', color: '#334155', fontWeight: '600' }}>
+                                                    {selectedStock?.details?.totalQtyReceived != null ? `${selectedStock.details.totalQtyReceived} Kg` : 'N/A'}
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+
+                                    <div style={{ marginTop: '12px' }}>
+                                        <div style={{ fontSize: '11px', fontWeight: '700', color: '#475569', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.025em' }}>Coil & Lot Breakdown</div>
+                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', border: '1px solid #e2e8f0' }}>
+                                            <thead>
+                                                <tr style={{ background: '#f8fafc' }}>
+                                                    <th style={{ padding: '6px 12px', border: '1px solid #e2e8f0', textAlign: 'left', fontWeight: '600', color: '#475569' }}>Coil No</th>
+                                                    <th style={{ padding: '6px 12px', border: '1px solid #e2e8f0', textAlign: 'left', fontWeight: '600', color: '#475569' }}>Lot No</th>
+                                                    <th style={{ padding: '6px 12px', border: '1px solid #e2e8f0', textAlign: 'left', fontWeight: '600', color: '#475569' }}>Coil Qty (Kg)</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {selectedStock?.details?.coilDetails && selectedStock.details.coilDetails.length > 0 ? (
+                                                    selectedStock.details.coilDetails.map((coil, idx) => (
+                                                        <tr key={idx}>
+                                                            <td style={{ padding: '6px 12px', border: '1px solid #e2e8f0', color: '#334155', fontWeight: '500' }}>
+                                                                {coil.coilNo || (coil.coilFrom && coil.coilTo ? `${coil.coilFrom} - ${coil.coilTo}` : coil.coilFrom || 'N/A')}
+                                                            </td>
+                                                            <td style={{ padding: '6px 12px', border: '1px solid #e2e8f0', color: '#334155' }}>{coil.lotNo || 'N/A'}</td>
+                                                            <td style={{ padding: '6px 12px', border: '1px solid #e2e8f0', color: '#334155', fontWeight: '600' }}>{coil.qtyKg != null ? `${coil.qtyKg} Kg` : 'N/A'}</td>
+                                                        </tr>
+                                                    ))
+                                                ) : (
+                                                    <tr>
+                                                        <td colSpan="3" style={{ padding: '8px', textAlign: 'center', color: '#94a3b8', border: '1px solid #e2e8f0' }}>No coil details available</td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
+
+                                {/* Table 2: Test Result */}
+                                <div style={{ marginBottom: '24px', background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                                    <h3 style={{ fontSize: '13px', fontWeight: '700', color: '#13343b', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#42818c' }}></span>
+                                        Table 2: Test Result
+                                    </h3>
+
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', border: '1px solid #e2e8f0' }}>
+                                        <thead>
+                                            <tr style={{ background: '#f8fafc' }}>
+                                                <th style={{ padding: '10px 12px', border: '1px solid #e2e8f0', textAlign: 'left', fontWeight: '600', color: '#475569', width: '30%' }}>Parameter Name</th>
+                                                <th style={{ padding: '10px 12px', border: '1px solid #e2e8f0', textAlign: 'left', fontWeight: '600', color: '#475569', width: '25%' }}>Standard Specification</th>
+                                                <th style={{ padding: '10px 12px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '600', color: '#475569', width: '25%' }}>Observed Value</th>
+                                                <th style={{ padding: '10px 12px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '600', color: '#475569', width: '20%' }}>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {/* Lay Length Row */}
+                                            <tr>
+                                                <td style={{ padding: '10px 12px', border: '1px solid #e2e8f0', fontWeight: '600', color: '#334155' }}>
+                                                    Lay Length <span className="required">*</span>
+                                                </td>
+                                                <td style={{ padding: '10px 12px', border: '1px solid #e2e8f0', color: '#475569', fontWeight: '500' }}>
+                                                    72 mm – 108 mm
+                                                </td>
+                                                <td style={{ padding: '6px 12px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                                                    <div style={{ maxWidth: '160px', margin: '0 auto' }}>
+                                                        <input 
+                                                            type="number" 
+                                                            step="0.01" 
+                                                            placeholder="72 – 108"
+                                                            {...register('layLength', { 
+                                                                required: 'Lay Length is required',
+                                                                min: { value: 72, message: 'Min value is 72 mm' },
+                                                                max: { value: 108, message: 'Max value is 108 mm' }
+                                                            })}
+                                                            style={{
+                                                                width: '100%',
+                                                                height: '28px',
+                                                                textAlign: 'center',
+                                                                border: errors.layLength ? '1px solid #ef4444' : '1px solid #cbd5e1',
+                                                                borderRadius: '4px',
+                                                                padding: '0 6px',
+                                                                fontSize: '12px'
+                                                            }}
+                                                        />
+                                                        {errors.layLength && (
+                                                            <span style={{ color: '#ef4444', fontSize: '10px', marginTop: '2px', display: 'block', textAlign: 'left' }}>
+                                                                {errors.layLength.message}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td style={{ padding: '10px 12px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                                                    {(() => {
+                                                        const stat = getLayLengthStatus(layLengthVal);
+                                                        return (
+                                                            <span style={{
+                                                                display: 'inline-block',
+                                                                padding: '2px 8px',
+                                                                borderRadius: '12px',
+                                                                fontSize: '10px',
+                                                                fontWeight: '700',
+                                                                color: stat.color,
+                                                                backgroundColor: stat.bg
+                                                            }}>
+                                                                {stat.text}
+                                                            </span>
+                                                        );
+                                                    })()}
+                                                </td>
+                                            </tr>
+
+                                            {/* Nominal Diameter Row */}
+                                            <tr>
+                                                <td style={{ padding: '10px 12px', border: '1px solid #e2e8f0', fontWeight: '600', color: '#334155' }}>
+                                                    Nominal Diameter <span className="required">*</span>
+                                                </td>
+                                                <td style={{ padding: '10px 12px', border: '1px solid #e2e8f0', color: '#475569', fontWeight: '500' }}>
+                                                    2.97 mm – 3.03 mm
+                                                </td>
+                                                <td style={{ padding: '6px 12px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                                                    <div style={{ maxWidth: '160px', margin: '0 auto' }}>
+                                                        <input 
+                                                            type="number" 
+                                                            step="0.01" 
+                                                            placeholder="2.97 – 3.03"
+                                                            {...register('strandDiameter', { 
+                                                                required: 'Nominal Diameter is required',
+                                                                min: { value: 2.97, message: 'Min value is 2.97 mm' },
+                                                                max: { value: 3.03, message: 'Max value is 3.03 mm' }
+                                                            })}
+                                                            style={{
+                                                                width: '100%',
+                                                                height: '28px',
+                                                                textAlign: 'center',
+                                                                border: errors.strandDiameter ? '1px solid #ef4444' : '1px solid #cbd5e1',
+                                                                borderRadius: '4px',
+                                                                padding: '0 6px',
+                                                                fontSize: '12px'
+                                                            }}
+                                                        />
+                                                        {errors.strandDiameter && (
+                                                            <span style={{ color: '#ef4444', fontSize: '10px', marginTop: '2px', display: 'block', textAlign: 'left' }}>
+                                                                {errors.strandDiameter.message}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td style={{ padding: '10px 12px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                                                    {(() => {
+                                                        const stat = getStrandDiameterStatus(strandDiameterVal);
+                                                        return (
+                                                            <span style={{
+                                                                display: 'inline-block',
+                                                                padding: '2px 8px',
+                                                                borderRadius: '12px',
+                                                                fontSize: '10px',
+                                                                fontWeight: '700',
+                                                                color: stat.color,
+                                                                backgroundColor: stat.bg
+                                                            }}>
+                                                                {stat.text}
+                                                            </span>
+                                                        );
+                                                    })()}
+                                                </td>
+                                            </tr>
+
+                                            {/* Nominal Weight Row */}
+                                            <tr>
+                                                <td style={{ padding: '10px 12px', border: '1px solid #e2e8f0', fontWeight: '600', color: '#334155' }}>
+                                                    Nominal Weight
+                                                </td>
+                                                <td style={{ padding: '10px 12px', border: '1px solid #e2e8f0', color: '#475569', fontWeight: '500' }}>
+                                                    0.166 kg/m (Optional)
+                                                </td>
+                                                <td style={{ padding: '6px 12px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                                                    <div style={{ maxWidth: '160px', margin: '0 auto' }}>
+                                                        <input 
+                                                            type="number" 
+                                                            step="0.001" 
+                                                            placeholder="e.g. 0.166"
+                                                            {...register('nominalWeight', { required: false })}
+                                                            style={{
+                                                                width: '100%',
+                                                                height: '28px',
+                                                                textAlign: 'center',
+                                                                border: '1px solid #cbd5e1',
+                                                                borderRadius: '4px',
+                                                                padding: '0 6px',
+                                                                fontSize: '12px'
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </td>
+                                                <td style={{ padding: '10px 12px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                                                    {(() => {
+                                                        const stat = getNominalWeightStatus(nominalWeightVal);
+                                                        return (
+                                                            <span style={{
+                                                                display: 'inline-block',
+                                                                padding: '2px 8px',
+                                                                borderRadius: '12px',
+                                                                fontSize: '10px',
+                                                                fontWeight: '700',
+                                                                color: stat.color,
+                                                                backgroundColor: stat.bg
+                                                            }}>
+                                                                {stat.text}
+                                                            </span>
+                                                        );
+                                                    })()}
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
                                 <div className="form-modal-footer" style={{ borderTop: 'none', padding: '24px 0 0' }}>
                                     <button type="submit" className="btn-save">{editId ? 'Update Test' : 'Save Test'}</button>
                                     <button type="button" className="btn-save" style={{ background: '#64748b' }} onClick={() => setShowForm(false)}>Cancel</button>

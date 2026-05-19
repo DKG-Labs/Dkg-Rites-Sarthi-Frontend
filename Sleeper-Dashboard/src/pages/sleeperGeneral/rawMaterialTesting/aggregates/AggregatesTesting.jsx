@@ -27,8 +27,8 @@ const AGGREGATE_TABS = [
     { id: 1, label: '10mm Quality' },
     { id: 2, label: '20mm Quality' },
     { id: 3, label: 'Flakiness & Elongation' },
-    { id: 4, label: 'Granulometric Curve' },
-    { id: 5, label: 'Soundness Test' }
+    { id: 4, label: 'Granulometric Curve' }
+    // { id: 5, label: 'Soundness Test' } // Hidden for now (carried out at External Lab)
 ];
 
 const SubCard = ({ id, title, color, count, label, isActive, onClick }) => (
@@ -424,11 +424,13 @@ const AggregateTesting = ({ onBack, inventoryData = [] }) => {
                 return `${String(val).replace('%', '')}%`;
             }
         },
+        /*
         { 
             key: 'soundness', 
             label: 'Soundness',
             render: (_, row) => row.soundness || row.result || '-'
         },
+        */
         {
             key: 'actions',
             label: 'Actions',

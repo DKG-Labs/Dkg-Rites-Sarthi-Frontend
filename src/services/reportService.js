@@ -510,6 +510,16 @@ const reportService = {
         });
         return handleResponse(response);
     },
+
+    getInspectionCallStatusDetails: async (stage, status) => {
+        const url = new URL(`${API_ENDPOINTS.REPORTS}/inspectionCallStatusDetails`);
+        url.searchParams.append('stage', stage);
+        url.searchParams.append('status', status);
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
 };
 
 export default reportService;

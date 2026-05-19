@@ -18,6 +18,7 @@ import SleeperMauReport from './sleeper-board/SleeperMauReport';
 import SleeperMprReport from './sleeper-board/SleeperMprReport';
 import SleeperLwclReport from './sleeper-board/SleeperLwclReport';
 import SleeperScadaMonitor from './sleeper-board/SleeperScadaMonitor';
+import SleeperPerformance from './sleeper-board/SleeperPerformance';
 import RailPadSummary from './railpad-board/RailPadSummary';
 import RailPadQuality from './railpad-board/RailPadQuality';
 import RailPadLifecycle from './railpad-board/RailPadLifecycle';
@@ -30,6 +31,7 @@ import PoWiseMonthlyReport from './PoWiseMonthlyReport';
 import SleeperShiftWiseProductionReport from './sleeper-board/SleeperShiftWiseProductionReport';
 import SqcAnalysis from './SqcAnalysis';
 import PoIssuedModal from './PoIssuedModal';
+import InspectionCallStatusModal from './InspectionCallStatusModal';
 
 
 // --- Static Data moved outside component to fix ESLint re-render warnings ---
@@ -144,6 +146,24 @@ const ProfessionalCardSection = ({
             setIsPoModalOpen(true);
         } catch (error) {
             console.error("Error fetching PO issued details:", error);
+        }
+    };
+
+    // Inspection Call Status Modal State
+    const [isIcModalOpen, setIsIcModalOpen] = useState(false);
+    const [icModalData, setIcModalData] = useState([]);
+    const [icModalTitle, setIcModalTitle] = useState('');
+
+    const handleInspectionCallClick = async (stage, status) => {
+        try {
+            const title = `${stage} Stage - ${status}`;
+            setIcModalTitle(title);
+            const response = await reportService.getInspectionCallStatusDetails(stage, status);
+            const data = response.responseData || response || [];
+            setIcModalData(data);
+            setIsIcModalOpen(true);
+        } catch (error) {
+            console.error("Error fetching active call details:", error);
         }
     };
 
@@ -396,7 +416,7 @@ const ProfessionalCardSection = ({
         const isErc = product.includes('erc') || product === 'all' || !product;
 
         const isRailPad = product.includes('rail pad') || product.includes('railpad');
-        const isUnderDev = (!isErc && !isSleeper && !isRailPad) || (isSleeper && activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'reports' && activeMainCard !== 'scada');
+        const isUnderDev = (!isErc && !isSleeper && !isRailPad) || (isSleeper && activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'reports' && activeMainCard !== 'scada' && activeMainCard !== 'performance');
 
 
 
@@ -528,12 +548,24 @@ const ProfessionalCardSection = ({
                                                         <span className="prof-badge" style={{ background: '#f8fafc', color: '#64748b', fontSize: '10px' }}>CALLS</span>
                                                     </div>
                                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                                                        <div>
-                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>UNDER INSPECTION</div>
+                                                        <div 
+                                                            style={{ cursor: 'pointer', padding: '6px', borderRadius: '8px', transition: 'all 0.2s' }}
+                                                            onClick={() => handleInspectionCallClick(cat, 'Under Inspection')}
+                                                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.12)'}
+                                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                                            title="Click to view Under Inspection calls"
+                                                        >
+                                                            <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '700' }}>UNDER INSPECTION</div>
                                                             <div style={{ fontSize: '28px', fontWeight: '800', color: '#f59e0b' }}>{d?.under?.toLocaleString() || '0'}</div>
                                                         </div>
-                                                        <div style={{ textAlign: 'right' }}>
-                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>PENDING</div>
+                                                        <div 
+                                                            style={{ textAlign: 'right', cursor: 'pointer', padding: '6px', borderRadius: '8px', transition: 'all 0.2s' }}
+                                                            onClick={() => handleInspectionCallClick(cat, 'Pending')}
+                                                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)'}
+                                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                                            title="Click to view Pending calls"
+                                                        >
+                                                            <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '700' }}>PENDING</div>
                                                             <div style={{ fontSize: '28px', fontWeight: '800', color: '#ef4444' }}>{d?.pending?.toLocaleString() || '0'}</div>
                                                         </div>
                                                     </div>
@@ -940,6 +972,9 @@ const ProfessionalCardSection = ({
                             );
 
                         case 'performance':
+                            if (isSleeper) {
+                                return <SleeperPerformance />;
+                            }
                             if (isRailPad) {
                                 return <RailPadPerformance perfData={perfData} loading={perfLoading} />;
                             }
@@ -1430,6 +1465,14 @@ const ProfessionalCardSection = ({
                 onClose={() => setIsPoModalOpen(false)}
                 data={poModalData}
                 title={selectedProduct}
+            />
+
+            {/* Active Inspection Call Status Modal */}
+            <InspectionCallStatusModal 
+                isOpen={isIcModalOpen}
+                onClose={() => setIsIcModalOpen(false)}
+                data={icModalData}
+                title={icModalTitle}
             />
         </div>
     );

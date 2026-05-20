@@ -630,7 +630,7 @@ const ProfessionalCardSection = ({
                                                 <div className="prof-card" style={{ textAlign: 'center', background: '#fffbeb', border: '1px solid #fef3c7' }}>
                                                     <div className="kpi-lbl" style={{ color: '#92400e' }}>Worst Plant</div>
                                                     <div style={{ fontSize: '12px', fontWeight: '800', marginTop: '8px', color: '#78350f', lineHeight: '1.2' }}>
-                                                        {processPerformanceData?.worstPerforming?.length > 0 ? processPerformanceData.worstPerforming[0]?.name : manufacturerRejectionData?.length > 0 ? [...manufacturerRejectionData].sort((a, b) => b.value - a.value)[0]?.name : 'Adinath Industries'}
+                                                        {processPerformanceData?.worstPerforming?.filter(c => c.name !== 'Dummy Po Hyd Company').length > 0 ? processPerformanceData.worstPerforming.filter(c => c.name !== 'Dummy Po Hyd Company')[0]?.name : manufacturerRejectionData?.length > 0 ? [...manufacturerRejectionData].sort((a, b) => b.value - a.value)[0]?.name : 'Adinath Industries'}
                                                     </div>
                                                 </div>
                                             </div>
@@ -833,7 +833,7 @@ const ProfessionalCardSection = ({
                                                 <ResponsiveContainer width="100%" height="100%">
                                                     <BarChart
                                                         data={processPerformanceData?.topPerforming?.length > 0
-                                                            ? processPerformanceData.topPerforming.slice(0, 5)
+                                                            ? processPerformanceData.topPerforming.filter(c => c.name !== 'Dummy Po Hyd Company').slice(0, 5)
                                                             : [
                                                                 { name: 'JSPL', value: 0.15 }, { name: 'Surya Steel', value: 0.22 },
                                                                 { name: 'RINL', value: 0.28 }, { name: 'Bhushan Steel', value: 0.32 },
@@ -867,7 +867,7 @@ const ProfessionalCardSection = ({
                                                 <ResponsiveContainer width="100%" height="100%">
                                                     <BarChart
                                                         data={processPerformanceData?.worstPerforming?.length > 0
-                                                            ? processPerformanceData.worstPerforming.slice(0, 5)
+                                                            ? processPerformanceData.worstPerforming.filter(c => c.name !== 'Dummy Po Hyd Company').slice(0, 5)
                                                             : [
                                                                 { name: 'Adinath Ind.', value: 1.85 }, { name: 'Nova Jaiswal', value: 1.62 },
                                                                 { name: 'Prakash Met.', value: 1.45 }, { name: 'Kalimata Ind.', value: 1.32 },

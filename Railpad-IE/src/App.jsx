@@ -18,6 +18,7 @@ import PortalHome from './components/PortalHome';
 import FinalInspectionDashboard from './components/FinalInspection/FinalInspectionDashboard';
 import AttendingCallsDashboard from './components/AttendingCallsDashboard';
 import InspectionInitiationPage from './pages/InspectionInitiationPage';
+import PlantDeclarationDashboard from './components/PlantDeclaration/PlantDeclarationDashboard';
 
 const SUB_CARDS = [
   { id: 'raw-material', title: 'Raw Material Weighment', description: 'Monitor and log raw material proportions' },
@@ -146,6 +147,8 @@ const App = () => {
     };
   });
 
+  const [autoOpenPlantDeclaration, setAutoOpenPlantDeclaration] = useState(false);
+
   // Persist shift state
   useEffect(() => {
     localStorage.setItem('railpad_ie_shift_active', isShiftActive);
@@ -242,7 +245,15 @@ const App = () => {
   return (
     <MainLayout
       activeItem={activeItem}
-      onItemClick={(item) => setActiveItem(item)}
+      onItemClick={(item) => {
+        if (item === 'PLANT_DECLARATION') {
+          setActiveItem('PortalHome');
+          setAutoOpenPlantDeclaration(true);
+        } else {
+          setActiveItem(item);
+          setAutoOpenPlantDeclaration(false);
+        }
+      }}
       onLogout={handleLogout}
       user={loggedInUser}
       isShiftActive={isShiftActive}
@@ -251,6 +262,8 @@ const App = () => {
         <PortalHome
           user={loggedInUser}
           isShiftActive={isShiftActive}
+          defaultShowPlantDeclaration={autoOpenPlantDeclaration}
+          onClosePlantDeclaration={() => setAutoOpenPlantDeclaration(false)}
           onModuleSelect={(moduleId, shiftData) => {
             if (moduleId === 'IE') {
               setIsShiftActive(true);

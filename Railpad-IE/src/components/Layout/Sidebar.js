@@ -6,6 +6,7 @@ const Sidebar = ({ activeItem, onItemClick, isOpen, expanded, onMouseEnter, onMo
             label: 'Modules',
             items: [
                 { id: 'PortalHome', label: 'Portal Home', icon: 'PH' },
+                { id: 'PLANT_DECLARATION', label: 'Plant Declaration', icon: 'PD' },
                 { id: 'IE', label: 'RailPad IE', icon: 'IE' },
             ]
         }

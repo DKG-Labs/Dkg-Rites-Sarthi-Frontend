@@ -107,6 +107,13 @@ const DimensionalTesting = ({ type }) => {
         { key: 'totalBatchQty', label: 'Total Batch Qty' },
         { key: 'sleeperType', label: 'Type of Sleeper' },
         {
+            key: 'castingDate',
+            label: 'Date of Casting',
+            render: (val) => val
+                ? new Date(val).toLocaleDateString('en-IN')
+                : <span style={{ color: '#94a3b8', fontSize: '11px' }}>Not available</span>
+        },
+        {
             key: 'noOfSleepers',
             label: 'No. of Sleepers',
             render: (val) => (

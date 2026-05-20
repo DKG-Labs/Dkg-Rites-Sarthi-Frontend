@@ -233,9 +233,27 @@ const ModulusOfRupture = () => {
         { key: 'weight', label: 'Weight (Kg)' },
         { key: 'loadKn', label: 'Load (N)' },
         { key: 'strength', label: 'Strength (N/mm²)' },
-        { key: 'result', label: 'Result', render: (val) => (
-            <span style={{ color: (val || '').toLowerCase() === 'pass' ? '#059669' : '#dc2626', fontWeight: '800', fontSize: '11px' }}>{val || 'FAIL'}</span>
-        )},
+        { key: 'result', label: 'Result', render: (val, row) => {
+            // Recalculate result from strength to avoid stale/incorrect stored value
+            let displayResult = val;
+            if (row.strength) {
+                const cVal = parseFloat(row.strength);
+                const gradeStr = (row.concreteGrade || '').toUpperCase().replace(/[-\s]/g, '');
+                if (!isNaN(cVal)) {
+                    if (gradeStr === 'M60') {
+                        displayResult = cVal >= 5.5 ? 'Pass' : 'Fail';
+                    } else {
+                        displayResult = cVal >= 5.2 ? 'Pass' : 'Fail';
+                    }
+                }
+            }
+            const isPass = (displayResult || '').toLowerCase() === 'pass';
+            return (
+                <span style={{ color: isPass ? '#059669' : '#dc2626', fontWeight: '800', fontSize: '11px' }}>
+                    {isPass ? 'PASS' : 'FAIL'}
+                </span>
+            );
+        }},
         {
             key: 'actions',
             label: 'Actions',

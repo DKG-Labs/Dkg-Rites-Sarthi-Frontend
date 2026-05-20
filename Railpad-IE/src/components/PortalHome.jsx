@@ -1,8 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ShiftDutyForm from './ShiftDutyForm';
+import PlantDeclarationDashboard from './PlantDeclaration/PlantDeclarationDashboard';
 
-const PortalHome = ({ user, onModuleSelect, isShiftActive }) => {
+const PortalHome = ({ user, onModuleSelect, isShiftActive, defaultShowPlantDeclaration, onClosePlantDeclaration }) => {
   const [showShiftForm, setShowShiftForm] = useState(false);
+  const [showPlantDeclaration, setShowPlantDeclaration] = useState(false);
+
+  useEffect(() => {
+    if (defaultShowPlantDeclaration) {
+      setShowPlantDeclaration(true);
+    }
+  }, [defaultShowPlantDeclaration]);
 
   const handleStartDutyClick = () => {
     if (isShiftActive) {
@@ -321,8 +329,142 @@ const PortalHome = ({ user, onModuleSelect, isShiftActive }) => {
               </div>
             </div>
           </div>
+
+          {/* Plant Setup & Declaration Card */}
+          <div 
+            onClick={() => {
+              const nextState = !showPlantDeclaration;
+              setShowPlantDeclaration(nextState);
+              if (!nextState && onClosePlantDeclaration) {
+                onClosePlantDeclaration();
+              }
+            }}
+            style={{
+              background: showPlantDeclaration ? '#f5f3ff' : '#ffffff',
+              border: `1px solid ${showPlantDeclaration ? '#8b5cf6' : '#e5e7eb'}`,
+              borderRadius: '10px',
+              padding: '12px 16px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              height: '85px',
+              boxSizing: 'border-box',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+              opacity: 1,
+              position: 'relative'
+            }}
+            onMouseEnter={e => {
+              if (!showPlantDeclaration) {
+                e.currentTarget.style.background = '#f5f3ff';
+                e.currentTarget.style.borderColor = '#8b5cf6';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
+              }
+            }}
+            onMouseLeave={e => {
+              if (!showPlantDeclaration) {
+                e.currentTarget.style.background = '#ffffff';
+                e.currentTarget.style.borderColor = '#e5e7eb';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
+              }
+            }}
+          >
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px',
+              flex: 1,
+              minWidth: 0,
+              overflow: 'hidden'
+            }}>
+              <span style={{
+                fontWeight: '700',
+                fontSize: '13px',
+                color: '#111827',
+                lineHeight: '1.2'
+              }}>
+                Plant Setup & Declaration
+              </span>
+              <span style={{
+                fontSize: '11px',
+                color: '#6b7280',
+                fontWeight: '500',
+                lineHeight: '1.1'
+              }}>
+                Verify Plant Setup, Recipes & QAP limits
+              </span>
+            </div>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginLeft: '12px',
+              flexShrink: 0,
+              position: 'relative'
+            }}>
+              <div style={{
+                width: '40px',
+                height: '40px',
+                background: 'linear-gradient(135deg, #f5f3ff 0%, #ddd6fe 100%)',
+                borderRadius: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#6d28d9',
+                boxShadow: '0 4px 6px -1px rgba(109, 40, 217, 0.15)',
+                border: '1px solid rgba(255, 255, 255, 0.8)'
+              }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="9" y1="9" x2="15" y2="9"></line>
+                    <line x1="9" y1="13" x2="15" y2="13"></line>
+                    <line x1="9" y1="17" x2="15" y2="17"></line>
+                </svg>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
+
+      {showPlantDeclaration && (
+        <div style={{ 
+          marginTop: '32px', 
+          background: 'white',
+          borderRadius: '16px',
+          padding: '24px',
+          border: '1px solid #e2e8f0',
+          boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03)',
+          animation: 'fadeIn 0.4s ease-out'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
+            <button
+              onClick={() => {
+                setShowPlantDeclaration(false);
+                if (onClosePlantDeclaration) onClosePlantDeclaration();
+              }}
+              style={{
+                background: '#f1f5f9',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '6px 12px',
+                fontSize: '12px',
+                fontWeight: '700',
+                color: '#475569',
+                cursor: 'pointer',
+                transition: 'background 0.2s'
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = '#e2e8f0'}
+              onMouseLeave={e => e.currentTarget.style.background = '#f1f5f9'}
+            >
+              Close Baseline Panel ×
+            </button>
+          </div>
+          <PlantDeclarationDashboard />
+        </div>
+      )}
     </div>
   );
 };

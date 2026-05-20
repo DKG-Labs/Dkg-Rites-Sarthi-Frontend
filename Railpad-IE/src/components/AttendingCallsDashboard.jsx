@@ -110,7 +110,7 @@ const AttendingCallsDashboard = ({ onStart, onResume }) => {
       };
 
       const result = await performTransitionAction(actionData);
-      
+
       if (result.responseStatus?.statusCode === 0) {
         // Pass the updated transition ID to the next page
         const updatedCall = {
@@ -119,9 +119,9 @@ const AttendingCallsDashboard = ({ onStart, onResume }) => {
         };
         onStart(updatedCall);
       } else {
-        setNotification({ 
-          message: result.responseStatus?.message || 'Failed to initiate inspection workflow', 
-          type: 'error' 
+        setNotification({
+          message: result.responseStatus?.message || 'Failed to initiate inspection workflow',
+          type: 'error'
         });
       }
     } catch (error) {
@@ -146,7 +146,7 @@ const AttendingCallsDashboard = ({ onStart, onResume }) => {
 
   const handleAction = async (action) => {
     if (!selectedCall) return;
-    
+
     setIsSubmitting(true);
     try {
       const actionData = {
@@ -156,9 +156,9 @@ const AttendingCallsDashboard = ({ onStart, onResume }) => {
         remarks: remarks,
         actionBy: user.userId
       };
-      
+
       const result = await performTransitionAction(actionData);
-    if (result.responseStatus?.statusCode === 0) {
+      if (result.responseStatus?.statusCode === 0) {
         setNotification({ message: 'Action performed successfully!', type: 'success' });
         setShowDetailsModal(false);
         loadCalls();
@@ -175,13 +175,13 @@ const AttendingCallsDashboard = ({ onStart, onResume }) => {
   return (
     <div className="dashboard-container" style={{ padding: '24px', background: '#f8fafc', minHeight: '100vh' }}>
       {/* Notification Component */}
-      <Notification 
+      <Notification
         message={notification.message}
         type={notification.type}
         autoClose={true}
         onClose={() => setNotification({ ...notification, message: '' })}
       />
-      
+
       <div style={{ marginBottom: '32px' }}>
         <h1 style={{ fontSize: '32px', fontWeight: '800', color: '#0f172a', margin: '0 0 8px 0' }}>
           Attending the Call Raised
@@ -273,8 +273,8 @@ const AttendingCallsDashboard = ({ onStart, onResume }) => {
               </tr>
             </thead>
             <tbody>
-              {calls.filter(call => 
-                (call.status !== 'CREATED' && call.jobStatus !== 'CREATED') && 
+              {calls.filter(call =>
+                (call.status !== 'CREATED' && call.jobStatus !== 'CREATED') &&
                 (call.accessibleUserIds?.includes(Number(user?.userId))) && (
                   (call.requestId?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
                   (call.vendorCode?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
@@ -308,34 +308,34 @@ const AttendingCallsDashboard = ({ onStart, onResume }) => {
                     <div style={{ display: 'flex', gap: '8px' }}>
                       {/* DETAILS button removed per user request */}
                       {call.jobStatus === 'RIO_VERIFIED' && (
-                        <button 
+                        <button
                           onClick={() => handleOpenSchedule(call)}
-                          style={{ 
-                            padding: '6px 12px', 
-                            borderRadius: '6px', 
-                            border: '1px solid #bbf7d0', 
-                            background: '#f0fdf4', 
-                            color: '#166534', 
-                            fontSize: '11px', 
-                            fontWeight: '700', 
-                            cursor: 'pointer' 
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '6px',
+                            border: '1px solid #bbf7d0',
+                            background: '#f0fdf4',
+                            color: '#166534',
+                            fontSize: '11px',
+                            fontWeight: '700',
+                            cursor: 'pointer'
                           }}
                         >
                           SCHEDULE
                         </button>
                       )}
                       {(call.jobStatus === 'SCHEDULED' || call.status === 'SCHEDULED') && (
-                        <button 
+                        <button
                           onClick={() => handleStartInspection(call)}
                           disabled={isSubmitting}
-                          style={{ 
-                            padding: '6px 12px', 
-                            borderRadius: '6px', 
-                            border: '1px solid #bfdbfe', 
-                            background: isSubmitting ? '#f1f5f9' : '#eff6ff', 
-                            color: isSubmitting ? '#94a3b8' : '#1e40af', 
-                            fontSize: '11px', 
-                            fontWeight: '700', 
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '6px',
+                            border: '1px solid #bfdbfe',
+                            background: isSubmitting ? '#f1f5f9' : '#eff6ff',
+                            color: isSubmitting ? '#94a3b8' : '#1e40af',
+                            fontSize: '11px',
+                            fontWeight: '700',
                             cursor: isSubmitting ? 'not-allowed' : 'pointer',
                             minWidth: '60px'
                           }}
@@ -344,17 +344,17 @@ const AttendingCallsDashboard = ({ onStart, onResume }) => {
                         </button>
                       )}
                       {(call.jobStatus === 'PO_VERIFICATION' || call.status === 'PO_VERIFICATION') && (
-                        <button 
+                        <button
                           onClick={() => handleResumeClick(call)}
-                          style={{ 
-                            padding: '6px 12px', 
-                            borderRadius: '6px', 
-                            border: '1px solid #fde68a', 
-                            background: '#fffbeb', 
-                            color: '#92400e', 
-                            fontSize: '11px', 
-                            fontWeight: '700', 
-                            cursor: 'pointer' 
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '6px',
+                            border: '1px solid #fde68a',
+                            background: '#fffbeb',
+                            color: '#92400e',
+                            fontSize: '11px',
+                            fontWeight: '700',
+                            cursor: 'pointer'
                           }}
                         >
                           RESUME
@@ -374,7 +374,7 @@ const AttendingCallsDashboard = ({ onStart, onResume }) => {
         <ShiftDutyForm
           hideCompanyAndUnit={true}
           initialData={{
-            company: callToResume?.vendorCode || '', 
+            company: callToResume?.vendorCode || '',
             unit: callToResume?.plantId || ''
           }}
           onSubmit={handleResumeSubmit}
@@ -390,7 +390,7 @@ const AttendingCallsDashboard = ({ onStart, onResume }) => {
               <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a', margin: 0 }}>Workflow Details: {selectedCall.requestId}</h2>
               <button onClick={() => setShowDetailsModal(false)} style={{ background: 'none', border: 'none', fontSize: '24px', color: '#94a3b8', cursor: 'pointer' }}>×</button>
             </div>
-            
+
             <div style={{ padding: '24px', overflowY: 'auto' }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginBottom: '32px' }}>
                 {[

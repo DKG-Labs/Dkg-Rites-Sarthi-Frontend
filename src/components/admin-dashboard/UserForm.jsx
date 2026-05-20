@@ -17,11 +17,20 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
         discipline: '',
         rio: '',
         cm: '',
+        zonalRly: '',
         status: 'Active'
     });
 
     useEffect(() => {
         if (user) {
+            const isZR = Array.isArray(user.roleNames) ? user.roleNames.includes('ZONAL RAILWAY') : (user.roleName && user.roleName.split(',').includes('ZONAL RAILWAY'));
+            let derivedZonalRly = user.zonalRly || '';
+            if (!derivedZonalRly && isZR && user.employeeCode) {
+                const match = user.employeeCode.match(/^ZR([A-Z]+)\d+$/);
+                if (match) {
+                    derivedZonalRly = match[1];
+                }
+            }
             setFormData(prev => ({
                 ...prev,
                 ...user,
@@ -30,7 +39,8 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
                 mobileNumber: user.mobileNumber || user.mobileNo || '',
                 roleNames: Array.isArray(user.roleNames) ? user.roleNames : (user.roleName ? user.roleName.split(',') : []),
                 userId: user.userId || user.id || undefined,
-                rio: user.rio || ''
+                rio: user.rio || '',
+                zonalRly: derivedZonalRly
             }));
         } else {
             setFormData({
@@ -48,6 +58,7 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
                 discipline: '',
                 rio: '',
                 cm: '',
+                zonalRly: '',
                 status: 'Active'
             });
         }
@@ -79,8 +90,8 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
         // Validation for duplicate user
         if (!user) {
             const existing = existingUsers.find(u => 
-                u.employeeCode === formData.employeeCode || 
-                (u.email && u.email === formData.email)
+                (formData.employeeCode && u.employeeCode === formData.employeeCode) || 
+                (formData.email && u.email && u.email === formData.email)
             );
 
             if (existing) {
@@ -105,6 +116,11 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
                         // Ensure ID is passed for update
                         userId: existing.userId || existing.id
                     };
+                    Object.keys(dataToSubmit).forEach(key => {
+                        if (dataToSubmit[key] === '') {
+                            dataToSubmit[key] = null;
+                        }
+                    });
                     onSubmit(dataToSubmit);
                     return;
                 } else {
@@ -115,8 +131,18 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
 
         // Ensure userName matches fullName before submission
         const finalData = { ...formData, userName: formData.fullName };
+        
+        // Convert any empty strings to null to prevent database type conversion errors (e.g. date_of_birth)
+        Object.keys(finalData).forEach(key => {
+            if (finalData[key] === '') {
+                finalData[key] = null;
+            }
+        });
+
         onSubmit(finalData);
     };
+
+    const isZonalRailway = formData.roleNames.includes('ZONAL RAILWAY');
 
     return (
         <form onSubmit={handleSubmit} className="user-form-professional">
@@ -143,6 +169,24 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
                             })}
                         </select>
                     </div>
+
+                    {isZonalRailway && (
+                        <div className="form-group">
+                            <label className="form-label">Organisation (Zonal Railway) <span className="required-star">*</span></label>
+                            <select
+                                name="zonalRly"
+                                className="form-control"
+                                value={formData.zonalRly || ''}
+                                onChange={handleChange}
+                                required
+                            >
+                                <option value="">Select Zonal Railway</option>
+                                {['CR', 'ER', 'ECR', 'ECoR', 'NR', 'NCR', 'NER', 'NFR', 'NWR', 'SR', 'SCR', 'SER', 'SECR', 'SWR', 'WR', 'WCR'].map(rly => (
+                                    <option key={rly} value={rly}>{rly}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -164,18 +208,20 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
                             required
                         />
                     </div>
-                    <div className="form-group">
-                        <label className="form-label">Short Name</label>
-                        <input
-                            type="text"
-                            name="shortName"
-                            className="form-control"
-                            placeholder="Abbreviation (e.g. RK)"
-                            value={formData.shortName}
-                            onChange={handleChange}
-                            maxLength="5"
-                        />
-                    </div>
+                    {!isZonalRailway && (
+                        <div className="form-group">
+                            <label className="form-label">Short Name</label>
+                            <input
+                                type="text"
+                                name="shortName"
+                                className="form-control"
+                                placeholder="Abbreviation (e.g. RK)"
+                                value={formData.shortName}
+                                onChange={handleChange}
+                                maxLength="5"
+                            />
+                        </div>
+                    )}
                     <div className="form-group">
                         <label className="form-label">Email Address <span className="required-star">*</span></label>
                         <input
@@ -213,16 +259,18 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
                             onChange={handleChange}
                         />
                     </div>
-                    <div className="form-group">
-                        <label className="form-label">Date of Birth</label>
-                        <input
-                            type="date"
-                            name="dateOfBirth"
-                            className="form-control"
-                            value={formData.dateOfBirth}
-                            onChange={handleChange}
-                        />
-                    </div>
+                    {!isZonalRailway && (
+                        <div className="form-group">
+                            <label className="form-label">Date of Birth</label>
+                            <input
+                                type="date"
+                                name="dateOfBirth"
+                                className="form-control"
+                                value={formData.dateOfBirth}
+                                onChange={handleChange}
+                            />
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -232,72 +280,93 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
                     <span>🏢</span> Professional Details
                 </div>
                 <div className="form-grid">
-                    <div className="form-group">
-                        <label className="form-label">RITES Employee Code <span className="required-star">*</span></label>
-                        <input
-                            type="text"
-                            name="employeeCode"
-                            className="form-control"
-                            placeholder="e.g. RITES1234"
-                            value={formData.employeeCode}
-                            onChange={handleChange}
-                            required
-                        />
-                    </div>
-                    <div className="form-group">
-                        <label className="form-label">Employment Type</label>
-                        <select
-                            name="employmentType"
-                            className="form-control"
-                            value={formData.employmentType}
-                            onChange={handleChange}
-                        >
-                            <option value="REGULAR">REGULAR</option>
-                            <option value="CONTRACTUAL">CONTRACTUAL</option>
-                        </select>
-                    </div>
-                    <div className="form-group">
-                        <label className="form-label">Designation</label>
-                        <select
-                            name="designation"
-                            className="form-control"
-                            value={formData.designation}
-                            onChange={handleChange}
-                        >
-                            <option value="">Select Designation</option>
-                            {DESIGNATIONS.map(designation => (
-                                <option key={designation} value={designation}>{designation}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="form-group">
-                        <label className="form-label">Discipline</label>
-                        <select
-                            name="discipline"
-                            className="form-control"
-                            value={formData.discipline}
-                            onChange={handleChange}
-                        >
-                            <option value="">Select Discipline</option>
-                            {DISCIPLINES.map(discipline => (
-                                <option key={discipline} value={discipline}>{discipline}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="form-group">
-                        <label className="form-label">Region (RIO)</label>
-                        <select
-                            name="rio"
-                            className="form-control"
-                            value={formData.rio}
-                            onChange={handleChange}
-                        >
-                            <option value="">Select Region</option>
-                            {REGIONS.map(region => (
-                                <option key={region} value={region}>{region}</option>
-                            ))}
-                        </select>
-                    </div>
+                    {(!isZonalRailway || (isZonalRailway && user)) && (
+                        <div className="form-group">
+                            <label className="form-label">RITES Employee Code <span className="required-star">*</span></label>
+                            <input
+                                type="text"
+                                name="employeeCode"
+                                className="form-control"
+                                placeholder="e.g. RITES1234"
+                                value={formData.employeeCode}
+                                onChange={handleChange}
+                                required={!isZonalRailway}
+                                disabled={isZonalRailway && user}
+                            />
+                        </div>
+                    )}
+                    {isZonalRailway ? (
+                        <>
+                            <div className="form-group">
+                                <label className="form-label">Designation</label>
+                                <input
+                                    type="text"
+                                    name="designation"
+                                    className="form-control"
+                                    placeholder="Designation (e.g. SSE DD HQ)"
+                                    value={formData.designation}
+                                    onChange={handleChange}
+                                />
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="form-group">
+                                <label className="form-label">Employment Type</label>
+                                <select
+                                    name="employmentType"
+                                    className="form-control"
+                                    value={formData.employmentType}
+                                    onChange={handleChange}
+                                >
+                                    <option value="REGULAR">REGULAR</option>
+                                    <option value="CONTRACTUAL">CONTRACTUAL</option>
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Designation</label>
+                                <select
+                                    name="designation"
+                                    className="form-control"
+                                    value={formData.designation}
+                                    onChange={handleChange}
+                                >
+                                    <option value="">Select Designation</option>
+                                    {DESIGNATIONS.map(designation => (
+                                        <option key={designation} value={designation}>{designation}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Discipline</label>
+                                <select
+                                    name="discipline"
+                                    className="form-control"
+                                    value={formData.discipline}
+                                    onChange={handleChange}
+                                >
+                                    <option value="">Select Discipline</option>
+                                    {DISCIPLINES.map(discipline => (
+                                        <option key={discipline} value={discipline}>{discipline}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Region (RIO)</label>
+                                <select
+                                    name="rio"
+                                    className="form-control"
+                                    value={formData.rio}
+                                    onChange={handleChange}
+                                >
+                                    <option value="">Select Region</option>
+                                    {REGIONS.map(region => (
+                                        <option key={region} value={region}>{region}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </>
+                    )}
                     <div className="form-group">
                         <label className="form-label">Status</label>
                         <select

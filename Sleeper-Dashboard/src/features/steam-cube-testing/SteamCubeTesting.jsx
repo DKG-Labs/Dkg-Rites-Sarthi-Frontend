@@ -759,6 +759,151 @@ const SteamCubeDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelet
 };
 
 
+// ── Searchable Select Component ─────────────────────────────────────────────
+const SearchableSelect = ({ value, onChange, options, placeholder = '-- Select --', style = {} }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const wrapperRef = React.useRef(null);
+    const inputRef = React.useRef(null);
+
+    // Close on outside click
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+                setIsOpen(false);
+                setSearchQuery('');
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const filteredOptions = options.filter(opt =>
+        opt.label.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    const selectedLabel = options.find(o => o.value === value)?.label || '';
+
+    const handleSelect = (opt) => {
+        onChange(opt.value);
+        setIsOpen(false);
+        setSearchQuery('');
+    };
+
+    const handleOpen = () => {
+        setIsOpen(prev => !prev);
+        setSearchQuery('');
+        setTimeout(() => inputRef.current?.focus(), 50);
+    };
+
+    return (
+        <div ref={wrapperRef} style={{ position: 'relative', ...style }}>
+            {/* Trigger */}
+            <div
+                onClick={handleOpen}
+                style={{
+                    padding: '0 10px',
+                    height: '38px',
+                    borderRadius: '6px',
+                    border: `1.5px solid ${isOpen ? '#42818c' : '#e2e8f0'}`,
+                    fontSize: '13px',
+                    color: value ? '#1e293b' : '#94a3b8',
+                    background: '#fff',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    userSelect: 'none',
+                    boxShadow: isOpen ? '0 0 0 3px rgba(66,129,140,0.15)' : 'none',
+                    transition: 'border-color 0.2s, box-shadow 0.2s'
+                }}
+            >
+                <span>{selectedLabel || placeholder}</span>
+                <svg
+                    width="14" height="14" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" strokeWidth="2.5"
+                    style={{ color: '#64748b', transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }}
+                >
+                    <polyline points="6 9 12 15 18 9" />
+                </svg>
+            </div>
+
+            {/* Dropdown */}
+            {isOpen && (
+                <div style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 4px)',
+                    left: 0,
+                    right: 0,
+                    background: '#fff',
+                    border: '1.5px solid #42818c',
+                    borderRadius: '8px',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                    zIndex: 9999,
+                    overflow: 'hidden'
+                }}>
+                    {/* Search input */}
+                    <div style={{ padding: '8px', borderBottom: '1px solid #f1f5f9' }}>
+                        <div style={{ position: 'relative' }}>
+                            <svg
+                                width="13" height="13" viewBox="0 0 24 24" fill="none"
+                                stroke="#94a3b8" strokeWidth="2.5"
+                                style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)' }}
+                            >
+                                <circle cx="11" cy="11" r="8" />
+                                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                            </svg>
+                            <input
+                                ref={inputRef}
+                                type="text"
+                                value={searchQuery}
+                                onChange={e => setSearchQuery(e.target.value)}
+                                placeholder="Search..."
+                                style={{
+                                    width: '100%',
+                                    paddingLeft: '28px',
+                                    paddingRight: '8px',
+                                    height: '32px',
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: '6px',
+                                    fontSize: '12px',
+                                    outline: 'none',
+                                    boxSizing: 'border-box'
+                                }}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Options list */}
+                    <div style={{ maxHeight: '180px', overflowY: 'auto' }}>
+                        {filteredOptions.length === 0 ? (
+                            <div style={{ padding: '10px', textAlign: 'center', fontSize: '12px', color: '#94a3b8' }}>No results</div>
+                        ) : filteredOptions.map(opt => (
+                            <div
+                                key={opt.value}
+                                onClick={() => handleSelect(opt)}
+                                style={{
+                                    padding: '9px 12px',
+                                    fontSize: '13px',
+                                    cursor: 'pointer',
+                                    background: opt.value === value ? '#f0fafa' : 'transparent',
+                                    color: opt.value === value ? '#42818c' : '#1e293b',
+                                    fontWeight: opt.value === value ? '700' : '400',
+                                    transition: 'background 0.15s'
+                                }}
+                                onMouseEnter={e => { if (opt.value !== value) e.currentTarget.style.background = '#f8fafc'; }}
+                                onMouseLeave={e => { if (opt.value !== value) e.currentTarget.style.background = 'transparent'; }}
+                            >
+                                {opt.label}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
 const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete, activeContainer }) => {
     const [moistureReports, setMoistureReports] = useState([]);
     const [availableLocations, setAvailableLocations] = useState([]);
@@ -1035,14 +1180,12 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
                             </div>
                             <div className="input-group">
                                 <label style={{ fontSize: '11px', color: '#64748b', fontWeight: '700' }}>Sleeper Sequence</label>
-                                <select 
-                                    value={currentCube.sleeperSequence} 
-                                    onChange={e => setCurrentCube({ ...currentCube, sleeperSequence: e.target.value })}
-                                    style={{ padding: '0 10px', height: '38px', borderRadius: '6px', border: '1.5px solid #e2e8f0', fontSize: '13px', color: '#1e293b', outline: 'none', background: '#fff' }}
-                                >
-                                    <option value="">-- Select --</option>
-                                    {['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map(s => <option key={s} value={s}>{s}</option>)}
-                                </select>
+                                <SearchableSelect
+                                    value={currentCube.sleeperSequence}
+                                    onChange={(val) => setCurrentCube({ ...currentCube, sleeperSequence: val })}
+                                    options={['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'].map(s => ({ value: s, label: s }))}
+                                    placeholder="-- Select --"
+                                />
                             </div>
                             <div className="input-group">
                                 <label style={{ fontSize: '11px', color: '#64748b', fontWeight: '700' }}>Cube Code (Auto)</label>

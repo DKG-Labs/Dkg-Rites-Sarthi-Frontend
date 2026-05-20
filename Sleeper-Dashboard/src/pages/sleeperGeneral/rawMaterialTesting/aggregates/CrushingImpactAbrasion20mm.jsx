@@ -209,7 +209,7 @@ export default function CrushingImpactAbrasion20mm({ onSave, onCancel, inventory
                                 <input type="number" step="0.01" {...register("crushingSampleWt", { required: "Required" })} />
                             </div>
                             <div className="input-group">
-                                <label>Passing through 2.36mm sieve (gms) <span className="required">*</span></label>
+                                <label>Passing through 3.35mm IS sieve (gms) <span className="required">*</span></label>
                                 <input type="number" step="0.01" {...register("crushingPassingWt", { required: "Required" })} />
                             </div>
                             <div className="input-group">

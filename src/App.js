@@ -300,6 +300,9 @@ const App = () => {
  */
 const isSleeperRole = (role) => {
   if (!role) return false;
+  // If it's a Rail-related role, it belongs to Railpad, not Sleeper
+  if (typeof role === 'string' && role.includes('Rail')) return false;
+
   const sleeperRoles = ['Sleeper Process IE', 'Main IE'];
   return sleeperRoles.some(r =>
     role === r || (typeof role === 'string' && role.includes(r))
@@ -311,7 +314,7 @@ const isSleeperRole = (role) => {
  */
 const isRailpadRole = (role) => {
   if (!role) return false;
-  const railpadRoles = ['Railpad IE'];
+  const railpadRoles = ['Railpad IE', 'Rail Process IE', 'Rail Main IE'];
   return railpadRoles.some(r =>
     role === r || (typeof role === 'string' && role.includes(r))
   );

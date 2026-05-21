@@ -164,4 +164,7 @@ export const ROLE_LANDING_ROUTE = {
   'Main IE': '/sleeper/',
   'Rites Admin': '/rites-admin',
   'Rites ADMin': '/rites-admin',
+  'Rail Main IE': '/railpad/',
+  'Railpad IE': '/railpad/',
+  'Rail Process IE': '/railpad/',
 };

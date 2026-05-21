@@ -53,6 +53,7 @@ import { RailwayBoardDashboardWrapper } from './pages/wrappers/RailwayBoardWrapp
 import { AdminDashboardWrapper } from './pages/wrappers/AdminDashboardWrapper';
 import AnnexurePage from './pages/AnnexurePage';
 import { useNavigate } from 'react-router-dom';
+import RitesAdminDashboard from './pages/RitesAdminDashboard';
 
 /**
  * Role-based redirect component
@@ -251,8 +252,26 @@ const App = () => {
             <Route
               path={ROUTES.RAILWAY_BOARD_DASHBOARD}
               element={
-                <ProtectedRoute allowedRoles={['RAILWAY_BOARD']}>
+                <ProtectedRoute allowedRoles={['RAILWAY_BOARD', 'Rites Admin', 'Rites ADMin']}>
                   <RailwayBoardDashboardWrapper />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path={ROUTES.RITES_ADMIN_DASHBOARD}
+              element={
+                <ProtectedRoute allowedRoles={['Rites Admin', 'Rites ADMin']}>
+                  <RitesAdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/rites admin"
+              element={
+                <ProtectedRoute allowedRoles={['Rites Admin', 'Rites ADMin']}>
+                  <RitesAdminDashboard />
                 </ProtectedRoute>
               }
             />
@@ -281,6 +300,9 @@ const App = () => {
  */
 const isSleeperRole = (role) => {
   if (!role) return false;
+  // If it's a Rail-related role, it belongs to Railpad, not Sleeper
+  if (typeof role === 'string' && role.includes('Rail')) return false;
+
   const sleeperRoles = ['Sleeper Process IE', 'Main IE'];
   return sleeperRoles.some(r =>
     role === r || (typeof role === 'string' && role.includes(r))
@@ -292,7 +314,7 @@ const isSleeperRole = (role) => {
  */
 const isRailpadRole = (role) => {
   if (!role) return false;
-  const railpadRoles = ['Railpad IE'];
+  const railpadRoles = ['Railpad IE', 'Rail Process IE', 'Rail Main IE'];
   return railpadRoles.some(r =>
     role === r || (typeof role === 'string' && role.includes(r))
   );

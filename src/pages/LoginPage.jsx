@@ -203,8 +203,8 @@ const LoginPage = () => {
       }
 
       // Handle Railpad Role
-      if (roles.some(r => r === 'Railpad IE' || r === 'Rail Process IE')) {
-        const isProcessRole = roles.includes('Rail Process IE') && !roles.includes('Railpad IE');
+      if (roles.some(r => r === 'Railpad IE' || r === 'Rail Process IE' || r === 'Rail Main IE')) {
+        const isProcessRole = roles.includes('Rail Process IE') && !roles.includes('Railpad IE') && !roles.includes('Rail Main IE');
         options.push({
           id: 'railpad_option',
           label: isProcessRole ? 'Railpad Process IE Dashboard' : 'Railpad Dashboard',
@@ -214,6 +214,7 @@ const LoginPage = () => {
         });
         seenConsolidated.add('Railpad IE');
         seenConsolidated.add('Rail Process IE');
+        seenConsolidated.add('Rail Main IE');
       }
 
       // Handle any other roles that aren't part of the specific consolidation requirement
@@ -462,6 +463,9 @@ const LoginPage = () => {
  */
 const isSleeperRole = (role) => {
   if (!role) return false;
+  // If it's a Rail-related role, it belongs to Railpad, not Sleeper
+  if (typeof role === 'string' && role.includes('Rail')) return false;
+
   const sleeperRoles = ['Sleeper Process IE', 'Main IE'];
   return sleeperRoles.some(r =>
     role === r || (typeof role === 'string' && role.includes(r))
@@ -473,7 +477,7 @@ const isSleeperRole = (role) => {
  */
 const isRailpadRole = (role) => {
   if (!role) return false;
-  const railpadRoles = ['Railpad IE'];
+  const railpadRoles = ['Railpad IE', 'Rail Process IE', 'Rail Main IE'];
   return railpadRoles.some(r =>
     role === r || (typeof role === 'string' && role.includes(r))
   );

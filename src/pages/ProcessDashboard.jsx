@@ -2206,6 +2206,22 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
   // Get the selected lot for the current line
   const selectedLotForDisplay = selectedLotByLine[selectedLine] || null;
 
+  // Resolve current active production line product type
+  const currentLineProductType = useMemo(() => {
+    const idx = parseInt(selectedLine.replace('Line-', ''), 10) - 1;
+    const prodLine = localProductionLines?.[idx];
+    return prodLine?.productType || call?.product_type || call?.erc_type || '';
+  }, [selectedLine, localProductionLines, call]);
+
+  // Check if the current line product type is MK-III
+  const isMkIII = useMemo(() => {
+    const ercTypeLower = String(currentLineProductType).toLowerCase().trim();
+    return ercTypeLower === 'mk-iii' ||
+      ercTypeLower === 'mk-3' ||
+      ercTypeLower === 'mkiii' ||
+      ercTypeLower === 'mk3';
+  }, [currentLineProductType]);
+
   // Heat Wise Accountal - Quantity Summary Data
   // Structure: { heatNo: { manufaturedQty, rejectedQty, rmAcceptedQty, acceptedQty }, ... }
   const [heatWiseAccountalData, setHeatWiseAccountalData] = useState({});
@@ -4509,7 +4525,14 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       // Get all lots for this line from localStorage
       const allData = getAllProcessData(callNo, poNo, lineNo, shift);
       const lotsSet = new Set();
-      const modules = ['shearingData', 'turningData', 'mpiData', 'forgingData', 'quenchingData', 'temperingData', 'finalCheckData', 'testingFinishingData'];
+      let modules = ['shearingData', 'turningData', 'mpiData', 'forgingData', 'quenchingData', 'temperingData', 'finalCheckData', 'testingFinishingData'];
+
+      // Skip turningData validation entirely for MK-III product type
+      const isMkIII = productType && /MK-III/i.test(productType);
+      if (isMkIII) {
+        console.log(`🔍 [Validation] Skipping turningData validation entirely for MK-III product in ${lineNo}`);
+        modules = modules.filter(moduleName => moduleName !== 'turningData');
+      }
 
       modules.forEach((moduleName) => {
         if (allData?.[moduleName] && Array.isArray(allData[moduleName])) {
@@ -4539,18 +4562,52 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         let sectionHasNoProduction = false;
         let sectionHasAnyData = false;
 
-        sectionData.forEach((hourData) => {
+        sectionData.forEach((hourData, hourIndex) => {
           if (hourData && Object.keys(hourData).length > 0) {
             sectionHasAnyData = true;
 
             // Check if this hour has a lot number
-            if (hourData.lotNo && hourData.lotNo.trim()) {
+            const hasLot = hourData.lotNo && hourData.lotNo.trim();
+            if (hasLot) {
               sectionHasLots = true;
             }
 
             // Check if this hour is marked as No Production
             if (hourData.noProduction === true) {
               sectionHasNoProduction = true;
+            }
+
+            // Enforce selecting a lot number if any production data has been entered for this hour
+            if (hourData.noProduction !== true && !hasLot) {
+              const dataFieldsMap = {
+                'shearingData': ['lengthCutBar1', 'lengthCutBar2', 'lengthCutBar3', 'remarks'],
+                'turningData': ['straightLength1', 'straightLength2', 'straightLength3', 'taperLength1', 'taperLength2', 'taperLength3', 'dia1', 'dia2', 'dia3', 'remarks'],
+                'mpiData': ['testResult1', 'testResult2', 'testResult3', 'remarks'],
+                'forgingData': ['forgingTemp1', 'forgingTemp2', 'remarks'],
+                'quenchingData': ['quenchingTemperature1', 'quenchingTemperature2', 'quenchingDuration1', 'quenchingDuration2', 'remarks'],
+                'temperingData': ['temperingTemperature1', 'temperingTemperature2', 'temperingDuration1', 'temperingDuration2', 'remarks'],
+                'finalCheckData': ['boxGauge1', 'boxGauge2', 'flatBearingArea1', 'flatBearingArea2', 'fallingGauge1', 'fallingGauge2', 'surfaceDefect1', 'surfaceDefect2', 'remarks'],
+                'testingFinishingData': ['toeLoad1', 'toeLoad2', 'weight1', 'weight2', 'remarks']
+              };
+
+              const fieldsToCheck = dataFieldsMap[moduleName] || [];
+              const hasData = fieldsToCheck.some(field => {
+                const val = hourData[field];
+                return val !== null && val !== undefined && String(val).trim() !== '';
+              });
+
+              if (hasData) {
+                const inspectionShift = sessionStorage.getItem('inspectionShift') || 'A';
+                const hourLabels = getHourLabels(inspectionShift);
+                const hourLabel = hourLabels[hourIndex] || `Hour ${hourIndex + 1}`;
+                const sectionName = moduleName.replace('Data', '').replace(/([A-Z])/g, ' $1').trim();
+                
+                const errKey = `${lineNo}|${sectionName} (${hourLabel})`;
+                validationErrors.set(errKey, [
+                  `Please select Lot No. for that hour or section.`
+                ]);
+                console.log(`❌ [Validation] ${lineNo} - ${moduleName} FAILED - entered data for ${hourLabel} but no lot number selected`);
+              }
             }
           }
         });
@@ -4561,12 +4618,16 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         // FAIL if: Has data entries BUT no lot numbers AND no "No Production" marked
         if (sectionHasAnyData && !sectionHasLots && !sectionHasNoProduction) {
           const sectionName = moduleName.replace('Data', '').replace(/([A-Z])/g, ' $1').trim();
-          validationErrors.set(`${lineNo}|${sectionName}`, [
-            `${sectionName} section has incomplete data. Please either:\n` +
-            `  - Enter lot numbers and production data for all hours, OR\n` +
-            `  - Mark the section as "No Production"`
-          ]);
-          console.log(`❌ [Validation] ${lineNo} - ${moduleName} FAILED - has data but no lots and no "No Production"`);
+          // Only add general section error if we didn't already add more specific hourly errors
+          const hasSpecificErrors = Array.from(validationErrors.keys()).some(k => k.startsWith(`${lineNo}|${sectionName} (`));
+          if (!hasSpecificErrors) {
+            validationErrors.set(`${lineNo}|${sectionName}`, [
+              `${sectionName} section has incomplete data. Please either:\n` +
+              `  - Enter lot numbers and production data for all hours, OR\n` +
+              `  - Mark the section as "No Production"`
+            ]);
+            console.log(`❌ [Validation] ${lineNo} - ${moduleName} FAILED - has data but no lots and no "No Production"`);
+          }
         }
       });
 
@@ -6341,10 +6402,19 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
                 <td data-label="Manufactured">
                   <input
                     type="text"
-                    value={manufacturedQty.turning}
+                    value={isMkIII ? '' : manufacturedQty.turning}
+                    disabled={isMkIII}
+                    placeholder={isMkIII ? 'N/A for MK-III' : ''}
                     onChange={(e) => handleManufacturedChange('turning', e.target.value)}
                     onBlur={(e) => handleManufacturedBlur('turning', e.target.value, rejectedQty.turning)}
-                    style={{ width: '100%', padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px' }}
+                    style={{
+                      width: '100%',
+                      padding: '4px 8px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '4px',
+                      backgroundColor: isMkIII ? '#e5e7eb' : '#fff',
+                      cursor: isMkIII ? 'not-allowed' : 'text'
+                    }}
                   />
                 </td>
                 <td data-label="Accepted" style={{ color: '#22c55e', fontWeight: 600 }}>

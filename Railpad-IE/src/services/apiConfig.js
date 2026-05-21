@@ -1,23 +1,13 @@
 // API Configuration
 // Base URL configuration for different environments
 
-<<<<<<< HEAD
-=======
-export const API_BASE_URL = "https://api.ritesqasarthi.com/sarthi-backend/api";
-
->>>>>>> f88aa619 (url)
 export const getBaseUrl = () => {
   const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
   return isLocal
     ? "http://localhost:8080/sarthi-backend/api"
-<<<<<<< HEAD
     : "https://sarthibackendservice-bfe2eag3byfkbsa6.canadacentral-01.azurewebsites.net/sarthi-backend/api";
 };
-//export const API_BASE_URL = "https://api.ritesqasarthi.com/sarthi-backend/api";
-=======
-    : API_BASE_URL;
-};
->>>>>>> f88aa619 (url)
+// export const API_BASE_URL = "https://api.ritesqasarthi.com/sarthi-backend/api";
 // API Endpoints configuration
 export const API_ENDPOINTS = {
   INSPECTION_CALLS: {

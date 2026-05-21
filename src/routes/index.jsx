@@ -67,6 +67,9 @@ export const ROUTES = {
   // Admin Route
   ADMIN_DASHBOARD: '/admin',
 
+  // Rites Admin Route
+  RITES_ADMIN_DASHBOARD: '/rites-admin',
+
   // Annexures Route
   ANNEXURES: '/annexures',
 };
@@ -159,4 +162,6 @@ export const ROLE_LANDING_ROUTE = {
   RAILWAY_BOARD: ROUTES.RAILWAY_BOARD_DASHBOARD,
   ADMIN: ROUTES.ADMIN_DASHBOARD,
   'Main IE': '/sleeper/',
+  'Rites Admin': '/rites-admin',
+  'Rites ADMin': '/rites-admin',
 };

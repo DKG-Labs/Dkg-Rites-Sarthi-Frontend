@@ -197,7 +197,6 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
         if (!formData.noOfWires) mandatoryErrors.push('No. of Wires Used');
         if (!formData.wireDia) mandatoryErrors.push('HTS Wire Dia');
         if (!formData.layLength) mandatoryErrors.push('Lay Length (mm)');
-        if (!formData.observedWeight) mandatoryErrors.push('Observed Weight');
         if (!formData.arrangement) mandatoryErrors.push('Arrangement Status');
 
         if (mandatoryErrors.length > 0) {
@@ -243,7 +242,7 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
             noOfWiresUsed: wiresNum || 0,
             htsWireDiaMm: diaNum || 0,
             layLengthMm: layLenNum,
-            observedWeightKgM: parseFloat(formData.observedWeight) || 0,
+            observedWeightKgM: (formData.observedWeight !== '' && formData.observedWeight !== null && formData.observedWeight !== undefined) ? parseFloat(formData.observedWeight) : null,
             arrangementOk: formData.arrangement === 'OK',
             overallStatus: formData.status,
             remarks: formData.remarks || '',
@@ -394,7 +393,7 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
                 </div>
 
                 <div className="form-field">
-                    <label htmlFor="observedWeight" style={{ fontSize: '11px', fontWeight: '700' }}>Observed Weight (kg/m) <span className="required">*</span></label>
+                    <label htmlFor="observedWeight" style={{ fontSize: '11px', fontWeight: '700' }}>Observed Weight (kg/m)</label>
                     <input
                         id="observedWeight"
                         type="number"

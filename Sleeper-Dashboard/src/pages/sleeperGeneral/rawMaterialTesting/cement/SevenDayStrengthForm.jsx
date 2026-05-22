@@ -17,13 +17,14 @@ export default function SevenDayStrengthForm({ onSave, onCancel, inventoryData =
         roomTemp: "",
         normalConsistency: "",
         waterRequired: 0,
-        area: 4984, // Cross-sectional area in mm2
+        area: 4984.36, // Cross-sectional area in mm2
         cubes: [
-            { castDate: "", castTime: "", testDate: "", testTime: "", loadNewton: "", strength: "" },
-            { castDate: "", castTime: "", testDate: "", testTime: "", loadNewton: "", strength: "" },
-            { castDate: "", castTime: "", testDate: "", testTime: "", loadNewton: "", strength: "" }
+            { castDate: "", castTime: "", testDate: "", testTime: "", loadNewton: "", strength: "", status: "Pending" },
+            { castDate: "", castTime: "", testDate: "", testTime: "", loadNewton: "", strength: "", status: "Pending" },
+            { castDate: "", castTime: "", testDate: "", testTime: "", loadNewton: "", strength: "", status: "Pending" }
         ],
         avgStrength: "",
+        initialAvgStrength: "",
         validationRange: "",
         validationStatus: "",
         isValidTest: true,
@@ -46,12 +47,9 @@ export default function SevenDayStrengthForm({ onSave, onCancel, inventoryData =
 
     useEffect(() => {
         console.log("SevenDayStrengthForm Props:", { initialType, editId, editData, activeConsignmentNo });
-        const formatFromISO = (d) => {
+        const extractDate = (d) => {
             if (!d) return "";
-            if (d.includes('-') && d.split('-')[0].length === 4) {
-                const [y, m, day] = d.split('-');
-                return `${day}-${m}-${y}`;
-            }
+            if (d.includes('T')) return d.split('T')[0];
             return d;
         };
 
@@ -64,16 +62,16 @@ export default function SevenDayStrengthForm({ onSave, onCancel, inventoryData =
                 roomTemp: record.roomTemp || record.temp || prev.roomTemp,
                 normalConsistency: record.normalConsistency || prev.normalConsistency,
                 waterRequired: record.waterRequired || prev.waterRequired,
-                area: record.area || prev.area || 4984,
-                avgStrength: record.avgStrength || prev.avgStrength,
+                area: record.area || prev.area || 4984.36,
+                avgStrength: record.minStrength !== undefined && record.minStrength !== null ? record.minStrength : (record.avgStrength || prev.avgStrength),
                 isValidTest: record.isValidTest !== undefined ? record.isValidTest : prev.isValidTest,
                 cubeResult: record.cubeResult || prev.cubeResult,
                 soundness: record.soundness || prev.soundness,
                 soundnessResult: record.soundnessResult || prev.soundnessResult,
                 cubes: record.cubes && record.cubes.length > 0 ? record.cubes.map(c => ({
-                    castDate: formatFromISO(c.castDate),
+                    castDate: extractDate(c.castDate),
                     castTime: c.castTime ? c.castTime.substring(0, 5) : "",
-                    testDate: formatFromISO(c.testDate),
+                    testDate: extractDate(c.testDate),
                     testTime: c.testTime ? c.testTime.substring(0, 5) : "",
                     loadNewton: c.loadNewton || (c.loadKn ? c.loadKn * 1000 : ""),
                     strength: c.strengthNmm2 || ""
@@ -118,7 +116,8 @@ export default function SevenDayStrengthForm({ onSave, onCancel, inventoryData =
     // Auto calculate water required
     useEffect(() => {
         if (form.normalConsistency) {
-            const water = ((parseFloat(form.normalConsistency) + 3) / 4) * 800 / 100;
+            const pVal = parseFloat(form.normalConsistency) || 0;
+            const water = ((pVal / 4) + 3) * 800 / 100;
             setForm(prev => ({ ...prev, waterRequired: water.toFixed(2) }));
         }
     }, [form.normalConsistency]);
@@ -127,11 +126,11 @@ export default function SevenDayStrengthForm({ onSave, onCancel, inventoryData =
     useEffect(() => {
         const updatedCubes = form.cubes.map(c => {
             const loadN = parseFloat(c.loadNewton);
-            const area = parseFloat(form.area) || 4984;
+            const area = parseFloat(form.area) || 4984.36;
             if (!isNaN(loadN) && area > 0) {
                 return { ...c, strength: (loadN / area).toFixed(2) };
             }
-            return c;
+            return { ...c, strength: "" };
         });
 
         const strengths = updatedCubes
@@ -139,30 +138,79 @@ export default function SevenDayStrengthForm({ onSave, onCancel, inventoryData =
             .filter(v => !isNaN(v));
 
         if (strengths.length === 3) {
-            const avg = strengths.reduce((a, b) => a + b, 0) / 3;
-            const limit = 0.1 * avg; // 10% limit
-            const rangeMin = (avg - limit).toFixed(2);
-            const rangeMax = (avg + limit).toFixed(2);
+            const fc = strengths.reduce((a, b) => a + b, 0) / 3;
+            const fca = 0.10 * fc; // 10% limit
+            const rangeMin = (fc - fca).toFixed(2);
+            const rangeMax = (fc + fca).toFixed(2);
             
-            // Check if any value differs by > 10%
-            const allWithinRange = strengths.every(s => Math.abs(s - avg) <= limit);
-            
+            // Determine status for each cube based on range limits
+            let acceptedCount = 0;
+            const cubesWithStatus = updatedCubes.map(c => {
+                const s = parseFloat(c.strength);
+                if (!isNaN(s)) {
+                    const isWithin = Math.abs(s - fc) <= fca;
+                    if (isWithin) {
+                        acceptedCount++;
+                        return { ...c, status: "Accepted" };
+                    } else {
+                        return { ...c, status: "Discarded" };
+                    }
+                }
+                return { ...c, status: "Pending" };
+            });
+
+            // Calculate final average of accepted strengths only
+            const acceptedStrengths = cubesWithStatus
+                .filter(c => c.status === "Accepted")
+                .map(c => parseFloat(c.strength));
+
+            const fcf = acceptedStrengths.length > 0
+                ? acceptedStrengths.reduce((a, b) => a + b, 0) / acceptedStrengths.length
+                : 0;
+
+            const allWithinRange = acceptedCount === 3;
+            let validationMsg = "";
+            if (acceptedCount === 3) {
+                validationMsg = "All cubes within 10% range of initial average.";
+            } else if (acceptedCount === 2) {
+                const discardedIndex = cubesWithStatus.findIndex(c => c.status === "Discarded");
+                validationMsg = `Cube ${discardedIndex + 1} discarded (outside range). Average based on remaining 2 cubes.`;
+            } else if (acceptedCount === 1) {
+                const acceptedIndex = cubesWithStatus.findIndex(c => c.status === "Accepted");
+                validationMsg = `2 cubes discarded (outside range). Accepted strength based on Cube ${acceptedIndex + 1} only.`;
+            } else {
+                validationMsg = "All cubes outside range. Test is unreliable.";
+            }
+
             setForm(prev => ({
                 ...prev,
-                cubes: updatedCubes,
-                avgStrength: avg.toFixed(2),
-                isValidTest: allWithinRange,
+                cubes: cubesWithStatus,
+                initialAvgStrength: fc.toFixed(2),
+                avgStrength: fcf.toFixed(2),
+                isValidTest: acceptedCount > 0,
                 validationRange: `${rangeMin} to ${rangeMax} N/mm²`,
-                validationStatus: allWithinRange ? "Valid Test (Within 10% range)" : "Invalid Test (Exceeds 10% range)",
-                cubeResult: (avg >= 37 && allWithinRange) ? "Satisfactory" : 
-                            (!allWithinRange) ? "Unreliable (Invalid)" : "Not Satisfactory"
+                validationStatus: validationMsg,
+                cubeResult: (fcf >= 37 && acceptedCount > 0) ? "Satisfactory" : 
+                            (acceptedCount === 0) ? "Unreliable (Invalid)" : "Not Satisfactory"
             }));
         } else {
             // Only update strengths if not all 3 loads are present
-            const currentStr = JSON.stringify(form.cubes.map(c => c.strength));
-            const newStr = JSON.stringify(updatedCubes.map(c => c.strength));
+            const cubesWithPending = updatedCubes.map(c => ({
+                ...c,
+                status: c.loadNewton ? "Calculated" : "Pending"
+            }));
+            
+            const currentStr = JSON.stringify(form.cubes.map(c => ({ strength: c.strength, status: c.status })));
+            const newStr = JSON.stringify(cubesWithPending.map(c => ({ strength: c.strength, status: c.status })));
             if (currentStr !== newStr) {
-                setForm(prev => ({ ...prev, cubes: updatedCubes }));
+                setForm(prev => ({ 
+                    ...prev, 
+                    cubes: cubesWithPending,
+                    initialAvgStrength: "",
+                    validationRange: "",
+                    validationStatus: "Pending inputs",
+                    cubeResult: ""
+                }));
             }
         }
     }, [form.cubes.map(c => c.loadNewton).join(','), form.area]);
@@ -177,14 +225,6 @@ export default function SevenDayStrengthForm({ onSave, onCancel, inventoryData =
         e.preventDefault();
         setLoading(true);
         try {
-            // Helper to convert date from DD-MM-YYYY to YYYY-MM-DD
-            const formatToISO = (dateStr) => {
-                if (!dateStr) return null;
-                const parts = dateStr.includes('-') ? dateStr.split('-') : dateStr.split('/');
-                if (parts.length !== 3) return dateStr;
-                return `${parts[2]}-${parts[1]}-${parts[0]}`;
-            };
-
             const payload = {
                 testDate: form.testDate || new Date().toISOString().split('T')[0],
                 typeOfTesting: form.typeOfTesting,
@@ -193,6 +233,7 @@ export default function SevenDayStrengthForm({ onSave, onCancel, inventoryData =
                 normalConsistency: parseFloat(form.normalConsistency),
                 waterRequired: parseFloat(form.waterRequired),
                 area: parseFloat(form.area),
+                minStrength: parseFloat(form.avgStrength),
                 avgStrength: parseFloat(form.avgStrength),
                 isValidTest: form.isValidTest,
                 cubeResult: form.cubeResult,
@@ -204,9 +245,9 @@ export default function SevenDayStrengthForm({ onSave, onCancel, inventoryData =
                 requestId: activeRequestId || null,
                 createdBy: user?.userId || 0,
                 cubes: form.cubes.map(c => ({
-                    castDate: formatToISO(c.castDate),
+                    castDate: c.castDate || null,
                     castTime: c.castTime ? `${c.castTime}:00` : null,
-                    testDate: formatToISO(c.testDate),
+                    testDate: c.testDate || null,
                     testTime: c.testTime ? `${c.testTime}:00` : null,
                     loadKn: parseFloat(c.loadNewton) / 1000,
                     loadNewton: parseFloat(c.loadNewton),
@@ -317,19 +358,28 @@ export default function SevenDayStrengthForm({ onSave, onCancel, inventoryData =
                 </div>
 
                 <div className="info-section">
-                    <div className="info-title">Calculated parameters</div>
-                    <div className="info-grid">
-                        <div className="info-card">
-                            <div className="info-card-label">Cement Weight</div>
-                            <div className="info-card-value">800 gm</div>
+                    <div className="info-title">Calculated Parameters & Formula</div>
+                    <div style={{ padding: '16px', background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', marginBottom: '16px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', fontSize: '13px', color: '#475569' }}>
+                            <div><strong>P</strong> = Standard Consistency = <span style={{ color: '#0f766e', fontWeight: 'bold' }}>{form.normalConsistency || '0.00'}%</span></div>
+                            <div><strong>A</strong> = Standard Sand Weight = <span style={{ color: '#0f766e', fontWeight: 'bold' }}>600 gm</span></div>
+                            <div><strong>B</strong> = Cement Weight = <span style={{ color: '#0f766e', fontWeight: 'bold' }}>200 gm</span></div>
+                            <div><strong>C</strong> = Total Weight (A + B) = <span style={{ color: '#0f766e', fontWeight: 'bold' }}>800 gm</span></div>
                         </div>
-                        <div className="info-card">
-                            <div className="info-card-label">Sand Weight</div>
-                            <div className="info-card-value">2400 gm</div>
-                        </div>
-                        <div className="info-card">
-                            <div className="info-card-label">Water Required</div>
-                            <div className="info-card-value">{form.waterRequired || '0.00'} gm</div>
+                        <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #e2e8f0', fontSize: '13px', color: '#1e293b' }}>
+                            <div>
+                                <strong>Water Required Formula:</strong>
+                                <span style={{ fontFamily: 'monospace', background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px', marginLeft: '8px', border: '1px solid #e2e8f0' }}>
+                                    [(P/4 + 3) × (Mass of Cement + Sand weight)] / 100
+                                </span>
+                            </div>
+                            <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span>Calculation:</span>
+                                <span style={{ fontFamily: 'monospace', color: '#64748b' }}>
+                                    [({form.normalConsistency || 'P'}/4 + 3) × 800] / 100 = 
+                                </span>
+                                <strong style={{ color: '#0f766e', fontSize: '15px' }}>{form.waterRequired || '0.00'} ml</strong>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -347,17 +397,31 @@ export default function SevenDayStrengthForm({ onSave, onCancel, inventoryData =
                                     <th>Test Time</th>
                                     <th>Load (Newton)</th>
                                     <th>Strength (N/mm²)</th>
+                                    <th>Sample Status</th>
                                 </tr>
                         </thead>
                         <tbody>
                             {form.cubes.map((cube, i) => (
                                 <tr key={i}>
-                                    <td data-label="Cast Date"><input type="text" placeholder="DD-MM-YYYY" value={cube.castDate} onChange={e => updateCube(i, "castDate", e.target.value)} /></td>
+                                    <td data-label="Cast Date"><input type="date" value={cube.castDate} onChange={e => updateCube(i, "castDate", e.target.value)} /></td>
                                     <td data-label="Cast Time"><input type="time" value={cube.castTime} onChange={e => updateCube(i, "castTime", e.target.value)} /></td>
-                                    <td data-label="Test Date"><input type="text" placeholder="DD-MM-YYYY" value={cube.testDate} onChange={e => updateCube(i, "testDate", e.target.value)} /></td>
+                                    <td data-label="Test Date"><input type="date" value={cube.testDate} onChange={e => updateCube(i, "testDate", e.target.value)} /></td>
                                     <td data-label="Test Time"><input type="time" value={cube.testTime} onChange={e => updateCube(i, "testTime", e.target.value)} /></td>
                                     <td data-label="Load (Newton)"><input type="number" step="1" placeholder="N" value={cube.loadNewton} onChange={e => updateCube(i, "loadNewton", e.target.value)} /></td>
                                     <td data-label="Strength (N/mm²)"><input type="number" value={cube.strength} readOnly style={{ background: '#f8fafc' }} /></td>
+                                    <td data-label="Sample Status">
+                                        <span style={{
+                                            display: 'inline-block',
+                                            padding: '4px 8px',
+                                            borderRadius: '4px',
+                                            fontSize: '11px',
+                                            fontWeight: 'bold',
+                                            background: cube.status === 'Accepted' ? '#dcfce7' : cube.status === 'Discarded' ? '#fee2e2' : '#f3f4f6',
+                                            color: cube.status === 'Accepted' ? '#15803d' : cube.status === 'Discarded' ? '#b91c1c' : '#4b5563'
+                                        }}>
+                                            {cube.status || 'Pending'}
+                                        </span>
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
@@ -366,30 +430,61 @@ export default function SevenDayStrengthForm({ onSave, onCancel, inventoryData =
 
                 {/* Results Section */}
                 <div className="info-section">
-                    <div className="info-title">Test Results (Average Strength f_avg = (E+F+G)/3)</div>
-                    <div className="info-grid">
+                    <div className="info-title">Test Calculations & Validation</div>
+                    <div className="info-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
                         <div className="info-card">
-                            <div className="info-card-label">Average Strength (H)</div>
-                            <div className="info-card-value" style={{ color: parseFloat(form.avgStrength) >= 37 ? "#10b981" : "#ef4444" }}>
-                                {form.avgStrength || '-'} N/mm²
+                            <div className="info-card-label">Initial Avg Strength (fc)</div>
+                            <div className="info-card-value" style={{ color: '#475569' }}>
+                                {form.initialAvgStrength ? `${form.initialAvgStrength} N/mm²` : '-'}
                             </div>
+                            <div style={{ fontSize: '10px', color: '#64748b', marginTop: '4px' }}>Average of all 3 cubes</div>
                         </div>
                         <div className="info-card">
-                            <div className="info-card-label">10% Range Validation</div>
-                            <div className="info-card-value" style={{ fontSize: '0.9rem', color: form.isValidTest ? "#10b981" : "#ef4444" }}>
-                                <div>{form.validationStatus || 'Pending inputs'}</div>
-                                {form.isValidTest && form.validationRange && (
-                                    <div style={{ fontSize: '0.75rem', marginTop: '4px' }}>Range: {form.validationRange}</div>
-                                )}
+                            <div className="info-card-label">10% Range Limit (fc ± 10%)</div>
+                            <div className="info-card-value" style={{ fontSize: '0.85rem', color: '#475569' }}>
+                                {form.validationRange ? (
+                                    <div style={{ fontSize: '12px', lineHeight: '1.4', textAlign: 'left' }}>
+                                        <div style={{ fontWeight: '600' }}>Range: {form.validationRange}</div>
+                                        <div style={{ color: '#0369a1', fontSize: '11px', marginTop: '2px' }}>
+                                            Min Limit (fc - fca) = {form.validationRange.split(' to ')[0]}
+                                        </div>
+                                        <div style={{ color: '#b91c1c', fontSize: '11px' }}>
+                                            Max Limit (fc + fca) = {form.validationRange.split(' to ')[1]}
+                                        </div>
+                                    </div>
+                                ) : '-'}
                             </div>
+                            <div style={{ fontSize: '10px', color: '#64748b', marginTop: '4px' }}>Allowed strength limit</div>
+                        </div>
+                        <div className="info-card">
+                            <div className="info-card-label">Final Accepted Strength (fcf)</div>
+                            <div className="info-card-value" style={{ color: parseFloat(form.avgStrength) >= 37 ? "#10b981" : "#ef4444" }}>
+                                {form.avgStrength ? `${form.avgStrength} N/mm²` : '-'}
+                            </div>
+                            <div style={{ fontSize: '10px', color: '#64748b', marginTop: '4px' }}>Average of Accepted cubes only</div>
                         </div>
                         <div className="info-card">
                             <div className="info-card-label">OPC 53 Overall Result</div>
                             <div className="info-card-value" style={{ color: form.cubeResult === "Satisfactory" ? "#10b981" : "#ef4444" }}>
                                 {form.cubeResult || '-'}
                             </div>
+                            <div style={{ fontSize: '10px', color: '#64748b', marginTop: '4px' }}>Satisfactory if fcf ≥ 37 N/mm²</div>
                         </div>
                     </div>
+                    {form.validationStatus && (
+                        <div style={{
+                            marginTop: '16px',
+                            padding: '12px 16px',
+                            background: form.isValidTest ? '#f0fdf4' : '#fef2f2',
+                            border: `1px solid ${form.isValidTest ? '#bbf7d0' : '#fecaca'}`,
+                            borderRadius: '6px',
+                            fontSize: '13px',
+                            color: form.isValidTest ? '#166534' : '#991b1b',
+                            fontWeight: '500'
+                        }}>
+                            📢 <strong>Validation Status:</strong> {form.validationStatus}
+                        </div>
+                    )}
                 </div>
 
                 <div className="section-divider"></div>

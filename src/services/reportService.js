@@ -501,6 +501,32 @@ const reportService = {
         });
         return handleResponse(response);
     },
+
+    getPoIssuedDetails: async (itemCatDescr) => {
+        const url = new URL(`${API_ENDPOINTS.REPORTS}/poIssuedDetails`);
+        url.searchParams.append('itemCatDescr', itemCatDescr);
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getInspectionCallStatusDetails: async (stage, status) => {
+        const url = new URL(`${API_ENDPOINTS.REPORTS}/inspectionCallStatusDetails`);
+        url.searchParams.append('stage', stage);
+        url.searchParams.append('status', status);
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getSqcReport: async () => {
+        const response = await fetch(`${API_ENDPOINTS.REPORTS}/sqcReport`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
 };
 
 export default reportService;

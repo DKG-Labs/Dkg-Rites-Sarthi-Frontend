@@ -75,8 +75,10 @@ export default function CrushingImpactAbrasion10mm({ onSave, onCancel, inventory
     const cSampleWt = watch("crushingSampleWt");
     const cPassingWt = watch("crushingPassingWt");
 
+    /*
     const iSampleWt = watch("impactSampleWt");
     const iPassingWt = watch("impactPassingWt");
+    */
 
     const aSampleWt = watch("abrasionSampleWt");
     const aCoarserWt = watch("abrasionCoarserWt");
@@ -95,6 +97,7 @@ export default function CrushingImpactAbrasion10mm({ onSave, onCancel, inventory
         }
     }, [cSampleWt, cPassingWt, setValue]);
 
+    /*
     // Impact Calculations
     useEffect(() => {
         const sampleWt = Number(iSampleWt);
@@ -108,6 +111,7 @@ export default function CrushingImpactAbrasion10mm({ onSave, onCancel, inventory
             setValue("impactResult", "");
         }
     }, [iSampleWt, iPassingWt, setValue]);
+    */
 
     // Abrasion Calculations (A = {(B-C)/B} * 100)
     useEffect(() => {
@@ -151,7 +155,7 @@ export default function CrushingImpactAbrasion10mm({ onSave, onCancel, inventory
         <form onSubmit={handleSubmit(onSubmit)} className="cement-forms-scope">
             <div className="form-card">
                 <div className="form-header">
-                    <h2>Aggregate – Raw Material Testing: 10mm Crushing, Impact and Abrasion</h2>
+                    <h2>Aggregate – Raw Material Testing: 10mm Crushing and Abrasion</h2>
                 </div>
 
                 <div className="form-body">
@@ -223,7 +227,7 @@ export default function CrushingImpactAbrasion10mm({ onSave, onCancel, inventory
                         </div>
                     )}
 
-                    {/* Section 2: Impact */}
+                    {/* Section 2: Impact (Hidden for 10mm Aggregate)
                     <div className="section-divider"></div>
                     <div className="section-title" onClick={() => toggle('impact')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         {expanded.impact ? '▼' : '▶'} Section 2: Impact Test (Max 30%)
@@ -248,11 +252,12 @@ export default function CrushingImpactAbrasion10mm({ onSave, onCancel, inventory
                             </div>
                         </div>
                     )}
+                    */}
 
                     {/* Section 3: Abrasion */}
                     <div className="section-divider"></div>
                     <div className="section-title" onClick={() => toggle('abrasion')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {expanded.abrasion ? '▼' : '▶'} Section 3: Abrasion Test (Max 30%)
+                        {expanded.abrasion ? '▼' : '▶'} Section 2: Abrasion Test (Max 30%)
                     </div>
                     {expanded.abrasion && (
                         <div className="form-grid" style={{ marginTop: '1rem' }}>

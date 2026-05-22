@@ -1,0 +1,227 @@
+import React, { useState, useMemo } from 'react';
+import './SleeperSummary.css';
+
+const MOCK_PERFORMANCE_DATA = [
+    { id: 1, plantName: "PCM Cement Concrete, Nalbari", rio: "East", ieName: "A. K. Sharma", stage: "Casting & Demoulding", shiftsWorked: 18, rejectedQty: 42 },
+    { id: 2, plantName: "Prestressed Concrete Udyog, Bongaigaon", rio: "East", ieName: "R. K. Sen", stage: "Final Visual & Dimensional", shiftsWorked: 24, rejectedQty: 85 },
+    { id: 3, plantName: "Stresscrete India, Siliguri", rio: "North", ieName: "M. K. Patel", stage: "SBT & Elasticity Testing", shiftsWorked: 15, rejectedQty: 12 },
+    { id: 4, plantName: "Pragati Concrete, Patna", rio: "Central", ieName: "V. K. Jha", stage: "Raw Material Quality Assurance", shiftsWorked: 20, rejectedQty: 6 },
+    { id: 5, plantName: "Rana Sleepers, Lucknow", rio: "North", ieName: "S. P. Singh", stage: "Casting & Demoulding", shiftsWorked: 30, rejectedQty: 112 },
+    { id: 6, plantName: "Kedar Sleepers, Bhilai", rio: "South", ieName: "S. K. Gupta", stage: "Final Visual & Dimensional", shiftsWorked: 12, rejectedQty: 28 },
+    { id: 7, plantName: "PCM Cement Concrete, Nalbari", rio: "East", ieName: "A. K. Sharma", stage: "Final Visual & Dimensional", shiftsWorked: 22, rejectedQty: 58 },
+    { id: 8, plantName: "Stresscrete India, Siliguri", rio: "North", ieName: "M. K. Patel", stage: "Casting & Demoulding", shiftsWorked: 16, rejectedQty: 34 },
+    { id: 9, plantName: "Pragati Concrete, Patna", rio: "Central", ieName: "V. K. Jha", stage: "SBT & Elasticity Testing", shiftsWorked: 14, rejectedQty: 18 },
+    { id: 10, plantName: "Kedar Sleepers, Bhilai", rio: "South", ieName: "S. K. Gupta", stage: "Raw Material Quality Assurance", shiftsWorked: 10, rejectedQty: 4 }
+];
+
+const SleeperPerformance = () => {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedRio, setSelectedRio] = useState('All');
+    const [selectedStage, setSelectedStage] = useState('All');
+    const [selectedIe, setSelectedIe] = useState('All');
+    const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
+    // Extract unique filter items
+    const uniqueRios = useMemo(() => ["All", ...new Set(MOCK_PERFORMANCE_DATA.map(d => d.rio))], []);
+    const uniqueStages = useMemo(() => ["All", ...new Set(MOCK_PERFORMANCE_DATA.map(d => d.stage))], []);
+    const uniqueIes = useMemo(() => ["All", ...new Set(MOCK_PERFORMANCE_DATA.map(d => d.ieName))], []);
+
+    const handleSort = (key) => {
+        let direction = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    // Filter and sort computation
+    const processedData = useMemo(() => {
+        let result = [...MOCK_PERFORMANCE_DATA];
+
+        // 1. Text Search Filter
+        if (searchTerm) {
+            const lowerSearch = searchTerm.trim().toLowerCase();
+            result = result.filter(d => 
+                String(d.plantName || '').toLowerCase().includes(lowerSearch) ||
+                String(d.ieName || '').toLowerCase().includes(lowerSearch) ||
+                String(d.rio || '').toLowerCase().includes(lowerSearch)
+            );
+        }
+
+        // 2. Dropdown Filters
+        if (selectedRio !== 'All') {
+            result = result.filter(d => d.rio === selectedRio);
+        }
+        if (selectedStage !== 'All') {
+            result = result.filter(d => d.stage === selectedStage);
+        }
+        if (selectedIe !== 'All') {
+            result = result.filter(d => d.ieName === selectedIe);
+        }
+
+        // 3. Sort logic
+        if (sortConfig.key !== null) {
+            result.sort((a, b) => {
+                let valA = a[sortConfig.key];
+                let valB = b[sortConfig.key];
+
+                if (typeof valA === 'string') {
+                    valA = valA.toLowerCase();
+                    valB = valB.toLowerCase();
+                }
+
+                if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+
+        return result;
+    }, [searchTerm, selectedRio, selectedStage, selectedIe, sortConfig]);
+
+    // KPI Metrics calculation
+    const totalShifts = useMemo(() => processedData.reduce((sum, d) => sum + d.shiftsWorked, 0), [processedData]);
+    const totalRejections = useMemo(() => processedData.reduce((sum, d) => sum + d.rejectedQty, 0), [processedData]);
+    const averageRejections = useMemo(() => {
+        if (totalShifts === 0) return 0;
+        return (totalRejections / totalShifts).toFixed(2);
+    }, [totalShifts, totalRejections]);
+
+    return (
+        <div className="sleeper-report-container animate-up">
+            {/* Header section */}
+            <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                <span>Performance Monitoring Matrix (Sleeper)</span>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                    <button className="btn-export" style={{ padding: '8px 16px', background: '#1e293b', color: 'white', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>
+                        📥 Export Excel
+                    </button>
+                    <input 
+                        type="text" 
+                        placeholder="Search Plant, IE..." 
+                        className="prof-search" 
+                        style={{ height: '36px', fontSize: '13px' }} 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+            </div>
+
+            {/* Filters section */}
+            <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '20px', background: '#f8fafc', padding: '12px 20px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: '600', color: '#166534' }}>RITES RIO:</label>
+                    <select 
+                        value={selectedRio} 
+                        onChange={(e) => setSelectedRio(e.target.value)}
+                        style={{ padding: '6px 10px', border: '1px solid #bbf7d0', borderRadius: '4px', background: '#ecfdf5', color: '#166534', outline: 'none', cursor: 'pointer' }}
+                    >
+                        {uniqueRios.map(rio => <option key={rio} value={rio}>{rio === 'All' ? 'All RIOs' : rio}</option>)}
+                    </select>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: '600', color: '#166534' }}>IE NAME:</label>
+                    <select 
+                        value={selectedIe} 
+                        onChange={(e) => setSelectedIe(e.target.value)}
+                        style={{ padding: '6px 10px', border: '1px solid #bbf7d0', borderRadius: '4px', background: '#ecfdf5', color: '#166534', outline: 'none', cursor: 'pointer' }}
+                    >
+                        {uniqueIes.map(ie => <option key={ie} value={ie}>{ie === 'All' ? 'All Engineers' : ie}</option>)}
+                    </select>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: '600', color: '#166534' }}>STAGE:</label>
+                    <select 
+                        value={selectedStage} 
+                        onChange={(e) => setSelectedStage(e.target.value)}
+                        style={{ padding: '6px 10px', border: '1px solid #bbf7d0', borderRadius: '4px', background: '#ecfdf5', color: '#166534', outline: 'none', cursor: 'pointer' }}
+                    >
+                        {uniqueStages.map(stg => <option key={stg} value={stg}>{stg === 'All' ? 'All Stages' : stg}</option>)}
+                    </select>
+                </div>
+                <button 
+                    onClick={() => { setSearchTerm(''); setSelectedRio('All'); setSelectedStage('All'); setSelectedIe('All'); setSortConfig({ key: null, direction: 'asc' }); }}
+                    style={{ padding: '6px 14px', background: '#dcfce3', color: '#166534', border: '1px solid #bbf7d0', borderRadius: '4px', cursor: 'pointer', fontWeight: '600', fontSize: '12px', marginLeft: 'auto' }}
+                >
+                    Reset Filters
+                </button>
+            </div>
+
+            {/* Table wrapper */}
+            <div className="table-responsive prof-card mb">
+                <table className="prof-table">
+                    <thead>
+                        <tr>
+                            <th style={{ width: '60px' }}>S.NO.</th>
+                            <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('plantName')}>
+                                PSC SLEEPER PLANT {sortConfig.key === 'plantName' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                            </th>
+                            <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('rio')}>
+                                RITES RIO {sortConfig.key === 'rio' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                            </th>
+                            <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('ieName')}>
+                                IE NAME {sortConfig.key === 'ieName' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                            </th>
+                            <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('stage')}>
+                                STAGE OF INSPECTION {sortConfig.key === 'stage' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                            </th>
+                            <th className="text-right" style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('shiftsWorked')}>
+                                NO. OF SHIFTS WORKED {sortConfig.key === 'shiftsWorked' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                            </th>
+                            <th className="text-right" style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('rejectedQty')}>
+                                NO. OF SLEEPERS REJECTED {sortConfig.key === 'rejectedQty' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {processedData.length > 0 ? (
+                            processedData.map((row, idx) => (
+                                <tr key={row.id} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
+                                    <td>{idx + 1}</td>
+                                    <td><strong>{row.plantName}</strong></td>
+                                    <td><span className="prof-badge" style={{ background: '#f0fdf4', color: '#166534' }}>{row.rio}</span></td>
+                                    <td>👤 {row.ieName}</td>
+                                    <td><span className="prof-badge" style={{ background: '#f0f9ff', color: '#075985' }}>{row.stage}</span></td>
+                                    <td className="text-right font-medium">{row.shiftsWorked}</td>
+                                    <td className="text-right font-bold text-red-600">{row.rejectedQty?.toLocaleString()}</td>
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan="7" className="text-center p-8 text-slate-400">No performance records found matching the filter criteria.</td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* Summary statistics KPI box */}
+            <div className="mt-4 p-4 prof-card" style={{ background: '#ecfdf5', border: '1px solid #bbf7d0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
+                    <div className="text-center">
+                        <div style={{ color: '#065f46', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Shifts Worked</div>
+                        <div style={{ fontSize: '22px', fontWeight: '800', color: '#047857', marginTop: '4px' }}>
+                            {totalShifts}
+                        </div>
+                    </div>
+                    <div style={{ width: '1px', height: '35px', background: '#a7f3d0' }}></div>
+                    <div className="text-center">
+                        <div style={{ color: '#991b1b', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Sleepers Rejected</div>
+                        <div style={{ fontSize: '22px', fontWeight: '800', color: '#b91c1c', marginTop: '4px' }}>
+                            {totalRejections.toLocaleString()}
+                        </div>
+                    </div>
+                    <div style={{ width: '1px', height: '35px', background: '#a7f3d0' }}></div>
+                    <div className="text-center">
+                        <div style={{ color: '#1e40af', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Avg Rejections / Shift</div>
+                        <div style={{ fontSize: '22px', fontWeight: '800', color: '#1d4ed8', marginTop: '4px' }}>
+                            {averageRejections}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default SleeperPerformance;

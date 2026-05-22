@@ -97,7 +97,7 @@ const MomentOfFailure = () => {
             setLoading(true);
             const payload = {
                 ...formData,
-                mrResult: isModifying ? (selectedSample.mrResult || 'PENDING') : 'PENDING',
+                result: isModifying ? (selectedSample.result || 'PENDING') : (formData.result || 'PENDING'),
                 plantId: dutyUnit || localStorage.getItem('dutyUnit'),
                 vendorCode: vendorCode || localStorage.getItem('vendorCode'),
                 shift: selectedShift || localStorage.getItem('selectedShift'),
@@ -127,6 +127,7 @@ const MomentOfFailure = () => {
                 modulusOfFailureId: selectedSample.isTestRecord ? selectedSample.modulusOfFailureId : selectedSample.id,
                 testingDate: testData.testingDate,
                 strength: parseFloat(testData.strength) || 0,
+                result: testData.result,
                 remarks: testData.remarks || "",
                 updatedBy: currentUserId,
                 shift: selectedShift || localStorage.getItem('selectedShift'),
@@ -432,7 +433,7 @@ const MFSampleDeclarationModal = ({ sample, isModifying, onClose, onSave, saving
         castingDate: sample.castingDate,
         benchGangNumber: sample.benchGangNumber,
         mouldNo: sample.mouldNo,
-        mrResult: sample.mrResult,
+        result: sample.result,
         sampleType: sample.sampleType,
         sleeperType: sample.sleeperType || ''
     } : {
@@ -444,7 +445,7 @@ const MFSampleDeclarationModal = ({ sample, isModifying, onClose, onSave, saving
         castingDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         benchGangNumber: '',
         mouldNo: '',
-        mrResult: 'PASS',
+        result: 'PENDING',
         sampleType: '',
         sleeperType: 'RT-8746'
     });
@@ -515,7 +516,7 @@ const MFSampleDeclarationModal = ({ sample, isModifying, onClose, onSave, saving
                         </div>
                         <div className="input-group">
                             <label>Result of MR for the Batch</label>
-                            <input type="text" value={formData.mrResult} onChange={e => setFormData({ ...formData, mrResult: e.target.value })} />
+                            <input type="text" value={formData.result} onChange={e => setFormData({ ...formData, result: e.target.value })} />
                         </div>
                         <div className="input-group">
                             <label>Drawing No. (Sleeper Type)</label>

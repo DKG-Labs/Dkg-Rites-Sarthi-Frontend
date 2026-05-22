@@ -164,7 +164,7 @@ const CementTesting = ({ onBack, inventoryData = [] }) => {
                     consolidated[key].formEntries[sourceId] = item;
                     
                     // Map summary fields
-                    if (sourceId === 1) consolidated[key].strength = item.cubeResult || item.avgStrength || '-';
+                    if (sourceId === 1) consolidated[key].strength = item.minStrength || item.avgStrength || item.cubeResult || '-';
                     if (sourceId === 2) {
                         // First try direct field, then fallback to calculating from observations
                         const directVal = item.normalConsistency;
@@ -251,7 +251,7 @@ const CementTesting = ({ onBack, inventoryData = [] }) => {
                 const fVal = savedData?.finenessPercentage || savedData?.finenessPercent || savedData?.fineness || '-';
                 updatedData.fineness = String(fVal).replace('%', '') + '%';
             }
-            if (completedSectionId === 1) updatedData.strength = savedData?.cubeResult || savedData?.strength7Day || savedData?.strength || '-';
+            if (completedSectionId === 1) updatedData.strength = savedData?.minStrength || savedData?.avgStrength || savedData?.cubeResult || savedData?.strength7Day || savedData?.strength || '-';
 
             if (currentRecord && currentRecord.id) {
                 setPeriodicHistory(prev => {
@@ -470,7 +470,7 @@ const CementTesting = ({ onBack, inventoryData = [] }) => {
         { 
             key: 'strength', 
             label: '7-Day Strength',
-            render: (_, row) => row.cubeResult || row.strength7Day || row.strength || row.formEntries?.[1]?.cubeResult || row.formEntries?.[1]?.strength7Day || '-'
+            render: (_, row) => row.minStrength || row.avgStrength || row.strength || row.formEntries?.[1]?.minStrength || row.formEntries?.[1]?.avgStrength || row.cubeResult || row.formEntries?.[1]?.cubeResult || '-'
         },
         {
             key: 'actions',

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import EnhancedDataTable from '../../../../components/common/EnhancedDataTable';
 import { MOCK_SGCI_HISTORY, MOCK_INVENTORY, MOCK_VERIFIED_CONSIGNMENTS } from '../../../../utils/rawMaterialMockData';
 import { useShift } from '../../../../context/ShiftContext';
@@ -36,6 +36,27 @@ const SubCard = ({ id, title, color, count, label, isActive, onClick }) => (
     </div>
 );
 
+// Converts DD/MM/YYYY, DD-MM-YYYY, or YYYY-MM-DD → YYYY-MM-DD for HTML date input
+const parseDateToInput = (rawDate) => {
+    if (!rawDate || rawDate === 'N/A') return '';
+    if (rawDate.includes('/') || rawDate.includes('-')) {
+        const parts = rawDate.split(/[\/\-]/);
+        if (parts.length === 3) {
+            if (parts[0].length === 4) {
+                // Already YYYY-MM-DD
+                return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+            } else {
+                // DD/MM/YYYY or DD-MM-YYYY → YYYY-MM-DD
+                return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+            }
+        }
+    }
+    if (!isNaN(Date.parse(rawDate))) {
+        return new Date(rawDate).toISOString().split('T')[0];
+    }
+    return '';
+};
+
 const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
     const [viewMode, setViewMode] = useState('new-stocks'); // Default to new stocks
     const [showForm, setShowForm] = useState(false);
@@ -53,6 +74,10 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
     const [isPeriodic, setIsPeriodic] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+    // Readings search and pagination
+    const [readingsSearch, setReadingsSearch] = useState('');
+    const [readingsPage, setReadingsPage] = useState(1);
+
     useEffect(() => {
         const fetchStatus = async () => {
             if (!pendingStocks?.length) return;
@@ -64,7 +89,24 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
                     if (stock.requestId) {
                         const record = await getSgciInsertAuditByRequestId(stock.requestId);
                         if (record && record.id) {
-                            newStatusMap[stock.requestId] = "Completed";
+                            // Fetch all records for this requestId to check total inspected vs required
+                            // For now, using the record we just fetched and existing history
+                            const allAuditsForThis = history.filter(h => h.requestId === stock.requestId);
+                            const totalInspected = allAuditsForThis.reduce((sum, h) => sum + (h.checked || 0), 0);
+                            const required = Math.ceil((parseInt(stock.details?.totalQtyReceived || 0, 10)) * 0.01);
+                            
+                            // User requirement: Only move to completed when all required testing completed
+                            if (totalInspected >= required && required > 0) {
+                                newStatusMap[stock.requestId] = "Completed";
+                            } else {
+                                newStatusMap[stock.requestId] = "In Progress";
+                            }
+
+                            newStatusMap[stock.requestId] = "Completed"; // Fallback for existing logic if preferred, but user said "only when completed"
+                            // Actually, I'll stick to the user's logic:
+                            const isFullyTested = totalInspected >= required && required > 0;
+                            newStatusMap[stock.requestId] = isFullyTested ? "Completed" : "In Progress";
+
                             fetchedHistory.push({
                                 ...record,
                                 id: record.id,
@@ -124,6 +166,23 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
         name: "readings"
     });
 
+    const selectedConsignment = watch('consignmentNo');
+    const activeInventoryId = watch('inventoryId');
+
+    // Auto-fetch details when consignment changes (only when no activeRequestId/editId)
+    useEffect(() => {
+        if (selectedConsignment && !activeRequestId && !editId) {
+            const stock = inventoryData.find(s => s.consignmentNo === selectedConsignment);
+            if (stock) {
+                setValue('supplier', stock.vendor);
+                setValue('ritesIc', stock.details?.ritesIcNumber || '');
+                setValue('ritesIcDate', parseDateToInput(stock.details?.ritesIcDate || stock.receivedDate || ''));
+                setValue('type', stock.details?.gradeType || '');
+                setValue('inventoryId', stock.requestId);
+            }
+        }
+    }, [selectedConsignment, inventoryData, setValue, activeRequestId, editId]);
+
     useEffect(() => {
         if (activeRequestId) {
             getSgciInsertAuditByRequestId(activeRequestId).then(record => {
@@ -143,8 +202,55 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
         }
     }, [activeRequestId, reset]);
 
-    const readings = watch('readings');
+    const auditStats = useMemo(() => {
+        const stock = inventoryData.find(s => s.requestId === activeInventoryId) || 
+                      inventoryData.find(s => s.consignmentNo === selectedConsignment);
+        
+        if (!stock) return { A: 0, B: 0, C: 0, D: 0 };
+        
+        const A = parseInt(stock.details?.totalQtyReceived || 0, 10);
+        const B = Math.ceil(A * 0.01);
+        const C = history
+            .filter(h => h.requestId === (stock.requestId || activeInventoryId))
+            .reduce((sum, h) => sum + (h.checked || 0), 0);
+        const D = Math.max(0, B - C);
+        
+        return { A, B, C, D };
+    }, [inventoryData, activeInventoryId, selectedConsignment, history]);
+
+    const readings = useWatch({
+        control,
+        name: 'readings'
+    }) || [];
+
     const selectedType = watch('type');
+
+    // Readings pagination & search logic
+    const fieldsWithIndex = useMemo(() => {
+        return fields.map((field, index) => ({ field, index }));
+    }, [fields]);
+
+    const filteredFieldsWithIndex = useMemo(() => {
+        if (!readingsSearch) return fieldsWithIndex;
+        const search = readingsSearch.toLowerCase();
+        return fieldsWithIndex.filter(({ index }) => {
+            const reading = readings[index] || {};
+            const heatNo = String(reading.heatNo || '').toLowerCase();
+            const patternNo = String(reading.patternNo || '').toLowerCase();
+            return heatNo.includes(search) || patternNo.includes(search);
+        });
+    }, [fieldsWithIndex, readingsSearch, readings]);
+
+    const paginatedFieldsWithIndex = useMemo(() => {
+        const start = (readingsPage - 1) * 10;
+        return filteredFieldsWithIndex.slice(start, start + 10);
+    }, [filteredFieldsWithIndex, readingsPage]);
+
+    const totalReadingsPages = Math.ceil(filteredFieldsWithIndex.length / 10) || 1;
+
+    useEffect(() => {
+        setReadingsPage(1);
+    }, [readingsSearch]);
 
     const handleAppend = () => {
         const lastRow = readings.length > 0 ? readings[readings.length - 1] : null;
@@ -157,40 +263,44 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
             rejectionReason: '',
             result: 'PASS'
         });
+        
+        // Automatically switch page to show the newly added row
+        setTimeout(() => {
+            const newTotal = fields.length + 1;
+            const newPage = Math.ceil(newTotal / 10) || 1;
+            setReadingsPage(newPage);
+        }, 50);
     };
 
     // Compute result inline (real-time) from current field values — no useEffect needed
-    const computeResult = (reading, type) => {
-        const w = parseFloat(reading.weight);
-        if (isNaN(w) || reading.weight === '' || reading.weight === undefined) return null; // blank = no result yet
-        
-        // Negative weight should not be allowed
-        if (w < 0) return 'FAIL';
-
+    const checkWeightOk = (w, type) => {
+        if (isNaN(w) || w === '' || w === undefined) return null;
         const typeKey = (type || '');
-        if (!typeKey) return null; // Logic needs type select first
+        if (!typeKey) return null;
+        if (typeKey === 'T-6901') return w >= 1.440 && w <= 1.484;
+        if (typeKey === 'T-3815' || typeKey === 'T-381') return w >= 1.504 && w <= 1.560;
+        if (typeKey === 'T-3705') return w >= 1.880 && w <= 1.940;
+        return w > 0;
+    };
 
-        let isWeightOk = false;
-        
-        if (typeKey === 'T-6901') {
-            isWeightOk = w >= 1.440 && w <= 1.484;
-        } else if (typeKey === 'T-3815' || typeKey === 'T-381') {
-            isWeightOk = w >= 1.504 && w <= 1.560;
-        } else if (typeKey === 'T-3705') {
-            isWeightOk = w >= 1.880 && w <= 1.940;
-        } else {
-            isWeightOk = w > 0; // fallback
-        }
-        
-        return (isWeightOk && !reading.dimensionalNotOk && !reading.hammerNotOk && w >= 0) ? 'PASS' : 'FAIL';
+    const computeResult = (reading, type) => {
+        if (!reading) return null;
+        const w = parseFloat(reading.weight);
+        const isWeightOk = checkWeightOk(w, type);
+        if (isWeightOk === null) return null;
+        return (isWeightOk && !reading.dimensionalNotOk && !reading.hammerNotOk) ? 'PASS' : 'FAIL';
     };
 
     const summary = useMemo(() => {
-        const results = readings.map(r => computeResult(r, selectedType));
-        const withResult = results.filter(r => r !== null);
-        const total = withResult.length;
-        const passed = withResult.filter(r => r === 'PASS').length;
-        const rejected = total - passed;
+        // Count only rows that have a calculated result (PASS or FAIL)
+        const rowsWithResult = (readings || []).map(r => {
+            const res = computeResult(r, selectedType);
+            return { ...r, calculatedResult: res };
+        }).filter(r => r.calculatedResult !== null);
+
+        const total = rowsWithResult.length;
+        const passed = rowsWithResult.filter(r => r.calculatedResult === 'PASS').length;
+        const rejected = rowsWithResult.filter(r => r.calculatedResult === 'FAIL').length;
         const rejectionPct = total > 0 ? ((rejected / total) * 100).toFixed(2) : 0;
         return { total, passed, rejected, rejectionPct };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -347,8 +457,9 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
                                 date: new Date().toISOString().split('T')[0],
                                 consignmentNo: row.consignmentNo,
                                 supplier: row.vendor,
-                                ritesIc: row.details?.ritesIcNumber || 'N/A',
-                                type: row.details?.gradeType || 'N/A',
+                                ritesIc: row.details?.ritesIcNumber || '',
+                                ritesIcDate: parseDateToInput(row.details?.ritesIcDate || ''),
+                                type: row.details?.gradeType || '',
                                 inventoryId: row.requestId,
                                 readings: [{ heatNo: '', patternNo: '', weight: '', dimensionalNotOk: false, hammerNotOk: false, rejectionReason: '', result: 'PASS' }]
                             });
@@ -536,37 +647,105 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
                                         <input type="text" placeholder="Enter Supplier" {...register('supplier')} />
                                     </div>
                                     <div className="input-group">
-                                        <label>Validity</label>
-                                        <input type="text" placeholder="Enter Validity" {...register('approvalValidity')} />
+                                        <label>RM IC NO</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Enter IC No"
+                                            readOnly={!!activeRequestId}
+                                            style={activeRequestId ? { background: '#f1f5f9', cursor: 'not-allowed' } : {}}
+                                            {...register('ritesIc')}
+                                        />
+                                    </div>
+                                    <div className="input-group">
+                                        <label>RM IC DATE</label>
+                                        <input
+                                            type="date"
+                                            readOnly={!!activeRequestId}
+                                            style={activeRequestId ? { background: '#f1f5f9', cursor: 'not-allowed' } : {}}
+                                            {...register('ritesIcDate')}
+                                        />
+                                    </div>
+                                </div>                                <div className="section-divider"></div>
+                                <h3 style={{ fontSize: '14px', marginBottom: '12px' }}>Audit Statistics</h3>
+                                <div className="summary-box" style={{ 
+                                    background: '#f8fafc', 
+                                    padding: '16px', 
+                                    borderRadius: '12px', 
+                                    border: '1px solid #e2e8f0', 
+                                    display: 'grid', 
+                                    gridTemplateColumns: 'repeat(6, 1fr)', 
+                                    gap: '12px',
+                                    marginBottom: '20px'
+                                }}>
+                                    <div style={{ textAlign: 'center' }}>
+                                        <label style={{ fontSize: '9px', color: '#64748b', fontWeight: '600', display: 'block', minHeight: '24px' }}>A = IC PASSED QTY</label>
+                                        <div style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a' }}>{auditStats.A}</div>
+                                    </div>
+                                    <div style={{ textAlign: 'center' }}>
+                                        <label style={{ fontSize: '9px', color: '#64748b', fontWeight: '600', display: 'block', minHeight: '24px' }}>B = SAMPLES REQUIRED (1%)</label>
+                                        <div style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a' }}>{auditStats.B}</div>
+                                    </div>
+                                    <div style={{ textAlign: 'center' }}>
+                                        <label style={{ fontSize: '9px', color: '#64748b', fontWeight: '600', display: 'block', minHeight: '24px' }}>C = SAMPLES TESTED SO FAR</label>
+                                        <div style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a' }}>{auditStats.C}</div>
+                                    </div>
+                                    <div style={{ textAlign: 'center' }}>
+                                        <label style={{ fontSize: '9px', color: '#64748b', fontWeight: '600', display: 'block', minHeight: '24px' }}>D = BALANCE TO TEST (B-C)</label>
+                                        <div style={{ fontSize: '16px', fontWeight: '700', color: '#ef4444' }}>{auditStats.D}</div>
+                                    </div>
+                                    <div style={{ textAlign: 'center' }}>
+                                        <label style={{ fontSize: '9px', color: '#64748b', fontWeight: '600', display: 'block', minHeight: '24px' }}>E = NO SAMPLES PASSED</label>
+                                        <div style={{ fontSize: '16px', fontWeight: '700', color: '#10b981' }}>{summary.passed}</div>
+                                    </div>
+                                    <div style={{ textAlign: 'center' }}>
+                                        <label style={{ fontSize: '9px', color: '#64748b', fontWeight: '600', display: 'block', minHeight: '24px' }}>F = NO OF SAMPLES FAILED</label>
+                                        <div style={{ fontSize: '16px', fontWeight: '700', color: '#ef4444' }}>{summary.rejected}</div>
                                     </div>
                                 </div>
 
                                 {!selectedType && (
                                      <div style={{ 
-                                         padding: '8px 12px', 
-                                         background: '#fff7ed', 
-                                         border: '1px solid #ffedd5', 
-                                         borderRadius: '8px',
-                                         color: '#9a3412',
-                                         fontSize: '11px',
-                                         fontWeight: '600',
-                                         marginTop: '12px',
-                                         display: 'flex',
-                                         alignItems: 'center',
-                                         gap: '8px'
-                                     }}>
-                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                                         Please select **Insert Type (Drawing No)** to enable reading entries.
-                                     </div>
+                                          padding: '8px 12px', 
+                                          background: '#fff7ed', 
+                                          border: '1px solid #ffedd5', 
+                                          borderRadius: '8px',
+                                          color: '#9a3412',
+                                          fontSize: '11px',
+                                          fontWeight: '600',
+                                          marginTop: '12px',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '8px'
+                                      }}>
+                                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                                          Please select **Insert Type (Drawing No)** to enable reading entries.
+                                      </div>
                                  )}
 
                                 <div className="section-divider"></div>
-                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                                    <h3 style={{ fontSize: '14px' }}>Readings</h3>
+                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '12px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                        <h3 style={{ fontSize: '14px', margin: 0 }}>Readings</h3>
+                                        {selectedType && (
+                                            <input 
+                                                type="text" 
+                                                placeholder="Search Heat No / Pattern..." 
+                                                value={readingsSearch} 
+                                                onChange={(e) => setReadingsSearch(e.target.value)} 
+                                                style={{ 
+                                                    padding: '6px 12px', 
+                                                    fontSize: '12px', 
+                                                    borderRadius: '6px', 
+                                                    border: '1px solid #cbd5e1', 
+                                                    width: '220px' 
+                                                }} 
+                                            />
+                                        )}
+                                    </div>
                                     <button 
                                         type="button" 
                                         className={`btn-save ${!selectedType ? 'disabled-btn' : ''}`} 
-                                        style={{ width: 'auto', padding: '0 12px' }} 
+                                        style={{ width: 'auto', padding: '0 12px', margin: 0 }} 
                                         onClick={() => {
                                             if (!selectedType) {
                                                 alert("Please select Insert Type first");
@@ -591,15 +770,15 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
                                                         </span>
                                                      )}
                                                 </th>
-                                                <th>Dim Not OK</th>
+                                                <th style={{ textAlign: 'center' }}>Dim Not OK</th>
                                                 <th>Reason of Rejection</th>
-                                                <th>Hammer Not OK</th>
-                                                <th>Result</th>
+                                                <th style={{ textAlign: 'center' }}>Hammer Test Not OK</th>
+                                                <th style={{ textAlign: 'center' }}>Result</th>
                                                 <th></th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {fields.map((field, index) => {
+                                            {paginatedFieldsWithIndex.map(({ field, index }) => {
                                                 const rowResult = computeResult(readings[index], selectedType);
                                                 return (
                                                     <tr key={field.id}>
@@ -617,7 +796,7 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
                                                                     }
                                                                 }}
                                                                 style={{
-                                                                    borderColor: readings[index]?.weight && rowResult === 'FAIL' ? '#ef4444' : readings[index]?.weight && rowResult === 'PASS' ? '#10b981' : undefined,
+                                                                    borderColor: checkWeightOk(parseFloat(readings[index]?.weight), selectedType) === false ? '#ef4444' : checkWeightOk(parseFloat(readings[index]?.weight), selectedType) === true ? '#10b981' : undefined,
                                                                     borderWidth: readings[index]?.weight ? '2px' : undefined
                                                                 }}
                                                                 {...register(`readings.${index}.weight`, { 
@@ -626,7 +805,11 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
                                                                 })}
                                                             />
                                                         </td>
-                                                        <td style={{ textAlign: 'center' }}><input type="checkbox" disabled={!selectedType} {...register(`readings.${index}.dimensionalNotOk`)} /></td>
+                                                        <td style={{ textAlign: 'center' }}>
+                                                            <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                                                <input type="checkbox" disabled={!selectedType} {...register(`readings.${index}.dimensionalNotOk`)} />
+                                                            </div>
+                                                        </td>
                                                         <td>
                                                             {readings[index]?.dimensionalNotOk && (
                                                                 <select 
@@ -646,7 +829,11 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
                                                                 </select>
                                                             )}
                                                         </td>
-                                                        <td style={{ textAlign: 'center' }}><input type="checkbox" disabled={!selectedType} {...register(`readings.${index}.hammerNotOk`)} /></td>
+                                                        <td style={{ textAlign: 'center' }}>
+                                                            <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                                                <input type="checkbox" disabled={!selectedType} {...register(`readings.${index}.hammerNotOk`)} />
+                                                            </div>
+                                                        </td>
                                                         <td style={{ textAlign: 'center' }}>
                                                             {rowResult === null ? (
                                                                 <span style={{ color: '#94a3b8', fontSize: '11px' }}>—</span>
@@ -670,6 +857,30 @@ const SgciInsertTesting = ({ onBack, inventoryData = [] }) => {
                                         </tbody>
                                     </table>
                                 </div>
+
+                                {totalReadingsPages > 1 && (
+                                    <div className="pagination-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', background: '#f8fafc', padding: '8px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', boxSizing: 'border-box' }}>
+                                        <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
+                                            Showing {Math.min(filteredFieldsWithIndex.length, (readingsPage - 1) * 10 + 1)} to {Math.min(filteredFieldsWithIndex.length, readingsPage * 10)} of {filteredFieldsWithIndex.length} readings
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                            <button
+                                                type="button"
+                                                className="btn-action mini"
+                                                disabled={readingsPage === 1}
+                                                onClick={() => setReadingsPage(v => v - 1)}
+                                                style={{ padding: '4px 8px', background: 'white', border: '1px solid #cbd5e1' }}
+                                            >Previous</button>
+                                            <button
+                                                type="button"
+                                                className="btn-action mini"
+                                                disabled={readingsPage === totalReadingsPages}
+                                                onClick={() => setReadingsPage(v => v + 1)}
+                                                style={{ padding: '4px 8px', background: 'white', border: '1px solid #cbd5e1' }}
+                                            >Next</button>
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div className="summary-box" style={{ background: 'white', padding: '16px', borderRadius: '12px', border: '1px solid #e5e7eb', display: 'flex', gap: '20px', marginTop: '16px' }}>
                                     <div><label style={{ fontSize: '10px' }}>TOTAL</label><div style={{ fontSize: '18px', fontWeight: 600 }}>{summary.total}</div></div>

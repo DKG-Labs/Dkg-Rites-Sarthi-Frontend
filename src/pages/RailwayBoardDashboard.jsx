@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import reportService from '../services/reportService';
 import useReportData from '../hooks/useReportData';
 import './RailwayBoardDashboard.css';
@@ -11,6 +12,10 @@ import DashboardGraph from '../components/railway-board/DashboardGraph';
 import ProfessionalCardSection from '../components/railway-board/ProfessionalCardSection';
 
 const RailwayBoardDashboard = () => {
+    const navigate = useNavigate();
+    const roleName = localStorage.getItem('roleName') || '';
+    const isRitesAdmin = roleName === 'Rites Admin' || roleName === 'Rites ADMin' || roleName.includes('Rites Admin') || roleName.includes('Rites ADMin');
+
     // State for Drill-down (Accordion Style) with Persistence
     const [expandedPo, setExpandedPo] = useState(() => JSON.parse(localStorage.getItem('dash_expandedPo')) || null);
     const [expandedSerial, setExpandedSerial] = useState(() => JSON.parse(localStorage.getItem('dash_expandedSerial')) || null);
@@ -395,6 +400,9 @@ const RailwayBoardDashboard = () => {
                                 )}
                             </div>
                         )}
+                        <div className={`nav-item ${activeMainCard === 'sqc' ? 'active' : ''}`} onClick={() => handleSwitchTab('sqc')}>
+                            <i className="fa-solid fa-chart-line"></i> {!isSidebarCollapsed && <span>SQC Analysis</span>}
+                        </div>
                         <div className={`nav-item ${activeMainCard === 'scada' ? 'active' : ''}`} onClick={() => handleSwitchTab('scada')}>
                             <i className="fa-solid fa-desktop"></i> {!isSidebarCollapsed && <span>Scada Monitor</span>}
                         </div>
@@ -408,17 +416,55 @@ const RailwayBoardDashboard = () => {
                 {/* MAIN */}
                 <div id="prof-main" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {/* GLOBAL PRODUCT SELECTION - Above everything */}
-                    <div className="sub-tabs" style={{ padding: '0 24px', marginTop: '24px', marginBottom: '4px' }}>
-                        <button className={`sub-tab-btn ${selectedProduct === 'ERC' ? 'active' : ''}`} onClick={() => setSelectedProduct('ERC')}>ERC</button>
-                        <button className={`sub-tab-btn ${selectedProduct === 'Sleeper' ? 'active' : ''}`} onClick={() => {
-                            setSelectedProduct('Sleeper');
-                            if (activeReport === 'mpia') setActiveReport('mpr');
-                        }}>Sleeper</button>
-                        <button className={`sub-tab-btn ${selectedProduct === 'Rail Pad' ? 'active' : ''}`} onClick={() => setSelectedProduct('Rail Pad')}>Rail Pad</button>
+                    <div className="sub-tabs" style={{ padding: '0 24px', marginTop: '24px', marginBottom: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            <button className={`sub-tab-btn ${selectedProduct === 'ERC' ? 'active' : ''}`} onClick={() => setSelectedProduct('ERC')}>ERC</button>
+                            <button className={`sub-tab-btn ${selectedProduct === 'Sleeper' ? 'active' : ''}`} onClick={() => {
+                                setSelectedProduct('Sleeper');
+                                if (activeReport === 'mpia') setActiveReport('mpr');
+                            }}>Sleeper</button>
+                            <button className={`sub-tab-btn ${selectedProduct === 'Rail Pad' ? 'active' : ''}`} onClick={() => setSelectedProduct('Rail Pad')}>Rail Pad</button>
+                        </div>
+                        {isRitesAdmin && (
+                            <button 
+                                onClick={() => navigate('/rites-admin')}
+                                style={{
+                                    background: 'rgba(16, 185, 129, 0.1)',
+                                    color: '#10b981',
+                                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                                    padding: '6px 14px',
+                                    borderRadius: '20px',
+                                    fontSize: '12px',
+                                    fontWeight: '600',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    boxShadow: '0 2px 8px rgba(16, 185, 129, 0.15)',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.5px'
+                                }}
+                                onMouseOver={(e) => {
+                                    e.currentTarget.style.background = '#10b981';
+                                    e.currentTarget.style.color = '#fff';
+                                    e.currentTarget.style.transform = 'translateY(-2px)';
+                                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.35)';
+                                }}
+                                onMouseOut={(e) => {
+                                    e.currentTarget.style.background = 'rgba(16, 185, 129, 0.1)';
+                                    e.currentTarget.style.color = '#10b981';
+                                    e.currentTarget.style.transform = 'none';
+                                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(16, 185, 129, 0.15)';
+                                }}
+                            >
+                                ← Back to Admin Hub
+                            </button>
+                        )}
                     </div>
 
-                    {/* TOPBAR / FILTERS - Hidden on Dashboard (summary), Quality, Lifecycle, Feedback, and Scada Monitor tabs */}
-                    {activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'scada' && (
+                    {/* TOPBAR / FILTERS - Hidden on Dashboard (summary), Quality, Lifecycle, Feedback, Scada Monitor, and SQC tabs */}
+                    {activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'scada' && activeMainCard !== 'sqc' && (
                         <div id="prof-topbar">
                             <label>From</label>
                             <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />

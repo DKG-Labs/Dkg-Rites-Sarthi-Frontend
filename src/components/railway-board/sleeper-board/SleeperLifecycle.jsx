@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import './SleeperSummary.css';
 import { API_ENDPOINTS, getAuthHeaders, handleResponse } from '../../../services/apiConfig';
 
@@ -16,8 +16,65 @@ const SleeperLifecycle = () => {
     const [level4Data, setLevel4Data] = useState({});
     const [level5Data, setLevel5Data] = useState({});
 
-    // Date Filters State
-    const [startDate, setStartDate] = useState("2025-11-01");
+    // Sort & Search State
+    const [searchTerm, setSearchTerm] = useState('');
+    const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
+    const handleSort = (key) => {
+        let direction = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const filteredAndSortedPoData = useMemo(() => {
+        let result = [...poData];
+        
+        // 1. Filter by search term
+        if (searchTerm) {
+            const lowerSearch = searchTerm.trim().toLowerCase();
+            result = result.filter(po => 
+                String(po.poNo || '').toLowerCase().includes(lowerSearch) ||
+                String(po.vendor || '').toLowerCase().includes(lowerSearch) ||
+                String(po.rly || '').toLowerCase().includes(lowerSearch)
+            );
+        }
+
+        // 2. Sort data
+        if (sortConfig.key !== null) {
+            result.sort((a, b) => {
+                let valA = a[sortConfig.key];
+                let valB = b[sortConfig.key];
+
+                // Handle date sorting
+                if (sortConfig.key === 'poDate') {
+                    valA = valA ? new Date(valA) : new Date(0);
+                    valB = valB ? new Date(valB) : new Date(0);
+                }
+
+                // Handle strings
+                if (typeof valA === 'string') {
+                    valA = valA.toLowerCase();
+                }
+                if (typeof valB === 'string') {
+                    valB = valB.toLowerCase();
+                }
+
+                if (valA < valB) {
+                    return sortConfig.direction === 'asc' ? -1 : 1;
+                }
+                if (valA > valB) {
+                    return sortConfig.direction === 'asc' ? 1 : -1;
+                }
+                return 0;
+            });
+        }
+        return result;
+    }, [poData, searchTerm, sortConfig]);
+
+    // Date Filters State (Defaulting to 4 years to capture all POs)
+    const [startDate, setStartDate] = useState("2022-05-04");
     const [endDate, setEndDate] = useState("2026-05-04");
 
     const formatDateForApi = (dateString) => {
@@ -47,9 +104,9 @@ const SleeperLifecycle = () => {
     };
 
     const handleReset = () => {
-        setStartDate("2025-11-01");
+        setStartDate("2022-05-04");
         setEndDate("2026-05-04");
-        loadLevel1Data("2025-11-01", "2026-05-04");
+        loadLevel1Data("2022-05-04", "2026-05-04");
     };
 
     const togglePo = async (id, poNo) => {
@@ -149,7 +206,14 @@ const SleeperLifecycle = () => {
             <div className="prof-card mb">
                 <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span>Sleeper PO Lifecycle Tracking</span>
-                    <input type="text" placeholder="Search PO, Vendor..." className="prof-search" style={{ height: '36px', fontSize: '13px' }} />
+                    <input 
+                        type="text" 
+                        placeholder="Search PO, Vendor, Rly..." 
+                        className="prof-search" 
+                        style={{ height: '36px', fontSize: '13px' }} 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
                 </div>
 
                 <div className="table-responsive">
@@ -157,20 +221,34 @@ const SleeperLifecycle = () => {
                         <thead>
                             <tr>
                                 <th style={{ width: '40px' }}></th>
-                                <th style={{ width: '40px' }}>#</th>
-                                <th>RLY</th>
-                                <th>PO NO.</th>
-                                <th>PO DATE</th>
-                                <th>VENDOR</th>
-                                <th>REGION</th>
-                                <th className="text-right">PO QTY</th>
-                                <th className="text-right">ACC QTY</th>
-                                <th className="text-right">BAL QTY</th>
-                                <th className="text-right">REJ %</th>
+                                <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('rly')}>
+                                    RLY {sortConfig.key === 'rly' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                                </th>
+                                <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('poNo')}>
+                                    PO NO. {sortConfig.key === 'poNo' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                                </th>
+                                <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('poDate')}>
+                                    PO DATE {sortConfig.key === 'poDate' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                                </th>
+                                <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('vendor')}>
+                                    VENDOR {sortConfig.key === 'vendor' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                                </th>
+                                <th className="text-right" style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('poQty')}>
+                                    PO QTY {sortConfig.key === 'poQty' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                                </th>
+                                <th className="text-right" style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('accQty')}>
+                                    ACC QTY {sortConfig.key === 'accQty' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                                </th>
+                                <th className="text-right" style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('balQty')}>
+                                    BAL QTY {sortConfig.key === 'balQty' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                                </th>
+                                <th className="text-right" style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('rejPct')}>
+                                    REJ % {sortConfig.key === 'rejPct' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
-                            {poData.map((po) => (
+                            {filteredAndSortedPoData.map((po) => (
                                 <React.Fragment key={po.id}>
                                     <tr className={expandedPo === po.id ? 'expanded-row-parent' : ''}>
                                         <td className="text-center">
@@ -178,12 +256,10 @@ const SleeperLifecycle = () => {
                                                 {expandedPo === po.id ? '−' : '+'}
                                             </button>
                                         </td>
-                                        <td>{po.id}</td>
                                         <td><strong>{po.rly}</strong></td>
                                         <td>{po.poNo}</td>
-                                        <td>{po.poDate}</td>
+                                        <td>{po.poDate ? po.poDate.split('-').reverse().join('-') : '-'}</td>
                                         <td>{po.vendor}</td>
-                                        <td>{po.region}</td>
                                         <td className="text-right">{po.poQty.toLocaleString()}</td>
                                         <td className="text-right text-emerald-600 font-bold">{po.accQty.toLocaleString()}</td>
                                         <td className="text-right">{po.balQty.toLocaleString()}</td>
@@ -191,7 +267,7 @@ const SleeperLifecycle = () => {
                                     </tr>
                                     {expandedPo === po.id && (
                                         <tr className="detail-row">
-                                            <td colSpan="11">
+                                            <td colSpan="9">
                                                 <div className="nested-table-wrapper Level-2-wrapper animate-up">
                                                     <div className="level-label">Level 2: PO Serial Details</div>
                                                     <table className="data-table nested-table level-2-table">

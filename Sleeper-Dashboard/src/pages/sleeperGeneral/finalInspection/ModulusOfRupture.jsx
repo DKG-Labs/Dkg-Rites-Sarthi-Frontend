@@ -233,9 +233,27 @@ const ModulusOfRupture = () => {
         { key: 'weight', label: 'Weight (Kg)' },
         { key: 'loadKn', label: 'Load (N)' },
         { key: 'strength', label: 'Strength (N/mm²)' },
-        { key: 'result', label: 'Result', render: (val) => (
-            <span style={{ color: (val || '').toLowerCase() === 'pass' ? '#059669' : '#dc2626', fontWeight: '800', fontSize: '11px' }}>{val || 'FAIL'}</span>
-        )},
+        { key: 'result', label: 'Result', render: (val, row) => {
+            // Recalculate result from strength to avoid stale/incorrect stored value
+            let displayResult = val;
+            if (row.strength) {
+                const cVal = parseFloat(row.strength);
+                const gradeStr = (row.concreteGrade || '').toUpperCase().replace(/[-\s]/g, '');
+                if (!isNaN(cVal)) {
+                    if (gradeStr === 'M60') {
+                        displayResult = cVal >= 5.5 ? 'Pass' : 'Fail';
+                    } else {
+                        displayResult = cVal >= 5.2 ? 'Pass' : 'Fail';
+                    }
+                }
+            }
+            const isPass = (displayResult || '').toLowerCase() === 'pass';
+            return (
+                <span style={{ color: isPass ? '#059669' : '#dc2626', fontWeight: '800', fontSize: '11px' }}>
+                    {isPass ? 'PASS' : 'FAIL'}
+                </span>
+            );
+        }},
         {
             key: 'actions',
             label: 'Actions',
@@ -595,6 +613,21 @@ const MORDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelete }) =
     const createdTime = sample.createdDate ? new Date(sample.createdDate) : new Date();
     const canModifyOrDelete = (Date.now() - createdTime.getTime()) <= (8 * 60 * 60 * 1000);
 
+    // Recalculate result from strength (same logic as table) to avoid stale DB value
+    let computedResult = sample.result || 'N/A';
+    if (sample.isTestRecord && sample.strength) {
+        const cVal = parseFloat(sample.strength);
+        const gradeStr = (sample.concreteGrade || '').toUpperCase().replace(/[-\s]/g, '');
+        if (!isNaN(cVal)) {
+            if (gradeStr === 'M60') {
+                computedResult = cVal >= 5.5 ? 'PASS' : 'FAIL';
+            } else {
+                computedResult = cVal >= 5.2 ? 'PASS' : 'FAIL';
+            }
+        }
+    }
+    const isPass = computedResult === 'PASS';
+
     const details = [
         { label: 'Sample ID', value: sample.sampleIdentificationNumber },
         { label: 'Grade', value: sample.concreteGrade },
@@ -605,7 +638,7 @@ const MORDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelete }) =
             { label: 'Weight', value: `${sample.weight} Kg` },
             { label: 'Load', value: `${sample.loadKn} N` },
             { label: 'Strength', value: `${sample.strength} N/mm²` },
-            { label: 'Result', value: sample.result }
+            { label: 'Result', value: computedResult, isResult: true }
         ] : []),
         { label: 'Log Created', value: `${createdTime.toLocaleDateString('en-GB')} ${createdTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` }
     ];
@@ -620,9 +653,9 @@ const MORDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelete }) =
                 <div className="form-modal-body">
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: '24px' }}>
                         {details.map((detail, idx) => (
-                            <div key={idx} style={{ padding: '12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                            <div key={idx} style={{ padding: '12px', background: detail.isResult ? (isPass ? '#ecfdf5' : '#fef2f2') : '#f8fafc', borderRadius: '8px', border: `1px solid ${detail.isResult ? (isPass ? '#059669' : '#dc2626') : '#e2e8f0'}` }}>
                                 <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '800', textTransform: 'uppercase' }}>{detail.label}</div>
-                                <div style={{ fontSize: '14px', fontWeight: '800', color: '#13343b' }}>{detail.value}</div>
+                                <div style={{ fontSize: '14px', fontWeight: '800', color: detail.isResult ? (isPass ? '#059669' : '#dc2626') : '#13343b' }}>{detail.value}</div>
                             </div>
                         ))}
                     </div>

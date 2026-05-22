@@ -1423,7 +1423,7 @@ const ProfessionalCardSection = ({
                                                     case 'swp':
                                                         return <ShiftWiseProductionReport />;
                                                     case 'pwmr':
-                                                        return <PoWiseMonthlyReport />;
+                                                        return <PoWiseMonthlyReport fromDate={fromDate} toDate={toDate} />;
                                                     default:
                                                         return null;
                                                 }

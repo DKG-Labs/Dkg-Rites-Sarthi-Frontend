@@ -116,7 +116,7 @@ const RailwayBoardDashboard = () => {
 
     const { data: mprData, pagination: mprPagination, loading: mprLoading } = useReportData(
         selectedProduct === 'Sleeper' ? reportService.getSleeperMonthlyProgressReport : reportService.getMonthlyProgressReport, 
-        activeMainCard === 'reports' ? mprParams : undefined
+        (activeReport === 'mpr' && activeMainCard === 'reports') ? mprParams : undefined
     );
 
     const [mauPage, setMauPage] = useState(0);
@@ -127,7 +127,7 @@ const RailwayBoardDashboard = () => {
 
     const { data: mauData, pagination: mauPagination, loading: mauLoading } = useReportData(
         selectedProduct === 'Sleeper' ? reportService.getSleeperMonthlyAnalysis : reportService.getMonthlyAnalysisOfUnits, 
-        activeMainCard === 'reports' ? mauParams : undefined
+        (activeReport === 'mau' && activeMainCard === 'reports') ? mauParams : undefined
     );
 
     const [mpiaPage, setMpiaPage] = useState(0);

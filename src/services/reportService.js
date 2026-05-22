@@ -1,5 +1,8 @@
 import { API_BASE_URL, API_ENDPOINTS, getAuthHeaders, handleResponse } from './apiConfig';
 
+// Cache for PO Wise report to speed up frontend loading
+const poWiseCache = {};
+
 /**
  * Service for fetching Railway Board Inspection Reports
  */
@@ -519,6 +522,30 @@ const reportService = {
             headers: getAuthHeaders(),
         });
         return handleResponse(response);
+    },
+
+    /**
+     * Get PO Wise Monthly Report Data
+     * Hits: /api/reports/poWise?startDate={startDate}&endDate={endDate}
+     * @param {Object} params - { startDate, endDate }
+     */
+    getPoWiseReport: async (params) => {
+        const { startDate, endDate, forceRefresh } = params || {};
+        const cacheKey = `${startDate}_${endDate}`;
+        if (!forceRefresh && poWiseCache[cacheKey]) {
+            return poWiseCache[cacheKey];
+        }
+
+        const url = new URL(`${API_ENDPOINTS.REPORTS}/poWise`);
+        if (startDate) url.searchParams.append('startDate', startDate);
+        if (endDate) url.searchParams.append('endDate', endDate);
+
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        const data = await handleResponse(response);
+        poWiseCache[cacheKey] = data;
+        return data;
     },
 
     getSqcReport: async () => {

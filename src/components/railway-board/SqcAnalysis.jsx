@@ -1,177 +1,116 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import {
-    LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-    ReferenceLine, Label
-} from 'recharts';
+import reportService from '../../services/reportService';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { Dialog, DialogTitle, DialogContent, IconButton } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 import './SqcAnalysis.css';
 
-const SCADA_MANUFACTURERS = [
-    { label: 'Patil Rail Infrastructure Pvt. Ltd.', value: 'PRIL' }
-];
+/* ──────────────────────────────────────────────
+   SQC Rating thresholds
+   ≥ 1.33 → Excellent (green)
+   1.00–1.33 → Good (blue)
+   0.67–1.00 → Marginal (amber)
+   < 0.67  → Poor (red)
+   ────────────────────────────────────────────── */
+const getRatingBadge = (sqcRating) => {
+    if (sqcRating >= 1.33) return { label: 'Excellent', color: '#059669', bg: '#d1fae5', dot: '#10b981' };
+    if (sqcRating >= 1.00) return { label: 'Good', color: '#0369a1', bg: '#e0f2fe', dot: '#0ea5e9' };
+    if (sqcRating >= 0.67) return { label: 'Marginal', color: '#b45309', bg: '#fef3c7', dot: '#f59e0b' };
+    return { label: 'Poor', color: '#dc2626', bg: '#fee2e2', dot: '#ef4444' };
+};
 
-const SCADA_UNITS = [
-    { label: 'Medchal Unit', value: 'MDL-U1' }
-];
-
-const SCADA_LINES = [
-    { label: 'line 1', value: 'L1' }
-];
-
-const SCADA_STAGES = [
-    { label: 'AUTO_COPYING', value: 'AUTO_COPYING' }
-];
+const getCpBadge = (cp) => {
+    if (cp >= 1.33) return { label: '≥ 1.33', color: '#059669' };
+    if (cp >= 1.00) return { label: '1.0–1.33', color: '#0369a1' };
+    if (cp >= 0.67) return { label: '0.67–1.0', color: '#b45309' };
+    return { label: '< 0.67', color: '#dc2626' };
+};
 
 const SqcAnalysis = ({ selectedProduct }) => {
-    const [manufacturer, setManufacturer] = useState('');
-    const [unit, setUnit] = useState('');
-    const [line, setLine] = useState('');
-    const [stage, setStage] = useState('');
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-
-    // Target values based on engineering specifications
-    const TARGET_VALUE = 20.64;
-    const USL = 20.84;
-    const LSL = 20.47;
-
-    useEffect(() => {
-        const fetchScadaData = async () => {
-            if (!manufacturer || !unit || !line || !stage) {
-                setData([]);
-                return;
-            }
-
-            setLoading(true);
-            setError(null);
-
-            const apiType = (selectedProduct || 'ERC').toUpperCase().replace(' ', '');
-            const params = new URLSearchParams({
-                type: apiType,
-                plant: manufacturer,
-                plantUnit: unit,
-                line: line,
-                machine: stage,
-                page: '0',
-                size: '30'
-            });
-
-            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            const scadaUrl = `https://scada.ritesqasarthi.com/api/scada/scada?${params.toString()}`;
-            const baseUrls = isLocal 
-                ? ['https://scada.ritesqasarthi.com'] 
-                : [`https://api.allorigins.win/raw?url=${encodeURIComponent(scadaUrl)}`]; 
-                
-            let success = false;
-            let fetchedData = [];
-            
-            for (const baseUrl of baseUrls) {
-                try {
-                    const fullUrl = baseUrl.includes('allorigins') ? baseUrl : `${baseUrl}/api/scada/scada?${params.toString()}`;
-                    const fetchOptions = baseUrl.includes('allorigins')
-                        ? {} 
-                        : {
-                            headers: {
-                                'Content-Type': 'application/json',
-                                ...(localStorage.getItem('authToken') && { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` })
-                            }
-                        };
-                    const response = await fetch(fullUrl, fetchOptions);
-
-                    if (response.ok) {
-                        const resData = await response.json();
-                        fetchedData = Array.isArray(resData) ? resData : (resData.content || []);
-                        success = true;
-                        break;
-                    }
-                } catch (err) {
-                    console.error("Fetch attempt failed:", err);
-                }
-            }
-
-            if (success) {
-                // Reverse data to show oldest to newest for the chart (timeline)
-                setData(fetchedData.reverse());
-            } else {
-                setError('Failed to connect to SCADA servers.');
-                setData([]);
-            }
-            setLoading(false);
-        };
-
-        fetchScadaData();
-    }, [manufacturer, unit, line, stage, selectedProduct]);
-
-    // SQC Calculations
-    const stats = useMemo(() => {
-        if (!data || data.length === 0) return null;
-
-        // Extract DIA values and ensure they are numbers (check multiple case variations)
-        const values = data
-            .map(item => parseFloat(item.Dia || item.DIA || item.dia || 0))
-            .filter(val => val > 0);
-
-        if (values.length === 0) return null;
-
-        const n = values.length;
-        
-        // 1. Mean (x-bar)
-        const mean = values.reduce((a, b) => a + b, 0) / n;
-
-        // 2. Variance (s^2)
-        const variance = values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / (n - 1);
-
-        // 3. Standard Deviation (s)
-        const stdDev = Math.sqrt(variance);
-
-        // 4. Cp = (USL - LSL) / (6 * stdDev)
-        const cp = (USL - LSL) / (6 * stdDev);
-
-        // 5. Cpk = min((USL - mean) / (3 * stdDev), (mean - LSL) / (3 * stdDev))
-        const cpu = (USL - mean) / (3 * stdDev);
-        const cpl = (mean - LSL) / (3 * stdDev);
-        const cpk = Math.min(cpu, cpl);
-
-        // 6. Control Limits (UCL & LCL) - 3 Sigma
-        const ucl = mean + (3 * stdDev);
-        const lcl = mean - (3 * stdDev);
-
-        return {
-            mean: mean.toFixed(4),
-            stdDev: stdDev.toFixed(4),
-            variance: variance.toFixed(6),
-            cp: cp.toFixed(2),
-            cpk: cpk.toFixed(2),
-            ucl: ucl.toFixed(4),
-            lcl: lcl.toFixed(4),
-            values: values
-        };
-    }, [data, USL, LSL]);
-
-    // Prepare chart data
-    const chartData = useMemo(() => {
-        return data.map((item, index) => ({
-            sample: index + 1,
-            value: parseFloat(item.Dia || item.DIA || item.dia || 0),
-            time: item.TIME || item.time || ''
-        })).filter(d => d.value > 0);
-    }, [data]);
+    const [search, setSearch] = useState('');
+    const [sortKey, setSortKey] = useState('sqcRating');
+    const [sortDir, setSortDir] = useState('desc');
+    const [selectedCompanyData, setSelectedCompanyData] = useState(null);
+    const [showChartModal, setShowChartModal] = useState(false);
 
     const isErc = selectedProduct === 'ERC' || !selectedProduct;
+
+    useEffect(() => {
+        if (!isErc) return;
+        const fetchData = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const res = await reportService.getSqcReport();
+                const list = Array.isArray(res?.responseData) ? res.responseData : (Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []));
+                setData(list);
+            } catch (err) {
+                setError('Failed to load SQC report. Please try again.');
+                setData([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, [isErc]);
+
+    // Summary stats
+    const summary = useMemo(() => {
+        if (!data.length) return null;
+        const excellent = data.filter(d => d.sqcRating >= 1.33).length;
+        const good = data.filter(d => d.sqcRating >= 1.0 && d.sqcRating < 1.33).length;
+        const marginal = data.filter(d => d.sqcRating >= 0.67 && d.sqcRating < 1.0).length;
+        const poor = data.filter(d => d.sqcRating < 0.67).length;
+        const avgSqcRating = (data.reduce((a, d) => a + d.sqcRating, 0) / data.length).toFixed(2);
+        return { excellent, good, marginal, poor, avgSqcRating, total: data.length };
+    }, [data]);
+
+    // Filter + Sort
+    const filtered = useMemo(() => {
+        let arr = data.filter(d =>
+            !search ||
+            d.companyName?.toLowerCase().includes(search.toLowerCase()) ||
+            d.companyUnit?.toLowerCase().includes(search.toLowerCase())
+        );
+        arr = [...arr].sort((a, b) => {
+            let av = a[sortKey], bv = b[sortKey];
+            if (typeof av === 'string') av = av.toLowerCase();
+            if (typeof bv === 'string') bv = bv.toLowerCase();
+            if (av < bv) return sortDir === 'asc' ? -1 : 1;
+            if (av > bv) return sortDir === 'asc' ? 1 : -1;
+            return 0;
+        });
+        return arr;
+    }, [data, search, sortKey, sortDir]);
+
+    const handleSort = (key) => {
+        if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+        else { setSortKey(key); setSortDir('desc'); }
+    };
+
+    const SortIcon = ({ col }) => {
+        if (sortKey !== col) return <i className="fa-solid fa-sort" style={{ color: '#94a3b8', fontSize: '10px' }} />;
+        return <i className={`fa-solid fa-sort-${sortDir === 'asc' ? 'up' : 'down'}`} style={{ color: '#0ea5e9', fontSize: '10px' }} />;
+    };
 
     if (!isErc) {
         return (
             <div className="sqc-analysis-container fade-in" style={{ padding: '40px 0' }}>
-                <div className="sqc-card" style={{ 
-                    padding: '80px 20px', 
+                <div className="sqc-card" style={{
+                    padding: '80px 20px',
                     textAlign: 'center',
                     border: '2px dashed #d1fae5',
-                    background: 'rgba(255, 255, 255, 0.5)'
+                    background: 'rgba(255,255,255,0.5)'
                 }}>
-                    <i className="fa-solid fa-flask-vial" style={{ fontSize: '48px', color: '#10b981', marginBottom: '20px' }}></i>
-                    <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#14532d', marginBottom: '10px' }}>SQC Analysis - {selectedProduct}</h2>
+                    <i className="fa-solid fa-flask-vial" style={{ fontSize: '48px', color: '#10b981', marginBottom: '20px' }} />
+                    <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#14532d', marginBottom: '10px' }}>
+                        SQC Analysis – {selectedProduct}
+                    </h2>
                     <p style={{ color: '#64748b', fontSize: '16px', maxWidth: '500px', margin: '0 auto' }}>
-                        Statistical Quality Control integration is currently prioritized for ERC MK-V components. 
+                        Statistical Quality Control is currently prioritised for ERC MK-V components.
                         Integration for {selectedProduct} is under development.
                     </p>
                     <div className="status-pill status-no-data" style={{ marginTop: '24px', display: 'inline-block' }}>Coming Soon</div>
@@ -180,234 +119,328 @@ const SqcAnalysis = ({ selectedProduct }) => {
         );
     }
 
-
     return (
         <div className="sqc-analysis-container fade-in">
-            {/* 1. FILTERS HEADER */}
+
+            {/* ── HEADER ── */}
             <div className="sqc-header-card">
                 <div className="sqc-title">
-                    <i className="fa-solid fa-chart-line"></i>
-                    <span>SQC Planning & Control Monitor</span>
-                    <div style={{ marginLeft: 'auto', display: 'flex', gap: '10px' }}>
-                        {loading && <div className="status-pill status-live"><i className="fa-solid fa-spinner fa-spin"></i> Syncing...</div>}
+                    <i className="fa-solid fa-chart-line" />
+                    <span>SQC Analysis Report — Turning Diameter</span>
+                    <div style={{ marginLeft: 'auto', display: 'flex', gap: '10px', alignItems: 'center' }}>
+                        {loading && (
+                            <div className="status-pill status-live">
+                                <i className="fa-solid fa-spinner fa-spin" /> Loading…
+                            </div>
+                        )}
                         <span className={`status-pill ${data.length > 0 ? 'status-live' : 'status-no-data'}`}>
-                            {data.length > 0 ? `${data.length} Samples Active` : 'Awaiting Data'}
+                            {data.length > 0 ? `${data.length} Units` : 'No Data'}
                         </span>
                     </div>
                 </div>
 
-                <div className="sqc-filters-grid">
-                    <div className="sqc-filter-group">
-                        <label>Manufacturer</label>
-                        <select className="sqc-select" value={manufacturer} onChange={(e) => setManufacturer(e.target.value)}>
-                            <option value="">Select Manufacturer</option>
-                            {SCADA_MANUFACTURERS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-                        </select>
-                    </div>
-                    <div className="sqc-filter-group">
-                        <label>Unit</label>
-                        <select className="sqc-select" value={unit} onChange={(e) => setUnit(e.target.value)} disabled={!manufacturer}>
-                            <option value="">Select Unit</option>
-                            {SCADA_UNITS.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
-                        </select>
-                    </div>
-                    <div className="sqc-filter-group">
-                        <label>Line</label>
-                        <select className="sqc-select" value={line} onChange={(e) => setLine(e.target.value)} disabled={!unit}>
-                            <option value="">Select Line</option>
-                            {SCADA_LINES.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
-                        </select>
-                    </div>
-                    <div className="sqc-filter-group">
-                        <label>Data Acquisition Stage</label>
-                        <select className="sqc-select" value={stage} onChange={(e) => setStage(e.target.value)} disabled={!line}>
-                            <option value="">Select Stage</option>
-                            {SCADA_STAGES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                        </select>
-                    </div>
+                {/* Spec info row */}
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '8px' }}>
+                    {[
+                        { l: 'USL', v: '20.84 mm', color: '#ef4444' },
+                        { l: 'LSL', v: '20.47 mm', color: '#ef4444' },
+                        { l: 'SQC Rating Formula', v: '(0.5 × Cpk) + (0.5 × Cp)', color: '#0369a1' },
+                        { l: 'Sample Window', v: 'Latest 30 Days / Unit', color: '#059669' },
+                    ].map(item => (
+                        <div key={item.l} style={{
+                            background: '#f8fafc', borderRadius: '8px', padding: '6px 12px',
+                            border: `1px solid ${item.color}22`, fontSize: '12px'
+                        }}>
+                            <span style={{ fontWeight: '700', color: '#64748b', textTransform: 'uppercase', fontSize: '10px' }}>
+                                {item.l}:{' '}
+                            </span>
+                            <span style={{ fontWeight: '800', color: item.color }}>{item.v}</span>
+                        </div>
+                    ))}
                 </div>
             </div>
 
-            {/* 2. SQC KPI CARDS */}
-            {stats && (
-                <div className="sqc-stats-grid fade-in">
-                    <div className="sqc-stat-card">
-                        <div className="stat-label">Mean (μ)</div>
-                        <div className="stat-value">{stats.mean}</div>
-                        <div className="stat-unit">mm</div>
+            {/* ── ERROR ── */}
+            {error && (
+                <div style={{ padding: '16px 20px', textAlign: 'center', color: '#dc2626', background: '#fef2f2', borderRadius: '12px', border: '1px solid #fecaca' }}>
+                    <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '10px' }} />
+                    {error}
+                </div>
+            )}
+
+
+
+            {/* ── LOADING SKELETON ── */}
+            {loading && (
+                <div style={{ padding: '80px 20px', textAlign: 'center', color: '#64748b' }}>
+                    <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '40px', color: '#10b981', marginBottom: '16px' }} />
+                    <p style={{ fontSize: '18px', fontWeight: '700' }}>Calculating SQC metrics…</p>
+                    <p style={{ fontSize: '13px', color: '#94a3b8' }}>Processing turning diameter data across all company units</p>
+                </div>
+            )}
+
+            {/* ── TABLE ── */}
+            {!loading && !error && (
+                <div className="sqc-card" style={{ padding: 0, overflow: 'hidden' }}>
+
+                    {/* Table toolbar */}
+                    <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                        <div style={{ fontWeight: '800', fontSize: '16px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <i className="fa-solid fa-table-list" style={{ color: '#10b981' }} />
+                            Company-Unit SQC Report
+                        </div>
+                        <div style={{ marginLeft: 'auto', position: 'relative' }}>
+                            <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontSize: '13px' }} />
+                            <input
+                                id="sqc-search"
+                                type="text"
+                                placeholder="Search company or unit…"
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                                style={{
+                                    padding: '8px 12px 8px 32px',
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: '8px',
+                                    fontSize: '13px',
+                                    color: '#1e293b',
+                                    outline: 'none',
+                                    minWidth: '220px',
+                                    background: '#f8fafc',
+                                }}
+                            />
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '600' }}>
+                            {filtered.length} of {data.length} units
+                        </div>
                     </div>
-                    <div className="sqc-stat-card">
-                        <div className="stat-label">Std Dev (σ)</div>
-                        <div className="stat-value">{stats.stdDev}</div>
-                        <div className="stat-unit">mm</div>
-                    </div>
-                    <div className="sqc-stat-card">
-                        <div className="stat-label">Variance</div>
-                        <div className="stat-value" style={{ fontSize: '1.2rem' }}>{stats.variance}</div>
-                        <div className="stat-unit">mm²</div>
-                    </div>
-                    <div className="sqc-stat-card highlight">
-                        <div className="stat-label">Process Capability (Cp)</div>
-                        <div className="stat-value" style={{ color: parseFloat(stats.cp) > 1.33 ? '#059669' : '#d97706' }}>{stats.cp}</div>
-                        <div className="stat-badge">{parseFloat(stats.cp) > 1.33 ? 'Excellent' : 'Stable'}</div>
-                    </div>
-                    <div className="sqc-stat-card highlight">
-                        <div className="stat-label">Center Capability (Cpk)</div>
-                        <div className="stat-value" style={{ color: parseFloat(stats.cpk) > 1.33 ? '#059669' : '#dc2626' }}>{stats.cpk}</div>
-                        <div className="stat-badge">{parseFloat(stats.cpk) > 1.33 ? 'Centered' : 'Shifted'}</div>
+
+                    {/* No data message */}
+                    {data.length === 0 && !loading && (
+                        <div style={{ padding: '80px 20px', textAlign: 'center', color: '#64748b' }}>
+                            <i className="fa-solid fa-database" style={{ fontSize: '48px', color: '#cbd5e1', marginBottom: '20px' }} />
+                            <p style={{ fontSize: '18px', fontWeight: '700' }}>No Data Available</p>
+                            <p style={{ maxWidth: '400px', margin: '0 auto', fontSize: '13px' }}>
+                                No turning diameter records were found for process inspection calls.
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Table */}
+                    {filtered.length > 0 && (
+                        <div style={{ overflowX: 'auto' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                                <thead>
+                                    <tr style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)', color: '#f8fafc' }}>
+                                        {[
+                                            { key: 'companyName', label: 'Company Name', align: 'left' },
+                                            { key: 'companyUnit', label: 'Company Unit', align: 'left' },
+                                            { key: 'cp', label: 'Cp', align: 'center' },
+                                            { key: 'cpk', label: 'Cpk', align: 'center' },
+                                            { key: 'sqcRating', label: 'SQC Rating', align: 'center' },
+                                        ].map(col => (
+                                            <th
+                                                key={col.key}
+                                                onClick={() => handleSort(col.key)}
+                                                style={{
+                                                    padding: '14px 16px',
+                                                    textAlign: col.align,
+                                                    fontWeight: '700',
+                                                    fontSize: '11px',
+                                                    textTransform: 'uppercase',
+                                                    letterSpacing: '0.8px',
+                                                    cursor: 'pointer',
+                                                    whiteSpace: 'nowrap',
+                                                    userSelect: 'none',
+                                                }}
+                                            >
+                                                {col.label}
+                                                <span style={{ marginLeft: '6px' }}>
+                                                    <SortIcon col={col.key} />
+                                                </span>
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filtered.map((row, idx) => {
+                                        const badge = getRatingBadge(row.sqcRating);
+                                        const cpBadge = getCpBadge(row.cp);
+                                        const isEven = idx % 2 === 0;
+                                        return (
+                                            <tr
+                                                key={`${row.companyName}-${row.companyUnit}-${idx}`}
+                                                style={{
+                                                    background: isEven ? '#ffffff' : '#f8fafc',
+                                                    transition: 'background 0.15s',
+                                                    borderBottom: '1px solid #f1f5f9',
+                                                }}
+                                                onMouseEnter={e => e.currentTarget.style.background = '#f0fdf4'}
+                                                onMouseLeave={e => e.currentTarget.style.background = isEven ? '#ffffff' : '#f8fafc'}
+                                            >
+
+
+                                                {/* Company Name */}
+                                                <td style={{ padding: '12px 16px', fontWeight: '700', color: '#1e293b', maxWidth: '220px', cursor: 'pointer' }}
+                                                    onClick={() => {
+                                                        setSelectedCompanyData(row);
+                                                        setShowChartModal(true);
+                                                    }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <div style={{
+                                                            width: '8px', height: '8px', borderRadius: '50%',
+                                                            background: badge.dot, flexShrink: 0
+                                                        }} />
+                                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: 'underline', color: '#0369a1' }}>
+                                                            {row.companyName}
+                                                        </span>
+                                                    </div>
+                                                </td>
+
+                                                {/* Company Unit */}
+                                                <td style={{ padding: '12px 16px', color: '#475569', maxWidth: '220px' }}>
+                                                    <span style={{
+                                                        overflow: 'hidden', textOverflow: 'ellipsis',
+                                                        whiteSpace: 'nowrap', display: 'block', fontSize: '12px'
+                                                    }}>
+                                                        {row.companyUnit}
+                                                    </span>
+                                                </td>
+
+
+
+                                                {/* Cp */}
+                                                <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                                                    <span style={{ fontWeight: '800', color: cpBadge.color, fontSize: '15px' }}>
+                                                        {row.cp.toFixed(2)}
+                                                    </span>
+                                                </td>
+
+                                                {/* Cpk */}
+                                                <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                                                    <span style={{
+                                                        fontWeight: '800', fontSize: '15px',
+                                                        color: row.cpk >= 1.33 ? '#059669' : row.cpk >= 1.0 ? '#0369a1' : row.cpk >= 0.67 ? '#b45309' : '#dc2626'
+                                                    }}>
+                                                        {row.cpk.toFixed(2)}
+                                                    </span>
+                                                </td>
+
+                                                {/* SQC Rating */}
+                                                <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                                                        <span style={{ fontWeight: '900', fontSize: '17px', color: badge.color }}>
+                                                            {row.sqcRating.toFixed(2)}
+                                                        </span>
+                                                        {/* Mini progress bar */}
+                                                        <div style={{ width: '60px', height: '4px', background: '#e2e8f0', borderRadius: '2px', overflow: 'hidden' }}>
+                                                            <div style={{
+                                                                width: `${Math.max(0, Math.min(100, (row.sqcRating / 2) * 100))}%`,
+                                                                height: '100%',
+                                                                background: badge.dot,
+                                                                borderRadius: '2px',
+                                                                transition: 'width 0.8s ease',
+                                                            }} />
+                                                        </div>
+                                                    </div>
+                                                </td>
+
+
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+
+                    {/* Footer */}
+                    <div style={{
+                        padding: '12px 20px', background: '#f8fafc', borderTop: '1px solid #f1f5f9',
+                        fontSize: '11px', color: '#94a3b8', fontWeight: '600',
+                        display: 'flex', gap: '20px', flexWrap: 'wrap'
+                    }}>
+                        <span>* Cp = (USL − LSL) / (6σ)</span>
+                        <span>* Cpk = min((USL − μ) / 3σ, (μ − LSL) / 3σ)</span>
+                        <span>* SQC Rating = (0.5 × Cpk) + (0.5 × Cp)</span>
+                        <span>* Based on turning diameter measurements from latest 30 days per unit</span>
                     </div>
                 </div>
             )}
 
-            {/* 3. MAIN DASHBOARD CONTENT */}
-            <div className="sqc-dashboard-single">
-                <div className="charts-section">
-                    <div className="sqc-card" style={{ display: 'flex', flexDirection: 'column' }}>
-                        <div className="sqc-section-title">
-                            <span>X-Bar Control Chart</span>
-                            <div style={{ display: 'flex', gap: '10px' }}>
-                                <span className="prof-badge" style={{ background: '#f0f9ff', color: '#0369a1' }}>Sample size: 30</span>
-                                <span className="prof-badge" style={{ background: '#fef2f2', color: '#991b1b' }}>Live Monitoring</span>
-                            </div>
-                        </div>
+            {/* CHART MODAL */}
+            <Dialog open={showChartModal} onClose={() => setShowChartModal(false)} maxWidth="xl" fullWidth>
+                <DialogTitle style={{ fontWeight: 800, fontSize: '18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    TURNING DIAMETER MONITORING (MM) - {selectedCompanyData?.companyName} ({selectedCompanyData?.companyUnit})
+                    <IconButton onClick={() => setShowChartModal(false)}>
+                        <CloseIcon />
+                    </IconButton>
+                </DialogTitle>
+                <DialogContent dividers>
+                    <div style={{ height: '550px', width: '100%' }}>
+                        {selectedCompanyData?.diaValues && selectedCompanyData.diaValues.length > 0 ? (() => {
+                            const chartData = selectedCompanyData.diaValues.map((val, idx) => ({
+                                name: `S-${idx + 1}`,
+                                value: val
+                            }));
+                            const mean = chartData.reduce((acc, curr) => acc + curr.value, 0) / chartData.length;
+                            const uclVal = selectedCompanyData.ucl;
+                            const lclVal = selectedCompanyData.lcl;
 
-                        {error && (
-                            <div style={{ padding: '20px', textAlign: 'center', color: '#dc2626', background: '#fef2f2', borderRadius: '12px', margin: '20px' }}>
-                                <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '10px' }}></i>
-                                {error}
+                            // Custom dot: red if outside USL/LSL, blue otherwise
+                            const CustomDot = (props) => {
+                                const { cx, cy, payload } = props;
+                                const isOutOfSpec = payload.value > 20.84 || payload.value < 20.47;
+                                return (
+                                    <circle
+                                        cx={cx}
+                                        cy={cy}
+                                        r={4}
+                                        fill={isOutOfSpec ? '#ef4444' : '#0ea5e9'}
+                                        stroke="none"
+                                    />
+                                );
+                            };
+
+                            return (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <LineChart data={chartData} margin={{ top: 20, right: 80, left: 20, bottom: 30 }}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                        <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} label={{ value: 'Subgroup Samples (Latest 30 Days)', position: 'insideBottom', offset: -10, fill: '#64748b', fontSize: 12 }} />
+                                        <YAxis 
+                                            domain={['dataMin - 0.05', 'dataMax + 0.05']} 
+                                            tick={{ fontSize: 12, fill: '#64748b' }} 
+                                            axisLine={false} 
+                                            tickLine={false}
+                                            width={60}
+                                            tickFormatter={(val) => Number(val).toFixed(2)}
+                                        />
+                                        <RechartsTooltip 
+                                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                            formatter={(value) => [`${value} mm`, 'Diameter']}
+                                        />
+                                        
+                                        <ReferenceLine y={20.84} stroke="#ef4444" strokeDasharray="3 3" label={{ position: 'right', value: 'USL 20.84', fill: '#ef4444', fontSize: 12 }} />
+                                        <ReferenceLine y={20.47} stroke="#ef4444" strokeDasharray="3 3" label={{ position: 'right', value: 'LSL 20.47', fill: '#ef4444', fontSize: 12 }} />
+                                        {uclVal > 0 && <ReferenceLine y={uclVal} stroke="#f59e0b" strokeDasharray="6 3" label={{ position: 'right', value: `UCL ${uclVal.toFixed(5)}`, fill: '#f59e0b', fontSize: 11 }} />}
+                                        {lclVal > 0 && <ReferenceLine y={lclVal} stroke="#f59e0b" strokeDasharray="6 3" label={{ position: 'right', value: `LCL ${lclVal.toFixed(5)}`, fill: '#f59e0b', fontSize: 11 }} />}
+                                        <ReferenceLine y={20.6} stroke="#22c55e" label={{ position: 'right', value: 'Target 20.6', fill: '#22c55e', fontSize: 12 }} />
+                                        <ReferenceLine y={mean} stroke="#0ea5e9" strokeDasharray="5 5" label={{ position: 'right', value: `Mean ${mean.toFixed(4)}`, fill: '#0ea5e9', fontSize: 12 }} />
+                                        
+                                        <Line type="monotone" dataKey="value" stroke="#0ea5e9" strokeWidth={2} dot={<CustomDot />} activeDot={{ r: 6 }} />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            );
+                        })() : (
+                            <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
+                                No turning diameter data available for this unit.
                             </div>
                         )}
-
-                        {!manufacturer || !stage ? (
-                            <div style={{ padding: '100px 20px', textAlign: 'center', color: '#64748b' }}>
-                                <i className="fa-solid fa-tower-broadcast" style={{ fontSize: '48px', color: '#cbd5e1', marginBottom: '20px' }}></i>
-                                <p style={{ fontSize: '18px', fontWeight: '700' }}>Waiting for Selection</p>
-                                <p style={{ maxWidth: '400px', margin: '0 auto' }}>Please select Manufacturer, Unit, Line, and Stage to initiate live SQC analysis.</p>
-                            </div>
-                        ) : data.length === 0 && !loading ? (
-                            <div style={{ padding: '100px 20px', textAlign: 'center', color: '#64748b' }}>
-                                <i className="fa-solid fa-database" style={{ fontSize: '48px', color: '#cbd5e1', marginBottom: '20px' }}></i>
-                                <p style={{ fontSize: '18px', fontWeight: '700' }}>No Data Available</p>
-                                <p style={{ maxWidth: '400px', margin: '0 auto' }}>No SCADA DIA records found for the selected stage.</p>
-                            </div>
-                        ) : (
-                            <>
-                                <div className="chart-legend">
-                                    <div className="legend-item" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
-                                        <div className="legend-title" style={{ color: '#166534' }}>
-                                            Target Value
-                                            <span className="legend-line" style={{ background: '#22c55e' }}>Green Line</span>
-                                        </div>
-                                        <div className="legend-desc">Fixed target at {TARGET_VALUE} mm.</div>
-                                    </div>
-                                    <div className="legend-item" style={{ background: '#fef2f2', border: '1px solid #fecaca' }}>
-                                        <div className="legend-title" style={{ color: '#991b1b' }}>
-                                            Spec Limits (USL/LSL)
-                                            <span className="legend-line" style={{ background: '#ef4444' }}>Red Lines</span>
-                                        </div>
-                                        <div className="legend-desc">{LSL}mm to {USL}mm boundaries.</div>
-                                    </div>
-                                    <div className="legend-item" style={{ background: '#fff7ed', border: '1px solid #fed7aa', gridColumn: 'span 2' }}>
-                                        <div className="legend-title" style={{ color: '#9a3412' }}>
-                                            Control Limits (UCL & LCL)
-                                            <span className="legend-line" style={{ background: '#f59e0b' }}>Orange Lines</span>
-                                        </div>
-                                        <div className="legend-desc">Dynamically calculated from process variation (±3σ).</div>
-                                    </div>
-                                </div>
-
-                                <div className="chart-container" style={{ flex: 1, minHeight: '500px', marginTop: '20px' }}>
-                                    <div style={{ textAlign: 'center', fontSize: '14px', fontWeight: '800', color: '#1e293b', marginBottom: '20px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                                        Turning Diameter Monitoring (mm)
-                                    </div>
-                                    <ResponsiveContainer width="100%" height={400}>
-                                        <LineChart data={chartData} margin={{ top: 20, right: 60, left: 20, bottom: 20 }}>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                            <XAxis 
-                                                dataKey="sample" 
-                                                axisLine={false} 
-                                                tickLine={false} 
-                                                style={{ fontSize: '11px', fontWeight: '600' }}
-                                                tickFormatter={(val) => `S-${val}`}
-                                            >
-                                                <Label value="Subgroup Samples (Last 30)" offset={-10} position="insideBottom" style={{ fontSize: '12px', fontWeight: '700', fill: '#64748b' }} />
-                                            </XAxis>
-                                            <YAxis 
-                                                domain={[LSL - 0.1, USL + 0.1]} 
-                                                axisLine={false} 
-                                                tickLine={false} 
-                                                style={{ fontSize: '11px', fontWeight: '600' }}
-                                                tickCount={8}
-                                                tickFormatter={(val) => val.toFixed(2)}
-                                            />
-                                            <Tooltip 
-                                                content={({ active, payload }) => {
-                                                    if (active && payload && payload.length) {
-                                                        const d = payload[0].payload;
-                                                        return (
-                                                            <div className="sqc-tooltip">
-                                                                <div className="tooltip-time">{d.time}</div>
-                                                                <div className="tooltip-value">Dia: <strong>{d.value} mm</strong></div>
-                                                                <div className="tooltip-sample">Sample #{d.sample}</div>
-                                                            </div>
-                                                        );
-                                                    }
-                                                    return null;
-                                                }}
-                                            />
-                                            
-                                            {/* USL & LSL */}
-                                            <ReferenceLine y={USL} stroke="#ef4444" strokeDasharray="5 5" strokeWidth={2}>
-                                                <Label value={`USL ${USL}`} position="right" style={{ fill: '#ef4444', fontSize: '10px', fontWeight: 'bold' }} />
-                                            </ReferenceLine>
-                                            <ReferenceLine y={LSL} stroke="#ef4444" strokeDasharray="5 5" strokeWidth={2}>
-                                                <Label value={`LSL ${LSL}`} position="right" style={{ fill: '#ef4444', fontSize: '10px', fontWeight: 'bold' }} />
-                                            </ReferenceLine>
-
-                                            {/* UCL & LCL */}
-                                            {stats && (
-                                                <>
-                                                    <ReferenceLine y={parseFloat(stats.ucl)} stroke="#f59e0b" strokeDasharray="3 3" strokeWidth={1.5}>
-                                                        <Label value={`UCL ${stats.ucl}`} position="right" style={{ fill: '#f59e0b', fontSize: '10px', fontWeight: 'bold' }} />
-                                                    </ReferenceLine>
-                                                    <ReferenceLine y={parseFloat(stats.lcl)} stroke="#f59e0b" strokeDasharray="3 3" strokeWidth={1.5}>
-                                                        <Label value={`LCL ${stats.lcl}`} position="right" style={{ fill: '#f59e0b', fontSize: '10px', fontWeight: 'bold' }} />
-                                                    </ReferenceLine>
-                                                </>
-                                            )}
-
-                                            {/* Target Line (CL) */}
-                                            <ReferenceLine y={TARGET_VALUE} stroke="#22c55e" strokeWidth={2}>
-                                                <Label value={`Target ${TARGET_VALUE}`} position="right" style={{ fill: '#22c55e', fontSize: '10px', fontWeight: 'bold' }} />
-                                            </ReferenceLine>
-
-                                            {/* Calculated Mean Line */}
-                                            {stats && (
-                                                <ReferenceLine y={parseFloat(stats.mean)} stroke="#0ea5e9" strokeDasharray="2 2" strokeWidth={1}>
-                                                    <Label value={`Mean ${stats.mean}`} position="insideBottomRight" style={{ fill: '#0ea5e9', fontSize: '10px', fontWeight: 'bold' }} />
-                                                </ReferenceLine>
-                                            )}
-
-                                            <Line 
-                                                type="monotone" 
-                                                dataKey="value" 
-                                                stroke="#0ea5e9" 
-                                                strokeWidth={3} 
-                                                dot={{ r: 6, fill: '#0ea5e9', stroke: '#fff', strokeWidth: 2 }} 
-                                                activeDot={{ r: 8 }} 
-                                                isAnimationActive={true}
-                                            />
-                                        </LineChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </>
-                        )}
-                        <div className="limits-info">
-                            * Data sourced from real-time SCADA acquisition. Control limits are ±3σ from process mean.
-                        </div>
                     </div>
-                </div>
-            </div>
+                    <div style={{ marginTop: '16px', fontSize: '11px', color: '#64748b' }}>
+                        * Data sourced from real-time SCADA acquisition. Control limits are process specification limits.
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };

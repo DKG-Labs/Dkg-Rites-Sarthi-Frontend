@@ -2014,12 +2014,16 @@ const ScadaMonitor = ({ selectedProduct }) => {
     const EXCLUDED_COLUMNS = ['line', 'module', 'plant', 'topic', 'machine', 'host', 'result', 'table'];
 
     const COLUMN_LABELS = {
-        'time': 'Time',
-        'PO_No': 'Po',
-        'Heat_Code': 'Heat',
+        'time': 'Date & Time',
+        'PO_No': 'PO Number',
+        'Heat_Code': 'Heat Number',
         'length': 'Length(mm)',
-        'sample': 'Sam',
-        'end': 'End Squareness (mm)'
+        'sample': 'Sample Number',
+        'end': 'End Squareness (mm)',
+        'MC': 'Machine Number',
+        'mc': 'Machine Number',
+        'DIA': 'Diameter (mm)',
+        'dia': 'Diameter (mm)'
     };
 
     const rawKeys = data.length > 0

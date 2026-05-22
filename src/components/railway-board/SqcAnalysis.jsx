@@ -58,6 +58,7 @@ const SqcAnalysis = ({ selectedProduct }) => {
     }, [isErc]);
 
     // Summary stats
+// eslint-disable-next-line no-unused-vars
     const summary = useMemo(() => {
         if (!data.length) return null;
         const excellent = data.filter(d => d.sqcRating >= 1.33).length;

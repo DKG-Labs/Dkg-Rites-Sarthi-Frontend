@@ -89,3 +89,109 @@ export const downloadExcel = (data, headers, filename) => {
     link.click();
     document.body.removeChild(link);
 };
+
+export const SearchableDropdown = ({ value, onChange, options, placeholder = "Select option..." }) => {
+    const [isOpen, setIsOpen] = React.useState(false);
+    const [search, setSearch] = React.useState('');
+    const containerRef = React.useRef(null);
+
+    React.useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (containerRef.current && !containerRef.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Filter options based on search input
+    const filteredOptions = options.filter(opt => 
+        (opt.label || '').toLowerCase().includes(search.toLowerCase())
+    );
+
+    const handleSelect = (val) => {
+        onChange(val);
+        setIsOpen(false);
+        setSearch('');
+    };
+
+    // Find active option label
+    const selectedOption = options.find(opt => opt.value === value);
+    const displayLabel = selectedOption ? selectedOption.label : value || placeholder;
+
+    return (
+        <div ref={containerRef} className="searchable-dropdown-container">
+            {/* Display Box */}
+            <div 
+                onClick={() => setIsOpen(!isOpen)}
+                className={`searchable-dropdown-trigger ${isOpen ? 'open' : ''}`}
+            >
+                <span className={`searchable-dropdown-text ${!selectedOption ? 'placeholder' : ''}`}>
+                    {displayLabel}
+                </span>
+                <span className="searchable-dropdown-icon">
+                    ▼
+                </span>
+            </div>
+
+            {/* Dropdown Popover */}
+            {isOpen && (
+                <div className="searchable-dropdown-popover">
+                    {/* Search Field */}
+                    <div className="searchable-dropdown-search-wrapper">
+                        <span className="searchable-dropdown-search-icon">🔍</span>
+                        <input 
+                            type="text"
+                            placeholder="Type to search..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="searchable-dropdown-search-input"
+                            autoFocus
+                        />
+                        {search && (
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); setSearch(''); }}
+                                className="searchable-dropdown-clear-btn"
+                            >
+                                ✕
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Options List */}
+                    <div className="searchable-dropdown-options-list">
+                        {filteredOptions.length === 0 ? (
+                            <div className="searchable-dropdown-no-results">
+                                No matches found
+                            </div>
+                        ) : (
+                            filteredOptions.map((opt, i) => {
+                                const isSelected = opt.value === value;
+                                return (
+                                    <div 
+                                        key={i}
+                                        onClick={() => handleSelect(opt.value)}
+                                        className={`searchable-dropdown-option ${isSelected ? 'selected' : ''}`}
+                                    >
+                                        <span style={{
+                                            whiteSpace: 'nowrap',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            maxWidth: '90%'
+                                        }}>
+                                            {opt.label}
+                                        </span>
+                                        {isSelected && (
+                                            <span className="searchable-dropdown-option-check">✓</span>
+                                        )}
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};

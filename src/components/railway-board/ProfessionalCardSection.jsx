@@ -26,6 +26,8 @@ import RailPadPerformance from './railpad-board/RailPadPerformance';
 import RailPadMprReport from './railpad-board/RailPadMprReport';
 import RailPadMauReport from './railpad-board/RailPadMauReport';
 import RailPadLwcpReport from './railpad-board/RailPadLwcpReport';
+import RailPadSwpReport from './railpad-board/RailPadSwpReport';
+import RailPadQualityReport from './railpad-board/RailPadQualityReport';
 import ShiftWiseProductionReport from './ShiftWiseProductionReport';
 import PoWiseMonthlyReport from './PoWiseMonthlyReport';
 import SleeperShiftWiseProductionReport from './sleeper-board/SleeperShiftWiseProductionReport';
@@ -139,7 +141,14 @@ const ProfessionalCardSection = ({
 
     const handlePoIssuedClick = async () => {
         try {
-            const itemCatDescr = selectedProduct === 'Sleeper' ? 'PSC Mainline Sleeper' : 'Elastic Rail Clips';
+            let itemCatDescr;
+            if (selectedProduct === 'Sleeper') {
+                itemCatDescr = 'PSC Mainline Sleeper';
+            } else if (selectedProduct === 'Rail Pad') {
+                itemCatDescr = 'Rail Pads';
+            } else {
+                itemCatDescr = 'Elastic Rail Clips';
+            }
             const response = await reportService.getPoIssuedDetails(itemCatDescr);
             const data = response.responseData || response || [];
             setPoModalData(data);
@@ -1066,8 +1075,9 @@ const ProfessionalCardSection = ({
                                         <div className={`sub-tab-btn ${activeReport === 'mpr' ? 'active' : ''}`} onClick={() => { setActiveReport('mpr'); onReportTabChange('mpr'); }}>📋 MPR</div>
                                         <div className={`sub-tab-btn ${activeReport === 'mau' ? 'active' : ''}`} onClick={() => { setActiveReport('mau'); onReportTabChange('mau'); }}>📈 MAU</div>
                                         <div className={`sub-tab-btn ${activeReport === 'lwcl' ? 'active' : ''}`} onClick={() => { setActiveReport('lwcl'); onReportTabChange('lwcl'); }}>🔄 LWCL</div>
-                                        {!isRailPad && (
-                                            <div className={`sub-tab-btn ${activeReport === 'swp' ? 'active' : ''}`} onClick={() => { setActiveReport('swp'); onReportTabChange('swp'); }}>⏱️ SWP</div>
+                                        <div className={`sub-tab-btn ${activeReport === 'swp' ? 'active' : ''}`} onClick={() => { setActiveReport('swp'); onReportTabChange('swp'); }}>⏱️ SWP</div>
+                                        {isRailPad && (
+                                            <div className={`sub-tab-btn ${activeReport === 'qrp' ? 'active' : ''}`} onClick={() => { setActiveReport('qrp'); onReportTabChange('qrp'); }}>📊 Quality Report</div>
                                         )}
                                         {!isSleeper && !isRailPad && (
                                             <div className={`sub-tab-btn ${activeReport === 'mpia' ? 'active' : ''}`} onClick={() => { setActiveReport('mpia'); onReportTabChange('mpia'); }}>⚙️ VMR</div>
@@ -1084,6 +1094,8 @@ const ProfessionalCardSection = ({
                                                     case 'mpr': return <RailPadMprReport />;
                                                     case 'mau': return <RailPadMauReport />;
                                                     case 'lwcl': return <RailPadLwcpReport />;
+                                                    case 'swp': return <RailPadSwpReport />;
+                                                    case 'qrp': return <RailPadQualityReport />;
                                                     default: return <RailPadMprReport />;
                                                 }
                                             })()

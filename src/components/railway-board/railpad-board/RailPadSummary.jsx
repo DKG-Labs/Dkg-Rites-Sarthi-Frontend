@@ -2,25 +2,25 @@ import React from 'react';
 import './RailPadSummary.css';
 
 const RailPadSummary = ({ summaryData = {} }) => {
-    // Mock data based on SRS Module 1
+    // Real data from backend; fallback to 0 when not yet loaded
     const data = {
-        totalPoIssued: summaryData.totalPoIssued || 156,
+        totalPoIssued: summaryData.railPadPoIssued || 0,
         totalPoQtyOnOrder: {
-            nos: summaryData.totalPoQtyNos || 1250000,
-            set: summaryData.totalPoQtySet || 45000
+            nos: summaryData.railPadPoQuantityNos || 0,
+            set: summaryData.railPadPoQuantitySet || 0
         },
         totalPoQtyAccepted: {
-            nos: summaryData.totalAcceptedNos || 850000,
-            set: summaryData.totalAcceptedSet || 32000
+            nos: summaryData.totalAcceptedNos || 0,
+            set: summaryData.totalAcceptedSet || 0
         },
         inspectionCalls: {
-            pending: summaryData.pendingCalls || 12,
-            underInspection: summaryData.underInspectionCalls || 8
+            pending: summaryData.pendingCalls || 0,
+            underInspection: summaryData.underInspectionCalls || 0
         },
-        avgProductionPerDay: summaryData.avgProduction || 12500,
-        rejectedInProcess: summaryData.rejectedInProcess || 4500,
-        rejectedInFinal: summaryData.rejectedInFinal || 2800,
-        rejectionRate: summaryData.rejectionRate || 2.4
+        avgProductionPerDay: summaryData.railPadAvgProductionPerDay || summaryData.avgProductionPerDay || 0,
+        rejectedInProcess: summaryData.rejectedInProcess || 0,
+        rejectedInFinal: summaryData.rejectedInFinal || 0,
+        rejectionRate: summaryData.railPadRejectionPercentage || 0
     };
 
     return (
@@ -85,9 +85,9 @@ const RailPadSummary = ({ summaryData = {} }) => {
                 </div>
                 <div className="prof-card card-gold" style={{ textAlign: 'center' }}>
                     <div className="kpi-lbl">Overall Rejection Rate</div>
-                    <div className="kpi-val">{data.rejectionRate}%</div>
+                    <div className="kpi-val">{Number(data.rejectionRate || 0).toFixed(2)}%</div>
                     <div className="prof-prog">
-                        <div className="prof-prog-f" style={{ width: `${Math.min(100, data.rejectionRate * 10)}%`, background: '#eab308' }}></div>
+                        <div className="prof-prog-f" style={{ width: `${Math.min(100, Number(data.rejectionRate || 0) * 10)}%`, background: '#eab308' }}></div>
                     </div>
                     <div className="kpi-sub">Process + Final</div>
                 </div>

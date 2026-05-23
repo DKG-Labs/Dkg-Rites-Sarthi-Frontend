@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ExportButton, downloadExcel } from '../SharedComponents';
+import { ExportButton, downloadExcel, SearchableDropdown } from '../SharedComponents';
 
 const SleeperShiftWiseProductionReport = () => {
     const [manufacturer, setManufacturer] = useState('All Manufacturers');
@@ -13,6 +13,9 @@ const SleeperShiftWiseProductionReport = () => {
 
     const mockManufacturers = ['All Manufacturers', 'STP Ltd.', 'Indian Hume Pipe', 'Vekas Sleeper', 'Kusum Sleepers'];
     const mockPlants = ['All Plants', 'Plant-1 (Kolkata)', 'Plant-2 (Raipur)', 'Plant-3 (Hyderabad)'];
+
+    const manufacturerOptions = mockManufacturers.map(m => ({ label: m, value: m }));
+    const plantOptions = mockPlants.map(p => ({ label: p, value: p }));
 
     const mockData = [
         { 
@@ -77,25 +80,19 @@ const SleeperShiftWiseProductionReport = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '20px' }}>
                     <div>
                         <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#64748b', marginBottom: '8px' }}>Manufacturer</label>
-                        <select 
-                            className="prof-select" 
-                            style={{ width: '100%' }}
+                        <SearchableDropdown 
                             value={manufacturer}
-                            onChange={(e) => setManufacturer(e.target.value)}
-                        >
-                            {mockManufacturers.map(m => <option key={m} value={m}>{m}</option>)}
-                        </select>
+                            onChange={(val) => setManufacturer(val)}
+                            options={manufacturerOptions}
+                        />
                     </div>
                     <div>
                         <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#64748b', marginBottom: '8px' }}>Plant</label>
-                        <select 
-                            className="prof-select" 
-                            style={{ width: '100%' }}
+                        <SearchableDropdown 
                             value={plant}
-                            onChange={(e) => setPlant(e.target.value)}
-                        >
-                            {mockPlants.map(p => <option key={p} value={p}>{p}</option>)}
-                        </select>
+                            onChange={(val) => setPlant(val)}
+                            options={plantOptions}
+                        />
                     </div>
                     <div>
                         <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#64748b', marginBottom: '8px' }}>From Date</label>

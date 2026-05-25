@@ -1,68 +1,186 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import reportService from '../../services/reportService';
 import './PoWiseMonthlyReport.css';
 
-const PoWiseMonthlyReport = () => {
+const PoWiseMonthlyReport = ({ fromDate, toDate }) => {
     const [searchQuery, setSearchQuery] = useState('');
+    const [data, setData] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
 
-    // Full list of Zonal Railways as requested
-    const zonalRailways = [
-        'CR', 'ER', 'ECR', 'ECoR', 'NR', 'NCR', 'NER', 'NFR', 'NWR', 'SR', 'SCR', 'SER', 'SECR', 'SWR', 'WR', 'WCR'
-    ];
-
-    const dummyData = zonalRailways.map((rly, index) => {
-        // Create 1-3 rows per zone to demonstrate multi-row grouping
-        const rowCount = (index % 3) + 1;
-        const vendors = [];
-        let totalInspected = 0;
-        let totalAccepted = 0;
-        let totalRej = 0;
-
-        for (let i = 0; i < rowCount; i++) {
-            const inspected = 30000 + (index * 500) + (i * 1000);
-            const accepted = inspected - (200 + (i * 50));
-            const rej = inspected - accepted;
-            
-            totalInspected += inspected;
-            totalAccepted += accepted;
-            totalRej += rej;
-
-            vendors.push({
-                vendorName: i === 0 ? 'Cemcon Railway Industries' : (i === 1 ? 'Fateh Chand Jain' : 'Utkarsh'),
-                type: 'MK-V',
-                poNoDate: `512450${70000 + index + i} Dt:1${i+1}.11.2025`,
-                specification: 'IRS T-31 Latest',
-                inspected: inspected,
-                accepted: accepted,
-                rejections: {
-                    total: rej,
-                    rmCheck: { chem: '', dia: '', grain: '', inclusion: '', decarb: '' },
-                    process: { hardness: 10 + i, shearing: 50 + i, mpi: 100 + i, turning: 40 + i, forging: '', quenching: '', tempering: '', dimension: '' },
-                    acceptance: { hardness: 50 + i, decarb: '', dimTol: '', appDeflection: '', toeLoad: '', weight: rej - (250 + i), visual: '', micro: '', freedom: '', other: '' }
-                },
-                remarks: i === 0 ? 'Standard Check' : '',
-                percentage: ((rej / inspected) * 100).toFixed(2) + '%'
+    // Fetch PO Wise data from API
+    const fetchPoWiseData = useCallback(async (force = false) => {
+        setLoading(true);
+        setError(null);
+        try {
+            const response = await reportService.getPoWiseReport({
+                startDate: fromDate,
+                endDate: toDate,
+                forceRefresh: force === true,
             });
+            const apiData = response.responseData || response || [];
+            setData(Array.isArray(apiData) ? apiData : []);
+        } catch (err) {
+            console.error('Error fetching PO Wise Report:', err);
+            setError('Failed to load PO Wise Report data.');
+            setData([]);
         }
+        setLoading(false);
+    }, [fromDate, toDate]);
 
-        return {
-            sNo: index + 1,
-            zonalRailway: rly,
-            vendors: vendors,
-            subTotal: { 
-                inspected: totalInspected, 
-                accepted: totalAccepted, 
-                totalRej: totalRej, 
-                percentage: ((totalRej / totalInspected) * 100).toFixed(2) + '%' 
+    useEffect(() => {
+        fetchPoWiseData(false);
+    }, [fetchPoWiseData]);
+
+    // Group data by zonalRailway
+    const groupedData = React.useMemo(() => {
+        // Filter by search query
+        const filtered = data.filter(item => {
+            if (!searchQuery) return true;
+            const q = searchQuery.toLowerCase();
+            return (
+                (item.zonalRailway || '').toLowerCase().includes(q) ||
+                (item.vendor || '').toLowerCase().includes(q) ||
+                (item.poNo || '').toLowerCase().includes(q)
+            );
+        });
+
+        // Group by zonalRailway
+        const groups = {};
+        filtered.forEach(item => {
+            const zone = item.zonalRailway || 'Unknown';
+            if (!groups[zone]) {
+                groups[zone] = [];
             }
+            groups[zone].push(item);
+        });
+
+        // Convert to array and compute subtotals
+        let sNo = 0;
+        return Object.entries(groups).map(([zone, vendors]) => {
+            sNo++;
+            const subTotal = {
+                qtyInspected: vendors.reduce((sum, v) => sum + (v.qtyInspected || 0), 0),
+                qtyAccepted: vendors.reduce((sum, v) => sum + (v.qtyAccpeted || 0), 0),
+                totalRejected: vendors.reduce((sum, v) => sum + (v.totalRejected || 0), 0),
+            };
+            subTotal.percentage = subTotal.qtyInspected > 0
+                ? ((subTotal.totalRejected / subTotal.qtyInspected) * 100).toFixed(2) + '%'
+                : '0.00%';
+
+            return {
+                sNo,
+                zonalRailway: zone,
+                vendors,
+                subTotal,
+            };
+        });
+    }, [data, searchQuery]);
+
+    // Format PO Date
+    const formatPoDate = (dateStr) => {
+        if (!dateStr) return '';
+        try {
+            const d = new Date(dateStr);
+            return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        } catch {
+            return dateStr;
+        }
+    };
+
+    // Format number for display (show empty string for 0)
+    const fmt = (val) => {
+        if (val === null || val === undefined || val === 0) return '';
+        return val.toLocaleString();
+    };
+
+    // Compute grand total
+    const grandTotal = React.useMemo(() => {
+        const total = {
+            qtyInspected: 0,
+            qtyAccepted: 0,
+            totalRejected: 0,
         };
-    });
+        groupedData.forEach(zone => {
+            total.qtyInspected += zone.subTotal.qtyInspected;
+            total.qtyAccepted += zone.subTotal.qtyAccepted;
+            total.totalRejected += zone.subTotal.totalRejected;
+        });
+        total.percentage = total.qtyInspected > 0
+            ? ((total.totalRejected / total.qtyInspected) * 100).toFixed(2) + '%'
+            : '0.00%';
+        return total;
+    }, [groupedData]);
+
+    // Generate dynamic subtitle
+    const getSubtitle = () => {
+        if (!fromDate && !toDate) return 'Quality of ERCs';
+        const formatMonth = (dateStr) => {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+            return `${months[d.getMonth()]}'${String(d.getFullYear()).slice(2)}`;
+        };
+        return `Quality of ERCs from ${formatMonth(fromDate)} to ${formatMonth(toDate)}`;
+    };
+
+    // Export to Excel
+    const handleExportExcel = () => {
+        if (!data || data.length === 0) return;
+
+        const rows = [];
+        groupedData.forEach(zone => {
+            zone.vendors.forEach(v => {
+                rows.push({
+                    'Zonal Railway': zone.zonalRailway,
+                    'Vendor': v.vendor || '',
+                    'Type of ERC': v.typeOfErc || '',
+                    'PO No.': v.poNo || '',
+                    'PO Date': formatPoDate(v.poDate),
+                    'Qty Inspected': v.qtyInspected || 0,
+                    'Qty Accepted': v.qtyAccpeted || 0,
+                    'Total Rejected': v.totalRejected || 0,
+                    'RM - VM Defect': v.rmVmDefect || 0,
+                    'RM - Dimensional': v.rmDimentionalDefect || 0,
+                    'RM - Inclusion': v.rmInclusionDefect || 0,
+                    'RM - Grain Size': v.rmGrainSizeDefect || 0,
+                    'RM - Decarb': v.rmDecarbDefect || 0,
+                    'Shearing Rej': v.processQty?.shearingRejectionQty || 0,
+                    'Turning Rej': v.processQty?.turningRejectionQty || 0,
+                    'MPI Rej': v.processQty?.mpiRejectionQty || 0,
+                    'Forging Rej': v.processQty?.forgingRejectionQty || 0,
+                    'Quenching Rej': v.processQty?.quenchingRejectionQty || 0,
+                    'Tempering Rej': v.processQty?.temperingRejectionQty || 0,
+                    'Final - Visual/Dim': v.finalVisualDimDefect || 0,
+                    'Final - Hardness': v.finalHardnessDefect || 0,
+                    'Final - Inclusion': v.finalInclusionDefect || 0,
+                    'Final - Deflection': v.finalDeflectionDefect || 0,
+                    'Final - Toe Load': v.finalToeLoadDefect || 0,
+                });
+            });
+        });
+
+        // Simple CSV export
+        if (rows.length === 0) return;
+        const headers = Object.keys(rows[0]);
+        const csv = [
+            headers.join(','),
+            ...rows.map(row => headers.map(h => `"${row[h]}"`).join(','))
+        ].join('\n');
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `PO_Wise_Monthly_Report_${new Date().toISOString().split('T')[0]}.csv`;
+        link.click();
+    };
 
     return (
         <div className="pwmr-container animate-up">
             <div className="pwmr-header">
                 <div className="pwmr-title-section">
                     <h2>PO Wise Monthly Report</h2>
-                    <p className="pwmr-subtitle">Quality of ERCs during 2026-27 (Apr'26)</p>
+                    <p className="pwmr-subtitle">{getSubtitle()}</p>
                 </div>
                 <div className="pwmr-actions">
                     <div className="pwmr-search-wrapper">
@@ -74,120 +192,144 @@ const PoWiseMonthlyReport = () => {
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
-                    <button className="pwmr-export-btn">
+                    <button className="pwmr-export-btn" onClick={handleExportExcel} disabled={data.length === 0}>
                         <i className="fa-solid fa-file-excel"></i> Export Excel
                     </button>
                 </div>
             </div>
 
-            <div className="pwmr-table-wrapper">
-                <table className="pwmr-table">
-                    <thead>
-                        <tr className="excel-main-title-row">
-                            <th colSpan="8" className="empty-cell"></th>
-                            <th colSpan="24" className="excel-title">Quality of ERCs during 2026-27</th>
-                            <th colSpan="2" className="excel-month">Apr'26</th>
-                        </tr>
-                        <tr>
-                            <th rowSpan="4" className="sticky-col col-sno">S.No.</th>
-                            <th rowSpan="4" className="sticky-col col-railway">Zonal Railway</th>
-                            <th rowSpan="4" className="sticky-col col-vendor">Vendor</th>
-                            <th rowSpan="4" className="col-type">Type of ERCs (eg. ERC MK-V)</th>
-                            <th rowSpan="4">P.O. No. & Date</th>
-                            <th rowSpan="4">Specification (T-31-2025- Sixth Revision/ T-31-2021)</th>
-                            <th rowSpan="4">Quantity Inspected</th>
-                            <th rowSpan="4">Quantity Accepted</th>
-                            <th colSpan="24" className="rejection-main-header">No. of ERC rejected & reasons for rejection</th>
-                            <th rowSpan="4">Remarks, if any</th>
-                            <th rowSpan="4">%age rejection</th>
-                        </tr>
-                        <tr>
-                            <th rowSpan="3">Total Nos.</th>
-                            <th colSpan="5">Raw material check</th>
-                            <th colSpan="8">Process</th>
-                            <th colSpan="10">Acceptance</th>
-                        </tr>
-                        <tr>
-                            <th rowSpan="2">Chemical composition</th>
-                            <th rowSpan="2">Diameter of bar</th>
-                            <th rowSpan="2">Grain size</th>
-                            <th rowSpan="2">Inclusion rating</th>
-                            <th rowSpan="2">Depth of decarb.</th>
-                            <th rowSpan="2">Hardness</th>
-                            <th rowSpan="2">Shearing</th>
-                            <th rowSpan="2">MPI</th>
-                            <th rowSpan="2">Turning</th>
-                            <th rowSpan="2">Forging</th>
-                            <th rowSpan="2">Quenching</th>
-                            <th rowSpan="2">Tempering</th>
-                            <th rowSpan="2">Dimension (finished ERC)</th>
-                            <th rowSpan="2">Hardness</th>
-                            <th rowSpan="2">Depth of Decarburization</th>
-                            <th rowSpan="2">Dimension tolerance</th>
-                            <th rowSpan="2">Application & Deflection test</th>
-                            <th rowSpan="2">Toe Load test</th>
-                            <th rowSpan="2">Weight</th>
-                            <th rowSpan="2">Visual test</th>
-                            <th rowSpan="2">Micro Structure</th>
-                            <th rowSpan="2">Freedom from defects</th>
-                            <th rowSpan="2">Other rejections</th>
-                        </tr>
-                        <tr></tr>
-                    </thead>
-                    <tbody>
-                        {dummyData.map((zone, zIdx) => (
-                            <React.Fragment key={zIdx}>
-                                {zone.vendors.map((vendor, vIdx) => (
-                                    <tr key={`${zIdx}-${vIdx}`} className={vIdx % 2 === 0 ? 'row-even' : 'row-odd'}>
-                                        {vIdx === 0 && <td rowSpan={zone.vendors.length + 1} className="text-center font-bold sticky-col col-sno">{zone.sNo}</td>}
-                                        {vIdx === 0 && <td rowSpan={zone.vendors.length + 1} className="text-center font-bold sticky-col col-railway">{zone.zonalRailway}</td>}
-                                        <td className="sticky-col col-vendor">{vendor.vendorName}</td>
-                                        <td className="col-type">{vendor.type}</td>
-                                        <td>{vendor.poNoDate}</td>
-                                        <td>{vendor.specification}</td>
-                                        <td className="text-right">{vendor.inspected.toLocaleString()}</td>
-                                        <td className="text-right">{vendor.accepted.toLocaleString()}</td>
-                                        <td className="text-right font-bold text-red-600">{vendor.rejections.total.toLocaleString()}</td>
-                                        <td className="text-right">{vendor.rejections.rmCheck.chem}</td>
-                                        <td className="text-right">{vendor.rejections.rmCheck.dia}</td>
-                                        <td className="text-right">{vendor.rejections.rmCheck.grain}</td>
-                                        <td className="text-right">{vendor.rejections.rmCheck.inclusion}</td>
-                                        <td className="text-right">{vendor.rejections.rmCheck.decarb}</td>
-                                        <td className="text-right">{vendor.rejections.process.hardness}</td>
-                                        <td className="text-right">{vendor.rejections.process.shearing}</td>
-                                        <td className="text-right">{vendor.rejections.process.mpi}</td>
-                                        <td className="text-right">{vendor.rejections.process.turning}</td>
-                                        <td className="text-right">{vendor.rejections.process.forging}</td>
-                                        <td className="text-right">{vendor.rejections.process.quenching}</td>
-                                        <td className="text-right">{vendor.rejections.process.tempering}</td>
-                                        <td className="text-right">{vendor.rejections.process.dimension}</td>
-                                        <td className="text-right">{vendor.rejections.acceptance.hardness}</td>
-                                        <td className="text-right">{vendor.rejections.acceptance.decarb}</td>
-                                        <td className="text-right">{vendor.rejections.acceptance.dimTol}</td>
-                                        <td className="text-right">{vendor.rejections.acceptance.appDeflection}</td>
-                                        <td className="text-right">{vendor.rejections.acceptance.toeLoad}</td>
-                                        <td className="text-right">{vendor.rejections.acceptance.weight}</td>
-                                        <td className="text-right">{vendor.rejections.acceptance.visual}</td>
-                                        <td className="text-right">{vendor.rejections.acceptance.micro}</td>
-                                        <td className="text-right">{vendor.rejections.acceptance.freedom}</td>
-                                        <td className="text-right">{vendor.rejections.acceptance.other}</td>
-                                        <td className="remarks-cell">{vendor.remarks}</td>
-                                        <td className="text-right font-bold">{vendor.percentage}</td>
+            {loading ? (
+                <div className="pwmr-loading">
+                    <div className="pwmr-spinner"></div>
+                    <p>Loading PO Wise Report...</p>
+                </div>
+            ) : error ? (
+                <div className="pwmr-error">
+                    <p>{error}</p>
+                    <button onClick={() => fetchPoWiseData(true)} className="pwmr-retry-btn">Retry</button>
+                </div>
+            ) : data.length === 0 ? (
+                <div className="pwmr-empty">
+                    <p>No data available for the selected date range.</p>
+                </div>
+            ) : (
+                <div className="pwmr-table-wrapper">
+                    <table className="pwmr-table">
+                        <thead>
+                            <tr>
+                                <th rowSpan="3" className="sticky-col col-sno">S.No.</th>
+                                <th rowSpan="3" className="sticky-col col-railway">Zonal Railway</th>
+                                <th rowSpan="3" className="sticky-col col-vendor">Vendor</th>
+                                <th rowSpan="3" className="col-type">Type of ERCs</th>
+                                <th rowSpan="3">P.O. No. & Date</th>
+                                <th rowSpan="3">Quantity Inspected</th>
+                                <th rowSpan="3">Quantity Accepted</th>
+                                <th colSpan="18" className="rejection-main-header">No. of ERC rejected & reasons for rejection</th>
+                                <th rowSpan="3">%age rejection</th>
+                            </tr>
+                            <tr>
+                                <th rowSpan="2">Total Nos.</th>
+                                <th colSpan="5" className="rm-check-header">Raw Material Check</th>
+                                <th colSpan="6" className="process-header">Process</th>
+                                <th colSpan="5" className="acceptance-header">Final Acceptance</th>
+                            </tr>
+                            <tr>
+                                {/* Raw Material Check */}
+                                <th>VM Defect</th>
+                                <th>Dimensional</th>
+                                <th>Inclusion</th>
+                                <th>Grain Size</th>
+                                <th>Decarb</th>
+                                {/* Process */}
+                                <th>Shearing</th>
+                                <th>Turning</th>
+                                <th>MPI</th>
+                                <th>Forging</th>
+                                <th>Quenching</th>
+                                <th>Tempering</th>
+                                {/* Final Acceptance */}
+                                <th>Visual/Dim</th>
+                                <th>Hardness</th>
+                                <th>Inclusion</th>
+                                <th>Deflection</th>
+                                <th>Toe Load</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {groupedData.map((zone, zIdx) => (
+                                <React.Fragment key={zIdx}>
+                                    {zone.vendors.map((vendor, vIdx) => (
+                                        <tr key={`${zIdx}-${vIdx}`} className={vIdx % 2 === 0 ? 'row-even' : 'row-odd'}>
+                                            {vIdx === 0 && (
+                                                <td rowSpan={zone.vendors.length + 1} className="text-center font-bold sticky-col col-sno">
+                                                    {zone.sNo}
+                                                </td>
+                                            )}
+                                            {vIdx === 0 && (
+                                                <td rowSpan={zone.vendors.length + 1} className="text-center font-bold sticky-col col-railway">
+                                                    {zone.zonalRailway}
+                                                </td>
+                                            )}
+                                            <td className="sticky-col col-vendor">{vendor.vendor}</td>
+                                            <td className="col-type">{vendor.typeOfErc}</td>
+                                            <td className="nowrap">{vendor.poNo}<br/><span className="po-date">Dt:{formatPoDate(vendor.poDate)}</span></td>
+                                            <td className="text-right">{(vendor.qtyInspected || 0).toLocaleString()}</td>
+                                            <td className="text-right">{(vendor.qtyAccpeted || 0).toLocaleString()}</td>
+                                            <td className="text-right font-bold text-red-600">{fmt(vendor.totalRejected)}</td>
+                                            {/* Raw Material Check */}
+                                            <td className="text-right">{fmt(vendor.rmVmDefect)}</td>
+                                            <td className="text-right">{fmt(vendor.rmDimentionalDefect)}</td>
+                                            <td className="text-right">{fmt(vendor.rmInclusionDefect)}</td>
+                                            <td className="text-right">{fmt(vendor.rmGrainSizeDefect)}</td>
+                                            <td className="text-right">{fmt(vendor.rmDecarbDefect)}</td>
+                                            {/* Process Rejections */}
+                                            <td className="text-right">{fmt(vendor.processQty?.shearingRejectionQty)}</td>
+                                            <td className="text-right">{fmt(vendor.processQty?.turningRejectionQty)}</td>
+                                            <td className="text-right">{fmt(vendor.processQty?.mpiRejectionQty)}</td>
+                                            <td className="text-right">{fmt(vendor.processQty?.forgingRejectionQty)}</td>
+                                            <td className="text-right">{fmt(vendor.processQty?.quenchingRejectionQty)}</td>
+                                            <td className="text-right">{fmt(vendor.processQty?.temperingRejectionQty)}</td>
+                                            {/* Final Acceptance */}
+                                            <td className="text-right">{fmt(vendor.finalVisualDimDefect)}</td>
+                                            <td className="text-right">{fmt(vendor.finalHardnessDefect)}</td>
+                                            <td className="text-right">{fmt(vendor.finalInclusionDefect)}</td>
+                                            <td className="text-right">{fmt(vendor.finalDeflectionDefect)}</td>
+                                            <td className="text-right">{fmt(vendor.finalToeLoadDefect)}</td>
+                                            {/* Rejection % */}
+                                            <td className="text-right font-bold">
+                                                {vendor.qtyInspected > 0
+                                                    ? ((vendor.totalRejected / vendor.qtyInspected) * 100).toFixed(2) + '%'
+                                                    : '0.00%'
+                                                }
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    <tr className="subtotal-row">
+                                        <td colSpan="3" className="text-right font-bold">Sub Total</td>
+                                        <td className="text-right font-bold">{zone.subTotal.qtyInspected.toLocaleString()}</td>
+                                        <td className="text-right font-bold">{zone.subTotal.qtyAccepted.toLocaleString()}</td>
+                                        <td className="text-right font-bold text-red-600">{fmt(zone.subTotal.totalRejected)}</td>
+                                        <td colSpan="16"></td>
+                                        <td className="text-right font-bold">{zone.subTotal.percentage}</td>
                                     </tr>
-                                ))}
-                                <tr className="subtotal-row">
-                                    <td colSpan="4" className="text-right font-bold">Sub Total</td>
-                                    <td className="text-right font-bold">{zone.subTotal.inspected.toLocaleString()}</td>
-                                    <td className="text-right font-bold">{zone.subTotal.accepted.toLocaleString()}</td>
-                                    <td className="text-right font-bold text-red-600">{zone.subTotal.totalRej.toLocaleString()}</td>
-                                    <td colSpan="22"></td>
-                                    <td className="text-right font-bold">{zone.subTotal.percentage}</td>
+                                </React.Fragment>
+                            ))}
+                            {/* Grand Total */}
+                            {groupedData.length > 0 && (
+                                <tr className="grand-total-row">
+                                    <td colSpan="3" className="text-center font-bold sticky-col" style={{ left: 0 }}>Grand Total</td>
+                                    <td colSpan="2" className="text-right font-bold"></td>
+                                    <td className="text-right font-bold">{grandTotal.qtyInspected.toLocaleString()}</td>
+                                    <td className="text-right font-bold">{grandTotal.qtyAccepted.toLocaleString()}</td>
+                                    <td className="text-right font-bold text-red-600">{fmt(grandTotal.totalRejected)}</td>
+                                    <td colSpan="16"></td>
+                                    <td className="text-right font-bold">{grandTotal.percentage}</td>
                                 </tr>
-                            </React.Fragment>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            )}
         </div>
     );
 };

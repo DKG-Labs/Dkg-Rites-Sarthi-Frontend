@@ -1,5 +1,8 @@
 import { API_BASE_URL, API_ENDPOINTS, getAuthHeaders, handleResponse } from './apiConfig';
 
+// Cache for PO Wise report to speed up frontend loading
+const poWiseCache = {};
+
 /**
  * Service for fetching Railway Board Inspection Reports
  */
@@ -233,8 +236,16 @@ const reportService = {
         return handleResponse(response);
     },
 
-    getParetoAnalysis: async () => {
-        const response = await fetch(`${API_ENDPOINTS.REPORTS}/paretoAnalysis`, {
+    getParetoAnalysis: async (params) => {
+        const { startDate, endDate, product } = params || {};
+        let url = `${API_ENDPOINTS.REPORTS}/paretoAnalysis`;
+        const queryParams = new URLSearchParams();
+        if (startDate) queryParams.append('startDate', startDate);
+        if (endDate) queryParams.append('endDate', endDate);
+        if (product) queryParams.append('product', product);
+        if (queryParams.toString()) url += `?${queryParams.toString()}`;
+
+        const response = await fetch(url, {
             headers: getAuthHeaders(),
         });
         return handleResponse(response);
@@ -254,11 +265,12 @@ const reportService = {
         return handleResponse(response);
     },
     getMonthlyRejectionTrend: async (params) => {
-        const { startDate, endDate } = params || {};
+        const { startDate, endDate, product } = params || {};
         let url = `${API_ENDPOINTS.REPORTS}/monthlyRejectionTrend`;
         const queryParams = new URLSearchParams();
         if (startDate) queryParams.append('startDate', startDate);
         if (endDate) queryParams.append('endDate', endDate);
+        if (product) queryParams.append('product', product);
         if (queryParams.toString()) url += `?${queryParams.toString()}`;
 
         const response = await fetch(url, {
@@ -521,8 +533,75 @@ const reportService = {
         return handleResponse(response);
     },
 
+    /**
+     * Get PO Wise Monthly Report Data
+     * Hits: /api/reports/poWise?startDate={startDate}&endDate={endDate}
+     * @param {Object} params - { startDate, endDate }
+     */
+    getPoWiseReport: async (params) => {
+        const { startDate, endDate, forceRefresh } = params || {};
+        const cacheKey = `${startDate}_${endDate}`;
+        if (!forceRefresh && poWiseCache[cacheKey]) {
+            return poWiseCache[cacheKey];
+        }
+
+        const url = new URL(`${API_ENDPOINTS.REPORTS}/poWise`);
+        if (startDate) url.searchParams.append('startDate', startDate);
+        if (endDate) url.searchParams.append('endDate', endDate);
+
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        const data = await handleResponse(response);
+        poWiseCache[cacheKey] = data;
+        return data;
+    },
+
     getSqcReport: async () => {
         const response = await fetch(`${API_ENDPOINTS.REPORTS}/sqcReport`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getRailPadShiftWiseProductionReport: async (params) => {
+        const { startDate, endDate, vendor, plant } = params || {};
+        const url = new URL(`${API_ENDPOINTS.REPORTS}/railPadShiftWiseProduction`);
+        if (startDate) url.searchParams.append('startDate', startDate);
+        if (endDate) url.searchParams.append('endDate', endDate);
+        if (vendor) url.searchParams.append('vendor', vendor);
+        if (plant) url.searchParams.append('plant', plant);
+        
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getRailPadManufacturers: async () => {
+        const response = await fetch(`${API_ENDPOINTS.REPORTS}/railPadManufacturers`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getRailPadPlaces: async (vendor) => {
+        const url = new URL(`${API_ENDPOINTS.REPORTS}/railPadPlaces`);
+        if (vendor) {
+            url.searchParams.append('vendor', vendor);
+        }
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getRailPadQualityReport: async (params) => {
+        const { startDate, endDate } = params || {};
+        const url = new URL(`${API_ENDPOINTS.REPORTS}/railPadQualityReport`);
+        if (startDate) url.searchParams.append('startDate', startDate);
+        if (endDate) url.searchParams.append('endDate', endDate);
+        const response = await fetch(url.toString(), {
             headers: getAuthHeaders(),
         });
         return handleResponse(response);

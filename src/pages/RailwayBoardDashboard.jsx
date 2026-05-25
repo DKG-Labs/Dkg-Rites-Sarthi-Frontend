@@ -116,7 +116,7 @@ const RailwayBoardDashboard = () => {
 
     const { data: mprData, pagination: mprPagination, loading: mprLoading } = useReportData(
         selectedProduct === 'Sleeper' ? reportService.getSleeperMonthlyProgressReport : reportService.getMonthlyProgressReport, 
-        activeMainCard === 'reports' ? mprParams : undefined
+        (activeReport === 'mpr' && activeMainCard === 'reports') ? mprParams : undefined
     );
 
     const [mauPage, setMauPage] = useState(0);
@@ -127,7 +127,7 @@ const RailwayBoardDashboard = () => {
 
     const { data: mauData, pagination: mauPagination, loading: mauLoading } = useReportData(
         selectedProduct === 'Sleeper' ? reportService.getSleeperMonthlyAnalysis : reportService.getMonthlyAnalysisOfUnits, 
-        activeMainCard === 'reports' ? mauParams : undefined
+        (activeReport === 'mau' && activeMainCard === 'reports') ? mauParams : undefined
     );
 
     const [mpiaPage, setMpiaPage] = useState(0);
@@ -231,9 +231,9 @@ const RailwayBoardDashboard = () => {
     const displayPoData = React.useMemo(() => {
         let result = [...(reportData || [])];
 
-        // Filter by Item Category Description (Elastic Rail Clips only)
+        // Filter by Item Category Description based on selected product
         // Helper function defined at the bottom of this file
-        result = getOnlyErcRecords(result);
+        result = getFilteredRecordsByProduct(result, selectedProduct);
 
         // Search filter
         if (poSearch) {
@@ -268,7 +268,7 @@ const RailwayBoardDashboard = () => {
             });
         }
         return result;
-    }, [reportData, poSearch, poSort]);
+    }, [reportData, poSearch, poSort, selectedProduct]);
 
     const count = displayPoData.length;
     const paginatedData = displayPoData.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
@@ -389,8 +389,9 @@ const RailwayBoardDashboard = () => {
                                 <div className={`report-link ${activeReport === 'mpr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpr')}>Monthly Progress Report</div>
                                 <div className={`report-link ${activeReport === 'mau' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mau')}>Monthly Analysis of Units</div>
                                 <div className={`report-link ${activeReport === 'lwcl' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('lwcl')}>Lot Wise Closed Loop</div>
-                                {selectedProduct !== 'Rail Pad' && (
-                                    <div className={`report-link ${activeReport === 'swp' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('swp')}>Shift Wise Production Report</div>
+                                <div className={`report-link ${activeReport === 'swp' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('swp')}>Shift Wise Production Report</div>
+                                {selectedProduct === 'Rail Pad' && (
+                                    <div className={`report-link ${activeReport === 'qrp' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('qrp')}>Quality of Rubber Pad Report</div>
                                 )}
                                 {selectedProduct === 'ERC' && (
                                     <div className={`report-link ${activeReport === 'mpia' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpia')}>Vendor wise Monthly Report</div>
@@ -544,11 +545,18 @@ const RailwayBoardDashboard = () => {
     );
 };
 
-// Helper function to filter records by 'Elastic Rail Clips' category
-// Placed at the bottom of the file as requested.
-const getOnlyErcRecords = (data) => {
+// Helper: map product tab name to database item_cat_descr value
+const PRODUCT_TO_ITEM_CAT = {
+    'ERC': 'Elastic Rail Clips',
+    'Sleeper': 'PSC Mainline Sleeper',
+    'Rail Pad': 'Rail Pads',
+};
+
+// Helper function to filter records by the correct item category for the selected product
+const getFilteredRecordsByProduct = (data, product) => {
     if (!data || !Array.isArray(data)) return [];
-    return data.filter(po => po.itemCatDescr === 'Elastic Rail Clips');
+    const category = PRODUCT_TO_ITEM_CAT[product] || 'Elastic Rail Clips';
+    return data.filter(po => po.itemCatDescr === category);
 };
 
 export default RailwayBoardDashboard;

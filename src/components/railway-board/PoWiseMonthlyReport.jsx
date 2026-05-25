@@ -171,7 +171,7 @@ const PoWiseMonthlyReport = ({ fromDate, toDate }) => {
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = `PO_Wise_Monthly_Report_${new Date().toISOString().split('T')[0]}.csv`;
+        link.download = `PO_Wise_Quality_Report_${new Date().toISOString().split('T')[0]}.csv`;
         link.click();
     };
 
@@ -179,7 +179,7 @@ const PoWiseMonthlyReport = ({ fromDate, toDate }) => {
         <div className="pwmr-container animate-up">
             <div className="pwmr-header">
                 <div className="pwmr-title-section">
-                    <h2>PO Wise Monthly Report</h2>
+                    <h2>PO Wise Quality Report</h2>
                     <p className="pwmr-subtitle">{getSubtitle()}</p>
                 </div>
                 <div className="pwmr-actions">
@@ -220,7 +220,7 @@ const PoWiseMonthlyReport = ({ fromDate, toDate }) => {
                                 <th rowSpan="3" className="sticky-col col-sno">S.No.</th>
                                 <th rowSpan="3" className="sticky-col col-railway">Zonal Railway</th>
                                 <th rowSpan="3" className="sticky-col col-vendor">Vendor</th>
-                                <th rowSpan="3" className="col-type">Type of ERCs</th>
+                                <th rowSpan="3" className="col-type">Type of ERC</th>
                                 <th rowSpan="3">P.O. No. & Date</th>
                                 <th rowSpan="3">Quantity Inspected</th>
                                 <th rowSpan="3">Quantity Accepted</th>

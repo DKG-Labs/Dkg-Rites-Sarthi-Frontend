@@ -317,7 +317,6 @@ const RailwayBoardDashboard = () => {
                     <thead>
                         <tr className="sortable-header">
                             <th style={{ width: '40px' }}></th>
-                            <th>Sl No.</th>
                             <th onClick={() => handlePoSort('rly')} style={{ cursor: 'pointer' }}>Rly {renderSortIcon('rly')}</th>
                             <th onClick={() => handlePoSort('poNo')} style={{ cursor: 'pointer' }}>PO No. {renderSortIcon('poNo')}</th>
                             <th onClick={() => handlePoSort('poDate')} style={{ cursor: 'pointer' }}>PO Date {renderSortIcon('poDate')}</th>
@@ -326,9 +325,9 @@ const RailwayBoardDashboard = () => {
                             <th className="text-right" onClick={() => handlePoSort('poQuantityNos')} style={{ cursor: 'pointer' }}>PO Qty {renderSortIcon('poQuantityNos')}</th>
                             <th className="text-right" onClick={() => handlePoSort('acceptedQty')} style={{ cursor: 'pointer' }}>Acc Qty {renderSortIcon('acceptedQty')}</th>
                             <th className="text-right" onClick={() => handlePoSort('balanceQty')} style={{ cursor: 'pointer' }}>Bal Qty {renderSortIcon('balanceQty')}</th>
-                            <th className="text-right">RM %</th>
-                            <th className="text-right">Proc %</th>
-                            <th className="text-right">Final %</th>
+                            <th className="text-right" onClick={() => handlePoSort('rawMaterialRejectionPercentage')} style={{ cursor: 'pointer' }}>RM % {renderSortIcon('rawMaterialRejectionPercentage')}</th>
+                            <th className="text-right" onClick={() => handlePoSort('processInspectionRejectionPercentage')} style={{ cursor: 'pointer' }}>Proc % {renderSortIcon('processInspectionRejectionPercentage')}</th>
+                            <th className="text-right" onClick={() => handlePoSort('finalInspectionRejectionPercentage')} style={{ cursor: 'pointer' }}>Final % {renderSortIcon('finalInspectionRejectionPercentage')}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -386,7 +385,7 @@ const RailwayBoardDashboard = () => {
                         </div>
                         {reportSubmenuOpen && !isSidebarCollapsed && (
                             <div className="report-submenu open">
-                                <div className={`report-link ${activeReport === 'mpr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpr')}>Monthly Progress Report</div>
+                                <div className={`report-link ${activeReport === 'mpr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpr')}>{selectedProduct === 'ERC' ? 'PO Wise Monthly Progress Report' : 'Monthly Progress Report'}</div>
                                 <div className={`report-link ${activeReport === 'mau' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mau')}>Monthly Analysis of Units</div>
                                 <div className={`report-link ${activeReport === 'lwcl' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('lwcl')}>Lot Wise Closed Loop</div>
                                 <div className={`report-link ${activeReport === 'swp' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('swp')}>Shift Wise Production Report</div>
@@ -394,16 +393,23 @@ const RailwayBoardDashboard = () => {
                                     <div className={`report-link ${activeReport === 'qrp' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('qrp')}>Quality of Rubber Pad Report</div>
                                 )}
                                 {selectedProduct === 'ERC' && (
-                                    <div className={`report-link ${activeReport === 'mpia' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpia')}>Vendor wise Monthly Report</div>
+                                    <div className={`report-link ${activeReport === 'mpia' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpia')}>Vendor Wise Process Quality Report</div>
                                 )}
                                 {selectedProduct === 'ERC' && (
-                                    <div className={`report-link ${activeReport === 'pwmr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('pwmr')}>PO Wise Monthly Report</div>
+                                    <div className={`report-link ${activeReport === 'pwmr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('pwmr')}>PO Wise Quality Report</div>
                                 )}
                             </div>
                         )}
+                        {/* 
                         <div className={`nav-item ${activeMainCard === 'sqc' ? 'active' : ''}`} onClick={() => handleSwitchTab('sqc')}>
                             <i className="fa-solid fa-chart-line"></i> {!isSidebarCollapsed && <span>SQC Analysis</span>}
-                        </div>
+                        </div> 
+                        */}
+                        {selectedProduct === 'ERC' && (
+                            <div className={`nav-item ${activeMainCard === 'sqc' ? 'active' : ''}`} onClick={() => handleSwitchTab('sqc')}>
+                                <i className="fa-solid fa-chart-line"></i> {!isSidebarCollapsed && <span>SQC Analysis</span>}
+                            </div>
+                        )}
                         <div className={`nav-item ${activeMainCard === 'scada' ? 'active' : ''}`} onClick={() => handleSwitchTab('scada')}>
                             <i className="fa-solid fa-desktop"></i> {!isSidebarCollapsed && <span>Scada Monitor</span>}
                         </div>
@@ -464,8 +470,8 @@ const RailwayBoardDashboard = () => {
                         )}
                     </div>
 
-                    {/* TOPBAR / FILTERS - Hidden on Dashboard (summary), Quality, Lifecycle, Feedback, Scada Monitor, and SQC tabs */}
-                    {activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'scada' && activeMainCard !== 'sqc' && (
+                    {/* TOPBAR / FILTERS - Hidden on Dashboard (summary), Quality, Lifecycle, Feedback, Scada Monitor, SQC tabs, and ERC SWP Report */}
+                    {activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'scada' && activeMainCard !== 'sqc' && !(activeMainCard === 'reports' && activeReport === 'swp' && selectedProduct === 'ERC') && (
                         <div id="prof-topbar">
                             <label>From</label>
                             <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />

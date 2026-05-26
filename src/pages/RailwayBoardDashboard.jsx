@@ -156,18 +156,56 @@ const RailwayBoardDashboard = () => {
     const [lwclLotNo, setLwclLotNo] = useState('');
     const [lwclRequestIds, setLwclRequestIds] = useState([]);
     const [lwclLotNumbers, setLwclLotNumbers] = useState([]);
+    const [lwclManufacturer, setLwclManufacturer] = useState('');
+    const [lwclManufacturersList, setLwclManufacturersList] = useState([]);
+    const [lwclPoNo, setLwclPoNo] = useState('');
+    const [lwclPoNumbersList, setLwclPoNumbersList] = useState([]);
 
     useEffect(() => {
-        const fetchIds = async () => {
-            if (!fromDate || !toDate) return;
+        const fetchCompanies = async () => {
             try {
-                const response = await reportService.getRequestIds({ startDate: fromDate, endDate: toDate });
+                const response = await reportService.getAllCompanies();
                 const data = response.responseData || response;
-                if (data && Array.isArray(data)) setLwclRequestIds(data);
-            } catch (error) { console.error("Error fetching request IDs:", error); }
+                if (data && Array.isArray(data)) setLwclManufacturersList(data);
+            } catch (error) { console.error("Error fetching companies:", error); }
         };
-        fetchIds();
-    }, [fromDate, toDate]);
+        fetchCompanies();
+    }, []);
+
+    useEffect(() => {
+        const fetchPoNumbers = async () => {
+            if (!lwclManufacturer) {
+                setLwclPoNumbersList([]);
+                setLwclPoNo('');
+                return;
+            }
+            try {
+                const response = await reportService.getPoNumbersByManufacturer(lwclManufacturer);
+                const data = response.responseData || response;
+                if (data && Array.isArray(data)) setLwclPoNumbersList(data);
+            } catch (error) { console.error("Error fetching PO numbers:", error); }
+        };
+        fetchPoNumbers();
+    }, [lwclManufacturer]);
+
+    useEffect(() => {
+        const fetchCallNumbers = async () => {
+            if (!lwclPoNo || !lwclManufacturer) {
+                setLwclRequestIds([]);
+                setLwclCallNo('');
+                return;
+            }
+            try {
+                const response = await reportService.getCallNumbersByPoAndManufacturer(lwclPoNo, lwclManufacturer);
+                const data = response.responseData || response;
+                if (data && Array.isArray(data)) {
+                    const filteredData = data.filter(id => id && typeof id === 'string' && id.startsWith('EP-'));
+                    setLwclRequestIds(filteredData);
+                }
+            } catch (error) { console.error("Error fetching call numbers:", error); }
+        };
+        fetchCallNumbers();
+    }, [lwclPoNo, lwclManufacturer]);
 
     useEffect(() => {
         const fetchLots = async () => {
@@ -534,6 +572,10 @@ const RailwayBoardDashboard = () => {
                             lwclCallNo={lwclCallNo} setLwclCallNo={setLwclCallNo}
                             lwclLotNo={lwclLotNo} setLwclLotNo={setLwclLotNo}
                             lwclRequestIds={lwclRequestIds} lwclLotNumbers={lwclLotNumbers}
+                            lwclManufacturer={lwclManufacturer} setLwclManufacturer={setLwclManufacturer}
+                            lwclManufacturersList={lwclManufacturersList}
+                            lwclPoNo={lwclPoNo} setLwclPoNo={setLwclPoNo}
+                            lwclPoNumbersList={lwclPoNumbersList}
                             level4Data={level4Data} level4Loading={level4Loading}
                             activeReportFromParent={activeReport}
                             onReportTabChange={handleReportLink}

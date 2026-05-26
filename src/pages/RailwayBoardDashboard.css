@@ -1,4 +1,4 @@
-﻿/* Railway Board Dashboard - Premium Styles */
+/* Railway Board Dashboard - Premium Styles */
 
 .railway-dashboard-container {
     padding: 2.5rem 4rem;
@@ -862,13 +862,13 @@ tr.row-even td {
 
 .nested-table.level-4-table {
     width: max-content;
-    min-width: 1800px;
+    min-width: 100%;
     /* Force minimum width to prevent column squishing */
     table-layout: auto;
 }
 
 .nested-table.level-4-table th {
-    white-space: nowrap;
+    white-space: normal;
 }
 
 
@@ -958,11 +958,13 @@ tr.row-even td {
     max-width: none !important;
     overflow: visible !important;
     text-overflow: clip !important;
-    white-space: nowrap !important;
-    padding: 12px 18px !important;
+    white-space: normal !important;
+    padding: 8px 8px !important;
     border: 1px solid #cbd5e1 !important;
     font-size: 11.5px !important;
     color: #334155;
+    text-align: center !important;
+    vertical-align: middle !important;
 }
 
 /* Fix for Date and Shift overlap */

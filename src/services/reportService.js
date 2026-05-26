@@ -639,6 +639,21 @@ const reportService = {
         });
         return handleResponse(response);
     },
+
+    getPoNumbersByManufacturer: async (manufacturer) => {
+        const url = new URL(`${API_BASE_URL}/api/SummaryReports/po-numbers-by-manufacturer`);
+        url.searchParams.append('manufacturer', manufacturer);
+        const response = await fetch(url.toString(), { headers: getAuthHeaders() });
+        return handleResponse(response);
+    },
+
+    getCallNumbersByPoAndManufacturer: async (poNo, manufacturer) => {
+        const url = new URL(`${API_BASE_URL}/api/SummaryReports/call-numbers-by-po`);
+        url.searchParams.append('poNo', poNo);
+        url.searchParams.append('manufacturer', manufacturer);
+        const response = await fetch(url.toString(), { headers: getAuthHeaders() });
+        return handleResponse(response);
+    }
 };
 
 export default reportService;

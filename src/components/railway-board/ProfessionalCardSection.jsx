@@ -100,6 +100,12 @@ const ProfessionalCardSection = ({
     setLwclLotNo = () => { },
     lwclRequestIds = [],
     lwclLotNumbers = [],
+    lwclManufacturer = '',
+    setLwclManufacturer = () => { },
+    lwclManufacturersList = [],
+    lwclPoNo = '',
+    setLwclPoNo = () => { },
+    lwclPoNumbersList = [],
     // NEW: Level 4 Report Props
     level4Data = [],
     level4Loading = false,
@@ -1303,15 +1309,27 @@ const ProfessionalCardSection = ({
                                                                     )}
                                                                 </div>
                                                                 <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-                                                                    <select className="prof-select" style={{ maxWidth: '300px' }} value={lwclCallNo} onChange={(e) => setLwclCallNo(e.target.value)}>
+                                                                    <select className="prof-select" style={{ maxWidth: '200px' }} value={lwclManufacturer} onChange={(e) => setLwclManufacturer(e.target.value)}>
+                                                                        <option value="">Select Manufacturer</option>
+                                                                        {lwclManufacturersList.map((m, i) => <option key={i} value={m}>{m}</option>)}
+                                                                    </select>
+                                                                    <select className="prof-select" style={{ maxWidth: '200px' }} value={lwclPoNo} onChange={(e) => setLwclPoNo(e.target.value)}>
+                                                                        <option value="">Select PO No.</option>
+                                                                        {lwclPoNumbersList.map((po, i) => <option key={i} value={po.poNo}>{po.displayPoNo}</option>)}
+                                                                    </select>
+                                                                    <select className="prof-select" style={{ maxWidth: '200px' }} value={lwclCallNo} onChange={(e) => setLwclCallNo(e.target.value)}>
                                                                         <option value="">Select Call No.</option>
                                                                         {lwclRequestIds.map(id => <option key={id} value={id}>{id}</option>)}
+                                                                    </select>
+                                                                    <select className="prof-select" style={{ maxWidth: '200px' }} value={lwclLotNo} onChange={(e) => setLwclLotNo(e.target.value)}>
+                                                                        <option value="">Select Lot No.</option>
+                                                                        {lwclLotNumbers.map(lot => <option key={lot} value={lot}>{lot}</option>)}
                                                                     </select>
                                                                 </div>
                                                                 {level4Loading ? (
                                                                     <div className="p-12 text-center text-teal font-medium">Loading Process Defect Summary...</div>
                                                                 ) : lwclCallNo ? (
-                                                                    <Level4ReportTable data={level4Data} />
+                                                                    <Level4ReportTable data={lwclLotNo ? level4Data.filter(row => row.basicDetails && row.basicDetails.lotNumber === lwclLotNo) : level4Data} />
                                                                 ) : (
                                                                     <div className="p-12 text-center text-slate-400">
                                                                         Please select a <strong>Call Number</strong> from the dropdown above to view the report details.

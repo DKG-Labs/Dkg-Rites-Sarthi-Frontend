@@ -2064,8 +2064,8 @@ tr.row-even td {
 
     /* Force Landscape orientation and remove browser default margins */
     @page {
-        size: A4 landscape;
-        margin: 0 !important;
+        size: landscape;
+        margin: 0;
     }
 
     html,
@@ -2080,10 +2080,7 @@ tr.row-even td {
 
     /* Ensure the report page is pinned to the top and centered horizontally */
     .print-container {
-        position: absolute !important;
-        top: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
+        position: relative !important;
         margin: 0 auto !important;
         page-break-after: avoid !important;
         page-break-inside: avoid !important;
@@ -2101,13 +2098,6 @@ tr.row-even td {
         background: white !important;
         overflow: hidden !important;
         z-index: 99999 !important;
-    }
-
-    /* ONLY for batch reports, add a break BETWEEN (but not after last) pages */
-    .mpia-batch-print-viewport .print-container {
-        position: relative !important;
-        top: auto !important;
-        margin-top: 0 !important;
     }
 
     .mpia-batch-print-viewport .print-container:not(:last-child) {

@@ -1035,7 +1035,7 @@ const ProfessionalCardSection = ({
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {getSortedData(filteredPerfRecords).map((record, idx) => (
+                                                    {getSortedData(filteredPerfRecords).slice(perfPage * perfRowsPerPage, (perfPage + 1) * perfRowsPerPage).map((record, idx) => (
                                                         <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
                                                             <td>{(perfPage * perfRowsPerPage) + idx + 1}</td>
                                                             <td>{record.manufacturerName}</td>
@@ -1058,9 +1058,9 @@ const ProfessionalCardSection = ({
                                         </div>
                                         <div className="mt-4">
                                             <Pagination
-                                                currentPage={perfPage} totalPages={perfPagination.totalPages}
-                                                start={perfPage * perfRowsPerPage} end={Math.min((perfPage + 1) * perfRowsPerPage, perfPagination.totalElements)}
-                                                totalCount={perfPagination.totalElements} onPageChange={setPerfPage}
+                                                currentPage={perfPage} totalPages={Math.ceil(filteredPerfRecords.length / perfRowsPerPage)}
+                                                start={perfPage * perfRowsPerPage} end={Math.min((perfPage + 1) * perfRowsPerPage, filteredPerfRecords.length)}
+                                                totalCount={filteredPerfRecords.length} onPageChange={setPerfPage}
                                                 rows={perfRowsPerPage} onRowsChange={setPerfRowsPerPage}
                                             />
                                         </div>
@@ -1071,6 +1071,7 @@ const ProfessionalCardSection = ({
                         case 'reports':
                             return (
                                 <div className="reports-tab-content fade-in">
+                                    {/* 
                                     <div className="sub-tabs">
                                         <div className={`sub-tab-btn ${activeReport === 'mpr' ? 'active' : ''}`} onClick={() => { setActiveReport('mpr'); onReportTabChange('mpr'); }}>📋 {selectedProduct === 'ERC' ? 'PWMPR' : 'MPR'}</div>
                                         <div className={`sub-tab-btn ${activeReport === 'mau' ? 'active' : ''}`} onClick={() => { setActiveReport('mau'); onReportTabChange('mau'); }}>📈 MAU</div>
@@ -1086,6 +1087,7 @@ const ProfessionalCardSection = ({
                                             <div className={`sub-tab-btn ${activeReport === 'pwmr' ? 'active' : ''}`} onClick={() => { setActiveReport('pwmr'); onReportTabChange('pwmr'); }}>📊 PWQR</div>
                                         )}
                                     </div>
+                                    */}
 
                                     <div className="report-viewer-content">
                                         {isRailPad ? (
@@ -1154,7 +1156,7 @@ const ProfessionalCardSection = ({
                                                                             </tr>
                                                                         </thead>
                                                                         <tbody>
-                                                                            {displayMprData.map((row, idx) => (
+                                                                            {displayMprData.slice(mprPage * mprRowsPerPage, (mprPage + 1) * mprRowsPerPage).map((row, idx) => (
                                                                                 <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
                                                                                     <td>{row.rly}</td>
                                                                                     <td>{row.poNumber}</td>
@@ -1172,9 +1174,9 @@ const ProfessionalCardSection = ({
                                                                 </div>
                                                                 <div className="mt-4">
                                                                     <Pagination
-                                                                        currentPage={mprPage} totalPages={mprPagination.totalPages}
-                                                                        start={mprPage * mprRowsPerPage} end={Math.min((mprPage + 1) * mprRowsPerPage, mprPagination.totalElements)}
-                                                                        totalCount={mprPagination.totalElements} onPageChange={setMprPage}
+                                                                        currentPage={mprPage} totalPages={Math.ceil(displayMprData.length / mprRowsPerPage)}
+                                                                        start={mprPage * mprRowsPerPage} end={Math.min((mprPage + 1) * mprRowsPerPage, displayMprData.length)}
+                                                                        totalCount={displayMprData.length} onPageChange={setMprPage}
                                                                         rows={mprRowsPerPage} onRowsChange={setMprRowsPerPage}
                                                                     />
                                                                 </div>
@@ -1218,7 +1220,7 @@ const ProfessionalCardSection = ({
                                                                             </tr>
                                                                         </thead>
                                                                         <tbody>
-                                                                            {displayMauData.map((row, idx) => (
+                                                                            {displayMauData.slice(mauPage * mauRowsPerPage, (mauPage + 1) * mauRowsPerPage).map((row, idx) => (
                                                                                 <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
                                                                                     <td>{row.manufacturer}</td>
                                                                                     <td className="text-right">{row.manufactured?.toLocaleString()}</td>
@@ -1234,9 +1236,9 @@ const ProfessionalCardSection = ({
                                                                 </div>
                                                                 <div className="mt-4">
                                                                     <Pagination
-                                                                        currentPage={mauPage} totalPages={mauPagination.totalPages}
-                                                                        start={mauPage * mauRowsPerPage} end={Math.min((mauPage + 1) * mauRowsPerPage, mauPagination.totalElements)}
-                                                                        totalCount={mauPagination.totalElements} onPageChange={setMauPage}
+                                                                        currentPage={mauPage} totalPages={Math.ceil(displayMauData.length / mauRowsPerPage)}
+                                                                        start={mauPage * mauRowsPerPage} end={Math.min((mauPage + 1) * mauRowsPerPage, displayMauData.length)}
+                                                                        totalCount={displayMauData.length} onPageChange={setMauPage}
                                                                         rows={mauRowsPerPage} onRowsChange={setMauRowsPerPage}
                                                                     />
                                                                 </div>
@@ -1399,7 +1401,7 @@ const ProfessionalCardSection = ({
                                                                                     </tr>
                                                                                 </thead>
                                                                                 <tbody>
-                                                                                    {displayMpiaData.map((row, idx) => (
+                                                                                    {displayMpiaData.slice(mpiaPage * mpiaRowsPerPage, (mpiaPage + 1) * mpiaRowsPerPage).map((row, idx) => (
                                                                                         <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
                                                                                             <td
                                                                                                 className="font-bold text-emerald-800 cursor-pointer hover:underline"
@@ -1422,9 +1424,9 @@ const ProfessionalCardSection = ({
                                                                         </div>
                                                                         <div className="mt-4">
                                                                             <Pagination
-                                                                                currentPage={mpiaPage} totalPages={mpiaPagination.totalPages}
-                                                                                start={mpiaPage * mpiaRowsPerPage} end={Math.min((mpiaPage + 1) * mpiaRowsPerPage, mpiaPagination.totalElements)}
-                                                                                totalCount={mpiaPagination.totalElements} onPageChange={setMpiaPage}
+                                                                                currentPage={mpiaPage} totalPages={Math.ceil(displayMpiaData.length / mpiaRowsPerPage)}
+                                                                                start={mpiaPage * mpiaRowsPerPage} end={Math.min((mpiaPage + 1) * mpiaRowsPerPage, displayMpiaData.length)}
+                                                                                totalCount={displayMpiaData.length} onPageChange={setMpiaPage}
                                                                                 rows={mpiaRowsPerPage} onRowsChange={setMpiaRowsPerPage}
                                                                             />
                                                                         </div>
@@ -1741,24 +1743,28 @@ const MpiaReportPage = ({ manufacturer, data, showFooter = true }) => {
     const COLORS = ['#0f172a', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
     return (
-        <div
-            className="bg-white px-6 pb-6 pt-2 shadow-none rounded-sm mx-auto print-container page-break full-report-page"
-            style={{
-                width: '280mm',
-                height: '190mm',
-                minHeight: '190mm',
-                maxHeight: '190mm',
-                boxSizing: 'border-box',
-                overflow: 'hidden',
-                position: 'relative',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                margin: '0 auto',
-                border: 'none',
-                background: 'white'
-            }}
-        >
+        <>
+            <style type="text/css" media="print">
+                {`@page { size: landscape; margin: 0; }`}
+            </style>
+            <div
+                className="bg-white px-6 pb-6 pt-2 shadow-none rounded-sm mx-auto print-container page-break full-report-page"
+                style={{
+                    width: '280mm',
+                    height: '190mm',
+                    minHeight: '190mm',
+                    maxHeight: '190mm',
+                    boxSizing: 'border-box',
+                    overflow: 'hidden',
+                    position: 'relative',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    margin: '0 auto',
+                    border: 'none',
+                    background: 'white'
+                }}
+            >
             <div className="text-center mb-2">
                 <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">{manufacturer}</h2>
                 <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mt-1">Manufacturer Performance Analysis (Monthly)</p>
@@ -1874,6 +1880,7 @@ const MpiaReportPage = ({ manufacturer, data, showFooter = true }) => {
                 </div>
             )}
         </div>
+        </>
     );
 };
 

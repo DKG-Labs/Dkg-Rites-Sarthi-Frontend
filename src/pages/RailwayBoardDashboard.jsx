@@ -100,8 +100,8 @@ const RailwayBoardDashboard = () => {
     const [perfRowsPerPage, setPerfRowsPerPage] = useState(10);
 
     const perfParams = React.useMemo(() => ({
-        page: perfPage, size: perfRowsPerPage, ...dashboardFilters
-    }), [perfPage, perfRowsPerPage, dashboardFilters]);
+        page: 0, size: 10000, ...dashboardFilters
+    }), [dashboardFilters]);
 
     const { data: perfData, pagination: perfPagination, loading: perfLoading } = useReportData(
         reportService.getPerformanceMatrix,
@@ -111,8 +111,8 @@ const RailwayBoardDashboard = () => {
     const [mprPage, setMprPage] = useState(0);
     const [mprRowsPerPage, setMprRowsPerPage] = useState(10);
     const mprParams = React.useMemo(() => ({
-        page: mprPage, size: mprRowsPerPage, ...dashboardFilters
-    }), [mprPage, mprRowsPerPage, dashboardFilters]);
+        page: 0, size: 10000, ...dashboardFilters
+    }), [dashboardFilters]);
 
     const { data: mprData, pagination: mprPagination, loading: mprLoading } = useReportData(
         selectedProduct === 'Sleeper' ? reportService.getSleeperMonthlyProgressReport : reportService.getMonthlyProgressReport, 
@@ -122,8 +122,8 @@ const RailwayBoardDashboard = () => {
     const [mauPage, setMauPage] = useState(0);
     const [mauRowsPerPage, setMauRowsPerPage] = useState(10);
     const mauParams = React.useMemo(() => ({
-        page: mauPage, size: mauRowsPerPage, ...dashboardFilters
-    }), [mauPage, mauRowsPerPage, dashboardFilters]);
+        page: 0, size: 10000, ...dashboardFilters
+    }), [dashboardFilters]);
 
     const { data: mauData, pagination: mauPagination, loading: mauLoading } = useReportData(
         selectedProduct === 'Sleeper' ? reportService.getSleeperMonthlyAnalysis : reportService.getMonthlyAnalysisOfUnits, 
@@ -133,8 +133,8 @@ const RailwayBoardDashboard = () => {
     const [mpiaPage, setMpiaPage] = useState(0);
     const [mpiaRowsPerPage, setMpiaRowsPerPage] = useState(10);
     const mpiaParams = React.useMemo(() => ({
-        page: mpiaPage, size: mpiaRowsPerPage, ...dashboardFilters
-    }), [mpiaPage, mpiaRowsPerPage, dashboardFilters]);
+        page: 0, size: 10000, ...dashboardFilters
+    }), [dashboardFilters]);
 
     const { data: mpiaData, pagination: mpiaPagination, loading: mpiaLoading } = useReportData(
         reportService.getManufactureProcessAnalysis, activeReport === 'mpia' && activeMainCard === 'reports' ? mpiaParams : undefined

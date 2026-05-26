@@ -63,8 +63,27 @@ export const fetchCompletedCallsForIC = async (userId, forceRefresh = false) => 
         console.log('✅ Raw API response:', data);
 
         // Extract responseData array
-        const completedCalls = data.responseData || [];
-        console.log(`📊 Found ${completedCalls.length} completed calls`);
+        const allCompletedCalls = data.responseData || [];
+        
+        // 1. Group by requestId to keep only the latest transition (highest workflowSequence or ID)
+        const latestCallsMap = new Map();
+        allCompletedCalls.forEach(call => {
+          const existing = latestCallsMap.get(call.requestId);
+          if (!existing || call.workflowTransitionId > existing.workflowTransitionId) {
+            latestCallsMap.set(call.requestId, call);
+          }
+        });
+        
+        const latestCalls = Array.from(latestCallsMap.values());
+
+        // 2. Filter out calls that are NOT assigned to the logged-in user
+        // 3. Filter out calls that are already signed (DSC_SIGN_IC) - they belong in the Signed/Completed tab
+        const completedCalls = latestCalls.filter(call => 
+            String(call.assignedToUser) === String(userId) && 
+            call.status !== 'DSC_SIGN_IC'
+        );
+        
+        console.log(`📊 Found ${allCompletedCalls.length} total calls, ${latestCalls.length} unique, ${completedCalls.length} pending IC for user ${userId}`);
 
         if (completedCalls.length > 0) {
           console.log('📋 Sample call data:', completedCalls[0]);

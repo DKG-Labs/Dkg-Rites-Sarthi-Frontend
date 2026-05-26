@@ -7,6 +7,7 @@ import { useShift } from '../../../context/ShiftContext';
  * Provides a form for manual batch result entry and displays a log of all witnessed records.
  */
 const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = false, onlyHistory = false, activeContainer, onDelete, small = false, globalConfig }) => {
+    const { dutyUnit } = useShift();
     const defaultFormData = {
         date: globalConfig?.castingDate || new Date().toISOString().split('T')[0],
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
@@ -53,15 +54,21 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
         const fetchBatches = async () => {
             try {
                 const res = await apiService.getLastFiveMoisture();
-                if (res?.responseData) {
-                    setRecentBatches(res.responseData);
+                if (res?.responseData && Array.isArray(res.responseData)) {
+                    const plantSpecificBatches = res.responseData.filter(r => {
+                        if (!dutyUnit) return true;
+                        if (!r.plantId) return false;
+                        const clean = (id) => String(id).replace(/[:\s]/g, '').toLowerCase();
+                        return clean(r.plantId) === clean(dutyUnit);
+                    });
+                    setRecentBatches(plantSpecificBatches);
                 }
             } catch (err) {
                 console.error("Failed to fetch last 5 batches:", err);
             }
         };
         fetchBatches();
-    }, []);
+    }, [dutyUnit]);
 
 
 

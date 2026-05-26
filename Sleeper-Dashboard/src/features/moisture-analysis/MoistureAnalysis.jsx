@@ -222,6 +222,7 @@ const MoistureAnalysis = ({ onBack, onSave, initialView = 'list', records = [], 
                 adjustedWaterWt: parseFloat(uiData.adjustedWater) || 0,
                 wcRatio: parseFloat(uiData.wcRatio) || 0,
                 acRatio: parseFloat(uiData.acRatio) || 0,
+                plantId: localStorage.getItem('dutyUnit') || '',
                 sections: [
                     getSectionPayload('CA1', uiData.ca1Result),
                     getSectionPayload('CA2', uiData.ca2Result),
@@ -336,18 +337,28 @@ const MoistureAnalysis = ({ onBack, onSave, initialView = 'list', records = [], 
         }
     };
 
+    // Local filtering by active plantId
+    const currentPlantId = localStorage.getItem('dutyUnit') || '';
+    const filteredRecords = activeRecords.filter(r => {
+        if (!currentPlantId) return true;
+        if (!r.plantId) return false;
+        // Flexible matching: strip out colons and whitespace, ignore casing
+        const clean = (id) => String(id).replace(/[:\s]/g, '').toLowerCase();
+        return clean(r.plantId) === clean(currentPlantId);
+    });
+
     // Calculate statistics based on section types
-    const ca1Records = activeRecords.filter(r => r.sectionType === 'CA1');
-    const ca2Records = activeRecords.filter(r => r.sectionType === 'CA2');
-    const faRecords = activeRecords.filter(r => r.sectionType === 'FA');
+    const ca1Records = filteredRecords.filter(r => r.sectionType === 'CA1');
+    const ca2Records = filteredRecords.filter(r => r.sectionType === 'CA2');
+    const faRecords = filteredRecords.filter(r => r.sectionType === 'FA');
 
     const avgCA1 = ca1Records.length > 0 ? (ca1Records.reduce((sum, r) => sum + (parseFloat(r.freeMoisturePercent) || 0), 0) / ca1Records.length).toFixed(2) : '0.00';
     const avgCA2 = ca2Records.length > 0 ? (ca2Records.reduce((sum, r) => sum + (parseFloat(r.freeMoisturePercent) || 0), 0) / ca2Records.length).toFixed(2) : '0.00';
     const avgFA = faRecords.length > 0 ? (faRecords.reduce((sum, r) => sum + (parseFloat(r.freeMoisturePercent) || 0), 0) / faRecords.length).toFixed(2) : '0.00';
-    const avgTotal = activeRecords.length > 0 ? (activeRecords.filter(r => r.totalFreeMoisture).reduce((sum, r) => sum + (parseFloat(r.totalFreeMoisture) || 0), 0) / activeRecords.filter(r => r.totalFreeMoisture).length).toFixed(2) : '0.00';
+    const avgTotal = filteredRecords.length > 0 ? (filteredRecords.filter(r => r.totalFreeMoisture).reduce((sum, r) => sum + (parseFloat(r.totalFreeMoisture) || 0), 0) / filteredRecords.filter(r => r.totalFreeMoisture).length).toFixed(2) : '0.00';
 
-    // Sort activeRecords by timestamp (latest first)
-    const sortedRecords = [...activeRecords].sort((a, b) => {
+    // Sort filteredRecords by timestamp (latest first)
+    const sortedRecords = [...filteredRecords].sort((a, b) => {
         const timeA = new Date(a.createdDate || a.timestamp || 0).getTime();
         const timeB = new Date(b.createdDate || b.timestamp || 0).getTime();
         return timeB - timeA;

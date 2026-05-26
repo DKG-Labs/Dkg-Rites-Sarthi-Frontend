@@ -76,12 +76,17 @@ export const fetchCompletedCallsForIC = async (userId, forceRefresh = false) => 
         
         const latestCalls = Array.from(latestCallsMap.values());
 
-        // 2. Filter out calls that are NOT assigned to the logged-in user
-        // 3. Filter out calls that are already signed (DSC_SIGN_IC) - they belong in the Signed/Completed tab
-        const completedCalls = latestCalls.filter(call => 
-            String(call.assignedToUser) === String(userId) && 
-            call.status !== 'DSC_SIGN_IC'
-        );
+        const completedCalls = latestCalls.filter(call => {
+            const isAssigned = String(call.assignedToUser) === String(userId);
+            const isProcessIe = call.processIes && call.processIes.includes(Number(userId));
+            const isFinalIe = call.finalIes && call.finalIes.includes(Number(userId));
+            const isCreator = String(call.createdBy) === String(userId);
+            
+            // If assignedToUser is null, fallback to checking if they are in the IEs array or creator
+            const hasAccess = isAssigned || ((!call.assignedToUser) && (isProcessIe || isFinalIe || isCreator));
+            
+            return hasAccess && call.status !== 'DSC_SIGN_IC';
+        });
         
         console.log(`📊 Found ${allCompletedCalls.length} total calls, ${latestCalls.length} unique, ${completedCalls.length} pending IC for user ${userId}`);
 

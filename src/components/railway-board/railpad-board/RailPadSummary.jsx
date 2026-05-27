@@ -1,7 +1,7 @@
 import React from 'react';
 import './RailPadSummary.css';
 
-const RailPadSummary = ({ summaryData = {} }) => {
+const RailPadSummary = ({ summaryData = {}, onPoIssuedClick }) => {
     // Real data from backend; fallback to 0 when not yet loaded
     const data = {
         totalPoIssued: summaryData.railPadPoIssued || 0,
@@ -27,7 +27,11 @@ const RailPadSummary = ({ summaryData = {} }) => {
         <div className="railpad-summary-container fade-in">
             {/* KPI Cards Row 1 */}
             <div className="g3 mb">
-                <div className="prof-card card-dark-green" style={{ textAlign: 'center' }}>
+                <div 
+                    className="prof-card card-dark-green" 
+                    style={{ textAlign: 'center', cursor: 'pointer' }}
+                    onClick={onPoIssuedClick}
+                >
                     <div className="kpi-lbl">Total PO Issued</div>
                     <div className="kpi-val">{data.totalPoIssued.toLocaleString()}</div>
                     <div className="kpi-sub">All Vendors (IREPS)</div>

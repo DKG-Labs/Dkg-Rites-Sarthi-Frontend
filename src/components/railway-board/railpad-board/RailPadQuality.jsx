@@ -6,7 +6,7 @@ import {
 
 const RailPadQuality = ({ paretoData, rejectionTrendData }) => {
     // Use API data if available, else fallback to mock
-    const totalParetoData = (paretoData && paretoData.length > 0) ? paretoData.map(d => ({
+    const rawParetoData = (paretoData && paretoData.length > 0) ? paretoData.map(d => ({
         name: d.name || d.defectName,
         count: d.count || d.value,
         cumulative: d.cumulative
@@ -17,9 +17,12 @@ const RailPadQuality = ({ paretoData, rejectionTrendData }) => {
         { name: 'Improper Dimensions', count: 65, cumulative: 68 },
         { name: 'Dimensional Failure', count: 60, cumulative: 79 },
         { name: 'Uncut Flash', count: 45, cumulative: 87 },
-        { name: 'Tensile/Hardness', count: 40, cumulative: 94 },
-        { name: 'Others', count: 31, cumulative: 100 }
+        { name: 'Tensile/Hardness', count: 40, cumulative: 100 }
     ];
+
+    const totalParetoData = rawParetoData.filter(d => 
+        d.name && d.name.toLowerCase() !== 'others' && d.name.toLowerCase() !== 'nil'
+    );
 
     // Monthly Rejection Pattern
     const rejectionPatternData = (rejectionTrendData && rejectionTrendData.length > 0) ? rejectionTrendData.map(d => ({
@@ -49,7 +52,16 @@ const RailPadQuality = ({ paretoData, rejectionTrendData }) => {
                         <ResponsiveContainer width="100%" height="100%">
                             <ComposedChart data={totalParetoData}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} style={{ fontSize: '11px' }} />
+                                <XAxis 
+                                    dataKey="name" 
+                                    axisLine={false} 
+                                    tickLine={false} 
+                                    style={{ fontSize: '11px' }} 
+                                    interval={0} 
+                                    angle={-35} 
+                                    textAnchor="end" 
+                                    height={60} 
+                                />
                                 <YAxis yAxisId="left" axisLine={false} tickLine={false} style={{ fontSize: '11px' }} />
                                 <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} unit="%" domain={[0, 100]} style={{ fontSize: '11px' }} />
                                 <Tooltip />

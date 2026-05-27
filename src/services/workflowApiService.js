@@ -26,7 +26,7 @@ const _completedCallsPromiseCache = {};
 
 export const fetchCompletedCallsForIC = async (userId, forceRefresh = false) => {
   try {
-    const url = `${API_BASE_URL}/callCompleteddata?createdBy=${userId}`;
+    const url = `${API_BASE_URL}/callCompleteddata?modifiedBy=${userId}`;
     console.log('🔍 Fetching completed calls for user:', userId);
     console.log('📡 API URL:', url);
 
@@ -158,7 +158,7 @@ export const fetchCompletedCallsForIC = async (userId, forceRefresh = false) => 
  */
 export const fetchSignedCallsForIC = async (userId) => {
   try {
-    const url = `${API_BASE_URL}/callSigneddata?createdBy=${userId}`;
+    const url = `${API_BASE_URL}/callSigneddata?modifiedBy=${userId}`;
     console.log('🔍 Fetching signed calls for user:', userId);
 
     const headers = getAuthHeaders();

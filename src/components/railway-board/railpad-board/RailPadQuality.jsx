@@ -48,7 +48,7 @@ const RailPadQuality = ({ paretoData, rejectionTrendData }) => {
                 {/* Total Pareto */}
                 <div className="prof-card">
                     <div className="sec-title" style={{ fontSize: '14px', marginBottom: '15px' }}>Total Process & Final Rejection Pareto</div>
-                    <div className="chart-wrap" style={{ height: '300px' }}>
+                    <div className="chart-wrap" style={{ height: '350px' }}>
                         <ResponsiveContainer width="100%" height="100%">
                             <ComposedChart data={totalParetoData}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -58,9 +58,9 @@ const RailPadQuality = ({ paretoData, rejectionTrendData }) => {
                                     tickLine={false} 
                                     style={{ fontSize: '11px' }} 
                                     interval={0} 
-                                    angle={-35} 
+                                    angle={-45} 
                                     textAnchor="end" 
-                                    height={60} 
+                                    height={120} 
                                 />
                                 <YAxis yAxisId="left" axisLine={false} tickLine={false} style={{ fontSize: '11px' }} />
                                 <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} unit="%" domain={[0, 100]} style={{ fontSize: '11px' }} />

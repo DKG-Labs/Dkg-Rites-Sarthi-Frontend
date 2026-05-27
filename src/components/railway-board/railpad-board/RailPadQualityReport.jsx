@@ -16,19 +16,8 @@ const RailPadQualityReport = () => {
     const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
-        const fetchFilters = async () => {
-            try {
-                const vendorRes = await reportService.getRailPadManufacturers();
-                if (vendorRes?.responseData) {
-                    setVendors(vendorRes.responseData);
-                } else if (Array.isArray(vendorRes)) {
-                    setVendors(vendorRes);
-                }
-            } catch (err) {
-                console.error("Error fetching manufacturers:", err);
-            }
-        };
-        fetchFilters();
+        // We now derive vendors directly from the fetched report data
+        // so that the dropdown only shows manufacturers active in the date range.
     }, []);
 
     useEffect(() => {
@@ -116,11 +105,11 @@ const RailPadQualityReport = () => {
         return vendorMatch && searchMatch;
     });
 
-    // Deduplicate and format vendors for searchable dropdown
+    // Deduplicate and format vendors for searchable dropdown from report data
     const dropdownOptions = [{ label: 'All Manufacturers', value: 'All Manufacturers' }];
     const seenNames = new Set();
-    vendors.forEach(v => {
-        const name = v.vendorName || v.vendorCode;
+    reportData.forEach(row => {
+        const name = row.vendor || row.vendorName;
         if (name) {
             const trimmedName = name.trim();
             if (!seenNames.has(trimmedName)) {
@@ -253,46 +242,46 @@ const RailPadQualityReport = () => {
                                     return (
                                         <tr key={i} className={i % 2 === 0 ? 'row-odd' : 'row-even'}>
                                             <td style={{ border: '1px solid #cbd5e1', textAlign: 'center' }}>{i + 1}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', fontWeight: 'bold' }}>{row.zonalRailway}</td>
-                                            <td style={{ border: '1px solid #cbd5e1' }}>{row.vendor}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', fontSize: '11px', color: '#475569' }}>{row.typeOfRubberPad}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', whiteSpace: 'nowrap' }}>
-                                                <div><strong>{row.poNo}</strong></div>
+                                            <td style={{ border: '1px solid #cbd5e1', fontWeight: 'bold', textAlign: 'center' }}>{row.zonalRailway}</td>
+                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center' }}>{row.vendor}</td>
+                                            <td style={{ border: '1px solid #cbd5e1', fontSize: '11px', color: '#475569', textAlign: 'center' }}>{row.typeOfRubberPad}</td>
+                                            <td style={{ border: '1px solid #cbd5e1', whiteSpace: 'nowrap', textAlign: 'center' }}>
+                                                <div><strong>{row.zonalRailway}-{row.poNo}</strong></div>
                                                 <div style={{ fontSize: '10px', color: '#64748b' }}>{row.poDate}</div>
                                             </td>
-                                            <td style={{ border: '1px solid #cbd5e1', fontSize: '11px' }}>{row.specification}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: '500' }}>{row.totalPoQty.toLocaleString()}</td>
+                                            <td style={{ border: '1px solid #cbd5e1', fontSize: '11px', textAlign: 'center' }}></td>
+                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', fontWeight: '500' }}>{row.totalPoQty.toLocaleString()} {row.uom || ''}</td>
                                             
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', background: '#f0fdf4' }}>{row.qtyInspected.toLocaleString()}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', background: '#f0fdf4', color: '#16a34a', fontWeight: 'bold' }}>{row.qtyAccepted.toLocaleString()}</td>
+                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#f0fdf4' }}>{row.qtyInspected.toLocaleString()}</td>
+                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#f0fdf4', color: '#16a34a', fontWeight: 'bold' }}>{row.qtyAccepted.toLocaleString()}</td>
                                             
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', background: '#f0f9ff' }}>{row.icIssuedQty.toLocaleString()}</td>
+                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#f0f9ff' }}>{row.icIssuedQty.toLocaleString()}</td>
                                             <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#f0f9ff', fontSize: '11px' }}>{row.lastDateIcIssued || '-'}</td>
                                             
                                             {/* Process defects breakdown */}
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', background: '#fffaf2', fontWeight: 'bold', color: '#ea580c' }}>{totalProcRej.toLocaleString()}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', background: '#fffaf2' }}>{row.rawMaterialCheck || '-'}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', background: '#fffaf2' }}>{row.compounding || '-'}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', background: '#fffaf2' }}>{row.mixing || '-'}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', background: '#fffaf2' }}>{row.curing || '-'}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', background: '#fffaf2' }}>{row.cutting || '-'}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', background: '#fffaf2' }}>{row.rheometer || '-'}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', background: '#fffaf2' }}>{row.visualCheckFinishing || '-'}</td>
+                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2', fontWeight: 'bold', color: '#ea580c' }}>{totalProcRej.toLocaleString()}</td>
+                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2' }}>{row.rawMaterialCheck || '-'}</td>
+                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2' }}>{row.compounding || '-'}</td>
+                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2' }}>{row.mixing || '-'}</td>
+                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2' }}>{row.curing || '-'}</td>
+                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2' }}>{row.cutting || '-'}</td>
+                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2' }}>{row.rheometer || '-'}</td>
+                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2' }}>{row.visualCheckFinishing || '-'}</td>
 
                                             {/* Acceptance defects breakdown */}
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', background: '#fffbeb' }}>{row.hardness || '-'}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', background: '#fffbeb' }}>{row.specificGravity || '-'}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', background: '#fffbeb' }}>{row.rubberContent || '-'}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', background: '#fffbeb' }}>{row.ashContent || '-'}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', background: '#fffbeb' }}>{row.reboundResilience || '-'}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', background: '#fffbeb' }}>{row.dimension || '-'}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', background: '#fffbeb' }}>{row.weight || '-'}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', background: '#fffbeb' }}>{row.surfaceDefect || '-'}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', background: '#fffbeb' }}>{row.compressionSet || '-'}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', background: '#fffbeb' }}>{row.visualTest || '-'}</td>
-                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', background: '#fffbeb' }}>{row.otherRejection || '-'}</td>
+                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb' }}>{row.hardness || '-'}</td>
+                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb' }}>{row.specificGravity || '-'}</td>
+                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb' }}>{row.rubberContent || '-'}</td>
+                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb' }}>{row.ashContent || '-'}</td>
+                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb' }}>{row.reboundResilience || '-'}</td>
+                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb' }}>{row.dimension || '-'}</td>
+                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb' }}>{row.weight || '-'}</td>
+                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb' }}>{row.surfaceDefect || '-'}</td>
+                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb' }}>{row.compressionSet || '-'}</td>
+                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb' }}>{row.visualTest || '-'}</td>
+                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb' }}>{row.otherRejection || '-'}</td>
 
-                                            <td style={{ border: '1px solid #cbd5e1', fontStyle: 'italic', fontSize: '11px', color: '#475569' }}>{row.remarks}</td>
+                                            <td style={{ border: '1px solid #cbd5e1', fontStyle: 'italic', fontSize: '11px', color: '#475569', textAlign: 'center' }}></td>
                                             <td style={{ border: '1px solid #cbd5e1', textAlign: 'center' }}>
                                                 <span className="prof-badge" style={{ 
                                                     background: row.rejectionPercent > 5 ? '#fef2f2' : '#f0fdf4', 

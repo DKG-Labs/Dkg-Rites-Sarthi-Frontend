@@ -503,7 +503,7 @@ const ProfessionalCardSection = ({
                                 return <SleeperSummary summaryData={summaryData} onPoIssuedClick={handlePoIssuedClick} />;
                             }
                             if (isRailPad) {
-                                return <RailPadSummary summaryData={summaryData} />;
+                                return <RailPadSummary summaryData={summaryData} onPoIssuedClick={handlePoIssuedClick} />;
                             }
                             const s = summaryData || {};
 

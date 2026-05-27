@@ -1657,29 +1657,7 @@ const Level4ReportTable = ({ data }) => {
     );
 };
 
-const ParetoXAxisTick = (props) => {
-    const { x, y, payload } = props;
-    return (
-        <g transform={`translate(${x},${y})`}>
-            <text
-                x={0}
-                y={0}
-                dx={-8}
-                dy={16}
-                textAnchor="end"
-                fill="#64748b"
-                transform="rotate(-35)"
-                style={{
-                    fontSize: '10px',
-                    fontWeight: '600',
-                    fontFamily: 'Inter, system-ui, sans-serif'
-                }}
-            >
-                {payload.value}
-            </text>
-        </g>
-    );
-};
+
 
 const MpiaDrillDown = ({ data = [], manufacturer, onBack, loading }) => {
     const [isPrinting, setIsPrinting] = useState(false);

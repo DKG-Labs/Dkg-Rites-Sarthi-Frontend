@@ -5,7 +5,6 @@ import reportService from '../../../services/reportService';
 const RailPadQualityReport = () => {
     const [loading, setLoading] = useState(false);
     const [reportData, setReportData] = useState([]);
-    const [vendors, setVendors] = useState([]);
     const [selectedVendor, setSelectedVendor] = useState('All Manufacturers');
     const [startDate, setStartDate] = useState(() => {
         const d = new Date();

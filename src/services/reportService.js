@@ -524,13 +524,24 @@ const reportService = {
     },
 
     getInspectionCallStatusDetails: async (stage, status) => {
-        const url = new URL(`${API_ENDPOINTS.REPORTS}/inspectionCallStatusDetails`);
-        url.searchParams.append('stage', stage);
-        url.searchParams.append('status', status);
-        const response = await fetch(url.toString(), {
-            headers: getAuthHeaders(),
-        });
-        return handleResponse(response);
+        let url;
+        if (stage === 'Railpad') {
+            url = new URL(`${API_ENDPOINTS.REPORTS}/railPadInspectionCallStatusDetails`);
+            url.searchParams.append('status', status);
+        } else {
+            url = new URL(`${API_ENDPOINTS.REPORTS}/inspectionCallStatusDetails`);
+            url.searchParams.append('stage', stage);
+            url.searchParams.append('status', status);
+        }
+        try {
+            const response = await fetch(url.toString(), {
+                headers: getAuthHeaders(),
+            });
+            return handleResponse(response);
+        } catch (error) {
+            console.error('Error fetching inspection call status details:', error);
+            throw error;
+        }
     },
 
     /**

@@ -1,7 +1,7 @@
 import React from 'react';
 import './RailPadSummary.css';
 
-const RailPadSummary = ({ summaryData = {}, onPoIssuedClick }) => {
+const RailPadSummary = ({ summaryData = {}, onPoIssuedClick, onInspectionCallClick }) => {
     // Real data from backend; fallback to 0 when not yet loaded
     const data = {
         totalPoIssued: summaryData.railPadPoIssued || 0,
@@ -72,11 +72,23 @@ const RailPadSummary = ({ summaryData = {}, onPoIssuedClick }) => {
                 }}>
                     <div className="kpi-lbl" style={{ color: '#9a3412' }}>Inspection Calls</div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '8px' }}>
-                        <div>
+                        <div 
+                            style={{ cursor: 'pointer', padding: '6px', borderRadius: '8px', transition: 'all 0.2s' }}
+                            onClick={() => onInspectionCallClick && onInspectionCallClick('Railpad', 'Pending')}
+                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                            title="Click to view Pending calls"
+                        >
                             <div style={{ fontSize: '11px', color: '#9a3412', fontWeight: '600' }}>PENDING</div>
                             <div style={{ fontSize: '24px', fontWeight: '800', color: '#ea580c' }}>{data.inspectionCalls.pending}</div>
                         </div>
-                        <div style={{ textAlign: 'right' }}>
+                        <div 
+                            style={{ textAlign: 'right', cursor: 'pointer', padding: '6px', borderRadius: '8px', transition: 'all 0.2s' }}
+                            onClick={() => onInspectionCallClick && onInspectionCallClick('Railpad', 'Under Inspection')}
+                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.12)'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                            title="Click to view Under Inspection calls"
+                        >
                             <div style={{ fontSize: '11px', color: '#9a3412', fontWeight: '600' }}>UNDER INSP.</div>
                             <div style={{ fontSize: '24px', fontWeight: '800', color: '#f59e0b' }}>{data.inspectionCalls.underInspection}</div>
                         </div>

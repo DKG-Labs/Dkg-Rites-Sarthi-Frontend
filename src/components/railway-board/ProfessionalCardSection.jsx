@@ -503,7 +503,7 @@ const ProfessionalCardSection = ({
                                 return <SleeperSummary summaryData={summaryData} onPoIssuedClick={handlePoIssuedClick} />;
                             }
                             if (isRailPad) {
-                                return <RailPadSummary summaryData={summaryData} onPoIssuedClick={handlePoIssuedClick} />;
+                                return <RailPadSummary summaryData={summaryData} onPoIssuedClick={handlePoIssuedClick} onInspectionCallClick={handleInspectionCallClick} />;
                             }
                             const s = summaryData || {};
 
@@ -766,7 +766,7 @@ const ProfessionalCardSection = ({
                                         </div>
                                         <div className="prof-card">
                                             <div className="sec-title">Pareto Analysis</div>
-                                            <div className="chart-wrap" style={{ height: '230px' }}>
+                                            <div className="chart-wrap" style={{ height: '300px' }}>
                                                 <ResponsiveContainer width="100%" height="100%">
                                                     <ComposedChart data={paretoAnalysisData?.map(d => ({ ...d, count: d.count || d.value || 0 }))}>
                                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -775,8 +775,10 @@ const ProfessionalCardSection = ({
                                                             axisLine={false}
                                                             tickLine={false}
                                                             interval={0}
-                                                            height={85}
-                                                            tick={<ParetoXAxisTick />}
+                                                            height={120}
+                                                            angle={-45}
+                                                            textAnchor="end"
+                                                            style={{ fontSize: '10px' }}
                                                         />
                                                         <YAxis yAxisId="left" axisLine={false} tickLine={false} style={{ fontSize: '9px' }} />
                                                         <YAxis

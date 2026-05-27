@@ -65,15 +65,21 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
         const fetchReports = async () => {
             try {
                 const res = await apiService.getLastFiveMoisture();
-                if (res?.responseData) {
-                    setLastFiveMoisture(res.responseData);
+                if (res?.responseData && Array.isArray(res.responseData)) {
+                    const plantSpecificReports = res.responseData.filter(r => {
+                        if (!effectivePlantId) return true;
+                        if (!r.plantId) return false;
+                        const clean = (id) => String(id).replace(/[:\s]/g, '').toLowerCase();
+                        return clean(r.plantId) === clean(effectivePlantId);
+                    });
+                    setLastFiveMoisture(plantSpecificReports);
                 }
             } catch (err) {
                 console.error("Failed to fetch last 5 moisture reports:", err);
             }
         };
         fetchReports();
-    }, []);
+    }, [effectivePlantId]);
 
     // Handle Moisture Report Selection
     const handleMoistureReportSelect = async (e) => {

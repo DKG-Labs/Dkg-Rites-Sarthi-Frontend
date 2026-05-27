@@ -4,6 +4,7 @@ import MainLayout from './components/Layout/MainLayout';
 import SleeperProcessDuty from './pages/sleeperGeneral/SleeperProcessDuty';
 import SleeperProcessIEGeneral from './pages/sleeperGeneral/SleeperProcessIEGeneral';
 import AttendingCallDashboard from './pages/sleeperGeneral/finalInspection/AttendingCallDashboard';
+import SleeperFinalProductCertificate from './pages/sleeperGeneral/IC/SleeperFinalProductCertificate';
 import { ShiftProvider } from './context/ShiftContext';
 import { ToastProvider } from './context/ToastContext';
 import MainDashboard from './pages/ProcessIE/MainDashboard';
@@ -61,6 +62,9 @@ const App = () => {
           case 'AttendingCallDashboard':
             setMainView('Attending the Call Raised');
             break;
+          case 'Sleeper Final IC':
+            setMainView('Sleeper Final IC');
+            break;
           default:
             setMainView('Main Dashboard');
         }
@@ -84,6 +88,8 @@ const App = () => {
         return <div className="fade-in"><MonthlyReport /></div>;
       case 'Attending the Call Raised':
         return <div className="fade-in"><AttendingCallDashboard /></div>;
+      case 'Sleeper Final IC':
+        return <div className="fade-in"><SleeperFinalProductCertificate /></div>;
       case 'Main Dashboard':
       default:
         return <MainDashboard />;

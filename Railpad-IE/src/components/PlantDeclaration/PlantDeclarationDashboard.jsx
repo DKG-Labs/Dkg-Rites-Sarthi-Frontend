@@ -76,6 +76,29 @@ const PlantDeclarationDashboard = () => {
     loadPendingList();
   }, []);
 
+  const formatDateTime = (dateVal) => {
+    if (!dateVal) return '—';
+    try {
+      if (Array.isArray(dateVal)) {
+        if (dateVal.length >= 3) {
+          const dateObj = new Date(dateVal[0], dateVal[1] - 1, dateVal[2], dateVal[3] || 0, dateVal[4] || 0);
+          return dateObj.toLocaleString('en-IN', {
+            day: '2-digit', month: 'short', year: 'numeric',
+            hour: '2-digit', minute: '2-digit', hour12: true
+          });
+        }
+      }
+      const d = new Date(dateVal);
+      if (isNaN(d.getTime())) return '—';
+      return d.toLocaleString('en-IN', {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', hour12: true
+      });
+    } catch (e) {
+      return '—';
+    }
+  };
+
   const loadPendingList = async () => {
     setLoading(true);
     try {
@@ -121,10 +144,12 @@ const PlantDeclarationDashboard = () => {
           } catch (err) {
             console.error("Error fetching detail for tx mapping:", err);
           }
+          let declarationDate = tx.createdDate || tx.createdAt || tx.actionDate || null;
           return {
             ...tx,
             productName,
-            rdsoApprovalLetterNo
+            rdsoApprovalLetterNo,
+            declarationDate
           };
         }));
       };
@@ -821,6 +846,7 @@ const PlantDeclarationDashboard = () => {
                               'Product Name & Approval Letter No.'}
                   </th>
                   <th style={{ padding: '14px 24px', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase' }}>Plant ID</th>
+                  <th style={{ padding: '14px 24px', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase' }}>Date & Time</th>
                   <th style={{ padding: '14px 24px', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase' }}>Status</th>
                   <th style={{ padding: '14px 24px', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', textAlign: 'center' }}>Action</th>
                 </tr>
@@ -839,6 +865,9 @@ const PlantDeclarationDashboard = () => {
                       </td>
                       <td style={{ padding: '16px 24px' }}>
                         <div className="skeleton-shimmer" style={{ width: '80px', height: '16px' }}></div>
+                      </td>
+                      <td style={{ padding: '16px 24px' }}>
+                        <div className="skeleton-shimmer" style={{ width: '120px', height: '16px' }}></div>
                       </td>
                       <td style={{ padding: '16px 24px' }}>
                         <div className="skeleton-shimmer" style={{ width: '70px', height: '22px', borderRadius: '12px' }}></div>
@@ -861,6 +890,9 @@ const PlantDeclarationDashboard = () => {
                       </td>
                       <td style={{ padding: '16px 24px', fontWeight: '600', color: '#475569' }}>
                         Plant #{tx.plantId || '1'}
+                      </td>
+                      <td style={{ padding: '16px 24px', fontSize: '13px', color: '#475569', fontWeight: '500' }}>
+                        {formatDateTime(tx.declarationDate)}
                       </td>
                       <td style={{ padding: '16px 24px' }}>
                         <span style={{

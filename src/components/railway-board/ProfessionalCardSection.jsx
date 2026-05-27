@@ -100,6 +100,12 @@ const ProfessionalCardSection = ({
     setLwclLotNo = () => { },
     lwclRequestIds = [],
     lwclLotNumbers = [],
+    lwclManufacturer = '',
+    setLwclManufacturer = () => { },
+    lwclManufacturersList = [],
+    lwclPoNo = '',
+    setLwclPoNo = () => { },
+    lwclPoNumbersList = [],
     // NEW: Level 4 Report Props
     level4Data = [],
     level4Loading = false,
@@ -1073,7 +1079,7 @@ const ProfessionalCardSection = ({
                                 <div className="reports-tab-content fade-in">
                                     {/* 
                                     <div className="sub-tabs">
-                                        <div className={`sub-tab-btn ${activeReport === 'mpr' ? 'active' : ''}`} onClick={() => { setActiveReport('mpr'); onReportTabChange('mpr'); }}>📋 MPR</div>
+                                        <div className={`sub-tab-btn ${activeReport === 'mpr' ? 'active' : ''}`} onClick={() => { setActiveReport('mpr'); onReportTabChange('mpr'); }}>📋 {selectedProduct === 'ERC' ? 'PWMPR' : 'MPR'}</div>
                                         <div className={`sub-tab-btn ${activeReport === 'mau' ? 'active' : ''}`} onClick={() => { setActiveReport('mau'); onReportTabChange('mau'); }}>📈 MAU</div>
                                         <div className={`sub-tab-btn ${activeReport === 'lwcl' ? 'active' : ''}`} onClick={() => { setActiveReport('lwcl'); onReportTabChange('lwcl'); }}>🔄 LWCL</div>
                                         <div className={`sub-tab-btn ${activeReport === 'swp' ? 'active' : ''}`} onClick={() => { setActiveReport('swp'); onReportTabChange('swp'); }}>⏱️ SWP</div>
@@ -1081,10 +1087,10 @@ const ProfessionalCardSection = ({
                                             <div className={`sub-tab-btn ${activeReport === 'qrp' ? 'active' : ''}`} onClick={() => { setActiveReport('qrp'); onReportTabChange('qrp'); }}>📊 Quality Report</div>
                                         )}
                                         {!isSleeper && !isRailPad && (
-                                            <div className={`sub-tab-btn ${activeReport === 'mpia' ? 'active' : ''}`} onClick={() => { setActiveReport('mpia'); onReportTabChange('mpia'); }}>⚙️ VMR</div>
+                                            <div className={`sub-tab-btn ${activeReport === 'mpia' ? 'active' : ''}`} onClick={() => { setActiveReport('mpia'); onReportTabChange('mpia'); }}>⚙️ VWPQR</div>
                                         )}
                                         {!isSleeper && !isRailPad && (
-                                            <div className={`sub-tab-btn ${activeReport === 'pwmr' ? 'active' : ''}`} onClick={() => { setActiveReport('pwmr'); onReportTabChange('pwmr'); }}>📊 PWMR</div>
+                                            <div className={`sub-tab-btn ${activeReport === 'pwmr' ? 'active' : ''}`} onClick={() => { setActiveReport('pwmr'); onReportTabChange('pwmr'); }}>📊 PWQR</div>
                                         )}
                                     </div>
                                     */}
@@ -1118,7 +1124,7 @@ const ProfessionalCardSection = ({
                                                         return (
                                                             <div className="prof-card animate-up">
                                                                 <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                                    <span>Monthly Progress Report</span>
+                                                                    <span>PO Wise Monthly Progress Report</span>
                                                                     <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                                                                         <ExportButton
                                                                             onClick={() => downloadExcel(
@@ -1134,7 +1140,7 @@ const ProfessionalCardSection = ({
                                                                                     { label: 'Total Final Inspected', key: 'totalFinalInspected' },
                                                                                     { label: 'Balance', key: 'poBalance' }
                                                                                 ],
-                                                                                'Monthly_Progress_Report'
+                                                                                'PO_Wise_Monthly_Progress_Report'
                                                                             )}
                                                                         />
                                                                         <input type="text" placeholder="Search..." className="prof-search" value={mprSearch} onChange={(e) => setMprSearch(e.target.value)} />
@@ -1303,15 +1309,27 @@ const ProfessionalCardSection = ({
                                                                     )}
                                                                 </div>
                                                                 <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-                                                                    <select className="prof-select" style={{ maxWidth: '300px' }} value={lwclCallNo} onChange={(e) => setLwclCallNo(e.target.value)}>
+                                                                    <select className="prof-select" style={{ maxWidth: '200px' }} value={lwclManufacturer} onChange={(e) => setLwclManufacturer(e.target.value)}>
+                                                                        <option value="">Select Manufacturer</option>
+                                                                        {lwclManufacturersList.map((m, i) => <option key={i} value={m}>{m}</option>)}
+                                                                    </select>
+                                                                    <select className="prof-select" style={{ maxWidth: '200px' }} value={lwclPoNo} onChange={(e) => setLwclPoNo(e.target.value)}>
+                                                                        <option value="">Select PO No.</option>
+                                                                        {lwclPoNumbersList.map((po, i) => <option key={i} value={po.poNo}>{po.displayPoNo}</option>)}
+                                                                    </select>
+                                                                    <select className="prof-select" style={{ maxWidth: '200px' }} value={lwclCallNo} onChange={(e) => setLwclCallNo(e.target.value)}>
                                                                         <option value="">Select Call No.</option>
                                                                         {lwclRequestIds.map(id => <option key={id} value={id}>{id}</option>)}
+                                                                    </select>
+                                                                    <select className="prof-select" style={{ maxWidth: '200px' }} value={lwclLotNo} onChange={(e) => setLwclLotNo(e.target.value)}>
+                                                                        <option value="">Select Lot No.</option>
+                                                                        {lwclLotNumbers.map(lot => <option key={lot} value={lot}>{lot}</option>)}
                                                                     </select>
                                                                 </div>
                                                                 {level4Loading ? (
                                                                     <div className="p-12 text-center text-teal font-medium">Loading Process Defect Summary...</div>
                                                                 ) : lwclCallNo ? (
-                                                                    <Level4ReportTable data={level4Data} />
+                                                                    <Level4ReportTable data={lwclLotNo ? level4Data.filter(row => row.basicDetails && row.basicDetails.lotNumber === lwclLotNo) : level4Data} />
                                                                 ) : (
                                                                     <div className="p-12 text-center text-slate-400">
                                                                         Please select a <strong>Call Number</strong> from the dropdown above to view the report details.
@@ -1332,7 +1350,7 @@ const ProfessionalCardSection = ({
                                                                 ) : (
                                                                     <>
                                                                         <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                                            <span>Vendor wise Monthly Report</span>
+                                                                            <span>Vendor Wise Process Quality Report</span>
                                                                             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                                                                                 <ExportButton
                                                                                     label="Download Summary"
@@ -1345,7 +1363,7 @@ const ProfessionalCardSection = ({
                                                                                             { label: 'Total Rejected', key: 'totalRejected' },
                                                                                             { label: 'Rejection %', key: 'rejectionPercent' }
                                                                                         ],
-                                                                                        'Manufacture_Process_Inspection_Analysis_Summary'
+                                                                                        'Vendor_Wise_Process_Quality_Report_Summary'
                                                                                     )}
                                                                                 />
                                                                                 <ExportButton
@@ -2045,6 +2063,14 @@ const ScadaMonitor = ({ selectedProduct }) => {
         'dia': 'Diameter (mm)'
     };
 
+    const getColumnLabel = (col) => {
+        const lowerCol = String(col).trim().toLowerCase();
+        if (lowerCol === 'mc') return 'Machine Number';
+        if (lowerCol === 'dia') return 'Diameter (mm)';
+        return COLUMN_LABELS[col] || COLUMN_LABELS[lowerCol] || col;
+    };
+
+
     const rawKeys = data.length > 0
         ? Object.keys(data[0]).filter(key => !EXCLUDED_COLUMNS.includes(key))
         : [];
@@ -2162,7 +2188,7 @@ const ScadaMonitor = ({ selectedProduct }) => {
                             <ExportButton
                                 onClick={() => {
                                     const excelColumns = columns.map(col => ({
-                                        label: COLUMN_LABELS[col] || col,
+                                        label: getColumnLabel(col),
                                         key: col
                                     }));
                                     downloadExcel(data, excelColumns, `SCADA_Live_Feed_${selectedProduct}_Page_${currentPage + 1}`);
@@ -2179,7 +2205,7 @@ const ScadaMonitor = ({ selectedProduct }) => {
                             <tr>
                                 {columns.map(col => (
                                     <th key={col} style={{ background: '#1e3a8a', color: '#fff', padding: '10px', fontSize: '12px', textTransform: 'uppercase' }}>
-                                        {COLUMN_LABELS[col] || col}
+                                        {getColumnLabel(col)}
                                     </th>
                                 ))}
                             </tr>

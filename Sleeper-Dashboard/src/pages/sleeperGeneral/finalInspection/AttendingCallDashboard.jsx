@@ -149,6 +149,37 @@ const AttendingCallDashboard = () => {
         setIsInspecting(true);
     };
 
+    const handleIssueIC = async (call) => {
+        try {
+            // "for now leave perform transaction action"
+            /*
+            const user = getStoredUser();
+            if (call.jobStatus !== 'GENERATE_IC' && call.status !== 'GENERATE_IC') {
+                const payload = {
+                    workflowTransitionId: call.id || call.workflowTransitionId,
+                    moduleId: call.moduleId || 0,
+                    requestId: call.requestId,
+                    action: 'GENERATE_IC',
+                    remarks: 'System updated status to GENERATE_IC',
+                    actionBy: Number(user?.userId || 0)
+                };
+                try {
+                    await apiService.performTransitionAction(payload);
+                } catch (e) {
+                    console.error('Failed to update status to GENERATE_IC:', e);
+                }
+            }
+            */
+
+            localStorage.setItem('selectedICCall', JSON.stringify(call));
+            const event = new CustomEvent('navigate', { detail: { target: 'Sleeper Final IC' } });
+            window.dispatchEvent(event);
+        } catch (error) {
+            console.error('Error in handleIssueIC:', error);
+            alert('Failed to issue IC');
+        }
+    };
+
     const handleViewDetails = (call) => {
         setPopupCall(call);
         setShowDetailsPopup(true);
@@ -351,7 +382,7 @@ const AttendingCallDashboard = () => {
                                         <th>POI CODE</th>
                                         <th>CREATED DATE</th>
                                         <th>STATUS</th>
-                                        {issuanceCalls.some(c => expandedActions[c.id]) && <th>ACTIONS</th>}
+                                        <th>ACTIONS</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -383,14 +414,12 @@ const AttendingCallDashboard = () => {
                                                             {call.jobStatus || call.status}
                                                         </span>
                                                     </td>
-                                                    {expandedActions[call.id] && (
-                                                        <td>
-                                                            <div className="table-actions-modern">
-                                                                <button className="btn-start" onClick={() => handleViewDetails(call)}>Issue IC</button>
-                                                                <button className="btn-reschedule" style={{ marginLeft: '8px' }}>Download Annexures</button>
-                                                            </div>
-                                                        </td>
-                                                    )}
+                                                    <td>
+                                                        <div className="table-actions-modern">
+                                                            <button className="btn-start" onClick={() => handleIssueIC(call)}>Issue IC</button>
+                                                            <button className="btn-reschedule" style={{ marginLeft: '8px' }}>Download Annexures</button>
+                                                        </div>
+                                                    </td>
                                                 </tr>
                                             </React.Fragment>
                                         ))
@@ -419,7 +448,7 @@ const AttendingCallDashboard = () => {
                                         <th>POI CODE</th>
                                         <th>CREATED DATE</th>
                                         <th>STATUS</th>
-                                        {completedCalls.some(c => expandedActions[c.id]) && <th>ACTIONS</th>}
+                                        <th>ACTIONS</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -451,14 +480,12 @@ const AttendingCallDashboard = () => {
                                                             {call.jobStatus || call.status}
                                                         </span>
                                                     </td>
-                                                    {expandedActions[call.id] && (
-                                                        <td>
-                                                            <div className="table-actions-modern">
-                                                                <button className="btn-reschedule">Download IC</button>
-                                                                <button className="btn-start" style={{ marginLeft: '8px' }}>Download Annexures</button>
-                                                            </div>
-                                                        </td>
-                                                    )}
+                                                    <td>
+                                                        <div className="table-actions-modern">
+                                                            <button className="btn-reschedule">Download IC</button>
+                                                            <button className="btn-start" style={{ marginLeft: '8px' }}>Download Annexures</button>
+                                                        </div>
+                                                    </td>
                                                 </tr>
                                             </React.Fragment>
                                         ))

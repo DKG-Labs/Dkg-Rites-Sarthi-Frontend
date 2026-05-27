@@ -371,7 +371,7 @@ const SqcAnalysis = ({ selectedProduct }) => {
             {/* CHART MODAL */}
             <Dialog open={showChartModal} onClose={() => setShowChartModal(false)} maxWidth="xl" fullWidth>
                 <DialogTitle style={{ fontWeight: 800, fontSize: '18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    TURNING DIAMETER MONITORING (MM) - {selectedCompanyData?.companyName} ({selectedCompanyData?.companyUnit})
+                    Control Chart - Turning Dia: {selectedCompanyData?.companyName}
                     <IconButton onClick={() => setShowChartModal(false)}>
                         <CloseIcon />
                     </IconButton>

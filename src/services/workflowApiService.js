@@ -63,8 +63,32 @@ export const fetchCompletedCallsForIC = async (userId, forceRefresh = false) => 
         console.log('✅ Raw API response:', data);
 
         // Extract responseData array
-        const completedCalls = data.responseData || [];
-        console.log(`📊 Found ${completedCalls.length} completed calls`);
+        const allCompletedCalls = data.responseData || [];
+        
+        // 1. Group by requestId to keep only the latest transition (highest workflowSequence or ID)
+        const latestCallsMap = new Map();
+        allCompletedCalls.forEach(call => {
+          const existing = latestCallsMap.get(call.requestId);
+          if (!existing || call.workflowTransitionId > existing.workflowTransitionId) {
+            latestCallsMap.set(call.requestId, call);
+          }
+        });
+        
+        const latestCalls = Array.from(latestCallsMap.values());
+
+        const completedCalls = latestCalls.filter(call => {
+            const isAssigned = String(call.assignedToUser) === String(userId);
+            const isProcessIe = call.processIes && call.processIes.includes(Number(userId));
+            const isFinalIe = call.finalIes && call.finalIes.includes(Number(userId));
+            const isCreator = String(call.createdBy) === String(userId);
+            
+            // If assignedToUser is null, fallback to checking if they are in the IEs array or creator
+            const hasAccess = isAssigned || ((!call.assignedToUser) && (isProcessIe || isFinalIe || isCreator));
+            
+            return hasAccess && call.status !== 'DSC_SIGN_IC';
+        });
+        
+        console.log(`📊 Found ${allCompletedCalls.length} total calls, ${latestCalls.length} unique, ${completedCalls.length} pending IC for user ${userId}`);
 
         if (completedCalls.length > 0) {
           console.log('📋 Sample call data:', completedCalls[0]);

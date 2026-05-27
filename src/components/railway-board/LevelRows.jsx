@@ -22,7 +22,7 @@ function Level4Table({ callNo, parentSerial, railway }) {
         <div className="nested-table-wrapper level-4">
             <div className="level-label level-4-label">Level 4: Inspection Call Wise List (Only for Process Inspection)</div>
             <div className="level-4-scroll-container">
-                <table className="data-table complex-table nested-table level-4-table">
+                <table className="data-table complex-table nested-table level-4-table text-center">
                     <thead>
                         {/* Row 1: Main Headers */}
                         <tr>
@@ -48,12 +48,12 @@ function Level4Table({ callNo, parentSerial, railway }) {
                         {/* Row 2: Sub Headers */}
                         <tr>
                             {/* Process Sub-headers */}
-                            <th rowSpan="2" className="shearing-col" style={{ minWidth: '90px' }}>PROD QTY</th><th rowSpan="2" className="shearing-col" style={{ minWidth: '90px' }}>REJ QTY</th>
-                            <th rowSpan="2" className="turning-col" style={{ minWidth: '90px' }}>PROD QTY</th><th rowSpan="2" className="turning-col" style={{ minWidth: '90px' }}>REJ QTY</th>
-                            <th rowSpan="2" className="mpi-col" style={{ minWidth: '90px' }}>PROD QTY</th><th rowSpan="2" className="mpi-col" style={{ minWidth: '90px' }}>REJ QTY</th>
-                            <th rowSpan="2" className="forging-col" style={{ minWidth: '90px' }}>PROD QTY</th><th rowSpan="2" className="forging-col" style={{ minWidth: '90px' }}>REJ QTY</th>
-                            <th rowSpan="2" className="quenching-col" style={{ minWidth: '90px' }}>PROD QTY</th><th rowSpan="2" className="quenching-col" style={{ minWidth: '90px' }}>REJ QTY</th>
-                            <th rowSpan="2" className="tempering-col" style={{ minWidth: '90px' }}>PROD QTY</th><th rowSpan="2" className="tempering-col" style={{ minWidth: '90px' }}>REJ QTY</th>
+                            <th rowSpan="2" className="shearing-col">PROD QTY</th><th rowSpan="2" className="shearing-col">REJ QTY</th>
+                            <th rowSpan="2" className="turning-col">PROD QTY</th><th rowSpan="2" className="turning-col">REJ QTY</th>
+                            <th rowSpan="2" className="mpi-col">PROD QTY</th><th rowSpan="2" className="mpi-col">REJ QTY</th>
+                            <th rowSpan="2" className="forging-col">PROD QTY</th><th rowSpan="2" className="forging-col">REJ QTY</th>
+                            <th rowSpan="2" className="quenching-col">PROD QTY</th><th rowSpan="2" className="quenching-col">REJ QTY</th>
+                            <th rowSpan="2" className="tempering-col">PROD QTY</th><th rowSpan="2" className="tempering-col">REJ QTY</th>
 
                             {/* Rejection Details Sub-headers */}
                             <th colSpan="4" className="shearing-col">Shearing Defects</th>
@@ -71,9 +71,9 @@ function Level4Table({ callNo, parentSerial, railway }) {
                         {/* Row 3: Granular Defect Headers */}
                         <tr>
                             {/* Shearing */}
-                            <th className="shearing-col" style={{ minWidth: '110px' }}>CUT LENGTH</th><th className="shearing-col">OVALITY</th><th className="shearing-col">SHARP EDGES</th><th className="shearing-col">CRACKS</th>
+                            <th className="shearing-col">CUT LENGTH</th><th className="shearing-col">OVALITY</th><th className="shearing-col">SHARP EDGES</th><th className="shearing-col">CRACKS</th>
                             {/* Turning */}
-                            <th className="turning-col" style={{ minWidth: '120px' }}>PARALLEL LEN</th><th className="turning-col">FULL TURNING</th><th className="turning-col">TURN DIA</th>
+                            <th className="turning-col">PARALLEL LEN</th><th className="turning-col">FULL TURNING</th><th className="turning-col">TURN DIA</th>
                             {/* MPI */}
                             <th className="mpi-col">MPI REJ</th>
                             {/* Forging */}
@@ -96,7 +96,7 @@ function Level4Table({ callNo, parentSerial, railway }) {
                         {paginatedData.map((shift, index) => {
                             const rowClass = (index % 2 === 0) ? 'row-odd' : 'row-even';
                             return (
-                                <tr key={index} className={rowClass}>
+                                <tr key={index} className={`${rowClass} text-center`}>
                                     <td>{shift.basicDetails?.date ? formatDate(shift.basicDetails.date) : 'Invalid Date'}</td>
                                     <td>{shift.basicDetails?.shift || '-'}</td>
                                     <td>{index + 1}</td>
@@ -180,7 +180,6 @@ function Level3Row({ call, expandedCall, toggleCall, parentSerial, index, railwa
                 <td className="text-center">
                     {isProcess && <ExpandIcon isExpanded={isExpanded} isSubmenu={true} />}
                 </td>
-                <td>{index + 1}</td>
                 <td className="font-medium text-teal" style={{ whiteSpace: 'nowrap' }}>{parentSerial}</td>
                 <td className="font-medium text-teal">{call.inspectionCallNumber}</td>
                 <td><StatusBadge status={call.stageOfInspection} /></td>
@@ -197,7 +196,7 @@ function Level3Row({ call, expandedCall, toggleCall, parentSerial, index, railwa
             </tr>
             {isExpanded && isProcess && (
                 <tr className="detail-row level-4-container">
-                    <td colSpan="15">
+                    <td colSpan="14">
                         <Level4Table callNo={call.inspectionCallNumber} parentSerial={parentSerial} railway={railway} />
                     </td>
                 </tr>
@@ -225,7 +224,6 @@ function Level3Table({ poNo, rlyPoSrNo, expandedCall, toggleCall, parentSerial, 
                 <thead>
                     <tr>
                         <th style={{ width: '40px' }}></th>
-                        <th>Sl No.</th>
                         <th>Rly-Sr.</th>
                         <th>Call</th>
                         <th>Stage</th>
@@ -288,25 +286,24 @@ function Level2Row({ row, index, expandedSerial, toggleSerial, expandedCall, tog
                 <td className="text-center">
                     <ExpandIcon isExpanded={isExpanded} isSubmenu={true} />
                 </td>
-                <td>{index + 1}</td>
-                <td className="font-medium text-teal">{row.rlyPoSrNo}</td>
-                <td title={row.consignee}>{row.consignee}</td>
-                <td>{formatDate(row.originalDpDate)}</td>
-                <td>{row.extendedDpDate ? formatDate(row.extendedDpDate) : '-'}</td>
-                <td className="text-right">{row.poSrNoQty?.toLocaleString()}</td>
-                <td className="text-right">{row.balancePoQty?.toLocaleString()}</td>
+                <td className="font-medium text-teal text-center">{row.rlyPoSrNo}</td>
+                <td title={row.consignee} className="text-center">{row.consignee}</td>
+                <td className="text-center">{formatDate(row.originalDpDate)}</td>
+                <td className="text-center">{row.extendedDpDate ? formatDate(row.extendedDpDate) : '-'}</td>
+                <td className="text-center">{row.poSrNoQty?.toLocaleString()}</td>
+                <td className="text-center">{row.balancePoQty?.toLocaleString()}</td>
                 <td className="text-center">{row.noOfIcIssued}</td>
-                <td>-</td>
-                <td className="text-right">{formatDecimal(row.rawMaterialAcceptedMt)}</td>
-                <td className={row.rawMaterialRejectionPercentage > 2 ? 'text-red' : ''}>{formatDecimal(row.rawMaterialRejectionPercentage || 0)}%</td>
-                <td className="text-right">{row.processInspectionMaterialAcceptedNos?.toLocaleString()}</td>
-                <td className={row.processInspectionMaterialRejectionPercentage > 3 ? 'text-red' : ''}>{formatDecimal(row.processInspectionMaterialRejectionPercentage || 0)}%</td>
-                <td className="text-right">{row.finalInspectionMaterialAcceptedNos?.toLocaleString()}</td>
-                <td className={row.finalInspectionMaterialRejectionPercentage > 1 ? 'text-red' : ''}>{formatDecimal(row.finalInspectionMaterialRejectionPercentage || 0)}%</td>
+                <td className="text-center">-</td>
+                <td className="text-center">{formatDecimal(row.rawMaterialAcceptedMt)}</td>
+                <td className={`text-center ${row.rawMaterialRejectionPercentage > 2 ? 'text-red' : ''}`}>{formatDecimal(row.rawMaterialRejectionPercentage || 0)}%</td>
+                <td className="text-center">{row.processInspectionMaterialAcceptedNos?.toLocaleString()}</td>
+                <td className={`text-center ${row.processInspectionMaterialRejectionPercentage > 3 ? 'text-red' : ''}`}>{formatDecimal(row.processInspectionMaterialRejectionPercentage || 0)}%</td>
+                <td className="text-center">{row.finalInspectionMaterialAcceptedNos?.toLocaleString()}</td>
+                <td className={`text-center ${row.finalInspectionMaterialRejectionPercentage > 1 ? 'text-red' : ''}`}>{formatDecimal(row.finalInspectionMaterialRejectionPercentage || 0)}%</td>
             </tr>
             {isExpanded && (
                 <tr className="detail-row level-3-container">
-                    <td colSpan="16">
+                    <td colSpan="15">
                         <Level3Table
                             rlyPoSrNo={row.rlyPoSrNo}
                             poNo={poNo}
@@ -336,11 +333,10 @@ function Level2Table({ poNo, expandedSerial, toggleSerial, expandedCall, toggleC
     return (
         <div className="nested-table-wrapper">
             <div className="level-label">Level 2: PO Serial Details</div>
-            <table className="data-table nested-table">
+            <table className="data-table nested-table text-center">
                 <thead>
                     <tr>
                         <th style={{ width: '40px' }}></th>
-                        <th>Sl No.</th>
                         <th>Rly-Sr. No.</th>
                         <th>Consignee</th>
                         <th>DP Date</th>
@@ -416,7 +412,6 @@ export const Level1Row = React.memo(({
                 <td className="text-center">
                     <ExpandIcon isExpanded={isExpanded} />
                 </td>
-                <td>{index + 1}</td>
                 <td><span className="badge-railway">{po?.railway}</span></td>
                 <td className="font-medium text-teal">{po?.poNo}</td>
                 <td>{po?.poDate ? formatDate(po.poDate) : '-'}</td>
@@ -432,7 +427,7 @@ export const Level1Row = React.memo(({
             </tr>
             {isExpanded && (
                 <tr className="detail-row level-2-container">
-                    <td colSpan="14">
+                    <td colSpan="13">
                         <Level2Table
                             poNo={po?.poNo}
                             railway={po?.railway}

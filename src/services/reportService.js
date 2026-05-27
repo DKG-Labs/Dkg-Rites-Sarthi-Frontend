@@ -606,6 +606,54 @@ const reportService = {
         });
         return handleResponse(response);
     },
+
+    getAllCompanies: async () => {
+        const response = await fetch(`${API_ENDPOINTS.REPORTS}/companies`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getUnitsByCompany: async (companyName) => {
+        const response = await fetch(`${API_BASE_URL}/api/poiMapping/companies/${encodeURIComponent(companyName)}/units`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getPoiByCompanyAndUnit: async (companyName, unitName) => {
+        const response = await fetch(`${API_BASE_URL}/api/poiMapping/companies/${encodeURIComponent(companyName)}/units/${encodeURIComponent(unitName)}`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getPlantShiftWiseReport: async (params) => {
+        const { startDate, endDate, poiCode } = params || {};
+        const url = new URL(`${API_BASE_URL}/api/SummaryReports/plant-shift-wise`);
+        if (startDate) url.searchParams.append('startDate', startDate);
+        if (endDate) url.searchParams.append('endDate', endDate);
+        if (poiCode) url.searchParams.append('poiCode', poiCode);
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getPoNumbersByManufacturer: async (manufacturer) => {
+        const url = new URL(`${API_BASE_URL}/api/SummaryReports/po-numbers-by-manufacturer`);
+        url.searchParams.append('manufacturer', manufacturer);
+        const response = await fetch(url.toString(), { headers: getAuthHeaders() });
+        return handleResponse(response);
+    },
+
+    getCallNumbersByPoAndManufacturer: async (poNo, manufacturer) => {
+        const url = new URL(`${API_BASE_URL}/api/SummaryReports/call-numbers-by-po`);
+        url.searchParams.append('poNo', poNo);
+        url.searchParams.append('manufacturer', manufacturer);
+        const response = await fetch(url.toString(), { headers: getAuthHeaders() });
+        return handleResponse(response);
+    }
 };
 
 export default reportService;

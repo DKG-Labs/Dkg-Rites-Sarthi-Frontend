@@ -312,6 +312,81 @@
   border-color: #15803d;
 }
 
+/* New Sleek Filter Dropdowns */
+.cm-filter-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  color: #374151;
+  transition: all 0.15s ease;
+}
+
+.cm-filter-dropdown-item:hover {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+.cm-filter-dropdown-item.selected {
+  font-weight: 600;
+}
+
+.cm-filter-dropdown-item.selected.region {
+  background-color: #f0fdf4;
+  color: #166534;
+}
+
+.cm-filter-dropdown-item.selected.region:hover {
+  background-color: #dcfce7;
+}
+
+.cm-filter-dropdown-item.selected.ie {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+}
+
+.cm-filter-dropdown-item.selected.ie:hover {
+  background-color: #dbeafe;
+}
+
+.cm-filter-dropdown-item.selected.product {
+  background-color: #faf5ff;
+  color: #7c3aed;
+}
+
+.cm-filter-dropdown-item.selected.product:hover {
+  background-color: #f3e8ff;
+}
+
+.cm-filter-dropdown-item.selected.vendor {
+  background-color: #fffbeb;
+  color: #b45309;
+}
+
+.cm-filter-dropdown-item.selected.vendor:hover {
+  background-color: #fef3c7;
+}
+
+.cm-filter-dropdown-item.selected.stage {
+  background-color: #fff7ed;
+  color: #c2410c;
+}
+
+.cm-filter-dropdown-item.selected.stage:hover {
+  background-color: #ffedd5;
+}
+
+.filter-reset-btn:hover {
+  background-color: #fef2f2 !important;
+  border-color: #fca5a5 !important;
+  color: #dc2626 !important;
+}
+
+
 .cm-filter-actions {
   display: flex;
   align-items: center;
@@ -526,7 +601,8 @@
 }
 
 .cm-table th {
-  background: #1e3a8a !important; /* Dark Blue */
+  background: #1e3a8a !important;
+  /* Dark Blue */
   color: #fff !important;
   padding: 3px 4px !important;
   font-weight: 600 !important;
@@ -695,7 +771,7 @@
   border-radius: 12px;
   padding: 18px;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
@@ -739,8 +815,15 @@
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1 }
-  50% { opacity: 0.35 }
+
+  0%,
+  100% {
+    opacity: 1
+  }
+
+  50% {
+    opacity: 0.35
+  }
 }
 
 .scada-metric-card {
@@ -812,8 +895,15 @@
 }
 
 @keyframes pulse-active {
-  0%, 100% { transform: scale(1) }
-  50% { transform: scale(1.2) }
+
+  0%,
+  100% {
+    transform: scale(1)
+  }
+
+  50% {
+    transform: scale(1.2)
+  }
 }
 
 .po-timeline-content {

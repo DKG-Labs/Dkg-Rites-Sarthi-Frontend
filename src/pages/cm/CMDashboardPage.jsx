@@ -1,5 +1,22 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import './CMDashboard.css';
+import '../RailwayBoardDashboardProfessional.css';
+import useReportData from '../../hooks/useReportData';
+import reportService from '../../services/reportService';
+import ProfessionalCardSection from '../../components/railway-board/ProfessionalCardSection';
+import { Level1Row } from '../../components/railway-board/LevelRows';
+import Pagination from '../../components/Pagination';
+
+const REPORT_NAME_TO_SLUG = {
+  'PO Wise Monthly Progress Report': 'mpr',
+  'Monthly Progress Report': 'mpr',
+  'Monthly Analysis of Units': 'mau',
+  'Lot Wise Closed Loop': 'lwcl',
+  'Shift Wise Production Report': 'swp',
+  'Vendor Wise Process Quality Report': 'mpia',
+  'PO Wise Quality Report': 'pwmr',
+  'Quality of Rubber Pad Report': 'qrp'
+};
 
 // Rich Mock Data satisfying the SRS requirements
 const INITIAL_IES = [
@@ -178,6 +195,206 @@ const INITIAL_CALLS = [
     subStatus: 'Initiated',
     remarks: 'Visual checks complete, physical testing in progress.',
     docs: { ic: false, po: true, itp: true, annexure: false, calibration: true }
+  },
+  {
+    id: 'CALL-2026-109',
+    callNumber: 'CALL-2026-109',
+    product: 'ERC',
+    stage: 'Final',
+    poNumber: 'CR-93428947-009',
+    dpDate: '2026-04-10',
+    extDpDate: '2026-04-18',
+    materialValue: 1250000,
+    vendorName: 'Global Materials Corp',
+    desiredInspectionDate: '2026-04-12',
+    callDate: '2026-04-25',
+    ieName: 'Rajesh Kumar',
+    cmName: 'S. K. Verma',
+    ritesRio: 'RIO North',
+    status: 'Completed',
+    subStatus: 'IC Issued',
+    remarks: 'IC issued successfully after delay resolution.',
+    docs: { ic: true, po: true, itp: true, annexure: true, calibration: true }
+  },
+  {
+    id: 'CALL-2026-110',
+    callNumber: 'CALL-2026-110',
+    product: 'Sleeper',
+    stage: 'Final',
+    poNumber: 'CR-93428947-010',
+    dpDate: '2026-04-20',
+    extDpDate: '2026-04-28',
+    materialValue: 2420000,
+    vendorName: 'Premium Materials Inc',
+    desiredInspectionDate: '2026-04-22',
+    callDate: '2026-04-24',
+    ieName: 'Rajesh Kumar',
+    cmName: 'S. K. Verma',
+    ritesRio: 'RIO North',
+    status: 'Completed',
+    subStatus: 'Accepted',
+    remarks: 'Visual checks ok. Accepted.',
+    docs: { ic: true, po: true, itp: true, annexure: true, calibration: true }
+  },
+  {
+    id: 'CALL-2026-111',
+    callNumber: 'CALL-2026-111',
+    product: 'Rail Pad',
+    stage: 'Final',
+    poNumber: 'CR-93428947-011',
+    dpDate: '2026-04-15',
+    extDpDate: '2026-04-22',
+    materialValue: 940000,
+    vendorName: 'Steel Industries Ltd',
+    desiredInspectionDate: '2026-04-16',
+    callDate: '2026-04-18',
+    ieName: 'Priya Sharma',
+    cmName: 'S. K. Verma',
+    ritesRio: 'RIO North',
+    status: 'Completed',
+    subStatus: 'Rejected',
+    remarks: 'Dimensions failed standard criteria. Rejected.',
+    docs: { ic: false, po: true, itp: true, annexure: true, calibration: true }
+  },
+  {
+    id: 'CALL-2026-112',
+    callNumber: 'CALL-2026-112',
+    product: 'ERC',
+    stage: 'RM',
+    poNumber: 'CR-93428947-012',
+    dpDate: '2026-04-05',
+    extDpDate: '2026-04-12',
+    materialValue: 1450000,
+    vendorName: 'Quality Forge Pvt Ltd',
+    desiredInspectionDate: '2026-04-06',
+    callDate: '2026-04-20',
+    ieName: 'Priya Sharma',
+    cmName: 'S. K. Verma',
+    ritesRio: 'RIO North',
+    status: 'Completed',
+    subStatus: 'Withheld',
+    remarks: 'Hardness deviations detected. Withheld for lab verification.',
+    docs: { ic: false, po: true, itp: true, annexure: true, calibration: true }
+  },
+  {
+    id: 'CALL-2026-113',
+    callNumber: 'CALL-2026-113',
+    product: 'Sleeper',
+    stage: 'Process',
+    poNumber: 'CR-93428947-013',
+    dpDate: '2026-04-02',
+    extDpDate: '2026-04-12',
+    materialValue: 3100000,
+    vendorName: 'Precision Engineering Co',
+    desiredInspectionDate: '2026-04-04',
+    callDate: '2026-04-06',
+    ieName: 'Amit Patel',
+    cmName: 'A. K. Gupta',
+    ritesRio: 'RIO East',
+    status: 'Completed',
+    subStatus: 'Partially Accepted',
+    remarks: 'Line 2 passed, Line 3 rejected.',
+    docs: { ic: true, po: true, itp: true, annexure: true, calibration: true }
+  },
+  {
+    id: 'CALL-2026-114',
+    callNumber: 'CALL-2026-114',
+    product: 'Rail Pad',
+    stage: 'Process',
+    poNumber: 'CR-93428947-014',
+    dpDate: '2026-03-25',
+    extDpDate: '2026-04-02',
+    materialValue: 840000,
+    vendorName: 'Global Materials Corp',
+    desiredInspectionDate: '2026-03-26',
+    callDate: '2026-04-10',
+    ieName: 'Amit Patel',
+    cmName: 'A. K. Gupta',
+    ritesRio: 'RIO East',
+    status: 'Completed',
+    subStatus: 'Cancelled',
+    remarks: 'Vendor raw material failed. Call cancelled.',
+    docs: { ic: false, po: true, itp: false, annexure: true, calibration: false }
+  },
+  {
+    id: 'CALL-2026-115',
+    callNumber: 'CALL-2026-115',
+    product: 'ERC',
+    stage: 'Final',
+    poNumber: 'CR-93428947-015',
+    dpDate: '2026-03-10',
+    extDpDate: '2026-03-20',
+    materialValue: 1650000,
+    vendorName: 'Premium Materials Inc',
+    desiredInspectionDate: '2026-03-12',
+    callDate: '2026-03-14',
+    ieName: 'Sneha Reddy',
+    cmName: 'V. S. Rao',
+    ritesRio: 'RIO South',
+    status: 'Completed',
+    subStatus: 'Accepted',
+    remarks: 'Inspection successfully completed.',
+    docs: { ic: true, po: true, itp: true, annexure: true, calibration: true }
+  },
+  {
+    id: 'CALL-2026-116',
+    callNumber: 'CALL-2026-116',
+    product: 'Sleeper',
+    stage: 'RM',
+    poNumber: 'CR-93428947-016',
+    dpDate: '2026-03-20',
+    extDpDate: '2026-03-28',
+    materialValue: 4300000,
+    vendorName: 'Steel Industries Ltd',
+    desiredInspectionDate: '2026-03-22',
+    callDate: '2026-04-05',
+    ieName: 'Sneha Reddy',
+    cmName: 'V. S. Rao',
+    ritesRio: 'RIO South',
+    status: 'Completed',
+    subStatus: 'IC Issued',
+    remarks: 'IC issued after delayed clearances.',
+    docs: { ic: true, po: true, itp: true, annexure: true, calibration: true }
+  },
+  {
+    id: 'CALL-2026-117',
+    callNumber: 'CALL-2026-117',
+    product: 'Rail Pad',
+    stage: 'Final',
+    poNumber: 'CR-93428947-017',
+    dpDate: '2026-03-15',
+    extDpDate: '2026-03-22',
+    materialValue: 880000,
+    vendorName: 'Quality Forge Pvt Ltd',
+    desiredInspectionDate: '2026-03-16',
+    callDate: '2026-03-18',
+    ieName: 'Vikram Singh',
+    cmName: 'M. K. Deshmukh',
+    ritesRio: 'RIO West',
+    status: 'Completed',
+    subStatus: 'Cancelled',
+    remarks: 'Vendor plant breakdown. Call cancelled.',
+    docs: { ic: false, po: true, itp: true, annexure: true, calibration: true }
+  },
+  {
+    id: 'CALL-2026-118',
+    callNumber: 'CALL-2026-118',
+    product: 'Sleeper',
+    stage: 'Final',
+    poNumber: 'CR-93428947-018',
+    dpDate: '2026-03-05',
+    extDpDate: '2026-03-12',
+    materialValue: 2700000,
+    vendorName: 'Precision Engineering Co',
+    desiredInspectionDate: '2026-03-06',
+    callDate: '2026-03-20',
+    ieName: 'Vikram Singh',
+    cmName: 'M. K. Deshmukh',
+    ritesRio: 'RIO West',
+    status: 'Completed',
+    subStatus: 'Partially Accepted',
+    remarks: 'Partial material clearance.',
+    docs: { ic: true, po: true, itp: true, annexure: true, calibration: true }
   }
 ];
 
@@ -188,16 +405,502 @@ const INITIAL_APPROVALS = [
   { id: 'APR-004', callNumber: 'CALL-2026-106', type: 'Withholding Request', ie: 'Rajesh Kumar', vendor: 'Global Materials Corp', product: 'Rail Pad (Process)', requestedDate: '2026-05-26', status: 'pending', priority: 'Critical', details: 'Repeated failing dimensions in thickness test. Inspector requests formal withholding of batch.' }
 ];
 
+const getSidebarReportsByProduct = (product) => {
+  if (product === 'Sleeper') {
+    return [
+      'Monthly Progress Report',
+      'Monthly Analysis of Units',
+      'Lot Wise Closed Loop',
+      'Shift Wise Production Report'
+    ];
+  } else if (product === 'Rail Pad') {
+    return [
+      'Monthly Progress Report',
+      'Monthly Analysis of Units',
+      'Lot Wise Closed Loop',
+      'Shift Wise Production Report',
+      'Quality of Rubber Pad Report'
+    ];
+  } else {
+    return [
+      'PO Wise Monthly Progress Report',
+      'Monthly Analysis of Units',
+      'Lot Wise Closed Loop',
+      'Shift Wise Production Report',
+      'Vendor Wise Process Quality Report',
+      'PO Wise Quality Report'
+    ];
+  }
+};
+
+const MANDAY_VENDORS = [
+  { id: 'V001', name: 'Global Materials Corp' },
+  { id: 'V002', name: 'Premium Materials Inc' },
+  { id: 'V003', name: 'Steel Industries Ltd' },
+  { id: 'V004', name: 'Quality Forge Pvt Ltd' },
+  { id: 'V005', name: 'Precision Engineering Co' }
+];
+
+const MANDAY_UNITS = {
+  'Global Materials Corp': ['Unit-I (Delhi)', 'Unit-II (Jaipur)', 'Plant-3 (Gujarat)'],
+  'Premium Materials Inc': ['Plant-A (Noida)', 'Plant-B (Mohali)'],
+  'Steel Industries Ltd': ['Main Works (Jamshedpur)', 'Rolling Mill (Kharagpur)'],
+  'Quality Forge Pvt Ltd': ['Forge Shop (Chennai)', 'Machining Div (Hosur)'],
+  'Precision Engineering Co': ['Unit-1 (Pune)', 'Unit-2 (Aurangabad)']
+};
+
 export const CMDashboardPage = () => {
   // Navigation tabs state matching SRS options exactly
   const [activeTab, setActiveTab] = useState('Dashboard');
   const [activeCallFilter, setActiveCallFilter] = useState('all'); // Clicked KPI filter: all, pending, under_inspection, ic_pending, completed, overdue
   const [callMenuOpen, setCallMenuOpen] = useState(true); // Call Monitoring submenu toggle
-  const [ieMenuOpen, setIeMenuOpen] = useState(true); // IE Monitoring submenu toggle
-  const [vendorMenuOpen, setVendorMenuOpen] = useState(true); // Vendor Quality Monitoring submenu toggle
-  const [reportsMenuOpen, setReportsMenuOpen] = useState(true); // Reports submenu toggle
-  const [allReportsMenuOpen, setAllReportsMenuOpen] = useState(true); // All Reports submenu toggle
-  const [activeReportTab, setActiveReportTab] = useState('Monthly Progress Report'); // Active sub-report
+  const [ieMenuOpen, setIeMenuOpen] = useState(false); // IE Monitoring submenu toggle
+  const [vendorMenuOpen, setVendorMenuOpen] = useState(false); // Vendor Quality Monitoring submenu toggle
+  const [reportsMenuOpen, setReportsMenuOpen] = useState(false); // Reports submenu toggle
+  const [activeReportTab, setActiveReportTab] = useState('PO Wise Monthly Progress Report'); // Active sub-report
+
+  // --- Process Inspection Manday Calculation States ---
+  const [mandayProduct, setMandayProduct] = useState(''); // 'ERC', 'Sleeper', 'Rail Pad'
+  const [mandayPreference, setMandayPreference] = useState(''); // 'Vendor Wise', 'Call Wise'
+  const [mandayVendor, setMandayVendor] = useState('');
+  const [mandayUnit, setMandayUnit] = useState('');
+  const [mandayStartDate, setMandayStartDate] = useState('');
+  const [mandayEndDate, setMandayEndDate] = useState('');
+  const [mandayCallNumber, setMandayCallNumber] = useState('');
+  const [showMandayReport, setShowMandayReport] = useState(false);
+
+  // States for interactive Sleeper Call-Wise calculations
+  const [sleeperCastApril, setSleeperCastApril] = useState(12000);
+  const [sleeperDaysApril, setSleeperDaysApril] = useState(80);
+  const [sleeperCastMay, setSleeperCastMay] = useState(15000);
+  const [sleeperDaysMay, setSleeperDaysMay] = useState(100);
+
+  // States for interactive IE Billing Sheet calculations (reserved for future Billing Sheet feature)
+  // eslint-disable-next-line no-unused-vars
+  const [ieBillingData, setIeBillingData] = useState({
+    'IE001': { base: 18, travel: 4, rate: 2500 },
+    'IE002': { base: 15, travel: 3, rate: 2500 },
+    'IE003': { base: 20, travel: 5, rate: 2500 },
+    'IE004': { base: 12, travel: 2, rate: 2500 },
+    'IE005': { base: 16, travel: 4, rate: 2500 }
+  });
+
+  // eslint-disable-next-line no-unused-vars
+  const handleIeBillingChange = (ieId, field, value) => {
+    setIeBillingData(prev => ({
+      ...prev,
+      [ieId]: {
+        ...prev[ieId],
+        [field]: Number(value)
+      }
+    }));
+  };
+
+  // --- Railway Board Reports Integration States & Hooks ---
+  const [selectedReportProduct, setSelectedReportProduct] = useState('ERC');
+  const [selectedReportZone, setSelectedReportZone] = useState('all');
+  const [selectedReportRio, setSelectedReportRio] = useState('all');
+
+  const handleProductChange = (newProduct) => {
+    setSelectedReportProduct(newProduct);
+    if (newProduct === 'ERC') {
+      if (activeReportTab === 'Monthly Progress Report' || activeReportTab === 'Quality of Rubber Pad Report') {
+        setActiveReportTab('PO Wise Monthly Progress Report');
+      }
+    } else if (newProduct === 'Sleeper') {
+      if (
+        activeReportTab === 'PO Wise Monthly Progress Report' ||
+        activeReportTab === 'Vendor Wise Process Quality Report' ||
+        activeReportTab === 'PO Wise Quality Report' ||
+        activeReportTab === 'Quality of Rubber Pad Report'
+      ) {
+        setActiveReportTab('Monthly Progress Report');
+      }
+    } else if (newProduct === 'Rail Pad') {
+      if (
+        activeReportTab === 'PO Wise Monthly Progress Report' ||
+        activeReportTab === 'Vendor Wise Process Quality Report' ||
+        activeReportTab === 'PO Wise Quality Report'
+      ) {
+        setActiveReportTab('Monthly Progress Report');
+      }
+    }
+  };
+
+  // Quality Charts States & Data Fetching
+  const [selectedChartsProduct, setSelectedChartsProduct] = useState('ERC');
+  // SQC & SCADA States
+  const [selectedSqcProduct, setSelectedSqcProduct] = useState('ERC');
+  const [selectedScadaProduct, setSelectedScadaProduct] = useState('ERC');
+  const [chartsFromDate, setChartsFromDate] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 6);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+  });
+  const [chartsToDate, setChartsToDate] = useState(() => {
+    const d = new Date();
+    return d.toISOString().split('T')[0];
+  });
+
+  const chartsFilters = useMemo(() => ({
+    startDate: chartsFromDate,
+    endDate: chartsToDate,
+    product: selectedChartsProduct,
+    rio: undefined,
+    zone: undefined,
+    vendor: undefined
+  }), [chartsFromDate, chartsToDate, selectedChartsProduct]);
+
+  const chartsTrendParams = useMemo(() => ({
+    startDate: chartsFromDate,
+    endDate: chartsToDate,
+    product: selectedChartsProduct
+  }), [chartsFromDate, chartsToDate, selectedChartsProduct]);
+
+  // Fetch live Quality datasets
+  const { data: qQualityRejectionData } = useReportData(reportService.getQualityRejection, activeTab === 'Charts' ? chartsFilters : undefined);
+  const { data: qManufacturerRejectionData } = useReportData(reportService.getManufacturerRejection, activeTab === 'Charts' ? chartsFilters : undefined);
+  const { data: qStepWiseRejectionData } = useReportData(reportService.getManufacturingStepWiseRejection, activeTab === 'Charts' ? chartsFilters : undefined);
+  const { data: qProcessPerformanceData } = useReportData(reportService.getProcessPerformance, activeTab === 'Charts' ? chartsFilters : undefined);
+  const { data: qParetoAnalysisData } = useReportData(reportService.getParetoAnalysis, activeTab === 'Charts' ? chartsFilters : undefined);
+  const { data: qMonthlyRejectionTrendData } = useReportData(reportService.getMonthlyRejectionTrend, activeTab === 'Charts' ? chartsTrendParams : undefined);
+  const { data: qInspectionDetailsData } = useReportData(reportService.getInspectionDetails, activeTab === 'Charts' ? chartsTrendParams : undefined);
+
+  // PO Lifecycle States & Data Fetching
+  const [selectedLifecycleProduct, setSelectedLifecycleProduct] = useState('ERC');
+  const [expandedPo, setExpandedPo] = useState(null);
+  const [expandedSerial, setExpandedSerial] = useState(null);
+  const [expandedCall, setExpandedCall] = useState(null);
+
+  const [poSearch, setPoSearch] = useState('');
+  const [poSort, setPoSort] = useState({ key: 'poNo', direction: 'asc' });
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
+
+  const lcFromDate = useMemo(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 6);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+  }, []);
+
+  const lcToDate = useMemo(() => {
+    const d = new Date();
+    return d.toISOString().split('T')[0];
+  }, []);
+
+  const lifecycleFilters = useMemo(() => ({
+    startDate: lcFromDate,
+    endDate: lcToDate,
+    product: selectedLifecycleProduct,
+    rio: undefined,
+    zone: undefined,
+    vendor: undefined
+  }), [lcFromDate, lcToDate, selectedLifecycleProduct]);
+
+  // Fetch Level 1 data for PO Lifecycle
+  const { data: reportData = [] } = useReportData(
+    reportService.getLevel1Report,
+    activeTab === 'PO Lifecycle' ? lifecycleFilters : undefined
+  );
+
+  // Accordion row togglers
+  const togglePo = useCallback((poNo) => {
+    if (expandedPo === poNo) {
+      setExpandedPo(null);
+      setExpandedSerial(null);
+      setExpandedCall(null);
+    } else {
+      setExpandedPo(poNo);
+      setExpandedSerial(null);
+    }
+  }, [expandedPo]);
+
+  const toggleSerial = useCallback((poNo, serialId) => {
+    const compositeId = `${poNo}_${serialId}`;
+    if (expandedSerial === compositeId) {
+      setExpandedSerial(null);
+      setExpandedCall(null);
+    } else {
+      setExpandedSerial(compositeId);
+      setExpandedCall(null);
+    }
+  }, [expandedSerial]);
+
+  const toggleCall = useCallback((callId) => {
+    if (expandedCall === callId) {
+      setExpandedCall(null);
+    } else {
+      setExpandedCall(callId);
+    }
+  }, [expandedCall]);
+
+  const handleChangePage = useCallback((newPage) => setPage(newPage), []);
+  const handleChangeRowsPerPage = useCallback((newRows) => setRowsPerPage(newRows), []);
+
+  // Reset page to 0 when search changes
+  useEffect(() => {
+    setPage(0);
+  }, [poSearch]);
+
+  // Filtered & Sorted PO Data (Client-side)
+  const displayPoData = useMemo(() => {
+    let result = [...(reportData || [])];
+
+    // Filter by Item Category Description based on selected product
+    result = getFilteredRecordsByProduct(result, selectedLifecycleProduct);
+
+    // Search filter
+    if (poSearch) {
+      const query = poSearch.toLowerCase();
+      result = result.filter(po =>
+        (po.rly || '').toLowerCase().includes(query) ||
+        (po.poNo || '').toLowerCase().includes(query) ||
+        (po.vendor || '').toLowerCase().includes(query) ||
+        (po.region || '').toLowerCase().includes(query)
+      );
+    }
+
+    // Sorting
+    if (poSort.key) {
+      result.sort((a, b) => {
+        let aVal = a[poSort.key];
+        let bVal = b[poSort.key];
+
+        // Handle numbers
+        const numA = parseFloat(aVal);
+        const numB = parseFloat(bVal);
+        if (!isNaN(numA) && !isNaN(numB)) {
+          return poSort.direction === 'asc' ? numA - numB : numB - numA;
+        }
+
+        // Handle strings
+        aVal = (aVal || '').toString().toLowerCase();
+        bVal = (bVal || '').toString().toLowerCase();
+        if (aVal < bVal) return poSort.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return poSort.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    return result;
+  }, [reportData, poSearch, poSort, selectedLifecycleProduct]);
+
+  const count = displayPoData.length;
+  const paginatedData = displayPoData.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
+
+  const handlePoSort = useCallback((key) => {
+    setPoSort(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  }, []);
+
+  const renderSortIcon = useCallback((key) => {
+    if (poSort.key !== key) return <span style={{ opacity: 0.3, marginLeft: '5px', fontSize: '11px' }}>↕</span>;
+    return <span style={{ marginLeft: '5px', color: '#10b981', fontSize: '11px' }}>{poSort.direction === 'asc' ? '▲' : '▼'}</span>;
+  }, [poSort]);
+
+  // poTable construct memoized
+  const poTable = useMemo(() => (
+    <div className="content-card-integrated">
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '15px' }}>
+        <div className="prof-search-wrapper" style={{ position: 'relative', width: '300px' }}>
+          <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontSize: '13px' }}></i>
+          <input
+            type="text"
+            placeholder="Search POs, Vendors..."
+            className="prof-search"
+            style={{ width: '100%', paddingLeft: '35px' }}
+            value={poSearch}
+            onChange={(e) => setPoSearch(e.target.value)}
+          />
+        </div>
+      </div>
+      <div className="table-responsive">
+        <table className="prof-table main-table level-1-table">
+          <thead>
+            <tr className="sortable-header">
+              <th style={{ width: '40px' }}></th>
+              <th onClick={() => handlePoSort('rly')} style={{ cursor: 'pointer' }}>Rly {renderSortIcon('rly')}</th>
+              <th onClick={() => handlePoSort('poNo')} style={{ cursor: 'pointer' }}>PO No. {renderSortIcon('poNo')}</th>
+              <th onClick={() => handlePoSort('poDate')} style={{ cursor: 'pointer' }}>PO Date {renderSortIcon('poDate')}</th>
+              <th onClick={() => handlePoSort('vendor')} style={{ cursor: 'pointer' }}>Vendor {renderSortIcon('vendor')}</th>
+              <th onClick={() => handlePoSort('region')} style={{ cursor: 'pointer' }}>Region {renderSortIcon('region')}</th>
+              <th className="text-right" onClick={() => handlePoSort('poQuantityNos')} style={{ cursor: 'pointer' }}>PO Qty {renderSortIcon('poQuantityNos')}</th>
+              <th className="text-right" onClick={() => handlePoSort('acceptedQty')} style={{ cursor: 'pointer' }}>Acc Qty {renderSortIcon('acceptedQty')}</th>
+              <th className="text-right" onClick={() => handlePoSort('balanceQty')} style={{ cursor: 'pointer' }}>Bal Qty {renderSortIcon('balanceQty')}</th>
+              <th className="text-right" onClick={() => handlePoSort('rawMaterialRejectionPercentage')} style={{ cursor: 'pointer' }}>RM % {renderSortIcon('rawMaterialRejectionPercentage')}</th>
+              <th className="text-right" onClick={() => handlePoSort('processInspectionRejectionPercentage')} style={{ cursor: 'pointer' }}>Proc % {renderSortIcon('processInspectionRejectionPercentage')}</th>
+              <th className="text-right" onClick={() => handlePoSort('finalInspectionRejectionPercentage')} style={{ cursor: 'pointer' }}>Final % {renderSortIcon('finalInspectionRejectionPercentage')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginatedData.map((po, index) => (
+              <Level1Row
+                key={po.poNo || po.id}
+                po={po}
+                index={(page * rowsPerPage) + index}
+                expandedPo={expandedPo} togglePo={togglePo}
+                expandedSerial={expandedSerial} toggleSerial={toggleSerial}
+                expandedCall={expandedCall} toggleCall={toggleCall}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <Pagination
+        currentPage={page} totalPages={Math.ceil(count / rowsPerPage)}
+        start={page * rowsPerPage} end={Math.min((page + 1) * rowsPerPage, count)}
+        totalCount={count} onPageChange={handleChangePage}
+        rows={rowsPerPage} onRowsChange={handleChangeRowsPerPage}
+      />
+    </div>
+  ), [paginatedData, page, rowsPerPage, count, expandedPo, expandedSerial, expandedCall, poSearch, renderSortIcon, togglePo, toggleSerial, toggleCall, handlePoSort, handleChangePage, handleChangeRowsPerPage]);
+
+  const [reportFromDate, setReportFromDate] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 6);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+  });
+  const [reportToDate, setReportToDate] = useState(() => {
+    const d = new Date();
+    return d.toISOString().split('T')[0];
+  });
+
+  const reportDashboardFilters = useMemo(() => ({
+    startDate: reportFromDate, endDate: reportToDate, product: selectedReportProduct,
+    rio: selectedReportRio !== 'all' ? selectedReportRio : undefined,
+    zone: selectedReportZone !== 'all' ? selectedReportZone : undefined
+  }), [reportFromDate, reportToDate, selectedReportProduct, selectedReportRio, selectedReportZone]);
+
+  const [mprPage, setMprPage] = useState(0);
+  const [mprRowsPerPage, setMprRowsPerPage] = useState(10);
+  const mprParams = useMemo(() => ({
+    page: 0, size: 10000, ...reportDashboardFilters
+  }), [reportDashboardFilters]);
+
+  const { data: mprData, pagination: mprPagination, loading: mprLoading } = useReportData(
+    selectedReportProduct === 'Sleeper' ? reportService.getSleeperMonthlyProgressReport : reportService.getMonthlyProgressReport,
+    activeTab === 'All Reports' && REPORT_NAME_TO_SLUG[activeReportTab] === 'mpr' ? mprParams : undefined
+  );
+
+  const [mauPage, setMauPage] = useState(0);
+  const [mauRowsPerPage, setMauRowsPerPage] = useState(10);
+  const mauParams = useMemo(() => ({
+    page: 0, size: 10000, ...reportDashboardFilters
+  }), [reportDashboardFilters]);
+
+  const { data: mauData, pagination: mauPagination, loading: mauLoading } = useReportData(
+    selectedReportProduct === 'Sleeper' ? reportService.getSleeperMonthlyAnalysis : reportService.getMonthlyAnalysisOfUnits,
+    activeTab === 'All Reports' && REPORT_NAME_TO_SLUG[activeReportTab] === 'mau' ? mauParams : undefined
+  );
+
+  const [mpiaPage, setMpiaPage] = useState(0);
+  const [mpiaRowsPerPage, setMpiaRowsPerPage] = useState(10);
+  const mpiaParams = useMemo(() => ({
+    page: 0, size: 10000, ...reportDashboardFilters
+  }), [reportDashboardFilters]);
+
+  const { data: mpiaData, pagination: mpiaPagination, loading: mpiaLoading } = useReportData(
+    reportService.getManufactureProcessAnalysis, activeTab === 'All Reports' && REPORT_NAME_TO_SLUG[activeReportTab] === 'mpia' ? mpiaParams : undefined
+  );
+
+  const [lwclCallNo, setLwclCallNo] = useState('');
+  const [lwclLotNo, setLwclLotNo] = useState('');
+  const [lwclRequestIds, setLwclRequestIds] = useState([]);
+  const [lwclLotNumbers, setLwclLotNumbers] = useState([]);
+  const [lwclManufacturer, setLwclManufacturer] = useState('');
+  const [lwclManufacturersList, setLwclManufacturersList] = useState([]);
+  const [lwclPoNo, setLwclPoNo] = useState('');
+  const [lwclPoNumbersList, setLwclPoNumbersList] = useState([]);
+
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const response = await reportService.getAllCompanies();
+        const data = response.responseData || response;
+        if (data && Array.isArray(data)) setLwclManufacturersList(data);
+      } catch (error) { console.error("Error fetching companies:", error); }
+    };
+    if (activeTab === 'All Reports') fetchCompanies();
+  }, [activeTab]);
+
+  useEffect(() => {
+    const fetchPoNumbers = async () => {
+      if (!lwclManufacturer) {
+        setLwclPoNumbersList([]);
+        setLwclPoNo('');
+        return;
+      }
+      try {
+        const response = await reportService.getPoNumbersByManufacturer(lwclManufacturer);
+        const data = response.responseData || response;
+        if (data && Array.isArray(data)) setLwclPoNumbersList(data);
+      } catch (error) { console.error("Error fetching PO numbers:", error); }
+    };
+    fetchPoNumbers();
+  }, [lwclManufacturer]);
+
+  useEffect(() => {
+    const fetchCallNumbers = async () => {
+      if (!lwclPoNo || !lwclManufacturer) {
+        setLwclRequestIds([]);
+        setLwclCallNo('');
+        return;
+      }
+      try {
+        const response = await reportService.getCallNumbersByPoAndManufacturer(lwclPoNo, lwclManufacturer);
+        const data = response.responseData || response;
+        if (data && Array.isArray(data)) {
+          const filteredData = data.filter(id => id && typeof id === 'string' && id.startsWith('EP-'));
+          setLwclRequestIds(filteredData);
+        }
+      } catch (error) { console.error("Error fetching call numbers:", error); }
+    };
+    fetchCallNumbers();
+  }, [lwclPoNo, lwclManufacturer]);
+
+  useEffect(() => {
+    const fetchLots = async () => {
+      if (!lwclCallNo) { setLwclLotNumbers([]); setLwclLotNo(''); return; }
+      try {
+        const response = await reportService.getLotNumbers(lwclCallNo);
+        const data = response.responseData || response;
+        if (data && Array.isArray(data)) setLwclLotNumbers(data);
+      } catch (error) { console.error("Error fetching lot numbers:", error); }
+    };
+    fetchLots();
+  }, [lwclCallNo]);
+
+  const lwclParams = useMemo(() => ({ callNo: lwclCallNo, lotNo: lwclLotNo }), [lwclCallNo, lwclLotNo]);
+  const fetchLwclData = useCallback(async (params) => {
+    if (!params || !params.callNo || !params.lotNo) return { responseStatus: { statusCode: 0 }, responseData: [] };
+    return reportService.getLotClosedLoop(params);
+  }, []);
+  const { data: lwclData, loading: lwclLoading } = useReportData(fetchLwclData, activeTab === 'All Reports' && REPORT_NAME_TO_SLUG[activeReportTab] === 'lwcl' ? lwclParams : undefined);
+
+  const [level4Data, setLevel4Data] = useState([]);
+  const [level4Loading, setLevel4Loading] = useState(false);
+
+  useEffect(() => {
+    const fetchLevel4Report = async () => {
+      if (!lwclCallNo) { setLevel4Data([]); return; }
+      try {
+        setLevel4Loading(true);
+        const response = await reportService.getLevel4Report(lwclCallNo);
+        const data = response.responseData || response;
+        if (data && Array.isArray(data)) setLevel4Data(data); else setLevel4Data([]);
+      } catch (error) { console.error("Error fetching 4th Level Report:", error); setLevel4Data([]); } finally { setLevel4Loading(false); }
+    };
+    if (activeTab === 'All Reports' && REPORT_NAME_TO_SLUG[activeReportTab] === 'lwcl') fetchLevel4Report();
+  }, [lwclCallNo, activeTab, activeReportTab]);
+
+  // Reset pages when filters change
+  useEffect(() => {
+    setMprPage(0);
+    setMauPage(0);
+    setMpiaPage(0);
+  }, [reportDashboardFilters]);
+  // --- End of Railway Board Reports States & Hooks ---
 
   // Collapsible sidebar state
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -214,9 +917,55 @@ export const CMDashboardPage = () => {
   const [selectedVendors, setSelectedVendors] = useState(['Global Materials Corp', 'Premium Materials Inc', 'Steel Industries Ltd', 'Quality Forge Pvt Ltd', 'Precision Engineering Co']);
   const [selectedStages, setSelectedStages] = useState(['RM', 'Process', 'Final']);
   const [searchQuery, setSearchQuery] = useState('');
-  
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
   // Expand/collapse global filters panel
   const [filtersExpanded, setFiltersExpanded] = useState(true);
+  const [openDropdown, setOpenDropdown] = useState(null);
+
+  // Filter preview string helpers
+  const getRegionsPreview = () => {
+    if (selectedRegions.length === 4) return 'All Regions';
+    if (selectedRegions.length === 0) return 'None Selected';
+    if (selectedRegions.length === 1) return selectedRegions[0];
+    return `${selectedRegions[0]} (+${selectedRegions.length - 1})`;
+  };
+
+  const getIEsPreview = () => {
+    if (selectedIEs.length === INITIAL_IES.length) return 'All Engineers';
+    if (selectedIEs.length === 0) return 'None Selected';
+    if (selectedIEs.length === 1) return selectedIEs[0].split(' ')[0]; // Show only first name if space-constrained
+    return `${selectedIEs[0].split(' ')[0]} (+${selectedIEs.length - 1})`;
+  };
+
+  const getProductsPreview = () => {
+    if (selectedProducts.length === 3) return 'All Products';
+    if (selectedProducts.length === 0) return 'None Selected';
+    if (selectedProducts.length === 1) return selectedProducts[0];
+    return `${selectedProducts[0]} (+${selectedProducts.length - 1})`;
+  };
+
+  const getVendorsPreview = () => {
+    if (selectedVendors.length === INITIAL_VENDORS.length) return 'All Vendors';
+    if (selectedVendors.length === 0) return 'None Selected';
+    if (selectedVendors.length === 1) return selectedVendors[0].split(' ')[0];
+    return `${selectedVendors[0].split(' ')[0]} (+${selectedVendors.length - 1})`;
+  };
+
+  const getStagesPreview = () => {
+    if (selectedStages.length === 3) return 'All Stages';
+    if (selectedStages.length === 0) return 'None Selected';
+    if (selectedStages.length === 1) return selectedStages[0];
+    return `${selectedStages[0]} (+${selectedStages.length - 1})`;
+  };
+
+  const getDatesPreview = () => {
+    if (!startDate && !endDate) return 'All Dates';
+    if (startDate && endDate) return `${startDate} to ${endDate}`;
+    if (startDate) return `From ${startDate}`;
+    return `To ${endDate}`;
+  };
 
   // Sorting & Pagination states
   const [sortField, setSortField] = useState('callNumber');
@@ -252,13 +1001,13 @@ export const CMDashboardPage = () => {
       // Global Text Search
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        const matchesQuery = 
+        const matchesQuery =
           call.callNumber.toLowerCase().includes(query) ||
           call.poNumber.toLowerCase().includes(query) ||
           call.vendorName.toLowerCase().includes(query) ||
           (call.ieName && call.ieName.toLowerCase().includes(query)) ||
           call.ritesRio.toLowerCase().includes(query);
-        
+
         if (!matchesQuery) return false;
       }
 
@@ -277,6 +1026,10 @@ export const CMDashboardPage = () => {
       // Inspection Stage Filter
       if (selectedStages.length > 0 && !selectedStages.includes(call.stage)) return false;
 
+      // Date Range Filter
+      if (startDate && call.callDate < startDate) return false;
+      if (endDate && call.callDate > endDate) return false;
+
       // Clicking KPI Card Filtering / Subsection Filtering
       if (activeCallFilter === 'pending') {
         return call.status === 'Pending';
@@ -292,7 +1045,7 @@ export const CMDashboardPage = () => {
 
       return true;
     });
-  }, [calls, searchQuery, selectedRegions, selectedIEs, selectedProducts, selectedVendors, selectedStages, activeCallFilter]);
+  }, [calls, searchQuery, selectedRegions, selectedIEs, selectedProducts, selectedVendors, selectedStages, activeCallFilter, startDate, endDate]);
 
   // Sort Call list
   const sortedCalls = useMemo(() => {
@@ -311,12 +1064,12 @@ export const CMDashboardPage = () => {
       if (valB === undefined || valB === null) return -1;
 
       if (typeof valA === 'string') {
-        return sortDirection === 'asc' 
-          ? valA.localeCompare(valB) 
+        return sortDirection === 'asc'
+          ? valA.localeCompare(valB)
           : valB.localeCompare(valA);
       } else {
-        return sortDirection === 'asc' 
-          ? valA - valB 
+        return sortDirection === 'asc'
+          ? valA - valB
           : valB - valA;
       }
     });
@@ -340,6 +1093,8 @@ export const CMDashboardPage = () => {
       if (selectedProducts.length > 0 && !selectedProducts.includes(call.product)) return false;
       if (selectedVendors.length > 0 && !selectedVendors.includes(call.vendorName)) return false;
       if (selectedStages.length > 0 && !selectedStages.includes(call.stage)) return false;
+      if (startDate && call.callDate < startDate) return false;
+      if (endDate && call.callDate > endDate) return false;
       return true;
     });
 
@@ -351,12 +1106,12 @@ export const CMDashboardPage = () => {
     const overdue = baseList.filter(c => isOverdue(c)).length;
 
     return { total, pending, underInspection, icPending, completed, overdue };
-  }, [calls, selectedRegions, selectedIEs, selectedProducts, selectedVendors, selectedStages]);
+  }, [calls, selectedRegions, selectedIEs, selectedProducts, selectedVendors, selectedStages, startDate, endDate]);
 
   // Handle document PDF mock downloading
   const handleDownloadPdf = (callNumber, docType) => {
     triggerNotification(`Downloading ${docType} document for ${callNumber} in sequence...`, 'info');
-    
+
     // Simulate file generation & download
     setTimeout(() => {
       triggerNotification(`${docType} document downloaded successfully!`, 'success');
@@ -402,12 +1157,15 @@ export const CMDashboardPage = () => {
     setSelectedVendors(['Global Materials Corp', 'Premium Materials Inc', 'Steel Industries Ltd', 'Quality Forge Pvt Ltd', 'Precision Engineering Co']);
     setSelectedStages(['RM', 'Process', 'Final']);
     setSearchQuery('');
+    setStartDate('');
+    setEndDate('');
     setActiveCallFilter('all');
     setCurrentPage(1);
     triggerNotification('Global filters reset to CM default limits.', 'info');
   };
 
-  // Handle Approvals actions
+  // Handle Approvals actions (reserved for future Notification & Approval feature)
+  // eslint-disable-next-line no-unused-vars
   const openApprovalModal = (approval, action) => {
     setActiveApproval(approval);
     setModalAction(action);
@@ -436,7 +1194,7 @@ export const CMDashboardPage = () => {
     // Trigger toast notification
     const actionLabel = modalAction === 'approve' ? 'approved' : modalAction === 'reject' ? 'rejected' : 'forwarded to senior management';
     triggerNotification(`Request ${activeApproval.id} has been successfully ${actionLabel}!`, 'success');
-    
+
     setModalOpen(false);
     setActiveApproval(null);
   };
@@ -487,9 +1245,16 @@ export const CMDashboardPage = () => {
         <nav style={{ paddingBottom: '20px', paddingTop: '10px' }}>
           {/* Dashboard (Direct Item) */}
           <div className="cm-menu-group">
-            <div 
+            <div
               className={`cm-menu-item ${activeTab === 'Dashboard' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('Dashboard'); setActiveCallFilter('all'); }}
+              onClick={() => {
+                setActiveTab('Dashboard');
+                setActiveCallFilter('all');
+                setCallMenuOpen(false);
+                setIeMenuOpen(false);
+                setVendorMenuOpen(false);
+                setReportsMenuOpen(false);
+              }}
             >
               <i className="cm-menu-item-icon fa-solid fa-chart-pie"></i>
               {!isSidebarCollapsed && <span>Dashboard</span>}
@@ -498,12 +1263,15 @@ export const CMDashboardPage = () => {
 
           {/* Call Monitoring (Collapsible Menu) */}
           <div className="cm-menu-group">
-            <div 
+            <div
               className={`cm-menu-item ${activeTab === 'Call Monitoring' ? 'active' : ''}`}
               onClick={() => {
                 setActiveTab('Call Monitoring');
                 setActiveCallFilter('all');
                 setCallMenuOpen(!callMenuOpen);
+                setIeMenuOpen(false);
+                setVendorMenuOpen(false);
+                setReportsMenuOpen(false);
               }}
               style={!isSidebarCollapsed ? { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } : undefined}
             >
@@ -519,45 +1287,45 @@ export const CMDashboardPage = () => {
                 <i className="cm-menu-item-icon fa-solid fa-phone"></i>
               )}
             </div>
-            
+
             {callMenuOpen && !isSidebarCollapsed && (
               <div className="cm-submenu">
-                <div 
+                <div
                   className={`cm-submenu-link ${activeTab === 'Call Monitoring' && activeCallFilter === 'all' ? 'active' : ''}`}
                   onClick={() => handleCallMonitoringTab('all')}
                 >
                   <i className="fa-solid fa-phone" style={{ marginRight: '8px', fontSize: '11px' }}></i>
                   All Calls
                 </div>
-                <div 
+                <div
                   className={`cm-submenu-link ${activeTab === 'Call Monitoring' && activeCallFilter === 'pending' ? 'active' : ''}`}
                   onClick={() => handleCallMonitoringTab('pending')}
                 >
                   <i className="fa-solid fa-hourglass-half" style={{ marginRight: '8px', fontSize: '11px' }}></i>
                   Pending Calls
                 </div>
-                <div 
+                <div
                   className={`cm-submenu-link ${activeTab === 'Call Monitoring' && activeCallFilter === 'under_inspection' ? 'active' : ''}`}
                   onClick={() => handleCallMonitoringTab('under_inspection')}
                 >
                   <i className="fa-solid fa-sliders" style={{ marginRight: '8px', fontSize: '11px' }}></i>
                   Under Inspection Calls
                 </div>
-                <div 
+                <div
                   className={`cm-submenu-link ${activeTab === 'Call Monitoring' && activeCallFilter === 'ic_pending' ? 'active' : ''}`}
                   onClick={() => handleCallMonitoringTab('ic_pending')}
                 >
                   <i className="fa-solid fa-file-invoice" style={{ marginRight: '8px', fontSize: '11px' }}></i>
                   IC Issuance Pending
                 </div>
-                <div 
+                <div
                   className={`cm-submenu-link ${activeTab === 'Call Monitoring' && activeCallFilter === 'completed' ? 'active' : ''}`}
                   onClick={() => handleCallMonitoringTab('completed')}
                 >
                   <i className="fa-solid fa-circle-check" style={{ marginRight: '8px', fontSize: '11px' }}></i>
                   Completed Calls
                 </div>
-                <div 
+                <div
                   className={`cm-submenu-link ${activeTab === 'Call Monitoring' && activeCallFilter === 'overdue' ? 'active' : ''}`}
                   onClick={() => handleCallMonitoringTab('overdue')}
                 >
@@ -570,11 +1338,14 @@ export const CMDashboardPage = () => {
 
           {/* IE Monitoring (Collapsible Menu) */}
           <div className="cm-menu-group">
-            <div 
+            <div
               className={`cm-menu-item ${['IE wise Call Status', 'IE Performance Monitoring'].includes(activeTab) ? 'active' : ''}`}
               onClick={() => {
                 setActiveTab('IE wise Call Status');
                 setIeMenuOpen(!ieMenuOpen);
+                setCallMenuOpen(false);
+                setVendorMenuOpen(false);
+                setReportsMenuOpen(false);
               }}
               style={!isSidebarCollapsed ? { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } : undefined}
             >
@@ -590,17 +1361,17 @@ export const CMDashboardPage = () => {
                 <i className="cm-menu-item-icon fa-solid fa-users-viewfinder"></i>
               )}
             </div>
-            
+
             {ieMenuOpen && !isSidebarCollapsed && (
               <div className="cm-submenu">
-                <div 
+                <div
                   className={`cm-submenu-link ${activeTab === 'IE wise Call Status' ? 'active' : ''}`}
                   onClick={() => setActiveTab('IE wise Call Status')}
                 >
                   <i className="fa-solid fa-map-pin" style={{ marginRight: '8px', fontSize: '11px' }}></i>
                   IE wise Call Status
                 </div>
-                <div 
+                <div
                   className={`cm-submenu-link ${activeTab === 'IE Performance Monitoring' ? 'active' : ''}`}
                   onClick={() => setActiveTab('IE Performance Monitoring')}
                 >
@@ -613,11 +1384,14 @@ export const CMDashboardPage = () => {
 
           {/* Vendor Quality Monitoring (Collapsible Menu) */}
           <div className="cm-menu-group">
-            <div 
+            <div
               className={`cm-menu-item ${['Vendor Quality Monitoring', 'Charts', 'All Reports', 'SQC Analysis', 'SCADA Monitoring'].includes(activeTab) ? 'active' : ''}`}
               onClick={() => {
                 setActiveTab('Vendor Quality Monitoring');
                 setVendorMenuOpen(!vendorMenuOpen);
+                setCallMenuOpen(false);
+                setIeMenuOpen(false);
+                setReportsMenuOpen(false);
               }}
               style={!isSidebarCollapsed ? { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } : undefined}
             >
@@ -633,63 +1407,40 @@ export const CMDashboardPage = () => {
                 <i className="cm-menu-item-icon fa-solid fa-industry"></i>
               )}
             </div>
-            
+
             {vendorMenuOpen && !isSidebarCollapsed && (
               <div className="cm-submenu">
-                <div 
+                <div
                   className={`cm-submenu-link ${activeTab === 'Charts' ? 'active' : ''}`}
                   onClick={() => setActiveTab('Charts')}
                 >
                   <i className="fa-solid fa-chart-column" style={{ marginRight: '8px', fontSize: '11px' }}></i>
                   Charts
                 </div>
-                <div 
-                  className={`cm-submenu-link ${activeTab === 'All Reports' ? 'active' : ''}`}
-                  onClick={() => {
-                    setActiveTab('All Reports');
-                    setAllReportsMenuOpen(!allReportsMenuOpen);
-                  }}
-                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <i className="fa-solid fa-clipboard-list" style={{ marginRight: '8px', fontSize: '11px' }}></i>
-                    <span>All Reports</span>
-                  </div>
-                  <i className={`fa-solid fa-xs ${allReportsMenuOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`} style={{ opacity: 0.6 }}></i>
-                </div>
 
-                {allReportsMenuOpen && activeTab === 'All Reports' && (
-                  <div className="cm-nested-submenu" style={{ paddingLeft: '12px', borderLeft: '1.5px solid rgba(21, 128, 61, 0.25)', marginLeft: '16px', marginTop: '4px', marginBottom: '8px' }}>
-                    {[
-                      'Monthly Progress Report',
-                      'Monthly Analysis of Units',
-                      'Lot Wise Closed Loop',
-                      'Shift Wise Production Report',
-                      'Vendor wise Monthly Report',
-                      'PO Wise Monthly Report'
-                    ].map(reportName => (
-                      <div 
-                        key={reportName}
-                        className={`cm-submenu-link ${activeReportTab === reportName ? 'active' : ''}`}
-                        onClick={() => {
-                          setActiveTab('All Reports');
-                          setActiveReportTab(reportName);
-                        }}
-                        style={{ fontSize: '12px', padding: '6px 10px', whiteSpace: 'normal', height: 'auto', display: 'block', margin: '4px 0' }}
-                      >
-                        {reportName}
-                      </div>
-                    ))}
+                {getSidebarReportsByProduct(selectedReportProduct).map(reportName => (
+                  <div
+                    key={reportName}
+                    className={`cm-submenu-link ${activeTab === 'All Reports' && activeReportTab === reportName ? 'active' : ''}`}
+                    onClick={() => {
+                      setActiveTab('All Reports');
+                      setActiveReportTab(reportName);
+                    }}
+                    style={{ fontSize: '11.5px', padding: '6px 8px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                  >
+                    <i className="fa-solid fa-file-lines" style={{ fontSize: '11px', opacity: 0.8 }}></i>
+                    <span style={{ lineHeight: '1.2' }}>{reportName}</span>
                   </div>
-                )}
-                <div 
+                ))}
+
+                <div
                   className={`cm-submenu-link ${activeTab === 'SQC Analysis' ? 'active' : ''}`}
                   onClick={() => setActiveTab('SQC Analysis')}
                 >
                   <i className="fa-solid fa-chart-line" style={{ marginRight: '8px', fontSize: '11px' }}></i>
                   SQC Analysis
                 </div>
-                <div 
+                <div
                   className={`cm-submenu-link ${activeTab === 'SCADA Monitoring' ? 'active' : ''}`}
                   onClick={() => setActiveTab('SCADA Monitoring')}
                 >
@@ -702,22 +1453,31 @@ export const CMDashboardPage = () => {
 
           {/* PO Lifecycle (Direct Item) */}
           <div className="cm-menu-group">
-            <div 
+            <div
               className={`cm-menu-item ${activeTab === 'PO Lifecycle' ? 'active' : ''}`}
-              onClick={() => setActiveTab('PO Lifecycle')}
+              onClick={() => {
+                setActiveTab('PO Lifecycle');
+                setCallMenuOpen(false);
+                setIeMenuOpen(false);
+                setVendorMenuOpen(false);
+                setReportsMenuOpen(false);
+              }}
             >
-              <i className="cm-menu-item-icon fa-solid fa-diagram-project"></i>
+              <i className="cm-menu-item-icon fa-solid fa-file-contract"></i>
               {!isSidebarCollapsed && <span>PO Lifecycle</span>}
             </div>
           </div>
 
           {/* Reports (Collapsible Menu) */}
           <div className="cm-menu-group">
-            <div 
-              className={`cm-menu-item ${['Reports', 'Mandays Calculation'].includes(activeTab) ? 'active' : ''}`}
+            <div
+              className={`cm-menu-item ${['Mandays Calculation', 'Billing Sheet'].includes(activeTab) ? 'active' : ''}`}
               onClick={() => {
-                setActiveTab('Reports');
+                setActiveTab('Mandays Calculation');
                 setReportsMenuOpen(!reportsMenuOpen);
+                setCallMenuOpen(false);
+                setIeMenuOpen(false);
+                setVendorMenuOpen(false);
               }}
               style={!isSidebarCollapsed ? { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } : undefined}
             >
@@ -733,15 +1493,24 @@ export const CMDashboardPage = () => {
                 <i className="cm-menu-item-icon fa-solid fa-download"></i>
               )}
             </div>
-            
+
             {reportsMenuOpen && !isSidebarCollapsed && (
               <div className="cm-submenu">
-                <div 
+                <div
                   className={`cm-submenu-link ${activeTab === 'Mandays Calculation' ? 'active' : ''}`}
                   onClick={() => setActiveTab('Mandays Calculation')}
+                  style={{ fontSize: '11.5px', padding: '6px 8px', display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
-                  <i className="fa-solid fa-calculator" style={{ marginRight: '8px', fontSize: '11px' }}></i>
-                  Mandays Calculation
+                  <i className="fa-solid fa-calculator" style={{ fontSize: '11px', opacity: 0.8 }} />
+                  <span style={{ lineHeight: '1.2' }}>Process Inspection Mandays Calculation</span>
+                </div>
+                <div
+                  className={`cm-submenu-link ${activeTab === 'Billing Sheet' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('Billing Sheet')}
+                  style={{ fontSize: '11.5px', padding: '6px 8px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                >
+                  <i className="fa-solid fa-file-invoice-dollar" style={{ fontSize: '11px', opacity: 0.8 }} />
+                  <span style={{ lineHeight: '1.2' }}>Billing Sheet</span>
                 </div>
               </div>
             )}
@@ -749,14 +1518,20 @@ export const CMDashboardPage = () => {
 
           {/* Notification & Approval (Direct Item) */}
           <div className="cm-menu-group">
-            <div 
+            <div
               className={`cm-menu-item ${activeTab === 'Notification & Approval' ? 'active' : ''}`}
-              onClick={() => setActiveTab('Notification & Approval')}
+              onClick={() => {
+                setActiveTab('Notification & Approval');
+                setCallMenuOpen(false);
+                setIeMenuOpen(false);
+                setVendorMenuOpen(false);
+                setReportsMenuOpen(false);
+              }}
             >
               <i className="cm-menu-item-icon fa-solid fa-key"></i>
               {!isSidebarCollapsed && (
                 <span>
-                  Notification & Approval 
+                  Notification & Approval
                   {pendingApprovalsCount > 0 && (
                     <span style={{
                       marginLeft: '8px',
@@ -777,7 +1552,7 @@ export const CMDashboardPage = () => {
 
       {/* Main Panel Content Area */}
       <main className="cm-main-panel">
-        
+
         {/* Custom Notifications Toast */}
         {notification && (
           <div style={{
@@ -797,274 +1572,670 @@ export const CMDashboardPage = () => {
           </div>
         )}
 
-        {/* Global CM Dashboard and Call Monitoring Tabs */}
+        {/* Shared Header for Core CM & IE Monitoring Tabs */}
+        {['Dashboard', 'Call Monitoring', 'IE wise Call Status', 'IE Performance Monitoring'].includes(activeTab) && (
+          <div className="cm-panel-header">
+            <div className="cm-panel-title-area">
+              <h1 className="cm-panel-title">
+                {activeTab === 'Dashboard' ? 'Controlling Manager Dashboard' :
+                  activeTab === 'Call Monitoring' ? 'Call Monitoring Center' :
+                    activeTab === 'IE wise Call Status' ? 'Inspection Engineers Wise Call Status' :
+                      'Inspection Engineers Performance Monitoring'}
+              </h1>
+              <p className="cm-panel-subtitle">
+                {activeTab === 'Dashboard' || activeTab === 'Call Monitoring' ?
+                  'Live monitoring, validation, and analytics of ERC, Sleeper, and Rail Pad inspection assignments.' :
+                  activeTab === 'IE wise Call Status' ?
+                    'Performance breakdown and current operational assignment statuses of assigned IEs.' :
+                    'SLA compliance logs, average completed call statistics, and workload capacity ratings.'}
+              </p>
+            </div>
+            <button className="btn btn--outline" onClick={handleResetFilters}>
+              <i className="fa-solid fa-rotate-left" style={{ marginRight: '6px' }}></i> Reset Filters
+            </button>
+          </div>
+        )}
+
+        {/* KPI Cards Grid - only for Dashboard & Call Monitoring */}
         {(activeTab === 'Dashboard' || activeTab === 'Call Monitoring') && (
-          <>
-            {/* Header Area */}
-            <div className="cm-panel-header">
-              <div className="cm-panel-title-area">
-                <h1 className="cm-panel-title">
-                  {activeTab === 'Dashboard' ? 'Controlling Manager Dashboard' : 'Call Monitoring Center'}
-                </h1>
-                <p className="cm-panel-subtitle">
-                  Live monitoring, validation, and analytics of ERC, Sleeper, and Rail Pad inspection assignments.
-                </p>
+          <section className="cm-kpi-grid">
+            <div
+              className={`cm-kpi-card card-dark-green ${activeCallFilter === 'all' ? 'active' : ''}`}
+              onClick={() => { setActiveCallFilter('all'); setCurrentPage(1); }}
+            >
+              <div className="cm-kpi-header">
+                <span className="cm-kpi-title">Total Calls</span>
+                <i className="cm-kpi-icon fa-solid fa-list-check"></i>
               </div>
-              <button className="btn btn--outline" onClick={handleResetFilters}>
-                <i className="fa-solid fa-rotate-left" style={{ marginRight: '6px' }}></i> Reset Filters
-              </button>
+              <div className="cm-kpi-value">{kpiStats.total}</div>
+              <div className="cm-kpi-footer">Calls in current view</div>
             </div>
 
-            {/* KPI Cards Grid - CLICKABLE triggers Call table filter, Styled exactly matching RB professional cards */}
-            <section className="cm-kpi-grid">
-              <div 
-                className={`cm-kpi-card card-dark-green ${activeCallFilter === 'all' ? 'active' : ''}`}
-                onClick={() => { setActiveCallFilter('all'); setCurrentPage(1); }}
-              >
-                <div className="cm-kpi-header">
-                  <span className="cm-kpi-title">Total Calls</span>
-                  <i className="cm-kpi-icon fa-solid fa-list-check"></i>
-                </div>
-                <div className="cm-kpi-value">{kpiStats.total}</div>
-                <div className="cm-kpi-footer">Calls in current view</div>
+            <div
+              className={`cm-kpi-card card-amber ${activeCallFilter === 'pending' ? 'active' : ''}`}
+              onClick={() => { setActiveCallFilter('pending'); setCurrentPage(1); }}
+            >
+              <div className="cm-kpi-header">
+                <span className="cm-kpi-title">Pending Calls</span>
+                <i className="cm-kpi-icon fa-solid fa-hourglass-half"></i>
               </div>
+              <div className="cm-kpi-value">{kpiStats.pending}</div>
+              <div className="cm-kpi-footer">Raised & uninitiated by IE</div>
+            </div>
 
-              <div 
-                className={`cm-kpi-card card-amber ${activeCallFilter === 'pending' ? 'active' : ''}`}
-                onClick={() => { setActiveCallFilter('pending'); setCurrentPage(1); }}
-              >
-                <div className="cm-kpi-header">
-                  <span className="cm-kpi-title">Pending Calls</span>
-                  <i className="cm-kpi-icon fa-solid fa-hourglass-half"></i>
-                </div>
-                <div className="cm-kpi-value">{kpiStats.pending}</div>
-                <div className="cm-kpi-footer">Raised & uninitiated by IE</div>
+            <div
+              className={`cm-kpi-card card-ocean ${activeCallFilter === 'under_inspection' ? 'active' : ''}`}
+              onClick={() => { setActiveCallFilter('under_inspection'); setCurrentPage(1); }}
+            >
+              <div className="cm-kpi-header">
+                <span className="cm-kpi-title">Under Inspection Calls</span>
+                <i className="cm-kpi-icon fa-solid fa-sliders"></i>
               </div>
+              <div className="cm-kpi-value">{kpiStats.underInspection}</div>
+              <div className="cm-kpi-footer">Initiated but not completed</div>
+            </div>
 
-              <div 
-                className={`cm-kpi-card card-ocean ${activeCallFilter === 'under_inspection' ? 'active' : ''}`}
-                onClick={() => { setActiveCallFilter('under_inspection'); setCurrentPage(1); }}
-              >
-                <div className="cm-kpi-header">
-                  <span className="cm-kpi-title">Under Inspection Calls</span>
-                  <i className="cm-kpi-icon fa-solid fa-sliders"></i>
-                </div>
-                <div className="cm-kpi-value">{kpiStats.underInspection}</div>
-                <div className="cm-kpi-footer">Initiated but not completed</div>
+            <div
+              className={`cm-kpi-card card-indigo ${activeCallFilter === 'ic_pending' ? 'active' : ''}`}
+              onClick={() => { setActiveCallFilter('ic_pending'); setCurrentPage(1); }}
+            >
+              <div className="cm-kpi-header">
+                <span className="cm-kpi-title">IC Issuance Pending</span>
+                <i className="cm-kpi-icon fa-solid fa-file-invoice"></i>
               </div>
+              <div className="cm-kpi-value">{kpiStats.icPending}</div>
+              <div className="cm-kpi-footer">Pending IC issuance</div>
+            </div>
 
-              <div 
-                className={`cm-kpi-card card-indigo ${activeCallFilter === 'ic_pending' ? 'active' : ''}`}
-                onClick={() => { setActiveCallFilter('ic_pending'); setCurrentPage(1); }}
-              >
-                <div className="cm-kpi-header">
-                  <span className="cm-kpi-title">IC Issuance Pending</span>
-                  <i className="cm-kpi-icon fa-solid fa-file-invoice"></i>
-                </div>
-                <div className="cm-kpi-value">{kpiStats.icPending}</div>
-                <div className="cm-kpi-footer">Pending IC issuance</div>
+            <div
+              className={`cm-kpi-card card-spring-green ${activeCallFilter === 'completed' ? 'active' : ''}`}
+              onClick={() => { setActiveCallFilter('completed'); setCurrentPage(1); }}
+            >
+              <div className="cm-kpi-header">
+                <span className="cm-kpi-title">Completed Calls</span>
+                <i className="cm-kpi-icon fa-solid fa-circle-check"></i>
               </div>
+              <div className="cm-kpi-value">{kpiStats.completed}</div>
+              <div className="cm-kpi-footer">Finished & IC Dispatched</div>
+            </div>
 
-              <div 
-                className={`cm-kpi-card card-spring-green ${activeCallFilter === 'completed' ? 'active' : ''}`}
-                onClick={() => { setActiveCallFilter('completed'); setCurrentPage(1); }}
-              >
-                <div className="cm-kpi-header">
-                  <span className="cm-kpi-title">Completed Calls</span>
-                  <i className="cm-kpi-icon fa-solid fa-circle-check"></i>
-                </div>
-                <div className="cm-kpi-value">{kpiStats.completed}</div>
-                <div className="cm-kpi-footer">Finished & IC Dispatched</div>
+            <div
+              className={`cm-kpi-card card-ruby ${activeCallFilter === 'overdue' ? 'active' : ''}`}
+              onClick={() => { setActiveCallFilter('overdue'); setCurrentPage(1); }}
+            >
+              <div className="cm-kpi-header">
+                <span className="cm-kpi-title">Overdue Calls</span>
+                <i className="cm-kpi-icon fa-solid fa-triangle-exclamation"></i>
               </div>
+              <div className="cm-kpi-value">{kpiStats.overdue}</div>
+              <div className="cm-kpi-footer">Crossed desired date by 7d</div>
+            </div>
+          </section>
+        )}
 
-              <div 
-                className={`cm-kpi-card card-ruby ${activeCallFilter === 'overdue' ? 'active' : ''}`}
-                onClick={() => { setActiveCallFilter('overdue'); setCurrentPage(1); }}
-              >
-                <div className="cm-kpi-header">
-                  <span className="cm-kpi-title">Overdue Calls</span>
-                  <i className="cm-kpi-icon fa-solid fa-triangle-exclamation"></i>
-                </div>
-                <div className="cm-kpi-value">{kpiStats.overdue}</div>
-                <div className="cm-kpi-footer">Crossed desired date by 7d</div>
+        {/* Global Filters Panel — Premium Redesign (shared across core tabs) */}
+        {['Dashboard', 'Call Monitoring', 'IE wise Call Status', 'IE Performance Monitoring'].includes(activeTab) && (
+          <section style={{ background: '#fff', borderRadius: '12px', border: '1px solid #d1fae5', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', overflow: 'visible' }}>
+            {/* Sleek Minimalist Header Bar */}
+            <div
+              onClick={() => { setFiltersExpanded(!filtersExpanded); setOpenDropdown(null); }}
+              style={{
+                background: '#ffffff',
+                borderLeft: '4px solid #166534',
+                padding: '10px 16px',
+                cursor: 'pointer',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                userSelect: 'none',
+                borderTopLeftRadius: '12px',
+                borderTopRightRadius: '12px',
+                borderBottomLeftRadius: filtersExpanded ? '0' : '12px',
+                borderBottomRightRadius: filtersExpanded ? '0' : '12px'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-solid fa-sliders" style={{ color: '#166534', fontSize: '13px' }} />
+                <span style={{ color: '#166534', fontWeight: '700', fontSize: '12px', letterSpacing: '0.3px' }}>Global Controls &amp; Filters</span>
+                <span style={{ background: '#f0fdf4', color: '#166534', borderRadius: '12px', padding: '2px 8px', fontSize: '10px', fontWeight: '700', border: '1px solid #bbf7d0', marginLeft: '6px' }}>
+                  {selectedRegions.length + selectedIEs.length + selectedProducts.length + selectedVendors.length + selectedStages.length + (startDate || endDate ? 1 : 0)} active
+                </span>
               </div>
-            </section>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4b6b4b', fontSize: '11px', fontWeight: '500' }}>
+                <span>{filtersExpanded ? 'Click to collapse' : 'Click to expand'}</span>
+                <i className={`fa-solid ${filtersExpanded ? 'fa-chevron-up' : 'fa-chevron-down'}`} style={{ fontSize: '10px' }} />
+              </div>
+            </div>
 
-            {/* Global Filters Panel — Premium Redesign */}
-            <section style={{ background: '#fff', borderRadius: '12px', border: '1px solid #d1fae5', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
-              {/* Header Bar */}
+            {/* Click-outside popover manager */}
+            {openDropdown && (
               <div
-                onClick={() => setFiltersExpanded(!filtersExpanded)}
-                style={{
-                  background: 'linear-gradient(135deg, #14532d 0%, #166534 100%)',
-                  padding: '10px 20px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <i className="fa-solid fa-sliders" style={{ color: '#fff', fontSize: '13px' }} />
-                  </div>
-                  <div>
-                    <div style={{ color: '#fff', fontWeight: '700', fontSize: '13px', letterSpacing: '0.3px' }}>Global Controls &amp; Filters</div>
-                    <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: '11px' }}>
-                      {filtersExpanded ? 'Click to collapse' : `${selectedRegions.length + selectedIEs.length + selectedProducts.length + selectedVendors.length + selectedStages.length} filters active`}
-                    </div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', borderRadius: '20px', padding: '3px 10px', fontSize: '11px', fontWeight: '700' }}>
-                    {selectedRegions.length + selectedIEs.length + selectedProducts.length + selectedVendors.length + selectedStages.length} active
-                  </div>
-                  <i className={`fa-solid ${filtersExpanded ? 'fa-chevron-up' : 'fa-chevron-down'}`} style={{ color: 'rgba(255,255,255,0.8)', fontSize: '12px' }} />
-                </div>
-              </div>
+                onClick={() => setOpenDropdown(null)}
+                style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 998 }}
+              />
+            )}
 
-              {filtersExpanded && (
-                <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '16px' }}>
+            {filtersExpanded && (
+              <div style={{ padding: '12px 16px', display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center', background: '#fafafa', borderTop: '1px solid #f0fdf4', borderBottomLeftRadius: '12px', borderBottomRightRadius: '12px' }}>
+                {/* Unified Search Input */}
+                <div style={{ position: 'relative', flex: '1', minWidth: '240px' }}>
+                  <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontSize: '12px' }} />
+                  <input
+                    type="text"
+                    placeholder="Search by Call no., PO, Vendor, IE or CM..."
+                    value={searchQuery}
+                    onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                    style={{
+                      width: '100%',
+                      padding: '7px 12px 7px 34px',
+                      borderRadius: '6px',
+                      border: '1px solid #d1fae5',
+                      background: '#fff',
+                      fontSize: '12px',
+                      color: '#1a2e1a',
+                      outline: 'none',
+                      fontFamily: 'inherit',
+                      transition: 'all 0.15s'
+                    }}
+                  />
+                </div>
 
-                    {/* Region */}
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '8px' }}>
-                        <div style={{ width: '20px', height: '20px', borderRadius: '5px', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <i className="fa-solid fa-location-dot" style={{ fontSize: '10px', color: '#15803d' }} />
-                        </div>
-                        <span style={{ fontSize: '10px', fontWeight: '700', color: '#4b6b4b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Region (RIO)</span>
-                      </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                {/* Inline Popover Selectors */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+                  
+                  {/* Region Select */}
+                  <div style={{ position: 'relative' }}>
+                    <button
+                      onClick={() => setOpenDropdown(openDropdown === 'region' ? null : 'region')}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '7px 12px',
+                        borderRadius: '6px',
+                        background: selectedRegions.length < 4 ? '#f0fdf4' : '#fff',
+                        border: `1px solid ${selectedRegions.length < 4 ? '#bbf7d0' : '#e2e8f0'}`,
+                        color: selectedRegions.length < 4 ? '#166534' : '#4b5563',
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s'
+                      }}
+                    >
+                      <i className="fa-solid fa-location-dot" style={{ color: '#166534', opacity: 0.8 }} />
+                      <span>Region: {getRegionsPreview()}</span>
+                      <i className="fa-solid fa-chevron-down" style={{ fontSize: '9px', opacity: 0.7, transform: openDropdown === 'region' ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+                    </button>
+
+                    {openDropdown === 'region' && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        marginTop: '6px',
+                        background: '#fff',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '8px',
+                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                        zIndex: 999,
+                        minWidth: '180px',
+                        padding: '8px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px'
+                      }}>
+                        <div style={{ padding: '4px 8px', fontSize: '9px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Filter by Region</div>
                         {['RIO North', 'RIO East', 'RIO South', 'RIO West'].map(rio => {
                           const on = selectedRegions.includes(rio);
                           return (
-                            <div key={rio} onClick={() => toggleFilterOption(rio, selectedRegions, setSelectedRegions)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', borderRadius: '20px', cursor: 'pointer', fontSize: '11px', fontWeight: '600', transition: 'all 0.2s', background: on ? '#14532d' : '#f0fdf4', color: on ? '#fff' : '#14532d', border: `1px solid ${on ? '#14532d' : '#bbf7d0'}`, boxShadow: on ? '0 2px 6px rgba(21,128,61,0.25)' : 'none' }}>
-                              {on && <i className="fa-solid fa-check" style={{ fontSize: '9px' }} />}
-                              {rio}
+                            <div
+                              key={rio}
+                              onClick={() => toggleFilterOption(rio, selectedRegions, setSelectedRegions)}
+                              className={`cm-filter-dropdown-item ${on ? 'selected region' : ''}`}
+                            >
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{
+                                  width: '14px',
+                                  height: '14px',
+                                  borderRadius: '3px',
+                                  border: `1px solid ${on ? '#166534' : '#cbd5e1'}`,
+                                  background: on ? '#166534' : '#fff',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: '#fff',
+                                  fontSize: '9px'
+                                }}>
+                                  {on && <i className="fa-solid fa-check" />}
+                                </div>
+                                {rio}
+                              </span>
                             </div>
                           );
                         })}
                       </div>
-                    </div>
+                    )}
+                  </div>
 
-                    {/* IE */}
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '8px' }}>
-                        <div style={{ width: '20px', height: '20px', borderRadius: '5px', background: '#dbeafe', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <i className="fa-solid fa-user-tie" style={{ fontSize: '10px', color: '#1d4ed8' }} />
-                        </div>
-                        <span style={{ fontSize: '10px', fontWeight: '700', color: '#4b6b4b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Engineer (IE)</span>
-                      </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                  {/* IE Select */}
+                  <div style={{ position: 'relative' }}>
+                    <button
+                      onClick={() => setOpenDropdown(openDropdown === 'ie' ? null : 'ie')}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '7px 12px',
+                        borderRadius: '6px',
+                        background: selectedIEs.length < INITIAL_IES.length ? '#eff6ff' : '#fff',
+                        border: `1px solid ${selectedIEs.length < INITIAL_IES.length ? '#bfdbfe' : '#e2e8f0'}`,
+                        color: selectedIEs.length < INITIAL_IES.length ? '#1d4ed8' : '#4b5563',
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s'
+                      }}
+                    >
+                      <i className="fa-solid fa-user-tie" style={{ color: '#1d4ed8', opacity: 0.8 }} />
+                      <span>IE: {getIEsPreview()}</span>
+                      <i className="fa-solid fa-chevron-down" style={{ fontSize: '9px', opacity: 0.7, transform: openDropdown === 'ie' ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+                    </button>
+
+                    {openDropdown === 'ie' && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        marginTop: '6px',
+                        background: '#fff',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '8px',
+                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                        zIndex: 999,
+                        minWidth: '180px',
+                        padding: '8px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px'
+                      }}>
+                        <div style={{ padding: '4px 8px', fontSize: '9px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Filter by Engineer</div>
                         {INITIAL_IES.map(ie => {
                           const on = selectedIEs.includes(ie.name);
                           return (
-                            <div key={ie.id} onClick={() => toggleFilterOption(ie.name, selectedIEs, setSelectedIEs)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', borderRadius: '20px', cursor: 'pointer', fontSize: '11px', fontWeight: '600', transition: 'all 0.2s', background: on ? '#1d4ed8' : '#eff6ff', color: on ? '#fff' : '#1d4ed8', border: `1px solid ${on ? '#1d4ed8' : '#bfdbfe'}`, boxShadow: on ? '0 2px 6px rgba(29,78,216,0.25)' : 'none' }}>
-                              {on && <i className="fa-solid fa-check" style={{ fontSize: '9px' }} />}
-                              {ie.name}
+                            <div
+                              key={ie.id}
+                              onClick={() => toggleFilterOption(ie.name, selectedIEs, setSelectedIEs)}
+                              className={`cm-filter-dropdown-item ${on ? 'selected ie' : ''}`}
+                            >
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{
+                                  width: '14px',
+                                  height: '14px',
+                                  borderRadius: '3px',
+                                  border: `1px solid ${on ? '#1d4ed8' : '#cbd5e1'}`,
+                                  background: on ? '#1d4ed8' : '#fff',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: '#fff',
+                                  fontSize: '9px'
+                                }}>
+                                  {on && <i className="fa-solid fa-check" />}
+                                </div>
+                                {ie.name}
+                              </span>
                             </div>
                           );
                         })}
                       </div>
-                    </div>
+                    )}
+                  </div>
 
-                    {/* Product */}
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '8px' }}>
-                        <div style={{ width: '20px', height: '20px', borderRadius: '5px', background: '#f3e8ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <i className="fa-solid fa-cubes" style={{ fontSize: '10px', color: '#7c3aed' }} />
-                        </div>
-                        <span style={{ fontSize: '10px', fontWeight: '700', color: '#4b6b4b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Product</span>
-                      </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                  {/* Product Select */}
+                  <div style={{ position: 'relative' }}>
+                    <button
+                      onClick={() => setOpenDropdown(openDropdown === 'product' ? null : 'product')}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '7px 12px',
+                        borderRadius: '6px',
+                        background: selectedProducts.length < 3 ? '#faf5ff' : '#fff',
+                        border: `1px solid ${selectedProducts.length < 3 ? '#e9d5ff' : '#e2e8f0'}`,
+                        color: selectedProducts.length < 3 ? '#7c3aed' : '#4b5563',
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s'
+                      }}
+                    >
+                      <i className="fa-solid fa-cubes" style={{ color: '#7c3aed', opacity: 0.8 }} />
+                      <span>Product: {getProductsPreview()}</span>
+                      <i className="fa-solid fa-chevron-down" style={{ fontSize: '9px', opacity: 0.7, transform: openDropdown === 'product' ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+                    </button>
+
+                    {openDropdown === 'product' && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        marginTop: '6px',
+                        background: '#fff',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '8px',
+                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                        zIndex: 999,
+                        minWidth: '160px',
+                        padding: '8px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px'
+                      }}>
+                        <div style={{ padding: '4px 8px', fontSize: '9px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Filter by Product</div>
                         {['ERC', 'Sleeper', 'Rail Pad'].map(prod => {
                           const on = selectedProducts.includes(prod);
                           return (
-                            <div key={prod} onClick={() => toggleFilterOption(prod, selectedProducts, setSelectedProducts)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', borderRadius: '20px', cursor: 'pointer', fontSize: '11px', fontWeight: '600', transition: 'all 0.2s', background: on ? '#7c3aed' : '#faf5ff', color: on ? '#fff' : '#7c3aed', border: `1px solid ${on ? '#7c3aed' : '#e9d5ff'}`, boxShadow: on ? '0 2px 6px rgba(124,58,237,0.25)' : 'none' }}>
-                              {on && <i className="fa-solid fa-check" style={{ fontSize: '9px' }} />}
-                              {prod}
+                            <div
+                              key={prod}
+                              onClick={() => toggleFilterOption(prod, selectedProducts, setSelectedProducts)}
+                              className={`cm-filter-dropdown-item ${on ? 'selected product' : ''}`}
+                            >
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{
+                                  width: '14px',
+                                  height: '14px',
+                                  borderRadius: '3px',
+                                  border: `1px solid ${on ? '#7c3aed' : '#cbd5e1'}`,
+                                  background: on ? '#7c3aed' : '#fff',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: '#fff',
+                                  fontSize: '9px'
+                                }}>
+                                  {on && <i className="fa-solid fa-check" />}
+                                </div>
+                                {prod}
+                              </span>
                             </div>
                           );
                         })}
                       </div>
-                    </div>
+                    )}
+                  </div>
 
-                    {/* Vendor */}
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '8px' }}>
-                        <div style={{ width: '20px', height: '20px', borderRadius: '5px', background: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <i className="fa-solid fa-industry" style={{ fontSize: '10px', color: '#d97706' }} />
-                        </div>
-                        <span style={{ fontSize: '10px', fontWeight: '700', color: '#4b6b4b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Vendor</span>
-                      </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                  {/* Vendor Select */}
+                  <div style={{ position: 'relative' }}>
+                    <button
+                      onClick={() => setOpenDropdown(openDropdown === 'vendor' ? null : 'vendor')}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '7px 12px',
+                        borderRadius: '6px',
+                        background: selectedVendors.length < INITIAL_VENDORS.length ? '#fffbeb' : '#fff',
+                        border: `1px solid ${selectedVendors.length < INITIAL_VENDORS.length ? '#fde68a' : '#e2e8f0'}`,
+                        color: selectedVendors.length < INITIAL_VENDORS.length ? '#b45309' : '#4b5563',
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s'
+                      }}
+                    >
+                      <i className="fa-solid fa-industry" style={{ color: '#d97706', opacity: 0.8 }} />
+                      <span>Vendor: {getVendorsPreview()}</span>
+                      <i className="fa-solid fa-chevron-down" style={{ fontSize: '9px', opacity: 0.7, transform: openDropdown === 'vendor' ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+                    </button>
+
+                    {openDropdown === 'vendor' && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        marginTop: '6px',
+                        background: '#fff',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '8px',
+                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                        zIndex: 999,
+                        minWidth: '220px',
+                        padding: '8px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px'
+                      }}>
+                        <div style={{ padding: '4px 8px', fontSize: '9px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Filter by Vendor</div>
                         {INITIAL_VENDORS.map(v => {
                           const on = selectedVendors.includes(v.name);
                           return (
-                            <div key={v.id} onClick={() => toggleFilterOption(v.name, selectedVendors, setSelectedVendors)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', borderRadius: '20px', cursor: 'pointer', fontSize: '11px', fontWeight: '600', transition: 'all 0.2s', background: on ? '#d97706' : '#fffbeb', color: on ? '#fff' : '#92400e', border: `1px solid ${on ? '#d97706' : '#fde68a'}`, boxShadow: on ? '0 2px 6px rgba(217,119,6,0.25)' : 'none' }}>
-                              {on && <i className="fa-solid fa-check" style={{ fontSize: '9px' }} />}
-                              {v.name}
+                            <div
+                              key={v.id}
+                              onClick={() => toggleFilterOption(v.name, selectedVendors, setSelectedVendors)}
+                              className={`cm-filter-dropdown-item ${on ? 'selected vendor' : ''}`}
+                            >
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{
+                                  width: '14px',
+                                  height: '14px',
+                                  borderRadius: '3px',
+                                  border: `1px solid ${on ? '#b45309' : '#cbd5e1'}`,
+                                  background: on ? '#b45309' : '#fff',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: '#fff',
+                                  fontSize: '9px'
+                                }}>
+                                  {on && <i className="fa-solid fa-check" />}
+                                </div>
+                                {v.name}
+                              </span>
                             </div>
                           );
                         })}
                       </div>
-                    </div>
+                    )}
+                  </div>
 
-                    {/* Stage */}
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '8px' }}>
-                        <div style={{ width: '20px', height: '20px', borderRadius: '5px', background: '#ffedd5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <i className="fa-solid fa-layer-group" style={{ fontSize: '10px', color: '#ea580c' }} />
-                        </div>
-                        <span style={{ fontSize: '10px', fontWeight: '700', color: '#4b6b4b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Stage</span>
-                      </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                  {/* Stage Select */}
+                  <div style={{ position: 'relative' }}>
+                    <button
+                      onClick={() => setOpenDropdown(openDropdown === 'stage' ? null : 'stage')}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '7px 12px',
+                        borderRadius: '6px',
+                        background: selectedStages.length < 3 ? '#fff7ed' : '#fff',
+                        border: `1px solid ${selectedStages.length < 3 ? '#fed7aa' : '#e2e8f0'}`,
+                        color: selectedStages.length < 3 ? '#c2410c' : '#4b5563',
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s'
+                      }}
+                    >
+                      <i className="fa-solid fa-layer-group" style={{ color: '#ea580c', opacity: 0.8 }} />
+                      <span>Stage: {getStagesPreview()}</span>
+                      <i className="fa-solid fa-chevron-down" style={{ fontSize: '9px', opacity: 0.7, transform: openDropdown === 'stage' ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+                    </button>
+
+                    {openDropdown === 'stage' && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '100%',
+                        right: 0,
+                        marginTop: '6px',
+                        background: '#fff',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '8px',
+                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                        zIndex: 999,
+                        minWidth: '150px',
+                        padding: '8px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px'
+                      }}>
+                        <div style={{ padding: '4px 8px', fontSize: '9px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Filter by Stage</div>
                         {['RM', 'Process', 'Final'].map(stg => {
                           const on = selectedStages.includes(stg);
                           return (
-                            <div key={stg} onClick={() => toggleFilterOption(stg, selectedStages, setSelectedStages)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', borderRadius: '20px', cursor: 'pointer', fontSize: '11px', fontWeight: '600', transition: 'all 0.2s', background: on ? '#ea580c' : '#fff7ed', color: on ? '#fff' : '#c2410c', border: `1px solid ${on ? '#ea580c' : '#fed7aa'}`, boxShadow: on ? '0 2px 6px rgba(234,88,12,0.25)' : 'none' }}>
-                              {on && <i className="fa-solid fa-check" style={{ fontSize: '9px' }} />}
-                              {stg}
+                            <div
+                              key={stg}
+                              onClick={() => toggleFilterOption(stg, selectedStages, setSelectedStages)}
+                              className={`cm-filter-dropdown-item ${on ? 'selected stage' : ''}`}
+                            >
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{
+                                  width: '14px',
+                                  height: '14px',
+                                  borderRadius: '3px',
+                                  border: `1px solid ${on ? '#c2410c' : '#cbd5e1'}`,
+                                  background: on ? '#c2410c' : '#fff',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: '#fff',
+                                  fontSize: '9px'
+                                }}>
+                                  {on && <i className="fa-solid fa-check" />}
+                                </div>
+                                {stg}
+                              </span>
                             </div>
                           );
                         })}
                       </div>
-                    </div>
-
+                    )}
                   </div>
 
-                  {/* Search + Reset Row */}
-                  <div style={{ borderTop: '1px solid #f0fdf4', paddingTop: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ position: 'relative', flex: 1 }}>
-                      <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontSize: '12px' }} />
-                      <input
-                        type="text"
-                        placeholder="Search by Call no., PO, Vendor, IE or CM name..."
-                        value={searchQuery}
-                        onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                        style={{ width: '100%', padding: '8px 12px 8px 34px', borderRadius: '8px', border: '1px solid #d1fae5', background: '#f0fdf4', fontSize: '12px', color: '#1a2e1a', outline: 'none', fontFamily: 'inherit' }}
-                      />
-                    </div>
+                  {/* Date Range Select */}
+                  <div style={{ position: 'relative' }}>
                     <button
-                      onClick={handleResetFilters}
-                      style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', background: '#fff', border: '1px solid #d1fae5', color: '#14532d', fontSize: '11px', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                      onClick={() => setOpenDropdown(openDropdown === 'date' ? null : 'date')}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '7px 12px',
+                        borderRadius: '6px',
+                        background: (startDate || endDate) ? '#fef2f2' : '#fff',
+                        border: `1px solid ${(startDate || endDate) ? '#fca5a5' : '#e2e8f0'}`,
+                        color: (startDate || endDate) ? '#991b1b' : '#4b5563',
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s'
+                      }}
                     >
-                      <i className="fa-solid fa-rotate-left" style={{ fontSize: '10px' }} />
-                      Reset All
+                      <i className="fa-solid fa-calendar-days" style={{ color: '#ef4444', opacity: 0.8 }} />
+                      <span>Dates: {getDatesPreview()}</span>
+                      <i className="fa-solid fa-chevron-down" style={{ fontSize: '9px', opacity: 0.7, transform: openDropdown === 'date' ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
                     </button>
+
+                    {openDropdown === 'date' && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '100%',
+                        right: 0,
+                        marginTop: '6px',
+                        background: '#fff',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '8px',
+                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                        zIndex: 999,
+                        minWidth: '220px',
+                        padding: '12px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px'
+                      }}>
+                        <div style={{ fontSize: '9px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Filter by Date Range</div>
+                        
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <label style={{ fontSize: '10px', fontWeight: '600', color: '#4b5563' }}>Start Date</label>
+                          <input
+                            type="date"
+                            value={startDate}
+                            onChange={(e) => { setStartDate(e.target.value); setCurrentPage(1); }}
+                            style={{ padding: '6px', fontSize: '11px', border: '1px solid #cbd5e1', borderRadius: '4px', background: '#fff', color: '#1a2e1a', outline: 'none', width: '100%', fontFamily: 'inherit' }}
+                          />
+                        </div>
+                        
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <label style={{ fontSize: '10px', fontWeight: '600', color: '#4b5563' }}>End Date</label>
+                          <input
+                            type="date"
+                            value={endDate}
+                            onChange={(e) => { setEndDate(e.target.value); setCurrentPage(1); }}
+                            style={{ padding: '6px', fontSize: '11px', border: '1px solid #cbd5e1', borderRadius: '4px', background: '#fff', color: '#1a2e1a', outline: 'none', width: '100%', fontFamily: 'inherit' }}
+                          />
+                        </div>
+
+                        {(startDate || endDate) && (
+                          <button
+                            onClick={() => { setStartDate(''); setEndDate(''); setCurrentPage(1); }}
+                            style={{
+                              marginTop: '4px',
+                              padding: '6px',
+                              background: '#fef2f2',
+                              border: '1px solid #fee2e2',
+                              borderRadius: '4px',
+                              color: '#ef4444',
+                              fontSize: '10px',
+                              fontWeight: '600',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Clear Dates
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
+
+                  {/* Reset Button */}
+                  <button
+                    onClick={handleResetFilters}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '7px 12px',
+                      borderRadius: '6px',
+                      background: '#fff',
+                      border: '1px solid #e2e8f0',
+                      color: '#ef4444',
+                      fontSize: '11px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s'
+                    }}
+                    className="filter-reset-btn"
+                  >
+                    <i className="fa-solid fa-rotate-left" style={{ fontSize: '10px' }} />
+                    <span>Reset</span>
+                  </button>
+
                 </div>
-              )}
-            </section>
+              </div>
+            )}
+          </section>
+        )}
 
-
+        {/* Calls Table Section for CM Dashboard & Call Monitoring */}
+        {(activeTab === 'Dashboard' || activeTab === 'Call Monitoring') && (
+          <>
             {/* Calls Table Section */}
             <section className="cm-list-card">
               <div className="cm-list-header">
                 <div className="cm-list-info">
                   <h3 style={{ fontSize: '14px', fontWeight: 'bold', color: '#166534', margin: 0 }}>
-                    Inspection Calls Details List 
+                    Inspection Calls Details List
                     <span style={{ fontSize: '12px', fontWeight: 'normal', color: '#4b6b4b', marginLeft: '8px' }}>
                       ({activeCallFilter === 'all' ? 'All Calls' : `${activeCallFilter.toUpperCase().replace('_', ' ')}`})
                     </span>
@@ -1100,7 +2271,7 @@ export const CMDashboardPage = () => {
                       paginatedCalls.map((call) => {
                         // Concatenated status is formatted exactly as `${call.status}-${call.subStatus}` (e.g. Pending-Raised)
                         const concatenatedStatus = `${call.status}-${call.subStatus}`;
-                        
+
                         let statusColor = '#3b82f6';
                         let statusBg = 'rgba(59, 130, 246, 0.1)';
                         if (call.status === 'Pending') {
@@ -1126,91 +2297,91 @@ export const CMDashboardPage = () => {
                               {call.callNumber}
                               {overdueFlag && <span style={{ color: '#ef4444', marginLeft: '4px' }} title="Overdue Warning">⚠️</span>}
                             </td>
-                            
+
                             {/* Product & Stage of Inspection (eg. ERC- Process, Sleeper- Final…) */}
                             <td>{`${call.product}- ${call.stage}`}</td>
-                            
+
                             {/* PO Number - hyperlink to download PO */}
                             <td>
-                              <a 
-                                href="#download-po" 
+                              <a
+                                href="#download-po"
                                 className="cm-table-link"
                                 onClick={(e) => { e.preventDefault(); handleDownloadPdf(call.callNumber, 'PO'); }}
                               >
                                 {call.poNumber}
                               </a>
                             </td>
-                            
+
                             {/* DP Date & Ext DP Date */}
                             <td>
                               <div>{call.dpDate}</div>
                               <div style={{ fontSize: '9px', color: '#4b6b4b' }}>Ext: {call.extDpDate}</div>
                             </td>
-                            
+
                             {/* Material Value */}
                             <td style={{ fontWeight: '600' }}>{formatIndianCurrency(call.materialValue)}</td>
-                            
+
                             {/* Vendor Name */}
                             <td>{call.vendorName}</td>
-                            
+
                             {/* Inspection Desired Date */}
                             <td>{call.desiredInspectionDate || 'N/A'}</td>
-                            
+
                             {/* Call Date */}
                             <td>{call.callDate}</td>
-                            
+
                             {/* IE Name */}
                             <td>{call.ieName || 'Unassigned'}</td>
-                            
+
                             {/* CM Name */}
                             <td>{call.cmName}</td>
-                            
+
                             {/* RITES RIO */}
                             <td>{call.ritesRio}</td>
-                            
+
                             {/* Concatenated Status */}
                             <td>
-                              <span 
-                                className="cm-status-badge" 
+                              <span
+                                className="cm-status-badge"
                                 style={{ color: statusColor, background: statusBg, border: `1px solid ${statusColor}` }}
                               >
                                 {concatenatedStatus}
                               </span>
                             </td>
-                            
+
                             {/* Documents (Download single pdf sequence: IC, PO, ITP, Annexures, Calibration Reports) */}
                             <td>
                               <div className="cm-doc-download-bar">
-                                <span 
-                                  className={`cm-doc-link ${call.docs.ic ? '' : 'missing'}`} 
+                                <span
+                                  className={`cm-doc-link ${call.docs.ic ? '' : 'missing'}`}
                                   title={call.docs.ic ? "Download IC Document" : "IC Document Unavailable"}
                                   onClick={() => call.docs.ic && handleDownloadPdf(call.callNumber, 'IC')}
                                 >
                                   IC
                                 </span>
-                                <span 
-                                  className={`cm-doc-link ${call.docs.po ? '' : 'missing'}`} 
+                                <span
+                                  className={`cm-doc-link ${call.docs.po ? '' : 'missing'}`}
                                   title={call.docs.po ? "Download PO Document" : "PO Document Unavailable"}
                                   onClick={() => call.docs.po && handleDownloadPdf(call.callNumber, 'PO')}
                                 >
                                   PO
                                 </span>
-                                <span 
-                                  className={`cm-doc-link ${call.docs.itp ? '' : 'missing'}`} 
+                                <span
+                                  className={`cm-doc-link ${call.docs.itp ? '' : 'missing'}`}
                                   title={call.docs.itp ? "Download ITP Document" : "ITP Document Unavailable"}
                                   onClick={() => call.docs.itp && handleDownloadPdf(call.callNumber, 'ITP')}
                                 >
                                   ITP
                                 </span>
-                                <span 
-                                  className={`cm-doc-link ${call.docs.annexure ? '' : 'missing'}`} 
+                                <span
+                                  className={`cm-doc-link ${call.docs.annexure ? '' : 'missing'}`}
                                   title={call.docs.annexure ? "Download Annexures PDF" : "Annexures PDF Unavailable"}
                                   onClick={() => call.docs.annexure && handleDownloadPdf(call.callNumber, 'Annexures')}
                                 >
                                   ANX
                                 </span>
-                                <span 
-                                  className={`cm-doc-link ${call.docs.calibration ? '' : 'missing'}`} 
+                                <span
+                                  className={`cm-doc-link ${call.docs.calibration ? '' : 'missing'}`}
                                   title={call.docs.calibration ? "Download Calibration Certificate" : "Calibration Certificate Unavailable"}
                                   onClick={() => call.docs.calibration && handleDownloadPdf(call.callNumber, 'Calibration')}
                                 >
@@ -1218,7 +2389,7 @@ export const CMDashboardPage = () => {
                                 </span>
                               </div>
                             </td>
-                            
+
                             {/* Remarks */}
                             <td style={{ minWidth: '150px', fontSize: '10.5px' }}>{call.remarks || '-'}</td>
                           </tr>
@@ -1246,9 +2417,9 @@ export const CMDashboardPage = () => {
                 </div>
                 <div className="cm-pagination-controls">
                   <span style={{ marginRight: '12px' }}>Rows per page:</span>
-                  <select 
-                    value={pageSize} 
-                    className="cm-filter-select" 
+                  <select
+                    value={pageSize}
+                    className="cm-filter-select"
                     style={{ width: '70px', padding: '4px 8px', border: '1px solid #d1fae5', background: '#f0fdf4', borderRadius: '6px' }}
                     onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
                   >
@@ -1257,16 +2428,16 @@ export const CMDashboardPage = () => {
                     <option value="25">25</option>
                     <option value="50">50</option>
                   </select>
-                  <button 
-                    className="cm-pagination-btn" 
+                  <button
+                    className="cm-pagination-btn"
                     disabled={currentPage === 1}
                     onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                   >
                     ◀ Prev
                   </button>
                   <span className="cm-pagination-page">Page {currentPage} of {totalPages}</span>
-                  <button 
-                    className="cm-pagination-btn" 
+                  <button
+                    className="cm-pagination-btn"
                     disabled={currentPage === totalPages}
                     onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                   >
@@ -1281,53 +2452,42 @@ export const CMDashboardPage = () => {
         {/* 1. IE wise Call Status view */}
         {activeTab === 'IE wise Call Status' && (
           <>
-            <div className="cm-panel-header">
-              <div className="cm-panel-title-area">
-                <h1 className="cm-panel-title">Inspection Engineers Wise Call Status</h1>
-                <p className="cm-panel-subtitle">Performance breakdown and current operational assignment statuses of assigned IEs.</p>
-              </div>
-            </div>
-
             <section className="cm-list-card">
+              <div className="cm-list-header">
+                <h3 style={{ fontSize: '14px', fontWeight: 'bold', color: '#166534', margin: 0 }}>
+                  IE Wise Call Status Allocations &amp; Workload Summary
+                </h3>
+              </div>
               <div className="cm-table-wrapper">
                 <table className="cm-table">
                   <thead>
                     <tr>
                       <th>IE ID</th>
                       <th>IE Name</th>
-                      <th>RITES RIO</th>
-                      <th>Total Assigned</th>
-                      <th>Pending (Raised)</th>
-                      <th>Under Inspection</th>
-                      <th>IC Issuance Pending</th>
-                      <th>Completed</th>
-                      <th>Workload Status</th>
+                      <th>No. of Calls Pending</th>
+                      <th>No. of Calls Under Inspection</th>
+                      <th>No. of Call Pending for IC</th>
+                      <th>No. of Calls Overdue</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {INITIAL_IES.map((ie) => {
-                      const ieCalls = calls.filter(c => c.ieName === ie.name);
+                    {INITIAL_IES.filter(ie => selectedIEs.includes(ie.name)).map((ie) => {
+                      const ieCalls = filteredCalls.filter(c => c.ieName === ie.name);
+                      const pending = ieCalls.filter(c => c.status === 'Pending').length;
+                      const underInspection = ieCalls.filter(c => c.status === 'Under Inspection').length;
+                      const icPending = ieCalls.filter(c => c.status === 'IC Issuance Pending').length;
+                      const overdue = ieCalls.filter(c => isOverdue(c)).length;
+
                       return (
                         <tr key={ie.id}>
                           <td style={{ fontWeight: 'bold' }}>{ie.id}</td>
-                          <td>{ie.name}</td>
-                          <td>{ie.region}</td>
-                          <td style={{ fontWeight: 'bold' }}>{ieCalls.length}</td>
-                          <td>{ieCalls.filter(c => c.status === 'Pending').length}</td>
-                          <td>{ieCalls.filter(c => c.status === 'Under Inspection').length}</td>
-                          <td>{ieCalls.filter(c => c.status === 'IC Issuance Pending').length}</td>
-                          <td>{ieCalls.filter(c => c.status === 'Completed').length}</td>
-                          <td>
-                            <span 
-                              className="cm-status-badge" 
-                              style={{ 
-                                color: ie.status === 'Overloaded' ? '#ef4444' : ie.status === 'High' ? '#ea580c' : '#15803d', 
-                                background: ie.status === 'Overloaded' ? '#fee2e2' : ie.status === 'High' ? '#ffedd5' : '#dcfce7',
-                                border: ie.status === 'Overloaded' ? '1px solid #ef4444' : ie.status === 'High' ? '1px solid #ea580c' : '1px solid #15803d'
-                              }}
-                            >
-                              {ie.status} ({ie.workload}%)
-                            </span>
+                          <td style={{ fontWeight: '600', color: '#15803d' }}>{ie.name}</td>
+                          <td style={{ fontWeight: '600', color: pending > 0 ? '#d97706' : 'inherit' }}>{pending}</td>
+                          <td style={{ fontWeight: '600', color: underInspection > 0 ? '#ea580c' : 'inherit' }}>{underInspection}</td>
+                          <td style={{ fontWeight: '600', color: icPending > 0 ? '#4338ca' : 'inherit' }}>{icPending}</td>
+                          <td style={{ fontWeight: 'bold', color: overdue > 0 ? '#ef4444' : 'inherit' }}>
+                            {overdue}
+                            {overdue > 0 && <span style={{ color: '#ef4444', marginLeft: '4px' }} title="Desired Date crossed by 7 Days">⚠️</span>}
                           </td>
                         </tr>
                       );
@@ -1342,68 +2502,66 @@ export const CMDashboardPage = () => {
         {/* 2. IE Performance Monitoring view */}
         {activeTab === 'IE Performance Monitoring' && (
           <>
-            <div className="cm-panel-header">
-              <div className="cm-panel-title-area">
-                <h1 className="cm-panel-title">Inspection Engineers Performance Monitoring</h1>
-                <p className="cm-panel-subtitle">SLA compliance logs, average inspection delays, and workload capacity ratings.</p>
+            <section className="cm-list-card">
+              <div className="cm-list-header">
+                <h3 style={{ fontSize: '14px', fontWeight: 'bold', color: '#166534', margin: 0 }}>
+                  IE Operational SLA Performance Summary (Completed Calls Analysis)
+                </h3>
               </div>
-            </div>
+              <div className="cm-table-wrapper">
+                <table className="cm-table">
+                  <thead>
+                    <tr>
+                      <th>IE ID</th>
+                      <th>IE Name</th>
+                      <th>Total Calls</th>
+                      <th>Overdue Calls Attended</th>
+                      <th>Calls Cancelled</th>
+                      <th>Calls Accepted</th>
+                      <th>Calls Rejected</th>
+                      <th>Calls Partially Accepted &amp; Rejected</th>
+                      <th>Calls Withheld</th>
+                      <th>IC Issued</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {INITIAL_IES.filter(ie => selectedIEs.includes(ie.name)).map((ie) => {
+                      const completedCalls = filteredCalls.filter(c => c.ieName === ie.name && c.status === 'Completed');
+                      const total = completedCalls.length;
 
-            <section className="cm-approval-grid">
-              {INITIAL_IES.map((ie) => (
-                <div key={ie.id} className="prof-card">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
-                    <div className="cm-perf-avatar">{ie.name.charAt(0)}</div>
-                    <div>
-                      <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#14532d' }}>{ie.name}</div>
-                      <div style={{ fontSize: '11px', color: '#4b6b4b' }}>{ie.region} • ID: {ie.id}</div>
-                    </div>
-                  </div>
+                      const overdueAttended = completedCalls.filter(c => {
+                        const desired = new Date(c.desiredInspectionDate);
+                        const callDate = new Date(c.callDate);
+                        const diffTime = callDate - desired;
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        return diffDays > 7;
+                      }).length;
 
-                  <div className="cm-perf-progress-container">
-                    <div className="cm-perf-progress-label">
-                      <span>SLA Compliance Rate</span>
-                      <span>{ie.slaCompliance}%</span>
-                    </div>
-                    <div className="cm-perf-progress-bar-bg">
-                      <div 
-                        className="cm-perf-progress-bar-fg" 
-                        style={{ 
-                          width: `${ie.slaCompliance}%`,
-                          background: ie.slaCompliance > 95 ? '#15803d' : ie.slaCompliance > 90 ? '#3b82f6' : '#f59e0b' 
-                        }}
-                      />
-                    </div>
-                  </div>
+                      const cancelled = completedCalls.filter(c => c.subStatus === 'Cancelled').length;
+                      const accepted = completedCalls.filter(c => c.subStatus === 'Accepted').length;
+                      const rejected = completedCalls.filter(c => c.subStatus === 'Rejected').length;
+                      const partial = completedCalls.filter(c => c.subStatus === 'Partially Accepted').length;
+                      const withheld = completedCalls.filter(c => c.subStatus === 'Withheld').length;
+                      const icIssued = completedCalls.filter(c => c.subStatus === 'IC Issued').length;
 
-                  <div className="cm-perf-progress-container" style={{ marginTop: '12px' }}>
-                    <div className="cm-perf-progress-label">
-                      <span>Workload Threshold</span>
-                      <span>{ie.workload}%</span>
-                    </div>
-                    <div className="cm-perf-progress-bar-bg">
-                      <div 
-                        className="cm-perf-progress-bar-fg" 
-                        style={{ 
-                          width: `${ie.workload}%`,
-                          background: ie.workload > 90 ? '#ef4444' : ie.workload > 75 ? '#ea580c' : '#15803d' 
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '12px', borderTop: '1px solid #f0fdf4', paddingTop: '12px' }}>
-                    <div>
-                      <div style={{ fontSize: '11px', color: '#4b6b4b' }}>Avg Response Time</div>
-                      <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#14532d' }}>{ie.avgDays} Days</div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '11px', color: '#4b6b4b' }}>Active Allocations</div>
-                      <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#14532d' }}>{ie.activeCalls} Calls</div>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                      return (
+                        <tr key={ie.id}>
+                          <td style={{ fontWeight: 'bold' }}>{ie.id}</td>
+                          <td style={{ fontWeight: '600', color: '#15803d' }}>{ie.name}</td>
+                          <td style={{ fontWeight: 'bold' }}>{total}</td>
+                          <td style={{ fontWeight: '600', color: overdueAttended > 0 ? '#ef4444' : 'inherit' }}>{overdueAttended}</td>
+                          <td style={{ color: cancelled > 0 ? '#64748b' : 'inherit' }}>{cancelled}</td>
+                          <td style={{ color: accepted > 0 ? '#15803d' : 'inherit', fontWeight: '500' }}>{accepted}</td>
+                          <td style={{ color: rejected > 0 ? '#ef4444' : 'inherit', fontWeight: '500' }}>{rejected}</td>
+                          <td style={{ color: partial > 0 ? '#ea580c' : 'inherit' }}>{partial}</td>
+                          <td style={{ color: withheld > 0 ? '#d97706' : 'inherit' }}>{withheld}</td>
+                          <td style={{ color: icIssued > 0 ? '#16a34a' : 'inherit', fontWeight: '600' }}>{icIssued}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </section>
           </>
         )}
@@ -1440,7 +2598,7 @@ export const CMDashboardPage = () => {
                         <td>{v.inspections} tests</td>
                         <td>{v.activeCalls} calls</td>
                         <td>
-                          <span 
+                          <span
                             className="cm-status-badge"
                             style={{
                               color: v.rejectionRate > 5 ? '#ef4444' : v.rejectionRate > 2.5 ? '#ea580c' : '#15803d',
@@ -1479,599 +2637,210 @@ export const CMDashboardPage = () => {
 
         {/* 4. Performance Charts View */}
         {activeTab === 'Charts' && (
-          <>
-            <div className="cm-panel-header">
-              <div className="cm-panel-title-area">
-                <h1 className="cm-panel-title">Inspection Analytics Charts</h1>
-                <p className="cm-panel-subtitle">Visual summaries of product workloads, regional response rates, and SLA compliance metrics.</p>
+          <div className="prof-dashboard-wrapper" style={{ marginTop: '-15px', display: 'block', width: '100%', minHeight: 'auto', background: 'transparent' }}>
+            <div className="prof-layout-container" style={{ minHeight: 'auto', background: 'transparent' }}>
+              <div id="prof-main" style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: 0, marginLeft: 0, width: '100%', maxWidth: '100%', overflowX: 'hidden' }}>
+
+                {/* GLOBAL PRODUCT SELECTION */}
+                <div className="sub-tabs" style={{ display: 'flex', gap: '8px', marginBottom: '15px' }}>
+                  <button className={`sub-tab-btn ${selectedChartsProduct === 'ERC' ? 'active' : ''}`} onClick={() => setSelectedChartsProduct('ERC')}>ERC</button>
+                  <button className={`sub-tab-btn ${selectedChartsProduct === 'Sleeper' ? 'active' : ''}`} onClick={() => setSelectedChartsProduct('Sleeper')}>Sleeper</button>
+                  <button className={`sub-tab-btn ${selectedChartsProduct === 'Rail Pad' ? 'active' : ''}`} onClick={() => setSelectedChartsProduct('Rail Pad')}>Rail Pad</button>
+                </div>
+
+                {/* CONTENT AREA */}
+                <div id="prof-content-area" style={{ width: '100%' }}>
+                  <ProfessionalCardSection
+                    activeMainCard="quality"
+                    selectedProduct={selectedChartsProduct}
+                    setSelectedProduct={setSelectedChartsProduct}
+                    fromDate={chartsFromDate}
+                    toDate={chartsToDate}
+                    setFromDate={setChartsFromDate}
+                    setToDate={setChartsToDate}
+                    qualityRejectionData={qQualityRejectionData}
+                    manufacturerRejectionData={qManufacturerRejectionData}
+                    stepWiseRejectionData={qStepWiseRejectionData}
+                    processPerformanceData={qProcessPerformanceData}
+                    paretoAnalysisData={qParetoAnalysisData}
+                    monthlyRejectionTrendData={qMonthlyRejectionTrendData}
+                    inspectionDetailsData={qInspectionDetailsData}
+                  />
+                </div>
+
               </div>
             </div>
-
-            <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-              <div className="prof-card">
-                <div className="sec-title">Product-wise Active Allocations</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '10px 0' }}>
-                  {['ERC', 'Sleeper', 'Rail Pad'].map(prod => {
-                    const count = calls.filter(c => c.product === prod).length;
-                    const pct = Math.round((count / calls.length) * 100);
-                    return (
-                      <div key={prod} className="cm-perf-progress-container">
-                        <div className="cm-perf-progress-label">
-                          <span style={{ fontWeight: 'bold', color: '#14532d' }}>{prod} Inspections</span>
-                          <span>{count} Calls ({pct}%)</span>
-                        </div>
-                        <div className="cm-perf-progress-bar-bg" style={{ height: '14px' }}>
-                          <div 
-                            className="cm-perf-progress-bar-fg" 
-                            style={{ 
-                              width: `${pct}%`,
-                              background: prod === 'ERC' ? '#1e3a8a' : prod === 'Sleeper' ? '#15803d' : '#4338ca'
-                            }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="prof-card">
-                <div className="sec-title">Status Breakdown Overview</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'space-around', padding: '16px 0' }}>
-                  {[
-                    { label: 'Pending', count: kpiStats.pending, color: '#f59e0b' },
-                    { label: 'Under Insp.', count: kpiStats.underInspection, color: '#ea580c' },
-                    { label: 'IC Pending', count: kpiStats.icPending, color: '#ef4444' },
-                    { label: 'Completed', count: kpiStats.completed, color: '#15803d' }
-                  ].map(stat => (
-                    <div key={stat.label} style={{ textAlign: 'center', minWidth: '80px' }}>
-                      <div style={{ fontSize: '32px', fontWeight: '900', color: stat.color }}>{stat.count}</div>
-                      <div style={{ fontSize: '11px', color: '#4b6b4b', fontWeight: '700', marginTop: '4px', textTransform: 'uppercase' }}>{stat.label}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </section>
-          </>
+          </div>
         )}
 
         {/* 5. SQC Analysis view */}
         {activeTab === 'SQC Analysis' && (
-          <>
-            <div className="cm-panel-header">
-              <div className="cm-panel-title-area">
-                <h1 className="cm-panel-title">Statistical Quality Control (SQC) Analysis</h1>
-                <p className="cm-panel-subtitle">Real-time control boundaries, process variance limits, and automated warning logs.</p>
+          <div className="prof-dashboard-wrapper" style={{ marginTop: '-15px', display: 'block', width: '100%', minHeight: 'auto', background: 'transparent' }}>
+            <div className="prof-layout-container" style={{ minHeight: 'auto', background: 'transparent' }}>
+              <div id="prof-main" style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: 0, marginLeft: 0, width: '100%', maxWidth: '100%', overflowX: 'hidden' }}>
+
+                {/* GLOBAL PRODUCT SELECTION */}
+                <div className="sub-tabs" style={{ display: 'flex', gap: '8px', marginBottom: '15px' }}>
+                  <button className={`sub-tab-btn ${selectedSqcProduct === 'ERC' ? 'active' : ''}`} onClick={() => setSelectedSqcProduct('ERC')}>ERC</button>
+                  <button className={`sub-tab-btn ${selectedSqcProduct === 'Sleeper' ? 'active' : ''}`} onClick={() => setSelectedSqcProduct('Sleeper')}>Sleeper</button>
+                  <button className={`sub-tab-btn ${selectedSqcProduct === 'Rail Pad' ? 'active' : ''}`} onClick={() => setSelectedSqcProduct('Rail Pad')}>Rail Pad</button>
+                </div>
+
+                {/* CONTENT AREA */}
+                <div id="prof-content-area" style={{ width: '100%' }}>
+                  <ProfessionalCardSection
+                    activeMainCard="sqc"
+                    selectedProduct={selectedSqcProduct}
+                    setSelectedProduct={setSelectedSqcProduct}
+                  />
+                </div>
+
               </div>
             </div>
-
-            <section className="cm-filters-card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 style={{ fontWeight: 'bold', color: '#14532d', margin: 0 }}>📈 Statistical Control Bounds Check</h3>
-                <span className="cm-status-badge" style={{ color: '#15803d', background: '#dcfce7', border: '1px solid #15803d' }}>
-                  PROCESS IN CONTROL
-                </span>
-              </div>
-              <p style={{ fontSize: '12.5px', color: '#4b6b4b' }}>
-                System scanning critical product tests (Concrete Sleeper hardness, GRSP Pad dimensional thickness bounds) against Upper Control Limit (UCL) and Lower Control Limit (LCL) of 3-Sigma parameters.
-              </p>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginTop: '12px' }}>
-                <div style={{ border: '1px solid #d1fae5', borderRadius: '8px', padding: '16px', background: '#f0fdf4' }}>
-                  <div style={{ fontSize: '11px', color: '#4b6b4b', fontWeight: '700' }}>SLEEPER CASTING HARDNESS</div>
-                  <div style={{ fontSize: '24px', fontWeight: '900', color: '#14532d', margin: '6px 0' }}>56.4 HRB</div>
-                  <div style={{ fontSize: '11px', color: '#4b6b4b' }}>Bound Limits: <b>UCL: 60.0</b> | <b>LCL: 52.0</b></div>
-                </div>
-
-                <div style={{ border: '1px solid #d1fae5', borderRadius: '8px', padding: '16px', background: '#f0fdf4' }}>
-                  <div style={{ fontSize: '11px', color: '#4b6b4b', fontWeight: '700' }}>GRSP PAD THICKNESS VARIANCE</div>
-                  <div style={{ fontSize: '24px', fontWeight: '900', color: '#14532d', margin: '6px 0' }}>6.04 mm</div>
-                  <div style={{ fontSize: '11px', color: '#4b6b4b' }}>Bound Limits: <b>UCL: 6.20</b> | <b>LCL: 5.80</b></div>
-                </div>
-
-                <div style={{ border: '1px solid #d1fae5', borderRadius: '8px', padding: '16px', background: '#f0fdf4' }}>
-                  <div style={{ fontSize: '11px', color: '#4b6b4b', fontWeight: '700' }}>ERC SPRING SHAPE COMPRESSION</div>
-                  <div style={{ fontSize: '24px', fontWeight: '900', color: '#14532d', margin: '6px 0' }}>14.2 kN</div>
-                  <div style={{ fontSize: '11px', color: '#4b6b4b' }}>Bound Limits: <b>UCL: 15.0</b> | <b>LCL: 13.5</b></div>
-                </div>
-              </div>
-            </section>
-          </>
+          </div>
         )}
 
         {/* 6. SCADA Monitoring view */}
         {activeTab === 'SCADA Monitoring' && (
-          <>
-            <div className="cm-panel-header">
-              <div className="cm-panel-title-area">
-                <h1 className="cm-panel-title">SCADA Live Automation Feed</h1>
-                <p className="cm-panel-subtitle">Real-time automation telemetry logs directly mirrored from plant PLC manufacturing systems.</p>
+          <div className="prof-dashboard-wrapper" style={{ marginTop: '-15px', display: 'block', width: '100%', minHeight: 'auto', background: 'transparent' }}>
+            <div className="prof-layout-container" style={{ minHeight: 'auto', background: 'transparent' }}>
+              <div id="prof-main" style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: 0, marginLeft: 0, width: '100%', maxWidth: '100%', overflowX: 'hidden' }}>
+
+                {/* GLOBAL PRODUCT SELECTION */}
+                <div className="sub-tabs" style={{ display: 'flex', gap: '8px', marginBottom: '15px' }}>
+                  <button className={`sub-tab-btn ${selectedScadaProduct === 'ERC' ? 'active' : ''}`} onClick={() => setSelectedScadaProduct('ERC')}>ERC</button>
+                  <button className={`sub-tab-btn ${selectedScadaProduct === 'Sleeper' ? 'active' : ''}`} onClick={() => setSelectedScadaProduct('Sleeper')}>Sleeper</button>
+                  <button className={`sub-tab-btn ${selectedScadaProduct === 'Rail Pad' ? 'active' : ''}`} onClick={() => setSelectedScadaProduct('Rail Pad')}>Rail Pad</button>
+                </div>
+
+                {/* CONTENT AREA */}
+                <div id="prof-content-area" style={{ width: '100%' }}>
+                  <ProfessionalCardSection
+                    activeMainCard="scada"
+                    selectedProduct={selectedScadaProduct}
+                    setSelectedProduct={setSelectedScadaProduct}
+                  />
+                </div>
+
               </div>
             </div>
-
-            <section className="scada-grid">
-              <div className="scada-plant-card">
-                <div className="scada-plant-header">
-                  <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#14532d' }}>Line 1 - Concrete Sleeper Plant</div>
-                  <div className="scada-status-indicator">
-                    <span className="scada-pulse" />
-                    <span>ONLINE</span>
-                  </div>
-                </div>
-                <div className="cm-filters-grid" style={{ border: 'none', paddingTop: 0 }}>
-                  <div className="scada-metric-card">
-                    <span className="scada-metric-label">Hydraulic Compression</span>
-                    <span className="scada-metric-value">420 kN</span>
-                  </div>
-                  <div className="scada-metric-card">
-                    <span className="scada-metric-label">Curing Temperature</span>
-                    <span className="scada-metric-value">142 °C</span>
-                  </div>
-                </div>
-                <div style={{ fontSize: '11px', color: '#4b6b4b' }}>
-                  📡 Modbus PLC Node ID: <b>0x10A</b> | Last Ping: <b>Just Now</b>
-                </div>
-              </div>
-
-              <div className="scada-plant-card">
-                <div className="scada-plant-header">
-                  <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#14532d' }}>Line 2 - ERC Forging Plant</div>
-                  <div className="scada-status-indicator">
-                    <span className="scada-pulse" />
-                    <span>ONLINE</span>
-                  </div>
-                </div>
-                <div className="cm-filters-grid" style={{ border: 'none', paddingTop: 0 }}>
-                  <div className="scada-metric-card">
-                    <span className="scada-metric-label">Quenching Oil Tank Temp</span>
-                    <span className="scada-metric-value">58 °C</span>
-                  </div>
-                  <div className="scada-metric-card">
-                    <span className="scada-metric-label">Stamping Pressure</span>
-                    <span className="scada-metric-value">85 Bar</span>
-                  </div>
-                </div>
-                <div style={{ fontSize: '11px', color: '#4b6b4b' }}>
-                  📡 Modbus PLC Node ID: <b>0x10B</b> | Last Ping: <b>Just Now</b>
-                </div>
-              </div>
-            </section>
-          </>
+          </div>
         )}
 
         {/* 7. PO Lifecycle view */}
         {activeTab === 'PO Lifecycle' && (
-          <>
-            <div className="cm-panel-header">
-              <div className="cm-panel-title-area">
-                <h1 className="cm-panel-title">Purchase Order Lifecycle Tracking</h1>
-                <p className="cm-panel-subtitle">Comprehensive stepper tracking of PO stages, milestones, and dispatch cycles.</p>
+          <div className="prof-dashboard-wrapper" style={{ marginTop: '-15px', display: 'block', width: '100%', minHeight: 'auto', background: 'transparent' }}>
+            <div className="prof-layout-container" style={{ minHeight: 'auto', background: 'transparent' }}>
+              <div id="prof-main" style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: 0, marginLeft: 0, width: '100%', maxWidth: '100%', overflowX: 'hidden' }}>
+
+                {/* GLOBAL PRODUCT SELECTION */}
+                <div className="sub-tabs" style={{ display: 'flex', gap: '8px', marginBottom: '15px' }}>
+                  <button className={`sub-tab-btn ${selectedLifecycleProduct === 'ERC' ? 'active' : ''}`} onClick={() => setSelectedLifecycleProduct('ERC')}>ERC</button>
+                  <button className={`sub-tab-btn ${selectedLifecycleProduct === 'Sleeper' ? 'active' : ''}`} onClick={() => setSelectedLifecycleProduct('Sleeper')}>Sleeper</button>
+                  <button className={`sub-tab-btn ${selectedLifecycleProduct === 'Rail Pad' ? 'active' : ''}`} onClick={() => setSelectedLifecycleProduct('Rail Pad')}>Rail Pad</button>
+                </div>
+
+                {/* CONTENT AREA */}
+                <div id="prof-content-area" style={{ width: '100%' }}>
+                  <ProfessionalCardSection
+                    activeMainCard="lifecycle"
+                    selectedProduct={selectedLifecycleProduct}
+                    poTable={poTable}
+                    setSelectedProduct={setSelectedLifecycleProduct}
+                  />
+                </div>
+
               </div>
             </div>
-
-            <section className="cm-filters-card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <h3 style={{ fontWeight: 'bold', color: '#14532d', margin: 0 }}>📋 Track PO Lifecycle: PO-2026-ERC-9921</h3>
-                <span className="cm-status-badge" style={{ color: '#d97706', background: '#fef3c7', border: '1px solid #d97706' }}>
-                  STAGE 4: UNDER INSPECTION
-                </span>
-              </div>
-
-              <div className="po-timeline">
-                <div className="po-timeline-node">
-                  <div className="po-timeline-bullet completed" />
-                  <div className="po-timeline-content">
-                    <div>
-                      <div className="po-timeline-title">Stage 1: Purchase Order Issued</div>
-                      <div style={{ fontSize: '11px', color: '#4b6b4b' }}>Contract reference: <b>CR-93428947-001</b></div>
-                    </div>
-                    <span className="po-timeline-date">2026-04-15</span>
-                  </div>
-                </div>
-
-                <div className="po-timeline-node">
-                  <div className="po-timeline-bullet completed" />
-                  <div className="po-timeline-content">
-                    <div>
-                      <div className="po-timeline-title">Stage 2: Inspection Call Raised by Vendor</div>
-                      <div style={{ fontSize: '11px', color: '#4b6b4b' }}>Call generated reference: <b>CALL-2026-101</b></div>
-                    </div>
-                    <span className="po-timeline-date">2026-05-18</span>
-                  </div>
-                </div>
-
-                <div className="po-timeline-node">
-                  <div className="po-timeline-bullet completed" />
-                  <div className="po-timeline-content">
-                    <div>
-                      <div className="po-timeline-title">Stage 3: Inspection Engineer Assigned by CM</div>
-                      <div style={{ fontSize: '11px', color: '#4b6b4b' }}>Assigned to: <b>Rajesh Kumar</b></div>
-                    </div>
-                    <span className="po-timeline-date">2026-05-19</span>
-                  </div>
-                </div>
-
-                <div className="po-timeline-node">
-                  <div className="po-timeline-bullet active" />
-                  <div className="po-timeline-content" style={{ borderLeft: '4px solid #f59e0b' }}>
-                    <div>
-                      <div className="po-timeline-title">Stage 4: Under Inspection Check</div>
-                      <div style={{ fontSize: '11px', color: '#4b6b4b' }}>Ongoing laboratory compression & visual check tests.</div>
-                    </div>
-                    <span className="po-timeline-date">In Progress</span>
-                  </div>
-                </div>
-
-                <div className="po-timeline-node">
-                  <div className="po-timeline-bullet" />
-                  <div className="po-timeline-content" style={{ opacity: 0.5 }}>
-                    <div>
-                      <div className="po-timeline-title">Stage 5: Certificate Issued & Payment Dispatched</div>
-                      <div style={{ fontSize: '11px', color: '#4b6b4b' }}>Final billing dispatch.</div>
-                    </div>
-                    <span className="po-timeline-date">-</span>
-                  </div>
-                </div>
-              </div>
-            </section>
-          </>
+          </div>
         )}
 
         {/* 8. All Reports view */}
         {activeTab === 'All Reports' && (
-          <>
-            <div className="cm-panel-header">
-              <div className="cm-panel-title-area">
-                <h1 className="cm-panel-title">
-                  {activeReportTab}
-                </h1>
-                <p className="cm-panel-subtitle">
-                  Synchronized live Controlling Manager reports and parameters mirrored to the Railway Board.
-                </p>
+          <div className="prof-dashboard-wrapper" style={{ marginTop: '-15px', display: 'block', width: '100%', minHeight: 'auto', background: 'transparent' }}>
+            <div className="prof-layout-container" style={{ minHeight: 'auto', background: 'transparent' }}>
+              <div id="prof-main" style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: 0, marginLeft: 0, width: '100%', maxWidth: '100%', overflowX: 'hidden' }}>
+
+                {/* GLOBAL PRODUCT SELECTION */}
+                <div className="sub-tabs" style={{ display: 'flex', gap: '8px', marginBottom: '15px' }}>
+                  <button className={`sub-tab-btn ${selectedReportProduct === 'ERC' ? 'active' : ''}`} onClick={() => handleProductChange('ERC')}>ERC</button>
+                  <button className={`sub-tab-btn ${selectedReportProduct === 'Sleeper' ? 'active' : ''}`} onClick={() => handleProductChange('Sleeper')}>Sleeper</button>
+                  <button className={`sub-tab-btn ${selectedReportProduct === 'Rail Pad' ? 'active' : ''}`} onClick={() => handleProductChange('Rail Pad')}>Rail Pad</button>
+                </div>
+
+                {/* TOPBAR / FILTERS */}
+                {!(REPORT_NAME_TO_SLUG[activeReportTab] === 'swp' && selectedReportProduct === 'ERC') && (
+                  <div id="prof-topbar" style={{ borderRadius: '12px', background: '#fff', border: '1px solid #d1fae5', padding: '12px 20px', display: 'flex', flexWrap: 'wrap', gap: '15px', alignItems: 'center', marginBottom: '15px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#166534' }}>From</label>
+                    <input type="date" value={reportFromDate} onChange={(e) => setReportFromDate(e.target.value)} style={{ padding: '6px 12px', border: '1px solid #d1fae5', borderRadius: '8px', background: '#f0fdf4', fontSize: '12px' }} />
+                    <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#166534' }}>To</label>
+                    <input type="date" value={reportToDate} onChange={(e) => setReportToDate(e.target.value)} style={{ padding: '6px 12px', border: '1px solid #d1fae5', borderRadius: '8px', background: '#f0fdf4', fontSize: '12px' }} />
+
+                    <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#166534' }}>Zone</label>
+                    <select value={selectedReportZone} onChange={(e) => setSelectedReportZone(e.target.value)} style={{ padding: '6px 12px', border: '1px solid #d1fae5', borderRadius: '8px', background: '#f0fdf4', fontSize: '12px' }}>
+                      <option value="all">All Zones</option>
+                      <option value="Northern Railway">Northern Railway</option>
+                      <option value="Western Railway">Western Railway</option>
+                    </select>
+
+                    <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#166534' }}>RIO</label>
+                    <select value={selectedReportRio} onChange={(e) => setSelectedReportRio(e.target.value)} style={{ padding: '6px 12px', border: '1px solid #d1fae5', borderRadius: '8px', background: '#f0fdf4', fontSize: '12px' }}>
+                      <option value="all">All RITES RIOs</option>
+                      <option value="CRIO">CRIO</option>
+                      <option value="NRIO">NRIO</option>
+                      <option value="ERIO">ERIO</option>
+                      <option value="WRIO">WRIO</option>
+                      <option value="SRIO">SRIO</option>
+                    </select>
+
+                    <button className="btn-apply" style={{ padding: '6px 15px', background: '#15803d', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}><i className="fa-solid fa-magnifying-glass" style={{ marginRight: '4px' }}></i>Apply</button>
+                    <button className="btn-reset" onClick={() => {
+                      setReportFromDate(`${new Date().getFullYear()}-01-01`);
+                      setReportToDate(new Date().toISOString().split('T')[0]);
+                      setSelectedReportProduct('ERC'); setSelectedReportZone('all'); setSelectedReportRio('all');
+                    }} style={{ padding: '6px 15px', background: '#fff', border: '1px solid #d1fae5', color: '#166534', borderRadius: '8px', cursor: 'pointer', fontSize: '12px' }}>Reset</button>
+                  </div>
+                )}
+
+                {/* REPORT VIEWER CONTENT */}
+                <div id="prof-content-area" style={{ width: '100%' }}>
+                  <ProfessionalCardSection
+                    activeMainCard="reports"
+                    selectedProduct={selectedReportProduct}
+                    mprData={mprData} mprLoading={mprLoading} mprPagination={mprPagination}
+                    mprPage={mprPage} setMprPage={setMprPage}
+                    mprRowsPerPage={mprRowsPerPage} setMprRowsPerPage={setMprRowsPerPage}
+                    mauData={mauData} mauLoading={mauLoading} mauPagination={mauPagination}
+                    mauPage={mauPage} setMauPage={setMauPage}
+                    mauRowsPerPage={mauRowsPerPage} setMauRowsPerPage={setMauRowsPerPage}
+                    mpiaData={mpiaData} mpiaLoading={mpiaLoading} mpiaPagination={mpiaPagination}
+                    mpiaPage={mpiaPage} setMpiaPage={setMpiaPage}
+                    mpiaRowsPerPage={mpiaRowsPerPage} setMpiaRowsPerPage={setMpiaRowsPerPage}
+                    lwclData={lwclData} lwclLoading={lwclLoading}
+                    lwclCallNo={lwclCallNo} setLwclCallNo={setLwclCallNo}
+                    lwclLotNo={lwclLotNo} setLwclLotNo={setLwclLotNo}
+                    lwclRequestIds={lwclRequestIds} lwclLotNumbers={lwclLotNumbers}
+                    lwclManufacturer={lwclManufacturer} setLwclManufacturer={setLwclManufacturer}
+                    lwclManufacturersList={lwclManufacturersList}
+                    lwclPoNo={lwclPoNo} setLwclPoNo={setLwclPoNo}
+                    lwclPoNumbersList={lwclPoNumbersList}
+                    level4Data={level4Data} level4Loading={level4Loading}
+                    activeReportFromParent={REPORT_NAME_TO_SLUG[activeReportTab]}
+                    onReportTabChange={(reportSlug) => {
+                      const reportName = Object.keys(REPORT_NAME_TO_SLUG).find(key => REPORT_NAME_TO_SLUG[key] === reportSlug);
+                      if (reportName) setActiveReportTab(reportName);
+                    }}
+                    setSelectedProduct={setSelectedReportProduct}
+                    fromDate={reportFromDate}
+                    toDate={reportToDate}
+                    setFromDate={setReportFromDate}
+                    setToDate={setReportToDate}
+                  />
+                </div>
+
               </div>
-              <button 
-                className="btn btn--primary"
-                onClick={() => triggerNotification(`Force sync data for ${activeReportTab} initiated!`, 'success')}
-              >
-                ⚡ Force Sync Sync Log
-              </button>
             </div>
-
-            {/* Render 1. Monthly Progress Report */}
-            {activeReportTab === 'Monthly Progress Report' && (
-              <section className="cm-list-card">
-                <div className="cm-list-header">
-                  <h3 style={{ fontSize: '14px', fontWeight: 'bold', color: '#166534', margin: 0 }}>
-                    Monthly Progress & Completion Audit Log (2026)
-                  </h3>
-                </div>
-                <div className="cm-table-wrapper">
-                  <table className="cm-table">
-                    <thead>
-                      <tr>
-                        <th>Month</th>
-                        <th>RITES RIO Region</th>
-                        <th>Total Calls Initiated</th>
-                        <th>Inspections Completed</th>
-                        <th>Overdue Actions Pending</th>
-                        <th>SLA Compliance Target</th>
-                        <th>Sync Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td style={{ fontWeight: 'bold' }}>May 2026 (Mtd)</td>
-                        <td>RIO North</td>
-                        <td>38 Calls</td>
-                        <td>31 Completed</td>
-                        <td><span style={{ color: '#ef4444', fontWeight: 'bold' }}>2 Overdue</span></td>
-                        <td style={{ fontWeight: 'bold', color: '#15803d' }}>97.4% Met</td>
-                        <td><span className="cm-status-badge" style={{ color: '#15803d', background: '#dcfce7', border: '1px solid #15803d' }}>SYNCED</span></td>
-                      </tr>
-                      <tr>
-                        <td style={{ fontWeight: 'bold' }}>April 2026</td>
-                        <td>RIO North</td>
-                        <td>45 Calls</td>
-                        <td>44 Completed</td>
-                        <td><span style={{ color: '#15803d' }}>0 Pending</span></td>
-                        <td style={{ fontWeight: 'bold', color: '#15803d' }}>98.2% Met</td>
-                        <td><span className="cm-status-badge" style={{ color: '#15803d', background: '#dcfce7', border: '1px solid #15803d' }}>SYNCED</span></td>
-                      </tr>
-                      <tr>
-                        <td style={{ fontWeight: 'bold' }}>March 2026</td>
-                        <td>RIO North</td>
-                        <td>41 Calls</td>
-                        <td>40 Completed</td>
-                        <td><span style={{ color: '#15803d' }}>0 Pending</span></td>
-                        <td style={{ fontWeight: 'bold', color: '#15803d' }}>96.8% Met</td>
-                        <td><span className="cm-status-badge" style={{ color: '#15803d', background: '#dcfce7', border: '1px solid #15803d' }}>SYNCED</span></td>
-                      </tr>
-                      <tr>
-                        <td style={{ fontWeight: 'bold' }}>February 2026</td>
-                        <td>RIO North</td>
-                        <td>35 Calls</td>
-                        <td>35 Completed</td>
-                        <td><span style={{ color: '#15803d' }}>0 Pending</span></td>
-                        <td style={{ fontWeight: 'bold', color: '#15803d' }}>100% Met</td>
-                        <td><span className="cm-status-badge" style={{ color: '#15803d', background: '#dcfce7', border: '1px solid #15803d' }}>SYNCED</span></td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            )}
-
-            {/* Render 2. Monthly Analysis of Units */}
-            {activeReportTab === 'Monthly Analysis of Units' && (
-              <section className="cm-list-card">
-                <div className="cm-list-header">
-                  <h3 style={{ fontSize: '14px', fontWeight: 'bold', color: '#166534', margin: 0 }}>
-                    Product Units Inspected, Passed & Defect Log
-                  </h3>
-                </div>
-                <div className="cm-table-wrapper">
-                  <table className="cm-table">
-                    <thead>
-                      <tr>
-                        <th>Product Type</th>
-                        <th>Inspected Volume (MT / Pcs)</th>
-                        <th>Approved & Stamped</th>
-                        <th>Rejected / Withheld</th>
-                        <th>Defect Ratio (%)</th>
-                        <th>Key Defect Observations</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td style={{ fontWeight: 'bold' }}>Elastic Rail Clip (ERC)</td>
-                        <td>54,200 Pcs</td>
-                        <td>52,890 Pcs</td>
-                        <td><span style={{ color: '#ef4444', fontWeight: 'bold' }}>1,310 Pcs</span></td>
-                        <td style={{ fontWeight: 'bold', color: '#ea580c' }}>2.41%</td>
-                        <td>Slight spring diameter variation in raw material stock.</td>
-                      </tr>
-                      <tr>
-                        <td style={{ fontWeight: 'bold' }}>Concrete Sleeper</td>
-                        <td>12,450 Units</td>
-                        <td>12,060 Units</td>
-                        <td><span style={{ color: '#ef4444', fontWeight: 'bold' }}>390 Units</span></td>
-                        <td style={{ fontWeight: 'bold', color: '#ea580c' }}>3.13%</td>
-                        <td>Crater defects on casting base plates during thermal cycle.</td>
-                      </tr>
-                      <tr>
-                        <td style={{ fontWeight: 'bold' }}>Grooved Rubber Sole Pad (GRSP)</td>
-                        <td>88,500 Pcs</td>
-                        <td>87,440 Pcs</td>
-                        <td><span style={{ color: '#ef4444', fontWeight: 'bold' }}>1,060 Pcs</span></td>
-                        <td style={{ fontWeight: 'bold', color: '#15803d' }}>1.20%</td>
-                        <td>Lab test indentation deviations outside limits.</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            )}
-
-            {/* Render 3. Lot Wise Closed Loop */}
-            {activeReportTab === 'Lot Wise Closed Loop' && (
-              <section className="cm-list-card">
-                <div className="cm-list-header">
-                  <h3 style={{ fontSize: '14px', fontWeight: 'bold', color: '#166534', margin: 0 }}>
-                    Lot Inspection Actions & NCR Closed Loop Status
-                  </h3>
-                </div>
-                <div className="cm-table-wrapper">
-                  <table className="cm-table">
-                    <thead>
-                      <tr>
-                        <th>Lot Code</th>
-                        <th>Vendor Name</th>
-                        <th>NCR Raised Date</th>
-                        <th>Inspection Discrepancy Found</th>
-                        <th>Clearance Date</th>
-                        <th>Closed Loop Resolution Type</th>
-                        <th>Sync to RB</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td style={{ fontWeight: 'bold' }}>LOT-2026-ERC-902</td>
-                        <td>Global Materials Corp</td>
-                        <td>2026-05-12</td>
-                        <td>Hardness test parameters slightly below grade.</td>
-                        <td>2026-05-20</td>
-                        <td><span style={{ color: '#15803d', fontWeight: 'bold' }}>Cleared after Re-tempering</span></td>
-                        <td><span className="cm-status-badge" style={{ color: '#15803d', background: '#dcfce7', border: '1px solid #15803d' }}>SYNCED</span></td>
-                      </tr>
-                      <tr>
-                        <td style={{ fontWeight: 'bold' }}>LOT-2026-SLP-441</td>
-                        <td>Premium Materials Inc</td>
-                        <td>2026-05-04</td>
-                        <td>Cores not fitting calibration templates.</td>
-                        <td>2026-05-14</td>
-                        <td><span style={{ color: '#15803d', fontWeight: 'bold' }}>Closed via dimensional recheck</span></td>
-                        <td><span className="cm-status-badge" style={{ color: '#15803d', background: '#dcfce7', border: '1px solid #15803d' }}>SYNCED</span></td>
-                      </tr>
-                      <tr>
-                        <td style={{ fontWeight: 'bold' }}>LOT-2026-PAD-082</td>
-                        <td>Steel Industries Ltd</td>
-                        <td>2026-05-18</td>
-                        <td>Severe curing compression variances.</td>
-                        <td><span style={{ color: '#ef4444', fontWeight: 'bold' }}>Ongoing NCR</span></td>
-                        <td><span style={{ color: '#ea580c', fontWeight: 'bold' }}>Awaiting lab validation reports</span></td>
-                        <td><span className="cm-status-badge" style={{ color: '#ea580c', background: '#ffedd5', border: '1px solid #ea580c' }}>PENDING</span></td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            )}
-
-            {/* Render 4. Shift Wise Production Report */}
-            {activeReportTab === 'Shift Wise Production Report' && (
-              <section className="cm-list-card">
-                <div className="cm-list-header">
-                  <h3 style={{ fontSize: '14px', fontWeight: 'bold', color: '#166534', margin: 0 }}>
-                    Shift Wise Production Operations & Telemetry Metrics
-                  </h3>
-                </div>
-                <div className="cm-table-wrapper">
-                  <table className="cm-table">
-                    <thead>
-                      <tr>
-                        <th>Shift Name</th>
-                        <th>Manufacturing Line / Node</th>
-                        <th>Operating Efficiency (%)</th>
-                        <th>Total Inspected Output</th>
-                        <th>Quality Stamping Pass Rate</th>
-                        <th>PLC Telemetry Link</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td style={{ fontWeight: 'bold' }}>Shift A (06:00 - 14:00)</td>
-                        <td>Line 1 - Concrete Sleeper Plant</td>
-                        <td>94.8%</td>
-                        <td>4,200 Pcs</td>
-                        <td style={{ fontWeight: 'bold', color: '#15803d' }}>98.5%</td>
-                        <td><span className="cm-status-badge" style={{ color: '#15803d', background: '#dcfce7', border: '1px solid #15803d' }}>ONLINE</span></td>
-                      </tr>
-                      <tr>
-                        <td style={{ fontWeight: 'bold' }}>Shift B (14:00 - 22:00)</td>
-                        <td>Line 1 - Concrete Sleeper Plant</td>
-                        <td>91.2%</td>
-                        <td>3,850 Pcs</td>
-                        <td style={{ fontWeight: 'bold', color: '#15803d' }}>97.8%</td>
-                        <td><span className="cm-status-badge" style={{ color: '#15803d', background: '#dcfce7', border: '1px solid #15803d' }}>ONLINE</span></td>
-                      </tr>
-                      <tr>
-                        <td style={{ fontWeight: 'bold' }}>Shift C (22:00 - 06:00)</td>
-                        <td>Line 2 - ERC Forging Plant</td>
-                        <td>88.6%</td>
-                        <td>3,100 Pcs</td>
-                        <td style={{ fontWeight: 'bold', color: '#ea580c' }}>94.2%</td>
-                        <td><span className="cm-status-badge" style={{ color: '#15803d', background: '#dcfce7', border: '1px solid #15803d' }}>ONLINE</span></td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            )}
-
-            {/* Render 5. Vendor wise Monthly Report */}
-            {activeReportTab === 'Vendor wise Monthly Report' && (
-              <section className="cm-list-card">
-                <div className="cm-list-header">
-                  <h3 style={{ fontSize: '14px', fontWeight: 'bold', color: '#166534', margin: 0 }}>
-                    Vendor wise Performance Ratings & Rejection Analysis
-                  </h3>
-                </div>
-                <div className="cm-table-wrapper">
-                  <table className="cm-table">
-                    <thead>
-                      <tr>
-                        <th>Vendor Name</th>
-                        <th>Lots Inspected</th>
-                        <th>Completed Deliveries</th>
-                        <th>Average Inspection Lead Time</th>
-                        <th>Monthly Rejection Rate</th>
-                        <th>Quality Rating Grade</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td style={{ fontWeight: 'bold' }}>Global Materials Corp</td>
-                        <td>18 Lots</td>
-                        <td>16 Lots</td>
-                        <td>2.1 Days</td>
-                        <td style={{ fontWeight: 'bold', color: '#15803d' }}>2.4%</td>
-                        <td style={{ fontWeight: 'bold', color: '#15803d' }}>Grade A+ (★★★★★)</td>
-                      </tr>
-                      <tr>
-                        <td style={{ fontWeight: 'bold' }}>Premium Materials Inc</td>
-                        <td>12 Lots</td>
-                        <td>11 Lots</td>
-                        <td>1.8 Days</td>
-                        <td style={{ fontWeight: 'bold', color: '#ea580c' }}>3.1%</td>
-                        <td style={{ fontWeight: 'bold', color: '#15803d' }}>Grade A (★★★★☆)</td>
-                      </tr>
-                      <tr>
-                        <td style={{ fontWeight: 'bold' }}>Steel Industries Ltd</td>
-                        <td>22 Lots</td>
-                        <td>19 Lots</td>
-                        <td>3.2 Days</td>
-                        <td style={{ fontWeight: 'bold', color: '#ef4444' }}>7.8%</td>
-                        <td style={{ fontWeight: 'bold', color: '#ea580c' }}>Grade B (★★★☆☆)</td>
-                      </tr>
-                      <tr>
-                        <td style={{ fontWeight: 'bold' }}>Quality Forge Pvt Ltd</td>
-                        <td>8 Lots</td>
-                        <td>8 Lots</td>
-                        <td>1.2 Days</td>
-                        <td style={{ fontWeight: 'bold', color: '#15803d' }}>1.2%</td>
-                        <td style={{ fontWeight: 'bold', color: '#15803d' }}>Grade A+ (★★★★★)</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            )}
-
-            {/* Render 6. PO Wise Monthly Report */}
-            {activeReportTab === 'PO Wise Monthly Report' && (
-              <section className="cm-list-card">
-                <div className="cm-list-header">
-                  <h3 style={{ fontSize: '14px', fontWeight: 'bold', color: '#166534', margin: 0 }}>
-                    Active Purchase Order Progress & Value Milestones
-                  </h3>
-                </div>
-                <div className="cm-table-wrapper">
-                  <table className="cm-table">
-                    <thead>
-                      <tr>
-                        <th>PO Reference</th>
-                        <th>Material Specification</th>
-                        <th>Total PO Volume</th>
-                        <th>Inspected Volume</th>
-                        <th>Remaining Balance</th>
-                        <th>Material Value Synced</th>
-                        <th>Milestone Progress</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td style={{ fontWeight: 'bold' }}>CR-93428947-001</td>
-                        <td>Elastic Rail Clip (ERC)</td>
-                        <td>150,000 Pcs</td>
-                        <td>122,000 Pcs</td>
-                        <td>28,000 Pcs</td>
-                        <td style={{ fontWeight: 'bold' }}>{formatIndianCurrency(1850000)}</td>
-                        <td><span className="cm-status-badge" style={{ color: '#15803d', background: '#dcfce7', border: '1px solid #15803d' }}>81.3% COMPLETE</span></td>
-                      </tr>
-                      <tr>
-                        <td style={{ fontWeight: 'bold' }}>CR-93428947-002</td>
-                        <td>Concrete Sleeper</td>
-                        <td>25,000 Units</td>
-                        <td>18,200 Units</td>
-                        <td>6,800 Units</td>
-                        <td style={{ fontWeight: 'bold' }}>{formatIndianCurrency(3420000)}</td>
-                        <td><span className="cm-status-badge" style={{ color: '#15803d', background: '#dcfce7', border: '1px solid #15803d' }}>72.8% COMPLETE</span></td>
-                      </tr>
-                      <tr>
-                        <td style={{ fontWeight: 'bold' }}>CR-93428947-003</td>
-                        <td>Grooved Rubber Sole Pad</td>
-                        <td>200,000 Pcs</td>
-                        <td>192,000 Pcs</td>
-                        <td>8,000 Pcs</td>
-                        <td style={{ fontWeight: 'bold' }}>{formatIndianCurrency(920000)}</td>
-                        <td><span className="cm-status-badge" style={{ color: '#15803d', background: '#dcfce7', border: '1px solid #15803d' }}>96.0% COMPLETE</span></td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            )}
-          </>
+          </div>
         )}
 
         {/* 9. Reports Download view */}
@@ -2115,70 +2884,741 @@ export const CMDashboardPage = () => {
           </>
         )}
 
-        {/* 10. Mandays Calculation view */}
+        {/* 10. Process Inspection Manday Calculation view */}
         {activeTab === 'Mandays Calculation' && (
           <>
             <div className="cm-panel-header">
               <div className="cm-panel-title-area">
-                <h1 className="cm-panel-title">Mandays Calculation Calculator</h1>
-                <p className="cm-panel-subtitle">Dynamic calculation of IE workdays, travel logs, base billing rates, and costs.</p>
+                <h1 className="cm-panel-title">Process Inspection Manday Calculation</h1>
+                <p className="cm-panel-subtitle">Dynamic calculation of IE workdays, shift-wise fractional deployments, and sleeper manpower metrics.</p>
               </div>
             </div>
 
-            <section className="cm-list-card">
-              <div className="cm-table-wrapper">
-                <table className="cm-table">
-                  <thead>
-                    <tr>
-                      <th>IE Name</th>
-                      <th>RITES RIO</th>
-                      <th>Days Spent (Base)</th>
-                      <th>Travel Days</th>
-                      <th>Total Mandays</th>
-                      <th>Base Rate (/Day)</th>
-                      <th>Consolidated Amount</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {INITIAL_IES.map((ie) => (
-                      <tr key={ie.id}>
-                        <td style={{ fontWeight: 'bold' }}>{ie.name}</td>
-                        <td>{ie.region}</td>
-                        <td>
-                          <input 
-                            type="number" 
-                            defaultValue="18" 
-                            style={{ width: '80px', padding: '4px 8px', border: '1px solid #d1fae5', background: '#f0fdf4', borderRadius: '6px' }}
-                            onChange={() => triggerNotification('Recomputing dynamic mandays rates...', 'info')}
-                          />
-                        </td>
-                        <td>
-                          <input 
-                            type="number" 
-                            defaultValue="4" 
-                            style={{ width: '80px', padding: '4px 8px', border: '1px solid #d1fae5', background: '#f0fdf4', borderRadius: '6px' }}
-                            onChange={() => triggerNotification('Recomputing travel logistics charges...', 'info')}
-                          />
-                        </td>
-                        <td style={{ fontWeight: 'bold' }}>22 Mandays</td>
-                        <td>{formatIndianCurrency(2500)}</td>
-                        <td style={{ fontWeight: 'bold', color: '#15803d' }}>
-                          {formatIndianCurrency(22 * 2500)}
-                        </td>
-                        <td>
-                          <button 
-                            className="btn btn--outline"
-                            style={{ padding: '4px 8px', fontSize: '11px' }}
-                            onClick={() => triggerNotification(`Mandays billing dispatched for ${ie.name}!`, 'success')}
-                          >
-                            📁 Dispatch
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            {/* Top-level Primary Filters Card */}
+            <section className="cm-filters-card" style={{ marginBottom: '20px' }} id="manday-filters-container">
+              <div className="cm-filters-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #f0fdf4', paddingBottom: '8px' }}>
+                <i className="fa-solid fa-calculator" style={{ color: '#166534' }} />
+                <span>Primary Filter Criteria</span>
+              </div>
+              <div className="cm-filters-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', borderTop: 'none', paddingTop: '0', marginTop: '4px' }}>
+                
+                {/* Product Dropdown */}
+                <div className="cm-filter-group">
+                  <label className="cm-filter-label" htmlFor="manday-product-select">Product Type</label>
+                  <select
+                    id="manday-product-select"
+                    value={mandayProduct}
+                    className="cm-filter-select"
+                    style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1fae5', background: '#f0fdf4', borderRadius: '8px', color: '#1a2e1a', fontWeight: '600' }}
+                    onChange={(e) => {
+                      setMandayProduct(e.target.value);
+                      setShowMandayReport(false);
+                      // Clear sub-filters when product changes
+                      setMandayVendor('');
+                      setMandayUnit('');
+                      setMandayCallNumber('');
+                    }}
+                  >
+                    <option value="">-- Select Product --</option>
+                    <option value="ERC">ERC</option>
+                    <option value="Sleeper">Sleeper</option>
+                    <option value="Rail Pad">Rail Pad</option>
+                  </select>
+                </div>
+
+                {/* Calculation Preference Dropdown */}
+                <div className="cm-filter-group">
+                  <label className="cm-filter-label" htmlFor="manday-pref-select">Calculation Preference</label>
+                  <select
+                    id="manday-pref-select"
+                    value={mandayPreference}
+                    className="cm-filter-select"
+                    style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1fae5', background: '#f0fdf4', borderRadius: '8px', color: '#1a2e1a', fontWeight: '600' }}
+                    onChange={(e) => {
+                      setMandayPreference(e.target.value);
+                      setShowMandayReport(false);
+                      // Clear sub-filters when preference changes
+                      setMandayVendor('');
+                      setMandayUnit('');
+                      setMandayCallNumber('');
+                    }}
+                  >
+                    <option value="">-- Select Calculation Preference --</option>
+                    <option value="Vendor Wise">Vendor Wise</option>
+                    <option value="Call Wise">Call Wise</option>
+                  </select>
+                </div>
+
+              </div>
+            </section>
+
+            {/* Sub-Filters Section - displays once primary filters are chosen */}
+            {mandayProduct && mandayPreference && (
+              <section className="cm-filters-card" style={{ marginBottom: '20px', borderLeft: '4px solid #16a34a' }} id="manday-subfilters-container">
+                <div className="cm-filters-title" style={{ color: '#166534' }}>
+                  <i className="fa-solid fa-sliders" />
+                  <span>Configure {mandayProduct} ({mandayPreference}) Sub-filters</span>
+                </div>
+                
+                <div className="cm-filters-grid" style={{ borderTop: '1px solid #f0fdf4', paddingTop: '12px', marginTop: '4px' }}>
+                  {mandayPreference === 'Vendor Wise' ? (
+                    <>
+                      {/* Vendor Selection Dropdown */}
+                      <div className="cm-filter-group">
+                        <label className="cm-filter-label" htmlFor="manday-vendor-select">Vendor Name</label>
+                        <select
+                          id="manday-vendor-select"
+                          value={mandayVendor}
+                          className="cm-filter-select"
+                          style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '6px', cursor: 'pointer' }}
+                          onChange={(e) => {
+                            setMandayVendor(e.target.value);
+                            setMandayUnit(''); // reset unit
+                          }}
+                        >
+                          <option value="">-- Choose Vendor --</option>
+                          {MANDAY_VENDORS.map(v => (
+                            <option key={v.id} value={v.name}>{v.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Unit Selection Dropdown (dependent on vendor) */}
+                      <div className="cm-filter-group">
+                        <label className="cm-filter-label" htmlFor="manday-unit-select">Vendor Unit</label>
+                        <select
+                          id="manday-unit-select"
+                          value={mandayUnit}
+                          className="cm-filter-select"
+                          disabled={!mandayVendor}
+                          style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', background: mandayVendor ? '#fff' : '#f1f5f9', borderRadius: '6px', cursor: mandayVendor ? 'pointer' : 'not-allowed' }}
+                          onChange={(e) => setMandayUnit(e.target.value)}
+                        >
+                          <option value="">-- Choose Unit --</option>
+                          {mandayVendor && MANDAY_UNITS[mandayVendor]?.map(unit => (
+                            <option key={unit} value={unit}>{unit}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Date Range Fields */}
+                      <div className="cm-filter-group">
+                        <label className="cm-filter-label" htmlFor="manday-start-date">Start Date</label>
+                        <input
+                          id="manday-start-date"
+                          type="date"
+                          value={mandayStartDate}
+                          style={{ padding: '7px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none' }}
+                          onChange={(e) => setMandayStartDate(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="cm-filter-group">
+                        <label className="cm-filter-label" htmlFor="manday-end-date">End Date</label>
+                        <input
+                          id="manday-end-date"
+                          type="date"
+                          value={mandayEndDate}
+                          style={{ padding: '7px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none' }}
+                          onChange={(e) => setMandayEndDate(e.target.value)}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {/* Call Wise - Single text input for Call Number */}
+                      <div className="cm-filter-group" style={{ gridColumn: 'span 2' }}>
+                        <label className="cm-filter-label" htmlFor="manday-call-input">Call Number</label>
+                        <input
+                          id="manday-call-input"
+                          type="text"
+                          placeholder="Enter call number e.g. CALL-2026-101"
+                          value={mandayCallNumber}
+                          style={{ width: '100%', padding: '9px 14px', border: '1px solid #cbd5e1', borderRadius: '8px', fontWeight: '600', outline: 'none', fontSize: '13px', letterSpacing: '0.5px' }}
+                          onChange={(e) => setMandayCallNumber(e.target.value)}
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Calculate/Action Button */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #f0fdf4', paddingTop: '12px', marginTop: '8px' }}>
+                  <button
+                    className="btn btn--primary"
+                    id="manday-calc-button"
+                    style={{ padding: '10px 24px', background: '#166534', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s' }}
+                    onClick={() => {
+                      if (mandayPreference === 'Vendor Wise' && (!mandayVendor || !mandayUnit || !mandayStartDate || !mandayEndDate)) {
+                        triggerNotification('Please fill all sub-filters (Vendor, Unit, Date Range) to calculate.', 'warning');
+                        return;
+                      }
+                      if (mandayPreference === 'Call Wise' && !mandayCallNumber) {
+                        triggerNotification('Please select or input a Call Reference Number to fetch details.', 'warning');
+                        return;
+                      }
+                      setShowMandayReport(true);
+                      triggerNotification(`Successfully loaded process inspection mandays for ${mandayProduct}!`, 'success');
+                    }}
+                  >
+                    <i className="fa-solid fa-calculator" />
+                    <span>Calculate Mandays &amp; Generate Sheets</span>
+                  </button>
+                </div>
+              </section>
+            )}
+
+            {/* Helper alert shown when filters are selected but report hasn't been loaded yet */}
+            {(!mandayProduct || !mandayPreference || !showMandayReport) && (
+              <div style={{
+                background: '#fff',
+                border: '1px dashed #166534',
+                borderRadius: '12px',
+                padding: '40px 20px',
+                textAlign: 'center',
+                color: '#4b6b4b',
+                boxShadow: '0 4px 15px rgba(0,0,0,0.02)'
+              }} id="manday-placeholder-alert">
+                <i className="fa-solid fa-calculator" style={{ fontSize: '32px', color: '#166534', marginBottom: '16px', opacity: 0.8 }} />
+                <h3 style={{ fontSize: '15px', fontWeight: 'bold', color: '#14532d', margin: '0 0 8px 0' }}>Calculation Worksheet Ready</h3>
+                <p style={{ margin: 0, fontSize: '12.5px', maxWidth: '500px', marginLeft: 'auto', marginRight: 'auto', lineHeight: '1.5' }}>
+                  {!mandayProduct || !mandayPreference 
+                    ? 'Please select a Product (ERC, Sleeper, Rail Pad) and your desired Calculation Preference in the filter controls above.'
+                    : 'Filters have been configured. Click the "Calculate Mandays & Generate Sheets" button to run fractional duty splits and generate the attendance ledger below.'
+                  }
+                </p>
+              </div>
+            )}
+
+            {/* Calculated Report Sheets Display */}
+            {showMandayReport && mandayProduct && mandayPreference && (
+              <section className="cm-list-card" style={{ animation: 'fadeIn 0.4s ease' }} id="manday-report-output">
+                
+                {/* Header detailing selection parameters */}
+                <div className="cm-list-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <h3 style={{ fontSize: '14px', fontWeight: 'bold', color: '#14532d', margin: 0 }}>
+                      📋 Manday Attendance Sheet &amp; Cost Ledger
+                    </h3>
+                    <div style={{ fontSize: '11.5px', color: '#4b6b4b', marginTop: '4px', fontWeight: '600' }}>
+                      Product: <span style={{ color: '#15803d' }}>{mandayProduct}</span> | 
+                      Preference: <span style={{ color: '#15803d', marginLeft: '4px' }}>{mandayPreference}</span>
+                      {mandayPreference === 'Vendor Wise' ? (
+                        <>
+                           | Vendor: <span style={{ color: '#15803d', marginLeft: '4px' }}>{mandayVendor}</span> | 
+                          Unit: <span style={{ color: '#15803d', marginLeft: '4px' }}>{mandayUnit}</span> | 
+                          Period: <span style={{ color: '#15803d', marginLeft: '4px' }}>{mandayStartDate} to {mandayEndDate}</span>
+                        </>
+                      ) : (
+                        <>
+                           | Call Ref: <span style={{ color: '#15803d', marginLeft: '4px' }}>{mandayCallNumber}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <button 
+                    className="btn btn--outline" 
+                    style={{ fontSize: '11px', padding: '6px 12px' }}
+                    onClick={() => handleDownloadPdf(mandayCallNumber || 'VENDOR_MANDAYS', 'PDF')}
+                  >
+                    <i className="fa-solid fa-file-pdf" style={{ marginRight: '6px', color: '#b91c1c' }} /> Download Report
+                  </button>
+                </div>
+
+                {/* COMBINATION 1: ERC - Vendor Wise */}
+                {mandayProduct === 'ERC' && mandayPreference === 'Vendor Wise' && (
+                  <div className="cm-table-wrapper">
+                    <table className="cm-table">
+                      <thead>
+                        <tr>
+                          <th style={{ width: '50px' }}>S.No.</th>
+                          <th>Date</th>
+                          <th>Day</th>
+                          <th>No. of Shifts worked</th>
+                          <th>No. of Inspection Calls worked upon</th>
+                          <th>IEs Worked (Name &amp; Employee Code)</th>
+                          <th style={{ fontWeight: 'bold' }}>No. of Mandays deployed</th>
+                          <th>Total Pieces Processed (Shearing Production)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>1</td>
+                          <td>2026-05-25</td>
+                          <td>Monday</td>
+                          <td>3 Shifts (A, B, C)</td>
+                          <td>5 Calls</td>
+                          <td>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                              <span>• Rajesh Kumar (IE001)</span>
+                              <span>• Priya Sharma (IE002)</span>
+                            </div>
+                          </td>
+                          <td style={{ fontWeight: 'bold', color: '#15803d', fontSize: '11px' }}>2.0 Mandays</td>
+                          <td style={{ fontWeight: 'bold' }}>12,500 pcs</td>
+                        </tr>
+                        <tr>
+                          <td>2</td>
+                          <td>2026-05-26</td>
+                          <td>Tuesday</td>
+                          <td>2 Shifts (A, B)</td>
+                          <td>3 Calls</td>
+                          <td>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                              <span>• Rajesh Kumar (IE001)</span>
+                            </div>
+                          </td>
+                          <td style={{ fontWeight: 'bold', color: '#15803d', fontSize: '11px' }}>1.0 Mandays</td>
+                          <td style={{ fontWeight: 'bold' }}>8,200 pcs</td>
+                        </tr>
+                        <tr>
+                          <td>3</td>
+                          <td>2026-05-27</td>
+                          <td>Wednesday</td>
+                          <td>3 Shifts (A, B, C)</td>
+                          <td>6 Calls</td>
+                          <td>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                              <span>• Priya Sharma (IE002)</span>
+                              <span>• Vikram Singh (IE005)</span>
+                            </div>
+                          </td>
+                          <td style={{ fontWeight: 'bold', color: '#15803d', fontSize: '11px' }}>3.0 Mandays</td>
+                          <td style={{ fontWeight: 'bold' }}>15,400 pcs</td>
+                        </tr>
+                        <tr>
+                          <td>4</td>
+                          <td>2026-05-28</td>
+                          <td>Thursday</td>
+                          <td>1 Shift (A)</td>
+                          <td>1 Call</td>
+                          <td>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                              <span>• Amit Patel (IE003)</span>
+                            </div>
+                          </td>
+                          <td style={{ fontWeight: 'bold', color: '#15803d', fontSize: '11px' }}>1.0 Mandays</td>
+                          <td style={{ fontWeight: 'bold' }}>4,800 pcs</td>
+                        </tr>
+                        {/* Summary Row */}
+                        <tr style={{ background: '#f0fdf4', fontWeight: 'bold', borderTop: '2px solid #16a34a' }}>
+                          <td colSpan="3" style={{ textAlign: 'right', fontWeight: 'bold', color: '#14532d' }}>Consolidated Totals:</td>
+                          <td>9 Shifts</td>
+                          <td>15 Inspection Calls</td>
+                          <td>4 Unique Engineers</td>
+                          <td style={{ color: '#15803d', fontWeight: '900', fontSize: '12px' }}>7.0 Mandays</td>
+                          <td style={{ color: '#15803d', fontWeight: '900', fontSize: '12px' }}>40,900 pieces</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    
+                    <div style={{ padding: '16px', background: '#fafafa', borderTop: '1px solid #cbd5e1', fontSize: '11.5px', color: '#4b6b4b' }}>
+                      📝 <b>ERC Vendor-Wise Mandays Rule:</b> Count of Unique IE &amp; Shift on that day. Shifts include any log where login and work were successfully recorded (even clicking on "no production" represents recorded work).
+                    </div>
+                  </div>
+                )}
+
+                {/* COMBINATION 2: ERC - Call Wise */}
+                {mandayProduct === 'ERC' && mandayPreference === 'Call Wise' && (
+                  <div>
+                    <div className="cm-table-wrapper">
+                      <table className="cm-table">
+                        <thead>
+                          <tr>
+                            <th style={{ width: '50px' }}>S.No.</th>
+                            <th>Date</th>
+                            <th>Day</th>
+                            <th>No. of Shifts</th>
+                            <th style={{ fontWeight: 'bold', background: '#f0fdf4' }}>Mandays deployed in this Call<br /><span style={{ fontWeight: 'normal', fontSize: '10px', opacity: 0.8 }}>(Unique IE-Shift ÷ No. of calls worked in that shift, summed across shifts)</span></th>
+                            <th>Total Pieces Processed (Shearing Production)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td>1</td>
+                            <td>2026-05-27</td>
+                            <td>Wednesday</td>
+                            <td>3 (A, B, C)</td>
+                            <td style={{ fontWeight: 'bold', color: '#15803d', fontSize: '11px' }}>3.00 Mandays<br/><span style={{ fontWeight: 'normal', fontSize: '10px', color: '#4b6b4b' }}>A: 0.5+1.0 = 1.5 | B: 1.0 | C: 0.5</span></td>
+                            <td style={{ fontWeight: 'bold' }}>18,500 pcs</td>
+                          </tr>
+                          <tr style={{ background: '#f0fdf4', fontWeight: 'bold', borderTop: '1px solid #16a34a' }}>
+                            <td colSpan="3" style={{ textAlign: 'right', fontWeight: 'bold', color: '#14532d' }}>Total Mandays Deployed:</td>
+                            <td>3 Shifts</td>
+                            <td style={{ color: '#15803d', fontWeight: '900', fontSize: '12px' }}>3.00 Mandays</td>
+                            <td style={{ color: '#15803d', fontWeight: '900', fontSize: '12px' }}>18,500 pieces</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Highly Professional visual explanation box illustrating the fractional formula */}
+                    <div style={{ padding: '20px', background: '#fafafa', borderTop: '1px solid #cbd5e1' }}>
+                      <h4 style={{ fontSize: '12px', fontWeight: 'bold', color: '#14532d', display: 'flex', alignItems: 'center', gap: '6px', margin: '0 0 12px 0' }}>
+                        🔍 Shift-wise Fractional Manday Calculations for {mandayCallNumber}
+                      </h4>
+                      
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+                        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px' }}>
+                          <span style={{ background: '#eff6ff', color: '#1e40af', padding: '2px 8px', borderRadius: '12px', fontSize: '10px', fontWeight: '700' }}>Shift A</span>
+                          <p style={{ margin: '8px 0 0 0', fontSize: '11px', lineHeight: '1.4', color: '#4b5563' }}>
+                            2 IEs logged in and worked:<br />
+                            • <b>IE 1</b> worked on Call 1 &amp; 2: <span style={{ color: '#15803d', fontWeight: 'bold' }}>0.5 mandays</span><br />
+                            • <b>IE 2</b> worked on Call 1 only: <span style={{ color: '#15803d', fontWeight: 'bold' }}>1.0 mandays</span><br />
+                            <b>Shift Total:</b> 0.5 + 1.0 = <span style={{ fontWeight: 'bold' }}>1.50</span>
+                          </p>
+                        </div>
+
+                        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px' }}>
+                          <span style={{ background: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: '12px', fontSize: '10px', fontWeight: '700' }}>Shift B</span>
+                          <p style={{ margin: '8px 0 0 0', fontSize: '11px', lineHeight: '1.4', color: '#4b5563' }}>
+                            1 IE logged in and worked:<br />
+                            • <b>IE 3</b> worked on Call 1 only: <span style={{ color: '#15803d', fontWeight: 'bold' }}>1.0 mandays</span><br />
+                            <b>Shift Total:</b> = <span style={{ fontWeight: 'bold' }}>1.00</span>
+                          </p>
+                        </div>
+
+                        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px' }}>
+                          <span style={{ background: '#faf5ff', color: '#6b21a8', padding: '2px 8px', borderRadius: '12px', fontSize: '10px', fontWeight: '700' }}>Shift C</span>
+                          <p style={{ margin: '8px 0 0 0', fontSize: '11px', lineHeight: '1.4', color: '#4b5563' }}>
+                            1 IE logged in and worked:<br />
+                            • <b>IE 4</b> worked on Call 1 &amp; 2: <span style={{ color: '#15803d', fontWeight: 'bold' }}>0.5 mandays</span><br />
+                            <b>Shift Total:</b> = <span style={{ fontWeight: 'bold' }}>0.50</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      <div style={{ marginTop: '16px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: '11.5px', color: '#166534', fontWeight: '600' }}>
+                          🧮 <b>Total Deployed Mandays (Sum of Shifts):</b> 1.50 (A) + 1.00 (B) + 0.50 (C)
+                        </span>
+                        <span style={{ fontSize: '13px', color: '#14532d', fontWeight: '800', background: '#fff', padding: '4px 10px', borderRadius: '6px', border: '1px solid #bbf7d0' }}>
+                          = 3.00 Mandays
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* COMBINATION 3: Sleeper - Vendor Wise */}
+                {mandayProduct === 'Sleeper' && mandayPreference === 'Vendor Wise' && (
+                  <div className="cm-table-wrapper">
+                    <table className="cm-table">
+                      <thead>
+                        <tr>
+                          <th style={{ width: '50px' }}>S.No.</th>
+                          <th>Date</th>
+                          <th>Day</th>
+                          <th>No. of Shifts active (duty started &amp; completed)</th>
+                          <th>IEs Worked (Name &amp; Employee Code)</th>
+                          <th style={{ fontWeight: 'bold' }}>No. of Mandays deployed</th>
+                          <th>No. of Batches produced</th>
+                          <th>No. of Sleepers Produced</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>1</td>
+                          <td>2026-05-25</td>
+                          <td>Monday</td>
+                          <td>2 (Shift A, B)</td>
+                          <td>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                              <span>• Amit Patel (IE003)</span>
+                              <span>• Sneha Reddy (IE004)</span>
+                            </div>
+                          </td>
+                          <td style={{ fontWeight: 'bold', color: '#15803d', fontSize: '11px' }}>2.0 Mandays</td>
+                          <td>4 Batches</td>
+                          <td style={{ fontWeight: 'bold' }}>1,600 Sleepers</td>
+                        </tr>
+                        <tr>
+                          <td>2</td>
+                          <td>2026-05-26</td>
+                          <td>Tuesday</td>
+                          <td>3 (Shift A, B, C)</td>
+                          <td>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                              <span>• Amit Patel (IE003)</span>
+                              <span>• Vikram Singh (IE005)</span>
+                            </div>
+                          </td>
+                          <td style={{ fontWeight: 'bold', color: '#15803d', fontSize: '11px' }}>3.0 Mandays</td>
+                          <td>6 Batches</td>
+                          <td style={{ fontWeight: 'bold' }}>2,400 Sleepers</td>
+                        </tr>
+                        <tr>
+                          <td>3</td>
+                          <td>2026-05-27</td>
+                          <td>Wednesday</td>
+                          <td>1 (Shift A)</td>
+                          <td>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                              <span>• Sneha Reddy (IE004)</span>
+                            </div>
+                          </td>
+                          <td style={{ fontWeight: 'bold', color: '#15803d', fontSize: '11px' }}>1.0 Mandays</td>
+                          <td>2 Batches</td>
+                          <td style={{ fontWeight: 'bold' }}>800 Sleepers</td>
+                        </tr>
+                        {/* Summary Row */}
+                        <tr style={{ background: '#f0fdf4', fontWeight: 'bold', borderTop: '2px solid #16a34a' }}>
+                          <td colSpan="3" style={{ textAlign: 'right', fontWeight: 'bold', color: '#14532d' }}>Consolidated Totals:</td>
+                          <td>6 Shifts</td>
+                          <td>3 Unique Engineers</td>
+                          <td style={{ color: '#15803d', fontWeight: '900', fontSize: '12px' }}>6.0 Mandays</td>
+                          <td>12 Batches</td>
+                          <td style={{ color: '#15803d', fontWeight: '900', fontSize: '12px' }}>4,800 sleepers</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    
+                    <div style={{ padding: '16px', background: '#fafafa', borderTop: '1px solid #cbd5e1', fontSize: '11.5px', color: '#4b6b4b' }}>
+                      📝 <b>Sleeper Vendor-Wise Mandays Rule:</b> Counts shifts for which duty has been successfully started and completed. Multiple duty starts/logins by the same IE for the same shift are strictly deduplicated and considered as one (1.0).
+                    </div>
+                  </div>
+                )}
+
+                {/* COMBINATION 4: Sleeper - Call Wise */}
+                {mandayProduct === 'Sleeper' && mandayPreference === 'Call Wise' && (
+                  <div style={{ padding: '20px' }}>
+                    
+                    {/* Upper metrics row */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+                      
+                      <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '16px', textAlign: 'center' }}>
+                        <span style={{ fontSize: '10.5px', color: '#166534', fontWeight: '700', textTransform: 'uppercase' }}>No. of Batches in Call</span>
+                        <h4 style={{ fontSize: '22px', fontWeight: '900', color: '#14532d', margin: '4px 0 0 0' }}>5 Batches</h4>
+                        <span style={{ fontSize: '10.5px', color: '#4b6b4b' }}>Batches for which call has been raised</span>
+                      </div>
+
+                      <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '16px', textAlign: 'center' }}>
+                        <span style={{ fontSize: '10.5px', color: '#166534', fontWeight: '700', textTransform: 'uppercase' }}>No. of Sleepers in Call</span>
+                        <h4 style={{ fontSize: '22px', fontWeight: '900', color: '#14532d', margin: '4px 0 0 0' }}>2,000 Sleepers</h4>
+                        <span style={{ fontSize: '10.5px', color: '#4b6b4b' }}>Sleepers offered under {mandayCallNumber}</span>
+                      </div>
+
+                      <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px', textAlign: 'center' }}>
+                        <span style={{ fontSize: '10.5px', color: '#475569', fontWeight: '700', textTransform: 'uppercase' }}>Casting Months Involved</span>
+                        <h4 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', margin: '8px 0 0 0' }}>April 2026, May 2026</h4>
+                        <span style={{ fontSize: '10.5px', color: '#64748b' }}>Assigned batches casting month list</span>
+                      </div>
+
+                    </div>
+
+                    {/* Casting Month Calculation Ledger Table */}
+                    <h4 style={{ fontSize: '12.5px', fontWeight: 'bold', color: '#14532d', margin: '0 0 8px 0' }}>
+                      📊 Casting Monthly Manpower Cost Allocation Sheet (Editable Inputs)
+                    </h4>
+                    
+                    <div className="table-responsive" style={{ border: '1px solid #cbd5e1', borderRadius: '8px', overflow: 'hidden' }}>
+                      <table className="cm-table" style={{ width: '100%' }}>
+                        <thead>
+                          <tr style={{ background: '#0f172a' }}>
+                            <th>Casting Month</th>
+                            <th>Total Sleepers Casted this month (a)</th>
+                            <th>No. of Mandays Deployed this month (b)</th>
+                            <th>Manpower Cost per Sleeper (c) = b ÷ a</th>
+                            <th>Sleepers in this Call belonging to month</th>
+                            <th style={{ fontWeight: 'bold' }}>Manpower Cost of Sleepers for batches (d) = c × Sleepers in Call</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          
+                          {/* April 2026 row */}
+                          <tr>
+                            <td style={{ fontWeight: 'bold' }}>April 2026</td>
+                            <td>
+                              <input
+                                type="number"
+                                value={sleeperCastApril}
+                                style={{ width: '100px', padding: '6px', border: '1px solid #d1fae5', background: '#f0fdf4', borderRadius: '6px', fontWeight: 'bold', outline: 'none' }}
+                                onChange={(e) => setSleeperCastApril(Number(e.target.value))}
+                              />
+                            </td>
+                            <td>
+                              <input
+                                type="number"
+                                value={sleeperDaysApril}
+                                style={{ width: '80px', padding: '6px', border: '1px solid #d1fae5', background: '#f0fdf4', borderRadius: '6px', fontWeight: 'bold', outline: 'none' }}
+                                onChange={(e) => setSleeperDaysApril(Number(e.target.value))}
+                              />
+                            </td>
+                            <td style={{ fontWeight: 'bold', color: '#1e40af' }}>
+                              {(sleeperCastApril > 0 ? (sleeperDaysApril / sleeperCastApril) : 0).toFixed(4)} mandays/sleeper
+                            </td>
+                            <td style={{ fontWeight: '600' }}>800 Sleepers</td>
+                            <td style={{ fontWeight: 'bold', color: '#15803d', fontSize: '11px' }}>
+                              {(sleeperCastApril > 0 ? (sleeperDaysApril / sleeperCastApril) * 800 : 0).toFixed(2)} mandays
+                            </td>
+                          </tr>
+
+                          {/* May 2026 row */}
+                          <tr>
+                            <td style={{ fontWeight: 'bold' }}>May 2026</td>
+                            <td>
+                              <input
+                                type="number"
+                                value={sleeperCastMay}
+                                style={{ width: '100px', padding: '6px', border: '1px solid #d1fae5', background: '#f0fdf4', borderRadius: '6px', fontWeight: 'bold', outline: 'none' }}
+                                onChange={(e) => setSleeperCastMay(Number(e.target.value))}
+                              />
+                            </td>
+                            <td>
+                              <input
+                                type="number"
+                                value={sleeperDaysMay}
+                                style={{ width: '80px', padding: '6px', border: '1px solid #d1fae5', background: '#f0fdf4', borderRadius: '6px', fontWeight: 'bold', outline: 'none' }}
+                                onChange={(e) => setSleeperDaysMay(Number(e.target.value))}
+                              />
+                            </td>
+                            <td style={{ fontWeight: 'bold', color: '#1e40af' }}>
+                              {(sleeperCastMay > 0 ? (sleeperDaysMay / sleeperCastMay) : 0).toFixed(4)} mandays/sleeper
+                            </td>
+                            <td style={{ fontWeight: '600' }}>1,200 Sleepers</td>
+                            <td style={{ fontWeight: 'bold', color: '#15803d', fontSize: '11px' }}>
+                              {(sleeperCastMay > 0 ? (sleeperDaysMay / sleeperCastMay) * 1200 : 0).toFixed(2)} mandays
+                            </td>
+                          </tr>
+
+                          {/* Total Row */}
+                          <tr style={{ background: '#f0fdf4', borderTop: '2px solid #15803d', fontWeight: 'bold' }}>
+                            <td colSpan="4" style={{ textAlign: 'right', fontWeight: 'bold', color: '#14532d' }}>
+                              Total Manpower Cost of All Sleepers Offered (sum of d):
+                            </td>
+                            <td style={{ fontWeight: 'bold' }}>2,000 Sleepers</td>
+                            <td style={{ color: '#166534', fontWeight: '900', fontSize: '13px', background: '#dcfce7' }}>
+                              {(
+                                (sleeperCastApril > 0 ? (sleeperDaysApril / sleeperCastApril) * 800 : 0) +
+                                (sleeperCastMay > 0 ? (sleeperDaysMay / sleeperCastMay) * 1200 : 0)
+                              ).toFixed(2)} mandays
+                            </td>
+                          </tr>
+
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div style={{ marginTop: '16px', border: '1px dashed #cbd5e1', background: '#fafafa', padding: '12px', borderRadius: '8px', fontSize: '11.5px', color: '#4b5563', lineHeight: '1.4' }}>
+                      💡 <b>How it works:</b> Edit the month's <i>Total Sleepers Casted (a)</i> or <i>No. of Mandays Deployed (b)</i> directly in the table. The casting month ratio (c = a/b) and the allocated manpower cost (d = c * sleepers in call) will instantly recalculate.
+                    </div>
+
+                  </div>
+                )}
+
+                {/* COMBINATION 5 & 6: Rail Pad - Vendor Wise & Call Wise */}
+                {mandayProduct === 'Rail Pad' && (
+                  <div className="cm-table-wrapper">
+                    {mandayPreference === 'Vendor Wise' ? (
+                      <table className="cm-table">
+                        <thead>
+                          <tr>
+                            <th style={{ width: '50px' }}>S.No.</th>
+                            <th>Date</th>
+                            <th>Day</th>
+                            <th>No. of Shifts worked</th>
+                            <th>IEs Worked (Name &amp; Employee Code)</th>
+                            <th style={{ fontWeight: 'bold' }}>No. of Mandays deployed</th>
+                            <th>Total Rubber Pads Inspected</th>
+                            <th>Pads Passed</th>
+                            <th>Pads Rejected</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td>1</td>
+                            <td>2026-05-25</td>
+                            <td>Monday</td>
+                            <td>2 Shifts</td>
+                            <td>• Priya Sharma (IE002)</td>
+                            <td style={{ fontWeight: 'bold', color: '#15803d' }}>1.0 Manday</td>
+                            <td style={{ fontWeight: 'bold' }}>18,000 pads</td>
+                            <td style={{ color: '#15803d', fontWeight: 'bold' }}>17,600 pads</td>
+                            <td style={{ color: '#ef4444', fontWeight: 'bold' }}>400 pads (2.2%)</td>
+                          </tr>
+                          <tr>
+                            <td>2</td>
+                            <td>2026-05-26</td>
+                            <td>Tuesday</td>
+                            <td>2 Shifts</td>
+                            <td>• Sneha Reddy (IE004)</td>
+                            <td style={{ fontWeight: 'bold', color: '#15803d' }}>1.0 Manday</td>
+                            <td style={{ fontWeight: 'bold' }}>15,000 pads</td>
+                            <td style={{ color: '#15803d', fontWeight: 'bold' }}>14,750 pads</td>
+                            <td style={{ color: '#ef4444', fontWeight: 'bold' }}>250 pads (1.7%)</td>
+                          </tr>
+                          {/* Summary Row */}
+                          <tr style={{ background: '#f0fdf4', fontWeight: 'bold', borderTop: '2px solid #16a34a' }}>
+                            <td colSpan="3" style={{ textAlign: 'right', fontWeight: 'bold', color: '#14532d' }}>Consolidated Totals:</td>
+                            <td>4 Shifts</td>
+                            <td>2 Unique Engineers</td>
+                            <td style={{ color: '#15803d', fontWeight: '900', fontSize: '12px' }}>2.0 Mandays</td>
+                            <td style={{ color: '#15803d', fontWeight: '900', fontSize: '12px' }}>33,000 pads</td>
+                            <td style={{ color: '#15803d', fontWeight: '900' }}>32,350 pads</td>
+                            <td style={{ color: '#ef4444', fontWeight: '900' }}>650 pads (1.9%)</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    ) : (
+                      <table className="cm-table">
+                        <thead>
+                          <tr>
+                            <th style={{ width: '50px' }}>S.No.</th>
+                            <th>Date</th>
+                            <th>Day</th>
+                            <th>No. of Shifts active</th>
+                            <th style={{ fontWeight: 'bold' }}>Mandays deployed in this Call</th>
+                            <th>Total Rubber Pads Inspected</th>
+                            <th>Remarks</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td>1</td>
+                            <td>2026-05-26</td>
+                            <td>Tuesday</td>
+                            <td>1 Shift</td>
+                            <td style={{ fontWeight: 'bold', color: '#15803d' }}>1.00 Mandays</td>
+                            <td style={{ fontWeight: 'bold' }}>15,000 pads</td>
+                            <td>Completed Visual inspection successfully.</td>
+                          </tr>
+                          <tr style={{ background: '#f0fdf4', fontWeight: 'bold', borderTop: '1px solid #16a34a' }}>
+                            <td colSpan="3" style={{ textAlign: 'right', fontWeight: 'bold', color: '#14532d' }}>Total Mandays Deployed:</td>
+                            <td>1 Shift</td>
+                            <td style={{ color: '#15803d', fontWeight: '900', fontSize: '12px' }}>1.00 Mandays</td>
+                            <td style={{ color: '#15803d', fontWeight: '900', fontSize: '12px' }}>15,000 pads</td>
+                            <td>IC Certificate Issued.</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                )}
+
+              </section>
+            )}
+          </>
+        )}
+
+        {/* 10.1 IE Billing Sheet view */}
+        {activeTab === 'Billing Sheet' && (
+          <>
+            <div className="cm-panel-header">
+              <div className="cm-panel-title-area">
+                <h1 className="cm-panel-title">Inspection Engineers Billing Sheet</h1>
+                <p className="cm-panel-subtitle">Manage base workdays, travel logs, day rates, and dispatch consolidated billing amounts for assigned IEs.</p>
+              </div>
+            </div>
+
+            <section className="cm-list-card" style={{ padding: '60px 20px', textAlign: 'center', background: '#fff', border: '1px dashed #ea580c', borderRadius: '12px', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.02)' }} id="billing-under-dev-container">
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', justifyContent: 'center' }}>
+                <i className="fa-solid fa-person-digging" style={{ fontSize: '48px', color: '#ea580c' }} />
+                <div>
+                  <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#9a3412', margin: '0 0 8px 0' }}>Billing Sheet Under Development</h3>
+                  <p style={{ margin: 0, fontSize: '12.5px', color: '#7c2d12', maxWidth: '520px', lineHeight: '1.6', marginLeft: 'auto', marginRight: 'auto' }}>
+                    This module is currently being configured with the core RITES billing ledger and payment gateway service. Dynamic travel vouchers, daily base rates, and automatic payment dispatch metrics will be active in the next release.
+                  </p>
+                </div>
               </div>
             </section>
           </>
@@ -2189,83 +3629,21 @@ export const CMDashboardPage = () => {
           <>
             <div className="cm-panel-header">
               <div className="cm-panel-title-area">
-                <h1 className="cm-panel-title">Controlling Manager Approvals Desk</h1>
+                <h1 className="cm-panel-title">Notification &amp; Approval</h1>
                 <p className="cm-panel-subtitle">Escalate, review, validate, approve, or reject special inspection engineering triggers.</p>
               </div>
             </div>
 
-            <section className="cm-approval-grid">
-              {approvals.map((req) => {
-                let priorityColor = '#3b82f6';
-                if (req.priority === 'Critical') priorityColor = '#b91c1c';
-                else if (req.priority === 'High') priorityColor = '#ef4444';
-                else if (req.priority === 'Medium') priorityColor = '#f59e0b';
-
-                return (
-                  <div key={req.id} className="cm-approval-card" style={{ borderTop: `4px solid ${priorityColor}` }}>
-                    <div className="cm-approval-card-header">
-                      <div>
-                        <div className="cm-approval-type">{req.type}</div>
-                        <div style={{ fontSize: '11px', color: '#4b6b4b', marginTop: '2px' }}>
-                          ID: <b>{req.id}</b> | Call Ref: <b>{req.callNumber}</b>
-                        </div>
-                      </div>
-                      <span className="cm-approval-priority" style={{ background: priorityColor }}>
-                        {req.priority}
-                      </span>
-                    </div>
-
-                    <p style={{ fontSize: '12.5px', margin: '0', color: '#4b6b4b', lineHeight: '1.4' }}>
-                      {req.details}
-                    </p>
-
-                    <div className="cm-approval-details">
-                      <div className="cm-approval-row">
-                        <span className="cm-approval-label">Requesting IE:</span>
-                        <span className="cm-approval-value">{req.ie}</span>
-                      </div>
-                      <div className="cm-approval-row">
-                        <span className="cm-approval-label">Vendor Name:</span>
-                        <span className="cm-approval-value">{req.vendor}</span>
-                      </div>
-                      <div className="cm-approval-row">
-                        <span className="cm-approval-label">Product Specs:</span>
-                        <span className="cm-approval-value">{req.product}</span>
-                      </div>
-                      <div className="cm-approval-row">
-                        <span className="cm-approval-label">Requested On:</span>
-                        <span className="cm-approval-value">{req.requestedDate}</span>
-                      </div>
-                      <div className="cm-approval-row">
-                        <span className="cm-approval-label">Status:</span>
-                        <span 
-                          className="cm-approval-value"
-                          style={{ 
-                            textTransform: 'uppercase', 
-                            fontWeight: 'bold', 
-                            color: req.status === 'pending' ? '#f59e0b' : req.status === 'approved' ? '#15803d' : req.status === 'rejected' ? '#ef4444' : '#3b82f6'
-                          }}
-                        >
-                          {req.status}
-                        </span>
-                      </div>
-                      {req.remarks && (
-                        <div style={{ marginTop: '8px', padding: '6px 10px', background: '#f0fdf4', border: '1px solid #d1fae5', borderRadius: '6px', fontSize: '11px' }}>
-                          <b>Audit Trail Remark:</b> {req.remarks}
-                        </div>
-                      )}
-                    </div>
-
-                    {req.status === 'pending' && (
-                      <div className="cm-approval-actions">
-                        <button className="cm-approval-btn approve" onClick={() => openApprovalModal(req, 'approve')}>✓ Approve</button>
-                        <button className="cm-approval-btn reject" onClick={() => openApprovalModal(req, 'reject')}>✗ Reject</button>
-                        <button className="cm-approval-btn forward" onClick={() => openApprovalModal(req, 'forward')}>➡️ Escalate</button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+            <section className="cm-list-card" style={{ padding: '60px 20px', textAlign: 'center', background: '#fff', border: '1px dashed #ea580c', borderRadius: '12px', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.02)' }} id="approval-under-dev-container">
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', justifyContent: 'center' }}>
+                <i className="fa-solid fa-person-digging" style={{ fontSize: '48px', color: '#ea580c' }} />
+                <div>
+                  <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#9a3412', margin: '0 0 8px 0' }}>Notification &amp; Approval Under Development</h3>
+                  <p style={{ margin: 0, fontSize: '12.5px', color: '#7c2d12', maxWidth: '520px', lineHeight: '1.6', marginLeft: 'auto', marginRight: 'auto' }}>
+                    This module is currently being configured with the RITES approval workflow engine and notification dispatch services. Escalation chains, approval thresholds, and audit trail logging will be active in the next release.
+                  </p>
+                </div>
+              </div>
             </section>
           </>
         )}
@@ -2279,7 +3657,7 @@ export const CMDashboardPage = () => {
             <div className="cm-modal-title">
               {modalAction === 'approve' ? 'Approve Request' : modalAction === 'reject' ? 'Reject Request' : 'Escalate Request'}
             </div>
-            
+
             <div className="cm-modal-content">
               <div style={{ fontSize: '12.5px', color: '#4b6b4b' }}>
                 You are performing an audit action on request <b>{activeApproval.id}</b> ({activeApproval.type}) submitted by IE <b>{activeApproval.ie}</b>.
@@ -2287,8 +3665,8 @@ export const CMDashboardPage = () => {
 
               <div className="cm-filter-group" style={{ marginTop: '8px' }}>
                 <label className="cm-filter-label">Audit Remarks / Justifications (Mandatory)</label>
-                <textarea 
-                  placeholder="Enter remarks for audit trail and tracking logs..." 
+                <textarea
+                  placeholder="Enter remarks for audit trail and tracking logs..."
                   className="cm-modal-textarea"
                   value={remarksInput}
                   onChange={(e) => setRemarksInput(e.target.value)}
@@ -2297,14 +3675,14 @@ export const CMDashboardPage = () => {
             </div>
 
             <div className="cm-modal-actions">
-              <button 
-                className="btn btn--outline" 
+              <button
+                className="btn btn--outline"
                 style={{ padding: '6px 12px', fontSize: '11px' }}
                 onClick={() => { setModalOpen(false); setActiveApproval(null); }}
               >
                 Cancel
               </button>
-              <button 
+              <button
                 className={`btn btn--sm ${modalAction === 'approve' ? 'btn-success' : modalAction === 'reject' ? 'btn-danger' : 'btn-warning'}`}
                 onClick={submitApprovalAction}
               >
@@ -2319,3 +3697,17 @@ export const CMDashboardPage = () => {
 };
 
 export default CMDashboardPage;
+
+// Helper: map product tab name to database item_cat_descr value
+const PRODUCT_TO_ITEM_CAT = {
+  'ERC': 'Elastic Rail Clips',
+  'Sleeper': 'PSC Mainline Sleeper',
+  'Rail Pad': 'Rail Pads',
+};
+
+// Helper function to filter records by the correct item category for the selected product
+const getFilteredRecordsByProduct = (data, product) => {
+  if (!data || !Array.isArray(data)) return [];
+  const category = PRODUCT_TO_ITEM_CAT[product] || 'Elastic Rail Clips';
+  return data.filter(po => po.itemCatDescr === category);
+};

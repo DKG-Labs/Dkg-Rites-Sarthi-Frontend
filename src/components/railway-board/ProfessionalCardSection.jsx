@@ -990,7 +990,7 @@ const ProfessionalCardSection = ({
 
                         case 'performance':
                             if (isSleeper) {
-                                return <SleeperPerformance />;
+                                return <SleeperPerformance fromDate={fromDate} toDate={toDate} />;
                             }
                             if (isRailPad) {
                                 return <RailPadPerformance perfData={perfData} loading={perfLoading} />;

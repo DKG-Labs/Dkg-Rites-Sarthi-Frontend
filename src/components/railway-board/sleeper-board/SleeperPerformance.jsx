@@ -1,30 +1,82 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import './SleeperSummary.css';
+import reportService from '../../../services/reportService';
+import { ExportButton, downloadExcel } from '../SharedComponents';
 
-const MOCK_PERFORMANCE_DATA = [
-    { id: 1, plantName: "PCM Cement Concrete, Nalbari", rio: "East", ieName: "A. K. Sharma", stage: "Casting & Demoulding", shiftsWorked: 18, rejectedQty: 42 },
-    { id: 2, plantName: "Prestressed Concrete Udyog, Bongaigaon", rio: "East", ieName: "R. K. Sen", stage: "Final Visual & Dimensional", shiftsWorked: 24, rejectedQty: 85 },
-    { id: 3, plantName: "Stresscrete India, Siliguri", rio: "North", ieName: "M. K. Patel", stage: "SBT & Elasticity Testing", shiftsWorked: 15, rejectedQty: 12 },
-    { id: 4, plantName: "Pragati Concrete, Patna", rio: "Central", ieName: "V. K. Jha", stage: "Raw Material Quality Assurance", shiftsWorked: 20, rejectedQty: 6 },
-    { id: 5, plantName: "Rana Sleepers, Lucknow", rio: "North", ieName: "S. P. Singh", stage: "Casting & Demoulding", shiftsWorked: 30, rejectedQty: 112 },
-    { id: 6, plantName: "Kedar Sleepers, Bhilai", rio: "South", ieName: "S. K. Gupta", stage: "Final Visual & Dimensional", shiftsWorked: 12, rejectedQty: 28 },
-    { id: 7, plantName: "PCM Cement Concrete, Nalbari", rio: "East", ieName: "A. K. Sharma", stage: "Final Visual & Dimensional", shiftsWorked: 22, rejectedQty: 58 },
-    { id: 8, plantName: "Stresscrete India, Siliguri", rio: "North", ieName: "M. K. Patel", stage: "Casting & Demoulding", shiftsWorked: 16, rejectedQty: 34 },
-    { id: 9, plantName: "Pragati Concrete, Patna", rio: "Central", ieName: "V. K. Jha", stage: "SBT & Elasticity Testing", shiftsWorked: 14, rejectedQty: 18 },
-    { id: 10, plantName: "Kedar Sleepers, Bhilai", rio: "South", ieName: "S. K. Gupta", stage: "Raw Material Quality Assurance", shiftsWorked: 10, rejectedQty: 4 }
-];
-
-const SleeperPerformance = () => {
+const SleeperPerformance = ({ fromDate, toDate }) => {
+    const [performanceData, setPerformanceData] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedRio, setSelectedRio] = useState('All');
     const [selectedStage, setSelectedStage] = useState('All');
     const [selectedIe, setSelectedIe] = useState('All');
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
-    // Extract unique filter items
-    const uniqueRios = useMemo(() => ["All", ...new Set(MOCK_PERFORMANCE_DATA.map(d => d.rio))], []);
-    const uniqueStages = useMemo(() => ["All", ...new Set(MOCK_PERFORMANCE_DATA.map(d => d.stage))], []);
-    const uniqueIes = useMemo(() => ["All", ...new Set(MOCK_PERFORMANCE_DATA.map(d => d.ieName))], []);
+    // Format suryaprakash.baghel to Suryaprakash Baghel
+    const formatIeName = (name) => {
+        if (!name || name === 'N/A' || name === 'null') return 'N/A';
+        return name
+            .split('.')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+    };
+
+    // Load data from API when dates change
+    useEffect(() => {
+        const fetchPerformanceData = async () => {
+            try {
+                setLoading(true);
+                setError(null);
+                const response = await reportService.getSleeperEmployeePerformance({
+                    startDate: fromDate,
+                    endDate: toDate
+                });
+                
+                const rawList = response.responseData || response || [];
+                const mappedData = rawList.map((row, idx) => ({
+                    id: idx + 1,
+                    companyName: row.companyName || "N/A",
+                    plantName: row.plantName || row.companyName || "Unassigned Plant",
+                    plantId: row.plantId || "N/A",
+                    rio: row.rio || "N/A",
+                    ieName: formatIeName(row.ieName),
+                    stage: row.stageOfInspection || "Process",
+                    shift: row.shift || "N/A",
+                    shiftsWorked: row.shiftsWorked ?? 0,
+                    rejectedQty: row.rejectedSleepers ?? 0
+                }));
+                
+                setPerformanceData(mappedData);
+            } catch (err) {
+                console.error("Failed to fetch sleeper employee performance matrix:", err);
+                setError(err.message || "Failed to retrieve performance monitoring matrix data.");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (fromDate && toDate) {
+            fetchPerformanceData();
+        }
+    }, [fromDate, toDate]);
+
+    // Extract unique filter items dynamically
+    const uniqueRios = useMemo(() => {
+        const rios = performanceData.map(d => d.rio).filter(rio => rio && rio !== 'N/A');
+        return ["All", ...new Set(rios)];
+    }, [performanceData]);
+
+    const uniqueStages = useMemo(() => {
+        const stages = performanceData.map(d => d.stage).filter(stg => stg && stg !== 'N/A');
+        return ["All", ...new Set(stages)];
+    }, [performanceData]);
+
+    const uniqueIes = useMemo(() => {
+        const ies = performanceData.map(d => d.ieName).filter(ie => ie && ie !== 'N/A');
+        return ["All", ...new Set(ies)];
+    }, [performanceData]);
 
     const handleSort = (key) => {
         let direction = 'asc';
@@ -36,15 +88,19 @@ const SleeperPerformance = () => {
 
     // Filter and sort computation
     const processedData = useMemo(() => {
-        let result = [...MOCK_PERFORMANCE_DATA];
+        let result = [...performanceData];
 
         // 1. Text Search Filter
         if (searchTerm) {
             const lowerSearch = searchTerm.trim().toLowerCase();
             result = result.filter(d => 
+                String(d.companyName || '').toLowerCase().includes(lowerSearch) ||
                 String(d.plantName || '').toLowerCase().includes(lowerSearch) ||
+                String(d.plantId || '').toLowerCase().includes(lowerSearch) ||
                 String(d.ieName || '').toLowerCase().includes(lowerSearch) ||
-                String(d.rio || '').toLowerCase().includes(lowerSearch)
+                String(d.rio || '').toLowerCase().includes(lowerSearch) ||
+                String(d.stage || '').toLowerCase().includes(lowerSearch) ||
+                String(d.shift || '').toLowerCase().includes(lowerSearch)
             );
         }
 
@@ -77,7 +133,7 @@ const SleeperPerformance = () => {
         }
 
         return result;
-    }, [searchTerm, selectedRio, selectedStage, selectedIe, sortConfig]);
+    }, [performanceData, searchTerm, selectedRio, selectedStage, selectedIe, sortConfig]);
 
     // KPI Metrics calculation
     const totalShifts = useMemo(() => processedData.reduce((sum, d) => sum + d.shiftsWorked, 0), [processedData]);
@@ -87,15 +143,49 @@ const SleeperPerformance = () => {
         return (totalRejections / totalShifts).toFixed(2);
     }, [totalShifts, totalRejections]);
 
+    if (loading) {
+        return (
+            <div className="sleeper-report-container animate-up" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '350px' }}>
+                <div className="text-center">
+                    <div className="spinner-border text-emerald-600 mb-3" style={{ width: '3rem', height: '3rem' }}></div>
+                    <p className="text-slate-500 font-medium">Fetching Performance Monitoring Matrix...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="sleeper-report-container animate-up" style={{ padding: '20px' }}>
+                <div className="alert alert-danger" style={{ background: '#fef2f2', border: '1px solid #fee2e2', color: '#991b1b', padding: '15px', borderRadius: '8px' }}>
+                    <h5 style={{ fontWeight: 'bold', marginBottom: '8px' }}>⚠️ Data Fetch Error</h5>
+                    <p style={{ margin: 0, fontSize: '14px' }}>{error}</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="sleeper-report-container animate-up">
             {/* Header section */}
             <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
                 <span>Performance Monitoring Matrix (Sleeper)</span>
-                <div style={{ display: 'flex', gap: '12px' }}>
-                    <button className="btn-export" style={{ padding: '8px 16px', background: '#1e293b', color: 'white', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>
-                        📥 Export Excel
-                    </button>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <ExportButton onClick={() => {
+                        const headers = [
+                            { label: 'S.No.', key: 'id' },
+                            { label: 'Company Name', key: 'companyName' },
+                            { label: 'PSC Sleeper Plant', key: 'plantName' },
+                            { label: 'Plant ID', key: 'plantId' },
+                            { label: 'RITES RIO', key: 'rio' },
+                            { label: 'IE Name', key: 'ieName' },
+                            { label: 'Stage of Inspection', key: 'stage' },
+                            { label: 'Shift', key: 'shift' },
+                            { label: 'No. of Shifts Worked', key: 'shiftsWorked' },
+                            { label: 'No. of Sleepers Rejected', key: 'rejectedQty' }
+                        ];
+                        downloadExcel(processedData, headers, 'Sleeper_Performance_Monitoring_Matrix');
+                    }} />
                     <input 
                         type="text" 
                         placeholder="Search Plant, IE..." 
@@ -152,23 +242,32 @@ const SleeperPerformance = () => {
                 <table className="prof-table">
                     <thead>
                         <tr>
-                            <th style={{ width: '60px' }}>S.NO.</th>
-                            <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('plantName')}>
+                            <th style={{ width: '60px', textAlign: 'center' }}>S.NO.</th>
+                            <th style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center' }} onClick={() => handleSort('companyName')}>
+                                COMPANY NAME {sortConfig.key === 'companyName' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                            </th>
+                            <th style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center' }} onClick={() => handleSort('plantName')}>
                                 PSC SLEEPER PLANT {sortConfig.key === 'plantName' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
                             </th>
-                            <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('rio')}>
+                            <th style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center' }} onClick={() => handleSort('plantId')}>
+                                PLANT ID {sortConfig.key === 'plantId' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                            </th>
+                            <th style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center' }} onClick={() => handleSort('rio')}>
                                 RITES RIO {sortConfig.key === 'rio' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
                             </th>
-                            <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('ieName')}>
+                            <th style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', textAlign: 'center' }} onClick={() => handleSort('ieName')}>
                                 IE NAME {sortConfig.key === 'ieName' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
                             </th>
-                            <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('stage')}>
+                            <th style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center' }} onClick={() => handleSort('stage')}>
                                 STAGE OF INSPECTION {sortConfig.key === 'stage' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
                             </th>
-                            <th className="text-right" style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('shiftsWorked')}>
+                            <th style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center' }} onClick={() => handleSort('shift')}>
+                                SHIFT {sortConfig.key === 'shift' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                            </th>
+                            <th style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center' }} onClick={() => handleSort('shiftsWorked')}>
                                 NO. OF SHIFTS WORKED {sortConfig.key === 'shiftsWorked' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
                             </th>
-                            <th className="text-right" style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('rejectedQty')}>
+                            <th style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center' }} onClick={() => handleSort('rejectedQty')}>
                                 NO. OF SLEEPERS REJECTED {sortConfig.key === 'rejectedQty' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
                             </th>
                         </tr>
@@ -177,18 +276,21 @@ const SleeperPerformance = () => {
                         {processedData.length > 0 ? (
                             processedData.map((row, idx) => (
                                 <tr key={row.id} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
-                                    <td>{idx + 1}</td>
-                                    <td><strong>{row.plantName}</strong></td>
-                                    <td><span className="prof-badge" style={{ background: '#f0fdf4', color: '#166534' }}>{row.rio}</span></td>
-                                    <td>👤 {row.ieName}</td>
-                                    <td><span className="prof-badge" style={{ background: '#f0f9ff', color: '#075985' }}>{row.stage}</span></td>
-                                    <td className="text-right font-medium">{row.shiftsWorked}</td>
-                                    <td className="text-right font-bold text-red-600">{row.rejectedQty?.toLocaleString()}</td>
+                                    <td style={{ textAlign: 'center' }}>{idx + 1}</td>
+                                    <td style={{ textAlign: 'center' }}>{row.companyName}</td>
+                                    <td style={{ textAlign: 'center' }}><strong>{row.plantName}</strong></td>
+                                    <td style={{ textAlign: 'center' }}><code style={{ fontSize: '11px' }}>{row.plantId}</code></td>
+                                    <td style={{ textAlign: 'center' }}><span className="prof-badge" style={{ background: '#f0fdf4', color: '#166534' }}>{row.rio}</span></td>
+                                    <td style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>👤 {row.ieName}</td>
+                                    <td style={{ textAlign: 'center' }}><span className="prof-badge" style={{ background: '#f0f9ff', color: '#075985' }}>{row.stage}</span></td>
+                                    <td style={{ textAlign: 'center' }}><span className="prof-badge" style={{ background: '#eff6ff', color: '#1e40af' }}>{row.shift}</span></td>
+                                    <td style={{ textAlign: 'center' }} className="font-medium">{row.shiftsWorked}</td>
+                                    <td style={{ textAlign: 'center' }} className="font-bold text-red-600">{row.rejectedQty?.toLocaleString()}</td>
                                 </tr>
                             ))
                         ) : (
                             <tr>
-                                <td colSpan="7" className="text-center p-8 text-slate-400">No performance records found matching the filter criteria.</td>
+                                <td colSpan="10" className="text-center p-8 text-slate-400">No performance records found matching the filter criteria.</td>
                             </tr>
                         )}
                     </tbody>
@@ -225,3 +327,50 @@ const SleeperPerformance = () => {
 };
 
 export default SleeperPerformance;
+
+/**
+ * ============================================================================
+ * SLEEPER DASHBOARD - EMPLOYEE WISE PERFORMANCE MATRIX API INTEGRATION NOTES
+ * ============================================================================
+ * 
+ * Endpoint:
+ *   GET /api/sleeper-dashboard/employee-wise-performance
+ * 
+ * Query Parameters:
+ *   - startDate (String, Format: "dd/MM/yyyy") (Required)
+ *   - endDate (String, Format: "dd/MM/yyyy") (Required)
+ * 
+ * Expected JSON Response Schema:
+ *   {
+ *     "responseStatus": {
+ *       "statusCode": 200,
+ *       "message": "SUCCESS"
+ *     },
+ *     "responseData": [
+ *       {
+ *         "companyName": "PATIL RAIL INFRASTRUCTURE PVT LTD",
+ *         "plantName": "PATIL HYDERABAD PLANT 1",
+ *         "plantId": ":41647/waidiyaram",
+ *         "rio": "South",
+ *         "ieName": "suryaprakash.baghel",
+ *         "stageOfInspection": "Process",
+ *         "shift": "A",
+ *         "rejectedSleepers": 48,
+ *         "shiftsWorked": 5
+ *       },
+ *       ...
+ *     ]
+ *   }
+ * 
+ * Mapped Fields for Component Render:
+ *   - S.No. => Row Index + 1
+ *   - PSC SLEEPER PLANT => row.plantName || row.companyName || "Unassigned Plant"
+ *   - RITES RIO => row.rio || "N/A"
+ *   - IE NAME => Formatted row.ieName (capitalized words, dot replaced by space)
+ *   - STAGE OF INSPECTION => row.stageOfInspection || "Process"
+ *   - NO. OF SHIFTS WORKED => row.shiftsWorked (Fallback: 0)
+ *   - NO. OF SLEEPERS REJECTED => row.rejectedSleepers (Fallback: 0)
+ * 
+ * Export to Excel Columns:
+ *   - S.No., PSC Sleeper Plant, RITES RIO, IE Name, Stage of Inspection, Shift, No. of Shifts Worked, No. of Sleepers Rejected
+ */

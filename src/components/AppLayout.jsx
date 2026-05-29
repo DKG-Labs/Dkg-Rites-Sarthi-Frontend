@@ -84,9 +84,10 @@ const AppLayout = () => {
   const isRailwayBoardRoute = location.pathname.startsWith(ROUTES.RAILWAY_BOARD_DASHBOARD);
   const isAdminRoute = location.pathname.startsWith(ROUTES.ADMIN_DASHBOARD);
   const isRitesAdminRoute = location.pathname.startsWith('/rites-admin');
+  const isCMRoute = location.pathname.startsWith(ROUTES.CM_DASHBOARD);
 
   // Determine if sidebar should be hidden
-  const shouldHideSidebar = isCallDeskRoute || isRailwayBoardRoute || isAdminRoute || isRitesAdminRoute;
+  const shouldHideSidebar = isCallDeskRoute || isRailwayBoardRoute || isAdminRoute || isRitesAdminRoute || isCMRoute;
 
   return (
     <div>
@@ -242,7 +243,7 @@ const AppLayout = () => {
           <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)} aria-hidden="true" />
         )}
 
-        <main className={`main-content ${isRailwayBoardRoute ? 'full-width-main' : ''}`}>
+        <main className={`main-content ${shouldHideSidebar ? 'full-width-main' : ''}`}>
           <Outlet />
         </main>
       </div>

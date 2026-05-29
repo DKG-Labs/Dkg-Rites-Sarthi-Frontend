@@ -81,9 +81,22 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
         internalStatus = CALL_STATUS.RETURNED;
       }
 
-      const poParts = (item.poNo || "").split(" / ");
-      const actualPoNo = poParts[1] || "-";
-      const actualSerialNo = poParts[1] && poParts[2] ? `${poParts[1]} / ${poParts[2]}` : (poParts[2] || "-");
+      const poParts = (item.poNo || "").split("/").map(p => p.trim());
+      let rlyShortName = "-";
+      let actualPoNo = "-";
+      let actualSerialNo = "-";
+
+      if (poParts.length > 0 && poParts[0]) {
+        const hasLetters = /[a-zA-Z]/.test(poParts[0]);
+        if (hasLetters) {
+          rlyShortName = poParts[0];
+          actualPoNo = poParts[1] || "-";
+          actualSerialNo = poParts[2] || "-";
+        } else {
+          actualPoNo = poParts[0];
+          actualSerialNo = poParts[0] && poParts[1] ? `${poParts[0]} / ${poParts[1]}` : (poParts[1] || "-");
+        }
+      }
 
       return {
         id: item.workflowTransitionId,
@@ -92,6 +105,7 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
         submissionDateTime: item.createdDate,
         poNumber: actualPoNo,
         poSerialNo: actualSerialNo,
+        rlyShortName: rlyShortName,
         rlyPoSr: item.poNo || '-',
         product: item.productType || (callType === 'SLEEPER' ? 'Sleeper' : callType === 'RAILPAD' ? 'Rail Pad' : '-'),
         productStage: item.productType || (callType === 'SLEEPER' ? 'Final' : callType === 'RAILPAD' ? 'Final' : '-'),
@@ -184,8 +198,19 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
         internalStatus = 'payment_pending';
       }
 
-      const poParts = (item.poNo || "").split(" / ");
-      const actualPoNo = poParts[1] || "-";
+      const poParts = (item.poNo || "").split("/").map(p => p.trim());
+      let rlyShortName = "-";
+      let actualPoNo = "-";
+
+      if (poParts.length > 0 && poParts[0]) {
+        const hasLetters = /[a-zA-Z]/.test(poParts[0]);
+        if (hasLetters) {
+          rlyShortName = poParts[0];
+          actualPoNo = poParts[1] || "-";
+        } else {
+          actualPoNo = poParts[0];
+        }
+      }
 
       return {
         id: item.workflowTransitionId,
@@ -193,6 +218,7 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
         vendor: { name: item.vendorName || item.vendorCode || '-' },
         submissionDateTime: item.createdDate,
         poNumber: actualPoNo,
+        rlyShortName: rlyShortName,
         product: item.productType || (callType === 'SLEEPER' ? 'Sleeper' : callType === 'RAILPAD' ? 'Rail Pad' : '-'),
         productStage: item.productType || (callType === 'SLEEPER' ? 'Final' : callType === 'RAILPAD' ? 'Final' : '-'),
         desiredInspectionDate: item.desiredInspectionDate || item.createdDate,

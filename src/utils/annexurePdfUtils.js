@@ -16,9 +16,10 @@ import html2canvas from 'html2canvas';
 const addElementToPdf = async (element, pdf, options) => {
   const { scale = 2.5 } = options;
 
-  const isPortrait = options.orientation === 'portrait';
-  const captureWidth = isPortrait ? 950 : 1600;
-  const windowWidth = isPortrait ? 1000 : 1700;
+  const isItpPage = element.classList.contains('itp-page');
+  const isPortrait = element.classList.contains('portrait') || isItpPage || options.orientation === 'portrait';
+  const captureWidth = isItpPage ? 720 : (isPortrait ? 950 : 1600);
+  const windowWidth = isItpPage ? 800 : (isPortrait ? 1000 : 1700);
 
   const canvas = await html2canvas(element, {
     scale,
@@ -39,11 +40,15 @@ const addElementToPdf = async (element, pdf, options) => {
       });
 
       // Select ALL layouts to ensure consistency across pages
-      const layouts = clonedDoc.querySelectorAll('.annexure-layout');
+      const layouts = clonedDoc.querySelectorAll('.annexure-layout, .annexure-template, .itp-page');
       layouts.forEach(layout => {
-        layout.style.width = `${captureWidth}px`;
-        layout.style.minWidth = `${captureWidth}px`;
-        layout.style.padding = isPortrait ? '20px' : '40px';
+        const isLayoutItp = layout.classList.contains('itp-page');
+        const isLayoutPortrait = layout.classList.contains('portrait') || isLayoutItp || options.orientation === 'portrait';
+        const layoutCaptureWidth = isLayoutItp ? 720 : (isLayoutPortrait ? 950 : 1600);
+
+        layout.style.width = `${layoutCaptureWidth}px`;
+        layout.style.minWidth = `${layoutCaptureWidth}px`;
+        layout.style.padding = isLayoutItp ? '30px 22px' : (isLayoutPortrait ? '20px' : '40px');
         layout.style.margin = '0';
         layout.style.background = '#ffffff';
         layout.style.backgroundColor = '#ffffff';
@@ -51,56 +56,59 @@ const addElementToPdf = async (element, pdf, options) => {
         // Stabilize Table within this layout
         const table = layout.querySelector('table');
         if (table) {
-          table.style.width = '100%';
-          table.style.tableLayout = 'fixed';
-          table.style.borderCollapse = 'collapse';
+          const isLayoutItp = layout.classList.contains('itp-page');
+          if (!isLayoutItp) {
+            table.style.width = '100%';
+            table.style.tableLayout = 'fixed';
+            table.style.borderCollapse = 'collapse';
 
-          // Enforce padding and alignment in PDF
-          const cells = table.querySelectorAll('th, td');
-          cells.forEach(cell => {
-            // Skip detail/sub-description rows — they have their own tight layout
-            if (cell.classList.contains('pi-horizontal-detail')) {
-              cell.style.padding = '2px 6px';
-              cell.style.verticalAlign = 'top';
-              cell.style.textAlign = 'left';
-              cell.style.lineHeight = '1.2';
-              cell.style.whiteSpace = 'normal';
-              cell.style.overflow = 'visible';
-              cell.style.height = 'auto';
-              cell.style.minHeight = '14px';
-              cell.style.boxSizing = 'border-box';
-              return;
-            }
-            cell.style.padding = '10px 5px';
-            cell.style.verticalAlign = 'middle';
-            cell.style.textAlign = 'center';
-            cell.style.lineHeight = '1.4';
-          });
-
-          // Snapshot each row's actual rendered height from the ORIGINAL document
-          // and apply it to the CLONED document to prevent collapse.
-          const originalTable = element.querySelector('table');
-          if (originalTable) {
-            const originalRows = originalTable.querySelectorAll('tr');
-            const clonedRows = table.querySelectorAll('tr');
-            
-            originalRows.forEach((origRow, idx) => {
-              if (clonedRows[idx]) {
-                let h = origRow.getBoundingClientRect().height;
-                // Add a small safety buffer for detail rows to prevent line overlap
-                if (origRow.classList.contains('detail-row')) {
-                  h += 2; 
-                }
-                if (h > 0) {
-                  clonedRows[idx].style.height = h + 'px';
-                  clonedRows[idx].style.minHeight = h + 'px';
-                }
+            // Enforce padding and alignment in PDF
+            const cells = table.querySelectorAll('th, td');
+            cells.forEach(cell => {
+              // Skip detail/sub-description rows — they have their own tight layout
+              if (cell.classList.contains('pi-horizontal-detail')) {
+                cell.style.padding = '2px 6px';
+                cell.style.verticalAlign = 'top';
+                cell.style.textAlign = 'left';
+                cell.style.lineHeight = '1.2';
+                cell.style.whiteSpace = 'normal';
+                cell.style.overflow = 'visible';
+                cell.style.height = 'auto';
+                cell.style.minHeight = '14px';
+                cell.style.boxSizing = 'border-box';
+                return;
               }
+              cell.style.padding = '10px 5px';
+              cell.style.verticalAlign = 'middle';
+              cell.style.textAlign = 'center';
+              cell.style.lineHeight = '1.4';
             });
-          }
 
-          // Keep fixed layout for stable column widths
-          table.style.tableLayout = 'fixed';
+            // Snapshot each row's actual rendered height from the ORIGINAL document
+            // and apply it to the CLONED document to prevent collapse.
+            const originalTable = element.querySelector('table');
+            if (originalTable) {
+              const originalRows = originalTable.querySelectorAll('tr');
+              const clonedRows = table.querySelectorAll('tr');
+              
+              originalRows.forEach((origRow, idx) => {
+                if (clonedRows[idx]) {
+                  let h = origRow.getBoundingClientRect().height;
+                  // Add a small safety buffer for detail rows to prevent line overlap
+                  if (origRow.classList.contains('detail-row')) {
+                    h += 2; 
+                  }
+                  if (h > 0) {
+                    clonedRows[idx].style.height = h + 'px';
+                    clonedRows[idx].style.minHeight = h + 'px';
+                  }
+                }
+              });
+            }
+
+            // Keep fixed layout for stable column widths
+            table.style.tableLayout = 'fixed';
+          }
         }
 
         // Stabilize Rotated Headers
@@ -164,21 +172,30 @@ export const captureElementToPdfBlob = async (element, options = {}) => {
   console.log(`[PDF Utility] Executing Smart Multi-Page Capture...`);
 
   try {
-    const pdf = new jsPDF(orientation, unit, format);
-
     // Check if we have multiple individual layouts (Multi-Annexure report)
-    const layouts = Array.from(element.querySelectorAll('.annexure-layout'));
+    const layouts = Array.from(element.querySelectorAll('.annexure-layout, .annexure-template, .itp-page'));
+
+    let pdf;
 
     if (layouts.length > 0) {
       console.log(`[PDF Utility] Detected ${layouts.length} individual layouts. Generating multi-page PDF...`);
 
+      const firstLayoutPortrait = layouts[0].classList.contains('portrait') || layouts[0].classList.contains('itp-page') || orientation === 'portrait';
+      pdf = new jsPDF(firstLayoutPortrait ? 'portrait' : 'landscape', unit, format);
+
       for (let i = 0; i < layouts.length; i++) {
-        if (i > 0) pdf.addPage(format, orientation);
-        await addElementToPdf(layouts[i], pdf, options);
+        const isLayoutPortrait = layouts[i].classList.contains('portrait') || layouts[i].classList.contains('itp-page') || orientation === 'portrait';
+        const pageOrientation = isLayoutPortrait ? 'portrait' : 'landscape';
+
+        if (i > 0) {
+          pdf.addPage(format, pageOrientation);
+        }
+        await addElementToPdf(layouts[i], pdf, { ...options, orientation: pageOrientation });
       }
     } else {
       // Fallback to legacy single-element capture for standard reports
       console.log(`[PDF Utility] No individual layouts found. Defaulting to single-element capture.`);
+      pdf = new jsPDF(orientation, unit, format);
       await addElementToPdf(element, pdf, options);
     }
 

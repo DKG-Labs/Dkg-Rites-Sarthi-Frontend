@@ -14,8 +14,17 @@ const CallDetailsModal = ({
   onReturn,
   onReroute,
   onWithdraw,
-  onDownloadLetter
+  onDownloadLetter,
+  showNotification
 }) => {
+  const notify = (msg, type = 'success') => {
+    if (showNotification) {
+      showNotification(msg, type);
+    } else {
+      console.log(`[Notification] ${type}: ${msg}`);
+    }
+  };
+
   const [selectedIE, setSelectedIE] = useState('');
   const [remarks, setRemarks] = useState('');
   const remarksRef = useRef(null);
@@ -108,7 +117,7 @@ const CallDetailsModal = ({
 
   const handleSubmitRemapping = async () => {
     if (!selectedIE) {
-      alert('Please select an IE to remap');
+      notify('Please select an IE to remap', 'error');
       return;
     }
 
@@ -116,7 +125,7 @@ const CallDetailsModal = ({
     const selectedIEData = availableIEs.find(ie => String(ie.id) === String(selectedIE));
     
     if (!selectedIEData) { 
-      alert('Invalid selection'); 
+      notify('Invalid selection', 'error'); 
       return; 
     }
 
@@ -124,7 +133,7 @@ const CallDetailsModal = ({
       if (call.callNumber.startsWith('ER') || call.callNumber.startsWith('EF')) {
         const storedData = JSON.parse(localStorage.getItem('remappingDataER') || localStorage.getItem('remappingData') || "[]");
         if (!storedData || storedData.length === 0) {
-          alert("Mapping data not found. Please try again.");
+          notify("Mapping data not found. Please try again.", 'error');
           return;
         }
         const payload = storedData.map(item => ({
@@ -134,7 +143,7 @@ const CallDetailsModal = ({
         const poiCode = remappingPoiCode || storedData[0]?.poiCode;
         
         await axios.put(`${API_BASE_URL}/api/auth/company/${poiCode}/updateIemapping`, payload, { headers: getAuthHeaders() });
-        alert('Remapping updated successfully');
+        notify('Remapping updated successfully', 'success');
         fetchMappedIEs();
       } else if (call.callNumber.startsWith('EP')) {
         const poiCode = remappingPoiCode;
@@ -143,7 +152,7 @@ const CallDetailsModal = ({
         const payload = [userId]; // Request DTO is an array containing the userId
         
         await axios.put(`${API_BASE_URL}/api/auth/poi/${poiCode}/Update/processIe`, payload, { headers: headers });
-        alert('Remapping updated successfully');
+        notify('Remapping updated successfully', 'success');
         fetchMappedIEs();
       }
       
@@ -151,13 +160,13 @@ const CallDetailsModal = ({
       setSelectedIE('');
     } catch (error) {
       console.error("Error submitting remapping:", error);
-      alert("Failed to submit remapping. Check console for details.");
+      notify("Failed to submit remapping. Check console for details.", 'error');
     }
   };
 
   const handleWithdrawSubmit = async () => {
     if (!withdrawRemarks.trim()) {
-      alert("Please provide remarks for withdrawal.");
+      notify("Please provide remarks for withdrawal.", 'error');
       return;
     }
     try {
@@ -176,7 +185,7 @@ const CallDetailsModal = ({
         headers: getAuthHeaders()
       });
       
-      alert('Inspection call successfully withdrawn.');
+      notify('Inspection call successfully withdrawn.', 'success');
       setShowWithdrawModal(false);
       onClose();
       if (onWithdraw) {
@@ -184,7 +193,7 @@ const CallDetailsModal = ({
       }
     } catch (error) {
       console.error("Error withdrawing call:", error);
-      alert("Failed to withdraw call. Please try again.");
+      notify("Failed to withdraw call. Please try again.", 'error');
     } finally {
       setIsWithdrawing(false);
     }

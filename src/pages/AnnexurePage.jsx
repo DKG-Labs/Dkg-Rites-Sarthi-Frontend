@@ -37,6 +37,44 @@ const AnnexurePage = ({ onBack }) => {
   const lastLoadedType = useRef(null);
   const fetchingRef = useRef(null);
 
+  const [isGeneratingAllPdf, setIsGeneratingAllPdf] = useState(false);
+  const allAnnexuresRef = useRef(null);
+
+  const fetchDataForAnnexure = async (annexureId) => {
+    if (annexureId === 'chemical-analysis' && selectedCall?.call_no) {
+      return await annexureService.getChemicalAnalysis(selectedCall.call_no);
+    } else if (annexureId === 'dimensional-check' && selectedCall?.call_no) {
+      return await annexureService.getDimensionalCheck(selectedCall.call_no);
+    } else if (annexureId === 'final-chemical-analysis' && selectedCall?.call_no) {
+      const response = await annexureService.getFinalChemicalAnalysis(selectedCall.call_no);
+      return response?.responseData || response || [];
+    } else if (annexureId === 'hardness-test' && selectedCall?.call_no) {
+      return await annexureService.getFinalHardnessTest(selectedCall.call_no);
+    } else if (annexureId === 'toe-load-test' && selectedCall?.call_no) {
+      return await annexureService.getFinalToeLoadTest(selectedCall.call_no);
+    } else if (annexureId === 'weight-test' && selectedCall?.call_no) {
+      return await annexureService.getFinalWeightTest(selectedCall.call_no);
+    } else if (annexureId === 'dimension-test' && selectedCall?.call_no) {
+      const response = await annexureService.getFinalDimensionalInspection(selectedCall.call_no);
+      return response?.responseData || response || [];
+    } else if (annexureId === 'final-inspection' && selectedCall?.call_no) {
+      return await annexureService.getDimensionalCheck(selectedCall.call_no);
+    } else if (annexureId === 'inclusion-rating' && selectedCall?.call_no) {
+      const response = await annexureService.getFinalInclusion(selectedCall.call_no);
+      return response?.responseData || response || [];
+    } else if (annexureId === 'application-deflection' && selectedCall?.call_no) {
+      const response = await annexureService.getFinalApplicationDeflection(selectedCall.call_no);
+      return response?.responseData || response || [];
+    } else if (annexureId === 'process-inspection' && selectedCall?.call_no) {
+      const selectedDate = searchParams.get('date');
+      const selectedShift = searchParams.get('shift');
+      const response = await annexureService.getProcessInspectionRegister(selectedCall.call_no, selectedDate, selectedShift);
+      return response || [];
+    } else {
+      return await fetchAnnexureData(annexureId);
+    }
+  };
+
   // Single Source of Truth: URL Logic
   useEffect(() => {
     const syncStateWithUrl = async () => {
@@ -78,41 +116,7 @@ const AnnexurePage = ({ onBack }) => {
         console.log(`[Annexure] Fetching data for ${typeParam} (Call: ${selectedCall?.call_no})`);
         
         try {
-          let data;
-          if (typeParam === 'chemical-analysis' && selectedCall?.call_no) {
-            data = await annexureService.getChemicalAnalysis(selectedCall.call_no);
-          } else if (typeParam === 'dimensional-check' && selectedCall?.call_no) {
-            data = await annexureService.getDimensionalCheck(selectedCall.call_no);
-          } else if (typeParam === 'final-chemical-analysis' && selectedCall?.call_no) {
-            const response = await annexureService.getFinalChemicalAnalysis(selectedCall.call_no);
-            data = response?.responseData || response || [];
-          } else if (typeParam === 'hardness-test' && selectedCall?.call_no) {
-            data = await annexureService.getFinalHardnessTest(selectedCall.call_no);
-          } else if (typeParam === 'toe-load-test' && selectedCall?.call_no) {
-            data = await annexureService.getFinalToeLoadTest(selectedCall.call_no);
-          } else if (typeParam === 'weight-test' && selectedCall?.call_no) {
-            data = await annexureService.getFinalWeightTest(selectedCall.call_no);
-          } else if (typeParam === 'dimension-test' && selectedCall?.call_no) {
-            const response = await annexureService.getFinalDimensionalInspection(selectedCall.call_no);
-            data = response?.responseData || response || [];
-          } else if (typeParam === 'final-inspection' && selectedCall?.call_no) {
-             // Annexure-III logic
-             data = await annexureService.getDimensionalCheck(selectedCall.call_no); // Fallback for now if same
-          } else if (typeParam === 'inclusion-rating' && selectedCall?.call_no) {
-            const response = await annexureService.getFinalInclusion(selectedCall.call_no);
-            data = response?.responseData || response || [];
-          } else if (typeParam === 'application-deflection' && selectedCall?.call_no) {
-            const response = await annexureService.getFinalApplicationDeflection(selectedCall.call_no);
-            data = response?.responseData || response || [];
-          } else if (typeParam === 'process-inspection' && selectedCall?.call_no) {
-            const selectedDate = searchParams.get('date');
-            const selectedShift = searchParams.get('shift');
-            const response = await annexureService.getProcessInspectionRegister(selectedCall.call_no, selectedDate, selectedShift);
-            data = response || [];
-          } else {
-            data = await fetchAnnexureData(typeParam);
-          }
-
+          const data = await fetchDataForAnnexure(typeParam);
           setAnnexureData(prev => ({ ...prev, [typeParam]: data }));
         } catch (error) {
           const friendlyMessage = getAnnexureErrorMessage(error);
@@ -179,6 +183,81 @@ const AnnexurePage = ({ onBack }) => {
     }
   };
 
+  const handleDownloadAllAnnexures = async () => {
+    setPdfGenerating(true);
+    showNotification('Preparing all annexures...', 'info');
+
+    try {
+      // 1. Identify all filtered annexures that have components
+      const annexuresToFetch = filteredAnnexures.filter(a => a.component);
+      
+      // 2. Fetch data for any annexure that doesn't have data loaded yet
+      const newData = { ...annexureData };
+      let updated = false;
+      
+      for (const annexure of annexuresToFetch) {
+        if (!newData[annexure.id]) {
+          console.log(`[Annexure] Prefetching data for ${annexure.id}`);
+          const data = await fetchDataForAnnexure(annexure.id);
+          newData[annexure.id] = data;
+          updated = true;
+        }
+      }
+      
+      if (updated) {
+        setAnnexureData(newData);
+      }
+
+      // 3. Trigger rendering of the hidden components
+      setIsGeneratingAllPdf(true);
+    } catch (error) {
+      console.error('Error prefetching annexures:', error);
+      showNotification('Failed to fetch data for all annexures.', 'error');
+      setPdfGenerating(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isGeneratingAllPdf) return;
+
+    const captureAll = async () => {
+      try {
+        // Wait a small delay to ensure all images and layouts are fully rendered in the DOM
+        await new Promise(resolve => setTimeout(resolve, 800));
+
+        if (!allAnnexuresRef.current) {
+          throw new Error('Capture target not found');
+        }
+
+        const today = new Date();
+        const dateStr = today.toISOString().split('T')[0];
+        const filename = `Annexures_${selectedCall?.call_no || 'report'}_${dateStr}.pdf`;
+
+        // Capture the hidden container using landscape orientation as default
+        const pdfBlob = await captureElementToPdfBlob(allAnnexuresRef.current, {
+          filename,
+          orientation: 'landscape'
+        });
+
+        const url = URL.createObjectURL(pdfBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.click();
+
+        showNotification('All annexures downloaded in a single PDF!');
+      } catch (error) {
+        console.error('Error generating combined PDF:', error);
+        showNotification('Failed to generate combined PDF.', 'error');
+      } finally {
+        setIsGeneratingAllPdf(false);
+        setPdfGenerating(false);
+      }
+    };
+
+    captureAll();
+  }, [isGeneratingAllPdf, selectedCall]);
+
 
   // If an annexure is selected, show it
   if (selectedAnnexure) {
@@ -220,9 +299,12 @@ const AnnexurePage = ({ onBack }) => {
 
         <div className="annexure-view-header no-print">
           <div className="header-section-left">
-            <button className="breadcrumb-item" onClick={handleBackToList}>
-              <span className="breadcrumb-icon">←</span>
-              <span className="breadcrumb-text">Back to Reports</span>
+            <button className="btn-nav-premium secondary" onClick={handleBackToList}>
+              <svg className="btn-icon-svg" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+              </svg>
+              <span>Back to Reports</span>
             </button>
           </div>
 
@@ -237,7 +319,14 @@ const AnnexurePage = ({ onBack }) => {
                 <span className="loading-dots">Generating...</span>
               ) : (
                 <>
-                  <span className="action-icon">📄</span> Export PDF
+                  <svg className="btn-icon-svg" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                  </svg>
+                  <span>Export PDF</span>
                 </>
               )}
             </button>
@@ -300,16 +389,50 @@ const AnnexurePage = ({ onBack }) => {
   // Show list of annexures
   return (
     <div className="annexure-page">
+      {notification && (
+        <div className={`notification notification--${notification.type}`}>
+          {notification.message}
+        </div>
+      )}
+
+      {pdfGenerating && (
+        <AnnexureLoader 
+          title={isGeneratingAllPdf ? "Generating Combined PDF" : "Generating PDF"} 
+          subtitle="Preparing high-quality certificate export..." 
+        />
+      )}
+
       <div className="annexure-page-header">
         <div className="header-top-row">
           <div className="annexure-title-block">
             <h1 className="annexure-page-title">Annexures</h1>
           </div>
 
-          <div className="annexure-nav-breadcrumb no-print">
-            <button className="breadcrumb-item" onClick={onBack}>
-              <span className="breadcrumb-icon">←</span>
-              <span className="breadcrumb-text">Back to IC & Annexures</span>
+          <div className="annexure-header-actions no-print">
+            <button 
+              className="btn-nav-premium primary" 
+              onClick={handleDownloadAllAnnexures} 
+              disabled={pdfGenerating}
+            >
+              {pdfGenerating ? (
+                <span className="loading-dots">Preparing...</span>
+              ) : (
+                <>
+                  <svg className="btn-icon-svg" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
+                  <span>Download Annexures</span>
+                </>
+              )}
+            </button>
+            <button className="btn-nav-premium secondary" onClick={onBack}>
+              <svg className="btn-icon-svg" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+              </svg>
+              <span>Back to IC & Annexures</span>
             </button>
           </div>
         </div>
@@ -354,6 +477,24 @@ const AnnexurePage = ({ onBack }) => {
           </div>
         ))}
       </div>
+
+      {/* Hidden container for exporting all annexures */}
+      {isGeneratingAllPdf && (
+        <div style={{ position: 'absolute', left: '-9999px', top: '-9999px', width: '1600px' }} ref={allAnnexuresRef}>
+          {filteredAnnexures.map((annexure) => {
+            const AnnexureComponent = annexure.component;
+            if (!AnnexureComponent) return null;
+            return (
+              <div key={annexure.id} className="annexure-pdf-wrapper">
+                <AnnexureComponent
+                  data={annexureData[annexure.id] || []}
+                  selectedCall={selectedCall}
+                />
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

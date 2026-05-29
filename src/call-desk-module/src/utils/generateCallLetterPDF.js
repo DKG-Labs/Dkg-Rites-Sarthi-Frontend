@@ -51,7 +51,18 @@ export const generateCallLetterPDF = (call) => {
      * @param {object} opts
      */
     const drawRow = (label, value, opts = {}) => {
-        const rowH = opts.rowH || 9;
+        const labelLines = doc.splitTextToSize(label, col1W - 4);
+        
+        let valLinesCount = 1;
+        const textVal = typeof value === 'object' && !Array.isArray(value) ? (value?.text || '') : val(value);
+        if (textVal && !opts.valueFn) {
+            valLinesCount = doc.splitTextToSize(textVal, col2W - 4).length;
+        }
+
+        const maxLines = Math.max(labelLines.length, valLinesCount);
+        const calculatedH = maxLines * 4.5 + 4.5;
+        const rowH = Math.max(opts.rowH || 9, calculatedH);
+
         const labelBold = opts.labelBold || false;
         const valueFn = opts.valueFn || null; // custom render fn
 
@@ -69,10 +80,9 @@ export const generateCallLetterPDF = (call) => {
 
         // Label text - split to fit within label column
         setFont(labelBold ? 'bold' : 'normal', 9, DARK);
-        const labelLines = doc.splitTextToSize(label, col1W - 4);
         const labelLineH = 4.5;
         const labelBlockH = labelLines.length * labelLineH;
-        const labelStartY = y + (rowH - labelBlockH) / 2 + 3.5;
+        const labelStartY = y + (rowH - labelBlockH) / 2 + 3.0;
         labelLines.forEach((line, i) => {
             doc.text(line, margin + 2, labelStartY + i * labelLineH);
         });
@@ -90,13 +100,14 @@ export const generateCallLetterPDF = (call) => {
             });
         } else {
             setFont('normal', 9, typeof value === 'object' && value?.color ? value.color : RED);
-            const textVal = typeof value === 'object' ? value.text : val(value);
             // Clip long text within cell
             const maxW = col2W - 4;
             const lines = doc.splitTextToSize(textVal, maxW);
             const lineH = 4.5;
+            const valBlockH = lines.length * lineH;
+            const valStartY = y + (rowH - valBlockH) / 2 + 3.0;
             lines.forEach((line, i) => {
-                doc.text(line, margin + col1W + 2, y + 3.5 + i * lineH);
+                doc.text(line, margin + col1W + 2, valStartY + i * lineH);
             });
         }
 
@@ -191,23 +202,12 @@ export const generateCallLetterPDF = (call) => {
     drawRow('Date', callRaisedDate, { rowH: 9 });
 
     // TO row – multi-line needs extra height
-    const toLines = [
+    const toValue = [
         `SBU Head Designation`,
         `RIO Name: ${val(call.rio)}`,
         `RIO Address: ${val(call.rio)} Regional Inspection Office`
-    ];
-    const toRowH = 14;
-    doc.setDrawColor(...BORDER);
-    doc.setLineWidth(0.2);
-    doc.rect(margin, y, col1W, toRowH);
-    doc.rect(margin + col1W, y, col2W, toRowH);
-    setFont('normal', 9, DARK);
-    doc.text('To', margin + 2, y + 5);
-    setFont('normal', 9, RED);
-    toLines.forEach((line, i) => {
-        doc.text(line, margin + col1W + 2, y + 4 + i * 4.5);
-    });
-    y += toRowH;
+    ].join('\n');
+    drawRow('To', toValue);
 
     // ─── Body text block ─────────────────────────────────────────────
     y += 1;
@@ -241,69 +241,66 @@ export const generateCallLetterPDF = (call) => {
     const stageDisplay = call.stage || call.productStage || 'Raw Material Inspection';
     drawRow('Stage of Inspection', { text: stageDisplay, color: BLACK }, { rowH: 9 });
 
-    // PO Number & Date
-    const poValue = [
-        call.rlyShortName ? `${call.rlyShortName} + ` : '',
-        val(call.poNumber),
-        call.poSerialNo ? ` + ${call.poSerialNo}` : (call.poSerialNumber ? ` + ${call.poSerialNumber}` : ''),
-        call.poDate ? `\nDate of PO: ${call.poDate}` : '',
-        call.itemDescription ? `\n${call.itemDescription}` : ''
-    ].filter(Boolean).join('');
-    const poRowH = 16;
-    doc.setDrawColor(...BORDER);
-    doc.setLineWidth(0.2);
-    doc.rect(margin, y, col1W, poRowH);
-    doc.rect(margin + col1W, y, col2W, poRowH);
-    setFont('normal', 9, DARK);
-    doc.text('PO Number & Date', margin + 2, y + 5);
-    setFont('normal', 9, RED);
-    const poLines = doc.splitTextToSize(poValue, col2W - 4);
-    poLines.forEach((line, i) => {
-        doc.text(line, margin + col1W + 2, y + 4 + i * 4.5);
-    });
-    y += poRowH;
+    checkPageBreak(50);
 
-    // PO Sr. No Item Description
-    const itemDesc = [
-        call.itemDescription || call.itemCatDescr || '-',
-        call.poSerialNumber ? `\nPO Sr. No: ${call.poSerialNumber}` : ''
-    ].join('');
-    const itemRowH = 14;
-    doc.setDrawColor(...BORDER);
-    doc.setLineWidth(0.2);
-    doc.rect(margin, y, col1W, itemRowH);
-    doc.rect(margin + col1W, y, col2W, itemRowH);
-    setFont('normal', 9, DARK);
-    doc.text('PO Sr. No Item Description', margin + 2, y + 6);
-    setFont('normal', 9, RED);
-    const itemLines = doc.splitTextToSize(itemDesc, col2W - 4);
-    itemLines.forEach((line, i) => {
-        doc.text(line, margin + col1W + 2, y + 4 + i * 4.5);
-    });
-    y += itemRowH;
+    // PO Number & Date
+    // Use the raw composite string from backend (e.g. "WR / 26255265205057 / 012") as primary source.
+    // Fall back to assembling from parts only if rlyPoSr is unavailable.
+    let poBase;
+    if (call.rlyPoSr && call.rlyPoSr !== '-') {
+        poBase = call.rlyPoSr;
+    } else {
+        const parts = [
+            call.rlyShortName && call.rlyShortName !== '-' ? call.rlyShortName : null,
+            call.poNumber && call.poNumber !== '-' ? call.poNumber : null,
+            call.poSerialNo && call.poSerialNo !== '-' ? call.poSerialNo : null
+        ].filter(Boolean);
+        poBase = parts.join(' / ') || '-';
+    }
+    const poValue = [
+        poBase,
+        call.poDate ? `Date of PO: ${call.poDate}` : '',
+        (call.itemDesc || call.itemDescription || call.itemCatDescr) ? `${call.itemDesc || call.itemDescription || call.itemCatDescr}` : ''
+    ].filter(Boolean).join('\n');
+    drawRow('PO Number & Date', poValue);
+
+    // PO Sr. No Item Description - uses itemDesc from CallLetterDetailsDto
+    const itemDescText = val(call.itemDesc || call.itemDescription || call.itemCatDescr);
+    drawRow('PO Sr. No Item Description', itemDescText);
 
     checkPageBreak(60);
 
     // ─── Product & Quantity details ──────────────────────────────────
     drawRow('Product Selected By Vendor', val(call.product), { rowH: 9 });
 
-    const poSrNoQty = call.quantity
-        ? `${call.quantity} MT + UOM`
-        : '-';
+    // PO Sr. No. Qty — uses poQty + uom from CallLetterDetailsDto
+    const poSrNoQty = call.poQty
+        ? `${call.poQty}${call.uom ? ' ' + call.uom : ''}`
+        : (call.quantity ? `${call.quantity} MT` : '-');
     drawRow('PO Sr. No. Qty', poSrNoQty, { rowH: 9 });
 
-    const callQty = call.subPoQuantity
-        ? `Total Offered Qty (MT): ${call.subPoQuantity} + Approx. No. of ERC to be Supplied`
-        : val(call.quantity) + ' MT';
-    drawRow('Call Qty', callQty, { rowH: 9 });
+    // Call Qty — uses callQty + callUnit from CallLetterDetailsDto
+    const callQtyStr = call.callQty
+        ? `${call.callQty}${call.callUnit ? ' ' + call.callUnit : ''}`
+        : (call.subPoQuantity ? `${call.subPoQuantity} MT` : '-');
+    drawRow('Call Qty', callQtyStr, { rowH: 9 });
 
-    drawRow('Orignal DP Date', val(call.originalDeliveryDate || call.dpDate), { rowH: 9 });
+    // DP Dates — uses deliveryDate / extendedDeliveryDate from CallLetterDetailsDto (pre-formatted dd.MM.yyyy by backend)
+    drawRow('Orignal DP Date', val(call.deliveryDate || call.originalDeliveryDate || call.dpDate), { rowH: 9 });
     drawRow('Ext DP Date', val(call.extendedDeliveryDate || call.extDpDate), { rowH: 9 });
     drawRow('Desired Date of Inspection', val(call.desiredInspectionDate), { rowH: 9 });
-    drawRow('Purchaser', val(call.purchasingAuthority), { rowH: 9 });
-    drawRow('Consginee', val(call.consigneeName || call.billPayingOfficer), { rowH: 9 });
-    drawRow('Bill Paying Authority', val(call.billPayingOfficer), { rowH: 9 });
-    drawRow("Manufacturer's Name", val(call.vendor?.name || call.manufacturerOfMaterial), { rowH: 9 });
+    // Purchaser / Consignee / Bill Paying Authority — from CallLetterDetailsDto
+    const formatTildeStr = (str) => {
+        if (!str) return '-';
+        return str.includes('~')
+            ? str.split('~').map(s => s.trim()).filter(s => s && s !== '#').join(', ')
+            : str;
+    };
+    drawRow('Purchaser', formatTildeStr(call.purchaserDetail || call.purchasingAuthority), { rowH: 9 });
+    drawRow('Consginee', formatTildeStr(call.consigneeDetail || call.consigneeName || call.billPayingOfficer), { rowH: 9 });
+    drawRow('Bill Paying Authority', formatTildeStr(call.billPayOffDesc || call.billPayingOfficer), { rowH: 9 });
+    // Manufacturer — uses manufacturerName from CallLetterDetailsDto
+    drawRow("Manufacturer's Name", val(call.manufacturerName || call.vendor?.name || call.manufacturerOfMaterial), { rowH: 9 });
     drawRow('Place of Inspection', val(call.placeOfInspection), { rowH: 9 });
     drawRow('Offered Installment Number', val(call.submissionCount || '1'), { rowH: 9 });
 
@@ -314,7 +311,7 @@ export const generateCallLetterPDF = (call) => {
     drawRow('Total PO Quantity', val(call.poQuantity), { rowH: 9 });
     drawRow('Total PO Value', val(call.poValue), { rowH: 9 });
 
-    // Raw Material Details
+    // Raw Material Details to be offered
     checkPageBreak(30);
     const heatDetails = call.heatDetails && call.heatDetails.length > 0
         ? call.heatDetails.map(h =>
@@ -324,22 +321,7 @@ export const generateCallLetterPDF = (call) => {
         : call.tcNumber
             ? `Heat No.: -, TC No. - ${val(call.tcNumber)}, Qty Offered: ${val(call.subPoQuantity || call.quantity)} MT\n\nTotal Qty Offered - ${val(call.subPoQuantity || call.quantity)} MT`
             : '-';
-
-    const heatRowH = Math.max(22, 10 + (heatDetails.split('\n').length * 4.5));
-    doc.setDrawColor(...BORDER);
-    doc.setLineWidth(0.2);
-    doc.rect(margin, y, col1W, heatRowH);
-    doc.rect(margin + col1W, y, col2W, heatRowH);
-    setFont('normal', 9, DARK);
-    const heatLabel = doc.splitTextToSize('Raw Material Details to be offered', col1W - 4);
-    heatLabel.forEach((line, i) => doc.text(line, margin + 2, y + 5 + i * 4.5));
-    setFont('normal', 9, RED);
-    const heatLines = doc.splitTextToSize(heatDetails, col2W - 4);
-    heatLines.forEach((line, i) => {
-        // Colour the key parts in black, values in red
-        doc.text(line, margin + col1W + 2, y + 5 + i * 4.5);
-    });
-    y += heatRowH;
+    drawRow('Raw Material Details to be offered', heatDetails);
 
     // ─── Terms & Closing ─────────────────────────────────────────────
     checkPageBreak(40);

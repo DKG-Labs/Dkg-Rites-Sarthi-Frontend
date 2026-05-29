@@ -4,17 +4,16 @@ import StatusBadge from './StatusBadge';
 import Notification from './Notification';
 import { getProductTypeDisplayName, formatDate } from '../utils/helpers';
 import CallsFilterSection from './common/CallsFilterSection';
-import { createStageValidationHandler } from '../utils/stageValidation';
 import { viewSignedCertificate } from '../services/certificateService';
 import { fetchSignedCallsForIC, getCurrentUserId } from '../services/workflowApiService';
 import AnnexureLoader from './annexures/AnnexureLoader';
 
-const CompletedCallsTab = () => {
+const CompletedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
   const [showFilters, setShowFilters] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Call Number');
-  const [selectedRows, setSelectedRows] = useState([]);
-  const [selectionError, setSelectionError] = useState('');
+  const [notificationMessage, setNotificationMessage] = useState('');
+  const [notificationType, setNotificationType] = useState('error');
   const [filters, setFilters] = useState({
     productTypes: [],
     vendors: [],
@@ -46,7 +45,8 @@ const CompletedCallsTab = () => {
         setCompletedCalls(validCalls);
       } catch (err) {
         console.error('Error fetching completed calls:', err);
-        setSelectionError('Failed to load completed calls from server.');
+        setNotificationType('error');
+        setNotificationMessage('Failed to load completed calls from server.');
       } finally {
         setIsLoadingCalls(false);
         hasFetchedRef.current = true;
@@ -118,33 +118,22 @@ const CompletedCallsTab = () => {
     { key: 'status', label: 'Status', render: (val) => <StatusBadge status={val} /> },
   ];
 
-  const selectedCompletedCalls = filteredCalls.filter(call => selectedRows.includes(call.id));
-
-  // Handler to validate and update selection - prevents selecting calls from different stages
-  const handleSelectionChange = createStageValidationHandler(
-    filteredCalls,
-    selectedRows,
-    setSelectedRows,
-    setSelectionError
-  );
-
-  const handleBulkViewPO = () => {
-    console.log('View POs for:', selectedCompletedCalls.map(call => call.po_no));
-  };
-
-  const handleBulkDownloadPO = () => {
-    console.log('Download POs for:', selectedCompletedCalls.map(call => call.po_no));
+  const handleViewAnnexures = (row) => {
+    if (setSelectedCall) setSelectedCall(row);
+    if (setCurrentPage) setCurrentPage('annexure');
   };
 
   const handleViewIC = async (row) => {
     try {
       const icNumber = row.ic_number || row.icNo || row.call_no;
       if (!icNumber) {
-        setSelectionError('IC Number not found for this call.');
+        setNotificationType('error');
+        setNotificationMessage('The Inspection Certificate (IC) number was not found for this call.');
         return;
       }
-      // Using selectionError state to show loading message temporarily
-      setSelectionError('Fetching signed IC from Azure...');
+      
+      setNotificationType('info');
+      setNotificationMessage('Retrieving signed Inspection Certificate...');
       
       const { signedData } = await viewSignedCertificate(icNumber);
       
@@ -158,10 +147,18 @@ const CompletedCallsTab = () => {
       const url = URL.createObjectURL(blob);
       window.open(url, "_blank");
       
-      setSelectionError(''); // Clear notification on success
+      setNotificationMessage(''); // Clear notification on success
     } catch (err) {
       console.error(err);
-      setSelectionError(err.message || 'Failed to fetch IC.');
+      setNotificationType('error');
+      const errMsg = err.message || '';
+      if (errMsg.includes('download') || errMsg.includes('Azure') || errMsg.includes('fetch')) {
+        setNotificationMessage('The signed Inspection Certificate is temporarily unavailable. Please try again in a few moments.');
+      } else if (errMsg.includes('No signed certificate found')) {
+        setNotificationMessage('The signed Inspection Certificate is not yet available for this call.');
+      } else {
+        setNotificationMessage(errMsg || 'Unable to retrieve the signed Inspection Certificate. Please try again.');
+      }
     }
   };
 
@@ -170,16 +167,16 @@ const CompletedCallsTab = () => {
       <button className="btn btn-sm btn-primary" onClick={(e) => { e.stopPropagation(); handleViewIC(row); }}>
         View IC
       </button>
-      {selectedRows.length === 1 && selectedRows.includes(row.id) && (
-        <>
-          <button className="btn btn-sm btn-outline" onClick={(e) => { e.stopPropagation(); console.log('View PO:', row.po_no); }}>
-            View PO
-          </button>
-          <button className="btn btn-sm btn-outline" onClick={(e) => { e.stopPropagation(); console.log('Download PO:', row.po_no); }}>
-            Download PO
-          </button>
-        </>
-      )}
+      <button
+        className="btn btn-sm btn-outline"
+        onClick={(e) => {
+          e.stopPropagation();
+          handleViewAnnexures(row);
+        }}
+        title="View Technical Annexures"
+      >
+        Annexures
+      </button>
     </div>
   );
 
@@ -217,47 +214,20 @@ const CompletedCallsTab = () => {
         </div>
       )}
 
-      {/* Selection Error Message */}
+      {/* Selection Notification Message */}
       <Notification
-        message={selectionError}
-        type="error"
-        autoClose={true}
+        message={notificationMessage}
+        type={notificationType}
+        autoClose={notificationType !== 'info'}
         autoCloseDelay={5000}
-        onClose={() => setSelectionError('')}
+        onClose={() => setNotificationMessage('')}
       />
-
-      {selectedRows.length > 1 && (
-        <div className="pending-calls-bulk-actions" style={{
-          marginBottom: 'var(--space-16)',
-          padding: 'var(--space-16)',
-          background: 'var(--color-bg-1)',
-          borderRadius: 'var(--radius-base)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}>
-          <div style={{ fontWeight: 'var(--font-weight-medium)' }}>
-            {selectedRows.length} completed calls selected
-          </div>
-          <div className="pending-calls-bulk-actions-buttons" style={{ display: 'flex', gap: 'var(--space-12)' }}>
-            <button className="btn btn-secondary" onClick={handleBulkViewPO} style={{ minHeight: '44px' }}>
-              VIEW SELECTED PO
-            </button>
-            <button className="btn btn-primary" onClick={handleBulkDownloadPO} style={{ minHeight: '44px' }}>
-              DOWNLOAD SELECTED PO
-            </button>
-          </div>
-        </div>
-      )}
 
       {!isLoadingCalls && completedCalls.length > 0 && (
         <DataTable
           columns={columns}
           data={filteredCalls}
           actions={actions}
-          selectable
-          selectedRows={selectedRows}
-          onSelectionChange={handleSelectionChange}
           initialPageSize={10}
           hidePageSize={true}
         />

@@ -10,7 +10,7 @@ import { useShift } from '../../../context/ShiftContext';
 const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorUpdate, activeContainer, loadShiftData, initialSensors }) => {
     const { vendorCode, dutyUnit, selectedShift, dutyDate, userId, vendorId } = useShift();
     const [sensors, setSensors] = useState(initialSensors || {
-        sensorStatus: '', 
+        sensorStatus: '',
         sandType: '',
         location: '',
         castingDate: '',
@@ -39,7 +39,7 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
                     console.log("Plant Profile Response:", response);
                     let locList = [];
                     const data = response?.responseData || response;
-                    
+
                     if (Array.isArray(data)) {
                         data.forEach(item => { if (item && !locList.includes(item)) locList.push(String(item)); });
                     } else if (typeof data === 'object' && data !== null) {
@@ -64,18 +64,24 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
     useEffect(() => {
         const fetchReports = async () => {
             try {
-                const res = await apiService.getLastFiveMoisture();
-                if (res?.responseData && Array.isArray(res.responseData)) {
-                    const plantSpecificReports = res.responseData.filter(r => {
+                // We fetch all moisture analysis records because the endpoint
+                // /MoistureAnalysis/lastFiveMoisture does not return the 'plantId' field
+                // which is required for plant-specific filtering.
+                const res = await apiService.getAllMoistureAnalysis();
+                const data = Array.isArray(res) ? res : (res?.responseData && Array.isArray(res.responseData) ? res.responseData : []);
+                
+                const plantSpecificReports = data
+                    .filter(r => {
                         if (!effectivePlantId) return true;
                         if (!r.plantId) return false;
                         const clean = (id) => String(id).replace(/[:\s]/g, '').toLowerCase();
                         return clean(r.plantId) === clean(effectivePlantId);
-                    });
-                    setLastFiveMoisture(plantSpecificReports);
-                }
+                    })
+                    .slice(0, 5); // Take the latest 5 for this specific plant
+
+                setLastFiveMoisture(plantSpecificReports);
             } catch (err) {
-                console.error("Failed to fetch last 5 moisture reports:", err);
+                console.error("Failed to fetch moisture reports:", err);
             }
         };
         fetchReports();
@@ -85,7 +91,7 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
     const handleMoistureReportSelect = async (e) => {
         const id = e.target.value;
         setSelectedMoistureReportId(id);
-        
+
         setSensors(prev => ({
             ...prev,
             moistureAnalysis: id ? String(id) : null
@@ -97,13 +103,13 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
         }
 
         const report = lastFiveMoisture.find(r => String(r.id) === String(id));
-        
+
         setFetchingMoistureDetail(true);
         try {
             const res = await apiService.getMoistureAnalysisById(id);
             // Handle both {responseData: ...} and direct data responses
             const detail = res?.responseData || res;
-            
+
             if (detail) {
                 // Set Values (Dry Weights / Target Weights before moisture correction)
                 const ca1Set = detail.actualCA1 ?? ca1S?.batchWtDry ?? 0;
@@ -117,25 +123,25 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
 
                 // Initialize/Update the batch card for this specific report
                 setBatches([{
-                    id: 1, 
+                    id: 1,
                     batchNo: detail.batchNo || report?.batchNo || "",
                     refBatchNo: detail.batchNo || report?.batchNo || "",
                     parentId: id,
-                    setValues: { 
-                        ca1: ca1Set, 
-                        ca2: ca2Set, 
-                        fa: faSet, 
-                        cement: detail.actualCement ?? detail.designCement ?? 0, 
-                        water: detail.actualWater ?? detail.designWater ?? 0, 
-                        admixture: detail.actualAdmix ?? detail.designAdmix ?? 1.44 
+                    setValues: {
+                        ca1: ca1Set,
+                        ca2: ca2Set,
+                        fa: faSet,
+                        cement: detail.actualCement ?? detail.designCement ?? 0,
+                        water: detail.actualWater ?? detail.designWater ?? 0,
+                        admixture: detail.actualAdmix ?? detail.designAdmix ?? 1.44
                     },
-                    adjustedWeights: { 
-                        ca1: ca1Adj, 
-                        ca2: ca2Adj, 
-                        fa: faAdj, 
-                        cement: detail.actualCement ?? detail.designCement ?? 0, 
-                        water: detail.adjustedWaterWt ?? detail.actualWater ?? 0, 
-                        admixture: detail.actualAdmix ?? detail.designAdmix ?? 1.44 
+                    adjustedWeights: {
+                        ca1: ca1Adj,
+                        ca2: ca2Adj,
+                        fa: faAdj,
+                        cement: detail.actualCement ?? detail.designCement ?? 0,
+                        water: detail.adjustedWaterWt ?? detail.actualWater ?? 0,
+                        admixture: detail.actualAdmix ?? detail.designAdmix ?? 1.44
                     },
                     proportionMatch: 'NOT OK'
                 }]);
@@ -280,10 +286,10 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
                 <h4>Sensor & Lab Integration</h4>
             </div>
 
-            <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(6, 1fr)', 
-                gap: '8px', 
+            <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(6, 1fr)',
+                gap: '8px',
                 alignItems: 'end',
                 background: '#fff',
                 padding: '12px',
@@ -293,9 +299,9 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
             }}>
                 <div className="input-group">
                     <label style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', marginBottom: '2px', display: 'block' }}>Sensor *</label>
-                    <select 
-                        name="sensorStatus" 
-                        value={sensors.sensorStatus} 
+                    <select
+                        name="sensorStatus"
+                        value={sensors.sensorStatus}
                         onChange={handleSensorChange}
                         style={{ width: '100%', height: '32px', borderRadius: '4px', border: sensors.sensorStatus ? '1.5px solid #e2e8f0' : '1.5px solid #ef4444', fontSize: '11px', padding: '0 4px' }}
                     >
@@ -308,9 +314,9 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
 
                 <div className="input-group">
                     <label style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', marginBottom: '2px', display: 'block' }}>Sand Type *</label>
-                    <select 
-                        name="sandType" 
-                        value={sensors.sandType} 
+                    <select
+                        name="sandType"
+                        value={sensors.sandType}
                         onChange={handleSensorChange}
                         style={{ width: '100%', height: '32px', borderRadius: '4px', border: sensors.sandType ? '1.5px solid #e2e8f0' : '1.5px solid #ef4444', fontSize: '11px', padding: '0 4px' }}
                     >
@@ -322,9 +328,9 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
 
                 <div className="input-group">
                     <label style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', marginBottom: '2px', display: 'block' }}>Location *</label>
-                    <select 
-                        name="location" 
-                        value={sensors.location} 
+                    <select
+                        name="location"
+                        value={sensors.location}
                         onChange={handleSensorChange}
                         style={{ width: '100%', height: '32px', borderRadius: '4px', border: sensors.location ? '1.5px solid #e2e8f0' : '1.5px solid #ef4444', fontSize: '11px', padding: '0 4px' }}
                     >
@@ -335,13 +341,13 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
 
                 <div className="input-group">
                     <label style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', marginBottom: '2px', display: 'block' }}>Moisture Analysis *</label>
-                    <select 
-                        value={selectedMoistureReportId} 
+                    <select
+                        value={selectedMoistureReportId}
                         onChange={handleMoistureReportSelect}
-                        style={{ 
-                            width: '100%', 
-                            height: '32px', 
-                            borderRadius: '4px', 
+                        style={{
+                            width: '100%',
+                            height: '32px',
+                            borderRadius: '4px',
                             border: (selectedMoistureReportId ? '1.5px solid #42818c' : '1.5px solid #ef4444'),
                             fontSize: '10px',
                             fontWeight: '600',
@@ -359,7 +365,7 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
 
                 <div className="input-group">
                     <label style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', marginBottom: '2px', display: 'block' }}>Date of Casting *</label>
-                    <input 
+                    <input
                         type="date"
                         name="castingDate"
                         value={sensors.castingDate}
@@ -370,7 +376,7 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
 
                 <div className="input-group">
                     <label style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', marginBottom: '2px', display: 'block' }}>Batch Number *</label>
-                    <input 
+                    <input
                         type="text"
                         name="batchNo"
                         value={sensors.batchNo}

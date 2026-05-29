@@ -52,7 +52,7 @@ const TensionSubCard = ({ id, title, color, statusDetail, isActive, onClick }) =
 
 const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'modal', showForm: propsShowForm, setShowForm: propsSetShowForm, loadShiftData, activeContainer }) => {
     const { tensionRecords, setTensionRecords } = sharedState;
-    const { vendorCode, dutyUnit, selectedShift, dutyDate, userId, vendorId } = useShift();
+    const { vendorCode, dutyUnit, selectedShift, dutyDate, userId, vendorId, allWitnessedRecords, activeContainerId } = useShift();
     const [viewMode, setViewMode] = useState('witnessed'); // Default to History/Logs
     const [localShowForm, setLocalShowForm] = useState(false);
 
@@ -141,11 +141,22 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
         }
     };
 
-    // Dynamic Batch List: Merge declared batches with those found in SCADA or existing logs
+    // Extract witnessed batch numbers from Batch Weighment logs
+    const witnessedBatches = useMemo(() => {
+        const containerId = activeContainerId || 1;
+        const list = allWitnessedRecords?.[containerId] || [];
+        return list.map(r => r.batchNo || r.batch).filter(Boolean);
+    }, [allWitnessedRecords, activeContainerId]);
+
+    // Dynamic Batch List: Merge declared batches with witnessed records and those found in SCADA or existing logs
     const availableBatches = useMemo(() => {
         const bSet = new Set();
-        // From declaration prop or dynamic fetch
-        const allSources = [...(Array.isArray(batches) ? batches : []), ...(Array.isArray(dynamicBatches) ? dynamicBatches : [])];
+        // From declaration prop, witnessed records or dynamic fetch
+        const allSources = [
+            ...(Array.isArray(batches) ? batches : []), 
+            ...(Array.isArray(dynamicBatches) ? dynamicBatches : []),
+            ...witnessedBatches
+        ];
         allSources.forEach(b => {
             const bNo = typeof b === 'string' ? b : (b.batchNumber || b.batchNo);
             if (bNo) bSet.add(String(bNo));
@@ -161,7 +172,7 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
         }
 
         return Array.from(bSet).sort();
-    }, [batches, scadaRecords, tensionRecords, dynamicBatches]);
+    }, [batches, scadaRecords, tensionRecords, dynamicBatches, witnessedBatches]);
 
 
     // Keep formData batch in sync with selection

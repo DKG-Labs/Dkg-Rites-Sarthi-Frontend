@@ -356,18 +356,82 @@ const CallsFilterSection = ({
         </div>
       )}
 
-      <div style={{ marginBottom: 'var(--space-16)' }}>
-        <div className="pending-calls-filter-toggle" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--space-12)' }}>
+      <div style={{ marginBottom: '16px' }}>
+        <div className="pending-calls-filter-toggle" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
           <button
-            className="btn btn-outline"
             onClick={() => setShowFilters(!showFilters)}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-8)', minHeight: '44px' }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 16px',
+              backgroundColor: showFilters ? '#f0fdf4' : 'white',
+              border: showFilters ? '1px solid #16a34a' : '1px solid #cbd5e1',
+              borderRadius: '6px',
+              color: showFilters ? '#16a34a' : '#334155',
+              fontSize: '13px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+              minHeight: '38px',
+              outline: 'none'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = showFilters ? '#e8fbf0' : '#f8fafc';
+              e.currentTarget.style.borderColor = showFilters ? '#15803d' : '#94a3b8';
+              e.currentTarget.style.transform = 'translateY(-1px)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = showFilters ? '#f0fdf4' : 'white';
+              e.currentTarget.style.borderColor = showFilters ? '#16a34a' : '#cbd5e1';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+            onMouseDown={(e) => {
+              e.currentTarget.style.transform = 'translateY(0.5px)';
+            }}
           >
-            <span style={{ transform: showFilters ? 'rotate(180deg)' : 'none' }}>▾</span>
-            <span>{showFilters ? 'Hide Filters' : 'Show Filters'}</span>
+            <svg 
+              width="14" 
+              height="14" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="2.5" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+              style={{
+                transition: 'transform 0.2s ease',
+                transform: showFilters ? 'rotate(180deg)' : 'none'
+              }}
+            >
+              {showFilters ? (
+                <path d="M18 15l-6-6-6 6" />
+              ) : (
+                <path d="M4 6h16M4 12h12M4 18h8" />
+              )}
+            </svg>
+            <span>{showFilters ? 'Hide Advanced Filters' : 'Show Advanced Filters'}</span>
+            {activeFilters.length > 0 && (
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: '#16a34a',
+                color: 'white',
+                fontSize: '10px',
+                fontWeight: '700',
+                borderRadius: '50%',
+                width: '18px',
+                height: '18px',
+                marginLeft: '4px'
+              }}>
+                {activeFilters.length}
+              </span>
+            )}
           </button>
-          <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
-            Showing {filteredCalls.length} of {effectiveCalls.length} {summaryLabel}
+          <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '500' }}>
+            Showing <strong style={{ color: '#334155' }}>{filteredCalls.length}</strong> of <strong style={{ color: '#334155' }}>{effectiveCalls.length}</strong> {summaryLabel}
           </div>
         </div>
       </div>

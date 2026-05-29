@@ -15,8 +15,11 @@ import useCallActions from '../hooks/useCallActions';
 import { formatDate } from '../../../utils/helpers';
 import '../styles/CallDeskDashboard.css';
 import { generateCallLetterPDF } from '../utils/generateCallLetterPDF';
+import { fetchCallLetterDetails } from '../services/callLetterApi';
+import AnnexureLoader from '../../../components/annexures/AnnexureLoader';
 
 const CallDeskDashboard = () => {
+  const [pdfLoading, setPdfLoading] = useState(false);
   // Initialize tab from localStorage or default to 'pending'
   const [activeTab, setActiveTab] = useState(() => {
     return localStorage.getItem('callDeskActiveTab') || 'pending';
@@ -120,7 +123,7 @@ const CallDeskDashboard = () => {
       setHistoryData(data);
       console.log("history data", data);
     } catch (err) {
-      alert(err.message || 'Failed to load history');
+      showAppNotification(err.message || 'Failed to load history', 'error');
     } finally {
       setHistoryLoading(false);
     }
@@ -136,27 +139,27 @@ const CallDeskDashboard = () => {
     setSelectedCall(call);
     const result = await verifyAndAccept(call.id, call, remarks, newIeId, callType);
     if (result.success) {
-      alert('Call verified and registered successfully!');
+      showAppNotification('Call verified and registered successfully!', 'success');
       setShowDetailsModal(false);
       refreshData();
     } else {
-      alert(result.message);
+      showAppNotification(result.message, 'error');
     }
   };
 
   const handleReturn = async (call, remarks) => {
     if (!remarks || !remarks.trim()) {
-      alert('Remarks are mandatory for returning a call');
+      showAppNotification('Remarks are mandatory for returning a call', 'error');
       return;
     }
     setSelectedCall(call);
     const result = await returnForRectification(call.id, call, remarks, [], callType);
     if (result.success) {
-      alert('Call returned for rectification successfully!');
+      showAppNotification('Call returned for rectification successfully!', 'success');
       setShowDetailsModal(false);
       refreshData();
     } else {
-      alert(result.message);
+      showAppNotification(result.message, 'error');
     }
   };
 
@@ -168,12 +171,24 @@ const CallDeskDashboard = () => {
     setShowRerouteModal(true);
   };
 
-  const handleDownloadLetter = (call) => {
+  const handleDownloadLetter = async (call) => {
+    if (!call?.callNumber) {
+      showAppNotification('Call ID not found. Cannot generate PDF.', 'error');
+      return;
+    }
+    setPdfLoading(true);
     try {
-      generateCallLetterPDF(call);
+      // Fetch enriched details (PO Header, PO Item, type-specific fields)
+      const details = await fetchCallLetterDetails(call.callNumber);
+      // Merge backend details on top of existing call data;
+      // backend values take priority for populated fields.
+      const enrichedCall = { ...call, ...details };
+      generateCallLetterPDF(enrichedCall);
     } catch (err) {
       console.error('Failed to generate Call Letter PDF:', err);
-      alert('Failed to generate PDF. Please try again.');
+      showAppNotification('Failed to fetch call letter details. Please try again.', 'error');
+    } finally {
+      setPdfLoading(false);
     }
   };
 
@@ -227,7 +242,7 @@ const CallDeskDashboard = () => {
   };
   const submitReroute = async () => {
     if (!selectedCall || !selectedRIO || !actionRemarks.trim()) {
-      alert('Target RIO and remarks are mandatory for re-routing');
+      showAppNotification('Target RIO and remarks are mandatory for re-routing', 'error');
       return;
     }
 
@@ -261,12 +276,10 @@ const CallDeskDashboard = () => {
   // Loading state
   if (loading) {
     return (
-      <div className="dashboard-container">
-        <div className="loading-state">
-          <div className="spinner"></div>
-          <p>Loading Call Desk Dashboard...</p>
-        </div>
-      </div>
+      <AnnexureLoader
+        title="Loading Call Desk"
+        subtitle="Retrieving inspection calls pending verification..."
+      />
     );
   }
 
@@ -445,7 +458,6 @@ const CallDeskDashboard = () => {
         </div>
       )}
 
-      {/* Call Details Modal */}
       <CallDetailsModal
         isOpen={showDetailsModal}
         onClose={() => setShowDetailsModal(false)}
@@ -456,6 +468,7 @@ const CallDeskDashboard = () => {
         onReroute={handleReroute}
         onWithdraw={refreshData}
         onDownloadLetter={handleDownloadLetter}
+        showNotification={showAppNotification}
       />
 
       {/* Verify & Accept Modal */}
@@ -604,6 +617,15 @@ const CallDeskDashboard = () => {
           </div>
         </div>
       )}
+      {/* PDF Generation Loading Overlay */}
+      {pdfLoading && (
+        <AnnexureLoader
+          title="Generating Call Letter"
+          subtitle="Fetching PO details from database..."
+          fullScreen={true}
+        />
+      )}
+
       {/* Application Notifications */}
       {notification && (
         <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-[3000] min-w-[320px] max-w-md animate-slideDown`}>

@@ -11,7 +11,7 @@ import { CALL_STATUS_CONFIG } from '../utils/constants';
 import { formatDateTime } from '../utils/helpers';
 
 const VerifiedOpenCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
-  const [searchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [showIEModal, setShowIEModal] = useState(false);
   const [selectedIENames, setSelectedIENames] = useState('');
   const [selectedCallNo, setSelectedCallNo] = useState('');
@@ -32,7 +32,8 @@ const VerifiedOpenCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
   });
 
 
-  // KPI tiles data
+  // KPI tiles data (hidden from UI, commented out to avoid unused-vars warning)
+  /*
   const kpiTiles = [
     {
       label: 'Verified & Registered',
@@ -89,6 +90,8 @@ const VerifiedOpenCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
       icon: '💳'
     }
   ];
+  */
+
 
   // Table columns
   const columns = [
@@ -284,7 +287,8 @@ const VerifiedOpenCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
     });
   };
 
-  // Status mapping for KPI tiles to facilitate filtering
+  // Status mapping for KPI tiles to facilitate filtering (commented out to avoid unused-vars warning)
+  /*
   const statusKeyMap = {
     'Verified & Registered': 'verified_registered',
     'IE Assignment Pending': 'ie_assignment_pending',
@@ -296,13 +300,16 @@ const VerifiedOpenCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
     'Billing Pending': 'billing_pending',
     'Payment Pending': 'payment_pending'
   };
+  */
 
+  /*
   const handleKpiClick = (label) => {
     const statusKey = statusKeyMap[label];
     if (statusKey) {
       handleMultiSelectToggle('statuses', statusKey);
     }
   };
+  */
 
   // Prepare data for CallsFilterSection - map Call Desk data structure to expected format
   const callsForFilter = useMemo(() => calls.map(call => ({
@@ -330,34 +337,82 @@ const VerifiedOpenCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
 
   return (
     <div className="calldesk-tab-content">
-      {/* KPI Tiles */}
-      <div className="calldesk-kpi-grid">
-        {kpiTiles.map((kpi, index) => {
-          const statusKey = statusKeyMap[kpi.label];
-          const isActive = filters.statuses.includes(statusKey);
+      {/* Global Search and Status Dropdown Controls */}
+      <div className="calldesk-controls-bar" style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '16px',
+        marginBottom: '16px',
+        padding: '16px',
+        backgroundColor: '#f8fafc',
+        borderRadius: '8px',
+        border: '1px solid #e2e8f0',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: '280px' }}>
+          {/* Global Search */}
+          <div style={{ position: 'relative', flex: 1, maxWidth: '360px' }}>
+            <span style={{
+              position: 'absolute',
+              left: '12px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: '#64748b',
+              fontSize: '14px'
+            }}>🔍</span>
+            <input
+              type="text"
+              placeholder="Search calls..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '8px 12px 8px 36px',
+                border: '1px solid #cbd5e1',
+                borderRadius: '6px',
+                fontSize: '14px',
+                outline: 'none',
+                backgroundColor: 'white',
+                transition: 'all 0.2s',
+                minHeight: '38px'
+              }}
+              onFocus={(e) => e.target.style.borderColor = '#16a34a'}
+              onBlur={(e) => e.target.style.borderColor = '#cbd5e1'}
+            />
+          </div>
 
-          return (
-            <div
-              key={index}
-              className={`stat-card ${isActive ? 'active' : ''}`}
-              onClick={() => handleKpiClick(kpi.label)}
-              style={{ cursor: 'pointer' }}
-            >
-              <div className="stat-icon" style={{ color: kpi.color }}>
-                {kpi.icon}
-              </div>
-              <div className="stat-content">
-                <div className="stat-label">{kpi.label}</div>
-                <div className="stat-value" style={{ color: kpi.color }}>
-                  {kpi.value}
-                </div>
-              </div>
-              {isActive && (
-                <div className="active-indicator" style={{ backgroundColor: kpi.color }}></div>
-              )}
-            </div>
-          );
-        })}
+          {/* Status Dropdown */}
+          <select
+            value={filters.statuses[0] || ''}
+            onChange={(e) => {
+              const val = e.target.value;
+              handleFilterChange('statuses', val ? [val] : []);
+            }}
+            style={{
+              padding: '8px 12px',
+              border: '1px solid #cbd5e1',
+              borderRadius: '6px',
+              fontSize: '14px',
+              outline: 'none',
+              backgroundColor: 'white',
+              minWidth: '180px',
+              minHeight: '38px',
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+            onFocus={(e) => e.target.style.borderColor = '#16a34a'}
+            onBlur={(e) => e.target.style.borderColor = '#cbd5e1'}
+          >
+            <option value="">All Statuses</option>
+            <option value="assigned_to_ie">IE Assigned</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="under_inspection">Under Inspection</option>
+            <option value="withdrawn">Upheld</option>
+            <option value="ic_pending">IC Issuance</option>
+          </select>
+        </div>
       </div>
 
       {/* Filter Section */}
@@ -379,7 +434,7 @@ const VerifiedOpenCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
       />
 
       {/* Info Message */}
-      <div className="info-message">
+      <div className="info-message" style={{ marginTop: '8px' }}>
         <span className="info-icon">ℹ️</span>
         <span>This is a read-only view of verified and open calls. Actions are managed by respective departments.</span>
       </div>
@@ -391,6 +446,7 @@ const VerifiedOpenCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
         emptyMessage="No verified and open calls found"
         initialSortColumn="submissionDateTime"
         initialSortDirection="desc"
+        hideSearch={true}
       />
 
       {/* Assigned IE Modal for Process Calls */}

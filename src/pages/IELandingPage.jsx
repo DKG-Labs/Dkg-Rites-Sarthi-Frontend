@@ -958,7 +958,11 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
 
       {/* 4. Calls Completed - Fourth */}
       {activeTab === 'completed' && (
-        <CompletedCallsTab calls={MOCK_INSPECTION_CALLS} />
+        <CompletedCallsTab
+          calls={MOCK_INSPECTION_CALLS}
+          setSelectedCall={setSelectedCall}
+          setCurrentPage={setCurrentPage}
+        />
       )}
 
       {/* 5. Performance - Fifth (Last) */}
@@ -1068,7 +1072,7 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>Desired Date</div>
                     <div style={{ fontWeight: '500', color: '#f59e0b' }}>
-                      {call.desired_inspection_date || 'N/A'}
+                      {call.desired_inspection_date ? formatDate(call.desired_inspection_date) : 'N/A'}
                     </div>
                   </div>
                 </div>
@@ -1088,7 +1092,7 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>Desired Date</div>
                 <div style={{ fontWeight: '500', color: '#f59e0b' }}>
-                  {selectedCallLocal?.desired_inspection_date || 'N/A'}
+                  {selectedCallLocal?.desired_inspection_date ? formatDate(selectedCallLocal.desired_inspection_date) : 'N/A'}
                 </div>
               </div>
             </div>
@@ -1164,13 +1168,13 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
             {(isBulkSchedule ? selectedCalls[0]?.desired_inspection_date : selectedCallLocal?.desired_inspection_date) && (
               <span style={{ color: '#f59e0b', marginLeft: '8px' }}>
                 (Min: {isBulkSchedule
-                  ? selectedCalls.reduce((maxDate, call) => {
+                  ? formatDate(selectedCalls.reduce((maxDate, call) => {
                     if (call.desired_inspection_date && call.desired_inspection_date > maxDate) {
                       return call.desired_inspection_date;
                     }
                     return maxDate;
-                  }, selectedCalls[0]?.desired_inspection_date || '')
-                  : selectedCallLocal?.desired_inspection_date})
+                  }, selectedCalls[0]?.desired_inspection_date || ''))
+                  : formatDate(selectedCallLocal?.desired_inspection_date)})
               </span>
             )}
           </small>
@@ -1248,7 +1252,7 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
                 <div>
                   <div style={{ fontWeight: '500' }}>{call.call_no}</div>
                   <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
-                    PO: {call.po_no} | Desired: {call.desired_inspection_date || 'N/A'}
+                    PO: {call.po_no} | Desired: {call.desired_inspection_date ? formatDate(call.desired_inspection_date) : 'N/A'}
                   </div>
                 </div>
                 <button

@@ -19,9 +19,14 @@ export const calculateDaysLeft = (dueDate) => {
 export const formatDate = (dateString) => {
   if (!dateString || dateString === '-' || dateString === 'N/A') return '-';
 
-  // If already in dd/MM/yyyy format, return as-is
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateString)) {
+  // If already in dd-mm-yyyy format, return as-is
+  if (/^\d{2}-\d{2}-\d{4}$/.test(dateString)) {
     return dateString;
+  }
+
+  // If already in dd/MM/yyyy format, convert to dd-mm-yyyy
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateString)) {
+    return dateString.replace(/\//g, '-');
   }
 
   // Try to parse the date
@@ -32,16 +37,16 @@ export const formatDate = (dateString) => {
     return 'Invalid Date';
   }
 
-  // Format to dd/MM/yyyy
+  // Format to dd-mm-yyyy
   const day = String(date.getDate()).padStart(2, '0');
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const year = date.getFullYear();
-  return `${day}/${month}/${year}`;
+  return `${day}-${month}-${year}`;
 };
 
 /**
- * Convert date from dd/MM/yyyy format to yyyy-MM-dd (ISO format) for backend
- * @param {string} dateStr - Date in dd/MM/yyyy format
+ * Convert date from dd-mm-yyyy or dd/MM/yyyy format to yyyy-MM-dd (ISO format) for backend
+ * @param {string} dateStr - Date in dd-mm-yyyy or dd/MM/yyyy format
  * @returns {string|null} Date in yyyy-MM-dd format or null if invalid
  */
 export const convertDDMMYYYYtoISO = (dateStr) => {
@@ -52,8 +57,9 @@ export const convertDDMMYYYYtoISO = (dateStr) => {
     return dateStr;
   }
 
-  // Convert dd/MM/yyyy to yyyy-MM-dd
-  const parts = dateStr.split('/');
+  // Convert dd-mm-yyyy or dd/MM/yyyy to yyyy-MM-dd
+  const separator = dateStr.includes('/') ? '/' : '-';
+  const parts = dateStr.split(separator);
   if (parts.length === 3) {
     const [day, month, year] = parts;
     return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
@@ -63,23 +69,28 @@ export const convertDDMMYYYYtoISO = (dateStr) => {
 };
 
 /**
- * Convert date from yyyy-MM-dd (ISO format) to dd/MM/yyyy for display
+ * Convert date from yyyy-MM-dd (ISO format) to dd-mm-yyyy for display
  * @param {string} dateStr - Date in yyyy-MM-dd format
- * @returns {string} Date in dd/MM/yyyy format
+ * @returns {string} Date in dd-mm-yyyy format
  */
 export const convertISOtoDDMMYYYY = (dateStr) => {
   if (!dateStr || dateStr === '-') return '-';
 
-  // If already in dd/MM/yyyy format, return as-is
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
+  // If already in dd-mm-yyyy format, return as-is
+  if (/^\d{2}-\d{2}-\d{4}$/.test(dateStr)) {
     return dateStr;
   }
 
-  // Convert yyyy-MM-dd to dd/MM/yyyy
+  // If already in dd/MM/yyyy format, convert to dd-mm-yyyy
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
+    return dateStr.replace(/\//g, '-');
+  }
+
+  // Convert yyyy-MM-dd to dd-mm-yyyy
   const parts = dateStr.split('-');
   if (parts.length === 3) {
     const [year, month, day] = parts;
-    return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
+    return `${day.padStart(2, '0')}-${month.padStart(2, '0')}-${year}`;
   }
 
   return dateStr;

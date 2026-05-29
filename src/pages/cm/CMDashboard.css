@@ -116,12 +116,12 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 14px;
+  padding: 8px 14px; /* Slightly increased padding for professional breathing room */
   color: #14532d;
   cursor: pointer;
   transition: all 0.15s;
   border-left: 3px solid transparent;
-  font-size: 13px;
+  font-size: 15px; /* Increased from 13px */
   font-weight: 600;
 }
 
@@ -140,7 +140,7 @@
 .cm-menu-item-icon {
   width: 18px;
   text-align: center;
-  font-size: 14px;
+  font-size: 16px; /* Increased from 14px */
   flex-shrink: 0;
 }
 
@@ -164,7 +164,7 @@
   padding: 4px 10px;
   color: #166534;
   cursor: pointer;
-  font-size: 11.5px;
+  font-size: 13px; /* Increased from 11.5px */
   font-weight: 600;
   border-radius: 6px;
   transition: all 0.2s ease;
@@ -420,34 +420,132 @@
   background: #fff;
 }
 
-/* Cards styled matching Railway Board professional cards */
-.cm-kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 10px;
+/* Cards styled matching Railway Board professional cards and layered layout */
+.cm-kpi-layer-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.cm-kpi-row {
+  display: flex;
+  gap: 16px;
+  width: 100%;
+  transition: all 0.3s ease;
 }
 
 .cm-kpi-card {
-  background: #fff;
-  border-radius: 12px;
-  padding: 16px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  background: #ffffff !important; /* Clean white background for inactive cards */
+  color: #4b5563 !important;      /* Slate grey text/labels for inactive state */
+  border: 1px solid #e5e7eb !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
+  align-items: center; /* Center content horizontally */
+  text-align: center; /* Center text alignment */
   position: relative;
   cursor: pointer;
+  
+  /* Make cards stretch to fill the horizontal space of the row container equally */
+  flex: 1;
+  min-width: 0;
+  height: 145px;
+  padding: 20px 24px;
+  justify-content: space-between;
+  box-sizing: border-box;
 }
 
 .cm-kpi-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+  transform: translateY(-5px);
+  background: #f9fafb !important; /* Subtle grey hover */
+  border-color: #d1d5db !important;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.06);
 }
 
 .cm-kpi-card.active {
-  box-shadow: 0 0 0 2px #15803d, 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+  background: #e0f2fe !important; /* Beautiful vibrant sky blue when clicked/active */
+  color: #0369a1 !important;      /* Rich deep ocean blue text/labels */
+  border: 1px solid #0284c7 !important; /* Professional blue border outline */
+  transform: translateY(-8px) scale(1.02) !important;
+  box-shadow: 0 16px 28px rgba(2, 132, 199, 0.18) !important; /* Soft blue shadow glow */
 }
+
+.cm-kpi-card.active:hover {
+  transform: translateY(-8px) scale(1.02) !important;
+  box-shadow: 0 16px 28px rgba(2, 132, 199, 0.18) !important;
+}
+
+/* Custom Icon Colors when inactive to retain card identity */
+.cm-kpi-card.card-dark-green:not(.active) .cm-kpi-icon {
+  color: #4b5563 !important;
+}
+.cm-kpi-card.card-amber:not(.active) .cm-kpi-icon {
+  color: #ea580c !important;
+}
+.cm-kpi-card.card-ocean:not(.active) .cm-kpi-icon {
+  color: #0284c7 !important;
+}
+.cm-kpi-card.card-indigo:not(.active) .cm-kpi-icon {
+  color: #4f46e5 !important;
+}
+.cm-kpi-card.card-spring-green:not(.active) .cm-kpi-icon {
+  color: #16a34a !important;
+}
+.cm-kpi-card.card-ruby:not(.active) .cm-kpi-icon {
+  color: #dc2626 !important;
+}
+
+/* Active card icon transitions to deep ocean blue */
+.cm-kpi-card.active .cm-kpi-icon {
+  color: #0369a1 !important;
+}
+
+/* Uniform typography across all KPI cards */
+.cm-kpi-card .cm-kpi-value {
+  font-size: 34px !important;
+  font-weight: 800 !important;
+  margin: 4px 0 2px !important;
+  line-height: 1.1 !important;
+  color: #1f2937 !important; /* Bold dark grey value when inactive */
+}
+
+.cm-kpi-card.active .cm-kpi-value {
+  color: #0369a1 !important; /* Bold ocean blue value when active */
+}
+
+.cm-kpi-card .cm-kpi-icon {
+  font-size: 20px !important;
+}
+
+.cm-kpi-card .cm-kpi-title {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  opacity: 0.85 !important;
+  color: inherit !important;
+}
+
+.cm-kpi-card .cm-kpi-footer {
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  color: inherit !important;
+  opacity: 0.75 !important;
+}
+
+@media (max-width: 768px) {
+  .cm-kpi-row {
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+  }
+  .cm-kpi-card {
+    width: 100%;
+  }
+}
+
 
 /* Railway Board Professional Card Presets */
 .card-dark-green {
@@ -544,8 +642,10 @@
 
 .cm-kpi-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: center; /* Center title and icon horizontally */
   align-items: center;
+  gap: 8px; /* Professional spacing between title and icon */
+  width: 100%;
   margin-bottom: 2px;
 }
 
@@ -604,13 +704,11 @@
   background: #1e3a8a !important;
   /* Dark Blue */
   color: #fff !important;
-  padding: 3px 4px !important;
+  padding: 6px 8px !important;
   font-weight: 600 !important;
-  font-size: 9.5px !important;
+  font-size: 12px !important;
   text-align: left !important;
-  border: 1px solid #000000 !important;
-  box-shadow: 0 0 0 1px #000000 inset !important;
-  background-clip: padding-box !important;
+  border: 1px solid #cbd5e1 !important;
   white-space: normal;
   line-height: 1.25;
   vertical-align: bottom;
@@ -626,9 +724,9 @@
 }
 
 .cm-table td {
-  padding: 3px 4px !important;
+  padding: 6px 8px !important;
   border-bottom: 1px solid #f0fdf4 !important;
-  font-size: 10px;
+  font-size: 12px;
   color: #1a2e1a;
   vertical-align: middle;
 }
@@ -636,6 +734,77 @@
 .cm-table tbody tr:hover td {
   background: #f0fdf4 !important;
 }
+
+/* Helper to center-align headers and cells for specific professional tables */
+.cm-table-centered th,
+.cm-table-centered td {
+  text-align: center !important;
+}
+
+/* Highly readable and professional Process Inspection Mandays Table styles */
+.cm-mandays-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+}
+
+.cm-mandays-table th {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  padding: 12px 10px !important;
+  text-align: center !important;
+  vertical-align: middle !important;
+  white-space: normal !important; /* Allow wrapping text */
+  line-height: 1.35 !important;
+  background: #1e3a8a !important; /* Retain professional dark blue header */
+  color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important; /* Restored original design borders */
+}
+
+.cm-mandays-table td {
+  font-size: 13.5px !important; /* Increased font-size for readability */
+  padding: 12px 10px !important; /* Spacious padding */
+  line-height: 1.5 !important;
+  vertical-align: middle !important;
+  text-align: center !important; /* Center-align cell contents */
+  border: 1px solid #cbd5e1 !important; /* Restored original design borders */
+}
+
+/* Center flex list elements (like IEs) in the body cells */
+.cm-mandays-table td div {
+  align-items: center !important;
+  text-align: center !important;
+}
+
+.cm-mandays-table tbody tr:hover td {
+  background: #f0fdf4 !important;
+}
+
+/* Reduced width column styles for numeric/short data */
+.cm-mandays-table .col-sno {
+  width: 60px !important;
+  max-width: 60px !important;
+  text-align: center !important;
+}
+
+.cm-mandays-table .col-date {
+  width: 110px !important;
+  max-width: 110px !important;
+  text-align: center !important;
+}
+
+.cm-mandays-table .col-day {
+  width: 100px !important;
+  max-width: 100px !important;
+  text-align: center !important;
+}
+
+.cm-mandays-table .col-number {
+  width: 140px !important;
+  max-width: 140px !important;
+  text-align: center !important;
+}
+
 
 /* Hyperlinks matching Railway Board style */
 .cm-table-link {
@@ -1197,4 +1366,59 @@
 
 .cm-empty-icon {
   font-size: 32px;
+}
+
+/* Wide modal class for tables and rich data */
+.cm-modal.cm-modal-wide {
+  max-width: 900px !important;
+  width: 95% !important;
+}
+
+/* Highly readable Process Performance table styles */
+.cm-performance-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.cm-performance-table th {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  padding: 12px 10px !important;
+  text-align: center !important;
+  vertical-align: middle !important;
+  white-space: normal !important;
+  line-height: 1.35 !important;
+  background: #1e3a8a !important;
+  color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+.cm-performance-table td {
+  font-size: 13.5px !important;
+  padding: 12px 10px !important;
+  line-height: 1.5 !important;
+  vertical-align: middle !important;
+  text-align: center !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+.cm-performance-table tbody tr:hover td {
+  background: #f0fdf4 !important;
+}
+
+.col-perf-ie-id {
+  width: 85px !important;
+}
+
+.col-perf-ie-name {
+  width: 165px !important;
+}
+
+.col-perf-number {
+  width: 90px !important;
+}
+
+.col-perf-number-wide {
+  width: 125px !important;
 }

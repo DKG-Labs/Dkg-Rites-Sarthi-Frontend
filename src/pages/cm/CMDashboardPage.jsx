@@ -6,6 +6,7 @@ import reportService from '../../services/reportService';
 import ProfessionalCardSection from '../../components/railway-board/ProfessionalCardSection';
 import { Level1Row } from '../../components/railway-board/LevelRows';
 import Pagination from '../../components/Pagination';
+import { formatDate } from '../../utils/helpers';
 
 const REPORT_NAME_TO_SLUG = {
   'PO Wise Monthly Progress Report': 'mpr',
@@ -54,7 +55,9 @@ const INITIAL_CALLS = [
     status: 'Pending',
     subStatus: 'IE assigned',
     remarks: 'Ready for process inspection of batch 45.',
-    docs: { ic: false, po: true, itp: true, annexure: true, calibration: true }
+    docs: { ic: false, po: true, itp: true, annexure: true, calibration: true },
+    inspectionStartDate: '',
+    inspectionCompletionDate: ''
   },
   {
     id: 'CALL-2026-102',
@@ -74,7 +77,9 @@ const INITIAL_CALLS = [
     status: 'Pending',
     subStatus: 'Raised',
     remarks: 'Visual inspection pending for concrete sleepers.',
-    docs: { ic: false, po: true, itp: true, annexure: false, calibration: true }
+    docs: { ic: false, po: true, itp: true, annexure: false, calibration: true },
+    inspectionStartDate: '',
+    inspectionCompletionDate: ''
   },
   {
     id: 'CALL-2026-103',
@@ -94,7 +99,9 @@ const INITIAL_CALLS = [
     status: 'Under Inspection',
     subStatus: 'Initiated',
     remarks: 'Hardness testing under process in Lab B.',
-    docs: { ic: false, po: true, itp: true, annexure: true, calibration: false }
+    docs: { ic: false, po: true, itp: true, annexure: true, calibration: false },
+    inspectionStartDate: '2026-05-22',
+    inspectionCompletionDate: ''
   },
   {
     id: 'CALL-2026-104',
@@ -114,7 +121,9 @@ const INITIAL_CALLS = [
     status: 'IC Issuance Pending',
     subStatus: 'Completed',
     remarks: 'All lab reports passed. Drafting inspection certificate.',
-    docs: { ic: false, po: true, itp: true, annexure: true, calibration: true }
+    docs: { ic: false, po: true, itp: true, annexure: true, calibration: true },
+    inspectionStartDate: '2026-05-14',
+    inspectionCompletionDate: '2026-05-18'
   },
   {
     id: 'CALL-2026-105',
@@ -134,7 +143,9 @@ const INITIAL_CALLS = [
     status: 'Completed',
     subStatus: 'IC Issued',
     remarks: 'IC dispatched and billed successfully.',
-    docs: { ic: true, po: true, itp: true, annexure: true, calibration: true }
+    docs: { ic: true, po: true, itp: true, annexure: true, calibration: true },
+    inspectionStartDate: '2026-04-30',
+    inspectionCompletionDate: '2026-05-04'
   },
   {
     id: 'CALL-2026-106',
@@ -154,7 +165,9 @@ const INITIAL_CALLS = [
     status: 'Pending',
     subStatus: 'Raised',
     remarks: 'Waiting for vendor raw material clearance certificate.',
-    docs: { ic: false, po: true, itp: false, annexure: true, calibration: false }
+    docs: { ic: false, po: true, itp: false, annexure: true, calibration: false },
+    inspectionStartDate: '',
+    inspectionCompletionDate: ''
   },
   {
     id: 'CALL-2026-107',
@@ -174,7 +187,9 @@ const INITIAL_CALLS = [
     status: 'Pending',
     subStatus: 'Scheduled',
     remarks: 'Process schedule finalized for next week.',
-    docs: { ic: false, po: true, itp: true, annexure: true, calibration: true }
+    docs: { ic: false, po: true, itp: true, annexure: true, calibration: true },
+    inspectionStartDate: '',
+    inspectionCompletionDate: ''
   },
   {
     id: 'CALL-2026-108',
@@ -194,7 +209,9 @@ const INITIAL_CALLS = [
     status: 'Under Inspection',
     subStatus: 'Initiated',
     remarks: 'Visual checks complete, physical testing in progress.',
-    docs: { ic: false, po: true, itp: true, annexure: false, calibration: true }
+    docs: { ic: false, po: true, itp: true, annexure: false, calibration: true },
+    inspectionStartDate: '2026-05-18',
+    inspectionCompletionDate: ''
   },
   {
     id: 'CALL-2026-109',
@@ -214,7 +231,9 @@ const INITIAL_CALLS = [
     status: 'Completed',
     subStatus: 'IC Issued',
     remarks: 'IC issued successfully after delay resolution.',
-    docs: { ic: true, po: true, itp: true, annexure: true, calibration: true }
+    docs: { ic: true, po: true, itp: true, annexure: true, calibration: true },
+    inspectionStartDate: '2026-04-26',
+    inspectionCompletionDate: '2026-04-28'
   },
   {
     id: 'CALL-2026-110',
@@ -234,7 +253,9 @@ const INITIAL_CALLS = [
     status: 'Completed',
     subStatus: 'Accepted',
     remarks: 'Visual checks ok. Accepted.',
-    docs: { ic: true, po: true, itp: true, annexure: true, calibration: true }
+    docs: { ic: true, po: true, itp: true, annexure: true, calibration: true },
+    inspectionStartDate: '2026-04-24',
+    inspectionCompletionDate: '2026-04-25'
   },
   {
     id: 'CALL-2026-111',
@@ -254,7 +275,9 @@ const INITIAL_CALLS = [
     status: 'Completed',
     subStatus: 'Rejected',
     remarks: 'Dimensions failed standard criteria. Rejected.',
-    docs: { ic: false, po: true, itp: true, annexure: true, calibration: true }
+    docs: { ic: false, po: true, itp: true, annexure: true, calibration: true },
+    inspectionStartDate: '2026-04-18',
+    inspectionCompletionDate: '2026-04-20'
   },
   {
     id: 'CALL-2026-112',
@@ -274,7 +297,9 @@ const INITIAL_CALLS = [
     status: 'Completed',
     subStatus: 'Withheld',
     remarks: 'Hardness deviations detected. Withheld for lab verification.',
-    docs: { ic: false, po: true, itp: true, annexure: true, calibration: true }
+    docs: { ic: false, po: true, itp: true, annexure: true, calibration: true },
+    inspectionStartDate: '2026-04-20',
+    inspectionCompletionDate: '2026-04-22'
   },
   {
     id: 'CALL-2026-113',
@@ -294,7 +319,9 @@ const INITIAL_CALLS = [
     status: 'Completed',
     subStatus: 'Partially Accepted',
     remarks: 'Line 2 passed, Line 3 rejected.',
-    docs: { ic: true, po: true, itp: true, annexure: true, calibration: true }
+    docs: { ic: true, po: true, itp: true, annexure: true, calibration: true },
+    inspectionStartDate: '2026-04-06',
+    inspectionCompletionDate: '2026-04-08'
   },
   {
     id: 'CALL-2026-114',
@@ -314,7 +341,9 @@ const INITIAL_CALLS = [
     status: 'Completed',
     subStatus: 'Cancelled',
     remarks: 'Vendor raw material failed. Call cancelled.',
-    docs: { ic: false, po: true, itp: false, annexure: true, calibration: false }
+    docs: { ic: false, po: true, itp: false, annexure: true, calibration: false },
+    inspectionStartDate: '2026-04-10',
+    inspectionCompletionDate: '2026-04-12'
   },
   {
     id: 'CALL-2026-115',
@@ -334,7 +363,9 @@ const INITIAL_CALLS = [
     status: 'Completed',
     subStatus: 'Accepted',
     remarks: 'Inspection successfully completed.',
-    docs: { ic: true, po: true, itp: true, annexure: true, calibration: true }
+    docs: { ic: true, po: true, itp: true, annexure: true, calibration: true },
+    inspectionStartDate: '2026-03-14',
+    inspectionCompletionDate: '2026-03-16'
   },
   {
     id: 'CALL-2026-116',
@@ -354,7 +385,9 @@ const INITIAL_CALLS = [
     status: 'Completed',
     subStatus: 'IC Issued',
     remarks: 'IC issued after delayed clearances.',
-    docs: { ic: true, po: true, itp: true, annexure: true, calibration: true }
+    docs: { ic: true, po: true, itp: true, annexure: true, calibration: true },
+    inspectionStartDate: '2026-04-05',
+    inspectionCompletionDate: '2026-04-07'
   },
   {
     id: 'CALL-2026-117',
@@ -374,7 +407,9 @@ const INITIAL_CALLS = [
     status: 'Completed',
     subStatus: 'Cancelled',
     remarks: 'Vendor plant breakdown. Call cancelled.',
-    docs: { ic: false, po: true, itp: true, annexure: true, calibration: true }
+    docs: { ic: false, po: true, itp: true, annexure: true, calibration: true },
+    inspectionStartDate: '2026-03-18',
+    inspectionCompletionDate: '2026-03-20'
   },
   {
     id: 'CALL-2026-118',
@@ -394,7 +429,9 @@ const INITIAL_CALLS = [
     status: 'Completed',
     subStatus: 'Partially Accepted',
     remarks: 'Partial material clearance.',
-    docs: { ic: true, po: true, itp: true, annexure: true, calibration: true }
+    docs: { ic: true, po: true, itp: true, annexure: true, calibration: true },
+    inspectionStartDate: '2026-03-20',
+    inspectionCompletionDate: '2026-03-22'
   }
 ];
 
@@ -452,12 +489,13 @@ const MANDAY_UNITS = {
 export const CMDashboardPage = () => {
   // Navigation tabs state matching SRS options exactly
   const [activeTab, setActiveTab] = useState('Dashboard');
-  const [activeCallFilter, setActiveCallFilter] = useState('all'); // Clicked KPI filter: all, pending, under_inspection, ic_pending, completed, overdue
+  const [activeCallFilter, setActiveCallFilter] = useState(null); // Clicked KPI filter: all, pending, under_inspection, ic_pending, completed, overdue
   const [callMenuOpen, setCallMenuOpen] = useState(true); // Call Monitoring submenu toggle
   const [ieMenuOpen, setIeMenuOpen] = useState(false); // IE Monitoring submenu toggle
   const [vendorMenuOpen, setVendorMenuOpen] = useState(false); // Vendor Quality Monitoring submenu toggle
   const [reportsMenuOpen, setReportsMenuOpen] = useState(false); // Reports submenu toggle
   const [activeReportTab, setActiveReportTab] = useState('PO Wise Monthly Progress Report'); // Active sub-report
+  const [callPopupData, setCallPopupData] = useState(null); // Drill-down popup data for calls: { ieName, type, calls }
 
   // --- Process Inspection Manday Calculation States ---
   const [mandayProduct, setMandayProduct] = useState(''); // 'ERC', 'Sleeper', 'Rail Pad'
@@ -910,6 +948,14 @@ export const CMDashboardPage = () => {
   const [approvals, setApprovals] = useState(INITIAL_APPROVALS);
   const [notification, setNotification] = useState(null);
 
+  const handleOpenCallDetailsModal = (ieName, type, callsList) => {
+    setCallPopupData({
+      ieName,
+      type,
+      calls: callsList
+    });
+  };
+
   // Global Filters states
   const [selectedRegions, setSelectedRegions] = useState(['RIO North']); // Default CM belongs to RIO North
   const [selectedIEs, setSelectedIEs] = useState(['Rajesh Kumar', 'Priya Sharma']); // Belonging to CM by default
@@ -923,6 +969,7 @@ export const CMDashboardPage = () => {
   // Expand/collapse global filters panel
   const [filtersExpanded, setFiltersExpanded] = useState(true);
   const [openDropdown, setOpenDropdown] = useState(null);
+  const [ieSearchQuery, setIeSearchQuery] = useState('');
 
   // Filter preview string helpers
   const getRegionsPreview = () => {
@@ -962,9 +1009,9 @@ export const CMDashboardPage = () => {
 
   const getDatesPreview = () => {
     if (!startDate && !endDate) return 'All Dates';
-    if (startDate && endDate) return `${startDate} to ${endDate}`;
-    if (startDate) return `From ${startDate}`;
-    return `To ${endDate}`;
+    if (startDate && endDate) return `${formatDate(startDate)} to ${formatDate(endDate)}`;
+    if (startDate) return `From ${formatDate(startDate)}`;
+    return `To ${formatDate(endDate)}`;
   };
 
   // Sorting & Pagination states
@@ -1118,6 +1165,24 @@ export const CMDashboardPage = () => {
     }, 800);
   };
 
+  // Handle downloading all available documents as one consolidated package
+  const handleDownloadAllDocs = (callNumber, docs) => {
+    const availableDocs = Object.entries(docs || {})
+      .filter(([_, val]) => val)
+      .map(([key, _]) => key.toUpperCase());
+
+    if (availableDocs.length === 0) {
+      triggerNotification(`No documents available for ${callNumber}.`, 'warning');
+      return;
+    }
+
+    triggerNotification(`Downloading all documents (${availableDocs.join(', ')}) as one package for ${callNumber}...`, 'info');
+
+    setTimeout(() => {
+      triggerNotification(`All documents for ${callNumber} downloaded as one package successfully!`, 'success');
+    }, 1000);
+  };
+
   // Handle header sorting click
   const handleSort = (field) => {
     if (sortField === field) {
@@ -1159,7 +1224,7 @@ export const CMDashboardPage = () => {
     setSearchQuery('');
     setStartDate('');
     setEndDate('');
-    setActiveCallFilter('all');
+    setActiveCallFilter(activeTab === 'Dashboard' ? null : 'all');
     setCurrentPage(1);
     triggerNotification('Global filters reset to CM default limits.', 'info');
   };
@@ -1199,14 +1264,7 @@ export const CMDashboardPage = () => {
     setActiveApproval(null);
   };
 
-  // Format Currencies (Material Values)
-  const formatIndianCurrency = (num) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0
-    }).format(num);
-  };
+
 
   // Approval Pending Count
   const pendingApprovalsCount = approvals.filter(a => a.status === 'pending').length;
@@ -1249,7 +1307,7 @@ export const CMDashboardPage = () => {
               className={`cm-menu-item ${activeTab === 'Dashboard' ? 'active' : ''}`}
               onClick={() => {
                 setActiveTab('Dashboard');
-                setActiveCallFilter('all');
+                setActiveCallFilter(null);
                 setCallMenuOpen(false);
                 setIeMenuOpen(false);
                 setVendorMenuOpen(false);
@@ -1596,85 +1654,91 @@ export const CMDashboardPage = () => {
           </div>
         )}
 
-        {/* KPI Cards Grid - only for Dashboard & Call Monitoring */}
-        {(activeTab === 'Dashboard' || activeTab === 'Call Monitoring') && (
-          <section className="cm-kpi-grid">
-            <div
-              className={`cm-kpi-card card-dark-green ${activeCallFilter === 'all' ? 'active' : ''}`}
-              onClick={() => { setActiveCallFilter('all'); setCurrentPage(1); }}
-            >
-              <div className="cm-kpi-header">
-                <span className="cm-kpi-title">Total Calls</span>
-                <i className="cm-kpi-icon fa-solid fa-list-check"></i>
+        {/* KPI Cards Layered Grid - only for Dashboard */}
+        {activeTab === 'Dashboard' && (
+          <section className="cm-kpi-layer-container">
+            {/* First Row: 3 Cards */}
+            <div className="cm-kpi-row cm-kpi-row-1">
+              <div
+                className={`cm-kpi-card card-dark-green ${activeCallFilter === 'all' ? 'active' : ''}`}
+                onClick={() => { setActiveCallFilter('all'); setCurrentPage(1); }}
+              >
+                <div className="cm-kpi-header">
+                  <span className="cm-kpi-title">Total Calls</span>
+                  <i className="cm-kpi-icon fa-solid fa-list-check"></i>
+                </div>
+                <div className="cm-kpi-value">{kpiStats.total}</div>
+                <div className="cm-kpi-footer">Calls in current view</div>
               </div>
-              <div className="cm-kpi-value">{kpiStats.total}</div>
-              <div className="cm-kpi-footer">Calls in current view</div>
+
+              <div
+                className={`cm-kpi-card card-amber ${activeCallFilter === 'pending' ? 'active' : ''}`}
+                onClick={() => { setActiveCallFilter('pending'); setCurrentPage(1); }}
+              >
+                <div className="cm-kpi-header">
+                  <span className="cm-kpi-title">Pending Calls</span>
+                  <i className="cm-kpi-icon fa-solid fa-hourglass-half"></i>
+                </div>
+                <div className="cm-kpi-value">{kpiStats.pending}</div>
+                <div className="cm-kpi-footer">Raised & uninitiated by IE</div>
+              </div>
+
+              <div
+                className={`cm-kpi-card card-ocean ${activeCallFilter === 'under_inspection' ? 'active' : ''}`}
+                onClick={() => { setActiveCallFilter('under_inspection'); setCurrentPage(1); }}
+              >
+                <div className="cm-kpi-header">
+                  <span className="cm-kpi-title">Under Inspection Calls</span>
+                  <i className="cm-kpi-icon fa-solid fa-sliders"></i>
+                </div>
+                <div className="cm-kpi-value">{kpiStats.underInspection}</div>
+                <div className="cm-kpi-footer">Initiated but not completed</div>
+              </div>
             </div>
 
-            <div
-              className={`cm-kpi-card card-amber ${activeCallFilter === 'pending' ? 'active' : ''}`}
-              onClick={() => { setActiveCallFilter('pending'); setCurrentPage(1); }}
-            >
-              <div className="cm-kpi-header">
-                <span className="cm-kpi-title">Pending Calls</span>
-                <i className="cm-kpi-icon fa-solid fa-hourglass-half"></i>
+            {/* Second Row: 3 Cards */}
+            <div className="cm-kpi-row cm-kpi-row-2">
+              <div
+                className={`cm-kpi-card card-indigo ${activeCallFilter === 'ic_pending' ? 'active' : ''}`}
+                onClick={() => { setActiveCallFilter('ic_pending'); setCurrentPage(1); }}
+              >
+                <div className="cm-kpi-header">
+                  <span className="cm-kpi-title">IC Issuance Pending</span>
+                  <i className="cm-kpi-icon fa-solid fa-file-invoice"></i>
+                </div>
+                <div className="cm-kpi-value">{kpiStats.icPending}</div>
+                <div className="cm-kpi-footer">Pending IC issuance</div>
               </div>
-              <div className="cm-kpi-value">{kpiStats.pending}</div>
-              <div className="cm-kpi-footer">Raised & uninitiated by IE</div>
-            </div>
 
-            <div
-              className={`cm-kpi-card card-ocean ${activeCallFilter === 'under_inspection' ? 'active' : ''}`}
-              onClick={() => { setActiveCallFilter('under_inspection'); setCurrentPage(1); }}
-            >
-              <div className="cm-kpi-header">
-                <span className="cm-kpi-title">Under Inspection Calls</span>
-                <i className="cm-kpi-icon fa-solid fa-sliders"></i>
+              <div
+                className={`cm-kpi-card card-spring-green ${activeCallFilter === 'completed' ? 'active' : ''}`}
+                onClick={() => { setActiveCallFilter('completed'); setCurrentPage(1); }}
+              >
+                <div className="cm-kpi-header">
+                  <span className="cm-kpi-title">Completed Calls</span>
+                  <i className="cm-kpi-icon fa-solid fa-circle-check"></i>
+                </div>
+                <div className="cm-kpi-value">{kpiStats.completed}</div>
+                <div className="cm-kpi-footer">Finished & IC Dispatched</div>
               </div>
-              <div className="cm-kpi-value">{kpiStats.underInspection}</div>
-              <div className="cm-kpi-footer">Initiated but not completed</div>
-            </div>
 
-            <div
-              className={`cm-kpi-card card-indigo ${activeCallFilter === 'ic_pending' ? 'active' : ''}`}
-              onClick={() => { setActiveCallFilter('ic_pending'); setCurrentPage(1); }}
-            >
-              <div className="cm-kpi-header">
-                <span className="cm-kpi-title">IC Issuance Pending</span>
-                <i className="cm-kpi-icon fa-solid fa-file-invoice"></i>
+              <div
+                className={`cm-kpi-card card-ruby ${activeCallFilter === 'overdue' ? 'active' : ''}`}
+                onClick={() => { setActiveCallFilter('overdue'); setCurrentPage(1); }}
+              >
+                <div className="cm-kpi-header">
+                  <span className="cm-kpi-title">Overdue Calls</span>
+                  <i className="cm-kpi-icon fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <div className="cm-kpi-value">{kpiStats.overdue}</div>
+                <div className="cm-kpi-footer">Crossed desired date by 7d</div>
               </div>
-              <div className="cm-kpi-value">{kpiStats.icPending}</div>
-              <div className="cm-kpi-footer">Pending IC issuance</div>
-            </div>
-
-            <div
-              className={`cm-kpi-card card-spring-green ${activeCallFilter === 'completed' ? 'active' : ''}`}
-              onClick={() => { setActiveCallFilter('completed'); setCurrentPage(1); }}
-            >
-              <div className="cm-kpi-header">
-                <span className="cm-kpi-title">Completed Calls</span>
-                <i className="cm-kpi-icon fa-solid fa-circle-check"></i>
-              </div>
-              <div className="cm-kpi-value">{kpiStats.completed}</div>
-              <div className="cm-kpi-footer">Finished & IC Dispatched</div>
-            </div>
-
-            <div
-              className={`cm-kpi-card card-ruby ${activeCallFilter === 'overdue' ? 'active' : ''}`}
-              onClick={() => { setActiveCallFilter('overdue'); setCurrentPage(1); }}
-            >
-              <div className="cm-kpi-header">
-                <span className="cm-kpi-title">Overdue Calls</span>
-                <i className="cm-kpi-icon fa-solid fa-triangle-exclamation"></i>
-              </div>
-              <div className="cm-kpi-value">{kpiStats.overdue}</div>
-              <div className="cm-kpi-footer">Crossed desired date by 7d</div>
             </div>
           </section>
         )}
 
         {/* Global Filters Panel — Premium Redesign (shared across core tabs) */}
-        {['Dashboard', 'Call Monitoring', 'IE wise Call Status', 'IE Performance Monitoring'].includes(activeTab) && (
+        {((activeTab === 'Dashboard' && activeCallFilter !== null) || ['Call Monitoring', 'IE wise Call Status', 'IE Performance Monitoring'].includes(activeTab)) && (
           <section style={{ background: '#fff', borderRadius: '12px', border: '1px solid #d1fae5', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', overflow: 'visible' }}>
             {/* Sleek Minimalist Header Bar */}
             <div
@@ -1820,7 +1884,10 @@ export const CMDashboardPage = () => {
                   {/* IE Select */}
                   <div style={{ position: 'relative' }}>
                     <button
-                      onClick={() => setOpenDropdown(openDropdown === 'ie' ? null : 'ie')}
+                      onClick={() => {
+                        setOpenDropdown(openDropdown === 'ie' ? null : 'ie');
+                        setIeSearchQuery('');
+                      }}
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -1841,54 +1908,149 @@ export const CMDashboardPage = () => {
                       <i className="fa-solid fa-chevron-down" style={{ fontSize: '9px', opacity: 0.7, transform: openDropdown === 'ie' ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
                     </button>
 
-                    {openDropdown === 'ie' && (
-                      <div style={{
-                        position: 'absolute',
-                        top: '100%',
-                        left: 0,
-                        marginTop: '6px',
-                        background: '#fff',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '8px',
-                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
-                        zIndex: 999,
-                        minWidth: '180px',
-                        padding: '8px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '4px'
-                      }}>
-                        <div style={{ padding: '4px 8px', fontSize: '9px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Filter by Engineer</div>
-                        {INITIAL_IES.map(ie => {
-                          const on = selectedIEs.includes(ie.name);
-                          return (
-                            <div
-                              key={ie.id}
-                              onClick={() => toggleFilterOption(ie.name, selectedIEs, setSelectedIEs)}
-                              className={`cm-filter-dropdown-item ${on ? 'selected ie' : ''}`}
-                            >
-                              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <div style={{
-                                  width: '14px',
-                                  height: '14px',
-                                  borderRadius: '3px',
-                                  border: `1px solid ${on ? '#1d4ed8' : '#cbd5e1'}`,
-                                  background: on ? '#1d4ed8' : '#fff',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  color: '#fff',
-                                  fontSize: '9px'
-                                }}>
-                                  {on && <i className="fa-solid fa-check" />}
-                                </div>
-                                {ie.name}
-                              </span>
+                    {openDropdown === 'ie' && (() => {
+                      const filteredIEs = INITIAL_IES.filter(ie =>
+                        ie.name.toLowerCase().includes(ieSearchQuery.toLowerCase())
+                      );
+                      const areAllFilteredSelected = filteredIEs.length > 0 && filteredIEs.every(ie => selectedIEs.includes(ie.name));
+
+                      const handleSelectAllIEs = () => {
+                        if (areAllFilteredSelected) {
+                          // Deselect all filtered IEs
+                          const filteredNames = filteredIEs.map(ie => ie.name);
+                          setSelectedIEs(prev => prev.filter(name => !filteredNames.includes(name)));
+                        } else {
+                          // Select all filtered IEs (union)
+                          const filteredNames = filteredIEs.map(ie => ie.name);
+                          setSelectedIEs(prev => {
+                            const union = new Set([...prev, ...filteredNames]);
+                            return Array.from(union);
+                          });
+                        }
+                        setCurrentPage(1);
+                      };
+
+                      return (
+                        <div style={{
+                          position: 'absolute',
+                          top: '100%',
+                          left: 0,
+                          marginTop: '6px',
+                          background: '#fff',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '8px',
+                          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                          zIndex: 999,
+                          minWidth: '220px',
+                          padding: '8px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '4px'
+                        }}>
+                          <div style={{ padding: '4px 8px', fontSize: '9px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Filter by Engineer</div>
+                          
+                          {/* Search Input inside Dropdown */}
+                          <div style={{ padding: '2px 4px', marginBottom: '4px' }}>
+                            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                              <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '8px', color: '#94a3b8', fontSize: '10px' }} />
+                              <input
+                                type="text"
+                                placeholder="Search engineers..."
+                                value={ieSearchQuery}
+                                onChange={(e) => setIeSearchQuery(e.target.value)}
+                                onClick={(e) => e.stopPropagation()} /* Prevents closing or side effects */
+                                style={{
+                                  width: '100%',
+                                  padding: '5px 8px 5px 24px',
+                                  fontSize: '11px',
+                                  border: '1px solid #cbd5e1',
+                                  borderRadius: '4px',
+                                  outline: 'none',
+                                  fontFamily: 'inherit'
+                                }}
+                              />
+                              {ieSearchQuery && (
+                                <i
+                                  className="fa-solid fa-xmark"
+                                  onClick={(e) => { e.stopPropagation(); setIeSearchQuery(''); }}
+                                  style={{ position: 'absolute', right: '8px', color: '#94a3b8', cursor: 'pointer', fontSize: '10px' }}
+                                />
+                              )}
                             </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                          </div>
+
+                          {filteredIEs.length === 0 ? (
+                            <div style={{ padding: '8px', fontSize: '11px', color: '#94a3b8', textAlign: 'center' }}>
+                              No engineers found
+                            </div>
+                          ) : (
+                            <>
+                              {/* Select All Option */}
+                              <div
+                                onClick={handleSelectAllIEs}
+                                className={`cm-filter-dropdown-item ${areAllFilteredSelected ? 'selected ie' : ''}`}
+                                style={{
+                                  borderBottom: '1px solid #f1f5f9',
+                                  paddingBottom: '6px',
+                                  marginBottom: '4px',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700' }}>
+                                  <div style={{
+                                    width: '14px',
+                                    height: '14px',
+                                    borderRadius: '3px',
+                                    border: `1px solid ${areAllFilteredSelected ? '#1d4ed8' : '#cbd5e1'}`,
+                                    background: areAllFilteredSelected ? '#1d4ed8' : '#fff',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: '#fff',
+                                    fontSize: '9px'
+                                  }}>
+                                    {areAllFilteredSelected && <i className="fa-solid fa-check" />}
+                                  </div>
+                                  Select All {ieSearchQuery && `(${filteredIEs.length})`}
+                                </span>
+                              </div>
+
+                              {/* Filtered List */}
+                              <div style={{ maxHeight: '160px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                {filteredIEs.map(ie => {
+                                  const on = selectedIEs.includes(ie.name);
+                                  return (
+                                    <div
+                                      key={ie.id}
+                                      onClick={() => toggleFilterOption(ie.name, selectedIEs, setSelectedIEs)}
+                                      className={`cm-filter-dropdown-item ${on ? 'selected ie' : ''}`}
+                                    >
+                                      <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <div style={{
+                                          width: '14px',
+                                          height: '14px',
+                                          borderRadius: '3px',
+                                          border: `1px solid ${on ? '#1d4ed8' : '#cbd5e1'}`,
+                                          background: on ? '#1d4ed8' : '#fff',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          color: '#fff',
+                                          fontSize: '9px'
+                                        }}>
+                                          {on && <i className="fa-solid fa-check" />}
+                                        </div>
+                                        {ie.name}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Product Select */}
@@ -2228,21 +2390,51 @@ export const CMDashboardPage = () => {
         )}
 
         {/* Calls Table Section for CM Dashboard & Call Monitoring */}
-        {(activeTab === 'Dashboard' || activeTab === 'Call Monitoring') && (
+        {((activeTab === 'Dashboard' && activeCallFilter !== null) || activeTab === 'Call Monitoring') && (
           <>
             {/* Calls Table Section */}
             <section className="cm-list-card">
-              <div className="cm-list-header">
+              <div className="cm-list-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div className="cm-list-info">
                   <h3 style={{ fontSize: '14px', fontWeight: 'bold', color: '#166534', margin: 0 }}>
                     Inspection Calls Details List
                     <span style={{ fontSize: '12px', fontWeight: 'normal', color: '#4b6b4b', marginLeft: '8px' }}>
-                      ({activeCallFilter === 'all' ? 'All Calls' : `${activeCallFilter.toUpperCase().replace('_', ' ')}`})
+                      ({!activeCallFilter ? 'All Calls' : activeCallFilter === 'all' ? 'All Calls' : `${activeCallFilter.toUpperCase().replace('_', ' ')}`})
                     </span>
                   </h3>
                   <span className="cm-list-count-badge">
                     {sortedCalls.length} of {calls.length} entries
                   </span>
+                </div>
+
+                {/* Table Header Global Search Bar */}
+                <div style={{ position: 'relative', width: '260px' }}>
+                  <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#166534', fontSize: '12px', opacity: 0.7 }} />
+                  <input
+                    type="text"
+                    placeholder="Search in table..."
+                    value={searchQuery}
+                    onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                    style={{
+                      width: '100%',
+                      padding: '6px 12px 6px 30px',
+                      borderRadius: '6px',
+                      border: '1px solid #bbf7d0',
+                      background: '#fff',
+                      fontSize: '12px',
+                      color: '#1a2e1a',
+                      outline: 'none',
+                      fontFamily: 'inherit',
+                      transition: 'border-color 0.15s ease'
+                    }}
+                  />
+                  {searchQuery && (
+                    <i
+                      className="fa-solid fa-xmark"
+                      onClick={() => setSearchQuery('')}
+                      style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontSize: '12px', cursor: 'pointer' }}
+                    />
+                  )}
                 </div>
               </div>
 
@@ -2253,8 +2445,7 @@ export const CMDashboardPage = () => {
                       <th className="sortable" onClick={() => handleSort('callNumber')}>Call Number</th>
                       <th className="sortable" onClick={() => handleSort('product')}>Product & Stage of Inspection</th>
                       <th className="sortable" onClick={() => handleSort('poNumber')}>PO Number</th>
-                      <th className="sortable" onClick={() => handleSort('dpDate')}>DP Date & Ext DP Date</th>
-                      <th className="sortable" onClick={() => handleSort('materialValue')}>Material Value</th>
+                      <th className="sortable" onClick={() => handleSort('dpDate')}>DP Date & DP Date</th>
                       <th className="sortable" onClick={() => handleSort('vendorName')}>Vendor Name</th>
                       <th className="sortable" onClick={() => handleSort('desiredInspectionDate')}>Inspection Desired Date</th>
                       <th className="sortable" onClick={() => handleSort('callDate')}>Call Date</th>
@@ -2263,7 +2454,6 @@ export const CMDashboardPage = () => {
                       <th className="sortable" onClick={() => handleSort('ritesRio')}>RITES RIO</th>
                       <th className="sortable" onClick={() => handleSort('status')}>Status</th>
                       <th>Documents</th>
-                      <th>Remarks</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2314,21 +2504,18 @@ export const CMDashboardPage = () => {
 
                             {/* DP Date & Ext DP Date */}
                             <td>
-                              <div>{call.dpDate}</div>
-                              <div style={{ fontSize: '9px', color: '#4b6b4b' }}>Ext: {call.extDpDate}</div>
+                              <div>{formatDate(call.dpDate)}</div>
+                              <div style={{ fontSize: '9px', color: '#4b6b4b' }}>{formatDate(call.extDpDate)}</div>
                             </td>
-
-                            {/* Material Value */}
-                            <td style={{ fontWeight: '600' }}>{formatIndianCurrency(call.materialValue)}</td>
 
                             {/* Vendor Name */}
                             <td>{call.vendorName}</td>
 
                             {/* Inspection Desired Date */}
-                            <td>{call.desiredInspectionDate || 'N/A'}</td>
+                            <td>{formatDate(call.desiredInspectionDate)}</td>
 
                             {/* Call Date */}
-                            <td>{call.callDate}</td>
+                            <td>{formatDate(call.callDate)}</td>
 
                             {/* IE Name */}
                             <td>{call.ieName || 'Unassigned'}</td>
@@ -2349,55 +2536,35 @@ export const CMDashboardPage = () => {
                               </span>
                             </td>
 
-                            {/* Documents (Download single pdf sequence: IC, PO, ITP, Annexures, Calibration Reports) */}
+                            {/* Documents (Download single pdf sequence) */}
                             <td>
-                              <div className="cm-doc-download-bar">
-                                <span
-                                  className={`cm-doc-link ${call.docs.ic ? '' : 'missing'}`}
-                                  title={call.docs.ic ? "Download IC Document" : "IC Document Unavailable"}
-                                  onClick={() => call.docs.ic && handleDownloadPdf(call.callNumber, 'IC')}
+                              <div className="cm-doc-download-bar" style={{ justifyContent: 'center' }}>
+                                <button
+                                  className="cm-doc-link"
+                                  title="Download all documents as one PDF"
+                                  onClick={() => handleDownloadAllDocs(call.callNumber, call.docs)}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '4px',
+                                    height: '24px',
+                                    padding: '0 8px',
+                                    fontSize: '11px',
+                                    fontWeight: 'bold',
+                                    cursor: 'pointer'
+                                  }}
                                 >
-                                  IC
-                                </span>
-                                <span
-                                  className={`cm-doc-link ${call.docs.po ? '' : 'missing'}`}
-                                  title={call.docs.po ? "Download PO Document" : "PO Document Unavailable"}
-                                  onClick={() => call.docs.po && handleDownloadPdf(call.callNumber, 'PO')}
-                                >
-                                  PO
-                                </span>
-                                <span
-                                  className={`cm-doc-link ${call.docs.itp ? '' : 'missing'}`}
-                                  title={call.docs.itp ? "Download ITP Document" : "ITP Document Unavailable"}
-                                  onClick={() => call.docs.itp && handleDownloadPdf(call.callNumber, 'ITP')}
-                                >
-                                  ITP
-                                </span>
-                                <span
-                                  className={`cm-doc-link ${call.docs.annexure ? '' : 'missing'}`}
-                                  title={call.docs.annexure ? "Download Annexures PDF" : "Annexures PDF Unavailable"}
-                                  onClick={() => call.docs.annexure && handleDownloadPdf(call.callNumber, 'Annexures')}
-                                >
-                                  ANX
-                                </span>
-                                <span
-                                  className={`cm-doc-link ${call.docs.calibration ? '' : 'missing'}`}
-                                  title={call.docs.calibration ? "Download Calibration Certificate" : "Calibration Certificate Unavailable"}
-                                  onClick={() => call.docs.calibration && handleDownloadPdf(call.callNumber, 'Calibration')}
-                                >
-                                  CAL
-                                </span>
+                                  <i className="fa-solid fa-download"></i>
+                                </button>
                               </div>
                             </td>
-
-                            {/* Remarks */}
-                            <td style={{ minWidth: '150px', fontSize: '10.5px' }}>{call.remarks || '-'}</td>
                           </tr>
                         );
                       })
                     ) : (
                       <tr>
-                        <td colSpan="14">
+                        <td colSpan="12">
                           <div className="cm-empty-state">
                             <i className="cm-empty-icon fa-solid fa-folder-open"></i>
                             <h4>No matching inspection calls found</h4>
@@ -2459,7 +2626,7 @@ export const CMDashboardPage = () => {
                 </h3>
               </div>
               <div className="cm-table-wrapper">
-                <table className="cm-table">
+                <table className="cm-table cm-table-centered">
                   <thead>
                     <tr>
                       <th>IE ID</th>
@@ -2482,12 +2649,58 @@ export const CMDashboardPage = () => {
                         <tr key={ie.id}>
                           <td style={{ fontWeight: 'bold' }}>{ie.id}</td>
                           <td style={{ fontWeight: '600', color: '#15803d' }}>{ie.name}</td>
-                          <td style={{ fontWeight: '600', color: pending > 0 ? '#d97706' : 'inherit' }}>{pending}</td>
-                          <td style={{ fontWeight: '600', color: underInspection > 0 ? '#ea580c' : 'inherit' }}>{underInspection}</td>
-                          <td style={{ fontWeight: '600', color: icPending > 0 ? '#4338ca' : 'inherit' }}>{icPending}</td>
+                          <td style={{ fontWeight: '600', color: pending > 0 ? '#d97706' : 'inherit' }}>
+                            {pending > 0 ? (
+                              <span
+                                className="cm-table-link"
+                                style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                                onClick={() => handleOpenCallDetailsModal(ie.name, 'Pending', ieCalls.filter(c => c.status === 'Pending'))}
+                              >
+                                {pending}
+                              </span>
+                            ) : (
+                              pending
+                            )}
+                          </td>
+                          <td style={{ fontWeight: '600', color: underInspection > 0 ? '#ea580c' : 'inherit' }}>
+                            {underInspection > 0 ? (
+                              <span
+                                className="cm-table-link"
+                                style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                                onClick={() => handleOpenCallDetailsModal(ie.name, 'Under Inspection', ieCalls.filter(c => c.status === 'Under Inspection'))}
+                              >
+                                {underInspection}
+                              </span>
+                            ) : (
+                              underInspection
+                            )}
+                          </td>
+                          <td style={{ fontWeight: '600', color: icPending > 0 ? '#4338ca' : 'inherit' }}>
+                            {icPending > 0 ? (
+                              <span
+                                className="cm-table-link"
+                                style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                                onClick={() => handleOpenCallDetailsModal(ie.name, 'Pending for IC', ieCalls.filter(c => c.status === 'IC Issuance Pending'))}
+                              >
+                                {icPending}
+                              </span>
+                            ) : (
+                              icPending
+                            )}
+                          </td>
                           <td style={{ fontWeight: 'bold', color: overdue > 0 ? '#ef4444' : 'inherit' }}>
-                            {overdue}
-                            {overdue > 0 && <span style={{ color: '#ef4444', marginLeft: '4px' }} title="Desired Date crossed by 7 Days">⚠️</span>}
+                            {overdue > 0 ? (
+                              <span
+                                className="cm-table-link"
+                                style={{ cursor: 'pointer', textDecoration: 'underline', color: '#ef4444' }}
+                                onClick={() => handleOpenCallDetailsModal(ie.name, 'Overdue', ieCalls.filter(c => isOverdue(c)))}
+                              >
+                                {overdue}
+                                <span style={{ color: '#ef4444', marginLeft: '4px' }} title="Desired Date crossed by 7 Days">⚠️</span>
+                              </span>
+                            ) : (
+                              overdue
+                            )}
                           </td>
                         </tr>
                       );
@@ -2509,19 +2722,19 @@ export const CMDashboardPage = () => {
                 </h3>
               </div>
               <div className="cm-table-wrapper">
-                <table className="cm-table">
+                <table className="cm-performance-table">
                   <thead>
                     <tr>
-                      <th>IE ID</th>
-                      <th>IE Name</th>
-                      <th>Total Calls</th>
-                      <th>Overdue Calls Attended</th>
-                      <th>Calls Cancelled</th>
-                      <th>Calls Accepted</th>
-                      <th>Calls Rejected</th>
-                      <th>Calls Partially Accepted &amp; Rejected</th>
-                      <th>Calls Withheld</th>
-                      <th>IC Issued</th>
+                      <th className="col-perf-ie-id">IE ID</th>
+                      <th className="col-perf-ie-name">IE Name</th>
+                      <th className="col-perf-number">Total Calls</th>
+                      <th className="col-perf-number-wide">Overdue Calls Attended</th>
+                      <th className="col-perf-number">Calls Cancelled</th>
+                      <th className="col-perf-number">Calls Accepted</th>
+                      <th className="col-perf-number">Calls Rejected</th>
+                      <th className="col-perf-number-wide">Calls Partially Accepted &amp; Rejected</th>
+                      <th className="col-perf-number">Calls Withheld</th>
+                      <th className="col-perf-number">IC Issued</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3128,86 +3341,86 @@ export const CMDashboardPage = () => {
                 {/* COMBINATION 1: ERC - Vendor Wise */}
                 {mandayProduct === 'ERC' && mandayPreference === 'Vendor Wise' && (
                   <div className="cm-table-wrapper">
-                    <table className="cm-table">
+                    <table className="cm-mandays-table">
                       <thead>
                         <tr>
-                          <th style={{ width: '50px' }}>S.No.</th>
-                          <th>Date</th>
-                          <th>Day</th>
-                          <th>No. of Shifts worked</th>
-                          <th>No. of Inspection Calls worked upon</th>
+                          <th className="col-sno">S.No.</th>
+                          <th className="col-date">Date</th>
+                          <th className="col-day">Day</th>
+                          <th className="col-number">No. of Shifts worked</th>
+                          <th className="col-number">No. of Inspection Calls worked upon</th>
                           <th>IEs Worked (Name &amp; Employee Code)</th>
-                          <th style={{ fontWeight: 'bold' }}>No. of Mandays deployed</th>
-                          <th>Total Pieces Processed (Shearing Production)</th>
+                          <th className="col-number" style={{ fontWeight: 'bold' }}>No. of Mandays deployed</th>
+                          <th className="col-number">Total Pieces Processed (Shearing Production)</th>
                         </tr>
                       </thead>
                       <tbody>
                         <tr>
-                          <td>1</td>
-                          <td>2026-05-25</td>
-                          <td>Monday</td>
-                          <td>3 Shifts (A, B, C)</td>
-                          <td>5 Calls</td>
+                          <td className="col-sno">1</td>
+                          <td className="col-date">2026-05-25</td>
+                          <td className="col-day">Monday</td>
+                          <td className="col-number">3 Shifts (A, B, C)</td>
+                          <td className="col-number">5 Calls</td>
                           <td>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                               <span>• Rajesh Kumar (IE001)</span>
                               <span>• Priya Sharma (IE002)</span>
                             </div>
                           </td>
-                          <td style={{ fontWeight: 'bold', color: '#15803d', fontSize: '11px' }}>2.0 Mandays</td>
-                          <td style={{ fontWeight: 'bold' }}>12,500 pcs</td>
+                          <td className="col-number" style={{ fontWeight: 'bold', color: '#15803d' }}>2.0 Mandays</td>
+                          <td className="col-number" style={{ fontWeight: 'bold' }}>12,500 pcs</td>
                         </tr>
                         <tr>
-                          <td>2</td>
-                          <td>2026-05-26</td>
-                          <td>Tuesday</td>
-                          <td>2 Shifts (A, B)</td>
-                          <td>3 Calls</td>
+                          <td className="col-sno">2</td>
+                          <td className="col-date">2026-05-26</td>
+                          <td className="col-day">Tuesday</td>
+                          <td className="col-number">2 Shifts (A, B)</td>
+                          <td className="col-number">3 Calls</td>
                           <td>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                               <span>• Rajesh Kumar (IE001)</span>
                             </div>
                           </td>
-                          <td style={{ fontWeight: 'bold', color: '#15803d', fontSize: '11px' }}>1.0 Mandays</td>
-                          <td style={{ fontWeight: 'bold' }}>8,200 pcs</td>
+                          <td className="col-number" style={{ fontWeight: 'bold', color: '#15803d' }}>1.0 Mandays</td>
+                          <td className="col-number" style={{ fontWeight: 'bold' }}>8,200 pcs</td>
                         </tr>
                         <tr>
-                          <td>3</td>
-                          <td>2026-05-27</td>
-                          <td>Wednesday</td>
-                          <td>3 Shifts (A, B, C)</td>
-                          <td>6 Calls</td>
+                          <td className="col-sno">3</td>
+                          <td className="col-date">2026-05-27</td>
+                          <td className="col-day">Wednesday</td>
+                          <td className="col-number">3 Shifts (A, B, C)</td>
+                          <td className="col-number">6 Calls</td>
                           <td>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                               <span>• Priya Sharma (IE002)</span>
                               <span>• Vikram Singh (IE005)</span>
                             </div>
                           </td>
-                          <td style={{ fontWeight: 'bold', color: '#15803d', fontSize: '11px' }}>3.0 Mandays</td>
-                          <td style={{ fontWeight: 'bold' }}>15,400 pcs</td>
+                          <td className="col-number" style={{ fontWeight: 'bold', color: '#15803d' }}>3.0 Mandays</td>
+                          <td className="col-number" style={{ fontWeight: 'bold' }}>15,400 pcs</td>
                         </tr>
                         <tr>
-                          <td>4</td>
-                          <td>2026-05-28</td>
-                          <td>Thursday</td>
-                          <td>1 Shift (A)</td>
-                          <td>1 Call</td>
+                          <td className="col-sno">4</td>
+                          <td className="col-date">2026-05-28</td>
+                          <td className="col-day">Thursday</td>
+                          <td className="col-number">1 Shift (A)</td>
+                          <td className="col-number">1 Call</td>
                           <td>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                               <span>• Amit Patel (IE003)</span>
                             </div>
                           </td>
-                          <td style={{ fontWeight: 'bold', color: '#15803d', fontSize: '11px' }}>1.0 Mandays</td>
-                          <td style={{ fontWeight: 'bold' }}>4,800 pcs</td>
+                          <td className="col-number" style={{ fontWeight: 'bold', color: '#15803d' }}>1.0 Mandays</td>
+                          <td className="col-number" style={{ fontWeight: 'bold' }}>4,800 pcs</td>
                         </tr>
                         {/* Summary Row */}
                         <tr style={{ background: '#f0fdf4', fontWeight: 'bold', borderTop: '2px solid #16a34a' }}>
                           <td colSpan="3" style={{ textAlign: 'right', fontWeight: 'bold', color: '#14532d' }}>Consolidated Totals:</td>
-                          <td>9 Shifts</td>
-                          <td>15 Inspection Calls</td>
+                          <td className="col-number">9 Shifts</td>
+                          <td className="col-number">15 Inspection Calls</td>
                           <td>4 Unique Engineers</td>
-                          <td style={{ color: '#15803d', fontWeight: '900', fontSize: '12px' }}>7.0 Mandays</td>
-                          <td style={{ color: '#15803d', fontWeight: '900', fontSize: '12px' }}>40,900 pieces</td>
+                          <td className="col-number" style={{ color: '#15803d', fontWeight: '900' }}>7.0 Mandays</td>
+                          <td className="col-number" style={{ color: '#15803d', fontWeight: '900' }}>40,900 pieces</td>
                         </tr>
                       </tbody>
                     </table>
@@ -3222,31 +3435,31 @@ export const CMDashboardPage = () => {
                 {mandayProduct === 'ERC' && mandayPreference === 'Call Wise' && (
                   <div>
                     <div className="cm-table-wrapper">
-                      <table className="cm-table">
+                      <table className="cm-mandays-table">
                         <thead>
                           <tr>
-                            <th style={{ width: '50px' }}>S.No.</th>
-                            <th>Date</th>
-                            <th>Day</th>
-                            <th>No. of Shifts</th>
+                            <th className="col-sno">S.No.</th>
+                            <th className="col-date">Date</th>
+                            <th className="col-day">Day</th>
+                            <th className="col-number">No. of Shifts</th>
                             <th style={{ fontWeight: 'bold', background: '#f0fdf4' }}>Mandays deployed in this Call<br /><span style={{ fontWeight: 'normal', fontSize: '10px', opacity: 0.8 }}>(Unique IE-Shift ÷ No. of calls worked in that shift, summed across shifts)</span></th>
-                            <th>Total Pieces Processed (Shearing Production)</th>
+                            <th className="col-number">Total Pieces Processed (Shearing Production)</th>
                           </tr>
                         </thead>
                         <tbody>
                           <tr>
-                            <td>1</td>
-                            <td>2026-05-27</td>
-                            <td>Wednesday</td>
-                            <td>3 (A, B, C)</td>
-                            <td style={{ fontWeight: 'bold', color: '#15803d', fontSize: '11px' }}>3.00 Mandays<br/><span style={{ fontWeight: 'normal', fontSize: '10px', color: '#4b6b4b' }}>A: 0.5+1.0 = 1.5 | B: 1.0 | C: 0.5</span></td>
-                            <td style={{ fontWeight: 'bold' }}>18,500 pcs</td>
+                            <td className="col-sno">1</td>
+                            <td className="col-date">2026-05-27</td>
+                            <td className="col-day">Wednesday</td>
+                            <td className="col-number">3 (A, B, C)</td>
+                            <td style={{ fontWeight: 'bold', color: '#15803d' }}>3.00 Mandays<br/><span style={{ fontWeight: 'normal', fontSize: '10px', color: '#4b6b4b' }}>A: 0.5+1.0 = 1.5 | B: 1.0 | C: 0.5</span></td>
+                            <td className="col-number" style={{ fontWeight: 'bold' }}>18,500 pcs</td>
                           </tr>
                           <tr style={{ background: '#f0fdf4', fontWeight: 'bold', borderTop: '1px solid #16a34a' }}>
                             <td colSpan="3" style={{ textAlign: 'right', fontWeight: 'bold', color: '#14532d' }}>Total Mandays Deployed:</td>
-                            <td>3 Shifts</td>
-                            <td style={{ color: '#15803d', fontWeight: '900', fontSize: '12px' }}>3.00 Mandays</td>
-                            <td style={{ color: '#15803d', fontWeight: '900', fontSize: '12px' }}>18,500 pieces</td>
+                            <td className="col-number">3 Shifts</td>
+                            <td style={{ color: '#15803d', fontWeight: '900' }}>3.00 Mandays</td>
+                            <td className="col-number" style={{ color: '#15803d', fontWeight: '900' }}>18,500 pieces</td>
                           </tr>
                         </tbody>
                       </table>
@@ -3303,72 +3516,72 @@ export const CMDashboardPage = () => {
                 {/* COMBINATION 3: Sleeper - Vendor Wise */}
                 {mandayProduct === 'Sleeper' && mandayPreference === 'Vendor Wise' && (
                   <div className="cm-table-wrapper">
-                    <table className="cm-table">
+                    <table className="cm-mandays-table">
                       <thead>
                         <tr>
-                          <th style={{ width: '50px' }}>S.No.</th>
-                          <th>Date</th>
-                          <th>Day</th>
-                          <th>No. of Shifts active (duty started &amp; completed)</th>
+                          <th className="col-sno">S.No.</th>
+                          <th className="col-date">Date</th>
+                          <th className="col-day">Day</th>
+                          <th className="col-number">No. of Shifts active (duty started &amp; completed)</th>
                           <th>IEs Worked (Name &amp; Employee Code)</th>
-                          <th style={{ fontWeight: 'bold' }}>No. of Mandays deployed</th>
-                          <th>No. of Batches produced</th>
-                          <th>No. of Sleepers Produced</th>
+                          <th className="col-number" style={{ fontWeight: 'bold' }}>No. of Mandays deployed</th>
+                          <th className="col-number">No. of Batches produced</th>
+                          <th className="col-number">No. of Sleepers Produced</th>
                         </tr>
                       </thead>
                       <tbody>
                         <tr>
-                          <td>1</td>
-                          <td>2026-05-25</td>
-                          <td>Monday</td>
-                          <td>2 (Shift A, B)</td>
+                          <td className="col-sno">1</td>
+                          <td className="col-date">2026-05-25</td>
+                          <td className="col-day">Monday</td>
+                          <td className="col-number">2 (Shift A, B)</td>
                           <td>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                               <span>• Amit Patel (IE003)</span>
                               <span>• Sneha Reddy (IE004)</span>
                             </div>
                           </td>
-                          <td style={{ fontWeight: 'bold', color: '#15803d', fontSize: '11px' }}>2.0 Mandays</td>
-                          <td>4 Batches</td>
-                          <td style={{ fontWeight: 'bold' }}>1,600 Sleepers</td>
+                          <td className="col-number" style={{ fontWeight: 'bold', color: '#15803d' }}>2.0 Mandays</td>
+                          <td className="col-number">4 Batches</td>
+                          <td className="col-number" style={{ fontWeight: 'bold' }}>1,600 Sleepers</td>
                         </tr>
                         <tr>
-                          <td>2</td>
-                          <td>2026-05-26</td>
-                          <td>Tuesday</td>
-                          <td>3 (Shift A, B, C)</td>
+                          <td className="col-sno">2</td>
+                          <td className="col-date">2026-05-26</td>
+                          <td className="col-day">Tuesday</td>
+                          <td className="col-number">3 (Shift A, B, C)</td>
                           <td>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                               <span>• Amit Patel (IE003)</span>
                               <span>• Vikram Singh (IE005)</span>
                             </div>
                           </td>
-                          <td style={{ fontWeight: 'bold', color: '#15803d', fontSize: '11px' }}>3.0 Mandays</td>
-                          <td>6 Batches</td>
-                          <td style={{ fontWeight: 'bold' }}>2,400 Sleepers</td>
+                          <td className="col-number" style={{ fontWeight: 'bold', color: '#15803d' }}>3.0 Mandays</td>
+                          <td className="col-number">6 Batches</td>
+                          <td className="col-number" style={{ fontWeight: 'bold' }}>2,400 Sleepers</td>
                         </tr>
                         <tr>
-                          <td>3</td>
-                          <td>2026-05-27</td>
-                          <td>Wednesday</td>
-                          <td>1 (Shift A)</td>
+                          <td className="col-sno">3</td>
+                          <td className="col-date">2026-05-27</td>
+                          <td className="col-day">Wednesday</td>
+                          <td className="col-number">1 (Shift A)</td>
                           <td>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                               <span>• Sneha Reddy (IE004)</span>
                             </div>
                           </td>
-                          <td style={{ fontWeight: 'bold', color: '#15803d', fontSize: '11px' }}>1.0 Mandays</td>
-                          <td>2 Batches</td>
-                          <td style={{ fontWeight: 'bold' }}>800 Sleepers</td>
+                          <td className="col-number" style={{ fontWeight: 'bold', color: '#15803d' }}>1.0 Mandays</td>
+                          <td className="col-number">2 Batches</td>
+                          <td className="col-number" style={{ fontWeight: 'bold' }}>800 Sleepers</td>
                         </tr>
                         {/* Summary Row */}
                         <tr style={{ background: '#f0fdf4', fontWeight: 'bold', borderTop: '2px solid #16a34a' }}>
                           <td colSpan="3" style={{ textAlign: 'right', fontWeight: 'bold', color: '#14532d' }}>Consolidated Totals:</td>
-                          <td>6 Shifts</td>
+                          <td className="col-number">6 Shifts</td>
                           <td>3 Unique Engineers</td>
-                          <td style={{ color: '#15803d', fontWeight: '900', fontSize: '12px' }}>6.0 Mandays</td>
-                          <td>12 Batches</td>
-                          <td style={{ color: '#15803d', fontWeight: '900', fontSize: '12px' }}>4,800 sleepers</td>
+                          <td className="col-number" style={{ color: '#15803d', fontWeight: '900' }}>6.0 Mandays</td>
+                          <td className="col-number">12 Batches</td>
+                          <td className="col-number" style={{ color: '#15803d', fontWeight: '900' }}>4,800 sleepers</td>
                         </tr>
                       </tbody>
                     </table>
@@ -3412,14 +3625,14 @@ export const CMDashboardPage = () => {
                     </h4>
                     
                     <div className="table-responsive" style={{ border: '1px solid #cbd5e1', borderRadius: '8px', overflow: 'hidden' }}>
-                      <table className="cm-table" style={{ width: '100%' }}>
+                      <table className="cm-mandays-table" style={{ width: '100%' }}>
                         <thead>
                           <tr style={{ background: '#0f172a' }}>
-                            <th>Casting Month</th>
-                            <th>Total Sleepers Casted this month (a)</th>
-                            <th>No. of Mandays Deployed this month (b)</th>
-                            <th>Manpower Cost per Sleeper (c) = b ÷ a</th>
-                            <th>Sleepers in this Call belonging to month</th>
+                            <th className="col-date">Casting Month</th>
+                            <th className="col-number">Total Sleepers Casted this month (a)</th>
+                            <th className="col-number">No. of Mandays Deployed this month (b)</th>
+                            <th className="col-number">Manpower Cost per Sleeper (c) = b ÷ a</th>
+                            <th className="col-number">Sleepers in this Call belonging to month</th>
                             <th style={{ fontWeight: 'bold' }}>Manpower Cost of Sleepers for batches (d) = c × Sleepers in Call</th>
                           </tr>
                         </thead>
@@ -3427,56 +3640,56 @@ export const CMDashboardPage = () => {
                           
                           {/* April 2026 row */}
                           <tr>
-                            <td style={{ fontWeight: 'bold' }}>April 2026</td>
-                            <td>
+                            <td className="col-date" style={{ fontWeight: 'bold' }}>April 2026</td>
+                            <td className="col-number">
                               <input
                                 type="number"
                                 value={sleeperCastApril}
-                                style={{ width: '100px', padding: '6px', border: '1px solid #d1fae5', background: '#f0fdf4', borderRadius: '6px', fontWeight: 'bold', outline: 'none' }}
+                                style={{ width: '100px', padding: '6px', border: '1px solid #d1fae5', background: '#f0fdf4', borderRadius: '6px', fontWeight: 'bold', outline: 'none', textAlign: 'center' }}
                                 onChange={(e) => setSleeperCastApril(Number(e.target.value))}
                               />
                             </td>
-                            <td>
+                            <td className="col-number">
                               <input
                                 type="number"
                                 value={sleeperDaysApril}
-                                style={{ width: '80px', padding: '6px', border: '1px solid #d1fae5', background: '#f0fdf4', borderRadius: '6px', fontWeight: 'bold', outline: 'none' }}
+                                style={{ width: '80px', padding: '6px', border: '1px solid #d1fae5', background: '#f0fdf4', borderRadius: '6px', fontWeight: 'bold', outline: 'none', textAlign: 'center' }}
                                 onChange={(e) => setSleeperDaysApril(Number(e.target.value))}
                               />
                             </td>
-                            <td style={{ fontWeight: 'bold', color: '#1e40af' }}>
+                            <td className="col-number" style={{ fontWeight: 'bold', color: '#1e40af' }}>
                               {(sleeperCastApril > 0 ? (sleeperDaysApril / sleeperCastApril) : 0).toFixed(4)} mandays/sleeper
                             </td>
-                            <td style={{ fontWeight: '600' }}>800 Sleepers</td>
-                            <td style={{ fontWeight: 'bold', color: '#15803d', fontSize: '11px' }}>
+                            <td className="col-number" style={{ fontWeight: '600' }}>800 Sleepers</td>
+                            <td style={{ fontWeight: 'bold', color: '#15803d' }}>
                               {(sleeperCastApril > 0 ? (sleeperDaysApril / sleeperCastApril) * 800 : 0).toFixed(2)} mandays
                             </td>
                           </tr>
 
                           {/* May 2026 row */}
                           <tr>
-                            <td style={{ fontWeight: 'bold' }}>May 2026</td>
-                            <td>
+                            <td className="col-date" style={{ fontWeight: 'bold' }}>May 2026</td>
+                            <td className="col-number">
                               <input
                                 type="number"
                                 value={sleeperCastMay}
-                                style={{ width: '100px', padding: '6px', border: '1px solid #d1fae5', background: '#f0fdf4', borderRadius: '6px', fontWeight: 'bold', outline: 'none' }}
+                                style={{ width: '100px', padding: '6px', border: '1px solid #d1fae5', background: '#f0fdf4', borderRadius: '6px', fontWeight: 'bold', outline: 'none', textAlign: 'center' }}
                                 onChange={(e) => setSleeperCastMay(Number(e.target.value))}
                               />
                             </td>
-                            <td>
+                            <td className="col-number">
                               <input
                                 type="number"
                                 value={sleeperDaysMay}
-                                style={{ width: '80px', padding: '6px', border: '1px solid #d1fae5', background: '#f0fdf4', borderRadius: '6px', fontWeight: 'bold', outline: 'none' }}
+                                style={{ width: '80px', padding: '6px', border: '1px solid #d1fae5', background: '#f0fdf4', borderRadius: '6px', fontWeight: 'bold', outline: 'none', textAlign: 'center' }}
                                 onChange={(e) => setSleeperDaysMay(Number(e.target.value))}
                               />
                             </td>
-                            <td style={{ fontWeight: 'bold', color: '#1e40af' }}>
+                            <td className="col-number" style={{ fontWeight: 'bold', color: '#1e40af' }}>
                               {(sleeperCastMay > 0 ? (sleeperDaysMay / sleeperCastMay) : 0).toFixed(4)} mandays/sleeper
                             </td>
-                            <td style={{ fontWeight: '600' }}>1,200 Sleepers</td>
-                            <td style={{ fontWeight: 'bold', color: '#15803d', fontSize: '11px' }}>
+                            <td className="col-number" style={{ fontWeight: '600' }}>1,200 Sleepers</td>
+                            <td style={{ fontWeight: 'bold', color: '#15803d' }}>
                               {(sleeperCastMay > 0 ? (sleeperDaysMay / sleeperCastMay) * 1200 : 0).toFixed(2)} mandays
                             </td>
                           </tr>
@@ -3486,8 +3699,8 @@ export const CMDashboardPage = () => {
                             <td colSpan="4" style={{ textAlign: 'right', fontWeight: 'bold', color: '#14532d' }}>
                               Total Manpower Cost of All Sleepers Offered (sum of d):
                             </td>
-                            <td style={{ fontWeight: 'bold' }}>2,000 Sleepers</td>
-                            <td style={{ color: '#166534', fontWeight: '900', fontSize: '13px', background: '#dcfce7' }}>
+                            <td className="col-number" style={{ fontWeight: 'bold' }}>2,000 Sleepers</td>
+                            <td style={{ color: '#166534', fontWeight: '900', background: '#dcfce7' }}>
                               {(
                                 (sleeperCastApril > 0 ? (sleeperDaysApril / sleeperCastApril) * 800 : 0) +
                                 (sleeperCastMay > 0 ? (sleeperDaysMay / sleeperCastMay) * 1200 : 0)
@@ -3510,83 +3723,83 @@ export const CMDashboardPage = () => {
                 {mandayProduct === 'Rail Pad' && (
                   <div className="cm-table-wrapper">
                     {mandayPreference === 'Vendor Wise' ? (
-                      <table className="cm-table">
+                      <table className="cm-mandays-table">
                         <thead>
                           <tr>
-                            <th style={{ width: '50px' }}>S.No.</th>
-                            <th>Date</th>
-                            <th>Day</th>
-                            <th>No. of Shifts worked</th>
+                            <th className="col-sno">S.No.</th>
+                            <th className="col-date">Date</th>
+                            <th className="col-day">Day</th>
+                            <th className="col-number">No. of Shifts worked</th>
                             <th>IEs Worked (Name &amp; Employee Code)</th>
-                            <th style={{ fontWeight: 'bold' }}>No. of Mandays deployed</th>
-                            <th>Total Rubber Pads Inspected</th>
-                            <th>Pads Passed</th>
-                            <th>Pads Rejected</th>
+                            <th className="col-number" style={{ fontWeight: 'bold' }}>No. of Mandays deployed</th>
+                            <th className="col-number">Total Rubber Pads Inspected</th>
+                            <th className="col-number">Pads Passed</th>
+                            <th className="col-number">Pads Rejected</th>
                           </tr>
                         </thead>
                         <tbody>
                           <tr>
-                            <td>1</td>
-                            <td>2026-05-25</td>
-                            <td>Monday</td>
-                            <td>2 Shifts</td>
+                            <td className="col-sno">1</td>
+                            <td className="col-date">2026-05-25</td>
+                            <td className="col-day">Monday</td>
+                            <td className="col-number">2 Shifts</td>
                             <td>• Priya Sharma (IE002)</td>
-                            <td style={{ fontWeight: 'bold', color: '#15803d' }}>1.0 Manday</td>
-                            <td style={{ fontWeight: 'bold' }}>18,000 pads</td>
-                            <td style={{ color: '#15803d', fontWeight: 'bold' }}>17,600 pads</td>
-                            <td style={{ color: '#ef4444', fontWeight: 'bold' }}>400 pads (2.2%)</td>
+                            <td className="col-number" style={{ fontWeight: 'bold', color: '#15803d' }}>1.0 Manday</td>
+                            <td className="col-number" style={{ fontWeight: 'bold' }}>18,000 pads</td>
+                            <td className="col-number" style={{ color: '#15803d', fontWeight: 'bold' }}>17,600 pads</td>
+                            <td className="col-number" style={{ color: '#ef4444', fontWeight: 'bold' }}>400 pads (2.2%)</td>
                           </tr>
                           <tr>
-                            <td>2</td>
-                            <td>2026-05-26</td>
-                            <td>Tuesday</td>
-                            <td>2 Shifts</td>
+                            <td className="col-sno">2</td>
+                            <td className="col-date">2026-05-26</td>
+                            <td className="col-day">Tuesday</td>
+                            <td className="col-number">2 Shifts</td>
                             <td>• Sneha Reddy (IE004)</td>
-                            <td style={{ fontWeight: 'bold', color: '#15803d' }}>1.0 Manday</td>
-                            <td style={{ fontWeight: 'bold' }}>15,000 pads</td>
-                            <td style={{ color: '#15803d', fontWeight: 'bold' }}>14,750 pads</td>
-                            <td style={{ color: '#ef4444', fontWeight: 'bold' }}>250 pads (1.7%)</td>
+                            <td className="col-number" style={{ fontWeight: 'bold', color: '#15803d' }}>1.0 Manday</td>
+                            <td className="col-number" style={{ fontWeight: 'bold' }}>15,000 pads</td>
+                            <td className="col-number" style={{ color: '#15803d', fontWeight: 'bold' }}>14,750 pads</td>
+                            <td className="col-number" style={{ color: '#ef4444', fontWeight: 'bold' }}>250 pads (1.7%)</td>
                           </tr>
                           {/* Summary Row */}
                           <tr style={{ background: '#f0fdf4', fontWeight: 'bold', borderTop: '2px solid #16a34a' }}>
                             <td colSpan="3" style={{ textAlign: 'right', fontWeight: 'bold', color: '#14532d' }}>Consolidated Totals:</td>
-                            <td>4 Shifts</td>
+                            <td className="col-number">4 Shifts</td>
                             <td>2 Unique Engineers</td>
-                            <td style={{ color: '#15803d', fontWeight: '900', fontSize: '12px' }}>2.0 Mandays</td>
-                            <td style={{ color: '#15803d', fontWeight: '900', fontSize: '12px' }}>33,000 pads</td>
-                            <td style={{ color: '#15803d', fontWeight: '900' }}>32,350 pads</td>
-                            <td style={{ color: '#ef4444', fontWeight: '900' }}>650 pads (1.9%)</td>
+                            <td className="col-number" style={{ color: '#15803d', fontWeight: '900' }}>2.0 Mandays</td>
+                            <td className="col-number" style={{ color: '#15803d', fontWeight: '900' }}>33,000 pads</td>
+                            <td className="col-number" style={{ color: '#15803d', fontWeight: '900' }}>32,350 pads</td>
+                            <td className="col-number" style={{ color: '#ef4444', fontWeight: '900' }}>650 pads (1.9%)</td>
                           </tr>
                         </tbody>
                       </table>
                     ) : (
-                      <table className="cm-table">
+                      <table className="cm-mandays-table">
                         <thead>
                           <tr>
-                            <th style={{ width: '50px' }}>S.No.</th>
-                            <th>Date</th>
-                            <th>Day</th>
-                            <th>No. of Shifts active</th>
-                            <th style={{ fontWeight: 'bold' }}>Mandays deployed in this Call</th>
-                            <th>Total Rubber Pads Inspected</th>
+                            <th className="col-sno">S.No.</th>
+                            <th className="col-date">Date</th>
+                            <th className="col-day">Day</th>
+                            <th className="col-number">No. of Shifts active</th>
+                            <th className="col-number" style={{ fontWeight: 'bold' }}>Mandays deployed in this Call</th>
+                            <th className="col-number">Total Rubber Pads Inspected</th>
                             <th>Remarks</th>
                           </tr>
                         </thead>
                         <tbody>
                           <tr>
-                            <td>1</td>
-                            <td>2026-05-26</td>
-                            <td>Tuesday</td>
-                            <td>1 Shift</td>
-                            <td style={{ fontWeight: 'bold', color: '#15803d' }}>1.00 Mandays</td>
-                            <td style={{ fontWeight: 'bold' }}>15,000 pads</td>
+                            <td className="col-sno">1</td>
+                            <td className="col-date">2026-05-26</td>
+                            <td className="col-day">Tuesday</td>
+                            <td className="col-number">1 Shift</td>
+                            <td className="col-number" style={{ fontWeight: 'bold', color: '#15803d' }}>1.00 Mandays</td>
+                            <td className="col-number" style={{ fontWeight: 'bold' }}>15,000 pads</td>
                             <td>Completed Visual inspection successfully.</td>
                           </tr>
                           <tr style={{ background: '#f0fdf4', fontWeight: 'bold', borderTop: '1px solid #16a34a' }}>
                             <td colSpan="3" style={{ textAlign: 'right', fontWeight: 'bold', color: '#14532d' }}>Total Mandays Deployed:</td>
-                            <td>1 Shift</td>
-                            <td style={{ color: '#15803d', fontWeight: '900', fontSize: '12px' }}>1.00 Mandays</td>
-                            <td style={{ color: '#15803d', fontWeight: '900', fontSize: '12px' }}>15,000 pads</td>
+                            <td className="col-number">1 Shift</td>
+                            <td className="col-number" style={{ color: '#15803d', fontWeight: '900' }}>1.00 Mandays</td>
+                            <td className="col-number" style={{ color: '#15803d', fontWeight: '900' }}>15,000 pads</td>
                             <td>IC Certificate Issued.</td>
                           </tr>
                         </tbody>
@@ -3687,6 +3900,83 @@ export const CMDashboardPage = () => {
                 onClick={submitApprovalAction}
               >
                 {modalAction === 'approve' ? 'Confirm Approval' : modalAction === 'reject' ? 'Confirm Rejection' : 'Confirm Escalation'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Drill-down Call Details Modal */}
+      {callPopupData && (
+        <div className="cm-modal-overlay" onClick={() => setCallPopupData(null)}>
+          <div 
+            className="cm-modal cm-modal-wide" 
+            style={{ maxWidth: '900px', width: '95%' }} 
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #cbd5e1', paddingBottom: '12px' }}>
+              <div className="cm-modal-title" style={{ fontSize: '15px', fontWeight: 'bold', color: '#14532d', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-solid fa-list-check" style={{ color: '#166534' }}></i>
+                <span>{callPopupData.type} Call Details for {callPopupData.ieName} ({callPopupData.calls.length})</span>
+              </div>
+              <button 
+                onClick={() => setCallPopupData(null)}
+                style={{ background: 'transparent', border: 'none', fontSize: '24px', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'color 0.2s', padding: '0 4px', lineHieght: 1 }}
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="cm-modal-content" style={{ marginTop: '16px' }}>
+              <div className="cm-table-wrapper" style={{ maxHeight: '420px', overflowY: 'auto', border: '1px solid #cbd5e1', borderRadius: '8px' }}>
+                <table className="cm-table cm-table-centered" style={{ minWidth: '800px' }}>
+                  <thead>
+                    <tr style={{ background: '#1e3a8a' }}>
+                      <th style={{ background: '#1e3a8a', color: '#fff', padding: '10px 8px', fontWeight: 'bold', fontSize: '12px', border: '1px solid #cbd5e1' }}>Call Number</th>
+                      <th style={{ background: '#1e3a8a', color: '#fff', padding: '10px 8px', fontWeight: 'bold', fontSize: '12px', border: '1px solid #cbd5e1' }}>Vendor Name</th>
+                      <th style={{ background: '#1e3a8a', color: '#fff', padding: '10px 8px', fontWeight: 'bold', fontSize: '12px', border: '1px solid #cbd5e1' }}>PO Number</th>
+                      <th style={{ background: '#1e3a8a', color: '#fff', padding: '10px 8px', fontWeight: 'bold', fontSize: '12px', border: '1px solid #cbd5e1' }}>Desired Inspection Date</th>
+                      <th style={{ background: '#1e3a8a', color: '#fff', padding: '10px 8px', fontWeight: 'bold', fontSize: '12px', border: '1px solid #cbd5e1' }}>Call Date</th>
+                      <th style={{ background: '#1e3a8a', color: '#fff', padding: '10px 8px', fontWeight: 'bold', fontSize: '12px', border: '1px solid #cbd5e1' }}>Inspection Start Date</th>
+                      <th style={{ background: '#1e3a8a', color: '#fff', padding: '10px 8px', fontWeight: 'bold', fontSize: '12px', border: '1px solid #cbd5e1' }}>Inspection Completion Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {callPopupData.calls.length === 0 ? (
+                      <tr>
+                        <td colSpan="7" style={{ textAlign: 'center', padding: '24px', color: '#64748b', fontSize: '13px' }}>
+                          No calls available in this category.
+                        </td>
+                      </tr>
+                    ) : (
+                      callPopupData.calls.map(call => (
+                        <tr key={call.id}>
+                          <td style={{ fontWeight: 'bold', color: '#0f172a', border: '1px solid #cbd5e1' }}>{call.callNumber}</td>
+                          <td style={{ border: '1px solid #cbd5e1' }}>{call.vendorName}</td>
+                          <td style={{ fontFamily: 'monospace', fontSize: '11px', color: '#475569', border: '1px solid #cbd5e1' }}>{call.poNumber}</td>
+                          <td style={{ fontWeight: '500', border: '1px solid #cbd5e1' }}>{call.desiredInspectionDate ? formatDate(call.desiredInspectionDate) : ''}</td>
+                          <td style={{ border: '1px solid #cbd5e1' }}>{call.callDate ? formatDate(call.callDate) : ''}</td>
+                          <td style={{ fontWeight: '500', color: call.inspectionStartDate ? '#166534' : 'inherit', border: '1px solid #cbd5e1' }}>
+                            {call.inspectionStartDate ? formatDate(call.inspectionStartDate) : ''}
+                          </td>
+                          <td style={{ fontWeight: '500', color: call.inspectionCompletionDate ? '#166534' : 'inherit', border: '1px solid #cbd5e1' }}>
+                            {call.inspectionCompletionDate ? formatDate(call.inspectionCompletionDate) : ''}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="cm-modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px', borderTop: '1px solid #f0fdf4', paddingTop: '16px' }}>
+              <button
+                className="btn btn--primary"
+                style={{ padding: '8px 20px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', borderRadius: '8px' }}
+                onClick={() => setCallPopupData(null)}
+              >
+                Close
               </button>
             </div>
           </div>

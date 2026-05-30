@@ -60,7 +60,7 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
         fetchLocations();
     }, [effectivePlantId, effectiveVendorId]);
 
-    // Fetch last five moisture reports on mount
+    // Fetch and sort all moisture reports on mount
     useEffect(() => {
         const fetchReports = async () => {
             try {
@@ -77,7 +77,12 @@ const InitialDeclaration = ({ batches: externalBatches, onBatchUpdate, onSensorU
                         const clean = (id) => String(id).replace(/[:\s]/g, '').toLowerCase();
                         return clean(r.plantId) === clean(effectivePlantId);
                     })
-                    .slice(0, 5); // Take the latest 5 for this specific plant
+                    .sort((a, b) => {
+                        if (a.id && b.id) return b.id - a.id;
+                        const timeA = new Date(a.createdDate || a.timestamp || 0).getTime();
+                        const timeB = new Date(b.createdDate || b.timestamp || 0).getTime();
+                        return timeB - timeA;
+                    });
 
                 setLastFiveMoisture(plantSpecificReports);
             } catch (err) {

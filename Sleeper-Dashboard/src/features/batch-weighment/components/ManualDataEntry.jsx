@@ -66,7 +66,12 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
                         const clean = (id) => String(id).replace(/[:\s]/g, '').toLowerCase();
                         return clean(r.plantId) === clean(dutyUnit);
                     })
-                    .slice(0, 5); // Take the latest 5 for this specific plant
+                    .sort((a, b) => {
+                        if (a.id && b.id) return b.id - a.id;
+                        const timeA = new Date(a.createdDate || a.timestamp || 0).getTime();
+                        const timeB = new Date(b.createdDate || b.timestamp || 0).getTime();
+                        return timeB - timeA;
+                    });
 
                 setRecentBatches(plantSpecificBatches);
             } catch (err) {

@@ -490,7 +490,7 @@ export const CMDashboardPage = () => {
   // Navigation tabs state matching SRS options exactly
   const [activeTab, setActiveTab] = useState('Dashboard');
   const [activeCallFilter, setActiveCallFilter] = useState(null); // Clicked KPI filter: all, pending, under_inspection, ic_pending, completed, overdue
-  const [callMenuOpen, setCallMenuOpen] = useState(true); // Call Monitoring submenu toggle
+  const [callMenuOpen, setCallMenuOpen] = useState(false); // Call Monitoring submenu toggle
   const [ieMenuOpen, setIeMenuOpen] = useState(false); // IE Monitoring submenu toggle
   const [vendorMenuOpen, setVendorMenuOpen] = useState(false); // Vendor Quality Monitoring submenu toggle
   const [reportsMenuOpen, setReportsMenuOpen] = useState(false); // Reports submenu toggle
@@ -2445,7 +2445,7 @@ export const CMDashboardPage = () => {
                       <th className="sortable" onClick={() => handleSort('callNumber')}>Call Number</th>
                       <th className="sortable" onClick={() => handleSort('product')}>Product & Stage of Inspection</th>
                       <th className="sortable" onClick={() => handleSort('poNumber')}>PO Number</th>
-                      <th className="sortable" onClick={() => handleSort('dpDate')}>DP Date & DP Date</th>
+                      <th className="sortable" onClick={() => handleSort('dpDate')}>DP Date & EXT DP Date</th>
                       <th className="sortable" onClick={() => handleSort('vendorName')}>Vendor Name</th>
                       <th className="sortable" onClick={() => handleSort('desiredInspectionDate')}>Inspection Desired Date</th>
                       <th className="sortable" onClick={() => handleSort('callDate')}>Call Date</th>

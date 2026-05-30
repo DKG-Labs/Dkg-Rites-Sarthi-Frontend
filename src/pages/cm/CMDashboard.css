@@ -161,10 +161,10 @@
 }
 
 .cm-submenu-link {
-  padding: 4px 10px;
+  padding: 6px 10px !important;
   color: #166534;
   cursor: pointer;
-  font-size: 13px; /* Increased from 11.5px */
+  font-size: 14px !important; /* Increased to 14px and forced override of inline React styles */
   font-weight: 600;
   border-radius: 6px;
   transition: all 0.2s ease;
@@ -176,7 +176,7 @@
 .cm-submenu-link:hover {
   background: rgba(21, 128, 61, 0.08);
   color: #15803d;
-  padding-left: 16px;
+  padding-left: 16px !important;
 }
 
 .cm-submenu-link.active {
@@ -566,6 +566,23 @@
   border: none !important;
 }
 
+/* Hover state for dark cards to change their text color to black when card background turns white on hover */
+.cm-kpi-card.card-dark-green:hover:not(.active),
+.cm-kpi-card.card-ocean:hover:not(.active),
+.cm-kpi-card.card-indigo:hover:not(.active),
+.cm-kpi-card.card-dark-green:hover:not(.active) .cm-kpi-title,
+.cm-kpi-card.card-ocean:hover:not(.active) .cm-kpi-title,
+.cm-kpi-card.card-indigo:hover:not(.active) .cm-kpi-title {
+  color: #000000 !important;
+}
+
+.cm-kpi-card.card-dark-green:hover:not(.active) *,
+.cm-kpi-card.card-ocean:hover:not(.active) *,
+.cm-kpi-card.card-indigo:hover:not(.active) * {
+  color: #000000 !important;
+}
+
+
 .card-spring-green {
   background: linear-gradient(135deg, #f0fdf4 0%, #bbf7d0 100%) !important;
   border: 1px solid #22c55e !important;
@@ -593,9 +610,9 @@
   opacity: 0.85;
 }
 
-.cm-kpi-card.card-dark-green .cm-kpi-title,
-.cm-kpi-card.card-ocean .cm-kpi-title,
-.cm-kpi-card.card-indigo .cm-kpi-title {
+.cm-kpi-card.card-dark-green:not(.active) .cm-kpi-title,
+.cm-kpi-card.card-ocean:not(.active) .cm-kpi-title,
+.cm-kpi-card.card-indigo:not(.active) .cm-kpi-title {
   color: #fff !important;
 }
 
@@ -704,13 +721,13 @@
   background: #1e3a8a !important;
   /* Dark Blue */
   color: #fff !important;
-  padding: 6px 8px !important;
+  padding: 5px 6px !important;
   font-weight: 600 !important;
-  font-size: 12px !important;
+  font-size: 13px !important;
   text-align: left !important;
   border: 1px solid #cbd5e1 !important;
-  white-space: normal;
-  line-height: 1.25;
+  white-space: normal !important; /* Allow header text to wrap naturally to make columns compact */
+  line-height: 1.2;
   vertical-align: bottom;
 }
 
@@ -724,11 +741,17 @@
 }
 
 .cm-table td {
-  padding: 6px 8px !important;
+  padding: 5px 6px !important;
   border-bottom: 1px solid #f0fdf4 !important;
-  font-size: 12px;
+  font-size: 13px !important;
   color: #1a2e1a;
   vertical-align: middle;
+  white-space: nowrap !important; /* Keep row content strictly in a single line */
+}
+
+/* Force both dates in the DP Date column to have the same font size */
+.cm-table td:nth-child(4) div {
+  font-size: inherit !important;
 }
 
 .cm-table tbody tr:hover td {

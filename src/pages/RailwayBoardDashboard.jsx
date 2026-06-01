@@ -436,6 +436,9 @@ const RailwayBoardDashboard = () => {
                                 {selectedProduct === 'ERC' && (
                                     <div className={`report-link ${activeReport === 'pwmr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('pwmr')}>PO Wise Quality Report</div>
                                 )}
+                                {selectedProduct === 'Sleeper' && (
+                                    <div className={`report-link ${activeReport === 'sqr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('sqr')}>Quality of PSC Sleepers Report</div>
+                                )}
                             </div>
                         )}
                         {/* 

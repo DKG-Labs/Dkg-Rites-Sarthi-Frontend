@@ -19,6 +19,7 @@ import SleeperMprReport from './sleeper-board/SleeperMprReport';
 import SleeperLwclReport from './sleeper-board/SleeperLwclReport';
 import SleeperScadaMonitor from './sleeper-board/SleeperScadaMonitor';
 import SleeperPerformance from './sleeper-board/SleeperPerformance';
+import SleeperQualityReport from './sleeper-board/SleeperQualityReport';
 import RailPadSummary from './railpad-board/RailPadSummary';
 import RailPadQuality from './railpad-board/RailPadQuality';
 import RailPadLifecycle from './railpad-board/RailPadLifecycle';
@@ -1116,6 +1117,7 @@ const ProfessionalCardSection = ({
                                                     case 'mau': return <SleeperMauReport mauData={mauData} loading={mauLoading} startDate={fromDate} endDate={toDate} />;
                                                     case 'lwcl': return <SleeperLwclReport lwclData={lwclData} loading={lwclLoading} callNo={lwclCallNo} setCallNo={setLwclCallNo} lotNo={lwclLotNo} setLotNo={setLwclLotNo} requestIds={lwclRequestIds} lotNumbers={lwclLotNumbers} />;
                                                     case 'swp': return <SleeperShiftWiseProductionReport />;
+                                                    case 'sqr': return <SleeperQualityReport fromDate={fromDate} toDate={toDate} />;
                                                     default: return <SleeperMprReport mprData={mprData} />;
                                                 }
                                             })()

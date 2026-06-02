@@ -52,7 +52,7 @@ const NonCriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
             rawList = reconstructed;
         }
 
-        return rawList.map(s => {
+        const mapped = rawList.map(s => {
             const statusUpper = s.status?.toUpperCase() || 'PENDING';
             const isAlreadyRejected = statusUpper === 'REJECTED';
             return {
@@ -62,6 +62,17 @@ const NonCriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
                 isRejected: isAlreadyRejected,
                 isAlreadyPassed: statusUpper === 'OK' || statusUpper === 'PASSED'
             };
+        });
+
+        // Deduplicate by sleeperNo to handle cases where production_sleeper table
+        // has duplicate rows (e.g., double-submit on production declaration).
+        // Note: duplicate rows have DIFFERENT sleeperId (DB ids) but same sleeperNo.
+        const seen = new Set();
+        return mapped.filter(s => {
+            const key = s.displayNo || s.id;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
         });
     }, [batch]);
 

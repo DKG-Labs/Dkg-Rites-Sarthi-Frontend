@@ -52,7 +52,7 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
             rawList = reconstructed;
         }
 
-        return rawList.map(s => {
+        const mapped = rawList.map(s => {
             const statusUpper = s.status?.toUpperCase() || 'PENDING';
             return {
                 ...s,
@@ -61,6 +61,17 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                 status: statusUpper === 'REJECTED' ? 'rejected' : 
                         (statusUpper === 'OK' || statusUpper === 'PASSED' ? 'passed' : 'pending')
             };
+        });
+
+        // Deduplicate by sleeperNo to handle cases where production_sleeper table
+        // has duplicate rows (e.g., double-submit on production declaration).
+        // Note: duplicate rows have DIFFERENT sleeperId (DB ids) but same sleeperNo.
+        const seen = new Set();
+        return mapped.filter(s => {
+            const key = s.displayNo || s.id;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
         });
     }, [batch]);
 

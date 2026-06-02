@@ -970,6 +970,7 @@ export const CMDashboardPage = () => {
   const [filtersExpanded, setFiltersExpanded] = useState(true);
   const [openDropdown, setOpenDropdown] = useState(null);
   const [ieSearchQuery, setIeSearchQuery] = useState('');
+  const [vendorSearchQuery, setVendorSearchQuery] = useState('');
 
   // Filter preview string helpers
   const getRegionsPreview = () => {
@@ -1781,32 +1782,9 @@ export const CMDashboardPage = () => {
 
             {filtersExpanded && (
               <div style={{ padding: '12px 16px', display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center', background: '#fafafa', borderTop: '1px solid #f0fdf4', borderBottomLeftRadius: '12px', borderBottomRightRadius: '12px' }}>
-                {/* Unified Search Input */}
-                <div style={{ position: 'relative', flex: '1', minWidth: '240px' }}>
-                  <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontSize: '12px' }} />
-                  <input
-                    type="text"
-                    placeholder="Search by Call no., PO, Vendor, IE or CM..."
-                    value={searchQuery}
-                    onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                    style={{
-                      width: '100%',
-                      padding: '7px 12px 7px 34px',
-                      borderRadius: '6px',
-                      border: '1px solid #d1fae5',
-                      background: '#fff',
-                      fontSize: '12px',
-                      color: '#1a2e1a',
-                      outline: 'none',
-                      fontFamily: 'inherit',
-                      transition: 'all 0.15s'
-                    }}
-                  />
-                </div>
-
                 {/* Inline Popover Selectors */}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
-                  
+
                   {/* Region Select */}
                   <div style={{ position: 'relative' }}>
                     <button
@@ -1948,7 +1926,7 @@ export const CMDashboardPage = () => {
                           gap: '4px'
                         }}>
                           <div style={{ padding: '4px 8px', fontSize: '9px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Filter by Engineer</div>
-                          
+
                           {/* Search Input inside Dropdown */}
                           <div style={{ padding: '2px 4px', marginBottom: '4px' }}>
                             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -2130,7 +2108,10 @@ export const CMDashboardPage = () => {
                   {/* Vendor Select */}
                   <div style={{ position: 'relative' }}>
                     <button
-                      onClick={() => setOpenDropdown(openDropdown === 'vendor' ? null : 'vendor')}
+                      onClick={() => {
+                        setOpenDropdown(openDropdown === 'vendor' ? null : 'vendor');
+                        setVendorSearchQuery('');
+                      }}
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -2151,54 +2132,149 @@ export const CMDashboardPage = () => {
                       <i className="fa-solid fa-chevron-down" style={{ fontSize: '9px', opacity: 0.7, transform: openDropdown === 'vendor' ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
                     </button>
 
-                    {openDropdown === 'vendor' && (
-                      <div style={{
-                        position: 'absolute',
-                        top: '100%',
-                        left: 0,
-                        marginTop: '6px',
-                        background: '#fff',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '8px',
-                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
-                        zIndex: 999,
-                        minWidth: '220px',
-                        padding: '8px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '4px'
-                      }}>
-                        <div style={{ padding: '4px 8px', fontSize: '9px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Filter by Vendor</div>
-                        {INITIAL_VENDORS.map(v => {
-                          const on = selectedVendors.includes(v.name);
-                          return (
-                            <div
-                              key={v.id}
-                              onClick={() => toggleFilterOption(v.name, selectedVendors, setSelectedVendors)}
-                              className={`cm-filter-dropdown-item ${on ? 'selected vendor' : ''}`}
-                            >
-                              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <div style={{
-                                  width: '14px',
-                                  height: '14px',
-                                  borderRadius: '3px',
-                                  border: `1px solid ${on ? '#b45309' : '#cbd5e1'}`,
-                                  background: on ? '#b45309' : '#fff',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  color: '#fff',
-                                  fontSize: '9px'
-                                }}>
-                                  {on && <i className="fa-solid fa-check" />}
-                                </div>
-                                {v.name}
-                              </span>
+                    {openDropdown === 'vendor' && (() => {
+                      const filteredVendors = INITIAL_VENDORS.filter(v =>
+                        v.name.toLowerCase().includes(vendorSearchQuery.toLowerCase())
+                      );
+                      const areAllFilteredSelected = filteredVendors.length > 0 && filteredVendors.every(v => selectedVendors.includes(v.name));
+
+                      const handleSelectAllVendors = () => {
+                        if (areAllFilteredSelected) {
+                          // Deselect all filtered Vendors
+                          const filteredNames = filteredVendors.map(v => v.name);
+                          setSelectedVendors(prev => prev.filter(name => !filteredNames.includes(name)));
+                        } else {
+                          // Select all filtered Vendors (union)
+                          const filteredNames = filteredVendors.map(v => v.name);
+                          setSelectedVendors(prev => {
+                            const union = new Set([...prev, ...filteredNames]);
+                            return Array.from(union);
+                          });
+                        }
+                        setCurrentPage(1);
+                      };
+
+                      return (
+                        <div style={{
+                          position: 'absolute',
+                          top: '100%',
+                          left: 0,
+                          marginTop: '6px',
+                          background: '#fff',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '8px',
+                          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                          zIndex: 999,
+                          minWidth: '240px',
+                          padding: '8px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '4px'
+                        }}>
+                          <div style={{ padding: '4px 8px', fontSize: '9px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Filter by Vendor</div>
+
+                          {/* Search Input inside Dropdown */}
+                          <div style={{ padding: '2px 4px', marginBottom: '4px' }}>
+                            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                              <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '8px', color: '#94a3b8', fontSize: '10px' }} />
+                              <input
+                                type="text"
+                                placeholder="Search vendors..."
+                                value={vendorSearchQuery}
+                                onChange={(e) => setVendorSearchQuery(e.target.value)}
+                                onClick={(e) => e.stopPropagation()} /* Prevents closing or side effects */
+                                style={{
+                                  width: '100%',
+                                  padding: '5px 8px 5px 24px',
+                                  fontSize: '11px',
+                                  border: '1px solid #cbd5e1',
+                                  borderRadius: '4px',
+                                  outline: 'none',
+                                  fontFamily: 'inherit'
+                                }}
+                              />
+                              {vendorSearchQuery && (
+                                <i
+                                  className="fa-solid fa-xmark"
+                                  onClick={(e) => { e.stopPropagation(); setVendorSearchQuery(''); }}
+                                  style={{ position: 'absolute', right: '8px', color: '#94a3b8', cursor: 'pointer', fontSize: '10px' }}
+                                />
+                              )}
                             </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                          </div>
+
+                          {filteredVendors.length === 0 ? (
+                            <div style={{ padding: '8px', fontSize: '11px', color: '#94a3b8', textAlign: 'center' }}>
+                              No vendors found
+                            </div>
+                          ) : (
+                            <>
+                              {/* Select All Option */}
+                              <div
+                                onClick={handleSelectAllVendors}
+                                className={`cm-filter-dropdown-item ${areAllFilteredSelected ? 'selected vendor' : ''}`}
+                                style={{
+                                  borderBottom: '1px solid #f1f5f9',
+                                  paddingBottom: '6px',
+                                  marginBottom: '4px',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700' }}>
+                                  <div style={{
+                                    width: '14px',
+                                    height: '14px',
+                                    borderRadius: '3px',
+                                    border: `1px solid ${areAllFilteredSelected ? '#b45309' : '#cbd5e1'}`,
+                                    background: areAllFilteredSelected ? '#b45309' : '#fff',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: '#fff',
+                                    fontSize: '9px'
+                                  }}>
+                                    {areAllFilteredSelected && <i className="fa-solid fa-check" />}
+                                  </div>
+                                  Select All {vendorSearchQuery && `(${filteredVendors.length})`}
+                                </span>
+                              </div>
+
+                              {/* Filtered List */}
+                              <div style={{ maxHeight: '160px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                {filteredVendors.map(v => {
+                                  const on = selectedVendors.includes(v.name);
+                                  return (
+                                    <div
+                                      key={v.id}
+                                      onClick={() => toggleFilterOption(v.name, selectedVendors, setSelectedVendors)}
+                                      className={`cm-filter-dropdown-item ${on ? 'selected vendor' : ''}`}
+                                    >
+                                      <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <div style={{
+                                          width: '14px',
+                                          height: '14px',
+                                          borderRadius: '3px',
+                                          border: `1px solid ${on ? '#b45309' : '#cbd5e1'}`,
+                                          background: on ? '#b45309' : '#fff',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          color: '#fff',
+                                          fontSize: '9px'
+                                        }}>
+                                          {on && <i className="fa-solid fa-check" />}
+                                        </div>
+                                        {v.name}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Stage Select */}
@@ -2317,7 +2393,7 @@ export const CMDashboardPage = () => {
                         gap: '8px'
                       }}>
                         <div style={{ fontSize: '9px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Filter by Date Range</div>
-                        
+
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                           <label style={{ fontSize: '10px', fontWeight: '600', color: '#4b5563' }}>Start Date</label>
                           <input
@@ -2327,7 +2403,7 @@ export const CMDashboardPage = () => {
                             style={{ padding: '6px', fontSize: '11px', border: '1px solid #cbd5e1', borderRadius: '4px', background: '#fff', color: '#1a2e1a', outline: 'none', width: '100%', fontFamily: 'inherit' }}
                           />
                         </div>
-                        
+
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                           <label style={{ fontSize: '10px', fontWeight: '600', color: '#4b5563' }}>End Date</label>
                           <input
@@ -2408,8 +2484,8 @@ export const CMDashboardPage = () => {
                 </div>
 
                 {/* Table Header Global Search Bar */}
-                <div style={{ position: 'relative', width: '260px' }}>
-                  <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#166534', fontSize: '12px', opacity: 0.7 }} />
+                <div style={{ position: 'relative', width: '360px' }}>
+                  <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)', color: '#166534', fontSize: '13px', opacity: 0.7 }} />
                   <input
                     type="text"
                     placeholder="Search in table..."
@@ -2417,11 +2493,11 @@ export const CMDashboardPage = () => {
                     onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
                     style={{
                       width: '100%',
-                      padding: '6px 12px 6px 30px',
+                      padding: '8px 12px 8px 32px',
                       borderRadius: '6px',
                       border: '1px solid #bbf7d0',
                       background: '#fff',
-                      fontSize: '12px',
+                      fontSize: '13px',
                       color: '#1a2e1a',
                       outline: 'none',
                       fontFamily: 'inherit',
@@ -2432,7 +2508,7 @@ export const CMDashboardPage = () => {
                     <i
                       className="fa-solid fa-xmark"
                       onClick={() => setSearchQuery('')}
-                      style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontSize: '12px', cursor: 'pointer' }}
+                      style={{ position: 'absolute', right: '11px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontSize: '13px', cursor: 'pointer' }}
                     />
                   )}
                 </div>
@@ -3114,7 +3190,7 @@ export const CMDashboardPage = () => {
                 <span>Primary Filter Criteria</span>
               </div>
               <div className="cm-filters-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', borderTop: 'none', paddingTop: '0', marginTop: '4px' }}>
-                
+
                 {/* Product Dropdown */}
                 <div className="cm-filter-group">
                   <label className="cm-filter-label" htmlFor="manday-product-select">Product Type</label>
@@ -3172,7 +3248,7 @@ export const CMDashboardPage = () => {
                   <i className="fa-solid fa-sliders" />
                   <span>Configure {mandayProduct} ({mandayPreference}) Sub-filters</span>
                 </div>
-                
+
                 <div className="cm-filters-grid" style={{ borderTop: '1px solid #f0fdf4', paddingTop: '12px', marginTop: '4px' }}>
                   {mandayPreference === 'Vendor Wise' ? (
                     <>
@@ -3295,7 +3371,7 @@ export const CMDashboardPage = () => {
                 <i className="fa-solid fa-calculator" style={{ fontSize: '32px', color: '#166534', marginBottom: '16px', opacity: 0.8 }} />
                 <h3 style={{ fontSize: '15px', fontWeight: 'bold', color: '#14532d', margin: '0 0 8px 0' }}>Calculation Worksheet Ready</h3>
                 <p style={{ margin: 0, fontSize: '12.5px', maxWidth: '500px', marginLeft: 'auto', marginRight: 'auto', lineHeight: '1.5' }}>
-                  {!mandayProduct || !mandayPreference 
+                  {!mandayProduct || !mandayPreference
                     ? 'Please select a Product (ERC, Sleeper, Rail Pad) and your desired Calculation Preference in the filter controls above.'
                     : 'Filters have been configured. Click the "Calculate Mandays & Generate Sheets" button to run fractional duty splits and generate the attendance ledger below.'
                   }
@@ -3306,7 +3382,7 @@ export const CMDashboardPage = () => {
             {/* Calculated Report Sheets Display */}
             {showMandayReport && mandayProduct && mandayPreference && (
               <section className="cm-list-card" style={{ animation: 'fadeIn 0.4s ease' }} id="manday-report-output">
-                
+
                 {/* Header detailing selection parameters */}
                 <div className="cm-list-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
@@ -3314,23 +3390,23 @@ export const CMDashboardPage = () => {
                       📋 Manday Attendance Sheet &amp; Cost Ledger
                     </h3>
                     <div style={{ fontSize: '11.5px', color: '#4b6b4b', marginTop: '4px', fontWeight: '600' }}>
-                      Product: <span style={{ color: '#15803d' }}>{mandayProduct}</span> | 
+                      Product: <span style={{ color: '#15803d' }}>{mandayProduct}</span> |
                       Preference: <span style={{ color: '#15803d', marginLeft: '4px' }}>{mandayPreference}</span>
                       {mandayPreference === 'Vendor Wise' ? (
                         <>
-                           | Vendor: <span style={{ color: '#15803d', marginLeft: '4px' }}>{mandayVendor}</span> | 
-                          Unit: <span style={{ color: '#15803d', marginLeft: '4px' }}>{mandayUnit}</span> | 
+                          | Vendor: <span style={{ color: '#15803d', marginLeft: '4px' }}>{mandayVendor}</span> |
+                          Unit: <span style={{ color: '#15803d', marginLeft: '4px' }}>{mandayUnit}</span> |
                           Period: <span style={{ color: '#15803d', marginLeft: '4px' }}>{mandayStartDate} to {mandayEndDate}</span>
                         </>
                       ) : (
                         <>
-                           | Call Ref: <span style={{ color: '#15803d', marginLeft: '4px' }}>{mandayCallNumber}</span>
+                          | Call Ref: <span style={{ color: '#15803d', marginLeft: '4px' }}>{mandayCallNumber}</span>
                         </>
                       )}
                     </div>
                   </div>
-                  <button 
-                    className="btn btn--outline" 
+                  <button
+                    className="btn btn--outline"
                     style={{ fontSize: '11px', padding: '6px 12px' }}
                     onClick={() => handleDownloadPdf(mandayCallNumber || 'VENDOR_MANDAYS', 'PDF')}
                   >
@@ -3424,7 +3500,7 @@ export const CMDashboardPage = () => {
                         </tr>
                       </tbody>
                     </table>
-                    
+
                     <div style={{ padding: '16px', background: '#fafafa', borderTop: '1px solid #cbd5e1', fontSize: '11.5px', color: '#4b6b4b' }}>
                       📝 <b>ERC Vendor-Wise Mandays Rule:</b> Count of Unique IE &amp; Shift on that day. Shifts include any log where login and work were successfully recorded (even clicking on "no production" represents recorded work).
                     </div>
@@ -3452,7 +3528,7 @@ export const CMDashboardPage = () => {
                             <td className="col-date">2026-05-27</td>
                             <td className="col-day">Wednesday</td>
                             <td className="col-number">3 (A, B, C)</td>
-                            <td style={{ fontWeight: 'bold', color: '#15803d' }}>3.00 Mandays<br/><span style={{ fontWeight: 'normal', fontSize: '10px', color: '#4b6b4b' }}>A: 0.5+1.0 = 1.5 | B: 1.0 | C: 0.5</span></td>
+                            <td style={{ fontWeight: 'bold', color: '#15803d' }}>3.00 Mandays<br /><span style={{ fontWeight: 'normal', fontSize: '10px', color: '#4b6b4b' }}>A: 0.5+1.0 = 1.5 | B: 1.0 | C: 0.5</span></td>
                             <td className="col-number" style={{ fontWeight: 'bold' }}>18,500 pcs</td>
                           </tr>
                           <tr style={{ background: '#f0fdf4', fontWeight: 'bold', borderTop: '1px solid #16a34a' }}>
@@ -3470,7 +3546,7 @@ export const CMDashboardPage = () => {
                       <h4 style={{ fontSize: '12px', fontWeight: 'bold', color: '#14532d', display: 'flex', alignItems: 'center', gap: '6px', margin: '0 0 12px 0' }}>
                         🔍 Shift-wise Fractional Manday Calculations for {mandayCallNumber}
                       </h4>
-                      
+
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
                         <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px' }}>
                           <span style={{ background: '#eff6ff', color: '#1e40af', padding: '2px 8px', borderRadius: '12px', fontSize: '10px', fontWeight: '700' }}>Shift A</span>
@@ -3585,7 +3661,7 @@ export const CMDashboardPage = () => {
                         </tr>
                       </tbody>
                     </table>
-                    
+
                     <div style={{ padding: '16px', background: '#fafafa', borderTop: '1px solid #cbd5e1', fontSize: '11.5px', color: '#4b6b4b' }}>
                       📝 <b>Sleeper Vendor-Wise Mandays Rule:</b> Counts shifts for which duty has been successfully started and completed. Multiple duty starts/logins by the same IE for the same shift are strictly deduplicated and considered as one (1.0).
                     </div>
@@ -3595,10 +3671,10 @@ export const CMDashboardPage = () => {
                 {/* COMBINATION 4: Sleeper - Call Wise */}
                 {mandayProduct === 'Sleeper' && mandayPreference === 'Call Wise' && (
                   <div style={{ padding: '20px' }}>
-                    
+
                     {/* Upper metrics row */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '20px' }}>
-                      
+
                       <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '16px', textAlign: 'center' }}>
                         <span style={{ fontSize: '10.5px', color: '#166534', fontWeight: '700', textTransform: 'uppercase' }}>No. of Batches in Call</span>
                         <h4 style={{ fontSize: '22px', fontWeight: '900', color: '#14532d', margin: '4px 0 0 0' }}>5 Batches</h4>
@@ -3623,7 +3699,7 @@ export const CMDashboardPage = () => {
                     <h4 style={{ fontSize: '12.5px', fontWeight: 'bold', color: '#14532d', margin: '0 0 8px 0' }}>
                       📊 Casting Monthly Manpower Cost Allocation Sheet (Editable Inputs)
                     </h4>
-                    
+
                     <div className="table-responsive" style={{ border: '1px solid #cbd5e1', borderRadius: '8px', overflow: 'hidden' }}>
                       <table className="cm-mandays-table" style={{ width: '100%' }}>
                         <thead>
@@ -3637,7 +3713,7 @@ export const CMDashboardPage = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          
+
                           {/* April 2026 row */}
                           <tr>
                             <td className="col-date" style={{ fontWeight: 'bold' }}>April 2026</td>
@@ -3909,9 +3985,9 @@ export const CMDashboardPage = () => {
       {/* Drill-down Call Details Modal */}
       {callPopupData && (
         <div className="cm-modal-overlay" onClick={() => setCallPopupData(null)}>
-          <div 
-            className="cm-modal cm-modal-wide" 
-            style={{ maxWidth: '900px', width: '95%' }} 
+          <div
+            className="cm-modal cm-modal-wide"
+            style={{ maxWidth: '900px', width: '95%' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #cbd5e1', paddingBottom: '12px' }}>
@@ -3919,7 +3995,7 @@ export const CMDashboardPage = () => {
                 <i className="fa-solid fa-list-check" style={{ color: '#166534' }}></i>
                 <span>{callPopupData.type} Call Details for {callPopupData.ieName} ({callPopupData.calls.length})</span>
               </div>
-              <button 
+              <button
                 onClick={() => setCallPopupData(null)}
                 style={{ background: 'transparent', border: 'none', fontSize: '24px', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'color 0.2s', padding: '0 4px', lineHieght: 1 }}
               >

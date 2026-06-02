@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useInspection } from '../context/InspectionContext';
-import CalibrationModule from '../components/CalibrationModule';
+import CalibrationSubModule from '../components/CalibrationSubModule';
 import FinalSubmoduleNav from '../components/FinalSubmoduleNav';
 
 const FinalCalibrationDocumentsPage = ({ onBack, onNavigateSubmodule }) => {
@@ -8,6 +8,10 @@ const FinalCalibrationDocumentsPage = ({ onBack, onNavigateSubmodule }) => {
 
   // Get the call number - use selectedCall or fallback to sessionStorage
   const callNo = selectedCall?.call_no || sessionStorage.getItem('selectedCallNo');
+  // Get vendor code from the call's createdBy field
+  const vendorCode = selectedCall?.createdBy || '';
+  const vendorName = selectedCall?.vendor_name || selectedCall?.company_name || '';
+  const poNo = selectedCall?.po_no || '';
 
   // Document verification states
   const [verifications, setVerifications] = useState(() => {
@@ -207,6 +211,20 @@ const FinalCalibrationDocumentsPage = ({ onBack, onNavigateSubmodule }) => {
         onNavigate={onNavigateSubmodule}
       />
 
+      {/* Instrument Calibration Section — Live vendor data */}
+      <div className="card" style={{ marginBottom: 'var(--space-24)' }}>
+        <div className="card-header">
+          <h3 className="card-title">🔧 Instrument Calibration Information</h3>
+          <p className="card-subtitle">Calibration details of all instruments used during inspection & document verification</p>
+        </div>
+        <CalibrationSubModule
+          vendorCode={vendorCode}
+          vendorName={vendorName}
+          inspectionCallNo={callNo}
+          poNo={poNo}
+        />
+      </div>
+
       {/* Document Verification Section */}
       <div className="card" style={{ marginBottom: 'var(--space-24)' }}>
         <div className="card-header">
@@ -280,24 +298,8 @@ const FinalCalibrationDocumentsPage = ({ onBack, onNavigateSubmodule }) => {
           </div>
         ))}
       </div>
-
-      {/* Instrument Calibration Section */}
-      <div className="card" style={{ marginBottom: 'var(--space-24)' }}>
-        <div className="card-header">
-          <h3 className="card-title">🔧 Instrument Calibration Information</h3>
-          <p className="card-subtitle">Calibration details of all instruments used during inspection & document verification</p>
-        </div>
-        <CalibrationModule />
-      </div>
-
-      {/* Action Buttons */}
-      {/* <div style={{ marginTop: 'var(--space-24)', display: 'flex', gap: 'var(--space-16)', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-        <button className="btn btn-outline" onClick={onBack}>Cancel</button>
-        <button className="btn btn-primary" onClick={() => { alert('Calibration & Documents verified!'); onBack(); }}>Save & Continue</button>
-      </div> */}
     </div>
   );
 };
 
 export default FinalCalibrationDocumentsPage;
-

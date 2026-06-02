@@ -105,6 +105,8 @@ export const ProcessCalibrationWrapper = () => {
       productionLines={productionLines}
       allCallOptions={allCallOptions}
       mapping={lineData?.mapping}
+      vendorCode={selectedCall?.createdBy || ''}
+      vendorName={selectedCall?.vendor_name || selectedCall?.company_name || ''}
     />
   );
 };

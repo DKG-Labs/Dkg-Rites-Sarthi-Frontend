@@ -469,6 +469,7 @@ const CallDeskDashboard = () => {
         onWithdraw={refreshData}
         onDownloadLetter={handleDownloadLetter}
         showNotification={showAppNotification}
+        onRemap={refreshData}
       />
 
       {/* Verify & Accept Modal */}

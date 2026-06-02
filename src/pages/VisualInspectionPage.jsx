@@ -120,8 +120,9 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
   // ONLY load from backend if localStorage is empty (preserve user edits)
   const loadVisualInspectionDataFromBackend = useCallback(async () => {
     // Check if localStorage already has data - if yes, don't overwrite with backend data
-    const storageKey = `${STORAGE_KEY}_${inspectionCallNo}`;
-    const existingLocalData = localStorage.getItem(storageKey);
+    const storageKeyMain = `${STORAGE_KEY}_${inspectionCallNo}`;
+    const storageKeyShift = `${STORAGE_KEY}_${inspectionCallNo}${getShiftSuffix()}`;
+    const existingLocalData = localStorage.getItem(storageKeyShift) || localStorage.getItem(storageKeyMain);
 
     if (existingLocalData) {
       console.log('⏭️ Skipping backend load - localStorage data exists (preserving user edits)');

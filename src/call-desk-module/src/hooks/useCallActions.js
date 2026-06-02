@@ -91,10 +91,11 @@ export const useCallActions = () => {
       };
 
     } catch (err) {
-      setError(err.message || 'Failed to verify call');
+      const errorMsg = err.response?.data?.responseStatus?.message || err.message || 'Failed to verify call';
+      setError(errorMsg);
       return {
         success: false,
-        message: err.message || 'Failed to verify call',
+        message: errorMsg,
       };
     } finally {
       setLoading(false);
@@ -180,10 +181,11 @@ export const useCallActions = () => {
       };
 
     } catch (err) {
-      setError(err.message || 'Failed to return call');
+      const errorMsg = err.response?.data?.responseStatus?.message || err.message || 'Failed to return call';
+      setError(errorMsg);
       return {
         success: false,
-        message: err.message || 'Failed to return call',
+        message: errorMsg,
       };
     } finally {
       setLoading(false);
@@ -270,8 +272,9 @@ export const useCallActions = () => {
       return { success: true };
 
     } catch (err) {
-      setError(err.message);
-      return { success: false, message: err.message };
+      const errorMsg = err.response?.data?.responseStatus?.message || err.message || 'Failed to re-route call';
+      setError(errorMsg);
+      return { success: false, message: errorMsg };
     } finally {
       setLoading(false);
     }

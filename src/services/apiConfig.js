@@ -73,6 +73,9 @@ export const API_ENDPOINTS = {
 
     // Railpad Schedule
     RAIL_SCHEDULE: `${API_BASE_URL}/api/rail-inspection-schedule`,
+
+    // Vendor Calibration (used by IE module to fetch vendor instrument data)
+    VENDOR_CALIBRATION: `${API_BASE_URL}/api/vendor/calibration`,
 };
 
 /**

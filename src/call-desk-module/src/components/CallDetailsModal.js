@@ -15,7 +15,8 @@ const CallDetailsModal = ({
   onReroute,
   onWithdraw,
   onDownloadLetter,
-  showNotification
+  showNotification,
+  onRemap
 }) => {
   const notify = (msg, type = 'success') => {
     if (showNotification) {
@@ -158,6 +159,9 @@ const CallDetailsModal = ({
       
       setChangeIE(false);
       setSelectedIE('');
+      if (onRemap) {
+        onRemap();
+      }
     } catch (error) {
       console.error("Error submitting remapping:", error);
       notify("Failed to submit remapping. Check console for details.", 'error');

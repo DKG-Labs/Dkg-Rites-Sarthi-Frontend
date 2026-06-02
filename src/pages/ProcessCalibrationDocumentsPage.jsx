@@ -1,19 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import CalibrationModule from '../components/CalibrationModule';
+import React, { useState, useMemo } from 'react';
+import CalibrationSubModule from '../components/CalibrationSubModule';
 import ProcessLineToggle from '../components/ProcessLineToggle';
 import ProcessSubmoduleNav from '../components/ProcessSubmoduleNav';
 import { formatPoNoWithSerial } from '../utils/helpers';
-// API calls disabled for mock mode - Process Material uses localStorage only
-// import {
-//   getCalibrationByPoLine,
-//   saveCalibrationDocumentsBatch
-// } from '../services/processMaterialService';
-import {
-  saveToLocalStorage,
-  loadFromLocalStorage
-} from '../services/processLocalStorageService';
 
-const ProcessCalibrationDocumentsPage = ({ call, onBack, selectedLines = [], onNavigateSubmodule, lineData, productionLines: propProductionLines = [], allCallOptions = [], mapping = null }) => {
+const ProcessCalibrationDocumentsPage = ({ call, onBack, selectedLines = [], onNavigateSubmodule, lineData, productionLines: propProductionLines = [], allCallOptions = [], mapping = null, vendorCode = '', vendorName = '' }) => {
   // Get available lines from props or lineData (stabilized)
   const stableProductionLines = useMemo(() => {
     return (propProductionLines && propProductionLines.length > 0) ? propProductionLines : (lineData?.productionLines || []);
@@ -25,10 +16,6 @@ const ProcessCalibrationDocumentsPage = ({ call, onBack, selectedLines = [], onN
 
   // State for active line (switchable)
   const [activeLine, setActiveLine] = useState(lineData?.selectedLine || availableLines[0] || 'Line-1');
-  const [calibrationData, setCalibrationData] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState(null);
 
   // Get line index for active line
   const activeLineIndex = useMemo(() => {
@@ -57,145 +44,6 @@ const ProcessCalibrationDocumentsPage = ({ call, onBack, selectedLines = [], onN
 
   const inspectionCallNo = currentCallData?.call_no || call?.call_no || '';
   const poNo = formattedActivePoNo;
-  const shift = lineData?.shift || 'A';
-
-  // Track previous line for saving data before switching
-  const prevLineRef = useRef(activeLine);
-  const prevPoNoRef = useRef(poNo);
-
-  // Flags to prevent saving during initial load
-  const isInitialLoadComplete = useRef(false);
-  const hasDataBeenModified = useRef(false);
-
-  // Save current data to localStorage (only if modified)
-  const saveToLocal = useCallback(() => {
-    if (!inspectionCallNo || !poNo || calibrationData.length === 0) return;
-    if (!isInitialLoadComplete.current || !hasDataBeenModified.current) return;
-    saveToLocalStorage('calibration', inspectionCallNo, poNo, activeLine, calibrationData, shift);
-  }, [inspectionCallNo, poNo, activeLine, calibrationData, shift]);
-
-  // Load data from localStorage
-  const loadFromLocal = useCallback(() => {
-    if (!inspectionCallNo || !poNo) return false;
-    const stored = loadFromLocalStorage('calibration', inspectionCallNo, poNo, activeLine, shift);
-    if (stored && stored.length > 0) {
-      setCalibrationData(stored);
-      return true;
-    }
-    return false;
-  }, [inspectionCallNo, poNo, activeLine, shift]);
-
-  // Save to localStorage when line changes
-  useEffect(() => {
-    if (prevLineRef.current !== activeLine || prevPoNoRef.current !== poNo) {
-      // Save previous line's data if modified
-      if (prevPoNoRef.current && prevLineRef.current && calibrationData.length > 0 && hasDataBeenModified.current) {
-        saveToLocalStorage('calibration', inspectionCallNo, prevPoNoRef.current, prevLineRef.current, calibrationData, shift);
-      }
-      prevLineRef.current = activeLine;
-      prevPoNoRef.current = poNo;
-      // Reset flags for new line
-      isInitialLoadComplete.current = false;
-      hasDataBeenModified.current = false;
-    }
-  }, [activeLine, poNo, inspectionCallNo, calibrationData, shift]);
-
-  // Listen for global saveDraft event (triggered by Finish Inspection)
-  useEffect(() => {
-    const handler = () => {
-      // Force save current data to localStorage (bypass modified flag)
-      if (!inspectionCallNo || !poNo || calibrationData.length === 0) return;
-      saveToLocalStorage('calibration', inspectionCallNo, poNo, activeLine, calibrationData, shift);
-    };
-    window.addEventListener('process:saveDraft', handler);
-    return () => window.removeEventListener('process:saveDraft', handler);
-  }, [inspectionCallNo, poNo, activeLine, calibrationData, shift]);
-
-  // Save on unmount
-  useEffect(() => {
-    return () => saveToLocal();
-  }, [saveToLocal]);
-
-  /**
-   * Fetch calibration data - first from localStorage, then backend
-   */
-  const fetchCalibrationData = useCallback(async () => {
-    if (!inspectionCallNo || !poNo) return;
-
-    // Try localStorage first
-    if (loadFromLocal()) {
-      console.log('Calibration data loaded from localStorage');
-      // Mark initial load complete after a short delay
-      setTimeout(() => { isInitialLoadComplete.current = true; }, 100);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-    try {
-      console.log('🏭 Process Calibration: Using localStorage only (no API call)');
-      // API call disabled for mock mode - data loaded from localStorage only
-      // const response = await getCalibrationByPoLine(inspectionCallNo, poNo, activeLine);
-      // if (response?.responseData) {
-      //   setCalibrationData(response.responseData);
-      // }
-
-      // Use empty calibration data - will be populated by user
-      setCalibrationData([]);
-    } catch (err) {
-      console.log('Using default calibration data:', err.message);
-      setCalibrationData([]);
-    } finally {
-      setIsLoading(false);
-      // Mark initial load complete after a short delay
-      setTimeout(() => { isInitialLoadComplete.current = true; }, 100);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inspectionCallNo, poNo, loadFromLocal]);
-
-  useEffect(() => {
-    fetchCalibrationData();
-  }, [fetchCalibrationData]);
-
-  /**
-   * Save calibration data to backend
-   */
-  const handleSave = async () => {
-    if (!inspectionCallNo || !poNo) {
-      alert('Missing call or PO information');
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      // API call disabled for mock mode - data saved to localStorage only
-      console.log('🏭 Process Calibration: Data saved to localStorage (no API call)');
-
-      // const payload = calibrationData.map(item => ({
-      //   ...item,
-      //   inspectionCallNo,
-      //   poNo,
-      //   lineNo: activeLine
-      // }));
-      // await saveCalibrationDocumentsBatch(payload);
-
-      alert('✅ Calibration data saved to localStorage (Mock Mode)');
-      onBack();
-    } catch (err) {
-      setError(err.message);
-      alert('Failed to save calibration data: ' + err.message);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="card" style={{ textAlign: 'center', padding: 'var(--space-32)' }}>
-        <p>Loading calibration data...</p>
-      </div>
-    );
-  }
 
   return (
     <div>
@@ -226,27 +74,15 @@ const ProcessCalibrationDocumentsPage = ({ call, onBack, selectedLines = [], onN
         </button>
       </div>
 
-      {error && (
-        <div className="alert alert-error" style={{ marginBottom: 'var(--space-16)' }}>
-          {error}
-        </div>
-      )}
-
-      <CalibrationModule instruments={calibrationData.length > 0 ? calibrationData : undefined} />
-
-      <div style={{ marginTop: 'var(--space-24)', display: 'flex', gap: 'var(--space-16)', justifyContent: 'flex-end' }}>
-        <button className="btn btn-outline" onClick={onBack}>Cancel</button>
-        <button
-          className="btn btn-primary"
-          onClick={handleSave}
-          disabled={isSaving}
-        >
-          {isSaving ? 'Saving...' : 'Save & Continue'}
-        </button>
-      </div>
+      {/* 4. Live Calibration Data */}
+      <CalibrationSubModule
+        vendorCode={vendorCode}
+        vendorName={vendorName || currentCallData?.vendor_name || call?.vendor_name || currentCallData?.company_name || call?.company_name || ''}
+        inspectionCallNo={inspectionCallNo}
+        poNo={poNo}
+      />
     </div>
   );
 };
 
 export default ProcessCalibrationDocumentsPage;
-

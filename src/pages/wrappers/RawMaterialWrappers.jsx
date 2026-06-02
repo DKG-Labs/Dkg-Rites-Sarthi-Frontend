@@ -57,6 +57,9 @@ export const CalibrationDocumentsWrapper = () => {
     <CalibrationDocumentsPage
       onBack={handleBack}
       inspectionCallNo={selectedCall?.call_no || ''}
+      vendorCode={selectedCall?.createdBy || ''}
+      vendorName={selectedCall?.vendor_name || selectedCall?.company_name || ''}
+      poNo={selectedCall?.po_no || ''}
       onNavigateSubmodule={handleNavigateSubmodule}
     />
   );

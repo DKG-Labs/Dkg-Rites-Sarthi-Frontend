@@ -2,7 +2,7 @@ import CalibrationSubModule from '../components/CalibrationSubModule';
 import RawMaterialSubmoduleNav from '../components/RawMaterialSubmoduleNav';
 import './CalibrationDocumentsPage.css';
 
-const CalibrationDocumentsPage = ({ onBack, onNavigateSubmodule, inspectionCallNo = '' }) => {
+const CalibrationDocumentsPage = ({ onBack, onNavigateSubmodule, inspectionCallNo = '', vendorCode = '', vendorName = '', poNo = '' }) => {
   return (
     <div className="calibration-page-container">
       <div className="calibration-page-header">
@@ -20,10 +20,12 @@ const CalibrationDocumentsPage = ({ onBack, onNavigateSubmodule, inspectionCallN
 
       <CalibrationSubModule
         inspectionCallNo={inspectionCallNo}
+        vendorCode={vendorCode}
+        vendorName={vendorName}
+        poNo={poNo}
       />
     </div>
   );
 };
 
 export default CalibrationDocumentsPage;
-

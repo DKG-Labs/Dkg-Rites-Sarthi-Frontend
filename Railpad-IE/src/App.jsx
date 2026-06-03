@@ -1125,6 +1125,7 @@ const App = () => {
                     <div
                       key={tab.id}
                       className={`ie-tab-card ${activeCard === tab.id ? 'active' : ''}`}
+                      style={{ maxWidth: '350px' }}
                       onClick={() => {
                         setActiveCard(tab.id);
                         closeForm();
@@ -1181,6 +1182,7 @@ const App = () => {
                     <div
                       key={tab.id}
                       className={`ie-tab-card ${activeCard === tab.id ? 'active' : ''}`}
+                      style={{ maxWidth: '350px' }}
                       onClick={() => {
                         setActiveCard(tab.id);
                         closeForm();
@@ -1237,6 +1239,7 @@ const App = () => {
                     <div
                       key={tab.id}
                       className={`ie-tab-card ${activeCard === tab.id ? 'active' : ''}`}
+                      style={{ maxWidth: '350px' }}
                       onClick={() => {
                         setActiveCard(tab.id);
                         closeForm();

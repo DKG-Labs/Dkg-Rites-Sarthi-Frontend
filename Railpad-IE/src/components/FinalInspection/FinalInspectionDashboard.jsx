@@ -39,6 +39,7 @@ const HardnessCell = ({ value, onChange, min, max }) => {
         ref={inputRef}
         type="text"
         value={value}
+        placeholder="H1,H2,H3,H4,H5"
         onBlur={() => setIsEditing(false)}
         onChange={(e) => {
           const val = e.target.value;
@@ -67,7 +68,7 @@ const HardnessCell = ({ value, onChange, min, max }) => {
           );
         })}
       </div>
-      {value === '' && <span style={{ color: '#94a3b8', fontWeight: '400' }}>-</span>}
+      {value === '' && <span style={{ color: '#94a3b8', fontWeight: '400', fontSize: '11px' }}>H1,H2,H3,H4,H5</span>}
     </div>
   );
 };
@@ -409,6 +410,14 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall }) =
       loadLotData(selectedLot);
     }
   }, [selectedLot]);
+
+  // Reset tab to visual if activeTab is ncrgrsp and the active railpad type is not NCRGRSP
+  useEffect(() => {
+    const isNCRGRSP = activeRailpadType && activeRailpadType.includes('NCRGRSP');
+    if (!isNCRGRSP && activeTab === 'ncrgrsp') {
+      setActiveTab('visual');
+    }
+  }, [activeRailpadType, activeTab]);
 
   useEffect(() => {
     const loadCallDetails = async () => {
@@ -895,12 +904,14 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall }) =
 
   const filteredLots = lots.filter(lot => lot.id.toLowerCase().includes(searchTerm.toLowerCase()));
 
+  const isNCRGRSP = activeRailpadType && activeRailpadType.includes('NCRGRSP');
+
   const tabs = [
     { id: 'visual', label: 'Visual & Dimensional' },
     { id: 'physical', label: 'Physical & Ageing Properties' },
     { id: 'electrical', label: 'Electrical & Chemical' },
     { id: 'specialized', label: 'Dynamic & Durability Test' },
-    { id: 'ncrgrsp', label: 'NCRGRSP Test' },
+    ...(isNCRGRSP ? [{ id: 'ncrgrsp', label: 'NCRGRSP Test' }] : []),
   ];
 
   if (loading) {
@@ -1135,7 +1146,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall }) =
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
               <div>
                 <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#0f172a', margin: '0 0 2px 0', letterSpacing: '-0.02em' }}>
-                  {tabs.find(t => t.id === activeTab).label}
+                  {tabs.find(t => t.id === activeTab)?.label || ''}
                 </h2>
                 <div style={{ fontSize: '12px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ padding: '2px 6px', background: '#f1f5f9', borderRadius: '4px', fontWeight: '700', color: '#334155' }}>{selectedLot}</span>

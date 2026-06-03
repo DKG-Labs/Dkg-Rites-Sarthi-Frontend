@@ -21,16 +21,37 @@ const Sidebar = ({ activeItem, onItemClick, isOpen, expanded, onMouseEnter, onMo
         >
             <div className="sidebar-header" style={{ 
                 display: 'flex', 
-                flexDirection: 'column', 
-                alignItems: 'center', 
-                justifyContent: 'center',
-                height: '80px',
-                padding: '0',
-                boxSizing: 'border-box'
+                alignItems: 'center',
+                justifyContent: expanded ? 'flex-end' : 'center',
+                height: '50px',
+                padding: expanded ? '0 16px' : '0',
+                boxSizing: 'border-box',
+                borderBottom: '1px solid #f1f5f9'
             }}>
-                <img src="/sarthi-logo1.png" alt="SARTHI" style={{ width: '32px', height: '32px', marginBottom: '4px' }} />
-                <h2 className="sidebar-logo" style={{ fontSize: '14px', margin: 0, letterSpacing: '2px', lineHeight: '1.2' }}>SARTHI</h2>
-                <span style={{ fontSize: '8px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', lineHeight: '1.2' }}>Inspection Engine</span>
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onClick();
+                    }}
+                    style={{
+                        background: '#f8fafc',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '6px',
+                        width: '28px',
+                        height: '28px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        color: '#475569',
+                        fontWeight: 'bold',
+                        fontSize: '14px',
+                        transition: 'all 0.2s ease'
+                    }}
+                    title={expanded ? "Collapse Sidebar" : "Expand Sidebar"}
+                >
+                    {expanded ? '«' : '»'}
+                </button>
             </div>
 
             <nav className="sidebar-nav">

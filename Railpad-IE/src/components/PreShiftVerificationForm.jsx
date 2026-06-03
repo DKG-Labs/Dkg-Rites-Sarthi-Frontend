@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
-const PreShiftVerificationForm = ({ type, onSubmit, onCancel, editData, currentShift }) => {
+const PreShiftVerificationForm = ({ type, onSubmit, onCancel, editData, currentShift, isViewOnly }) => {
+  const [isFormLoading, setIsFormLoading] = useState(true);
   const [formData, setFormData] = useState({
     mouldNumber: '',
     timeOfCheck: '',
@@ -13,6 +14,13 @@ const PreShiftVerificationForm = ({ type, onSubmit, onCancel, editData, currentS
   });
 
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsFormLoading(false);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (editData) {
@@ -36,6 +44,7 @@ const PreShiftVerificationForm = ({ type, onSubmit, onCancel, editData, currentS
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (isViewOnly) return;
     
     onSubmit({
       ...formData,
@@ -45,11 +54,77 @@ const PreShiftVerificationForm = ({ type, onSubmit, onCancel, editData, currentS
     });
   };
 
+  if (isFormLoading) {
+    return (
+      <div className="form-modal-container">
+        <div className="form-modal-header">
+          <h2 className="form-header-title">{isViewOnly ? 'View' : (editData ? 'Edit' : 'Add')} Mould Verification</h2>
+        </div>
+        <div className="form-modal-body">
+          <div style={{ 
+            background: '#f8fafc', 
+            padding: '12px', 
+            borderRadius: '8px', 
+            marginBottom: '20px',
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '12px',
+            border: '1px solid #e2e8f0'
+          }}>
+            <div>
+              <div className="skeleton-bar" style={{ width: '80px', height: '10px', marginBottom: '6px' }} />
+              <div className="skeleton-bar" style={{ width: '120px', height: '14px' }} />
+            </div>
+            <div>
+              <div className="skeleton-bar" style={{ width: '40px', height: '10px', marginBottom: '6px' }} />
+              <div className="skeleton-bar" style={{ width: '80px', height: '14px' }} />
+            </div>
+          </div>
+          <div className="form-grid">
+            <div className="form-group">
+              <div className="skeleton-bar" style={{ width: '140px', height: '14px', marginBottom: '8px' }} />
+              <div className="skeleton-bar" style={{ width: '100%', height: '40px', borderRadius: '6px' }} />
+            </div>
+            <div className="form-group">
+              <div className="skeleton-bar" style={{ width: '90px', height: '14px', marginBottom: '8px' }} />
+              <div className="skeleton-bar" style={{ width: '100%', height: '40px', borderRadius: '6px' }} />
+            </div>
+          </div>
+          <div className="form-grid" style={{ marginTop: '12px' }}>
+            <div className="form-group">
+              <div className="skeleton-bar" style={{ width: '130px', height: '14px', marginBottom: '8px' }} />
+              <div className="skeleton-bar" style={{ width: '100%', height: '40px', borderRadius: '6px' }} />
+            </div>
+          </div>
+          <div className="form-grid" style={{ marginTop: '12px' }}>
+            <div className="form-group">
+              <div className="skeleton-bar" style={{ width: '130px', height: '14px', marginBottom: '8px' }} />
+              <div className="skeleton-bar" style={{ width: '100%', height: '40px', borderRadius: '6px' }} />
+            </div>
+          </div>
+          <div className="form-group" style={{ marginTop: '12px' }}>
+            <div className="skeleton-bar" style={{ width: '150px', height: '14px', marginBottom: '8px' }} />
+            <div className="skeleton-bar" style={{ width: '100%', height: '80px', borderRadius: '6px' }} />
+          </div>
+          <div className="status-summary-card" style={{ marginTop: '20px' }}>
+            <div className="skeleton-bar" style={{ width: '120px', height: '14px' }} />
+            <div className="skeleton-bar" style={{ width: '60px', height: '20px', borderRadius: '12px' }} />
+          </div>
+        </div>
+        <div className="form-footer">
+          <button type="button" className="btn-secondary" onClick={onCancel}>
+            {isViewOnly ? 'Close' : 'Cancel'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={handleSubmit} className="form-modal-container">
       <div className="form-modal-header">
         <h2 className="form-header-title">
-          {editData ? 'Edit' : 'Add'} Mould Verification
+          {isViewOnly ? 'View' : (editData ? 'Edit' : 'Add')} Mould Verification
         </h2>
       </div>
 

@@ -97,20 +97,30 @@
 }
 
 .vendor-section-header {
-  margin-bottom: 24px;
+  margin-bottom: 28px;
+  padding-left: 16px;
+  border-left: 4px solid var(--primary-color);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .vendor-section-title {
-  font-size: 1.25rem;
-  font-weight: 700; /* Bold Inventory Overview style */
+  font-family: var(--font-secondary);
+  font-size: 1.45rem;
+  font-weight: 800;
   color: #0f172a;
-  margin: 0 0 6px 0;
+  margin: 0;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
 .vendor-section-subtitle {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: #64748b;
   margin: 0;
+  font-weight: 500;
+  line-height: 1.4;
 }
 
 /* Action Bar Styles - Search & Export */
@@ -119,58 +129,80 @@
   justify-content: space-between;
   align-items: center;
   background: white;
-  padding: 16px;
-  border-radius: 8px 8px 0 0;
-  border: 1px solid #e5e7eb;
+  padding: 20px 24px;
+  border-radius: 16px 16px 0 0;
+  border: 1px solid rgba(148, 163, 184, 0.15);
   border-bottom: none;
+  gap: 16px;
 }
 
 .search-input-wrapper {
   position: relative;
-  width: 300px;
+  width: 320px;
+  max-width: 100%;
 }
 
 .search-input-wrapper .search-icon {
   position: absolute;
-  left: 12px;
+  left: 14px;
   top: 50%;
   transform: translateY(-50%);
-  color: #9ca3af;
+  color: #64748b;
   font-size: 14px;
 }
 
 .search-input-wrapper .search-input {
   width: 100%;
-  padding: 10px 16px 10px 40px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  color: #374151;
-  height: auto;
+  padding: 10px 16px 10px 42px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 10px;
+  font-size: 0.85rem;
+  color: #1e293b;
+  height: 40px;
   line-height: normal;
+  background: #f8fafc;
+  transition: all 0.2s ease;
+}
+
+.search-input-wrapper .search-input:focus {
+  outline: none;
+  background: #ffffff;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(33, 128, 141, 0.12);
 }
 
 .export-btn {
-  background-color: #2563eb;
+  background: linear-gradient(135deg, var(--primary-color) 0%, #1a6470 100%);
   color: white;
   border: none;
-  padding: 8px 20px;
-  border-radius: 6px;
-  font-weight: 500;
+  padding: 10px 22px;
+  border-radius: 10px;
+  font-family: var(--font-secondary);
+  font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.95rem;
-  transition: background-color 0.2s;
+  font-size: 0.85rem;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 12px rgba(33, 128, 141, 0.2);
+  height: 40px;
 }
 
 .export-btn:hover:not(:disabled) {
-  background-color: #1d4ed8;
+  background: linear-gradient(135deg, #1d727e 0%, #134c56 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(33, 128, 141, 0.3);
+}
+
+.export-btn:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .export-btn:disabled {
-  background-color: #9ca3af;
+  background: #cbd5e1;
+  color: #94a3b8;
+  box-shadow: none;
   cursor: not-allowed;
 }
 
@@ -178,7 +210,7 @@
 .table-card {
   background: transparent;
   margin-bottom: 24px;
-  border-radius: 8px;
+  border-radius: 16px;
 }
 
 /* Base App/Landing Container */
@@ -267,41 +299,46 @@
   gap: 4px;
 }
 
-/* Remove border from TableView table since it's already in the card container */
 .table-container {
-  border: 1px solid #e5e7eb;
-  border-radius: 0 0 8px 8px;
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 0 0 16px 16px;
   background: white;
   width: 100%;
   overflow-x: auto;
+  box-shadow: 0 10px 25px -12px rgba(15, 23, 42, 0.08);
 }
 
 /* Adjusted table styling for Data Tables */
 .table-container table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
 .table-container th {
-  background: #fdfdfd; 
-  color: #4b5563;
-  font-weight: 600;
+  background: rgba(33, 128, 141, 0.02) !important;
+  color: #475569;
+  font-weight: 700;
   text-align: left;
-  padding: 12px 16px;
-  border-bottom: 1px solid #e5e7eb;
-  font-size: 0.8rem;
+  padding: 14px 20px;
+  border-bottom: 1.5px solid rgba(148, 163, 184, 0.15);
+  font-size: 0.725rem;
   white-space: nowrap;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .table-container td {
-  padding: 16px;
-  border-bottom: 1px solid #f3f4f6;
-  color: #374151;
-  font-size: 0.875rem;
+  padding: 14px 20px;
+  border-bottom: 1px solid rgba(241, 245, 249, 0.9);
+  color: #334155;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-align: left;
 }
 
 .table-container tr:hover {
-  background-color: #f9fafb;
+  background-color: rgba(33, 128, 141, 0.015);
 }
 
 /* Disable existing global conflicting styles for this specfic component */

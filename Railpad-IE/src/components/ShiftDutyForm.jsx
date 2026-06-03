@@ -93,64 +93,77 @@ const ShiftDutyForm = ({ onSubmit, onCancel, hideCompanyAndUnit = false, initial
       left: 0,
       right: 0,
       bottom: 0,
-      background: 'rgba(15, 23, 42, 0.5)',
-      backdropFilter: 'blur(4px)',
+      background: 'rgba(15, 23, 42, 0.6)',
+      backdropFilter: 'blur(10px)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       zIndex: 2000,
-      padding: '20px'
+      padding: '16px'
     }}>
-      <div className="modal-content" style={{
+      <div className="modal-content-duty" style={{
         background: '#fff',
-        borderRadius: '24px',
+        borderRadius: '20px',
         width: '100%',
-        maxWidth: '480px',
+        maxWidth: '380px', // Set to 380px for a perfectly balanced sleek width
         overflow: 'hidden',
-        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-        animation: 'modalFadeIn 0.3s ease-out'
+        boxShadow: '0 20px 40px -12px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(15, 23, 42, 0.05)',
+        animation: 'modalFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+        border: '1px solid rgba(255, 255, 255, 0.8)'
       }}>
-        {/* Header Bar */}
+        {/* Header Bar with Teal Gradient */}
         <div style={{
-          background: '#fffbeb',
-          padding: '16px 20px',
-          borderBottom: '1px solid #fef3c7',
-          textAlign: 'center'
+          background: 'linear-gradient(135deg, #21808d 0%, #155e67 100%)',
+          padding: '16px 16px',
+          textAlign: 'center',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '4px'
         }}>
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.15)',
+            width: '34px',
+            height: '34px',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '2px'
+          }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          </div>
           <h2 style={{
             margin: 0,
-            fontSize: '19px',
-            fontWeight: '700',
-            color: '#064e3b',
+            fontSize: '16px',
+            fontWeight: '800',
+            color: '#ffffff',
             letterSpacing: '-0.01em'
           }}>
             Initialize Shift Duty
           </h2>
+          <span style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.75)', fontWeight: '500' }}>
+            Set up your current duty environment
+          </span>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ padding: '32px' }}>
+        <form onSubmit={handleSubmit} style={{ padding: '16px' }}>
           {/* Shift Selection */}
-          <div style={{ marginBottom: '24px' }}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#8b9bb4', marginBottom: '8px' }}>
-              Shift Selection
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', fontSize: '10px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>
+              Shift Selection <span style={{ color: '#ef4444' }}>*</span>
             </label>
             <select 
               name="shift" 
               value={formData.shift} 
               onChange={handleChange}
               required
+              className="form-input-premium"
               style={{
-                width: '100%',
-                height: '46px',
-                padding: '0 16px',
-                borderRadius: '10px',
-                border: '1px solid #d1dbe5',
-                background: 'white',
-                fontSize: '14px',
-                color: formData.shift ? '#1e293b' : '#94a3b8',
-                fontWeight: '500',
-                outline: 'none',
-                cursor: 'pointer'
+                color: formData.shift ? '#1e293b' : '#64748b',
               }}
             >
               <option value="" disabled>Select Shift</option>
@@ -162,9 +175,9 @@ const ShiftDutyForm = ({ onSubmit, onCancel, hideCompanyAndUnit = false, initial
 
           {/* Company Name */}
           {!hideCompanyAndUnit && (
-            <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#8b9bb4', marginBottom: '8px' }}>
-                Company Name
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '10px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>
+                Company Name <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <select 
                 name="company" 
@@ -172,17 +185,9 @@ const ShiftDutyForm = ({ onSubmit, onCancel, hideCompanyAndUnit = false, initial
                 onChange={handleChange}
                 required
                 disabled={isLoadingCompanies}
+                className="form-input-premium"
                 style={{
-                  width: '100%',
-                  height: '46px',
-                  padding: '0 16px',
-                  borderRadius: '10px',
-                  border: '1px solid #d1dbe5',
-                  background: 'white',
-                  fontSize: '14px',
-                  color: formData.company ? '#1e293b' : '#94a3b8',
-                  fontWeight: '500',
-                  outline: 'none',
+                  color: formData.company ? '#1e293b' : '#64748b',
                   cursor: isLoadingCompanies ? 'wait' : 'pointer'
                 }}
               >
@@ -195,9 +200,9 @@ const ShiftDutyForm = ({ onSubmit, onCancel, hideCompanyAndUnit = false, initial
           )}
 
           {/* Casting Date */}
-          <div style={{ marginBottom: '24px' }}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#8b9bb4', marginBottom: '8px' }}>
-              Casting Date
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', fontSize: '10px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>
+              Casting Date <span style={{ color: '#ef4444' }}>*</span>
             </label>
             <input 
               type="date" 
@@ -205,27 +210,18 @@ const ShiftDutyForm = ({ onSubmit, onCancel, hideCompanyAndUnit = false, initial
               value={formData.date} 
               onChange={handleChange}
               required
+              className="form-input-premium"
               style={{
-                width: '100%',
-                height: '46px',
-                padding: '0 16px',
-                borderRadius: '10px',
-                border: '1px solid #d1dbe5',
-                background: 'white',
-                fontSize: '14px',
                 color: '#1e293b',
-                fontWeight: '500',
-                outline: 'none',
-                boxSizing: 'border-box'
               }}
             />
           </div>
 
           {/* Production Unit */}
           {!hideCompanyAndUnit && (
-            <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#8b9bb4', marginBottom: '8px' }}>
-                Production Unit
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '10px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>
+                Production Unit <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <select 
                 name="unit" 
@@ -233,17 +229,9 @@ const ShiftDutyForm = ({ onSubmit, onCancel, hideCompanyAndUnit = false, initial
                 onChange={handleChange}
                 required
                 disabled={isLoadingUnits || !formData.company}
+                className="form-input-premium"
                 style={{
-                  width: '100%',
-                  height: '46px',
-                  padding: '0 16px',
-                  borderRadius: '10px',
-                  border: '1px solid #d1dbe5',
-                  background: 'white',
-                  fontSize: '14px',
-                  color: formData.unit ? '#1e293b' : '#94a3b8',
-                  fontWeight: '500',
-                  outline: 'none',
+                  color: formData.unit ? '#1e293b' : '#64748b',
                   cursor: (isLoadingUnits || !formData.company) ? 'not-allowed' : 'pointer'
                 }}
               >
@@ -259,47 +247,25 @@ const ShiftDutyForm = ({ onSubmit, onCancel, hideCompanyAndUnit = false, initial
 
           <div style={{
             height: '1px',
-            background: '#f1f5f9',
-            margin: '32px 0 24px 0'
+            background: '#e2e8f0',
+            margin: '16px 0 12px 0'
           }} />
 
           <div style={{
             display: 'flex',
-            gap: '24px',
+            gap: '10px',
             alignItems: 'center'
           }}>
             <button
               type="button"
               onClick={onCancel}
-              style={{
-                flex: 1,
-                padding: '12px',
-                borderRadius: '30px',
-                border: '1px solid #d1dbe5',
-                background: 'white',
-                color: '#8b9bb4',
-                fontSize: '15px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
+              className="btn-cancel-premium"
             >
               Cancel
             </button>
             <button
               type="submit"
-              style={{
-                flex: 1.5,
-                padding: '12px',
-                borderRadius: '30px',
-                border: 'none',
-                background: '#338691',
-                color: 'white',
-                fontSize: '15px',
-                fontWeight: '800',
-                cursor: 'pointer',
-                boxShadow: '0 4px 6px -1px rgba(51, 134, 145, 0.3)'
-              }}
+              className="btn-submit-premium"
             >
               Begin Logging
             </button>
@@ -309,8 +275,98 @@ const ShiftDutyForm = ({ onSubmit, onCancel, hideCompanyAndUnit = false, initial
 
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes modalFadeIn {
-          from { opacity: 0; transform: scale(0.95); }
-          to { opacity: 1; transform: scale(1); }
+          from { opacity: 0; transform: scale(0.96) translateY(10px); }
+          to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .modal-content-duty {
+          max-width: 380px !important; /* Force override of the global max-width: 600px !important from index.css */
+          max-height: 90vh !important;
+        }
+
+        .form-input-premium {
+          width: 100%;
+          height: 36px;
+          padding: 0 10px;
+          border-radius: 8px;
+          border: 1px solid #cbd5e1;
+          background: #f8fafc;
+          font-size: 13px;
+          font-weight: 500;
+          outline: none;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+          box-sizing: border-box;
+        }
+
+        .form-input-premium:focus {
+          border-color: #21808d;
+          background: white;
+          box-shadow: 0 0 0 3px rgba(33, 128, 141, 0.12);
+        }
+
+        .form-input-premium:hover:not(:disabled) {
+          border-color: #94a3b8;
+          background: #f1f5f9;
+        }
+
+        .btn-cancel-premium {
+          flex: 1;
+          padding: 8px;
+          border-radius: 50px;
+          border: 1px solid #cbd5e1;
+          background: #ffffff;
+          color: #64748b;
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+          text-align: center;
+          outline: none;
+        }
+
+        .btn-cancel-premium:hover {
+          background: #f1f5f9;
+          color: #334155;
+          border-color: #94a3b8;
+          transform: translateY(-1px);
+        }
+
+        .btn-cancel-premium:active {
+          transform: translateY(0);
+        }
+
+        .btn-submit-premium {
+          flex: 1.4;
+          padding: 8px;
+          border-radius: 50px;
+          border: none;
+          background: linear-gradient(135deg, #21808d 0%, #155e67 100%);
+          color: white;
+          font-size: 13px;
+          font-weight: 750;
+          cursor: pointer;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: 0 4px 10px rgba(33, 128, 141, 0.2);
+          text-align: center;
+          outline: none;
+        }
+
+        .btn-submit-premium:hover {
+          background: linear-gradient(135deg, #2a9ba9 0%, #1a747e 100%);
+          box-shadow: 0 5px 15px rgba(33, 128, 141, 0.35);
+          transform: translateY(-1px);
+        }
+
+        .btn-submit-premium:active {
+          transform: translateY(0);
+        }
+
+        .btn-submit-premium:disabled {
+          background: #cbd5e1;
+          color: #94a3b8;
+          cursor: not-allowed;
+          box-shadow: none;
+          transform: none;
         }
       `}} />
     </div>

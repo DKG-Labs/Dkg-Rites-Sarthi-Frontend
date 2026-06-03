@@ -1,20 +1,26 @@
 import React from 'react';
 
-const TableView = ({ type, data, isShiftActive, onEdit }) => {
-  if (data.length === 0) {
-    return (
-      <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-        No entries found for this shift.
-      </div>
-    );
-  }
+const TableView = ({ type, data, isShiftActive, onEdit, onView, onDelete, isLoading }) => {
+  const getColumnCount = () => {
+    switch (type) {
+      case 'mould-verification': return 6;
+      case 'raw-material': return 6;
+      case 'mixing': return 6;
+      case 'sheeting': return 5;
+      case 'rheometer': return 6;
+      case 'hydraulic-press': return 7;
+      case 'visual-inspection': return 5;
+      default: return 6;
+    }
+  };
+
+  const colCount = getColumnCount();
 
   const renderHeaders = () => {
     switch (type) {
       case 'mould-verification':
         return (
           <>
-            <th>Timestamp</th>
             <th>Mould / Drawing No.</th>
             <th>Time Checked</th>
             <th>Dim. Accuracy</th>
@@ -25,7 +31,6 @@ const TableView = ({ type, data, isShiftActive, onEdit }) => {
       case 'raw-material':
         return (
           <>
-            <th>Timestamp</th>
             <th>Batch No.</th>
             <th>Total Weight</th>
             <th>% Rubber</th>
@@ -36,7 +41,6 @@ const TableView = ({ type, data, isShiftActive, onEdit }) => {
       case 'mixing':
         return (
           <>
-            <th>Timestamp</th>
             <th>Batch No.</th>
             <th>Time (min)</th>
             <th>Temp (°C)</th>
@@ -47,7 +51,6 @@ const TableView = ({ type, data, isShiftActive, onEdit }) => {
       case 'sheeting':
         return (
           <>
-            <th>Timestamp</th>
             <th>Batch No.</th>
             <th>Sheeting</th>
             <th>Remarks</th>
@@ -57,7 +60,6 @@ const TableView = ({ type, data, isShiftActive, onEdit }) => {
       case 'rheometer':
         return (
           <>
-            <th>Timestamp</th>
             <th>Batch No.</th>
             <th>Vulcan. Time</th>
             <th>Vulcan. Temp</th>
@@ -68,7 +70,6 @@ const TableView = ({ type, data, isShiftActive, onEdit }) => {
       case 'hydraulic-press':
         return (
           <>
-            <th>Timestamp</th>
             <th>Batch No.</th>
             <th>Press ID</th>
             <th>Curing Time (min)</th>
@@ -80,7 +81,6 @@ const TableView = ({ type, data, isShiftActive, onEdit }) => {
       case 'visual-inspection':
         return (
           <>
-            <th>Timestamp</th>
             <th>Sample Qty</th>
             <th>Clear Cut Sides</th>
             <th>Smooth Surface</th>
@@ -93,12 +93,6 @@ const TableView = ({ type, data, isShiftActive, onEdit }) => {
   };
 
   const renderRow = (entry, index) => {
-    const commonCells = (
-      <>
-        <td>{entry.timestamp}</td>
-      </>
-    );
-
     let specificCells;
     switch (type) {
       case 'mould-verification':
@@ -176,23 +170,38 @@ const TableView = ({ type, data, isShiftActive, onEdit }) => {
 
     return (
       <tr key={index}>
-        {commonCells}
         {specificCells}
         <td>
           <span className={`status-badge ${entry.status === 'OK' ? 'status-ok' : 'status-not-ok'}`}>
             {entry.status}
           </span>
         </td>
-        {isShiftActive && (
-          <td>
+        <td>
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center', justifyContent: 'flex-start' }}>
             <button
-              onClick={() => onEdit(entry, index)}
-              className="btn-pill-small"
+              onClick={() => onView(entry, index)}
+              className="btn-pill-small-view"
             >
-              Edit
+              View
             </button>
-          </td>
-        )}
+            {isShiftActive && (
+              <>
+                <button
+                  onClick={() => onEdit(entry, index)}
+                  className="btn-pill-small"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => onDelete(entry, index)}
+                  className="btn-pill-small-delete"
+                >
+                  Delete
+                </button>
+              </>
+            )}
+          </div>
+        </td>
       </tr>
     );
   };
@@ -203,11 +212,29 @@ const TableView = ({ type, data, isShiftActive, onEdit }) => {
         <thead>
           <tr>
             {renderHeaders()}
-            {isShiftActive && <th>Actions</th>}
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
-          {data.map((entry, index) => renderRow(entry, index))}
+          {isLoading ? (
+            Array.from({ length: 3 }).map((_, rowIdx) => (
+              <tr key={rowIdx}>
+                {Array.from({ length: colCount }).map((_, colIdx) => (
+                  <td key={colIdx}>
+                    <div className="skeleton-bar" style={{ width: `${Math.floor(Math.random() * 40) + 45}%` }} />
+                  </td>
+                ))}
+              </tr>
+            ))
+          ) : data.length === 0 ? (
+            <tr>
+              <td colSpan={colCount} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+                No entries found for this shift.
+              </td>
+            </tr>
+          ) : (
+            data.map((entry, index) => renderRow(entry, index))
+          )}
         </tbody>
       </table>
     </div>

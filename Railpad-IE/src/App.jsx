@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import RawMaterialForm from './components/RawMaterialForm';
+import { rawMaterialWeighmentService } from './services/rawMaterialWeighmentService';
+import { mixingKneaderMillService } from './services/mixingKneaderMillService';
+import { hydraulicPressService } from './services/hydraulicPressService';
 import MixingForm from './components/MixingForm';
 import SheetingForm from './components/SheetingForm';
 import RheometerForm from './components/RheometerForm';
@@ -92,6 +95,7 @@ const App = () => {
   const [showForm, setShowForm] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [editIndex, setEditIndex] = useState(-1);
+  const [isViewOnly, setIsViewOnly] = useState(false);
   const [isShiftActive, setIsShiftActive] = useState(() => {
     return localStorage.getItem('railpad_ie_shift_active') === 'true';
   });
@@ -111,6 +115,7 @@ const App = () => {
     'pbr': [],
     'carbon-black': []
   });
+  const [isLoading, setIsLoading] = useState(false);
 
   const [selectedCallForInitiation, setSelectedCallForInitiation] = useState(() => {
     const saved = localStorage.getItem('railpad_ie_selected_call');
@@ -173,32 +178,374 @@ const App = () => {
     return null;
   }
 
-  const handleAddEntry = (newData) => {
-    const currentActiveCard = activeCard;
-    if (editIndex > -1) {
-      const newEntries = [...entries[currentActiveCard]];
-      newEntries[editIndex] = newData;
-      setEntries(prev => ({ ...prev, [currentActiveCard]: newEntries }));
-    } else {
-      setEntries(prev => ({
-        ...prev,
-        [currentActiveCard]: [newData, ...prev[currentActiveCard]]
-      }));
+  useEffect(() => {
+    const fetchRawMaterialWeighments = async () => {
+      if (isShiftActive && currentShift && currentShift.unit && currentShift.shift && currentShift.date) {
+        setIsLoading(true);
+        try {
+          const data = await rawMaterialWeighmentService.getByShiftAndDate(
+            currentShift.unit,
+            currentShift.shift,
+            currentShift.date
+          );
+          const mappedData = data.map(item => ({
+            id: item.id,
+            railPadType: item.railPadType,
+            batchNo: item.batchNo,
+            totalWeight: item.totalWeight,
+            acceptedMaterials: item.acceptedMaterials,
+            contract: item.contractSpecification,
+            materials: item.materials || [],
+            rubberPercentage: item.rubberPercentage,
+            status: item.status,
+            timestamp: item.timestamp
+          }));
+          setEntries(prev => ({
+            ...prev,
+            'raw-material': mappedData
+          }));
+        } catch (error) {
+          console.error('Error fetching raw material weighments:', error);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    const fetchMixingRecords = async () => {
+      if (isShiftActive && currentShift && currentShift.unit && currentShift.shift && currentShift.date) {
+        setIsLoading(true);
+        try {
+          const data = await mixingKneaderMillService.getByShiftAndDate(
+            currentShift.unit,
+            currentShift.shift,
+            currentShift.date
+          );
+          const mappedData = data.map(item => ({
+            id: item.id,
+            railPadType: item.railPadType,
+            batchNo: item.batchNo,
+            mixingTime: item.mixingTime,
+            mixingTemp: item.mixingTemp,
+            waterCirculation: item.waterCirculation,
+            dustCollector: item.dustCollector,
+            status: item.status,
+            timestamp: item.timestamp
+          }));
+          setEntries(prev => ({
+            ...prev,
+            'mixing': mappedData
+          }));
+        } catch (error) {
+          console.error('Error fetching mixing records:', error);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    const fetchHydraulicPressRecords = async () => {
+      if (isShiftActive && currentShift && currentShift.unit && currentShift.shift && currentShift.date) {
+        setIsLoading(true);
+        try {
+          const data = await hydraulicPressService.getByShiftAndDate(
+            currentShift.unit,
+            currentShift.shift,
+            currentShift.date
+          );
+          const mappedData = data.map(item => ({
+            id: item.id,
+            railPadType: item.railPadType,
+            batchNo: item.batchNo,
+            timeOfCheck: item.timeOfCheck,
+            curingTime: item.curingTime,
+            curingTemp: item.curingTemp,
+            curingPressure: item.curingPressure,
+            status: item.status,
+            timestamp: item.timestamp
+          }));
+          setEntries(prev => ({
+            ...prev,
+            'hydraulic-press': mappedData
+          }));
+        } catch (error) {
+          console.error('Error fetching hydraulic press records:', error);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    if (activeCard === 'raw-material') {
+      fetchRawMaterialWeighments();
+    } else if (activeCard === 'mixing') {
+      fetchMixingRecords();
+    } else if (activeCard === 'hydraulic-press') {
+      fetchHydraulicPressRecords();
     }
-    closeForm();
+  }, [isShiftActive, currentShift, activeCard]);
+
+  const handleAddEntry = async (newData) => {
+    const currentActiveCard = activeCard;
+    if (currentActiveCard === 'raw-material') {
+      try {
+        const payload = {
+          plantId: currentShift.unit,
+          vendorCode: currentShift.company,
+          shift: currentShift.shift,
+          castingDate: currentShift.date,
+          railPadType: newData.railPadType,
+          batchNo: String(newData.batchNo),
+          totalWeight: parseFloat(newData.totalWeight),
+          acceptedMaterials: newData.acceptedMaterials,
+          contractSpecification: newData.contract,
+          rubberPercentage: parseFloat(newData.rubberPercentage),
+          status: newData.status,
+          timestamp: newData.timestamp,
+          materials: newData.materials.map(m => ({
+            name: m.name,
+            weight: parseFloat(m.weight)
+          }))
+        };
+
+        if (editIndex > -1) {
+          const entryId = entries['raw-material'][editIndex].id;
+          const updated = await rawMaterialWeighmentService.update(entryId, payload);
+          const newEntries = [...entries['raw-material']];
+          newEntries[editIndex] = {
+            id: updated.id,
+            railPadType: updated.railPadType,
+            batchNo: updated.batchNo,
+            totalWeight: updated.totalWeight,
+            acceptedMaterials: updated.acceptedMaterials,
+            contract: updated.contractSpecification,
+            materials: updated.materials || [],
+            rubberPercentage: updated.rubberPercentage,
+            status: updated.status,
+            timestamp: updated.timestamp
+          };
+          setEntries(prev => ({ ...prev, 'raw-material': newEntries }));
+        } else {
+          const created = await rawMaterialWeighmentService.create(payload);
+          const mappedCreated = {
+            id: created.id,
+            railPadType: created.railPadType,
+            batchNo: created.batchNo,
+            totalWeight: created.totalWeight,
+            acceptedMaterials: created.acceptedMaterials,
+            contract: created.contractSpecification,
+            materials: created.materials || [],
+            rubberPercentage: created.rubberPercentage,
+            status: created.status,
+            timestamp: created.timestamp
+          };
+          setEntries(prev => ({
+            ...prev,
+            'raw-material': [mappedCreated, ...prev['raw-material']]
+          }));
+        }
+        closeForm();
+      } catch (error) {
+        console.error('Error saving raw material weighment:', error);
+        alert('Error saving raw material weighment: ' + error.message);
+      }
+    } else if (currentActiveCard === 'mixing') {
+      try {
+        const payload = {
+          plantId: currentShift.unit,
+          vendorCode: currentShift.company,
+          shift: currentShift.shift,
+          castingDate: currentShift.date,
+          railPadType: newData.railPadType,
+          batchNo: String(newData.batchNo),
+          mixingTime: parseFloat(newData.mixingTime),
+          mixingTemp: parseFloat(newData.mixingTemp),
+          waterCirculation: newData.waterCirculation,
+          dustCollector: newData.dustCollector,
+          status: newData.status,
+          timestamp: newData.timestamp
+        };
+
+        if (editIndex > -1) {
+          const entryId = entries['mixing'][editIndex].id;
+          const updated = await mixingKneaderMillService.update(entryId, payload);
+          const newEntries = [...entries['mixing']];
+          newEntries[editIndex] = {
+            id: updated.id,
+            railPadType: updated.railPadType,
+            batchNo: updated.batchNo,
+            mixingTime: updated.mixingTime,
+            mixingTemp: updated.mixingTemp,
+            waterCirculation: updated.waterCirculation,
+            dustCollector: updated.dustCollector,
+            status: updated.status,
+            timestamp: updated.timestamp
+          };
+          setEntries(prev => ({ ...prev, 'mixing': newEntries }));
+        } else {
+          const created = await mixingKneaderMillService.create(payload);
+          const mappedCreated = {
+            id: created.id,
+            railPadType: created.railPadType,
+            batchNo: created.batchNo,
+            mixingTime: created.mixingTime,
+            mixingTemp: created.mixingTemp,
+            waterCirculation: created.waterCirculation,
+            dustCollector: created.dustCollector,
+            status: created.status,
+            timestamp: created.timestamp
+          };
+          setEntries(prev => ({
+            ...prev,
+            'mixing': [mappedCreated, ...prev['mixing']]
+          }));
+        }
+        closeForm();
+      } catch (error) {
+        console.error('Error saving mixing record:', error);
+        alert('Error saving mixing record: ' + error.message);
+      }
+    } else if (currentActiveCard === 'hydraulic-press') {
+      try {
+        const payload = {
+          plantId: currentShift.unit,
+          vendorCode: currentShift.company,
+          shift: currentShift.shift,
+          castingDate: currentShift.date,
+          railPadType: newData.railPadType,
+          batchNo: String(newData.batchNo),
+          timeOfCheck: newData.timeOfCheck,
+          curingTime: parseFloat(newData.curingTime),
+          curingTemp: parseFloat(newData.curingTemp),
+          curingPressure: parseFloat(newData.curingPressure),
+          status: newData.status,
+          timestamp: newData.timestamp
+        };
+
+        if (editIndex > -1) {
+          const entryId = entries['hydraulic-press'][editIndex].id;
+          const updated = await hydraulicPressService.update(entryId, payload);
+          const newEntries = [...entries['hydraulic-press']];
+          newEntries[editIndex] = {
+            id: updated.id,
+            railPadType: updated.railPadType,
+            batchNo: updated.batchNo,
+            timeOfCheck: updated.timeOfCheck,
+            curingTime: updated.curingTime,
+            curingTemp: updated.curingTemp,
+            curingPressure: updated.curingPressure,
+            status: updated.status,
+            timestamp: updated.timestamp
+          };
+          setEntries(prev => ({ ...prev, 'hydraulic-press': newEntries }));
+        } else {
+          const created = await hydraulicPressService.create(payload);
+          const mappedCreated = {
+            id: created.id,
+            railPadType: created.railPadType,
+            batchNo: created.batchNo,
+            timeOfCheck: created.timeOfCheck,
+            curingTime: created.curingTime,
+            curingTemp: created.curingTemp,
+            curingPressure: created.curingPressure,
+            status: created.status,
+            timestamp: created.timestamp
+          };
+          setEntries(prev => ({
+            ...prev,
+            'hydraulic-press': [mappedCreated, ...prev['hydraulic-press']]
+          }));
+        }
+        closeForm();
+      } catch (error) {
+        console.error('Error saving hydraulic press record:', error);
+        alert('Error saving hydraulic press record: ' + error.message);
+      }
+    } else {
+      if (editIndex > -1) {
+        const newEntries = [...entries[currentActiveCard]];
+        newEntries[editIndex] = newData;
+        setEntries(prev => ({ ...prev, [currentActiveCard]: newEntries }));
+      } else {
+        setEntries(prev => ({
+          ...prev,
+          [currentActiveCard]: [newData, ...prev[currentActiveCard]]
+        }));
+      }
+      closeForm();
+    }
   };
 
   const handleEdit = (item, index) => {
     if (!isShiftActive) return;
     setEditItem(item);
     setEditIndex(index);
+    setIsViewOnly(false);
     setShowForm(true);
+  };
+
+  const handleView = (item, index) => {
+    setEditItem(item);
+    setEditIndex(index);
+    setIsViewOnly(true);
+    setShowForm(true);
+  };
+
+  const handleDelete = (item, index) => {
+    if (!isShiftActive) return;
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Delete Entry',
+      message: 'Are you sure you want to delete this entry? This action cannot be undone.',
+      type: 'danger',
+      confirmText: 'Delete',
+      onConfirm: async () => {
+        const currentActiveCard = activeCard;
+        if (currentActiveCard === 'raw-material') {
+          try {
+            await rawMaterialWeighmentService.delete(item.id);
+            const newEntries = entries['raw-material'].filter((_, idx) => idx !== index);
+            setEntries(prev => ({ ...prev, 'raw-material': newEntries }));
+          } catch (error) {
+            console.error('Error deleting raw material weighment:', error);
+            alert('Error deleting record: ' + error.message);
+          }
+        } else if (currentActiveCard === 'mixing') {
+          try {
+            if (item.id) {
+              await mixingKneaderMillService.delete(item.id);
+            }
+            const newEntries = entries['mixing'].filter((_, idx) => idx !== index);
+            setEntries(prev => ({ ...prev, 'mixing': newEntries }));
+          } catch (error) {
+            console.error('Error deleting mixing record:', error);
+            alert('Error deleting record: ' + error.message);
+          }
+        } else if (currentActiveCard === 'hydraulic-press') {
+          try {
+            if (item.id) {
+              await hydraulicPressService.delete(item.id);
+            }
+            const newEntries = entries['hydraulic-press'].filter((_, idx) => idx !== index);
+            setEntries(prev => ({ ...prev, 'hydraulic-press': newEntries }));
+          } catch (error) {
+            console.error('Error deleting hydraulic press record:', error);
+            alert('Error deleting record: ' + error.message);
+          }
+        } else {
+          const newEntries = entries[currentActiveCard].filter((_, idx) => idx !== index);
+          setEntries(prev => ({ ...prev, [currentActiveCard]: newEntries }));
+        }
+        setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+      }
+    });
   };
 
   const closeForm = () => {
     setShowForm(false);
     setEditItem(null);
     setEditIndex(-1);
+    setIsViewOnly(false);
   };
 
   const handleCompleteShift = () => {
@@ -820,6 +1167,9 @@ const App = () => {
                       data={entries[activeCard] || []}
                       isShiftActive={isShiftActive}
                       onEdit={handleEdit}
+                      onView={handleView}
+                      onDelete={handleDelete}
+                      isLoading={isLoading}
                     />
                   </div>
                 </div>
@@ -873,6 +1223,9 @@ const App = () => {
                       data={entries[activeCard] || []}
                       isShiftActive={isShiftActive}
                       onEdit={handleEdit}
+                      onView={handleView}
+                      onDelete={handleDelete}
+                      isLoading={isLoading}
                     />
                   </div>
                 </div>
@@ -926,13 +1279,16 @@ const App = () => {
                       data={entries[activeCard] || []}
                       isShiftActive={isShiftActive}
                       onEdit={handleEdit}
+                      onView={handleView}
+                      onDelete={handleDelete}
+                      isLoading={isLoading}
                     />
                   </div>
                 </div>
               </>
             ) : selectedModule === 'raw-material-verification' ? (
               <div className="fade-in">
-                <div className="verification-module-header" style={{ marginBottom: '24px' }}>
+                <div className="verification-module-header" style={{ marginBottom: '28px' }}>
                   <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#1e293b', marginBottom: '8px' }}>
                     Incoming Raw Material Verification
                   </h2>
@@ -941,122 +1297,208 @@ const App = () => {
                   </p>
                 </div>
 
-                {activeCard === 'verification-dashboard' ? (
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                    gap: '20px'
-                  }}>
-                    {VERIFICATION_SUB_CARDS.map(card => (
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  flexWrap: 'nowrap',
+                  overflowX: 'auto',
+                  gap: '12px',
+                  padding: '6px 4px 16px 4px',
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  marginBottom: '32px'
+                }}>
+                  {VERIFICATION_SUB_CARDS.map(card => {
+                    const isSelected = activeCard === card.id;
+                    return (
                       <div
                         key={card.id}
                         className="verification-card"
-                        onClick={() => setActiveCard(card.id)}
+                        onClick={() => setActiveCard(isSelected ? 'verification-dashboard' : card.id)}
                         style={{
-                          background: 'white',
-                          borderRadius: '16px',
-                          padding: '24px',
-                          border: '1px solid #e2e8f0',
+                          background: isSelected ? '#eff6ff' : 'white',
+                          borderRadius: '12px',
+                          padding: isSelected ? '11px 13px' : '12px 14px',
+                          border: isSelected ? '2px solid #3b82f6' : '2px solid #e2e8f0',
                           cursor: 'pointer',
-                          transition: 'all 0.3s ease',
-                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                          transition: 'all 0.2s ease',
+                          boxShadow: isSelected ? '0 4px 6px -1px rgba(59, 130, 246, 0.15)' : '0 1px 3px rgba(0,0,0,0.05)',
                           position: 'relative',
-                          overflow: 'hidden'
+                          overflow: 'hidden',
+                          flex: '1 0 150px',
+                          minWidth: '150px',
+                          maxWidth: '185px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          height: '82px',
+                          boxSizing: 'border-box'
                         }}
                         onMouseEnter={e => {
-                          e.currentTarget.style.transform = 'translateY(-4px)';
-                          e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)';
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = isSelected ? '0 6px 12px -1px rgba(59, 130, 246, 0.25)' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
                           e.currentTarget.style.borderColor = '#3b82f6';
                         }}
                         onMouseLeave={e => {
                           e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
-                          e.currentTarget.style.borderColor = '#e2e8f0';
+                          e.currentTarget.style.boxShadow = isSelected ? '0 4px 6px -1px rgba(59, 130, 246, 0.15)' : '0 1px 3px rgba(0,0,0,0.05)';
+                          e.currentTarget.style.borderColor = isSelected ? '#3b82f6' : '#e2e8f0';
                         }}
                       >
                         <div style={{
                           position: 'absolute',
                           top: 0,
-                          right: 0,
+                          left: 0,
                           width: '4px',
                           height: '100%',
                           background: card.pending > 0 ? '#ef4444' : '#10b981'
                         }} />
 
-                        <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', marginBottom: '16px' }}>
+                        <div style={{
+                          fontSize: '12px',
+                          fontWeight: '800',
+                          color: '#1e293b',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          paddingLeft: '4px'
+                        }}>
                           {card.title}
-                        </h3>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '500' }}>Balance Inventory</span>
-                            <span style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a' }}>{card.balance}</span>
-                          </div>
-
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '500' }}>Pending Verification</span>
-                            <div style={{
-                              background: card.pending > 0 ? '#fef2f2' : '#f0fdf4',
-                              color: card.pending > 0 ? '#991b1b' : '#166534',
-                              padding: '4px 12px',
-                              borderRadius: '20px',
-                              fontSize: '12px',
-                              fontWeight: '700'
-                            }}>
-                              {card.pending} {card.pending === 1 ? 'Entry' : 'Entries'}
-                            </div>
-                          </div>
                         </div>
 
                         <div style={{
-                          marginTop: '20px',
-                          paddingTop: '16px',
-                          borderTop: '1px solid #f1f5f9',
                           display: 'flex',
-                          alignItems: 'center',
                           justifyContent: 'space-between',
-                          color: '#3b82f6',
-                          fontSize: '13px',
-                          fontWeight: '600'
+                          alignItems: 'flex-end',
+                          paddingLeft: '4px',
+                          marginTop: '6px'
                         }}>
-                          <span>View Details</span>
-                          <span>→</span>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontSize: '8px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: '700', letterSpacing: '0.02em' }}>Balance</span>
+                            <span style={{ fontSize: '12px', fontWeight: '700', color: '#334155' }}>{card.balance}</span>
+                          </div>
+
+                          <div style={{
+                            background: card.pending > 0 ? '#fef2f2' : '#f0fdf4',
+                            color: card.pending > 0 ? '#dc2626' : '#15803d',
+                            padding: '3px 8px',
+                            borderRadius: '8px',
+                            fontSize: '9px',
+                            fontWeight: '800',
+                            border: `1px solid ${card.pending > 0 ? '#fecaca' : '#bbf7d0'}`,
+                            lineHeight: '1',
+                            textAlign: 'center'
+                          }}>
+                            {card.pending > 0 ? `${card.pending} Pnd` : 'OK'}
+                          </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="ie-content-area fade-in">
-                    <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    );
+                  })}
+                </div>
+
+                {activeCard !== 'verification-dashboard' && VERIFICATION_SUB_CARDS.some(c => c.id === activeCard) ? (
+                  <div className="fade-in" style={{
+                    background: 'white',
+                    borderRadius: '16px',
+                    border: '1px solid #e2e8f0',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                    overflow: 'hidden'
+                  }}>
+                    {/* Section Header */}
+                    <div style={{
+                      padding: '20px 24px',
+                      borderBottom: '1px solid #f1f5f9',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                        <div style={{
+                          width: '40px',
+                          height: '40px',
+                          borderRadius: '12px',
+                          background: 'linear-gradient(135deg, #0f766e 0%, #14b8a6 100%)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                          boxShadow: '0 2px 8px rgba(15, 118, 110, 0.25)'
+                        }}>
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                            <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                            <line x1="12" y1="22.08" x2="12" y2="12" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h3 style={{ fontSize: '17px', fontWeight: '800', color: '#0f172a', margin: 0, lineHeight: 1.3 }}>
+                            {VERIFICATION_SUB_CARDS.find(c => c.id === activeCard)?.title}
+                          </h3>
+                          <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 0 0', fontWeight: '500' }}>
+                            Review vendor submissions and verify incoming material
+                          </p>
+                        </div>
+                      </div>
                       <button
                         onClick={() => setActiveCard('verification-dashboard')}
                         style={{
                           background: 'white',
                           border: '1px solid #e2e8f0',
                           padding: '8px 16px',
-                          borderRadius: '8px',
+                          borderRadius: '10px',
                           cursor: 'pointer',
+                          fontSize: '13px',
+                          fontWeight: '600',
+                          color: '#64748b',
+                          transition: 'all 0.2s',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '8px',
-                          fontSize: '14px',
-                          fontWeight: '600',
-                          color: '#475569'
+                          gap: '6px',
+                          flexShrink: 0
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.borderColor = '#94a3b8';
+                          e.currentTarget.style.color = '#334155';
+                          e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.08)';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.borderColor = '#e2e8f0';
+                          e.currentTarget.style.color = '#64748b';
+                          e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)';
                         }}
                       >
-                        ← Back to Dashboard
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="15 18 9 12 15 6" />
+                        </svg>
+                        Reset
                       </button>
-                      <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b' }}>
-                        {VERIFICATION_SUB_CARDS.find(c => c.id === activeCard)?.title} - Pending Entries
-                      </h3>
                     </div>
 
-                    <div className="table-card">
+                    {/* Content */}
+                    <div style={{ padding: '20px 24px' }}>
                       <RawMaterialVerificationList
+                        key={activeCard}
                         materialId={activeCard}
                         loggedInUser={loggedInUser}
                       />
                     </div>
+                  </div>
+                ) : (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '48px 24px',
+                    color: '#64748b',
+                    background: '#f8fafc',
+                    borderRadius: '16px',
+                    border: '1px dashed #cbd5e1',
+                    marginTop: '8px'
+                  }}>
+                    <div style={{ fontSize: '28px', marginBottom: '12px' }}>👆</div>
+                    <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>No Material Selected</h3>
+                    <p style={{ fontSize: '14px', color: '#94a3b8' }}>Please select one of the material cards above to view and verify its pending entries.</p>
                   </div>
                 )}
               </div>
@@ -1087,6 +1529,7 @@ const App = () => {
               onSubmit={handleAddEntry}
               onCancel={closeForm}
               editData={editItem}
+              isViewOnly={isViewOnly}
             />
           )}
           {activeCard === 'mixing' && (
@@ -1094,6 +1537,8 @@ const App = () => {
               onSubmit={handleAddEntry}
               onCancel={closeForm}
               editData={editItem}
+              plantId={currentShift?.unit || selectedCallForInitiation?.plantId || "1"}
+              isViewOnly={isViewOnly}
             />
           )}
           {activeCard === 'sheeting' && (
@@ -1101,6 +1546,7 @@ const App = () => {
               onSubmit={handleAddEntry}
               onCancel={closeForm}
               editData={editItem}
+              isViewOnly={isViewOnly}
             />
           )}
           {activeCard === 'rheometer' && (
@@ -1108,6 +1554,7 @@ const App = () => {
               onSubmit={handleAddEntry}
               onCancel={closeForm}
               editData={editItem}
+              isViewOnly={isViewOnly}
             />
           )}
           {activeCard === 'mould-verification' && (
@@ -1117,6 +1564,7 @@ const App = () => {
               onCancel={closeForm}
               editData={editItem}
               currentShift={currentShift}
+              isViewOnly={isViewOnly}
             />
           )}
           {activeCard === 'hydraulic-press' && (
@@ -1125,6 +1573,7 @@ const App = () => {
               onCancel={closeForm}
               editData={editItem}
               currentShift={currentShift}
+              isViewOnly={isViewOnly}
             />
           )}
           {activeCard === 'visual-inspection' && (
@@ -1133,6 +1582,7 @@ const App = () => {
               onCancel={closeForm}
               editData={editItem}
               currentShift={currentShift}
+              isViewOnly={isViewOnly}
             />
           )}
         </div>

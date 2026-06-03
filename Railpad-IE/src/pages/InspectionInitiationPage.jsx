@@ -5,7 +5,17 @@ import { fetchInspectionCallSummary } from '../services/inspectionService';
 import ShiftDutyForm from '../components/ShiftDutyForm';
 import Notification from '../components/Notification';
 import { getBaseUrl, getDefaultHeaders } from '../services/apiConfig';
+import CustomSelect from '../components/common/CustomSelect';
 import './InspectionInitiationPage.css';
+
+const RAIL_PAD_OPTIONS = [
+  "6.00mm GRSP",
+  "10.00mm GRSP",
+  "6.20mm CGRSP",
+  "10.00mm CGRSP",
+  "6.00mm NCRGRSP",
+  "10.00mm NCRGRSP"
+];
 
 const InspectionInitiationPage = ({ call, onProceed, onBack, onUpdateCall }) => {
   const [loading, setLoading] = useState(true);
@@ -21,7 +31,7 @@ const InspectionInitiationPage = ({ call, onProceed, onBack, onUpdateCall }) => 
   const [sectionBExpanded, setSectionBExpanded] = useState(false);
 
   const [formState, setFormState] = useState({
-    railPadType: '6mm Rail Pad',
+    railPadType: '6.00mm GRSP',
     callQty: call?.callQty || '',
     qtyUnit: 'Nos',
     remarks: ''
@@ -370,15 +380,11 @@ const InspectionInitiationPage = ({ call, onProceed, onBack, onUpdateCall }) => 
                     </div>
                     <div className="data-item">
                       <label>Type of Rail Pad</label>
-                      <select 
-                        className="input-mock"
+                      <CustomSelect
+                        options={RAIL_PAD_OPTIONS}
                         value={formState.railPadType}
-                        onChange={(e) => setFormState({...formState, railPadType: e.target.value})}
-                      >
-                        <option value="6mm Rail Pad">6mm Rail Pad</option>
-                        <option value="10mm Rail Pad">10mm Rail Pad</option>
-                        <option value="Compounded Rail Pad">Compounded Rail Pad</option>
-                      </select>
+                        onChange={(val) => setFormState({...formState, railPadType: val})}
+                      />
                     </div>
                     <div className="data-item">
                       <label>PO_SR_QTY + UNIT</label>

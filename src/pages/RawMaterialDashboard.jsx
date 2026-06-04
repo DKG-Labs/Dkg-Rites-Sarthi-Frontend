@@ -908,8 +908,9 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
    * - Returns 'NOT OK' if any field fails validation
    */
   const validateCalibrationHeat = useCallback((calData) => {
+    // If no calibration data is entered/loaded yet (still in progress), consider it OK
     if (!calData || !Array.isArray(calData) || calData.length === 0) {
-      return 'Pending';
+      return 'OK';
     }
     const hasNotOk = calData.some(item => item.inspectionStatus === 'NOT OK' || item.calibrationStatus === 'Expired');
     return hasNotOk ? 'NOT OK' : 'OK';

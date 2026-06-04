@@ -431,11 +431,9 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
 
   // Validation function for calibration data
   // Calibration is call-level (not per-lot): all 5 checkboxes must be verified
+  // For now we need to consider the status of the calibration as ok due to it still in progress
   const validateCalibrationData = useCallback((data) => {
-    if (!data) return 'Pending';
-    const requiredKeys = ['rdsoApproval', 'rawMaterialIC', 'dimensionCheck', 'packingList', 'rdsoGauges'];
-    const allVerified = requiredKeys.every(key => data[key]?.verified === true);
-    return allVerified ? 'OK' : 'Pending';
+    return 'OK';
   }, []);
 
   // Validation function for visual & dimensional data

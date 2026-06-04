@@ -35,6 +35,7 @@ import SleeperShiftWiseProductionReport from './sleeper-board/SleeperShiftWisePr
 import SqcAnalysis from './SqcAnalysis';
 import PoIssuedModal from './PoIssuedModal';
 import InspectionCallStatusModal from './InspectionCallStatusModal';
+import DownloadIcAnnexures from './DownloadIcAnnexures';
 
 
 // --- Static Data moved outside component to fix ESLint re-render warnings ---
@@ -1107,6 +1108,7 @@ const ProfessionalCardSection = ({
                                                     case 'lwcl': return <RailPadLwcpReport />;
                                                     case 'swp': return <RailPadSwpReport />;
                                                     case 'qrp': return <RailPadQualityReport />;
+                                                    case 'ic_annexures': return <DownloadIcAnnexures selectedProduct="Rail Pad" fromDate={fromDate} toDate={toDate} />;
                                                     default: return <RailPadMprReport />;
                                                 }
                                             })()
@@ -1118,6 +1120,7 @@ const ProfessionalCardSection = ({
                                                     case 'lwcl': return <SleeperLwclReport lwclData={lwclData} loading={lwclLoading} callNo={lwclCallNo} setCallNo={setLwclCallNo} lotNo={lwclLotNo} setLotNo={setLwclLotNo} requestIds={lwclRequestIds} lotNumbers={lwclLotNumbers} />;
                                                     case 'swp': return <SleeperShiftWiseProductionReport />;
                                                     case 'sqr': return <SleeperQualityReport fromDate={fromDate} toDate={toDate} />;
+                                                    case 'ic_annexures': return <DownloadIcAnnexures selectedProduct="Sleeper" fromDate={fromDate} toDate={toDate} />;
                                                     default: return <SleeperMprReport mprData={mprData} />;
                                                 }
                                             })()
@@ -1460,6 +1463,8 @@ const ProfessionalCardSection = ({
                                                         return <ShiftWiseProductionReport />;
                                                     case 'pwmr':
                                                         return <PoWiseMonthlyReport fromDate={fromDate} toDate={toDate} />;
+                                                    case 'ic_annexures':
+                                                        return <DownloadIcAnnexures selectedProduct="ERC" fromDate={fromDate} toDate={toDate} />;
                                                     default:
                                                         return null;
                                                 }

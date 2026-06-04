@@ -1,0 +1,342 @@
+/* Download IC & Annexures CSS stylesheet */
+.ic-annexures-container {
+    padding: 10px;
+    animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.ic-filters-card {
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+}
+
+.ic-filters-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    align-items: flex-end;
+}
+
+.ic-filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.ic-filter-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.ic-filter-input,
+.ic-filter-select {
+    height: 38px;
+    padding: 8px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #1e293b;
+    background-color: #fff;
+    transition: all 0.2s ease;
+}
+
+.ic-filter-input:focus,
+.ic-filter-select:focus {
+    outline: none;
+    border-color: #10b981;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+.ic-filter-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.ic-btn-apply {
+    background: #10b981;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    padding: 0 20px;
+    height: 38px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2);
+}
+
+.ic-btn-apply:hover {
+    background: #059669;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+}
+
+.ic-btn-reset {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 0 20px;
+    height: 38px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.ic-btn-reset:hover {
+    background: #e2e8f0;
+    color: #1e293b;
+}
+
+.ic-summary-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.ic-stat-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+    border-left: 4px solid #cbd5e1;
+}
+
+.ic-stat-card.total { border-left-color: #6366f1; }
+.ic-stat-card.rm { border-left-color: #3b82f6; }
+.ic-stat-card.process { border-left-color: #eab308; }
+.ic-stat-card.final { border-left-color: #10b981; }
+
+.ic-stat-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+}
+
+.ic-stat-value {
+    font-size: 24px;
+    font-weight: 800;
+    color: #1e293b;
+    margin-top: 4px;
+}
+
+/* Table Actions & Styling */
+.ic-download-btn {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-weight: 600;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+    width: fit-content;
+}
+
+.ic-download-btn:hover {
+    background: #10b981;
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(16, 185, 129, 0.25);
+}
+
+.ic-stage-badge {
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.ic-stage-badge.rm {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+}
+
+.ic-stage-badge.process {
+    background: #fff7ed;
+    color: #c2410c;
+    border: 1px solid #ffedd5;
+}
+
+.ic-stage-badge.final {
+    background: #f0fdf4;
+    color: #15803d;
+    border: 1px solid #bbf7d0;
+}
+
+/* Download Modal Animation & Styling */
+.download-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    animation: fadeInModal 0.25s ease-out;
+}
+
+@keyframes fadeInModal {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.download-modal-card {
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 30px;
+    width: 90%;
+    max-width: 480px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    text-align: center;
+    animation: scaleInModal 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes scaleInModal {
+    from { transform: scale(0.9); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.download-animation-icon {
+    font-size: 40px;
+    color: #10b981;
+    margin-bottom: 15px;
+    animation: floatIcon 2s infinite ease-in-out;
+}
+
+@keyframes floatIcon {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+}
+
+.download-progress-track {
+    background: #e2e8f0;
+    border-radius: 10px;
+    height: 10px;
+    width: 100%;
+    overflow: hidden;
+    margin: 20px 0;
+}
+
+.download-progress-bar {
+    background: linear-gradient(90deg, #10b981, #34d399);
+    height: 100%;
+    border-radius: 10px;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.download-step-text {
+    font-size: 13px;
+    font-weight: 500;
+    color: #64748b;
+    margin-bottom: 5px;
+}
+
+.download-percent {
+    font-size: 24px;
+    font-weight: 800;
+    color: #1e293b;
+}
+
+.download-details-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px;
+    text-align: left;
+    margin-top: 15px;
+    font-size: 12px;
+}
+
+.download-detail-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.download-detail-row:last-child {
+    margin-bottom: 0;
+}
+
+.download-detail-label {
+    color: #64748b;
+    font-weight: 600;
+}
+
+.download-detail-value {
+    color: #1e293b;
+    font-weight: 700;
+}
+
+/* Actions Column Button Styles */
+.ic-view-btn {
+    background: #3b82f6;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 16px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.15);
+}
+
+.ic-view-btn:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+}
+
+.ic-annexures-btn {
+    background: none;
+    color: #1e293b;
+    border: none;
+    padding: 6px 12px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.ic-annexures-btn:hover {
+    color: #2563eb;
+    text-decoration: underline;
+}

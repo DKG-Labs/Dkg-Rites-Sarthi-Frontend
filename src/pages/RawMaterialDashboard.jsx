@@ -19,9 +19,10 @@ const getErcDivisor = (modelName) => {
   const normalizedModel = String(modelName).toUpperCase().replace(/\s+/g, '');
   if (normalizedModel.includes('MK-III') || normalizedModel.includes('MKIII')) return 0.928426;
   if (normalizedModel.includes('MK-V') || normalizedModel.includes('MKV')) return 1.133;
-  if (normalizedModel.includes('J-TYPE') || normalizedModel.includes('JTYPE') || normalizedModel === 'J') return 1.1;
+  if (normalizedModel.includes('J-TYPE') || normalizedModel.includes('JTYPE') || normalizedModel.includes('ERC-J') || normalizedModel === 'J') return 0.928;
   return 1.133; // Default fallback
 };
+
 
 // Reason options for withheld inspection
 const WITHHELD_REASONS = [
@@ -822,12 +823,15 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
   /**
    * Calculate No. of ERC (Finished) based on product model
    * MK-V:   Weight / 0.00114 (weight per clip in MT)
+   * ERC-J:  Weight * 1000 / 0.928 (weight per clip in MT)
    * MK-III: Weight / 0.000092 (weight per clip in MT)
    */
   const numberOfERC = useMemo(() => {
     const weightMT = parseFloat(totalQuantity) || 0;
     if (productModel === 'MK-V') {
       return Math.floor(weightMT / 0.00114);
+    } else if (productModel === 'ERC-J') {
+      return Math.floor((weightMT * 1000) / 0.928);
     } else {
       // MK-III
       return Math.floor(weightMT / 0.000092);

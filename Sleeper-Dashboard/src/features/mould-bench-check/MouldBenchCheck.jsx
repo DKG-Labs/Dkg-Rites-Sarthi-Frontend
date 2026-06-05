@@ -330,19 +330,13 @@ const MouldBenchCheck = ({ onBack, sharedState, initialModule, initialViewMode, 
         });
     }, [normalizedRecords, searchBench, filterLocType, filterResult]);
 
-    // Init Location Form fields from context
+    // Init Location Form fields
     useEffect(() => {
         if (!editingEntry) {
-            const locName = activeContainer?.name || '';
-            if (locName.toLowerCase().includes('shed')) {
-                setLocationType('Shed');
-                setLocationDetail(locName.replace(/shed/i, '').trim());
-            } else {
-                setLocationType('Long Line');
-                setLocationDetail(locName.replace(/long\s*line/i, '').replace(/line/i, '').trim());
-            }
+            setLocationType('Long Line');
+            setLocationDetail('');
         }
-    }, [activeContainer, editingEntry]);
+    }, [editingEntry]);
 
     // Load entry into form for editing
     useEffect(() => {
@@ -350,11 +344,10 @@ const MouldBenchCheck = ({ onBack, sharedState, initialModule, initialViewMode, 
             const loc = editingEntry.location || '';
             if (loc.toLowerCase().includes('shed')) {
                 setLocationType('Shed');
-                setLocationDetail(loc.replace(/shed/i, '').trim());
             } else {
                 setLocationType('Long Line');
-                setLocationDetail(loc.replace(/long\s*line/i, '').replace(/line/i, '').trim());
             }
+            setLocationDetail(loc);
 
             const parsed = parseCombinedRemarks(editingEntry.combinedRemarks || editingEntry.remarks);
             setGeneralRemarks(parsed.userRemarks || '');

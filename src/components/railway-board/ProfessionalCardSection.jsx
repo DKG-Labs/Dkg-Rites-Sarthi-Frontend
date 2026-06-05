@@ -1259,7 +1259,7 @@ const ProfessionalCardSection = ({
                                                         );
                                                     case 'lwcl':
                                                         return (
-                                                            <div className="prof-card animate-up">
+                                                            <div className="prof-card animate-up lwcl-card" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 240px)', minHeight: '400px', boxSizing: 'border-box', overflow: 'hidden' }}>
                                                                 <div className="sec-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                                     <span>Lot Wise Closed Loop</span>
                                                                     {level4Data && level4Data.length > 0 && (
@@ -1522,6 +1522,32 @@ const ProfessionalCardSection = ({
 export default ProfessionalCardSection;
 
 const Level4ReportTable = ({ data }) => {
+    const wrapperRef = React.useRef(null);
+
+    useEffect(() => {
+        // Lock body/window scroll so ONLY the table container scrolls internally
+        const prevBodyOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        
+        // Also lock main-content
+        const mainContent = document.querySelector('.main-content');
+        const prevMainOverflow = mainContent ? mainContent.style.overflow : '';
+        if (mainContent) mainContent.style.overflow = 'hidden';
+
+        // Measure actual available height and set it directly on the wrapper
+        if (wrapperRef.current) {
+            const rect = wrapperRef.current.getBoundingClientRect();
+            const available = window.innerHeight - rect.top - 8;
+            wrapperRef.current.style.height = available + 'px';
+            wrapperRef.current.style.maxHeight = available + 'px';
+        }
+
+        return () => {
+            document.body.style.overflow = prevBodyOverflow;
+            if (mainContent) mainContent.style.overflow = prevMainOverflow;
+        };
+    }, []);
+
     if (!data || data.length === 0) {
         return (
             <div className="p-8 text-center text-slate-400">
@@ -1530,47 +1556,52 @@ const Level4ReportTable = ({ data }) => {
         );
     }
 
+    // Inline sticky styles — guaranteed to override any global CSS
+    const stickyTop = { position: 'sticky', top: 0, zIndex: 52 };
+    const stickyBot = { position: 'sticky', top: '42px', zIndex: 51 };
+    const greenBg  = { background: '#d1fae5', color: '#065f46' };
+    const emerBg   = { background: '#a7f3d0', color: '#064e3b' };
+    const redBg    = { background: '#fee2e2', color: '#991b1b' };
+
     return (
-        <div className="report-table-wrapper sticky-header level-4-enhanced">
+        <div ref={wrapperRef} className="report-table-wrapper sticky-header level-4-enhanced" style={{ overflowY: 'auto', overflowX: 'auto', minHeight: '200px' }}>
             <table className="report-data-table level-4-table">
                 <thead>
-                    <tr>
-                        <th rowSpan="2">DATE</th>
-                        <th rowSpan="2">SHIFT</th>
-                        <th rowSpan="2">PO_SR. NO.</th>
-                        <th rowSpan="2">LOT NO.</th>
-                        <th rowSpan="2" className="bg-emerald-50 text-emerald-700">Accepted Qty (Nos.)</th>
-                        <th rowSpan="2" className="bg-red-50 text-red-700">Rejected Qty (Nos.)</th>
-
-                        <th colSpan="2" className="stage-header shearing">SHEARING</th>
-                        <th colSpan="2" className="stage-header turning">TURNING</th>
-                        <th colSpan="2" className="stage-header mpi">MPI</th>
-                        <th colSpan="2" className="stage-header forging">FORGING</th>
-                        <th colSpan="2" className="stage-header quenching">QUENCHING</th>
-                        <th colSpan="2" className="stage-header tempering">TEMPERING</th>
-
-                        <th colSpan="4" className="defect-header shearing">Shearing Defects</th>
-                        <th colSpan="3" className="defect-header turning">Turning Defects</th>
-                        <th colSpan="1" className="defect-header mpi">MPI</th>
-                        <th colSpan="4" className="defect-header forging">Forging Defects</th>
-                        <th colSpan="1" className="defect-header quenching">Quenching</th>
-                        <th colSpan="2" className="defect-header tempering">TEMPERING DEFECTS</th>
-                        <th colSpan="2" className="defect-header dimensional">Dimensional</th>
+                    <tr style={{ height: '42px' }}>
+                        <th rowSpan="2" style={{ ...stickyTop, ...greenBg }} className="bg-green-header">DATE</th>
+                        <th rowSpan="2" style={{ ...stickyTop, ...greenBg }} className="bg-green-header">SHIFT</th>
+                        <th rowSpan="2" style={{ ...stickyTop, ...greenBg }} className="bg-green-header">PO_SR. NO.</th>
+                        <th rowSpan="2" style={{ ...stickyTop, ...greenBg }} className="bg-green-header">LOT NO.</th>
+                        <th rowSpan="2" style={{ ...stickyTop, ...emerBg }} className="bg-emerald-header">Accepted Qty (Nos.)</th>
+                        <th rowSpan="2" style={{ ...stickyTop, ...redBg }} className="bg-red-header">Rejected Qty (Nos.)</th>
+                        <th colSpan="2" className="stage-header shearing" style={stickyTop}>SHEARING</th>
+                        <th colSpan="2" className="stage-header turning" style={stickyTop}>TURNING</th>
+                        <th colSpan="2" className="stage-header mpi" style={stickyTop}>MPI</th>
+                        <th colSpan="2" className="stage-header forging" style={stickyTop}>FORGING</th>
+                        <th colSpan="2" className="stage-header quenching" style={stickyTop}>QUENCHING</th>
+                        <th colSpan="2" className="stage-header tempering" style={stickyTop}>TEMPERING</th>
+                        <th colSpan="4" className="defect-header shearing" style={stickyTop}>Shearing Defects</th>
+                        <th colSpan="3" className="defect-header turning" style={stickyTop}>Turning Defects</th>
+                        <th colSpan="1" className="defect-header mpi" style={stickyTop}>MPI</th>
+                        <th colSpan="4" className="defect-header forging" style={stickyTop}>Forging Defects</th>
+                        <th colSpan="1" className="defect-header quenching" style={stickyTop}>Quenching</th>
+                        <th colSpan="2" className="defect-header tempering" style={stickyTop}>TEMPERING DEFECTS</th>
+                        <th colSpan="2" className="defect-header dimensional" style={stickyTop}>Dimensional</th>
                     </tr>
-                    <tr className="sub-header">
-                        <th>Prod</th><th>Rej</th>
-                        <th>Prod</th><th>Rej</th>
-                        <th>Prod</th><th>Rej</th>
-                        <th>Prod</th><th>Rej</th>
-                        <th>Prod</th><th>Rej</th>
-                        <th>Prod</th><th>Rej</th>
-                        <th>Cut Len</th><th>Ovality</th><th>Sharp Edges</th><th>Cracks</th>
-                        <th>Pass Len</th><th>Full Turn</th><th>Turn Dia</th>
-                        <th>MPI Rej</th>
-                        <th>Forge Temp</th><th>Stabilise</th><th>Improper</th><th>Defect</th>
-                        <th>Hardness</th>
-                        <th>Temp.</th><th>Dist.</th>
-                        <th>Box Gauge</th><th>Bearing Area</th>
+                    <tr className="sub-header" style={{ height: '36px' }}>
+                        <th style={stickyBot}>Prod</th><th style={stickyBot}>Rej</th>
+                        <th style={stickyBot}>Prod</th><th style={stickyBot}>Rej</th>
+                        <th style={stickyBot}>Prod</th><th style={stickyBot}>Rej</th>
+                        <th style={stickyBot}>Prod</th><th style={stickyBot}>Rej</th>
+                        <th style={stickyBot}>Prod</th><th style={stickyBot}>Rej</th>
+                        <th style={stickyBot}>Prod</th><th style={stickyBot}>Rej</th>
+                        <th style={stickyBot}>Cut Len</th><th style={stickyBot}>Ovality</th><th style={stickyBot}>Sharp Edges</th><th style={stickyBot}>Cracks</th>
+                        <th style={stickyBot}>Pass Len</th><th style={stickyBot}>Full Turn</th><th style={stickyBot}>Turn Dia</th>
+                        <th style={stickyBot}>MPI Rej</th>
+                        <th style={stickyBot}>Forge Temp</th><th style={stickyBot}>Stabilise</th><th style={stickyBot}>Improper</th><th style={stickyBot}>Defect</th>
+                        <th style={stickyBot}>Hardness</th>
+                        <th style={stickyBot}>Temp.</th><th style={stickyBot}>Dist.</th>
+                        <th style={stickyBot}>Box Gauge</th><th style={stickyBot}>Bearing Area</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1612,33 +1643,62 @@ const Level4ReportTable = ({ data }) => {
             </table>
             <style jsx="true">{`
                 .level-4-enhanced.sticky-header {
-                    max-height: 75vh;
-                    overflow: auto;
+                    overflow: auto !important;
                     border-radius: 12px;
                     border: 1px solid #e2e8f0;
                     box-shadow: 0 4px 15px rgba(0,0,0,0.05);
                 }
                 
                 .level-4-table {
-                    border-collapse: separate;
-                    border-spacing: 0;
+                    border-collapse: separate !important;
+                    border-spacing: 0 !important;
                     width: 100%;
                 }
                 
                 .level-4-table thead th {
-                    position: sticky;
-                    top: 0;
-                    z-index: 50;
-                    background: #f8fafc !important;
+                    position: sticky !important;
+                    top: 0 !important;
+                    z-index: 50 !important;
                     box-shadow: inset 0 -1px 0 #e2e8f0, inset 0 1px 0 #e2e8f0;
-                    padding: 12px 8px;
-                    font-size: 11px;
-                    white-space: nowrap;
+                    padding: 8px 8px !important;
+                    font-size: 11px !important;
+                    white-space: nowrap !important;
+                    box-sizing: border-box !important;
+                    vertical-align: middle !important;
+                }
+                
+                .level-4-table thead th:not(.bg-green-header):not(.bg-emerald-header):not(.bg-red-header) {
+                    background: #f8fafc !important;
                 }
                 
                 .level-4-table thead tr:nth-child(2) th {
-                    top: 41px;
-                    z-index: 49;
+                    position: sticky !important;
+                    top: 42px !important;
+                    z-index: 49 !important;
+                    box-sizing: border-box !important;
+                    padding: 6px 8px !important;
+                    font-size: 10px !important;
+                    vertical-align: middle !important;
+                    white-space: nowrap !important;
+                }
+
+                .level-4-table thead tr:nth-child(2) th:not(.bg-green-header):not(.bg-emerald-header):not(.bg-red-header) {
+                    background: #ffffff !important;
+                }
+
+                .bg-green-header {
+                    background: #d1fae5 !important;
+                    color: #065f46 !important;
+                }
+                
+                .bg-emerald-header {
+                    background: #ecfdf5 !important;
+                    color: #047857 !important;
+                }
+                
+                .bg-red-header {
+                    background: #fef2f2 !important;
+                    color: #b91c1c !important;
                 }
                 
                 .level-4-table td {

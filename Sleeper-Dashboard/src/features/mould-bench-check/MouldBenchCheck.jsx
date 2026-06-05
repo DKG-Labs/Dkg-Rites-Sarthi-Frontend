@@ -775,16 +775,15 @@ const MouldBenchCheck = ({ onBack, sharedState, initialModule, initialViewMode, 
                                         <div className="rejection-card-title">
                                             ⚠️ Reason for Rejection Detail
                                         </div>
-                                        <div className="rejection-grid-container">
-                                            <div className="rejection-grid">
+                                        <div className="rejection-grid-container" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                                                 {rejectionRows.map((row, index) => {
                                                     const benchNotOk = row.benchStatus === 'Not OK';
                                                     const mouldNotOk = row.mouldStatus === 'Not OK';
 
                                                     return (
-                                                        <React.Fragment key={row.id}>
+                                                        <div key={row.id} className="rejection-bench-row" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', paddingBottom: '0.75rem', borderBottom: index < rejectionRows.length - 1 ? '1px dashed rgba(239, 68, 68, 0.15)' : 'none' }}>
                                                             {benchNotOk && (
-                                                                <div className="rejection-item-card">
+                                                                <div className="rejection-item-card" style={{ flex: '1 1 320px' }}>
                                                                     <div className="rejection-item-header">
                                                                         <span className="rejection-item-tag">Bench: {row.benchGangNo || `Row ${index + 1}`}</span>
                                                                         <span className="rejection-item-type bench">Bench failure</span>
@@ -821,7 +820,7 @@ const MouldBenchCheck = ({ onBack, sharedState, initialModule, initialViewMode, 
                                                             )}
 
                                                             {mouldNotOk && (
-                                                                <div className="rejection-item-card">
+                                                                <div className="rejection-item-card" style={{ flex: '1 1 320px' }}>
                                                                     <div className="rejection-item-header">
                                                                         <span className="rejection-item-tag">Mould on Bench: {row.benchGangNo || `Row ${index + 1}`}</span>
                                                                         <span className="rejection-item-type mould">Mould failure</span>
@@ -856,10 +855,9 @@ const MouldBenchCheck = ({ onBack, sharedState, initialModule, initialViewMode, 
                                                                     </div>
                                                                 </div>
                                                             )}
-                                                        </React.Fragment>
+                                                        </div>
                                                     );
                                                 })}
-                                            </div>
                                         </div>
                                     </div>
                                 )}

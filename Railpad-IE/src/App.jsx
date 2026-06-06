@@ -845,6 +845,11 @@ const App = () => {
                   ...updatedData
                 }));
               }}
+              onPauseComplete={() => {
+                localStorage.setItem('railpad_ie_active_item', 'ATTENDING_CALLS');
+                setActiveItem('ATTENDING_CALLS');
+                window.location.reload();
+              }}
             />
           </div>
         </div>

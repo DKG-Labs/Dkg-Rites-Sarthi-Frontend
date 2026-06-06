@@ -43,7 +43,18 @@ export const performTransitionAction = async (actionData) => {
       },
       body: JSON.stringify(actionData)
     });
+    if (!response.ok) {
+      let errorMsg = 'Failed to perform workflow transition';
+      try {
+        const errJson = await response.json();
+        errorMsg = errJson?.responseStatus?.message || errJson?.message || errorMsg;
+      } catch (e) {}
+      throw new Error(errorMsg);
+    }
     const data = await response.json();
+    if (data?.responseStatus && data.responseStatus.statusCode !== 0) {
+      throw new Error(data.responseStatus.message || 'Workflow transition failed');
+    }
     return data;
   } catch (error) {
     console.error('Error performing transition:', error);

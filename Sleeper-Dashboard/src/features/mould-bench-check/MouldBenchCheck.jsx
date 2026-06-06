@@ -328,6 +328,9 @@ const MouldBenchCheck = ({ onBack, sharedState, initialModule, initialViewMode, 
             
             return matchesSearch && matchesLocType && matchesResult;
         });
+
+        // Sort recent logs on top
+        return filtered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     }, [normalizedRecords, searchBench, filterLocType, filterResult]);
 
     // Init Location Form fields
@@ -564,7 +567,7 @@ const MouldBenchCheck = ({ onBack, sharedState, initialModule, initialViewMode, 
                 <div className="sub-cards-grid">
                     <SubCard
                         id="summary"
-                        title="Quality Summary"
+                        title={<>Quality Summary <span style={{ fontSize: '10px', color: '#ef4444', marginLeft: '4px' }}>(Under Construction)</span></>}
                         color="#42818c"
                         count={allAssets?.length || 12}
                         isActive={activeModule === 'summary'}
@@ -991,14 +994,14 @@ const MouldBenchCheck = ({ onBack, sharedState, initialModule, initialViewMode, 
                                 <table className="ui-table">
                                     <thead>
                                         <tr>
-                                            <th>Date of Checking</th>
-                                            <th>Location</th>
-                                            <th>Bench Number</th>
-                                            <th>Bench Observation</th>
-                                            <th>Mould Observation</th>
-                                            <th>Overall Result</th>
-                                            <th>Reason for Not OK</th>
-                                            <th>Checked By</th>
+                                            <th style={{ width: '10%' }}>Date of Checking</th>
+                                            <th style={{ width: '10%' }}>Location</th>
+                                            <th style={{ width: '10%' }}>Bench Number</th>
+                                            <th style={{ width: '13%' }}>Bench Observation</th>
+                                            <th style={{ width: '13%' }}>Mould Observation</th>
+                                            <th style={{ width: '10%' }}>Overall Result</th>
+                                            <th style={{ width: '22%' }}>Reason for Not OK</th>
+                                            <th style={{ width: '12%' }}>Checked By</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -1029,7 +1032,7 @@ const MouldBenchCheck = ({ onBack, sharedState, initialModule, initialViewMode, 
                                                             {record.overallResult}
                                                         </span>
                                                     </td>
-                                                    <td>
+                                                    <td style={{ maxWidth: '280px', whiteSpace: 'normal', wordBreak: 'break-word', fontSize: '12px', lineHeight: '1.4' }}>
                                                         {getReasonForNotOk(record)}
                                                     </td>
                                                     <td>IE Engineer ({record.createdBy || 'Unknown'})</td>

@@ -449,7 +449,11 @@ const AnnexurePage = ({ onBack }) => {
             </div>
             <div className="info-card">
               <span className="info-label">DATE</span>
-              <span className="info-value">15/04/2026</span>
+              <span className="info-value">
+                {selectedCall.icIssuedDate 
+                  ? new Date(selectedCall.icIssuedDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) 
+                  : '15/04/2026'}
+              </span>
             </div>
             <div className="info-card">
               <span className="info-label">PRODUCT TYPE</span>

@@ -1185,7 +1185,7 @@ thead th:hover {
 .reports-tab-content {
     animation: fadeIn 0.4s ease-out;
     max-width: 100%;
-    overflow-x: hidden;
+    overflow: visible;
 }
 
 .report-viewer-content {
@@ -1193,7 +1193,7 @@ thead th:hover {
     flex-direction: column;
     gap: 1.5rem;
     max-width: 100%;
-    overflow-x: hidden;
+    overflow: visible;
     min-width: 0;
 }
 
@@ -1286,7 +1286,6 @@ thead th:hover {
     font-size: 0.8125rem;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
-    overflow: hidden;
 }
 
 .report-data-table th:first-child {
@@ -1703,17 +1702,29 @@ tr.row-even td {
     }
 }
 
+/* LWCL card: no hover lift (transform breaks sticky positioning in children) */
+.lwcl-card {
+    transform: none !important;
+    will-change: unset !important;
+}
+.lwcl-card:hover {
+    transform: none !important;
+}
+
 /* --- Level 4 Enhanced Table Styles (Shift Wise Defect Breakdown) --- */
 .level-4-enhanced {
     width: 100%;
     max-width: 100%;
     overflow-x: auto;
+    overflow-y: auto;
     display: block;
     border-radius: 16px;
     box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.1);
     background: white;
     margin-top: 1rem;
     border: 1px solid #e2e8f0;
+    flex: 1;
+    min-height: 0;
 }
 
 .level-4-table {
@@ -1730,9 +1741,9 @@ tr.row-even td {
     border: 1px solid #e2e8f0;
     vertical-align: middle;
     text-align: center;
-    position: sticky;
-    top: 0;
-    z-index: 10;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 50 !important;
 }
 
 .level-4-table thead tr:first-child th {
@@ -1742,11 +1753,13 @@ tr.row-even td {
 }
 
 .level-4-table thead .sub-header th {
-    background: #ffffff;
+    background: #ffffff !important;
     color: #64748b;
     font-weight: 700;
     font-size: 0.65rem;
-    top: 41px;
+    position: sticky !important;
+    top: 41px !important;
+    z-index: 49 !important;
 }
 
 .stage-header {

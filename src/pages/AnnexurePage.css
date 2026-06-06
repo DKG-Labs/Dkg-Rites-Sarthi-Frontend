@@ -675,3 +675,16 @@
 .btn-view-annexure:hover {
   filter: brightness(0.98);
 }
+
+/* Scrollable Annexure Wrapper to prevent table clipping in dashboard layout */
+.annexure-content {
+  width: 100%;
+  overflow-x: auto !important;
+  background: transparent;
+  padding-bottom: 15px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.annexure-content > div {
+  max-width: none !important;
+}

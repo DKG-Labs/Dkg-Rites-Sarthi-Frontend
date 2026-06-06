@@ -103,7 +103,7 @@ const SleeperProcessDuty = () => {
         { id: 'Wire Tensioning', title: 'Wire Tensioning', description: 'Long line wire pressure monitoring' },
         { id: 'Compaction of Concrete (Vibrator Report)', title: 'Compaction Performance', description: 'Scada vibrator frequency logs' },
         { id: 'Steam Curing', title: 'Steam Curing', description: 'Chamber temperature profile logs' },
-        { id: 'Mould & Bench Checking', title: 'Mould & Bench Checking', description: 'Asset integrity & dimensional check', isUnderDevelopment: true },
+        { id: 'Mould & Bench Checking', title: 'Mould & Bench Checking', description: 'Asset integrity & dimensional check' },
         { id: 'Steam Cube Testing', title: 'Steam Cube Testing', description: '7-hour & 28-day strength analysis' },
         { id: 'Epoxy Treated Sleepers', title: 'Epoxy Treated Sleepers', description: 'Digital defect log & tracking' },
         { id: 'Raw Material Inventory', title: 'Inventory Levels', description: 'Daily stock & consumption tracking', isUnderDevelopment: true }

@@ -1,6 +1,16 @@
 import React, { useState, useMemo } from 'react';
 import './PoIssuedModal.css'; // Reuses modal styles for consistency
 
+const formatPoSrNo = (value) => {
+    if (!value) return '-';
+    const parts = value.split('/');
+    // If format is Zone/PO/PO/Serial (4 parts with duplicate middle), collapse to Zone/PO/Serial
+    if (parts.length === 4 && parts[1] === parts[2]) {
+        return `${parts[0]}/${parts[1]}/${parts[3]}`;
+    }
+    return value;
+};
+
 const InspectionCallStatusModal = ({ isOpen, onClose, data, title }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedStatus, setSelectedStatus] = useState('all');
@@ -10,14 +20,14 @@ const InspectionCallStatusModal = ({ isOpen, onClose, data, title }) => {
     const filteredData = useMemo(() => {
         if (!data) return [];
         return data.filter(item => {
-            const matchesSearch = 
+            const matchesSearch =
                 (item.inspectionCallNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                 (item.vendor || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                 (item.poSrNo || '').toLowerCase().includes(searchTerm.toLowerCase());
-            
+
             const matchesStatus = selectedStatus === 'all' || item.status === selectedStatus;
             const matchesStage = selectedStage === 'all' || item.stageOfInspection === selectedStage;
-            
+
             return matchesSearch && matchesStatus && matchesStage;
         });
     }, [data, searchTerm, selectedStatus, selectedStage]);
@@ -31,13 +41,13 @@ const InspectionCallStatusModal = ({ isOpen, onClose, data, title }) => {
                     <h2>{title} - Call Details</h2>
                     <button className="close-btn" onClick={onClose}>&times;</button>
                 </div>
-                
+
                 <div className="modal-filters">
                     <div className="filter-group">
                         <label>Search</label>
-                        <input 
-                            type="text" 
-                            placeholder="Search Call No, Vendor, PO..." 
+                        <input
+                            type="text"
+                            placeholder="Search Call No, Vendor, PO..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="modal-search-input"
@@ -45,8 +55,8 @@ const InspectionCallStatusModal = ({ isOpen, onClose, data, title }) => {
                     </div>
                     <div className="filter-group">
                         <label>Status Filter</label>
-                        <select 
-                            value={selectedStatus} 
+                        <select
+                            value={selectedStatus}
                             onChange={(e) => setSelectedStatus(e.target.value)}
                             className="modal-select"
                         >
@@ -57,8 +67,8 @@ const InspectionCallStatusModal = ({ isOpen, onClose, data, title }) => {
                     </div>
                     <div className="filter-group">
                         <label>Stage Filter</label>
-                        <select 
-                            value={selectedStage} 
+                        <select
+                            value={selectedStage}
                             onChange={(e) => setSelectedStage(e.target.value)}
                             className="modal-select"
                         >
@@ -77,9 +87,9 @@ const InspectionCallStatusModal = ({ isOpen, onClose, data, title }) => {
                                 <th>Sl No.</th>
                                 <th>Inspection Call Number</th>
                                 <th>Vendor</th>
-                                <th>Call Submission Date & Time</th>
+                                <th>Call Submission Date &amp; Time</th>
                                 <th>Stage of Inspection</th>
-                                <th>PO Sr. No. (Rly code + PO No. + Sr. NO.)</th>
+                                <th>PO Sr.No.</th>
                                 <th>DP Date</th>
                                 <th>Status</th>
                             </tr>
@@ -93,7 +103,7 @@ const InspectionCallStatusModal = ({ isOpen, onClose, data, title }) => {
                                         <td>{item.vendor}</td>
                                         <td>{item.callSubmissionDateTime || '-'}</td>
                                         <td>
-                                            <span className={`prof-badge`} style={{
+                                            <span className="prof-badge" style={{
                                                 background: item.stageOfInspection === 'RM Stage' ? '#eff6ff' : item.stageOfInspection === 'Process Stage' ? '#fff7ed' : '#fef2f2',
                                                 color: item.stageOfInspection === 'RM Stage' ? '#2563eb' : item.stageOfInspection === 'Process Stage' ? '#d97706' : '#dc2626',
                                                 fontSize: '11px',
@@ -104,7 +114,7 @@ const InspectionCallStatusModal = ({ isOpen, onClose, data, title }) => {
                                                 {item.stageOfInspection}
                                             </span>
                                         </td>
-                                        <td style={{ fontSize: '12px', fontFamily: 'monospace' }}>{item.poSrNo}</td>
+                                        <td style={{ fontSize: '12px', fontFamily: 'monospace' }}>{formatPoSrNo(item.poSrNo)}</td>
                                         <td>{item.dpDate || '-'}</td>
                                         <td>
                                             <span style={{
@@ -112,7 +122,7 @@ const InspectionCallStatusModal = ({ isOpen, onClose, data, title }) => {
                                                 fontWeight: '800',
                                                 fontSize: '12px'
                                             }}>
-                                                ● {item.status}
+                                                &#9679; {item.status}
                                             </span>
                                         </td>
                                     </tr>
@@ -125,7 +135,7 @@ const InspectionCallStatusModal = ({ isOpen, onClose, data, title }) => {
                         </tbody>
                     </table>
                 </div>
-                
+
                 <div className="modal-footer">
                     <span>Total Records: {filteredData.length}</span>
                     <button className="btn-close-modal" onClick={onClose}>Close</button>

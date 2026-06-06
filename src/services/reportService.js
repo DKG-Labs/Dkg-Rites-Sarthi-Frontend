@@ -688,7 +688,53 @@ const reportService = {
             headers: getAuthHeaders(),
         });
         return handleResponse(response);
+    },
+
+    /**
+     * Get distinct company names from vendor_plant table
+     * Hits: /api/sleeper-dashboard/vendor-plant/companies
+     */
+    getSleeperVendorPlantCompanies: async () => {
+        const url = `${API_ENDPOINTS.SLEEPER_DASHBOARD}/vendor-plant/companies`;
+        const response = await fetch(url, { headers: getAuthHeaders() });
+        return handleResponse(response);
+    },
+
+    /**
+     * Get plants by company name from vendor_plant table
+     * Hits: /api/sleeper-dashboard/vendor-plant/plants?companyName={companyName}
+     * @param {string} companyName
+     */
+    getSleeperVendorPlantsByCompany: async (companyName) => {
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/vendor-plant/plants`);
+        url.searchParams.append('companyName', companyName);
+        const response = await fetch(url.toString(), { headers: getAuthHeaders() });
+        return handleResponse(response);
+    },
+
+    /**
+     * Get Sleeper Shift Wise Production Report data
+     * Hits: /api/sleeper-dashboard/shift-wise-production?startDate={}&endDate={}&plantId={}
+     * @param {Object} params - { startDate, endDate, plantId }
+     */
+    getSleeperShiftWiseProduction: async (params) => {
+        const { startDate, endDate, plantId } = params || {};
+
+        const formatDate = (dateStr) => {
+            if (!dateStr || !dateStr.includes('-')) return dateStr;
+            const [year, month, day] = dateStr.split('-');
+            return `${day}/${month}/${year}`;
+        };
+
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/shift-wise-production`);
+        if (startDate) url.searchParams.append('startDate', formatDate(startDate));
+        if (endDate) url.searchParams.append('endDate', formatDate(endDate));
+        if (plantId) url.searchParams.append('plantId', plantId);
+
+        const response = await fetch(url.toString(), { headers: getAuthHeaders() });
+        return handleResponse(response);
     }
 };
 
 export default reportService;
+

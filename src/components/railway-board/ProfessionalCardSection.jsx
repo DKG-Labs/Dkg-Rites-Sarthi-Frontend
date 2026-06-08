@@ -37,6 +37,15 @@ import PoIssuedModal from './PoIssuedModal';
 import InspectionCallStatusModal from './InspectionCallStatusModal';
 import DownloadIcAnnexures from './DownloadIcAnnexures';
 
+const formatPoDate = (dateStr) => {
+    if (!dateStr) return '';
+    try {
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    } catch {
+        return dateStr;
+    }
+};
 
 // --- Static Data moved outside component to fix ESLint re-render warnings ---
 const staticInspectionCallsData = [
@@ -268,6 +277,7 @@ const ProfessionalCardSection = ({
             result = result.filter(item =>
                 (item.rly || '').toLowerCase().includes(query) ||
                 (item.poNumber || '').toLowerCase().includes(query) ||
+                (formatPoDate(item.poDate)).toLowerCase().includes(query) ||
                 (item.manufacturer || '').toLowerCase().includes(query)
             );
         }
@@ -1135,10 +1145,14 @@ const ProfessionalCardSection = ({
                                                                     <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                                                                         <ExportButton
                                                                             onClick={() => downloadExcel(
-                                                                                displayMprData,
+                                                                                displayMprData.map(v => ({
+                                                                                    ...v,
+                                                                                    poDateFormatted: formatPoDate(v.poDate)
+                                                                                })),
                                                                                 [
                                                                                     { label: 'Rly', key: 'rly' },
                                                                                     { label: 'PO Number', key: 'poNumber' },
+                                                                                    { label: 'PO Date', key: 'poDateFormatted' },
                                                                                     { label: 'Manufacturer', key: 'manufacturer' },
                                                                                     { label: 'PO Qty', key: 'poQty' },
                                                                                     { label: 'RM', key: 'monthlyRm' },
@@ -1159,6 +1173,7 @@ const ProfessionalCardSection = ({
                                                                             <tr className="sortable-header">
                                                                                 <th onClick={() => handleMprSort('rly')}>Rly {renderSortIcon('rly', mprSort)}</th>
                                                                                 <th onClick={() => handleMprSort('poNumber')}>PO Number {renderSortIcon('poNumber', mprSort)}</th>
+                                                                                <th onClick={() => handleMprSort('poDate')}>PO Date {renderSortIcon('poDate', mprSort)}</th>
                                                                                 <th onClick={() => handleMprSort('manufacturer')}>Manufacturer {renderSortIcon('manufacturer', mprSort)}</th>
                                                                                 <th className="text-center" onClick={() => handleMprSort('poQty')}>PO Qty {renderSortIcon('poQty', mprSort)}</th>
                                                                                 <th className="text-center" onClick={() => handleMprSort('monthlyRm')}>RM {renderSortIcon('monthlyRm', mprSort)}</th>
@@ -1173,6 +1188,7 @@ const ProfessionalCardSection = ({
                                                                                 <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
                                                                                     <td>{row.rly}</td>
                                                                                     <td>{row.poNumber}</td>
+                                                                                    <td>{formatPoDate(row.poDate)}</td>
                                                                                     <td>{row.manufacturer}</td>
                                                                                     <td className="text-center">{row.poQty?.toLocaleString()}</td>
                                                                                     <td className="text-center">{row.monthlyRm?.toLocaleString()}</td>

@@ -122,3 +122,25 @@
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+.mpr-equal-table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+.mpr-equal-table th, .mpr-equal-table td {
+    width: 16.66% !important;
+    min-width: 16.66% !important;
+    max-width: 16.66% !important;
+    word-wrap: break-word !important;
+    white-space: normal !important;
+    text-align: left;
+}
+
+.mpr-equal-table th.text-right, .mpr-equal-table td.text-right {
+    text-align: right !important;
+}
+
+.mpr-equal-table th.text-center, .mpr-equal-table td.text-center {
+    text-align: center !important;
+}

@@ -28,6 +28,7 @@ import RailPadMprReport from './railpad-board/RailPadMprReport';
 import RailPadMauReport from './railpad-board/RailPadMauReport';
 import RailPadLwcpReport from './railpad-board/RailPadLwcpReport';
 import RailPadSwpReport from './railpad-board/RailPadSwpReport';
+import RailPadVwpqrReport from './railpad-board/RailPadVwpqrReport';
 import RailPadQualityReport from './railpad-board/RailPadQualityReport';
 import ShiftWiseProductionReport from './ShiftWiseProductionReport';
 import PoWiseMonthlyReport from './PoWiseMonthlyReport';
@@ -1113,13 +1114,14 @@ const ProfessionalCardSection = ({
                                         {isRailPad ? (
                                             (() => {
                                                 switch (activeReport) {
-                                                    case 'mpr': return <RailPadMprReport />;
-                                                    case 'mau': return <RailPadMauReport />;
+                                                    case 'mpr': return <RailPadMprReport mprData={mprData} loading={mprLoading} />;
+                                                    case 'mau': return <RailPadMauReport mauData={mauData} loading={mauLoading} startDate={fromDate} endDate={toDate} />;
                                                     case 'lwcl': return <RailPadLwcpReport />;
                                                     case 'swp': return <RailPadSwpReport />;
+                                                    case 'vwpqr': return <RailPadVwpqrReport />;
                                                     case 'qrp': return <RailPadQualityReport />;
                                                     case 'ic_annexures': return <DownloadIcAnnexures selectedProduct="Rail Pad" fromDate={fromDate} toDate={toDate} />;
-                                                    default: return <RailPadMprReport />;
+                                                    default: return <RailPadMprReport mprData={mprData} loading={mprLoading} />;
                                                 }
                                             })()
                                         ) : isSleeper ? (

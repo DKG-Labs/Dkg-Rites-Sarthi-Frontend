@@ -4,10 +4,33 @@ import {
     Line, ComposedChart, AreaChart, Area, Legend
 } from 'recharts';
 
+const CustomVerticalTick = ({ x, y, payload }) => {
+    return (
+        <g transform={`translate(${x},${y + 10})`}>
+            <text
+                x={0}
+                y={0}
+                dy={3.5}
+                transform="rotate(90)"
+                textAnchor="start"
+                fill="#475569"
+                style={{ fontSize: '10px', fontWeight: '500', fontFamily: 'sans-serif' }}
+            >
+                {payload.value}
+            </text>
+        </g>
+    );
+};
+
+const toTitleCase = (str) => {
+    if (!str) return '';
+    return str.replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
 const RailPadQuality = ({ paretoData, rejectionTrendData }) => {
     // Use API data if available, else fallback to mock
     const rawParetoData = (paretoData && paretoData.length > 0) ? paretoData.map(d => ({
-        name: d.name || d.defectName,
+        name: toTitleCase(d.name || d.defectName),
         count: d.count || d.value,
         cumulative: d.cumulative
     })) : [
@@ -56,11 +79,9 @@ const RailPadQuality = ({ paretoData, rejectionTrendData }) => {
                                     dataKey="name" 
                                     axisLine={false} 
                                     tickLine={false} 
-                                    style={{ fontSize: '11px' }} 
                                     interval={0} 
-                                    angle={-45} 
-                                    textAnchor="end" 
-                                    height={120} 
+                                    height={160} 
+                                    tick={<CustomVerticalTick />}
                                 />
                                 <YAxis yAxisId="left" axisLine={false} tickLine={false} style={{ fontSize: '11px' }} />
                                 <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} unit="%" domain={[0, 100]} style={{ fontSize: '11px' }} />

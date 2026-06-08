@@ -828,7 +828,11 @@ export const CMDashboardPage = () => {
   }), [reportDashboardFilters]);
 
   const { data: mauData, pagination: mauPagination, loading: mauLoading } = useReportData(
-    selectedReportProduct === 'Sleeper' ? reportService.getSleeperMonthlyAnalysis : reportService.getMonthlyAnalysisOfUnits,
+    selectedReportProduct === 'Sleeper'
+      ? reportService.getSleeperMonthlyAnalysis
+      : selectedReportProduct === 'Rail Pad'
+        ? reportService.getRailPadMonthlyAnalysisOfUnits
+        : reportService.getMonthlyAnalysisOfUnits,
     activeTab === 'All Reports' && REPORT_NAME_TO_SLUG[activeReportTab] === 'mau' ? mauParams : undefined
   );
 

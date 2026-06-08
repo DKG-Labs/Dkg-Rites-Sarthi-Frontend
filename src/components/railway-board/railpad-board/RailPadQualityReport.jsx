@@ -61,7 +61,7 @@ const RailPadQualityReport = () => {
             { label: 'Curing', key: 'curing' },
             { label: 'Cutting', key: 'cutting' },
             { label: 'Rheometer', key: 'rheometer' },
-            { label: 'Visual Check / Finishing', key: 'visualCheckFinishing' },
+            { label: 'Visual Check / Finishing (Short moulding, Bubbles/blisters, Uneven edges, Surface roughness, Improper side cut)', key: 'visualCheckFinishing' },
 
             // Acceptance defects
             { label: 'Hardness', key: 'hardness' },
@@ -203,14 +203,14 @@ const RailPadQualityReport = () => {
                             </tr>
                             <tr>
                                 {/* Process defect list */}
-                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2', color: '#b45309', fontWeight: 'bold' }}>Total</th>
-                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2', color: '#78350f' }}>Raw Material</th>
-                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2', color: '#78350f' }}>Compounding</th>
-                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2', color: '#78350f' }}>Mixing</th>
-                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2', color: '#78350f' }}>Curing</th>
-                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2', color: '#78350f' }}>Cutting</th>
-                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2', color: '#78350f' }}>Rheometer</th>
-                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2', color: '#78350f' }}>Visual / Finishing</th>
+                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2', color: '#b45309', fontWeight: 'bold' }}>TOTAL</th>
+                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2', color: '#78350f' }}>RAW<br/>MATERIAL</th>
+                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2', color: '#78350f' }}>COMPOUNDING</th>
+                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2', color: '#78350f' }}>MIXING</th>
+                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2', color: '#78350f' }}>CURING</th>
+                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2', color: '#78350f' }}>CUTTING</th>
+                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2', color: '#78350f' }}>RHEOMETER</th>
+                                <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffaf2', color: '#78350f' }}>VISUAL /<br/>FINISHING</th>
 
                                 {/* Acceptance defect list */}
                                 <th style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fffbeb', color: '#78350f' }}>Hardness</th>

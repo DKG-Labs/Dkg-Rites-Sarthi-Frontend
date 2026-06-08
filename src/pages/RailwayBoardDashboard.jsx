@@ -115,7 +115,9 @@ const RailwayBoardDashboard = () => {
     }), [dashboardFilters]);
 
     const { data: mprData, pagination: mprPagination, loading: mprLoading } = useReportData(
-        selectedProduct === 'Sleeper' ? reportService.getSleeperMonthlyProgressReport : reportService.getMonthlyProgressReport, 
+        selectedProduct === 'Sleeper' ? reportService.getSleeperMonthlyProgressReport :
+            selectedProduct === 'Rail Pad' ? reportService.getRailPadMonthlyProgressReport :
+                reportService.getMonthlyProgressReport,
         (activeReport === 'mpr' && activeMainCard === 'reports') ? mprParams : undefined
     );
 
@@ -126,7 +128,11 @@ const RailwayBoardDashboard = () => {
     }), [dashboardFilters]);
 
     const { data: mauData, pagination: mauPagination, loading: mauLoading } = useReportData(
-        selectedProduct === 'Sleeper' ? reportService.getSleeperMonthlyAnalysis : reportService.getMonthlyAnalysisOfUnits, 
+        selectedProduct === 'Sleeper'
+            ? reportService.getSleeperMonthlyAnalysis
+            : selectedProduct === 'Rail Pad'
+                ? reportService.getRailPadMonthlyAnalysisOfUnits
+                : reportService.getMonthlyAnalysisOfUnits,
         (activeReport === 'mau' && activeMainCard === 'reports') ? mauParams : undefined
     );
 
@@ -423,15 +429,15 @@ const RailwayBoardDashboard = () => {
                         </div>
                         {reportSubmenuOpen && !isSidebarCollapsed && (
                             <div className="report-submenu open">
-                                <div className={`report-link ${activeReport === 'mpr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpr')}>{selectedProduct === 'ERC' ? 'PO Wise Monthly Progress Report' : 'Monthly Progress Report'}</div>
+                                <div className={`report-link ${activeReport === 'mpr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpr')}>{selectedProduct === 'ERC' || selectedProduct === 'Rail Pad' ? 'PO Wise Monthly Progress Report' : 'Monthly Progress Report'}</div>
                                 <div className={`report-link ${activeReport === 'mau' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mau')}>Monthly Analysis of Units</div>
                                 <div className={`report-link ${activeReport === 'lwcl' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('lwcl')}>Lot Wise Closed Loop</div>
                                 <div className={`report-link ${activeReport === 'swp' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('swp')}>Shift Wise Production Report</div>
                                 {selectedProduct === 'Rail Pad' && (
                                     <div className={`report-link ${activeReport === 'qrp' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('qrp')}>Quality of Rubber Pad Report</div>
                                 )}
-                                {selectedProduct === 'ERC' && (
-                                    <div className={`report-link ${activeReport === 'mpia' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpia')}>Vendor Wise Process Quality Report</div>
+                                {(selectedProduct === 'ERC' || selectedProduct === 'Rail Pad') && (
+                                    <div className={`report-link ${activeReport === (selectedProduct === 'ERC' ? 'mpia' : 'vwpqr') && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink(selectedProduct === 'ERC' ? 'mpia' : 'vwpqr')}>Vendor Wise Process Quality Report</div>
                                 )}
                                 {selectedProduct === 'ERC' && (
                                     <div className={`report-link ${activeReport === 'pwmr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('pwmr')}>PO Wise Quality Report</div>
@@ -475,7 +481,7 @@ const RailwayBoardDashboard = () => {
                             <button className={`sub-tab-btn ${selectedProduct === 'Rail Pad' ? 'active' : ''}`} onClick={() => setSelectedProduct('Rail Pad')}>Rail Pad</button>
                         </div>
                         {isRitesAdmin && (
-                            <button 
+                            <button
                                 onClick={() => navigate('/rites-admin')}
                                 style={{
                                     background: 'rgba(16, 185, 129, 0.1)',

@@ -260,9 +260,9 @@ const SleeperLifecycle = () => {
                                         <td>{po.poNo}</td>
                                         <td>{po.poDate ? po.poDate.split('-').reverse().join('-') : '-'}</td>
                                         <td>{po.vendor}</td>
-                                        <td className="text-right">{po.poQty.toLocaleString()}</td>
-                                        <td className="text-right text-emerald-600 font-bold">{po.accQty.toLocaleString()}</td>
-                                        <td className="text-right">{po.balQty.toLocaleString()}</td>
+                                        <td className="text-right">{po.poQty.toLocaleString()}{po.uom ? ` ${po.uom}` : ''}</td>
+                                        <td className="text-right text-emerald-600 font-bold">{po.accQty.toLocaleString()}{po.uom ? ` ${po.uom}` : ''}</td>
+                                        <td className="text-right">{po.balQty.toLocaleString()}{po.uom ? ` ${po.uom}` : ''}</td>
                                         <td className="text-right"><span className="prof-badge" style={{ background: '#fff7ed', color: '#9a3412' }}>{po.rejPct}%</span></td>
                                     </tr>
                                     {expandedPo === po.id && (
@@ -488,7 +488,8 @@ const fetchLevel1DataAPI = async (startDate, endDate) => {
                 poQty: item.poQty || 0,
                 accQty: item.accQty || 0,
                 balQty: item.balQty || 0,
-                rejPct: item.rejectionPercent || 0
+                rejPct: item.rejectionPercent || 0,
+                uom: item.uom || ''
             }));
         }
         return null;

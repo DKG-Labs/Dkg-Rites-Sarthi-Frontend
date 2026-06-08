@@ -327,6 +327,13 @@ const reportService = {
         return handleResponse(response);
     },
 
+    getFinalInspectionCallStatusCounts: async () => {
+        const response = await fetch(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/final-inspection-call-status-counts`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
     getFinalRejectedCount: async () => {
         const response = await fetch(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/Final-inspection-rejected-count`, {
             headers: getAuthHeaders(),

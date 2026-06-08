@@ -6,6 +6,8 @@ const SleeperSummary = ({ summaryData = {}, onPoIssuedClick }) => {
     const [rejectedInProcess, setRejectedInProcess] = useState(0);
     const [rejectedInFinal, setRejectedInFinal] = useState(0);
     const [rejectionPercentage, setRejectionPercentage] = useState(0);
+    const [pendingCalls, setPendingCalls] = useState(0);
+    const [underInspectionCalls, setUnderInspectionCalls] = useState(0);
 
     useEffect(() => {
         const fetchCounts = async () => {
@@ -22,6 +24,12 @@ const SleeperSummary = ({ summaryData = {}, onPoIssuedClick }) => {
                 const rejectionRes = await reportService.getRejectionPercentage();
                 const percentage = rejectionRes.responseData !== undefined ? rejectionRes.responseData : rejectionRes;
                 setRejectionPercentage(Number(percentage || 0));
+
+                // Fetch Final Inspection Call Status Counts
+                const callStatusRes = await reportService.getFinalInspectionCallStatusCounts();
+                const callStatusData = callStatusRes.responseData || callStatusRes || {};
+                setPendingCalls(callStatusData.pending !== undefined ? callStatusData.pending : 0);
+                setUnderInspectionCalls(callStatusData.underInspection !== undefined ? callStatusData.underInspection : 0);
             } catch (error) {
                 console.error("Error fetching sleeper rejection metrics:", error);
             }
@@ -122,12 +130,12 @@ const SleeperSummary = ({ summaryData = {}, onPoIssuedClick }) => {
             <div className="g2 mb">
                 <div className="prof-card card-amber" style={{ textAlign: 'center' }}>
                     <div className="kpi-lbl">Final Inspection Call Status (Pending)</div>
-                    <div className="kpi-val">0</div>
+                    <div className="kpi-val">{pendingCalls.toLocaleString()}</div>
                     <div className="kpi-sub">Calls awaiting inspection</div>
                 </div>
                 <div className="prof-card card-blue" style={{ textAlign: 'center' }}>
                     <div className="kpi-lbl">Final Inspection Call Status (Under Inspection)</div>
-                    <div className="kpi-val">0</div>
+                    <div className="kpi-val">{underInspectionCalls.toLocaleString()}</div>
                     <div className="kpi-sub">Calls currently being inspected</div>
                 </div>
             </div>

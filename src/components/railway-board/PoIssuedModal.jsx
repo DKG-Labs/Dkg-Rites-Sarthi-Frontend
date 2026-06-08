@@ -73,6 +73,8 @@ const PoIssuedModal = ({ isOpen, onClose, data, title }) => {
                                 <th>PO Date</th>
                                 <th>Vendor</th>
                                 <th className="text-right">PO Quantity</th>
+                                <th className="text-right">Accepted Qty After Final Inspection</th>
+                                <th className="text-right">Balance Quantity</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -85,11 +87,13 @@ const PoIssuedModal = ({ isOpen, onClose, data, title }) => {
                                         <td>{item.poDate ? new Date(item.poDate).toLocaleDateString('en-GB') : '-'}</td>
                                         <td>{item.vendor}</td>
                                         <td className="text-right">{item.poQuantity?.toLocaleString()} {item.uom}</td>
+                                        <td className="text-right">{(item.acceptedQtyAfterFinalInspection ?? 0).toLocaleString()} {item.uom}</td>
+                                        <td className="text-right">{(item.balanceQuantity ?? 0).toLocaleString()} {item.uom}</td>
                                     </tr>
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="6" className="text-center">No records found</td>
+                                    <td colSpan="8" className="text-center">No records found</td>
                                 </tr>
                             )}
                         </tbody>

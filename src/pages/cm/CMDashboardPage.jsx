@@ -36,6 +36,7 @@ const INITIAL_VENDORS = [
   { id: 'V005', name: 'Precision Engineering Co', region: 'RIO West', rating: 4.2, activeCalls: 10, rejectionRate: 4.0, inspections: 41 }
 ];
 
+// eslint-disable-next-line no-unused-vars
 const INITIAL_CALLS = [
   {
     id: 'CALL-2026-101',
@@ -953,6 +954,7 @@ export const CMDashboardPage = () => {
   // Data states
   const [calls, setCalls] = useState([]);
   const [overdueCalls, setOverdueCalls] = useState([]);
+  // eslint-disable-next-line no-unused-vars
   const [callsLoading, setCallsLoading] = useState(false);
   const [approvals, setApprovals] = useState(INITIAL_APPROVALS);
   const [notification, setNotification] = useState(null);
@@ -1114,7 +1116,7 @@ export const CMDashboardPage = () => {
     };
 
     fetchCalls();
-  }, [startDate, endDate, selectedProducts]);
+  }, [startDate, endDate, selectedProducts, activeTab]);
 
   // Expand/collapse global filters panel
   const [filtersExpanded, setFiltersExpanded] = useState(true);

@@ -148,8 +148,7 @@ export const annexureService = {
      */
     getProcessInspectionRegister: async (callNo, date, shift) => {
         try {
-            const userId = localStorage.getItem('userId') || localStorage.getItem('userName') || 'testUser';
-            let url = `${API_BASE_URL}/api/process-annexure/register?callNo=${callNo}&createdBy=${userId}`;
+            let url = `${API_BASE_URL}/api/process-annexure/register?callNo=${callNo}`;
             if (date) url += `&date=${date}`;
             if (shift) url += `&shift=${shift}`;
             
@@ -170,8 +169,7 @@ export const annexureService = {
      */
     getProcessAvailableEntries: async (callNo) => {
         try {
-            const userId = localStorage.getItem('userId') || localStorage.getItem('userName') || 'testUser';
-            const response = await fetch(`${API_BASE_URL}/api/process-annexure/available-entries?callNo=${callNo}&createdBy=${userId}`, {
+            const response = await fetch(`${API_BASE_URL}/api/process-annexure/available-entries?callNo=${callNo}`, {
                 headers: getAuthHeaders()
             });
             return await handleResponse(response);

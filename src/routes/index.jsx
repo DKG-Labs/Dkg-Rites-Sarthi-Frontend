@@ -156,6 +156,8 @@ export const ROLE_LANDING_ROUTE = {
   'Process IE': ROUTES.LANDING,
   'Sleeper Process IE': '/sleeper/',
   CM: ROUTES.CM_DASHBOARD,
+  'Control Manager': ROUTES.CM_DASHBOARD,
+  'Controlling Manager': ROUTES.CM_DASHBOARD,
   CALL_DESK: ROUTES.CALL_DESK,
   'RIO Help Desk': ROUTES.CALL_DESK,
   Finance: ROUTES.FINANCE,

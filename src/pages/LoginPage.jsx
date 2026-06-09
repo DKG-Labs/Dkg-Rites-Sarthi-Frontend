@@ -164,6 +164,20 @@ const LoginPage = () => {
       const options = [];
       const seenConsolidated = new Set();
 
+      // Consolidate "CM", "Control Manager" into "Controlling Manager Dashboard"
+      if (roles.some(r => r === 'CM' || r === 'Control Manager' || r === 'Controlling Manager')) {
+        options.push({
+          id: 'cm_option',
+          label: 'Controlling Manager Dashboard',
+          description: 'Access Controlling Manager modules',
+          icon: '📊',
+          roleToStore: roles.find(r => r === 'CM' || r === 'Control Manager' || r === 'Controlling Manager')
+        });
+        seenConsolidated.add('CM');
+        seenConsolidated.add('Control Manager');
+        seenConsolidated.add('Controlling Manager');
+      }
+
       // Consolidate "IE" and "Process IE" into one "IE Dashboard" option
       if (roles.some(r => r === 'IE' || r === 'Process IE')) {
         options.push({

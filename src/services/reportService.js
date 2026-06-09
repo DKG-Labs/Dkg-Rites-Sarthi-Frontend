@@ -321,6 +321,82 @@ const reportService = {
         return handleResponse(response);
     },
 
+    getCmInspectionCalls: async (params) => {
+        const { startDate, endDate } = params || {};
+        const url = new URL(`${API_ENDPOINTS.REPORTS}/cm-inspection-calls`);
+        
+        const formatDate = (dateStr) => {
+            if (!dateStr || !dateStr.includes('-')) return dateStr;
+            const [year, month, day] = dateStr.split('-');
+            return `${day}/${month}/${year}`;
+        };
+
+        if (startDate) url.searchParams.append('startDate', formatDate(startDate));
+        if (endDate) url.searchParams.append('endDate', formatDate(endDate));
+
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getCmSleeperInspectionCalls: async (params) => {
+        const { startDate, endDate } = params || {};
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/cm-inspection-calls`);
+        
+        const formatDate = (dateStr) => {
+            if (!dateStr || !dateStr.includes('-')) return dateStr;
+            const [year, month, day] = dateStr.split('-');
+            return `${day}/${month}/${year}`;
+        };
+
+        if (startDate) url.searchParams.append('startDate', formatDate(startDate));
+        if (endDate) url.searchParams.append('endDate', formatDate(endDate));
+
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getCmSleeperOverdueCalls: async (params) => {
+        const { startDate, endDate } = params || {};
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/cm-sleeper-overduecalls`);
+        
+        const formatDate = (dateStr) => {
+            if (!dateStr || !dateStr.includes('-')) return dateStr;
+            const [year, month, day] = dateStr.split('-');
+            return `${day}/${month}/${year}`;
+        };
+
+        if (startDate) url.searchParams.append('startDate', formatDate(startDate));
+        if (endDate) url.searchParams.append('endDate', formatDate(endDate));
+
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getCmErcOverdueCalls: async (params) => {
+        const { startDate, endDate } = params || {};
+        const url = new URL(`${API_ENDPOINTS.REPORTS}/cm-erc-overduecalls`);
+        
+        const formatDate = (dateStr) => {
+            if (!dateStr || !dateStr.includes('-')) return dateStr;
+            const [year, month, day] = dateStr.split('-');
+            return `${day}/${month}/${year}`;
+        };
+
+        if (startDate) url.searchParams.append('startDate', formatDate(startDate));
+        if (endDate) url.searchParams.append('endDate', formatDate(endDate));
+
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
     getParetoAnalysis: async (params) => {
         const { startDate, endDate, product } = params || {};
         let url = `${API_ENDPOINTS.REPORTS}/paretoAnalysis`;
@@ -836,6 +912,42 @@ const reportService = {
         if (plantId) url.searchParams.append('plantId', plantId);
 
         const response = await fetch(url.toString(), { headers: getAuthHeaders() });
+        return handleResponse(response);
+    },
+
+    getCmIeWiseCallStatus: async (cmEmpId) => {
+        const url = new URL(`${API_ENDPOINTS.REPORTS}/cm-ie-wise-callStatus`);
+        if (cmEmpId) url.searchParams.append('cmEmpId', cmEmpId);
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getCmSleeperIeWiseCallStatus: async (cmEmpId) => {
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/cm-sleeper-ie-callWiseStatus`);
+        if (cmEmpId) url.searchParams.append('cmEmplId', cmEmpId); // Note: backend uses cmEmplId
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getCmCompletedCallsAnalysis: async (cmEmpId) => {
+        const url = new URL(`${API_ENDPOINTS.REPORTS}/cm-completed-calls-analysis`);
+        if (cmEmpId) url.searchParams.append('cmEmpId', cmEmpId);
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getCmSleeperCompletedCallsAnalysis: async (cmEmpId) => {
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/cm-sleeper-IECompletedCalls`);
+        if (cmEmpId) url.searchParams.append('cmEmplId', cmEmpId); // Note: backend uses cmEmplId
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
         return handleResponse(response);
     }
 };

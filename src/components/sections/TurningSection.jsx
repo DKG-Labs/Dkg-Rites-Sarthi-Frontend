@@ -367,6 +367,7 @@ const TurningSection = ({
                         onChange={e => updateData(idx, 'parallelLength', e.target.value, 0)}
                         disabled={row.noProduction || !row.lotNo}
                         placeholder="mm"
+                        style={getToleranceStyle('parallelLength', row.parallelLength[0], productType)}
                       />
                     </div>
                   </div>
@@ -380,6 +381,7 @@ const TurningSection = ({
                         onChange={e => updateData(idx, 'parallelLength', e.target.value, 1)}
                         disabled={row.noProduction || !row.lotNo}
                         placeholder="mm"
+                        style={getToleranceStyle('parallelLength', row.parallelLength[1], productType)}
                       />
                     </div>
                   </div>
@@ -393,6 +395,7 @@ const TurningSection = ({
                         onChange={e => updateData(idx, 'parallelLength', e.target.value, 2)}
                         disabled={row.noProduction || !row.lotNo}
                         placeholder="mm"
+                        style={getToleranceStyle('parallelLength', row.parallelLength[2], productType)}
                       />
                     </div>
                   </div>
@@ -406,6 +409,7 @@ const TurningSection = ({
                         onChange={e => updateData(idx, 'fullTurningLength', e.target.value, 0)}
                         disabled={row.noProduction}
                         placeholder="float"
+                        style={getToleranceStyle('fullLength', row.fullTurningLength[0], productType)}
                       />
                     </div>
                   </div>
@@ -419,6 +423,7 @@ const TurningSection = ({
                         onChange={e => updateData(idx, 'fullTurningLength', e.target.value, 1)}
                         disabled={row.noProduction || !row.lotNo}
                         placeholder="mm"
+                        style={getToleranceStyle('fullLength', row.fullTurningLength[1], productType)}
                       />
                     </div>
                   </div>
@@ -432,6 +437,7 @@ const TurningSection = ({
                         onChange={e => updateData(idx, 'fullTurningLength', e.target.value, 2)}
                         disabled={row.noProduction || !row.lotNo}
                         placeholder="mm"
+                        style={getToleranceStyle('fullLength', row.fullTurningLength[2], productType)}
                       />
                     </div>
                   </div>
@@ -445,6 +451,7 @@ const TurningSection = ({
                         onChange={e => updateData(idx, 'turningDia', e.target.value, 0)}
                         disabled={row.noProduction || !row.lotNo}
                         placeholder="mm"
+                        style={getToleranceStyle('turningDia', row.turningDia[0], productType)}
                       />
                     </div>
                   </div>
@@ -458,6 +465,7 @@ const TurningSection = ({
                         onChange={e => updateData(idx, 'turningDia', e.target.value, 1)}
                         disabled={row.noProduction || !row.lotNo}
                         placeholder="mm"
+                        style={getToleranceStyle('turningDia', row.turningDia[1], productType)}
                       />
                     </div>
                   </div>
@@ -471,6 +479,7 @@ const TurningSection = ({
                         onChange={e => updateData(idx, 'turningDia', e.target.value, 2)}
                         disabled={row.noProduction || !row.lotNo}
                         placeholder="mm"
+                        style={getToleranceStyle('turningDia', row.turningDia[2], productType)}
                       />
                     </div>
                   </div>

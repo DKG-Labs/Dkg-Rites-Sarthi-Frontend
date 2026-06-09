@@ -29,8 +29,8 @@ export const checkTolerance = (field, value, productType) => {
     const num = parseFloat(value);
     if (isNaN(num)) return { isValid: false, isApplicable: true };
 
-    const isMk3 = /MK-?III/i.test(productType || '');
-    const isMkV = /MK-?V/i.test(productType || '');
+    const isMk3 = /MK[- ]?III/i.test(productType || '');
+    const isMkV = /MK[- ]?V/i.test(productType || '');
     let rules = TOLERANCE_RULES[field];
 
     if (!rules) return { isValid: true, isApplicable: false };

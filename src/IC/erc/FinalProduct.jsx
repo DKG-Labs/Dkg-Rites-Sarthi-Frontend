@@ -11,15 +11,17 @@ import {
 import { formatDate } from "../../utils/helpers";
 import ErcFinalIc from "./ErcFinalIc";
 import { exportToPdf, generatePdfBase64 } from "../../utils/exportUtils";
-import { uploadSignedCertificate, saveFinalIcEditData, getFinalIcEditData } from "../../services/certificateService";
+import { uploadSignedCertificate, saveFinalIcEditData, getFinalIcEditData, validateBookSetNo } from "../../services/certificateService";
 import { performTransitionAction } from "../../services/workflowService";
 import { getCurrentUserId } from "../../services/workflowApiService";
+import { getStoredUser } from "../../services/authService";
 
 export default function FinalProductCertificate({ call = {}, onBack }) {
   const printAreaRef = useRef();
   const [isEditing, setIsEditing] = useState(false);
   const [isESigning, setIsESigning] = useState(false);
   const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
+  const [bookSetValidation, setBookSetValidation] = useState({ isValid: false, message: null, isValidating: false });
 
   useEffect(() => {
       const handlePkiStatus = async (event) => {
@@ -171,6 +173,38 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
 
   const handleFieldChange = (fieldName, value) => {
     setData(prev => ({ ...prev, [fieldName]: value }));
+    if (fieldName === 'bookNo' || fieldName === 'setNo') {
+      setBookSetValidation({ isValid: false, message: null, isValidating: false });
+    }
+  };
+
+  const handleVerifyBookSet = async () => {
+    if (!data.bookNo || !data.setNo) {
+      setNotification({ open: true, message: "Please fill in both Book No. and Set No. before verifying.", severity: 'warning' });
+      return;
+    }
+    
+    setBookSetValidation(prev => ({ ...prev, isValidating: true }));
+    try {
+      const empNo = getStoredUser()?.loginId || "UNKNOWN";
+      // For Final Product, STATUS is "F"
+      const result = await validateBookSetNo(empNo, data.bookNo, data.setNo, "F");
+      
+      if (result.resultFlag === 1) {
+        setBookSetValidation({ isValid: true, message: null, isValidating: false });
+        setNotification({ open: true, message: "Book No. and Set No. are valid.", severity: 'success' });
+      } else {
+        setBookSetValidation({ isValid: false, message: result.message, isValidating: false });
+        setNotification({ open: true, message: result.message || "Invalid Book/Set No.", severity: 'error' });
+        // Clear invalid values
+        setData(prev => ({ ...prev, bookNo: '', setNo: '' }));
+      }
+    } catch (error) {
+      setBookSetValidation({ isValid: false, message: "Verification failed.", isValidating: false });
+      setNotification({ open: true, message: "Error verifying Book/Set No: " + error.message, severity: 'error' });
+      // Clear invalid values on error too
+      setData(prev => ({ ...prev, bookNo: '', setNo: '' }));
+    }
   };
 
   const handleExport = async () => {
@@ -187,6 +221,13 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
       // 1. Mandatory Validations
       if (!data.bookNo || !data.setNo) {
           setNotification({ open: true, message: "Please fill in the 'Book No.' and 'Set No.' before signing.", severity: 'warning' });
+          setIsESigning(false);
+          return;
+      }
+
+      if (!bookSetValidation.isValid) {
+          console.warn("⚠️ Validation failed: Book No or Set No has not been verified.");
+          setNotification({ open: true, message: "Please Verify the Book No. and Set No. before signing.", severity: 'warning' });
           setIsESigning(false);
           return;
       }
@@ -298,7 +339,14 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
 
       <div className="certificate-print-wrapper" ref={printAreaRef}>
         <div className="certificate-page">
-          <ErcFinalIc data={data} isEditing={isEditing} isBusy={isESigning} onFieldChange={handleFieldChange} />
+          <ErcFinalIc 
+            data={data} 
+            isEditing={isEditing} 
+            isBusy={isESigning} 
+            onFieldChange={handleFieldChange} 
+            onVerifyBookSet={handleVerifyBookSet}
+            bookSetValidation={bookSetValidation}
+          />
         </div>
       </div>
 

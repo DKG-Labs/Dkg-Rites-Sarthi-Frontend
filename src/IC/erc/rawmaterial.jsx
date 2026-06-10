@@ -9,9 +9,10 @@ import {
     Box
 } from "@mui/material";
 import { exportToPdf, generatePdfBase64 } from "../../utils/exportUtils";
-import { uploadSignedCertificate, saveRmIcEditData, getRmIcEditData } from "../../services/certificateService";
+import { uploadSignedCertificate, saveRmIcEditData, getRmIcEditData, validateBookSetNo } from "../../services/certificateService";
 import { performTransitionAction } from "../../services/workflowService";
 import { getCurrentUserId } from "../../services/workflowApiService";
+import { getStoredUser } from "../../services/authService";
 import ErcRmIC from "./ErcRmIc";
 import { fetchPoDataForSections } from "../../services/poDataService";
 
@@ -22,6 +23,7 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
   const [isESigning, setIsESigning] = useState(false);
   const [editableData, setEditableData] = useState(null);
   const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
+  const [bookSetValidation, setBookSetValidation] = useState({ isValid: false, message: null, isValidating: false });
 
   useEffect(() => {
     if (call?.po_no && call?.call_no) {
@@ -169,7 +171,12 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
     initializeData();
   }, [call, poDetails]);
 
-  const handleDataChange = (field, value) => setEditableData((prev) => ({ ...prev, [field]: value }));
+  const handleDataChange = (field, value) => {
+    setEditableData((prev) => ({ ...prev, [field]: value }));
+    if (field === 'bookNo' || field === 'setNo') {
+      setBookSetValidation({ isValid: false, message: null, isValidating: false });
+    }
+  };
   const handleArrayDataChange = (arrayField, index, field, value) => {
     setEditableData((prev) => {
       const newArray = [...(prev[arrayField] || [])];
@@ -179,6 +186,34 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
   };
 
   const dataToPass = editableData || transformCallToIC(call, poDetails);
+
+  const handleVerifyBookSet = async () => {
+    if (!dataToPass.bookNo || !dataToPass.setNo) {
+      setNotification({ open: true, message: "Please fill in both Book No. and Set No. before verifying.", severity: 'warning' });
+      return;
+    }
+    
+    setBookSetValidation(prev => ({ ...prev, isValidating: true }));
+    try {
+      const empNo = getStoredUser()?.loginId || "UNKNOWN";
+      const result = await validateBookSetNo(empNo, dataToPass.bookNo, dataToPass.setNo, "S");
+      
+      if (result.resultFlag === 1) {
+        setBookSetValidation({ isValid: true, message: null, isValidating: false });
+        setNotification({ open: true, message: "Book No. and Set No. are valid.", severity: 'success' });
+      } else {
+        setBookSetValidation({ isValid: false, message: result.message, isValidating: false });
+        setNotification({ open: true, message: result.message || "Invalid Book/Set No.", severity: 'error' });
+        // Clear invalid values
+        setEditableData(prev => ({ ...prev, bookNo: '', setNo: '' }));
+      }
+    } catch (error) {
+      setBookSetValidation({ isValid: false, message: "Verification failed.", isValidating: false });
+      setNotification({ open: true, message: "Error verifying Book/Set No: " + error.message, severity: 'error' });
+      // Clear invalid values on error too
+      setEditableData(prev => ({ ...prev, bookNo: '', setNo: '' }));
+    }
+  };
 
   const handleExport = async () => {
     if (!printAreaRef.current) return;
@@ -196,6 +231,13 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
       if (!dataToPass.bookNo || !dataToPass.setNo) {
           console.warn("⚠️ Validation failed: Book No or Set No is missing.");
           setNotification({ open: true, message: "Please fill in the 'Book No.' and 'Set No.' before signing.", severity: 'warning' });
+          setIsESigning(false);
+          return;
+      }
+      
+      if (!bookSetValidation.isValid) {
+          console.warn("⚠️ Validation failed: Book No or Set No has not been verified.");
+          setNotification({ open: true, message: "Please Verify the Book No. and Set No. before signing.", severity: 'warning' });
           setIsESigning(false);
           return;
       }
@@ -314,7 +356,15 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
 
       <div className="certificate-print-wrapper" ref={printAreaRef}>
         <div className="certificate-page">
-          <ErcRmIC data={dataToPass} isEditing={isEditing} isBusy={isESigning} onChange={handleDataChange} onArrayChange={handleArrayDataChange} />
+          <ErcRmIC 
+            data={dataToPass} 
+            isEditing={isEditing} 
+            isBusy={isESigning} 
+            onChange={handleDataChange} 
+            onArrayChange={handleArrayDataChange} 
+            onVerifyBookSet={handleVerifyBookSet}
+            bookSetValidation={bookSetValidation}
+          />
         </div>
       </div>
 

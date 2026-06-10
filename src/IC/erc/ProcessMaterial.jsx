@@ -11,9 +11,10 @@ import {
 import { formatDate } from "../../utils/helpers";
 import ErcProcessIc from "./ErcProcessIc";
 import { exportToPdf, generatePdfBase64 } from "../../utils/exportUtils";
-import { uploadSignedCertificate, saveProcessIcEditData, getProcessIcEditData } from "../../services/certificateService";
+import { uploadSignedCertificate, saveProcessIcEditData, getProcessIcEditData, validateBookSetNo } from "../../services/certificateService";
 import { performTransitionAction } from "../../services/workflowService";
 import { getCurrentUserId } from "../../services/workflowApiService";
+import { getStoredUser } from "../../services/authService";
 
 export default function ProcessMaterialCertificate({ call = {}, onBack }) {
   const printAreaRef = useRef();
@@ -21,51 +22,9 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
   const [isESigning, setIsESigning] = useState(false);
   const [editableData, setEditableData] = useState(null);
   const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
+  const [bookSetValidation, setBookSetValidation] = useState({ isValid: false, message: null, isValidating: false });
 
-  useEffect(() => {
-    const handlePkiStatus = async (event) => {
-      const { status, message, signedData, certificateNo, fileName } = event.detail;
-      setNotification({ open: true, message, severity: status });
-      
-      if (status === 'success' && signedData) {
-          try {
-              setNotification({ open: true, message: "Uploading signed certificate to Azure...", severity: "info" });
-              await uploadSignedCertificate({
-                  icNumber: certificateNo,
-                  signedData: signedData,
-                  fileName: fileName,
-                  uploadedBy: "Inspecting Engineer"
-              });
-              setNotification({ open: true, message: "Signed certificate successfully saved to Azure!", severity: "success" });
-              
-              try {
-                  console.log('🔄 Calling performTransitionAction to update status to DSC_SIGN_IC');
-                  await performTransitionAction({
-                      workflowTransitionId: call?.id || call?.transitionId,
-                      requestId: typeof call?.call_no === 'string' && call.call_no.includes('/') ? call.call_no.split('/')[1] : call?.call_no,
-                      action: 'DSC_SIGN_IC',
-                      remarks: 'Digital signature applied and IC stored in Azure',
-                      actionBy: getCurrentUserId()
-                  });
-
-                  console.log('✅ Workflow status updated. Redirecting to Completed Calls Tab.');
-                  sessionStorage.setItem('ie_landing_active_tab', 'completed');
-                  
-                  // Using window.location to trigger a navigation to the landing page
-                  window.location.href = '/';
-              } catch (workflowErr) {
-                  console.error('⚠️ Failed to update workflow status to DSC_SIGN_IC:', workflowErr);
-              }
-          } catch (err) {
-              console.error("Upload error:", err);
-              setNotification({ open: true, message: "Signed successfully, but failed to save to Azure. " + err.message, severity: "error" });
-          }
-      }
-    };
-
-    window.addEventListener('pki-status', handlePkiStatus);
-    return () => window.removeEventListener('pki-status', handlePkiStatus);
-  }, [call?.call_no, call?.id, call?.transitionId]);
+  // Removed pki-status event listener as we no longer use DSC e-sign for Process IC
 
   const handleCloseNotification = () => setNotification({ ...notification, open: false });
 
@@ -143,7 +102,12 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [call]);
 
-  const handleDataChange = (field, value) => setEditableData((prev) => ({ ...prev, [field]: value }));
+  const handleDataChange = (field, value) => {
+    setEditableData((prev) => ({ ...prev, [field]: value }));
+    if (field === 'bookNo' || field === 'setNo') {
+      setBookSetValidation({ isValid: false, message: null, isValidating: false });
+    }
+  };
   const handleArrayDataChange = (arrayField, index, field, value) => {
     setEditableData((prev) => {
       const newArray = [...(prev[arrayField] || [])];
@@ -154,19 +118,54 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
 
   const dataToPass = editableData || transformCallToIC(call);
 
+  const handleVerifyBookSet = async () => {
+    if (!dataToPass.bookNo || !dataToPass.setNo) {
+      setNotification({ open: true, message: "Please fill in both Book No. and Set No. before verifying.", severity: 'warning' });
+      return;
+    }
+    
+    setBookSetValidation(prev => ({ ...prev, isValidating: true }));
+    try {
+      const empNo = getStoredUser()?.loginId || "UNKNOWN";
+      const result = await validateBookSetNo(empNo, dataToPass.bookNo, dataToPass.setNo, "S");
+      
+      if (result.resultFlag === 1) {
+        setBookSetValidation({ isValid: true, message: null, isValidating: false });
+        setNotification({ open: true, message: "Book No. and Set No. are valid.", severity: 'success' });
+      } else {
+        setBookSetValidation({ isValid: false, message: result.message, isValidating: false });
+        setNotification({ open: true, message: result.message || "Invalid Book/Set No.", severity: 'error' });
+        // Clear invalid values
+        setEditableData(prev => ({ ...prev, bookNo: '', setNo: '' }));
+      }
+    } catch (error) {
+      setBookSetValidation({ isValid: false, message: "Verification failed.", isValidating: false });
+      setNotification({ open: true, message: "Error verifying Book/Set No: " + error.message, severity: 'error' });
+      // Clear invalid values on error too
+      setEditableData(prev => ({ ...prev, bookNo: '', setNo: '' }));
+    }
+  };
+
   const handleExport = async () => {
     if (!printAreaRef.current) return;
     const sanitizedFilename = (dataToPass.certificateNo || "ProcessMaterialIC").replace(/[/\\?%*:|"<>]/g, '-');
     await exportToPdf(printAreaRef.current, `${sanitizedFilename}.pdf`);
   };
 
-  const handleESign = async () => {
+  const handleSaveIC = async () => {
     try {
       setIsESigning(true);
       
       // 1. Mandatory Validations
       if (!dataToPass.bookNo || !dataToPass.setNo) {
-          setNotification({ open: true, message: "Please fill in the 'Book No.' and 'Set No.' before signing.", severity: 'warning' });
+          setNotification({ open: true, message: "Please fill in the 'Book No.' and 'Set No.' before saving.", severity: 'warning' });
+          setIsESigning(false);
+          return;
+      }
+      
+      if (!bookSetValidation.isValid) {
+          console.warn("⚠️ Validation failed: Book No or Set No has not been verified.");
+          setNotification({ open: true, message: "Please Verify the Book No. and Set No. before saving.", severity: 'warning' });
           setIsESigning(false);
           return;
       }
@@ -184,58 +183,49 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
           createdBy: getCurrentUserId()?.toString()
       });
 
-      // 2. Generate PDF Snapshot from Frontend (Bypasses PE-02 Backend parsing issues)
+      // 3. Generate PDF Snapshot from Frontend (Bypasses PE-02 Backend parsing issues)
       const base64Pdf = await generatePdfBase64(printAreaRef.current);
 
       if (!base64Pdf || !base64Pdf.startsWith("JVBER")) {
           throw new Error("Failed to generate PDF snapshot from UI.");
       }
 
-      // 3. Construct Capricorn XML (STRICT pkiNetworkSign SCHEMA)
-      const now = new Date();
-      const pad = (n) => n.toString().padStart(2, '0');
-      const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}+05:30`;
-      const txn = Math.random().toString(16).slice(2, 10).toUpperCase();
+      // 4. Upload the generated PDF directly to Azure without DSC signing
+      const icNumber = dataToPass.certificateNo || call.icNo || call.call_no || "ProcessMaterial_IC";
+      const fileName = icNumber + ".pdf";
+      
+      setNotification({ open: true, message: "Uploading certificate to Azure...", severity: "info" });
+      await uploadSignedCertificate({
+          icNumber: icNumber,
+          signedData: base64Pdf, // uploading the unsigned base64 PDF
+          fileName: fileName,
+          uploadedBy: "Inspecting Engineer"
+      });
+      setNotification({ open: true, message: "Certificate successfully saved to Azure!", severity: "success" });
+      
+      // 5. Update workflow status
+      try {
+          console.log('🔄 Calling performTransitionAction to update status to DSC_SIGN_IC');
+          await performTransitionAction({
+              workflowTransitionId: call?.id || call?.transitionId,
+              requestId: typeof call?.call_no === 'string' && call.call_no.includes('/') ? call.call_no.split('/')[1] : call?.call_no,
+              action: 'DSC_SIGN_IC',
+              remarks: 'Process IC saved and stored in Azure',
+              actionBy: getCurrentUserId()
+          });
 
-      const xmlRequest = `
-        <request>
-          <command>pkiNetworkSign</command>
-          <ts>${timestamp}</ts>
-          <txn>${txn}</txn>
-          <certificate>
-            <attribute name='CN'></attribute>
-            <attribute name='O'></attribute>
-            <attribute name='OU'></attribute>
-            <attribute name='T'></attribute>
-            <attribute name='E'></attribute>
-            <attribute name='SN'></attribute>
-            <attribute name='CA'></attribute>
-            <attribute name='TC'>SG</attribute>
-            <attribute name='AP'>1</attribute>
-          </certificate>
-          <file>
-            <attribute name='type'>pdf</attribute>
-          </file>
-          <pdf>
-            <page>1</page>
-            <cood>425,135</cood>
-            <size>110,40</size>
-          </pdf>
-          <data>${base64Pdf}</data>
-        </request>
-      `.replace(/>\s+</g, "><").trim();
-
-      // 4. Trigger Local Bridge
-      if (typeof window.abc === 'function') {
-          const fileName = (dataToPass.certificateNo || "ProcessMaterial_IC") + ".pdf";
-          window.abc(xmlRequest, dataToPass.certificateNo || call.icNo || call.call_no || "ProcessMaterial_IC", fileName);
-      } else {
-          throw new Error("Digital signature bridge (abc.js) not found.");
+          console.log('✅ Workflow status updated. Redirecting to Completed Calls Tab.');
+          sessionStorage.setItem('ie_landing_active_tab', 'completed');
+          
+          window.location.href = '/';
+      } catch (workflowErr) {
+          console.error('⚠️ Failed to update workflow status to DSC_SIGN_IC:', workflowErr);
+          setNotification({ open: true, message: "Saved successfully, but workflow transition failed: " + workflowErr.message, severity: "error" });
       }
 
     } catch (error) {
-        console.error("Signing Error:", error);
-        setNotification({ open: true, message: error.message || "Failed to sign document.", severity: 'error' });
+        console.error("Saving Error:", error);
+        setNotification({ open: true, message: error.message || "Failed to save document.", severity: 'error' });
     } finally {
         setIsESigning(false);
     }
@@ -259,11 +249,11 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
             variant="contained" 
             color="success" 
             size="small" 
-            onClick={handleESign} 
+            onClick={handleSaveIC} 
             disabled={isESigning}
             startIcon={isESigning ? <CircularProgress size={20} color="inherit" /> : null}
           >
-            {isESigning ? "SIGNING..." : "✒ E SIGN"}
+            {isESigning ? "SAVING..." : "💾 SAVE IC"}
           </Button>
           <Button 
             variant="contained" 
@@ -290,7 +280,15 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
 
       <div className="certificate-print-wrapper" ref={printAreaRef}>
         <div className="certificate-page">
-          <ErcProcessIc data={dataToPass} isEditing={isEditing} isBusy={isESigning} onChange={handleDataChange} onArrayChange={handleArrayDataChange} />
+          <ErcProcessIc 
+            data={dataToPass} 
+            isEditing={isEditing} 
+            isBusy={isESigning} 
+            onChange={handleDataChange} 
+            onArrayChange={handleArrayDataChange}
+            onVerifyBookSet={handleVerifyBookSet}
+            bookSetValidation={bookSetValidation}
+          />
         </div>
       </div>
     </Box>

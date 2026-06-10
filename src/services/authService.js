@@ -125,6 +125,7 @@ export const storeAuthData = (authData) => {
   localStorage.setItem('roleName', authData.roleName);
   localStorage.setItem('shortName', authData.shortName || '');  // IE short name for IC generation
   localStorage.setItem('rio', authData.rio || '');  // RIO for Call Desk filtering
+  localStorage.setItem('employeeCode', authData.employeeCode || ''); // Real employee code
 };
 
 /**
@@ -149,6 +150,7 @@ export const getStoredUser = () => {
     roleName: localStorage.getItem('roleName'),
     shortName: localStorage.getItem('shortName'),
     rio: localStorage.getItem('rio'),
+    employeeCode: localStorage.getItem('employeeCode'),
     token: token,
   };
 };

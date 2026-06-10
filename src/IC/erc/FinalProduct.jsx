@@ -186,7 +186,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
     
     setBookSetValidation(prev => ({ ...prev, isValidating: true }));
     try {
-      const empNo = getStoredUser()?.loginId || "UNKNOWN";
+      const empNo = getStoredUser()?.employeeCode || "UNKNOWN";
       // For Final Product, STATUS is "F"
       const result = await validateBookSetNo(empNo, data.bookNo, data.setNo, "F");
       

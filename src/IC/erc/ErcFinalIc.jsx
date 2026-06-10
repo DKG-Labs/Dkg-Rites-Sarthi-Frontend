@@ -1,6 +1,6 @@
 import React from "react";
 
-const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChange = () => { } }) => {
+const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChange = () => { }, onVerifyBookSet, bookSetValidation }) => {
 
   const {
     certificateNo = "",
@@ -87,28 +87,51 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
         {/* Row 1 & 2: RE-CENTERED HEADER UNIT (Red-Marked Design) */}
         <div className="flex flex-col items-center pt-2 w-full">
           {/* Centered Box */}
-          <div className="grid grid-cols-2 border-2 border-black w-[180px] bg-white">
-            <div className="border-r-2 border-black flex flex-col">
-              <div className="border-b-2 border-black p-1 font-bold text-center text-[9px] leading-tight">
-                <div className="h-[2px]" />
-                बुक सं. Book No.
-                <div className="h-[2px]" />
+          <div className="flex flex-col items-center">
+            <div className="grid grid-cols-2 border-2 border-black w-[180px] bg-white">
+              <div className="border-r-2 border-black flex flex-col">
+                <div className="border-b-2 border-black p-1 font-bold text-center text-[9px] leading-tight">
+                  <div className="h-[2px]" />
+                  बुक सं. Book No.
+                  <div className="h-[2px]" />
+                </div>
+                <div className="p-1 flex items-center justify-center min-h-[22px]">
+                  <EditableField value={bookNo} fieldName="bookNo" disabled={isBusy} className="text-center font-bold text-[12px]" />
+                </div>
               </div>
-              <div className="p-1 flex items-center justify-center min-h-[22px]">
-                <EditableField value={bookNo} fieldName="bookNo" disabled={isBusy} className="text-center font-bold text-[12px]" />
+              <div className="flex flex-col">
+                <div className="border-b-2 border-black p-1 font-bold text-center text-[9px] leading-tight">
+                  <div className="h-[2px]" />
+                  सेट सं. Set No.
+                  <div className="h-[2px]" />
+                </div>
+                <div className="p-1 flex items-center justify-center min-h-[22px]">
+                  <EditableField value={setNo} fieldName="setNo" disabled={isBusy} className="text-center font-bold text-[12px]" />
+                </div>
               </div>
             </div>
-            <div className="flex flex-col">
-              <div className="border-b-2 border-black p-1 font-bold text-center text-[9px] leading-tight">
-                <div className="h-[2px]" />
-                सेट सं. Set No.
-                <div className="h-[2px]" />
+            
+            {/* Verify Book & Set No Button (Hidden in PDF) */}
+            {isEditing && (
+              <div className="no-print mt-1 flex items-center gap-2">
+                <button 
+                  onClick={onVerifyBookSet} 
+                  disabled={isBusy || bookSetValidation?.isValidating}
+                  className="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {bookSetValidation?.isValidating ? "Validating..." : "Verify Book & Set No."}
+                </button>
+                {bookSetValidation && !bookSetValidation.isValidating && (
+                  <span className="text-[10px] font-bold">
+                    {bookSetValidation.isValid ? (
+                      <span className="text-green-600" title="Valid Book & Set No">✅ Valid</span>
+                    ) : (
+                      <span className="text-red-600" title={bookSetValidation.message || "Invalid"}>❌ Invalid</span>
+                    )}
+                  </span>
+                )}
               </div>
-              <div className="p-1 flex items-center justify-center min-h-[22px]">
-                <EditableField value={setNo} fieldName="setNo" disabled={isBusy} className="text-center font-bold text-[12px]" />
-              </div>
-
-            </div>
+            )}
           </div>
 
           {/* Height-Aware Branding Row (3-column grid for perfect centering) */}

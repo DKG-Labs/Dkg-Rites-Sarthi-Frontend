@@ -458,3 +458,46 @@ export const getProcessIcEditData = async (icNumber) => {
     return null;
   }
 };
+
+/**
+ * Validate Book No and Set No via Backend Proxy
+ * @param {string} empNo
+ * @param {string} bookNo
+ * @param {string} setNo
+ * @param {string} status "F" for Final, "S" for Stage (RM/Process)
+ */
+export const validateBookSetNo = async (empNo, bookNo, setNo, status = "F") => {
+  try {
+    const payload = {
+      EMP_NO: empNo,
+      BK_NO: bookNo,
+      SET_NO: setNo,
+      STATUS: status
+    };
+    
+    // Use the backend proxy to bypass CORS
+    const url = `${API_BASE_URL.replace('/api/certificate', '/api/ibs-validation')}/validate-book-set`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload)
+    });
+    
+    // Check if the response is JSON
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.indexOf("application/json") !== -1) {
+      return await response.json();
+    } else {
+      const text = await response.text();
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        throw new Error(`Unexpected response: ${text}`);
+      }
+    }
+  } catch (error) {
+    console.error('Error validating Book/Set No:', error);
+    throw error;
+  }
+};

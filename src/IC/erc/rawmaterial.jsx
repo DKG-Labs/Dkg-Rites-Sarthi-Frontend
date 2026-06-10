@@ -235,12 +235,12 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
           return;
       }
       
-      if (!bookSetValidation.isValid) {
-          console.warn("⚠️ Validation failed: Book No or Set No has not been verified.");
-          setNotification({ open: true, message: "Please Verify the Book No. and Set No. before signing.", severity: 'warning' });
-          setIsESigning(false);
-          return;
-      }
+      // if (!bookSetValidation.isValid) {
+      //     console.warn("⚠️ Validation failed: Book No or Set No has not been verified.");
+      //     setNotification({ open: true, message: "Please Verify the Book No. and Set No. before signing.", severity: 'warning' });
+      //     setIsESigning(false);
+      //     return;
+      // }
 
       console.log("✅ Validation passed. Preparing to save edited data...");
       setNotification({ open: true, message: "Saving edited data...", severity: 'info' });

@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { apiService } from '../../services/api';
 import { useShift } from '../../context/ShiftContext';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import './MouldBenchCheck.css';
 
 // --- Constants & Failure Options Configuration ---
@@ -194,7 +197,7 @@ const SubCard = ({ id, title, color, count, isActive, onClick, onAdd, label, cat
 const SummaryCard = ({ title, count, subtext, border }) => (
     <div className="calc-card" style={{ borderTop: `4px solid ${border}`, '--hover-border': border }}>
         <div className="card-main">
-            <span className="mini-label">{title}</span>
+            <span className="mini-label" style={{ whiteSpace: 'normal', minHeight: '32px', lineHeight: '1.2', paddingBottom: '4px' }}>{title}</span>
             <div className="calc-value">{count}</div>
         </div>
         <div className="card-bottom-row">
@@ -205,33 +208,30 @@ const SummaryCard = ({ title, count, subtext, border }) => (
 
 const AssetSummary = ({ allAssets, records }) => {
     const metrics = useMemo(() => {
-        const benches = allAssets.filter(a => a.type === 'Bench').length;
-        const moulds = allAssets.filter(a => a.type === 'Mould').length;
-
         const thirtyDaysAgo = new Date(Date.now() - (30 * 24 * 60 * 60 * 1000));
-        const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+        
+        // 1. No. of checks done in last 30 days
+        const checksLast30Days = records.filter(r => r.dateOfChecking && new Date(r.dateOfChecking) >= thirtyDaysAgo);
+        const checksCount30D = checksLast30Days.length;
 
-        const benchesUsed = allAssets.filter(a => a.type === 'Bench' && a.lastCasting && new Date(a.lastCasting) >= thirtyDaysAgo).length;
-        const mouldsUsed = allAssets.filter(a => a.type === 'Mould' && a.lastCasting && new Date(a.lastCasting) >= thirtyDaysAgo).length;
+        // 2. No. of Unique Benches used for Casting in last 30 Days
+        const uniqueBenchesUsed30D = allAssets.filter(a => a.type === 'Bench' && a.lastCasting && new Date(a.lastCasting) >= thirtyDaysAgo).length;
 
-        const benchesCheckedMTD = new Set(records.filter(r => r.benchOverall && new Date(r.dateOfChecking) >= firstOfMonth).map(r => r.assetNo)).size;
-        const mouldsCheckedMTD = new Set(records.filter(r => r.mouldOverall && new Date(r.dateOfChecking) >= firstOfMonth).map(r => r.assetNo)).size;
+        // 3. No. of Unique Bench checked in last 30 days
+        const uniqueBenchesChecked30D = new Set(checksLast30Days.filter(r => r.assetNo).map(r => r.assetNo)).size;
 
-        const unfitMoulds = new Set(records.filter(r => r.overallResult === 'FAIL').map(r => r.assetNo)).size;
+        // 4. No. of Checks found ok
+        const checksOk = records.filter(r => r.overallResult === 'OK').length;
 
-        const benchYield = benchesUsed ? Math.round((benchesCheckedMTD / benchesUsed) * 100) : 0;
-        const mouldYield = mouldsUsed ? Math.round((mouldsCheckedMTD / mouldsUsed) * 100) : 0;
+        // 5. No. of checks found not ok
+        const checksNotOk = records.filter(r => r.overallResult === 'FAIL').length;
 
         return [
-            { title: 'No. of Benches', count: benches || 12, subtext: 'Total In Plant', color: '#3b82f6' },
-            { title: 'No. of Moulds', count: moulds || 84, subtext: 'Total In Plant', color: '#8b5cf6' },
-            { title: 'Active Benches', count: benchesUsed || 8, subtext: 'Last 30 Days', color: '#10b981' },
-            { title: 'Active Moulds', count: mouldsUsed || 56, subtext: 'Last 30 Days', color: '#10b981' },
-            { title: 'Benches Checked', count: benchesCheckedMTD || records.filter(r => r.benchOverall).length, subtext: 'This Month', color: '#f59e0b' },
-            { title: 'Moulds Checked', count: mouldsCheckedMTD || records.filter(r => r.mouldOverall).length, subtext: 'This Month', color: '#f59e0b' },
-            { title: '% Benches Checked', count: `${benchYield || 75}%`, subtext: 'Out of Active Benches', color: '#10b981' },
-            { title: '% Moulds Checked', count: `${mouldYield || 82}%`, subtext: 'Out of Active Moulds', color: '#10b981' },
-            { title: 'Rejected / Pending Checks', count: unfitMoulds || records.filter(r => r.overallResult === 'FAIL').length, subtext: 'Assets currently flagged', color: '#ef4444' }
+            { title: 'No. of checks done in last 30 days', count: checksCount30D, subtext: 'Total checks performed', border: '#3b82f6' },
+            { title: 'No. of Unique Benches used for Casting in last 30 Days', count: uniqueBenchesUsed30D, subtext: 'Based on verified production', border: '#8b5cf6' },
+            { title: 'No. of Unique Bench checked in last 30 days', count: uniqueBenchesChecked30D, subtext: 'Inspected by IE', border: '#10b981' },
+            { title: 'No. of Checks found ok', count: checksOk, subtext: 'Overall Result OK', border: '#10b981' },
+            { title: 'No. of checks found not ok', count: checksNotOk, subtext: 'Overall Result FAIL', border: '#ef4444' }
         ];
     }, [allAssets, records]);
 
@@ -246,7 +246,7 @@ const AssetSummary = ({ allAssets, records }) => {
 
 const MouldBenchCheck = ({ onBack, sharedState, initialModule, initialViewMode, activeContainer, isInline = false, showForm, setShowForm }) => {
     const { records, setRecords, allAssets } = sharedState;
-    const { selectedShift, dutyDate, loadShiftData } = useShift();
+    const { selectedShift, dutyDate, companyName, dutyUnit, loadShiftData } = useShift();
     
     // Default tab matches standard, else 'summary'
     const [activeModule, setActiveModule] = useState(initialModule || 'summary'); 
@@ -314,9 +314,8 @@ const MouldBenchCheck = ({ onBack, sharedState, initialModule, initialViewMode, 
         return normalizedRecords.filter(r => r.dateOfChecking === (dutyDate || DateUtils.getNowISO()));
     }, [normalizedRecords, dutyDate]);
 
-    // Historical Logs filter logic
     const filteredHistoricalLogs = useMemo(() => {
-        return normalizedRecords.filter(r => {
+        const filtered = normalizedRecords.filter(r => {
             const matchesSearch = r.assetNo ? r.assetNo.toLowerCase().includes(searchBench.toLowerCase()) : true;
             
             const isShed = r.location.toLowerCase().includes('shed');
@@ -330,8 +329,86 @@ const MouldBenchCheck = ({ onBack, sharedState, initialModule, initialViewMode, 
         });
 
         // Sort recent logs on top
-        return filtered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        return filtered.sort((a, b) => {
+            const dateB = new Date(b.dateOfChecking);
+            const dateA = new Date(a.dateOfChecking);
+            if (dateB.getTime() !== dateA.getTime()) {
+                return dateB - dateA;
+            }
+            return new Date(b.timestamp) - new Date(a.timestamp);
+        });
     }, [normalizedRecords, searchBench, filterLocType, filterResult]);
+
+    const handleExportExcel = () => {
+        const basePlantName = companyName || localStorage.getItem('plantName') || 'Sleeper Plant';
+        const plantName = `${basePlantName}${dutyUnit ? ` (${dutyUnit})` : ''}`;
+        const reportTime = new Date().toLocaleString();
+        
+        const headerData = [
+            [`Name of Plant: ${plantName}`],
+            [`Date & time of getting report: ${reportTime}`],
+            []
+        ];
+
+        const tableData = filteredHistoricalLogs.map(record => ({
+            'Date of Checking': record.dateOfChecking ? record.dateOfChecking.split('-').reverse().join('/') : '',
+            'Location': record.location,
+            'Bench Number': record.assetNo,
+            'Bench Observation': record.benchOverall,
+            'Mould Observation': record.mouldOverall,
+            'Overall Result': record.overallResult,
+            'Reason for Not OK': getReasonForNotOk(record),
+            'Checked By': `${record.userName || (String(record.createdBy) === String(localStorage.getItem('userId')) ? (localStorage.getItem('userName') || 'IE Engineer') : 'IE Engineer')} (${record.createdBy || 'Unknown'})`
+        }));
+
+        const ws = XLSX.utils.json_to_sheet([]);
+        XLSX.utils.sheet_add_aoa(ws, headerData, { origin: "A1" });
+        XLSX.utils.sheet_add_json(ws, tableData, { origin: "A4", skipHeader: false });
+        
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Historical Logs');
+        XLSX.writeFile(wb, `Bench_Mould_Logs_${new Date().toISOString().split('T')[0]}.xlsx`);
+    };
+
+    const handleExportPDF = () => {
+        const doc = new jsPDF('landscape');
+        const basePlantName = companyName || localStorage.getItem('plantName') || 'Sleeper Plant';
+        const plantName = `${basePlantName}${dutyUnit ? ` (${dutyUnit})` : ''}`;
+        const reportTime = new Date().toLocaleString();
+
+        doc.setFontSize(14);
+        doc.text(`Name of Plant: ${plantName}`, 14, 15);
+        doc.setFontSize(10);
+        doc.text(`Date & time of getting report: ${reportTime}`, 14, 22);
+        doc.text("Bench & Mould Inspection - Historical Logs", 14, 29);
+
+        const tableColumn = ["Date of Checking", "Location", "Bench Number", "Bench Obs.", "Mould Obs.", "Overall Result", "Reason for Not OK", "Checked By"];
+        const tableRows = [];
+
+        filteredHistoricalLogs.forEach(record => {
+            const rowData = [
+                record.dateOfChecking ? record.dateOfChecking.split('-').reverse().join('/') : '',
+                record.location,
+                record.assetNo,
+                record.benchOverall,
+                record.mouldOverall,
+                record.overallResult,
+                getReasonForNotOk(record),
+                `${record.userName || (String(record.createdBy) === String(localStorage.getItem('userId')) ? (localStorage.getItem('userName') || 'IE Engineer') : 'IE Engineer')} (${record.createdBy || 'Unknown'})`
+            ];
+            tableRows.push(rowData);
+        });
+
+        autoTable(doc, {
+            head: [tableColumn],
+            body: tableRows,
+            startY: 35,
+            styles: { fontSize: 8 },
+            headStyles: { fillColor: [59, 130, 246] }
+        });
+
+        doc.save(`Bench_Mould_Logs_${new Date().toISOString().split('T')[0]}.pdf`);
+    };
 
     // Init Location Form fields
     useEffect(() => {
@@ -960,6 +1037,21 @@ const MouldBenchCheck = ({ onBack, sharedState, initialModule, initialViewMode, 
                 {/* 3. HISTORICAL LOGS TAB */}
                 {activeModule === 'history' && !effectiveShowForm && (
                     <>
+                        {/* Report Header & Export Actions */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                            <div>
+                                <h4 style={{ margin: 0, color: '#1e293b', fontSize: '1rem' }}>
+                                    Name of Plant: {companyName || localStorage.getItem('plantName') || 'Sleeper Plant'}
+                                    {dutyUnit ? ` (${dutyUnit})` : ''}
+                                </h4>
+                                <p style={{ margin: 0, color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Date & time of getting report: {new Date().toLocaleString()}</p>
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <button onClick={handleExportExcel} className="premium-btn" style={{ backgroundColor: '#10b981', minWidth: 'auto', padding: '0.5rem 1rem' }}>📥 Excel</button>
+                                <button onClick={handleExportPDF} className="premium-btn" style={{ backgroundColor: '#ef4444', minWidth: 'auto', padding: '0.5rem 1rem' }}>📥 PDF</button>
+                            </div>
+                        </div>
+
                         {/* Filters Panel */}
                         <div className="history-filters-card">
                             <div className="filter-group">
@@ -1035,7 +1127,7 @@ const MouldBenchCheck = ({ onBack, sharedState, initialModule, initialViewMode, 
                                                     <td style={{ maxWidth: '280px', whiteSpace: 'normal', wordBreak: 'break-word', fontSize: '12px', lineHeight: '1.4' }}>
                                                         {getReasonForNotOk(record)}
                                                     </td>
-                                                    <td>IE Engineer ({record.createdBy || 'Unknown'})</td>
+                                                    <td>{record.userName || (String(record.createdBy) === String(localStorage.getItem('userId')) ? (localStorage.getItem('userName') || 'IE Engineer') : 'IE Engineer')} ({record.createdBy || 'Unknown'})</td>
                                                 </tr>
                                             ))
                                         )}

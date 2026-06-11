@@ -63,12 +63,6 @@ const SUB_COLUMNS = [
         icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 12l2 2 4-4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /><polyline points="21 8 21 3 16 3" /></svg>
     },
     {
-        id: 'mould-bench-checking',
-        label: 'Mould & Bench Checking',
-        description: 'Asset integrity & dimensional check',
-        icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" /><polyline points="3.29 7 12 12 20.71 7" /><line x1="12" y1="22" x2="12" y2="12" /></svg>
-    },
-    {
         id: 'inventory-level',
         label: 'Inventory Level',
         description: 'Material stock & balance reports',
@@ -195,13 +189,6 @@ const SleeperProcessIEGeneral = () => {
 
                 {activeSubView === 'production-verification' && (
                     <IncomingVerificationDashboard initialGroup="Production Verification" />
-                )}
-
-                {activeSubView === 'mould-bench-checking' && (
-                    <div className="ie-calibration-placeholder">
-                        <h3>Mould & Bench Checking</h3>
-                        <p>Asset integrity and dimensional checks will be available here soon.</p>
-                    </div>
                 )}
 
                 {activeSubView === 'inventory-level' && (

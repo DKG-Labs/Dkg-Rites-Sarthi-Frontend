@@ -1,16 +1,43 @@
-import React, { useState, useMemo } from 'react';
-import { mockIEMappings, REGIONS } from './utils/mockData';
+import React, { useState, useMemo, useEffect } from 'react';
+import { REGIONS } from './utils/mockData';
 import { filterBySearch, paginate } from './utils/helpers';
 import { DEFAULT_PAGE_SIZE } from './utils/constants';
+import { API_BASE_URL } from '../../services/apiConfig';
 
-export const IEMapping = ({ onEdit, onDelete, onCreateNew }) => {
+export const IEMapping = ({ onEdit, onDelete, onCreateNew, refreshTrigger }) => {
+  const [mappings, setMappings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRegion, setFilterRegion] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(DEFAULT_PAGE_SIZE);
 
+  useEffect(() => {
+    const fetchMappings = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${API_BASE_URL}/api/mapping/all`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        const data = await response.json();
+        if (data.responseStatus?.statusCode !== 0) throw new Error(data.responseStatus?.message || 'Failed to fetch mappings');
+        setMappings(data.responseData || []);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchMappings();
+  }, [refreshTrigger]);
+
   const filteredMappings = useMemo(() => {
-    let result = mockIEMappings;
+    let result = mappings;
 
     if (searchTerm) {
       result = filterBySearch(result, searchTerm, ['ieName', 'poiName', 'cm']);
@@ -21,16 +48,79 @@ export const IEMapping = ({ onEdit, onDelete, onCreateNew }) => {
     }
 
     return result;
-  }, [searchTerm, filterRegion]);
+  }, [searchTerm, filterRegion, mappings]);
 
   const paginatedMappings = useMemo(() => {
     return paginate(filteredMappings, currentPage, pageSize);
   }, [filteredMappings, currentPage, pageSize]);
 
   const totalPages = Math.ceil(filteredMappings.length / pageSize);
-  const ieToCMMappings = mockIEMappings.filter(m => m.mappingType === 'IE to CM').length;
-  const ieToPOIMappings = mockIEMappings.filter(m => m.mappingType === 'IE to POI').length;
-  const totalMappings = mockIEMappings.length;
+  const ieToCMMappings = mappings.filter(m => m?.mappingType === 'IE to CM').length;
+  const ieToPOIMappings = mappings.filter(m => m?.mappingType === 'IE to POI' || m?.mappingType === 'Process IE to POI').length;
+  const totalMappings = mappings.length;
+
+  if (loading) {
+    return (
+      <div className="skeleton-container" style={{ width: '100%' }}>
+        {/* Metric Cards Skeleton */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="metric-card" style={{ height: '120px', backgroundColor: '#f5f5f5', borderRadius: '8px', animation: 'pulse 1.5s infinite ease-in-out' }}></div>
+          ))}
+        </div>
+
+        {/* Main Card Skeleton */}
+        <div className="card" style={{ padding: '24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px' }}>
+            <div>
+              <div style={{ height: '28px', width: '200px', backgroundColor: '#f5f5f5', borderRadius: '4px', marginBottom: '8px', animation: 'pulse 1.5s infinite ease-in-out' }}></div>
+              <div style={{ height: '16px', width: '300px', backgroundColor: '#f5f5f5', borderRadius: '4px', animation: 'pulse 1.5s infinite ease-in-out' }}></div>
+            </div>
+            <div style={{ height: '40px', width: '150px', backgroundColor: '#f5f5f5', borderRadius: '4px', animation: 'pulse 1.5s infinite ease-in-out' }}></div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '16px', marginBottom: '24px' }}>
+            <div style={{ height: '40px', flex: 1, backgroundColor: '#f5f5f5', borderRadius: '4px', animation: 'pulse 1.5s infinite ease-in-out' }}></div>
+            <div style={{ height: '40px', width: '200px', backgroundColor: '#f5f5f5', borderRadius: '4px', animation: 'pulse 1.5s infinite ease-in-out' }}></div>
+          </div>
+
+          <div style={{ border: '1px solid #eee', borderRadius: '8px', overflow: 'hidden' }}>
+            <table className="table" style={{ margin: 0 }}>
+              <thead>
+                <tr>
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+                    <th key={i} style={{ padding: '16px' }}>
+                      <div style={{ height: '16px', width: '100%', backgroundColor: '#f5f5f5', borderRadius: '4px', animation: 'pulse 1.5s infinite ease-in-out' }}></div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[1, 2, 3, 4, 5].map(i => (
+                  <tr key={i}>
+                    {[1, 2, 3, 4, 5, 6, 7, 8].map(j => (
+                      <td key={j} style={{ padding: '16px' }}>
+                        <div style={{ height: '20px', width: '100%', backgroundColor: '#f5f5f5', borderRadius: '4px', animation: 'pulse 1.5s infinite ease-in-out' }}></div>
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <style>{`
+          @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+          }
+        `}</style>
+      </div>
+    );
+  }
+  if (error) return <div style={{ padding: '20px', textAlign: 'center', color: 'red' }}>Error: {error}</div>;
 
   return (
     <div>
@@ -122,7 +212,7 @@ export const IEMapping = ({ onEdit, onDelete, onCreateNew }) => {
                 <tr key={mapping.id}>
                   <td>{mapping.rio}</td>
                   <td>{mapping.cm}</td>
-                  <td>{mapping.ie}</td>
+                  <td>{mapping.mappingType?.includes('Process') ? 'Process IE' : 'IE'}</td>
                   <td>{mapping.ieName}</td>
                   <td>{mapping.poiCode}</td>
                   <td>{mapping.poiName}</td>

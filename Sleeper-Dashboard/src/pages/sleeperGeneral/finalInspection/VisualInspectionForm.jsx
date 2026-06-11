@@ -394,17 +394,14 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
         let hasMissingReason = false;
         sections.forEach(sect => {
             const sectState = sectionStates[sect.id];
-            if (sectState.result === 'all-rejected') {
-                if (!sectState.globalReason && sect.id !== 'ftc') hasMissingReason = true;
-                const subs = getSubReasons(sect.id, sectState.globalReason);
-                if (sect.id !== 'ftc' && subs.length > 0 && !sectState.globalSubReason) hasMissingReason = true;
-            } else if (sectState.result === 'partial-ok') {
+            if (sectState.result === 'all-rejected' || sectState.result === 'partial-ok') {
                 sectState.failedSleepers.forEach(fid => {
+                     if (sect.id === 'ftc') return; // FTC defaults to NFTC payload, no validation needed
                      const details = sectState.rejectionDetails[fid] || {};
                      if (!details.reason) hasMissingReason = true;
                      else {
                          const subs = getSubReasons(sect.id, details.reason);
-                         if (sect.id !== 'ftc' && subs.length > 0 && !details.subReason) hasMissingReason = true;
+                         if (subs.length > 0 && !details.subReason) hasMissingReason = true;
                      }
                 });
             }
@@ -446,9 +443,14 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                         const sectState = sectionStates[sect.id];
                         if (sectState.failedSleepers.includes(s.id)) {
                             const details = sectState.rejectionDetails[s.id] || {};
-                            const reason = details.reason || (sectState.result === 'all-rejected' ? sectState.globalReason : '');
-                            const subReason = details.subReason || (sectState.result === 'all-rejected' ? sectState.globalSubReason : '');
+                            let reason = details.reason || (sectState.result === 'all-rejected' ? sectState.globalReason : '');
+                            let subReason = details.subReason || (sectState.result === 'all-rejected' ? sectState.globalSubReason : '');
                             
+                            if (sect.id === 'ftc') {
+                                reason = 'NFTC';
+                                subReason = '';
+                            }
+
                             if (reason) {
                                 rejectionReason += `${sect.label}: ${reason}${subReason ? ' (' + subReason + ')' : ''}; `;
                             } else {
@@ -685,7 +687,7 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                                                             )}
                                                         </div>
 
-                                                        {sectionStates[s.id].failedSleepers.length > 0 && s.id !== 'ftc' && (
+                                                        {sectionStates[s.id].failedSleepers.length > 0 && (
                                                             <div style={{ marginTop: '10px', borderTop: '1px solid #f1f5f9', paddingTop: '10px' }}>
                                                                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
                                                                     <thead>
@@ -703,17 +705,23 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                                                                                 <tr key={fid} style={{ borderBottom: '1px dotted #f1f5f9' }}>
                                                                                     <td style={{ padding: '4px', fontWeight: '700', color: '#334155' }}>#{sl?.displayNo}</td>
                                                                                     <td style={{ padding: '4px' }}>
-                                                                                        <select 
-                                                                                            style={{ width: '100%', padding: '4px', fontSize: '10px', borderRadius: '4px', border: '1px solid #e2e8f0' }}
-                                                                                            value={details.reason}
-                                                                                            onChange={(e) => handleSleeperRejectionUpdate(s.id, fid, 'reason', e.target.value)}
-                                                                                        >
-                                                                                            <option value="">-- Reason --</option>
-                                                                                            {getRejectionOptions(s.id)?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                                                                                        </select>
+                                                                                        {s.id === 'ftc' ? (
+                                                                                            <span style={{ fontWeight: '600', color: '#b91c1c' }}>NFTC</span>
+                                                                                        ) : (
+                                                                                            <select 
+                                                                                                style={{ width: '100%', padding: '4px', fontSize: '10px', borderRadius: '4px', border: '1px solid #e2e8f0' }}
+                                                                                                value={details.reason}
+                                                                                                onChange={(e) => handleSleeperRejectionUpdate(s.id, fid, 'reason', e.target.value)}
+                                                                                            >
+                                                                                                <option value="">-- Reason --</option>
+                                                                                                {getRejectionOptions(s.id)?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                                                                            </select>
+                                                                                        )}
                                                                                     </td>
                                                                                     <td style={{ padding: '4px' }}>
-                                                                                        {getSubReasons(s.id, details.reason).length > 0 ? (
+                                                                                        {s.id === 'ftc' ? (
+                                                                                            <span style={{ color: '#94a3b8', fontSize: '10px', fontStyle: 'italic' }}>No sub-reason</span>
+                                                                                        ) : getSubReasons(s.id, details.reason).length > 0 ? (
                                                                                             <select 
                                                                                                 style={{ width: '100%', padding: '4px', fontSize: '10px', borderRadius: '4px', border: '1px solid #e2e8f0' }}
                                                                                                 value={details.subReason}

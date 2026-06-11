@@ -314,9 +314,8 @@ const MouldBenchCheck = ({ onBack, sharedState, initialModule, initialViewMode, 
         return normalizedRecords.filter(r => r.dateOfChecking === (dutyDate || DateUtils.getNowISO()));
     }, [normalizedRecords, dutyDate]);
 
-    // Historical Logs filter logic
     const filteredHistoricalLogs = useMemo(() => {
-        return normalizedRecords.filter(r => {
+        const filtered = normalizedRecords.filter(r => {
             const matchesSearch = r.assetNo ? r.assetNo.toLowerCase().includes(searchBench.toLowerCase()) : true;
             
             const isShed = r.location.toLowerCase().includes('shed');
@@ -330,7 +329,14 @@ const MouldBenchCheck = ({ onBack, sharedState, initialModule, initialViewMode, 
         });
 
         // Sort recent logs on top
-        return filtered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        return filtered.sort((a, b) => {
+            const dateB = new Date(b.dateOfChecking);
+            const dateA = new Date(a.dateOfChecking);
+            if (dateB.getTime() !== dateA.getTime()) {
+                return dateB - dateA;
+            }
+            return new Date(b.timestamp) - new Date(a.timestamp);
+        });
     }, [normalizedRecords, searchBench, filterLocType, filterResult]);
 
     const handleExportExcel = () => {
@@ -352,7 +358,7 @@ const MouldBenchCheck = ({ onBack, sharedState, initialModule, initialViewMode, 
             'Mould Observation': record.mouldOverall,
             'Overall Result': record.overallResult,
             'Reason for Not OK': getReasonForNotOk(record),
-            'Checked By': `IE Engineer (${record.createdBy || 'Unknown'})`
+            'Checked By': `${record.userName || (String(record.createdBy) === String(localStorage.getItem('userId')) ? (localStorage.getItem('userName') || 'IE Engineer') : 'IE Engineer')} (${record.createdBy || 'Unknown'})`
         }));
 
         const ws = XLSX.utils.json_to_sheet([]);
@@ -388,7 +394,7 @@ const MouldBenchCheck = ({ onBack, sharedState, initialModule, initialViewMode, 
                 record.mouldOverall,
                 record.overallResult,
                 getReasonForNotOk(record),
-                `IE Engineer (${record.createdBy || 'Unknown'})`
+                `${record.userName || (String(record.createdBy) === String(localStorage.getItem('userId')) ? (localStorage.getItem('userName') || 'IE Engineer') : 'IE Engineer')} (${record.createdBy || 'Unknown'})`
             ];
             tableRows.push(rowData);
         });
@@ -1121,7 +1127,7 @@ const MouldBenchCheck = ({ onBack, sharedState, initialModule, initialViewMode, 
                                                     <td style={{ maxWidth: '280px', whiteSpace: 'normal', wordBreak: 'break-word', fontSize: '12px', lineHeight: '1.4' }}>
                                                         {getReasonForNotOk(record)}
                                                     </td>
-                                                    <td>IE Engineer ({record.createdBy || 'Unknown'})</td>
+                                                    <td>{record.userName || (String(record.createdBy) === String(localStorage.getItem('userId')) ? (localStorage.getItem('userName') || 'IE Engineer') : 'IE Engineer')} ({record.createdBy || 'Unknown'})</td>
                                                 </tr>
                                             ))
                                         )}

@@ -347,19 +347,14 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
 
     const getRejectionOptions = (sectionId) => {
         if (sectionId === 'visual') return [
-            'Rail Seat Damage',
-            'Surface Honeycomb',
-            'Surface Damage',
-            'Foreign Object in Sleeper',
-            'Position of HTS Wire'
+            'Surface Defect',
+            'Honeycomb',
+            'Crack',
+            'Insert Missing / Tilt / Sink',
+            'Dowel Missing / Tilt / Sink'
         ];
         if (sectionId === 'dimension') return [
-            'Outer Gauge',
-            'Depth',
-            'Width',
-            'Length of Sleeper',
-            'Wind Gauge',
-            'Camber Check'
+            'Outer Gauge'
         ];
         return null;
     };
@@ -368,16 +363,24 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
         if (!reason) return [];
         if (sectionId === 'visual') {
             switch (reason) {
-                case 'Rail Seat Damage': return ['Damage LT', 'Damage RT', 'Crack', 'Spalling'];
-                case 'Surface Honeycomb': return ['Major Honeycomb', 'Minor Honeycomb', 'Side Face', 'Bottom Face'];
-                case 'Surface Damage': return ['Corner Chipped', 'Edge Damage', 'Scratch', 'End Damage'];
-                case 'Position of HTS Wire': return ['Shifted LT', 'Shifted RT', 'Too High', 'Too Low'];
-                case 'Foreign Object in Sleeper': return ['Wood', 'Stone', 'Metal Part'];
+                case 'Surface Defect': return ['Rail Seat Damage', 'End Damage', 'Surface damage'];
+                case 'Honeycomb': return ['Rail Seat Honeycomb', 'End Honeycomb'];
+                case 'Crack': return ['Horizontal Crack', 'Vertical Crack'];
+                case 'Insert Missing / Tilt / Sink': return ['Insert Missing', 'Insert Tilt', 'Insert Sink'];
+                case 'Dowel Missing / Tilt / Sink': return ['Dowel Missing', 'Dowel Tilt', 'Dowel Sink', 'Dowel Jam'];
                 default: return ['Others'];
             }
         }
         if (sectionId === 'dimension') {
-            return ['+ve Deviation', '-ve Deviation'];
+            switch (reason) {
+                case 'Outer Gauge': return ['Outer Gauge (+)', 'Outer Gauge (-)'];
+                case 'Depth': return ['Depth (+)', 'Depth (-)'];
+                case 'Width': return ['Width (+)', 'Width (-)'];
+                case 'Length of Sleeper': return ['Length (+)', 'Length (-)'];
+                case 'Wind Gauge': return ['Wind Gauge (+)', 'Wind Gauge (-)'];
+                case 'Camber Check': return ['Camber Check (+)', 'Camber Check (-)'];
+                default: return ['+ve Deviation', '-ve Deviation'];
+            }
         }
         return ['General Defect'];
     };
@@ -710,15 +713,19 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                                                                                         </select>
                                                                                     </td>
                                                                                     <td style={{ padding: '4px' }}>
-                                                                                        <select 
-                                                                                            style={{ width: '100%', padding: '4px', fontSize: '10px', borderRadius: '4px', border: '1px solid #e2e8f0' }}
-                                                                                            value={details.subReason}
-                                                                                            onChange={(e) => handleSleeperRejectionUpdate(s.id, fid, 'subReason', e.target.value)}
-                                                                                            disabled={!details.reason}
-                                                                                        >
-                                                                                            <option value="">-- Sub Reason --</option>
-                                                                                            {getSubReasons(s.id, details.reason).map(sub => <option key={sub} value={sub}>{sub}</option>)}
-                                                                                        </select>
+                                                                                        {getSubReasons(s.id, details.reason).length > 0 ? (
+                                                                                            <select 
+                                                                                                style={{ width: '100%', padding: '4px', fontSize: '10px', borderRadius: '4px', border: '1px solid #e2e8f0' }}
+                                                                                                value={details.subReason}
+                                                                                                onChange={(e) => handleSleeperRejectionUpdate(s.id, fid, 'subReason', e.target.value)}
+                                                                                                disabled={!details.reason}
+                                                                                            >
+                                                                                                <option value="">-- Sub Reason --</option>
+                                                                                                {getSubReasons(s.id, details.reason).map(sub => <option key={sub} value={sub}>{sub}</option>)}
+                                                                                            </select>
+                                                                                        ) : (
+                                                                                            <span style={{ color: '#94a3b8', fontSize: '10px', fontStyle: 'italic' }}>No sub-reason</span>
+                                                                                        )}
                                                                                     </td>
                                                                                 </tr>
                                                                             );

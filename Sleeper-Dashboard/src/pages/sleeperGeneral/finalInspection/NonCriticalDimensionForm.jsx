@@ -244,12 +244,12 @@ const NonCriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
     };
 
     const parametersToCheck = [
-        { id: 13, label: 'Position of HTS Wires' },
-        { id: 14, label: 'Depth of Sleeper' },
-        { id: 15, label: 'Width of Sleeper' },
-        { id: 16, label: 'Length of Sleeper' },
-        { id: 17, label: 'Wind Gauge' },
-        { id: 18, label: 'Camber Check' }
+        { id: 13, label: 'Height Gauge' },
+        { id: 14, label: 'Wind Gauge' },
+        { id: 15, label: 'Length of Sleeper' },
+        { id: 16, label: 'Width of Sleeper' },
+        { id: 17, label: 'Rail Seat Camber' },
+        { id: 18, label: 'HTS Wire Position' }
     ];
 
     const [checklistState, setChecklistState] = useState(
@@ -338,18 +338,16 @@ const NonCriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
 
     const getSubReasons = (mainReason) => {
         switch (mainReason) {
-            case 'Position of HTS Wires':
-                return ['HTS Position - LT', 'HTS Position - RT'];
-            case 'Depth of Sleeper':
-                return ['Depth - Rail Seat', 'Depth - End', 'Depth - Centre'];
-            case 'Width of Sleeper':
-                return ['Width - Top', 'Width - Bottom'];
+            case 'Height Gauge':
+                return ['Height at Center (+)', 'Height at Center (-)', 'Height at End (+)', 'Height at End (-)', 'Height at Rail Seat (+)', 'Height at Rail Seat (-)'];
             case 'Length of Sleeper':
-                return ['Length - Overall'];
+                return ['Length (+)', 'Length (-)'];
+            case 'Width of Sleeper':
+                return ['Width at Rail Seat (+)', 'Width at Rail Seat (-)', 'Width at Center (+)', 'Width at Center (-)', 'Width at End (+)', 'Width at End (-)'];
+            case 'HTS Wire Position':
+                return ['Top Cover', 'Bottom Cover'];
             case 'Wind Gauge':
-                return ['Wind Gauge (LT)', 'Wind Gauge (RT)'];
-            case 'Camber Check':
-                return ['Camber - LT', 'Camber - RT'];
+            case 'Rail Seat Camber':
             default:
                 return [];
         }
@@ -620,17 +618,21 @@ const NonCriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
                                                     </select>
                                                 </td>
                                                 <td data-label="Sub Reason">
-                                                    <select
-                                                        value={rejectionDetails[sid].subReason}
-                                                        onChange={(e) => handleRejectionChange(sid, 'subReason', e.target.value)}
-                                                        disabled={!rejectionDetails[sid].mainReason || saving}
-                                                        className="ui-select"
-                                                    >
-                                                        <option value="">-- Select --</option>
-                                                        {getSubReasons(rejectionDetails[sid].mainReason).map(sub => (
-                                                            <option key={sub} value={sub}>{sub}</option>
-                                                        ))}
-                                                    </select>
+                                                    {getSubReasons(rejectionDetails[sid].mainReason).length > 0 ? (
+                                                        <select
+                                                            value={rejectionDetails[sid].subReason}
+                                                            onChange={(e) => handleRejectionChange(sid, 'subReason', e.target.value)}
+                                                            disabled={!rejectionDetails[sid].mainReason || saving}
+                                                            className="ui-select"
+                                                        >
+                                                            <option value="">-- Select --</option>
+                                                            {getSubReasons(rejectionDetails[sid].mainReason).map(sub => (
+                                                                <option key={sub} value={sub}>{sub}</option>
+                                                            ))}
+                                                        </select>
+                                                    ) : (
+                                                        <span style={{ color: '#94a3b8', fontSize: '12px', fontStyle: 'italic' }}>No sub-reason</span>
+                                                    )}
                                                 </td>
                                             </tr>
                                         ))}

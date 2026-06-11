@@ -248,11 +248,13 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
     };
 
     const parametersToCheck = [
-        { id: 7, label: 'ToeGap' },
-        { id: 10, label: 'Location of Inserts' },
-        { id: 8, label: 'Dist b/w Inserts (Rail Seat)' },
-        { id: 11, label: 'Dist b/w Outer Most Inserts' },
-        { id: 9, label: 'Slope Gauge' }
+        { id: 7, label: 'Rail Seat' },
+        { id: 8, label: 'Toe Gap' },
+        { id: 9, label: 'Rail Seat Slope' },
+        { id: 10, label: 'Location of Inserts in Turn Outs' },
+        { id: 11, label: 'Angularity in Inserts of Turn Outs' },
+        { id: 12, label: 'Location of Dowel' },
+        { id: 13, label: 'Camber in Turn Out Sleepers' }
     ];
 
     const [checklistState, setChecklistState] = useState(
@@ -341,11 +343,9 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
 
     const getSubReasons = (mainReason) => {
         switch (mainReason) {
-            case 'ToeGap': return ['ToeGap(LT) - Inner', 'ToeGap (LT) - Outer', 'ToeGap (RT)-Inner', 'ToeGap (RT) - Outer'];
-            case 'Slope Gauge': return ['Slope Gauge (LT)', 'Slope Gauge (RT)'];
-            case 'Dist b/w Inserts (Rail Seat)': return ['Dist b/w Inserts (LT)', 'Dist b/w Inserts (RT)'];
-            case 'Location of Inserts': return ['Position Error (LT)', 'Position Error (RT)', 'Skewed / Tilted Insert'];
-            case 'Dist b/w Outer Most Inserts': return ['Distance Error (LT)', 'Distance Error (RT)', 'Total Outer-to-Outer Error'];
+            case 'Rail Seat': return ['Rail Seat (-)', 'Rail Seat (+)'];
+            case 'Toe Gap': return ['Toe Gap (-)', 'Toe Gap (+)'];
+            case 'Camber in Turn Out Sleepers': return ['Camber (+)', 'Camber (-)'];
             default: return [];
         }
     };
@@ -615,17 +615,21 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
                                                     </select>
                                                 </td>
                                                 <td data-label="Sub Reason">
-                                                    <select
-                                                        value={rejectionDetails[sid].subReason}
-                                                        onChange={(e) => handleRejectionChange(sid, 'subReason', e.target.value)}
-                                                        disabled={!rejectionDetails[sid].mainReason || saving}
-                                                        className="ui-select"
-                                                    >
-                                                        <option value="">-- Select --</option>
-                                                        {getSubReasons(rejectionDetails[sid].mainReason).map(sub => (
-                                                            <option key={sub} value={sub}>{sub}</option>
-                                                        ))}
-                                                    </select>
+                                                    {getSubReasons(rejectionDetails[sid].mainReason).length > 0 ? (
+                                                        <select
+                                                            value={rejectionDetails[sid].subReason}
+                                                            onChange={(e) => handleRejectionChange(sid, 'subReason', e.target.value)}
+                                                            disabled={!rejectionDetails[sid].mainReason || saving}
+                                                            className="ui-select"
+                                                        >
+                                                            <option value="">-- Select --</option>
+                                                            {getSubReasons(rejectionDetails[sid].mainReason).map(sub => (
+                                                                <option key={sub} value={sub}>{sub}</option>
+                                                            ))}
+                                                        </select>
+                                                    ) : (
+                                                        <span style={{ color: '#94a3b8', fontSize: '12px', fontStyle: 'italic' }}>No sub-reason</span>
+                                                    )}
                                                 </td>
                                             </tr>
                                         ))}

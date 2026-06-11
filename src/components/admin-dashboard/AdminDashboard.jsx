@@ -10,6 +10,7 @@ import { IEFieldsForm } from './IEFieldsForm';
 import { Modal } from './Modal';
 import { API_BASE_URL } from '../../services/apiConfig';
 import { getStoredUser } from '../../services/authService';
+import { Snackbar, Alert } from '@mui/material';
 import './admin.css';
 
 export const AdminDashboard = () => {
@@ -21,11 +22,17 @@ export const AdminDashboard = () => {
     const [roles, setRoles] = useState([]);
     const [users, setUsers] = useState([]);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
+    const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
     const refreshData = () => setRefreshTrigger(prev => prev + 1);
 
     // Custom Success Modal State
     const [successOpen, setSuccessOpen] = useState(false);
     const [successDetails, setSuccessDetails] = useState({ title: '', message: '', employeeCode: '' });
+
+    const handleCloseSnackbar = (event, reason) => {
+        if (reason === 'clickaway') return;
+        setSnackbar(prev => ({ ...prev, open: false }));
+    };
 // Fetch roles for dropdown
     React.useEffect(() => {
         const fetchRoles = async () => {
@@ -181,7 +188,7 @@ export const AdminDashboard = () => {
             } else {
                 // Original IE/ERC mapping logic
                 if (!userId) {
-                    alert('Please select a user');
+                    setSnackbar({ open: true, message: 'Please select a user', severity: 'warning' });
                     return;
                 }
 
@@ -203,12 +210,12 @@ export const AdminDashboard = () => {
                 }
             }
 
-            alert(selectedItem ? 'Mapping updated successfully' : 'Mapping created successfully');
+            setSnackbar({ open: true, message: selectedItem ? 'Mapping updated successfully!' : 'Mapping created successfully!', severity: 'success' });
             setModalOpen(false);
             refreshData();
         } catch (error) {
             console.error('Error saving mapping:', error);
-            alert('Failed to save mapping: ' + (error.response?.data?.message || error.message));
+            setSnackbar({ open: true, message: error.message || 'Failed to save mapping. Please verify your inputs and try again.', severity: 'error' });
         }
     };
 
@@ -252,9 +259,15 @@ export const AdminDashboard = () => {
         setModalOpen(true);
     };
 
-    const handleDeleteMapping = (mappingId) => {
+    const handleDeleteMapping = async (mappingId) => {
         if (window.confirm('Are you sure you want to delete this mapping?')) {
-            alert('Mapping deleted successfully');
+            try {
+                await deleteMappingApi(mappingId);
+                setSnackbar({ open: true, message: 'Mapping deleted successfully!', severity: 'success' });
+                refreshData();
+            } catch (error) {
+                setSnackbar({ open: true, message: error.message || 'Failed to delete mapping', severity: 'error' });
+            }
         }
     };
 
@@ -350,6 +363,7 @@ export const AdminDashboard = () => {
                             onEdit={handleEditMapping}
                             onDelete={handleDeleteMapping}
                             onCreateNew={handleCreateMapping}
+                            refreshTrigger={refreshTrigger}
                         />
                     )}
                 </div>
@@ -420,6 +434,7 @@ export const AdminDashboard = () => {
                 )}
                 {modalContent === 'mapping-form' && (
                     <IEFieldsForm
+                        initialData={selectedItem}
                         onSubmit={handleSubmitMapping}
                         onCancel={() => setModalOpen(false)}
                         getUsersByRole={getUsersByRoleApi}
@@ -515,6 +530,17 @@ export const AdminDashboard = () => {
                     </div>
                 </div>
             </Modal>
+
+            <Snackbar 
+                open={snackbar.open} 
+                autoHideDuration={6000} 
+                onClose={handleCloseSnackbar}
+                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+            >
+                <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </div>
     );
 };
@@ -661,7 +687,7 @@ const saveIeMappingApi = async (userId, mappingData) => {
 const saveProcessIeMappingApi = async (userId, processData, createdBy) => {
     try {
         const token = localStorage.getItem('authToken');
-        const response = await fetch(`${API_BASE_URL}/api/auth/api/processIeMapping?userId=${userId}&createdBy=${createdBy}`, {
+        const response = await fetch(`${API_BASE_URL}/api/mapping/processIe?userId=${userId}&createdBy=${createdBy}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -907,6 +933,26 @@ const saveCompanyWiseSleeperMappingApi = async (payload) => {
         const data = await response.json();
         if (data.responseStatus?.statusCode !== 0) throw new Error(data.responseStatus?.message || 'API Error');
         return data.responseData;
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * API to delete IE mapping
+ */
+export const deleteMappingApi = async (id) => {
+    try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${API_BASE_URL}/api/mapping/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        const data = await response.json();
+        if (!response.ok || data.responseStatus?.statusCode !== 0) throw new Error(data.responseStatus?.message || 'Error deleting mapping');
+        return data;
     } catch (error) {
         throw error;
     }

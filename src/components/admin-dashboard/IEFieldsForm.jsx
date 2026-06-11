@@ -97,7 +97,8 @@ export const IEFieldsForm = ({
     getSleeperEmployeesByRole,
     getSleeperCompanies,
     getSleeperPlants,
-    getSleeperMappedEmployees
+    getSleeperMappedEmployees,
+    initialData
 }) => {
     const [productType, setProductType] = useState('ERC');
     const [mappingType, setMappingType] = useState('employee wise'); // 'employee wise' or 'company wise' (for Sleeper)
@@ -197,6 +198,91 @@ export const IEFieldsForm = ({
         };
         fetchInitialData();
     }, [selectedRole, productType, getUsersByRole, getCompanies, getSleeperEmployeesByRole, getSleeperCompanies, ROLES]);
+
+    // Pre-fill form when editing
+    useEffect(() => {
+        if (initialData) {
+            if (initialData.mappingType?.includes('Process IE')) {
+                setProductType('ERC');
+                setSelectedRole('Process IE');
+                // We don't have the exact userId, but we can set the iePoiMappings row
+                setFormData(prev => ({
+                    ...prev,
+                    iePoiMappings: [{
+                        id: Date.now(),
+                        ieUserId: '', // would need actual ID, relying on UI to re-select or we can fake it if backend accepts code
+                        ieUserName: initialData.ieName,
+                        companyName: initialData.poiName?.split(' - ')[0] || '',
+                        unitName: initialData.poiName?.split(' - ')[1] || '',
+                        poiCode: initialData.poiCode,
+                        units: []
+                    }]
+                }));
+            } else if (initialData.mappingType?.includes('IE to CM')) {
+                setProductType('ERC');
+                setSelectedRole('IE');
+                // For IE to CM, controllingManagerUserId is set
+            } else if (initialData.mappingType?.includes('IE to POI')) {
+                setProductType('ERC');
+                setSelectedRole('IE');
+                setFormData(prev => ({
+                    ...prev,
+                    iePinPoiList: [{
+                        id: Date.now(),
+                        product: 'ERC',
+                        companyName: initialData.poiName?.split(' - ')[0] || '',
+                        unitName: initialData.poiName?.split(' - ')[1] || '',
+                        pinCode: '',
+                        poiCode: initialData.poiCode,
+                        ieType: 'Primary',
+                        units: []
+                    }]
+                }));
+            }
+        }
+    }, [initialData]);
+
+    // Auto-match user IDs from names after fetching lists when editing
+    useEffect(() => {
+        if (initialData) {
+            setFormData(prev => {
+                const updated = { ...prev };
+                let modified = false;
+
+                // Match Main User (CM) for Process IE
+                if (initialData.mappingType?.includes('Process IE') && users.length > 0 && !updated.userId && initialData.cm) {
+                    const matchedUser = users.find(u => u.userName === initialData.cm || u.employeeCode === initialData.cm);
+                    if (matchedUser) {
+                        updated.userId = matchedUser.userId;
+                        updated.userName = matchedUser.userName;
+                        modified = true;
+                    }
+                }
+                
+                // Match Process IE User
+                if (initialData.mappingType?.includes('Process IE') && ieUsers.length > 0 && updated.iePoiMappings[0]) {
+                    const matchedIe = ieUsers.find(u => u.userName === initialData.ieName || u.employeeCode === initialData.ieCode);
+                    if (matchedIe && !updated.iePoiMappings[0].ieUserId) {
+                        updated.iePoiMappings[0].ieUserId = matchedIe.userId;
+                        updated.iePoiMappings[0].ieUserName = matchedIe.userName;
+                        modified = true;
+                    }
+                }
+
+                // Match IE User for IE to POI
+                if (initialData.mappingType?.includes('IE to POI') && users.length > 0 && !updated.userId) {
+                    const matchedIe = users.find(u => u.userName === initialData.ieName || u.employeeCode === initialData.ieCode);
+                    if (matchedIe) {
+                        updated.userId = matchedIe.userId;
+                        updated.userName = matchedIe.userName;
+                        modified = true;
+                    }
+                }
+                
+                return modified ? updated : prev;
+            });
+        }
+    }, [initialData, users, ieUsers]);
 
     const { companyName: sleeperCompanyName, plantId: sleeperPlantId } = formData.sleeperMapping;
 
@@ -723,18 +809,16 @@ export const IEFieldsForm = ({
                             <div className="form-grid">
                                 <div className="form-group">
                                     <label className="form-label">Username <small className="required-star">*</small></label>
-                                    <select
-                                        name="userId"
-                                        className="form-control"
+                                    <SearchableSelect
+                                        options={users}
                                         value={formData.userId}
-                                        onChange={handleMainInputChange}
-                                        required
-                                    >
-                                        <option value="">Select User</option>
-                                        {users.map(u => (
-                                            <option key={u.userId} value={u.userId}>{u.userName}</option>
-                                        ))}
-                                    </select>
+                                        displayKey="userName"
+                                        valueKey="userId"
+                                        onChange={(val) => {
+                                            handleMainInputChange({ target: { name: 'userId', value: val.userId } });
+                                        }}
+                                        placeholder="Select User"
+                                    />
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label">User ID (System)</label>

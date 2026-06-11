@@ -101,7 +101,7 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
             </div>
             
             {/* Verify Book & Set No Button (Hidden in PDF) */}
-            {isEditing && (
+            {/* {isEditing && (
               <div className="no-print mt-1 flex items-center gap-2">
                 <button 
                   onClick={onVerifyBookSet} 
@@ -120,7 +120,7 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
                   </span>
                 )}
               </div>
-            )}
+            )} */}
           </div>
 
           {/* Height-Aware Branding Row (3-column grid for perfect centering) */}

@@ -29,6 +29,91 @@ const reportService = {
         return handleResponse(response);
     },
 
+    getRailPadLevel1Report: async () => {
+        const response = await fetch(`${API_ENDPOINTS.REPORTS}/railpad/1stLevelReportPoData`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getRailPadLevel2Report: async (poNo) => {
+        const response = await fetch(`${API_ENDPOINTS.REPORTS}/railpad/2ndLevelReportPoSerialData/${poNo}`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getRailPadLevel3Report: async (poNo, serialNo) => {
+        const response = await fetch(`${API_ENDPOINTS.REPORTS}/railpad/3rdLevelReportICData/${poNo}/${serialNo}`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getRailPadMonthlyProgressReport: async (params) => {
+        const { page = 0, size = 10, startDate, endDate, rio, zone, vendor } = params || {};
+        const url = new URL(`${API_ENDPOINTS.REPORTS}/railpad/monthly-progress`);
+
+        url.searchParams.append('page', page);
+        url.searchParams.append('size', size);
+        if (startDate) url.searchParams.append('startDate', startDate);
+        if (endDate) url.searchParams.append('endDate', endDate);
+        if (rio) url.searchParams.append('rio', rio);
+        if (zone) url.searchParams.append('zone', zone);
+        if (vendor) url.searchParams.append('vendor', vendor);
+
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getRailPadMonthlyAnalysisOfUnits: async (params) => {
+        const { page = 0, size = 10, startDate, endDate, rio, zone, vendor } = params || {};
+        const url = new URL(`${API_ENDPOINTS.REPORTS}/railpad/monthly-analysis`);
+
+        url.searchParams.append('page', page);
+        url.searchParams.append('size', size);
+        if (startDate) url.searchParams.append('startDate', startDate);
+        if (endDate) url.searchParams.append('endDate', endDate);
+        if (rio) url.searchParams.append('rio', rio);
+        if (zone) url.searchParams.append('zone', zone);
+        if (vendor) url.searchParams.append('vendor', vendor);
+
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getRailPadClosedLoopManufacturers: async () => {
+        const response = await fetch(`${API_ENDPOINTS.REPORTS}/railpad/closed-loop/manufacturers`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getRailPadClosedLoopPlants: async (vendorCode) => {
+        const response = await fetch(`${API_ENDPOINTS.REPORTS}/railpad/closed-loop/plants?vendorCode=${vendorCode}`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getRailPadClosedLoopLots: async (plantId, year) => {
+        const response = await fetch(`${API_ENDPOINTS.REPORTS}/railpad/closed-loop/lots?plantId=${plantId}&year=${year}`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getRailPadClosedLoopDetails: async (lotId) => {
+        const response = await fetch(`${API_ENDPOINTS.REPORTS}/railpad/closed-loop/details/${lotId}`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
     /**
      * Level 3: Inspection Call Details
      * Hits: /api/reports/3rdLevelReportICData?callNo={rlyPoSrNo}&poNo={poNo}
@@ -236,6 +321,82 @@ const reportService = {
         return handleResponse(response);
     },
 
+    getCmInspectionCalls: async (params) => {
+        const { startDate, endDate } = params || {};
+        const url = new URL(`${API_ENDPOINTS.REPORTS}/cm-inspection-calls`);
+        
+        const formatDate = (dateStr) => {
+            if (!dateStr || !dateStr.includes('-')) return dateStr;
+            const [year, month, day] = dateStr.split('-');
+            return `${day}/${month}/${year}`;
+        };
+
+        if (startDate) url.searchParams.append('startDate', formatDate(startDate));
+        if (endDate) url.searchParams.append('endDate', formatDate(endDate));
+
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getCmSleeperInspectionCalls: async (params) => {
+        const { startDate, endDate } = params || {};
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/cm-inspection-calls`);
+        
+        const formatDate = (dateStr) => {
+            if (!dateStr || !dateStr.includes('-')) return dateStr;
+            const [year, month, day] = dateStr.split('-');
+            return `${day}/${month}/${year}`;
+        };
+
+        if (startDate) url.searchParams.append('startDate', formatDate(startDate));
+        if (endDate) url.searchParams.append('endDate', formatDate(endDate));
+
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getCmSleeperOverdueCalls: async (params) => {
+        const { startDate, endDate } = params || {};
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/cm-sleeper-overduecalls`);
+        
+        const formatDate = (dateStr) => {
+            if (!dateStr || !dateStr.includes('-')) return dateStr;
+            const [year, month, day] = dateStr.split('-');
+            return `${day}/${month}/${year}`;
+        };
+
+        if (startDate) url.searchParams.append('startDate', formatDate(startDate));
+        if (endDate) url.searchParams.append('endDate', formatDate(endDate));
+
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getCmErcOverdueCalls: async (params) => {
+        const { startDate, endDate } = params || {};
+        const url = new URL(`${API_ENDPOINTS.REPORTS}/cm-erc-overduecalls`);
+        
+        const formatDate = (dateStr) => {
+            if (!dateStr || !dateStr.includes('-')) return dateStr;
+            const [year, month, day] = dateStr.split('-');
+            return `${day}/${month}/${year}`;
+        };
+
+        if (startDate) url.searchParams.append('startDate', formatDate(startDate));
+        if (endDate) url.searchParams.append('endDate', formatDate(endDate));
+
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
     getParetoAnalysis: async (params) => {
         const { startDate, endDate, product } = params || {};
         let url = `${API_ENDPOINTS.REPORTS}/paretoAnalysis`;
@@ -322,6 +483,13 @@ const reportService = {
 
     getDemouldingRejectedCount: async () => {
         const response = await fetch(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/demoulding-process-rejected-count`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getFinalInspectionCallStatusCounts: async () => {
+        const response = await fetch(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/final-inspection-call-status-counts`, {
             headers: getAuthHeaders(),
         });
         return handleResponse(response);
@@ -589,6 +757,18 @@ const reportService = {
         return handleResponse(response);
     },
 
+    getRailPadVendorWiseQualityReport: async (params) => {
+        const { startDate, endDate } = params || {};
+        const url = new URL(`${API_ENDPOINTS.REPORTS}/railPadVendorWiseQuality`);
+        if (startDate) url.searchParams.append('startDate', startDate);
+        if (endDate) url.searchParams.append('endDate', endDate);
+        
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
     getRailPadManufacturers: async () => {
         const response = await fetch(`${API_ENDPOINTS.REPORTS}/railPadManufacturers`, {
             headers: getAuthHeaders(),
@@ -732,6 +912,42 @@ const reportService = {
         if (plantId) url.searchParams.append('plantId', plantId);
 
         const response = await fetch(url.toString(), { headers: getAuthHeaders() });
+        return handleResponse(response);
+    },
+
+    getCmIeWiseCallStatus: async (cmEmpId) => {
+        const url = new URL(`${API_ENDPOINTS.REPORTS}/cm-ie-wise-callStatus`);
+        if (cmEmpId) url.searchParams.append('cmEmpId', cmEmpId);
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getCmSleeperIeWiseCallStatus: async (cmEmpId) => {
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/cm-sleeper-ie-callWiseStatus`);
+        if (cmEmpId) url.searchParams.append('cmEmplId', cmEmpId); // Note: backend uses cmEmplId
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getCmCompletedCallsAnalysis: async (cmEmpId) => {
+        const url = new URL(`${API_ENDPOINTS.REPORTS}/cm-completed-calls-analysis`);
+        if (cmEmpId) url.searchParams.append('cmEmpId', cmEmpId);
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getCmSleeperCompletedCallsAnalysis: async (cmEmpId) => {
+        const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/cm-sleeper-IECompletedCalls`);
+        if (cmEmpId) url.searchParams.append('cmEmplId', cmEmpId); // Note: backend uses cmEmplId
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
         return handleResponse(response);
     }
 };

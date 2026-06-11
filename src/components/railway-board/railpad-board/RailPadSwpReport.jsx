@@ -83,11 +83,12 @@ const RailPadSwpReport = () => {
         const headers = [
             { label: 'Date', key: 'date' },
             { label: 'Shift', key: 'shift' },
+            { label: 'Name of Plant', key: 'plantName' },
             { label: 'PO Number', key: 'poNo' },
             { label: 'No. of Batches', key: 'noOfBatches' },
-            { label: 'Produced Qty', key: 'producedQty' },
-            { label: 'Accepted Qty', key: 'acceptedQty' },
-            { label: 'Rejected Qty', key: 'rejectedQty' }
+            { label: 'Produced Qty (Nos.)', key: 'producedQty' },
+            { label: 'Accepted Qty (Nos.)', key: 'acceptedQty' },
+            { label: 'Rejected Qty (Nos.)', key: 'rejectedQty' }
         ];
         downloadExcel(reportData, headers, 'RailPad_Shift_Wise_Production_Report');
     };
@@ -170,21 +171,22 @@ const RailPadSwpReport = () => {
                             <tr>
                                 <th>Date</th>
                                 <th>Shift</th>
+                                <th>Name of Plant</th>
                                 <th>PO Number</th>
-                                <th className="text-right">No. of Batches</th>
-                                <th className="text-right">Produced Qty</th>
-                                <th className="text-right">Accepted Qty</th>
-                                <th className="text-right">Rejected Qty</th>
+                                <th className="text-center">No. of Batches</th>
+                                <th className="text-center">Produced Qty</th>
+                                <th className="text-center">Accepted Qty</th>
+                                <th className="text-center">Rejected Qty</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan="7" className="text-center p-8 text-slate-400">Loading records...</td>
+                                    <td colSpan="8" className="text-center p-8 text-slate-400">Loading records...</td>
                                 </tr>
                             ) : reportData.length === 0 ? (
                                 <tr>
-                                    <td colSpan="7" className="text-center p-8 text-slate-400">No records found.</td>
+                                    <td colSpan="8" className="text-center p-8 text-slate-400">No records found.</td>
                                 </tr>
                             ) : (
                                 reportData.map((row, i) => (
@@ -195,14 +197,15 @@ const RailPadSwpReport = () => {
                                                 {row.shift}
                                             </span>
                                         </td>
+                                        <td>{row.plantName || '-'}</td>
                                         <td style={{ fontWeight: '600' }}>{row.poNo}</td>
-                                        <td className="text-right">{row.noOfBatches}</td>
-                                        <td className="text-right">{row.producedQty.toLocaleString()}</td>
-                                        <td className="text-right" style={{ color: '#16a34a', fontWeight: 'bold' }}>
-                                            {row.acceptedQty.toLocaleString()}
+                                        <td className="text-center">{row.noOfBatches}</td>
+                                        <td className="text-center">{row.producedQty.toLocaleString()} Nos.</td>
+                                        <td className="text-center" style={{ color: '#16a34a', fontWeight: 'bold' }}>
+                                            {row.acceptedQty.toLocaleString()} Nos.
                                         </td>
-                                        <td className="text-right" style={{ color: '#dc2626' }}>
-                                            {row.rejectedQty.toLocaleString()}
+                                        <td className="text-center" style={{ color: '#dc2626' }}>
+                                            {row.rejectedQty.toLocaleString()} Nos.
                                         </td>
                                     </tr>
                                 ))

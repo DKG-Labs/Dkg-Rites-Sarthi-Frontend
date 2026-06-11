@@ -225,7 +225,7 @@ const App = () => {
             <Route
               path={ROUTES.CM_DASHBOARD}
               element={
-                <ProtectedRoute allowedRoles={['CM']}>
+                <ProtectedRoute allowedRoles={['CM', 'Control Manager', 'Controlling Manager']}>
                   <CMDashboardWrapper />
                 </ProtectedRoute>
               }

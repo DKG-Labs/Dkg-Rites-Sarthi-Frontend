@@ -137,10 +137,46 @@ const AttendingCallsDashboard = ({ onStart, onResume }) => {
     setShowResumeModal(true);
   };
 
-  const handleResumeSubmit = (shiftData) => {
-    setShowResumeModal(false);
-    if (onResume) {
-      onResume(callToResume, shiftData);
+  const handleResumeSubmit = async (shiftData) => {
+    // If the call is PAUSED, perform RESUME workflow transition first
+    if (callToResume && (callToResume.jobStatus === 'PAUSED' || callToResume.status === 'PAUSED')) {
+      try {
+        setIsSubmitting(true);
+        const actionData = {
+          workflowTransitionId: callToResume.workflowTransitionId,
+          requestId: callToResume.requestId,
+          action: 'RESUME',
+          remarks: `Inspection resumed with Shift: ${shiftData?.shift || 'N/A'}, Date: ${shiftData?.castingDate || 'N/A'}`,
+          actionBy: user.userId
+        };
+
+        const result = await performTransitionAction(actionData);
+        if (result.responseStatus?.statusCode === 0) {
+          setNotification({ message: 'Inspection resumed successfully!', type: 'success' });
+          setShowResumeModal(false);
+          if (onResume) {
+            // Pass updated transition ID from the response
+            const updatedCall = {
+              ...callToResume,
+              workflowTransitionId: result.responseData?.workflowTransitionId || callToResume.workflowTransitionId
+            };
+            onResume(updatedCall, shiftData);
+          }
+        } else {
+          setNotification({ message: result.responseStatus?.message || 'Failed to resume inspection', type: 'error' });
+        }
+      } catch (error) {
+        console.error('Error resuming inspection:', error);
+        setNotification({ message: 'Unable to resume inspection. Please try again.', type: 'error' });
+      } finally {
+        setIsSubmitting(false);
+      }
+    } else {
+      // For non-PAUSED calls (PO_VERIFICATION), proceed directly
+      setShowResumeModal(false);
+      if (onResume) {
+        onResume(callToResume, shiftData);
+      }
     }
   };
 
@@ -343,7 +379,7 @@ const AttendingCallsDashboard = ({ onStart, onResume }) => {
                           {isSubmitting ? '...' : 'START'}
                         </button>
                       )}
-                      {(call.jobStatus === 'PO_VERIFICATION' || call.status === 'PO_VERIFICATION') && (
+                      {(call.jobStatus === 'PO_VERIFICATION' || call.status === 'PO_VERIFICATION' || call.jobStatus === 'RESUME' || call.status === 'RESUME') && (
                         <button
                           onClick={() => handleResumeClick(call)}
                           style={{
@@ -358,6 +394,23 @@ const AttendingCallsDashboard = ({ onStart, onResume }) => {
                           }}
                         >
                           RESUME
+                        </button>
+                      )}
+                      {(call.jobStatus === 'PAUSED' || call.status === 'PAUSED') && (
+                        <button
+                          onClick={() => handleResumeClick(call)}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '6px',
+                            border: '1px solid #93c5fd',
+                            background: '#eff6ff',
+                            color: '#1e40af',
+                            fontSize: '11px',
+                            fontWeight: '700',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Enter Shift Details
                         </button>
                       )}
                     </div>

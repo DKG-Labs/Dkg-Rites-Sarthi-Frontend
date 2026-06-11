@@ -202,7 +202,7 @@ const AppLayout = () => {
                 )}
 
                 {/* CM Dashboard - Only show for CM role */}
-                {currentUser?.roleName === 'CM' && (
+                {(currentUser?.roleName === 'CM' || currentUser?.roleName === 'Control Manager' || currentUser?.roleName === 'Controlling Manager') && (
                   <li
                     className={`sidebar-item ${isActivePage(ROUTES.CM_DASHBOARD) ? 'active' : ''}`}
                     onClick={handleNavigateToCMDashboard}

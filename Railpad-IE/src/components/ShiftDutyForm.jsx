@@ -13,6 +13,7 @@ const ShiftDutyForm = ({ onSubmit, onCancel, hideCompanyAndUnit = false, initial
   const [isLoadingCompanies, setIsLoadingCompanies] = useState(false);
   const [units, setUnits] = useState([]);
   const [isLoadingUnits, setIsLoadingUnits] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchCompanies = async () => {
@@ -78,10 +79,13 @@ const ShiftDutyForm = ({ onSubmit, onCancel, hideCompanyAndUnit = false, initial
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+
     const isCompanyValid = hideCompanyAndUnit || formData.company;
     const isUnitValid = hideCompanyAndUnit || formData.unit;
 
     if (formData.shift && isCompanyValid && formData.date && isUnitValid) {
+      setIsSubmitting(true);
       onSubmit(formData);
     }
   };
@@ -266,8 +270,9 @@ const ShiftDutyForm = ({ onSubmit, onCancel, hideCompanyAndUnit = false, initial
             <button
               type="submit"
               className="btn-submit-premium"
+              disabled={isSubmitting}
             >
-              Begin Logging
+              {isSubmitting ? 'Verifying...' : 'Begin Logging'}
             </button>
           </div>
         </form>

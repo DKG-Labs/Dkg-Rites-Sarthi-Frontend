@@ -36,6 +36,7 @@ const INITIAL_VENDORS = [
   { id: 'V005', name: 'Precision Engineering Co', region: 'RIO West', rating: 4.2, activeCalls: 10, rejectionRate: 4.0, inspections: 41 }
 ];
 
+// eslint-disable-next-line no-unused-vars
 const INITIAL_CALLS = [
   {
     id: 'CALL-2026-101',
@@ -641,6 +642,9 @@ export const CMDashboardPage = () => {
     activeTab === 'PO Lifecycle' ? lifecycleFilters : undefined
   );
 
+  // Fetch IE Wise Call Status Data
+  const cmEmpId = localStorage.getItem('loginId') || localStorage.getItem('userId') || '10431';
+
   // Accordion row togglers
   const togglePo = useCallback((poNo) => {
     if (expandedPo === poNo) {
@@ -828,7 +832,11 @@ export const CMDashboardPage = () => {
   }), [reportDashboardFilters]);
 
   const { data: mauData, pagination: mauPagination, loading: mauLoading } = useReportData(
-    selectedReportProduct === 'Sleeper' ? reportService.getSleeperMonthlyAnalysis : reportService.getMonthlyAnalysisOfUnits,
+    selectedReportProduct === 'Sleeper'
+      ? reportService.getSleeperMonthlyAnalysis
+      : selectedReportProduct === 'Rail Pad'
+        ? reportService.getRailPadMonthlyAnalysisOfUnits
+        : reportService.getMonthlyAnalysisOfUnits,
     activeTab === 'All Reports' && REPORT_NAME_TO_SLUG[activeReportTab] === 'mau' ? mauParams : undefined
   );
 
@@ -944,7 +952,10 @@ export const CMDashboardPage = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Data states
-  const [calls] = useState(INITIAL_CALLS);
+  const [calls, setCalls] = useState([]);
+  const [overdueCalls, setOverdueCalls] = useState([]);
+  // eslint-disable-next-line no-unused-vars
+  const [callsLoading, setCallsLoading] = useState(false);
   const [approvals, setApprovals] = useState(INITIAL_APPROVALS);
   const [notification, setNotification] = useState(null);
 
@@ -957,14 +968,155 @@ export const CMDashboardPage = () => {
   };
 
   // Global Filters states
-  const [selectedRegions, setSelectedRegions] = useState(['RIO North']); // Default CM belongs to RIO North
-  const [selectedIEs, setSelectedIEs] = useState(['Rajesh Kumar', 'Priya Sharma']); // Belonging to CM by default
-  const [selectedProducts, setSelectedProducts] = useState(['ERC', 'Sleeper', 'Rail Pad']);
-  const [selectedVendors, setSelectedVendors] = useState(['Global Materials Corp', 'Premium Materials Inc', 'Steel Industries Ltd', 'Quality Forge Pvt Ltd', 'Precision Engineering Co']);
-  const [selectedStages, setSelectedStages] = useState(['RM', 'Process', 'Final']);
+  const [selectedRegions, setSelectedRegions] = useState([]);
+  const [selectedIEs, setSelectedIEs] = useState([]);
+  const [selectedProducts, setSelectedProducts] = useState(['ERC']);
+  const [selectedVendors, setSelectedVendors] = useState([]);
+  const [selectedStages, setSelectedStages] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 3);
+    return d.toISOString().split('T')[0];
+  });
+  const [endDate, setEndDate] = useState(() => {
+    const d = new Date();
+    return d.toISOString().split('T')[0];
+  });
+
+  // Fetch IE Wise Call Status Data (requires selectedProducts to be initialized)
+  const { data: ieWiseCallStatusData = [] } = useReportData(
+    reportService.getCmIeWiseCallStatus,
+    activeTab === 'IE wise Call Status' && selectedProducts.includes('ERC') ? cmEmpId : undefined
+  );
+
+  const { data: sleeperIeWiseCallStatusData = [] } = useReportData(
+    reportService.getCmSleeperIeWiseCallStatus,
+    activeTab === 'IE wise Call Status' && selectedProducts.includes('Sleeper') ? cmEmpId : undefined
+  );
+
+  // Fetch IE Performance Monitoring Data (requires selectedProducts to be initialized)
+  const { data: cmCompletedCallsAnalysisData = [] } = useReportData(
+    reportService.getCmCompletedCallsAnalysis,
+    activeTab === 'IE Performance Monitoring' && selectedProducts.includes('ERC') ? cmEmpId : undefined
+  );
+
+  const { data: sleeperCompletedCallsAnalysisData = [] } = useReportData(
+    reportService.getCmSleeperCompletedCallsAnalysis,
+    activeTab === 'IE Performance Monitoring' && selectedProducts.includes('Sleeper') ? cmEmpId : undefined
+  );
+
+  useEffect(() => {
+    const fetchCalls = async () => {
+      setCallsLoading(true);
+      try {
+        let data = [];
+        const isAllProducts = selectedProducts.length === 0;
+        const isIEMonitoring = activeTab === 'IE Performance Monitoring' || activeTab === 'IE wise Call Status';
+        const skipErcCallMonitoring = isIEMonitoring && selectedProducts.includes('ERC');
+        
+        const fetchErc = !skipErcCallMonitoring && (isAllProducts || selectedProducts.includes('ERC') || selectedProducts.includes('Rail Pad'));
+        const fetchSleeper = isAllProducts || selectedProducts.includes('Sleeper');
+
+        if (fetchErc) {
+          try {
+            const resErc = await reportService.getCmInspectionCalls({ startDate, endDate });
+            if (resErc.responseData) data = [...data, ...resErc.responseData];
+          } catch (err) { console.error("Error fetching ERC calls", err); }
+        }
+
+        if (fetchSleeper) {
+          try {
+            const resSleeper = await reportService.getCmSleeperInspectionCalls({ startDate, endDate });
+            if (resSleeper.responseData) data = [...data, ...resSleeper.responseData];
+          } catch (err) { console.error("Error fetching Sleeper calls", err); }
+        }
+        
+        const mappedCalls = data.map((item, index) => {
+          // Use the raw status coming directly from the API
+          let mappedStatus = item.status || 'Pending';
+          let mappedSubStatus = '';
+
+          let prodType = selectedProducts[0] || 'ERC';
+          if (item.callNumber?.startsWith('ER') || item.callNumber?.startsWith('EP') || item.callNumber?.startsWith('EF')) prodType = 'ERC';
+          else if (item.callNumber?.startsWith('SR') || item.callNumber?.startsWith('SP') || item.callNumber?.startsWith('SF')) prodType = 'Sleeper';
+          else if (item.callNumber?.startsWith('RR') || item.callNumber?.startsWith('RP') || item.callNumber?.startsWith('RF')) prodType = 'Rail Pad';
+
+          return {
+            id: item.callNumber + '-' + index,
+            callNumber: item.callNumber,
+            product: prodType,
+            stage: item.productAndStageOfInspection || 'Process',
+            poNumber: item.poNumber,
+            dpDate: item.deliveryDate || '',
+            extDpDate: item.expectedDeliveryDate || '',
+            vendorName: item.vendorName,
+            desiredInspectionDate: item.inspectionDesiredDate,
+            callDate: item.callDate,
+            ieName: item.ieName,
+            cmName: item.cmName,
+            ritesRio: item.ritesRio,
+            status: mappedStatus,
+            subStatus: mappedSubStatus,
+            docs: { ic: false, po: !!item.poNumber, itp: false, annexure: false, calibration: false },
+            inspectionStartDate: '',
+            inspectionCompletionDate: ''
+          };
+        });
+
+        setCalls(mappedCalls);
+        
+        // Fetch overdue calls dynamically based on selected products
+        let overdueDataRaw = [];
+        if (fetchErc) {
+           try {
+             const overdueResponseErc = await reportService.getCmErcOverdueCalls({ startDate, endDate });
+             if (overdueResponseErc.responseData) overdueDataRaw = [...overdueDataRaw, ...overdueResponseErc.responseData];
+           } catch (err) { console.error("Error fetching ERC overdue calls", err); }
+        }
+        
+        if (fetchSleeper) {
+           try {
+             const overdueResponseSleeper = await reportService.getCmSleeperOverdueCalls({ startDate, endDate });
+             if (overdueResponseSleeper.responseData) overdueDataRaw = [...overdueDataRaw, ...overdueResponseSleeper.responseData];
+           } catch (err) { console.error("Error fetching Sleeper overdue calls", err); }
+        }
+
+        const mappedOverdue = overdueDataRaw.map((item, index) => {
+             let prodType = selectedProducts[0] || 'ERC';
+             if (item.callNumber?.startsWith('ER') || item.callNumber?.startsWith('EP') || item.callNumber?.startsWith('EF')) prodType = 'ERC';
+             else if (item.callNumber?.startsWith('SR') || item.callNumber?.startsWith('SP') || item.callNumber?.startsWith('SF')) prodType = 'Sleeper';
+             else if (item.callNumber?.startsWith('RR') || item.callNumber?.startsWith('RP') || item.callNumber?.startsWith('RF')) prodType = 'Rail Pad';
+             return {
+                 id: 'overdue-' + item.callNumber + '-' + index,
+                 callNumber: item.callNumber,
+                 product: prodType,
+                 stage: item.productAndStageOfInspection || 'Process',
+                 poNumber: item.poNumber,
+                 dpDate: item.deliveryDate || '',
+                 extDpDate: item.expectedDeliveryDate || '',
+                 vendorName: item.vendorName,
+                 desiredInspectionDate: item.inspectionDesiredDate,
+                 callDate: item.callDate,
+                 ieName: item.ieName,
+                 cmName: item.cmName,
+                 ritesRio: item.ritesRio,
+                 status: item.status || 'Pending',
+                 subStatus: '',
+                 docs: { ic: false, po: !!item.poNumber, itp: false, annexure: false, calibration: false },
+             };
+        });
+        setOverdueCalls(mappedOverdue);
+
+      } catch (error) {
+        console.error("Error fetching CM inspection calls:", error);
+      } finally {
+        setCallsLoading(false);
+      }
+    };
+
+    fetchCalls();
+  }, [startDate, endDate, selectedProducts, activeTab]);
 
   // Expand/collapse global filters panel
   const [filtersExpanded, setFiltersExpanded] = useState(true);
@@ -1027,15 +1179,8 @@ export const CMDashboardPage = () => {
   const [modalAction, setModalAction] = useState(''); // 'approve', 'reject', 'forward'
   const [remarksInput, setRemarksInput] = useState('');
 
-  // Dynamically calculate "Overdue Calls" (Pending calls where crossed Desired Date by 7 days and still not initiated)
-  const isOverdue = (call) => {
-    if (call.status !== 'Pending') return false;
-    const desired = new Date(call.desiredInspectionDate);
-    const current = new Date('2026-05-27'); // Given current system date
-    const diffTime = current - desired;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays > 7;
-  };
+  // Removed dynamic isOverdue calculation as it will be fetched from a separate API later
+  const isOverdue = (call) => false;
 
   // Helper trigger to show custom alert message
   const triggerNotification = (text, type = 'success') => {
@@ -1045,7 +1190,8 @@ export const CMDashboardPage = () => {
 
   // Filter and sort the inspection calls list
   const filteredCalls = useMemo(() => {
-    return calls.filter(call => {
+    const sourceCalls = activeCallFilter === 'overdue' ? overdueCalls : calls;
+    return sourceCalls.filter(call => {
       // Global Text Search
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -1054,6 +1200,7 @@ export const CMDashboardPage = () => {
           call.poNumber.toLowerCase().includes(query) ||
           call.vendorName.toLowerCase().includes(query) ||
           (call.ieName && call.ieName.toLowerCase().includes(query)) ||
+          (call.cmName && call.cmName.toLowerCase().includes(query)) ||
           call.ritesRio.toLowerCase().includes(query);
 
         if (!matchesQuery) return false;
@@ -1076,24 +1223,26 @@ export const CMDashboardPage = () => {
 
       // Date Range Filter
       if (startDate && call.callDate < startDate) return false;
-      if (endDate && call.callDate > endDate) return false;
+      // Append T23:59:59 to endDate so calls on that day are included
+      if (endDate && call.callDate > `${endDate}T23:59:59`) return false;
 
       // Clicking KPI Card Filtering / Subsection Filtering
+      const sLower = (call.status || '').toLowerCase();
       if (activeCallFilter === 'pending') {
-        return call.status === 'Pending';
+        return (sLower.includes('pending') && !/\bic\b/.test(sLower)) || sLower.includes('returned');
       } else if (activeCallFilter === 'under_inspection') {
-        return call.status === 'Under Inspection';
+        return sLower.includes('under inspection');
       } else if (activeCallFilter === 'ic_pending') {
-        return call.status === 'IC Issuance Pending';
+        return /\bic\b/.test(sLower) && sLower.includes('pending');
       } else if (activeCallFilter === 'completed') {
-        return call.status === 'Completed';
+        return sLower.includes('completed');
       } else if (activeCallFilter === 'overdue') {
-        return isOverdue(call);
+        return true; // We already switched sourceCalls to overdueCalls, so return all of them
       }
 
       return true;
     });
-  }, [calls, searchQuery, selectedRegions, selectedIEs, selectedProducts, selectedVendors, selectedStages, activeCallFilter, startDate, endDate]);
+  }, [calls, overdueCalls, searchQuery, selectedRegions, selectedIEs, selectedProducts, selectedVendors, selectedStages, activeCallFilter, startDate, endDate]);
 
   // Sort Call list
   const sortedCalls = useMemo(() => {
@@ -1147,14 +1296,40 @@ export const CMDashboardPage = () => {
     });
 
     const total = baseList.length;
-    const pending = baseList.filter(c => c.status === 'Pending').length;
-    const underInspection = baseList.filter(c => c.status === 'Under Inspection').length;
-    const icPending = baseList.filter(c => c.status === 'IC Issuance Pending').length;
-    const completed = baseList.filter(c => c.status === 'Completed').length;
-    const overdue = baseList.filter(c => isOverdue(c)).length;
+    const pending = baseList.filter(c => {
+      const sLower = (c.status || '').toLowerCase();
+      return (sLower.includes('pending') && !/\bic\b/.test(sLower)) || sLower.includes('returned');
+    }).length;
+    
+    const underInspection = baseList.filter(c => {
+      const sLower = (c.status || '').toLowerCase();
+      return sLower.includes('under inspection');
+    }).length;
+    
+    const icPending = baseList.filter(c => {
+      const sLower = (c.status || '').toLowerCase();
+      return /\bic\b/.test(sLower) && sLower.includes('pending');
+    }).length;
+    
+    const completed = baseList.filter(c => {
+      const sLower = (c.status || '').toLowerCase();
+      return sLower.includes('completed');
+    }).length;
+
+    const baseOverdueList = overdueCalls.filter(call => {
+      if (selectedRegions.length > 0 && !selectedRegions.includes(call.ritesRio)) return false;
+      if (selectedIEs.length > 0 && !selectedIEs.includes(call.ieName)) return false;
+      if (selectedProducts.length > 0 && !selectedProducts.includes(call.product)) return false;
+      if (selectedVendors.length > 0 && !selectedVendors.includes(call.vendorName)) return false;
+      if (selectedStages.length > 0 && !selectedStages.includes(call.stage)) return false;
+      if (startDate && call.callDate < startDate) return false;
+      if (endDate && call.callDate > `${endDate}T23:59:59`) return false;
+      return true;
+    });
+    const overdue = baseOverdueList.length;
 
     return { total, pending, underInspection, icPending, completed, overdue };
-  }, [calls, selectedRegions, selectedIEs, selectedProducts, selectedVendors, selectedStages, startDate, endDate]);
+  }, [calls, overdueCalls, selectedRegions, selectedIEs, selectedProducts, selectedVendors, selectedStages, startDate, endDate]);
 
   // Handle document PDF mock downloading
   const handleDownloadPdf = (callNumber, docType) => {
@@ -1204,10 +1379,6 @@ export const CMDashboardPage = () => {
   // Multi-select helper toggle
   const toggleFilterOption = (option, selectedList, setter) => {
     if (selectedList.includes(option)) {
-      if (selectedList.length === 1) {
-        triggerNotification('At least one filter item must remain selected.', 'warning');
-        return;
-      }
       setter(selectedList.filter(item => item !== option));
     } else {
       setter([...selectedList, option]);
@@ -1217,14 +1388,20 @@ export const CMDashboardPage = () => {
 
   // Reset all global filters to defaults
   const handleResetFilters = () => {
-    setSelectedRegions(['RIO North']);
-    setSelectedIEs(['Rajesh Kumar', 'Priya Sharma']);
-    setSelectedProducts(['ERC', 'Sleeper', 'Rail Pad']);
-    setSelectedVendors(['Global Materials Corp', 'Premium Materials Inc', 'Steel Industries Ltd', 'Quality Forge Pvt Ltd', 'Precision Engineering Co']);
-    setSelectedStages(['RM', 'Process', 'Final']);
+    setSelectedRegions([]);
+    setSelectedIEs([]);
+    setSelectedProducts(['ERC']);
+    setSelectedVendors([]);
+    setSelectedStages([]);
     setSearchQuery('');
-    setStartDate('');
-    setEndDate('');
+    
+    const d = new Date();
+    d.setMonth(d.getMonth() - 3);
+    setStartDate(d.toISOString().split('T')[0]);
+    
+    const d2 = new Date();
+    setEndDate(d2.toISOString().split('T')[0]);
+    
     setActiveCallFilter(activeTab === 'Dashboard' ? null : 'all');
     setCurrentPage(1);
     triggerNotification('Global filters reset to CM default limits.', 'info');
@@ -2466,6 +2643,64 @@ export const CMDashboardPage = () => {
         )}
 
         {/* Calls Table Section for CM Dashboard & Call Monitoring */}
+        {['Call Monitoring', 'IE wise Call Status', 'IE Performance Monitoring'].includes(activeTab) && (
+           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px', background: '#f4fbf6', padding: '20px', borderRadius: '12px' }}>
+             {/* Product Type Toggle */}
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  {['ERC', 'Sleeper', 'Rail Pad'].map(prod => {
+                    const isActive = selectedProducts.includes(prod);
+                    return (
+                      <button
+                        key={prod}
+                        onClick={() => {
+                          setSelectedProducts([prod]);
+                          setCurrentPage(1);
+                        }}
+                        style={{
+                          padding: '10px 24px',
+                          borderRadius: '24px',
+                          border: 'none',
+                          fontWeight: '700',
+                          fontSize: '13px',
+                          cursor: 'pointer',
+                          backgroundColor: isActive ? '#166534' : '#dcfce7',
+                          color: isActive ? '#fff' : '#166534',
+                          transition: 'all 0.2s ease',
+                          boxShadow: isActive ? '0 4px 6px rgba(22, 101, 52, 0.2)' : 'none'
+                        }}
+                      >
+                        {prod}
+                      </button>
+                    )
+                  })}
+                </div>
+                
+                {/* Date Range Picker - Show only for Call Monitoring */}
+                {activeTab === 'Call Monitoring' && (
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '16px', background: '#fff', padding: '12px 20px', borderRadius: '12px', border: '1px solid #bbf7d0', width: 'fit-content' }}>
+                    <span style={{ fontWeight: '700', color: '#166534', fontSize: '13px' }}>FROM</span>
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                      <input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => { setStartDate(e.target.value); setCurrentPage(1); }}
+                        style={{ padding: '8px 12px', borderRadius: '8px', border: 'none', background: '#f0fdf4', color: '#166534', fontSize: '14px', outline: 'none', cursor: 'pointer', fontWeight: '500' }}
+                      />
+                    </div>
+                    <span style={{ fontWeight: '700', color: '#166534', fontSize: '13px' }}>TO</span>
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                      <input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => { setEndDate(e.target.value); setCurrentPage(1); }}
+                        style={{ padding: '8px 12px', borderRadius: '8px', border: 'none', background: '#f0fdf4', color: '#166534', fontSize: '14px', outline: 'none', cursor: 'pointer', fontWeight: '500' }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+        )}
+
         {((activeTab === 'Dashboard' && activeCallFilter !== null) || activeTab === 'Call Monitoring') && (
           <>
             {/* Calls Table Section */}
@@ -2714,23 +2949,35 @@ export const CMDashboardPage = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {INITIAL_IES.filter(ie => selectedIEs.includes(ie.name)).map((ie) => {
-                      const ieCalls = filteredCalls.filter(c => c.ieName === ie.name);
-                      const pending = ieCalls.filter(c => c.status === 'Pending').length;
-                      const underInspection = ieCalls.filter(c => c.status === 'Under Inspection').length;
-                      const icPending = ieCalls.filter(c => c.status === 'IC Issuance Pending').length;
-                      const overdue = ieCalls.filter(c => isOverdue(c)).length;
+                    {(selectedProducts.includes('ERC') ? ieWiseCallStatusData : selectedProducts.includes('Sleeper') ? sleeperIeWiseCallStatusData : INITIAL_IES).filter(ie => selectedIEs.length === 0 || selectedIEs.includes(ie.ieName || ie.name)).map((ie, idx) => {
+                      const isApiData = selectedProducts.includes('ERC') || selectedProducts.includes('Sleeper');
+                      const ieName = ie.ieName || ie.name;
+                      const ieId = ie.ieId || ie.id;
+                      const ieCalls = filteredCalls.filter(c => c.ieName === ieName);
+                      
+                      let pending = 0, underInspection = 0, icPending = 0, overdue = 0;
+                      if (isApiData) {
+                        pending = ie.noOfCallsPending || 0;
+                        underInspection = ie.noOfCallsUnderInspection || 0;
+                        icPending = ie.noOfCallsPendingForIc || 0;
+                        overdue = ie.noOfCallsOverdue || 0;
+                      } else {
+                        pending = ieCalls.filter(c => c.status === 'Pending').length;
+                        underInspection = ieCalls.filter(c => c.status === 'Under Inspection').length;
+                        icPending = ieCalls.filter(c => c.status === 'IC Issuance Pending').length;
+                        overdue = ieCalls.filter(c => isOverdue(c)).length;
+                      }
 
                       return (
-                        <tr key={ie.id}>
-                          <td style={{ fontWeight: 'bold' }}>{ie.id}</td>
-                          <td style={{ fontWeight: '600', color: '#15803d' }}>{ie.name}</td>
+                        <tr key={ieId || idx}>
+                          <td style={{ fontWeight: 'bold' }}>{ieId}</td>
+                          <td style={{ fontWeight: '600', color: '#15803d' }}>{ieName}</td>
                           <td style={{ fontWeight: '600', color: pending > 0 ? '#d97706' : 'inherit' }}>
                             {pending > 0 ? (
                               <span
                                 className="cm-table-link"
                                 style={{ cursor: 'pointer', textDecoration: 'underline' }}
-                                onClick={() => handleOpenCallDetailsModal(ie.name, 'Pending', ieCalls.filter(c => c.status === 'Pending'))}
+                                onClick={() => handleOpenCallDetailsModal(ieName, 'Pending', ieCalls.filter(c => c.status === 'Pending'))}
                               >
                                 {pending}
                               </span>
@@ -2743,7 +2990,7 @@ export const CMDashboardPage = () => {
                               <span
                                 className="cm-table-link"
                                 style={{ cursor: 'pointer', textDecoration: 'underline' }}
-                                onClick={() => handleOpenCallDetailsModal(ie.name, 'Under Inspection', ieCalls.filter(c => c.status === 'Under Inspection'))}
+                                onClick={() => handleOpenCallDetailsModal(ieName, 'Under Inspection', ieCalls.filter(c => c.status === 'Under Inspection'))}
                               >
                                 {underInspection}
                               </span>
@@ -2756,7 +3003,7 @@ export const CMDashboardPage = () => {
                               <span
                                 className="cm-table-link"
                                 style={{ cursor: 'pointer', textDecoration: 'underline' }}
-                                onClick={() => handleOpenCallDetailsModal(ie.name, 'Pending for IC', ieCalls.filter(c => c.status === 'IC Issuance Pending'))}
+                                onClick={() => handleOpenCallDetailsModal(ieName, 'Pending for IC', ieCalls.filter(c => c.status === 'IC Issuance Pending'))}
                               >
                                 {icPending}
                               </span>
@@ -2769,7 +3016,7 @@ export const CMDashboardPage = () => {
                               <span
                                 className="cm-table-link"
                                 style={{ cursor: 'pointer', textDecoration: 'underline', color: '#ef4444' }}
-                                onClick={() => handleOpenCallDetailsModal(ie.name, 'Overdue', ieCalls.filter(c => isOverdue(c)))}
+                                onClick={() => handleOpenCallDetailsModal(ieName, 'Overdue', ieCalls.filter(c => isOverdue(c)))}
                               >
                                 {overdue}
                                 <span style={{ color: '#ef4444', marginLeft: '4px' }} title="Desired Date crossed by 7 Days">⚠️</span>
@@ -2814,7 +3061,25 @@ export const CMDashboardPage = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {INITIAL_IES.filter(ie => selectedIEs.includes(ie.name)).map((ie) => {
+                    {(selectedProducts.includes('ERC') ? cmCompletedCallsAnalysisData : selectedProducts.includes('Sleeper') ? sleeperCompletedCallsAnalysisData : INITIAL_IES).filter(ie => selectedIEs.length === 0 || selectedIEs.includes(ie.ieName || ie.name)).map((ie, idx) => {
+                      const isApiData = selectedProducts.includes('ERC') || selectedProducts.includes('Sleeper');
+                      if (isApiData) {
+                        return (
+                          <tr key={ie.ieId || idx}>
+                            <td className="col-perf-ie-id" style={{ fontWeight: 'bold' }}>{ie.ieId}</td>
+                            <td className="col-perf-ie-name" style={{ fontWeight: '600', color: '#15803d' }}>{ie.ieName}</td>
+                            <td className="col-perf-number" style={{ fontWeight: '600' }}>{ie.totalCalls || 0}</td>
+                            <td className="col-perf-number-wide" style={{ fontWeight: 'bold', color: ie.overdueCallsAttended > 0 ? '#ef4444' : 'inherit' }}>{ie.overdueCallsAttended || 0}</td>
+                            <td className="col-perf-number" style={{ fontWeight: '600', color: ie.callsCancelled > 0 ? '#64748b' : 'inherit' }}>{ie.callsCancelled || 0}</td>
+                            <td className="col-perf-number" style={{ fontWeight: 'bold', color: ie.callsAccepted > 0 ? '#15803d' : 'inherit' }}>{ie.callsAccepted || 0}</td>
+                            <td className="col-perf-number" style={{ fontWeight: 'bold', color: ie.callsRejected > 0 ? '#ef4444' : 'inherit' }}>{ie.callsRejected || 0}</td>
+                            <td className="col-perf-number-wide" style={{ fontWeight: '600', color: ie.callsPartiallyAcceptedRejected > 0 ? '#d97706' : 'inherit' }}>{ie.callsPartiallyAcceptedRejected || 0}</td>
+                            <td className="col-perf-number" style={{ fontWeight: '600', color: ie.callsWithheld > 0 ? '#ea580c' : 'inherit' }}>{ie.callsWithheld || 0}</td>
+                            <td className="col-perf-number" style={{ fontWeight: 'bold', color: ie.icIssued > 0 ? '#4338ca' : 'inherit' }}>{ie.icIssued || 0}</td>
+                          </tr>
+                        );
+                      }
+
                       const completedCalls = filteredCalls.filter(c => c.ieName === ie.name && c.status === 'Completed');
                       const total = completedCalls.length;
 

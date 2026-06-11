@@ -108,7 +108,9 @@ export const loginUser = async (userId, password) => {
     }
 
     // Return the responseData containing user info and token
-    return data.responseData;
+    const responseData = data.responseData;
+    responseData.loginId = userId; // attach the input loginId
+    return responseData;
   } catch (error) {
     throw error;
   }
@@ -121,6 +123,7 @@ export const loginUser = async (userId, password) => {
 export const storeAuthData = (authData) => {
   localStorage.setItem('authToken', authData.token);
   localStorage.setItem('userId', authData.userId);
+  if (authData.loginId) localStorage.setItem('loginId', authData.loginId);
   localStorage.setItem('userName', authData.userName);
   localStorage.setItem('roleName', authData.roleName);
   localStorage.setItem('shortName', authData.shortName || '');  // IE short name for IC generation
@@ -146,6 +149,7 @@ export const getStoredUser = () => {
 
   return {
     userId: localStorage.getItem('userId'),
+    loginId: localStorage.getItem('loginId'),
     userName: localStorage.getItem('userName'),
     roleName: localStorage.getItem('roleName'),
     shortName: localStorage.getItem('shortName'),
@@ -169,6 +173,7 @@ export const isAuthenticated = () => {
 export const logoutUser = () => {
   localStorage.removeItem('authToken');
   localStorage.removeItem('userId');
+  localStorage.removeItem('loginId');
   localStorage.removeItem('userName');
   localStorage.removeItem('roleName');
   localStorage.removeItem('shortName');

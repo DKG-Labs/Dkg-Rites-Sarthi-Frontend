@@ -23,6 +23,8 @@ export const AdminDashboard = () => {
     const [users, setUsers] = useState([]);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+    const [successOpen, setSuccessOpen] = useState(false);
+    const [successDetails, setSuccessDetails] = useState({ title: '', message: '', employeeCode: '' });
     const refreshData = () => setRefreshTrigger(prev => prev + 1);
 
     const handleCloseSnackbar = (event, reason) => {
@@ -445,7 +447,6 @@ export const AdminDashboard = () => {
                 )}
             </Modal>
 
-<<<<<<< HEAD
             {/* Custom Success Dialog Modal */}
             <Modal
                 isOpen={successOpen}
@@ -528,8 +529,6 @@ export const AdminDashboard = () => {
                 </div>
             </Modal>
 
-=======
->>>>>>> fixedcode
             <Snackbar 
                 open={snackbar.open} 
                 autoHideDuration={6000} 

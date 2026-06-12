@@ -1149,6 +1149,15 @@ export const CMDashboardPage = () => {
     const stages = new Set();
     const cms = new Set();
 
+    // Ensure the logged-in CM is always an option in the dropdown, even if they have 0 calls
+    const loggedInEmpCode = localStorage.getItem('employeeCode');
+    const loggedInUserName = localStorage.getItem('userName');
+    if (loggedInEmpCode && loggedInUserName) {
+      cms.add(`${loggedInEmpCode} - ${loggedInUserName.toUpperCase()}`);
+    } else if (loggedInEmpCode) {
+      cms.add(`${loggedInEmpCode}`);
+    }
+
     allCalls.forEach(call => {
       if (call.ritesRio) regions.add(call.ritesRio);
       if (call.ieName) {
@@ -1185,12 +1194,11 @@ export const CMDashboardPage = () => {
       const loggedInEmpCode = localStorage.getItem('employeeCode');
       const loggedInUserName = localStorage.getItem('userName');
       const code = String(loggedInEmpCode || '').trim().toLowerCase();
-      const userName = String(loggedInUserName || '').trim().toLowerCase();
-
-      const match = dynamicFilterOptions.cms.find(cm => {
-        const cLower = String(cm).trim().toLowerCase();
-        return (code && cLower.includes(code)) || (userName && cLower.includes(userName));
-      });
+      
+      let match = null;
+      if (code) {
+        match = dynamicFilterOptions.cms.find(cm => String(cm).trim().toLowerCase().startsWith(code));
+      }
 
       if (match) {
         setSelectedCMs([match]);
@@ -1495,13 +1503,13 @@ export const CMDashboardPage = () => {
     setSelectedStages(dynamicFilterOptions.stages);
 
     const loggedInEmpCode = localStorage.getItem('employeeCode');
-    const loggedInUserName = localStorage.getItem('userName');
     const code = String(loggedInEmpCode || '').trim().toLowerCase();
-    const userName = String(loggedInUserName || '').trim().toLowerCase();
-    const match = dynamicFilterOptions.cms.find(cm => {
-      const cLower = String(cm).trim().toLowerCase();
-      return cLower === code || cLower === userName;
-    });
+    
+    let match = null;
+    if (code) {
+      match = dynamicFilterOptions.cms.find(cm => String(cm).trim().toLowerCase().startsWith(code));
+    }
+
     if (match) {
       setSelectedCMs([match]);
     } else {

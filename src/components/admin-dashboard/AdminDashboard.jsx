@@ -29,10 +29,6 @@ export const AdminDashboard = () => {
         if (reason === 'clickaway') return;
         setSnackbar(prev => ({ ...prev, open: false }));
     };
-<<<<<<< HEAD
-=======
-
->>>>>>> fixedcode
 // Fetch roles for dropdown
     React.useEffect(() => {
         const fetchRoles = async () => {

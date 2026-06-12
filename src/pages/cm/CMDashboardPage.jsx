@@ -1192,7 +1192,6 @@ export const CMDashboardPage = () => {
 
       // Auto-select logged-in CM, or fall back to all CMs if no match is found
       const loggedInEmpCode = localStorage.getItem('employeeCode');
-      const loggedInUserName = localStorage.getItem('userName');
       const code = String(loggedInEmpCode || '').trim().toLowerCase();
       
       let match = null;

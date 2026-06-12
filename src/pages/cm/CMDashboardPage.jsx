@@ -643,7 +643,7 @@ export const CMDashboardPage = () => {
   );
 
   // Fetch IE Wise Call Status Data
-  const cmEmpId = localStorage.getItem('loginId') || localStorage.getItem('userId') || '10431';
+  const cmEmpId = localStorage.getItem('employeeCode') || localStorage.getItem('loginId') || localStorage.getItem('userId') || '10431';
 
   // Accordion row togglers
   const togglePo = useCallback((poNo) => {
@@ -970,9 +970,11 @@ export const CMDashboardPage = () => {
   // Global Filters states
   const [selectedRegions, setSelectedRegions] = useState([]);
   const [selectedIEs, setSelectedIEs] = useState([]);
-  const [selectedProducts, setSelectedProducts] = useState(['ERC']);
+  const [selectedProducts, setSelectedProducts] = useState(['ERC', 'Sleeper', 'Rail Pad']);
   const [selectedVendors, setSelectedVendors] = useState([]);
   const [selectedStages, setSelectedStages] = useState([]);
+  const [selectedCMs, setSelectedCMs] = useState([]);
+  const [hasAutoSelected, setHasAutoSelected] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
@@ -1014,7 +1016,7 @@ export const CMDashboardPage = () => {
         const isAllProducts = selectedProducts.length === 0;
         const isIEMonitoring = activeTab === 'IE Performance Monitoring' || activeTab === 'IE wise Call Status';
         const skipErcCallMonitoring = isIEMonitoring && selectedProducts.includes('ERC');
-        
+
         const fetchErc = !skipErcCallMonitoring && (isAllProducts || selectedProducts.includes('ERC') || selectedProducts.includes('Rail Pad'));
         const fetchSleeper = isAllProducts || selectedProducts.includes('Sleeper');
 
@@ -1031,7 +1033,22 @@ export const CMDashboardPage = () => {
             if (resSleeper.responseData) data = [...data, ...resSleeper.responseData];
           } catch (err) { console.error("Error fetching Sleeper calls", err); }
         }
-        
+
+        const formatNameWithId = (rawName) => {
+          if (!rawName) return '';
+          const parts = String(rawName).split('-');
+          if (parts.length === 2) {
+            const p1 = parts[0].trim();
+            const p2 = parts[1].trim();
+            if (/^\d+$/.test(p1)) {
+              return `${p1} - ${p2}`;
+            } else if (/^\d+$/.test(p2)) {
+              return `${p2} - ${p1}`;
+            }
+          }
+          return String(rawName).trim();
+        };
+
         const mappedCalls = data.map((item, index) => {
           // Use the raw status coming directly from the API
           let mappedStatus = item.status || 'Pending';
@@ -1053,8 +1070,8 @@ export const CMDashboardPage = () => {
             vendorName: item.vendorName,
             desiredInspectionDate: item.inspectionDesiredDate,
             callDate: item.callDate,
-            ieName: item.ieName,
-            cmName: item.cmName,
+            ieName: item.ieName ? item.ieName.split(',').map(ie => formatNameWithId(ie.trim())).join(', ') : '',
+            cmName: formatNameWithId(item.cmName),
             ritesRio: item.ritesRio,
             status: mappedStatus,
             subStatus: mappedSubStatus,
@@ -1065,46 +1082,46 @@ export const CMDashboardPage = () => {
         });
 
         setCalls(mappedCalls);
-        
+
         // Fetch overdue calls dynamically based on selected products
         let overdueDataRaw = [];
         if (fetchErc) {
-           try {
-             const overdueResponseErc = await reportService.getCmErcOverdueCalls({ startDate, endDate });
-             if (overdueResponseErc.responseData) overdueDataRaw = [...overdueDataRaw, ...overdueResponseErc.responseData];
-           } catch (err) { console.error("Error fetching ERC overdue calls", err); }
+          try {
+            const overdueResponseErc = await reportService.getCmErcOverdueCalls({ startDate, endDate });
+            if (overdueResponseErc.responseData) overdueDataRaw = [...overdueDataRaw, ...overdueResponseErc.responseData];
+          } catch (err) { console.error("Error fetching ERC overdue calls", err); }
         }
-        
+
         if (fetchSleeper) {
-           try {
-             const overdueResponseSleeper = await reportService.getCmSleeperOverdueCalls({ startDate, endDate });
-             if (overdueResponseSleeper.responseData) overdueDataRaw = [...overdueDataRaw, ...overdueResponseSleeper.responseData];
-           } catch (err) { console.error("Error fetching Sleeper overdue calls", err); }
+          try {
+            const overdueResponseSleeper = await reportService.getCmSleeperOverdueCalls({ startDate, endDate });
+            if (overdueResponseSleeper.responseData) overdueDataRaw = [...overdueDataRaw, ...overdueResponseSleeper.responseData];
+          } catch (err) { console.error("Error fetching Sleeper overdue calls", err); }
         }
 
         const mappedOverdue = overdueDataRaw.map((item, index) => {
-             let prodType = selectedProducts[0] || 'ERC';
-             if (item.callNumber?.startsWith('ER') || item.callNumber?.startsWith('EP') || item.callNumber?.startsWith('EF')) prodType = 'ERC';
-             else if (item.callNumber?.startsWith('SR') || item.callNumber?.startsWith('SP') || item.callNumber?.startsWith('SF')) prodType = 'Sleeper';
-             else if (item.callNumber?.startsWith('RR') || item.callNumber?.startsWith('RP') || item.callNumber?.startsWith('RF')) prodType = 'Rail Pad';
-             return {
-                 id: 'overdue-' + item.callNumber + '-' + index,
-                 callNumber: item.callNumber,
-                 product: prodType,
-                 stage: item.productAndStageOfInspection || 'Process',
-                 poNumber: item.poNumber,
-                 dpDate: item.deliveryDate || '',
-                 extDpDate: item.expectedDeliveryDate || '',
-                 vendorName: item.vendorName,
-                 desiredInspectionDate: item.inspectionDesiredDate,
-                 callDate: item.callDate,
-                 ieName: item.ieName,
-                 cmName: item.cmName,
-                 ritesRio: item.ritesRio,
-                 status: item.status || 'Pending',
-                 subStatus: '',
-                 docs: { ic: false, po: !!item.poNumber, itp: false, annexure: false, calibration: false },
-             };
+          let prodType = selectedProducts[0] || 'ERC';
+          if (item.callNumber?.startsWith('ER') || item.callNumber?.startsWith('EP') || item.callNumber?.startsWith('EF')) prodType = 'ERC';
+          else if (item.callNumber?.startsWith('SR') || item.callNumber?.startsWith('SP') || item.callNumber?.startsWith('SF')) prodType = 'Sleeper';
+          else if (item.callNumber?.startsWith('RR') || item.callNumber?.startsWith('RP') || item.callNumber?.startsWith('RF')) prodType = 'Rail Pad';
+          return {
+            id: 'overdue-' + item.callNumber + '-' + index,
+            callNumber: item.callNumber,
+            product: prodType,
+            stage: item.productAndStageOfInspection || 'Process',
+            poNumber: item.poNumber,
+            dpDate: item.deliveryDate || '',
+            extDpDate: item.expectedDeliveryDate || '',
+            vendorName: item.vendorName,
+            desiredInspectionDate: item.inspectionDesiredDate,
+            callDate: item.callDate,
+            ieName: item.ieName ? item.ieName.split(',').map(ie => formatNameWithId(ie.trim())).join(', ') : '',
+            cmName: formatNameWithId(item.cmName),
+            ritesRio: item.ritesRio,
+            status: item.status || 'Pending',
+            subStatus: '',
+            docs: { ic: false, po: !!item.poNumber, itp: false, annexure: false, calibration: false },
+          };
         });
         setOverdueCalls(mappedOverdue);
 
@@ -1124,16 +1141,84 @@ export const CMDashboardPage = () => {
   const [ieSearchQuery, setIeSearchQuery] = useState('');
   const [vendorSearchQuery, setVendorSearchQuery] = useState('');
 
+  const dynamicFilterOptions = useMemo(() => {
+    const allCalls = [...calls, ...overdueCalls];
+    const regions = new Set();
+    const ies = new Set();
+    const vendors = new Set();
+    const stages = new Set();
+    const cms = new Set();
+
+    allCalls.forEach(call => {
+      if (call.ritesRio) regions.add(call.ritesRio);
+      if (call.ieName) {
+        call.ieName.split(',').forEach(ie => ies.add(ie.trim()));
+      }
+      if (call.vendorName) vendors.add(call.vendorName);
+      if (call.stage) stages.add(call.stage);
+      if (call.cmName) cms.add(call.cmName);
+    });
+
+    return {
+      regions: Array.from(regions).sort(),
+      ies: Array.from(ies).sort(),
+      vendors: Array.from(vendors).sort(),
+      stages: Array.from(stages).sort(),
+      cms: Array.from(cms).sort()
+    };
+  }, [calls, overdueCalls]);
+
+  // Pre-select all dropdown options by default when calls data is loaded
+  useEffect(() => {
+    if (calls.length > 0 && !hasAutoSelected) {
+      setSelectedRegions(dynamicFilterOptions.regions);
+      setSelectedIEs(dynamicFilterOptions.ies);
+      setSelectedVendors(dynamicFilterOptions.vendors);
+      setSelectedStages(dynamicFilterOptions.stages);
+
+      const uniqueProducts = Array.from(new Set(calls.map(c => c.product)));
+      if (uniqueProducts.length > 0) {
+        setSelectedProducts(uniqueProducts);
+      }
+
+      // Auto-select logged-in CM, or fall back to all CMs if no match is found
+      const loggedInEmpCode = localStorage.getItem('employeeCode');
+      const loggedInUserName = localStorage.getItem('userName');
+      const code = String(loggedInEmpCode || '').trim().toLowerCase();
+      const userName = String(loggedInUserName || '').trim().toLowerCase();
+
+      const match = dynamicFilterOptions.cms.find(cm => {
+        const cLower = String(cm).trim().toLowerCase();
+        return (code && cLower.includes(code)) || (userName && cLower.includes(userName));
+      });
+
+      if (match) {
+        setSelectedCMs([match]);
+      } else {
+        setSelectedCMs(dynamicFilterOptions.cms);
+      }
+
+      setHasAutoSelected(true);
+    }
+  }, [calls, dynamicFilterOptions, hasAutoSelected]);
+
   // Filter preview string helpers
+  const getCMsPreview = () => {
+    if (dynamicFilterOptions.cms.length > 0 && selectedCMs.length === dynamicFilterOptions.cms.length) return 'All CMs';
+    if (selectedCMs.length === 0) return 'None Selected';
+    if (selectedCMs.length === 1) return selectedCMs[0];
+    return `${selectedCMs[0]} (+${selectedCMs.length - 1})`;
+  };
+
   const getRegionsPreview = () => {
-    if (selectedRegions.length === 4) return 'All Regions';
+    if (dynamicFilterOptions.regions.length > 0 && selectedRegions.length === dynamicFilterOptions.regions.length) return 'All Regions';
     if (selectedRegions.length === 0) return 'None Selected';
     if (selectedRegions.length === 1) return selectedRegions[0];
     return `${selectedRegions[0]} (+${selectedRegions.length - 1})`;
   };
 
   const getIEsPreview = () => {
-    if (selectedIEs.length === INITIAL_IES.length) return 'All Engineers';
+    if (dynamicFilterOptions.ies.length > 0 && selectedIEs.length === dynamicFilterOptions.ies.length) return 'All Engineers';
     if (selectedIEs.length === 0) return 'None Selected';
     if (selectedIEs.length === 1) return selectedIEs[0].split(' ')[0]; // Show only first name if space-constrained
     return `${selectedIEs[0].split(' ')[0]} (+${selectedIEs.length - 1})`;
@@ -1147,14 +1232,14 @@ export const CMDashboardPage = () => {
   };
 
   const getVendorsPreview = () => {
-    if (selectedVendors.length === INITIAL_VENDORS.length) return 'All Vendors';
+    if (dynamicFilterOptions.vendors.length > 0 && selectedVendors.length === dynamicFilterOptions.vendors.length) return 'All Vendors';
     if (selectedVendors.length === 0) return 'None Selected';
     if (selectedVendors.length === 1) return selectedVendors[0].split(' ')[0];
     return `${selectedVendors[0].split(' ')[0]} (+${selectedVendors.length - 1})`;
   };
 
   const getStagesPreview = () => {
-    if (selectedStages.length === 3) return 'All Stages';
+    if (dynamicFilterOptions.stages.length > 0 && selectedStages.length === dynamicFilterOptions.stages.length) return 'All Stages';
     if (selectedStages.length === 0) return 'None Selected';
     if (selectedStages.length === 1) return selectedStages[0];
     return `${selectedStages[0]} (+${selectedStages.length - 1})`;
@@ -1206,11 +1291,17 @@ export const CMDashboardPage = () => {
         if (!matchesQuery) return false;
       }
 
+      // CM Filter
+      if (selectedCMs.length > 0 && !selectedCMs.includes(call.cmName)) return false;
+
       // Region Filter
       if (selectedRegions.length > 0 && !selectedRegions.includes(call.ritesRio)) return false;
 
       // IE Filter
-      if (selectedIEs.length > 0 && !selectedIEs.includes(call.ieName)) return false;
+      if (selectedIEs.length > 0) {
+        const callIEs = call.ieName ? call.ieName.split(',').map(ie => ie.trim()) : [];
+        if (!callIEs.some(ie => selectedIEs.includes(ie))) return false;
+      }
 
       // Product Filter
       if (selectedProducts.length > 0 && !selectedProducts.includes(call.product)) return false;
@@ -1242,7 +1333,7 @@ export const CMDashboardPage = () => {
 
       return true;
     });
-  }, [calls, overdueCalls, searchQuery, selectedRegions, selectedIEs, selectedProducts, selectedVendors, selectedStages, activeCallFilter, startDate, endDate]);
+  }, [calls, overdueCalls, searchQuery, selectedCMs, selectedRegions, selectedIEs, selectedProducts, selectedVendors, selectedStages, activeCallFilter, startDate, endDate]);
 
   // Sort Call list
   const sortedCalls = useMemo(() => {
@@ -1285,8 +1376,12 @@ export const CMDashboardPage = () => {
   // KPI Dynamic Sum Calculations (Based strictly on the overall loaded calls + global filters)
   const kpiStats = useMemo(() => {
     const baseList = calls.filter(call => {
+      if (selectedCMs.length > 0 && !selectedCMs.includes(call.cmName)) return false;
       if (selectedRegions.length > 0 && !selectedRegions.includes(call.ritesRio)) return false;
-      if (selectedIEs.length > 0 && !selectedIEs.includes(call.ieName)) return false;
+      if (selectedIEs.length > 0) {
+        const callIEs = call.ieName ? call.ieName.split(',').map(ie => ie.trim()) : [];
+        if (!callIEs.some(ie => selectedIEs.includes(ie))) return false;
+      }
       if (selectedProducts.length > 0 && !selectedProducts.includes(call.product)) return false;
       if (selectedVendors.length > 0 && !selectedVendors.includes(call.vendorName)) return false;
       if (selectedStages.length > 0 && !selectedStages.includes(call.stage)) return false;
@@ -1300,25 +1395,29 @@ export const CMDashboardPage = () => {
       const sLower = (c.status || '').toLowerCase();
       return (sLower.includes('pending') && !/\bic\b/.test(sLower)) || sLower.includes('returned');
     }).length;
-    
+
     const underInspection = baseList.filter(c => {
       const sLower = (c.status || '').toLowerCase();
       return sLower.includes('under inspection');
     }).length;
-    
+
     const icPending = baseList.filter(c => {
       const sLower = (c.status || '').toLowerCase();
       return /\bic\b/.test(sLower) && sLower.includes('pending');
     }).length;
-    
+
     const completed = baseList.filter(c => {
       const sLower = (c.status || '').toLowerCase();
       return sLower.includes('completed');
     }).length;
 
     const baseOverdueList = overdueCalls.filter(call => {
+      if (selectedCMs.length > 0 && !selectedCMs.includes(call.cmName)) return false;
       if (selectedRegions.length > 0 && !selectedRegions.includes(call.ritesRio)) return false;
-      if (selectedIEs.length > 0 && !selectedIEs.includes(call.ieName)) return false;
+      if (selectedIEs.length > 0) {
+        const callIEs = call.ieName ? call.ieName.split(',').map(ie => ie.trim()) : [];
+        if (!callIEs.some(ie => selectedIEs.includes(ie))) return false;
+      }
       if (selectedProducts.length > 0 && !selectedProducts.includes(call.product)) return false;
       if (selectedVendors.length > 0 && !selectedVendors.includes(call.vendorName)) return false;
       if (selectedStages.length > 0 && !selectedStages.includes(call.stage)) return false;
@@ -1329,7 +1428,7 @@ export const CMDashboardPage = () => {
     const overdue = baseOverdueList.length;
 
     return { total, pending, underInspection, icPending, completed, overdue };
-  }, [calls, overdueCalls, selectedRegions, selectedIEs, selectedProducts, selectedVendors, selectedStages, startDate, endDate]);
+  }, [calls, overdueCalls, selectedCMs, selectedRegions, selectedIEs, selectedProducts, selectedVendors, selectedStages, startDate, endDate]);
 
   // Handle document PDF mock downloading
   const handleDownloadPdf = (callNumber, docType) => {
@@ -1388,20 +1487,36 @@ export const CMDashboardPage = () => {
 
   // Reset all global filters to defaults
   const handleResetFilters = () => {
-    setSelectedRegions([]);
-    setSelectedIEs([]);
-    setSelectedProducts(['ERC']);
-    setSelectedVendors([]);
-    setSelectedStages([]);
+    setSelectedRegions(dynamicFilterOptions.regions);
+    setSelectedIEs(dynamicFilterOptions.ies);
+    const uniqueProducts = Array.from(new Set(calls.map(c => c.product)));
+    setSelectedProducts(uniqueProducts.length > 0 ? uniqueProducts : ['ERC', 'Sleeper', 'Rail Pad']);
+    setSelectedVendors(dynamicFilterOptions.vendors);
+    setSelectedStages(dynamicFilterOptions.stages);
+
+    const loggedInEmpCode = localStorage.getItem('employeeCode');
+    const loggedInUserName = localStorage.getItem('userName');
+    const code = String(loggedInEmpCode || '').trim().toLowerCase();
+    const userName = String(loggedInUserName || '').trim().toLowerCase();
+    const match = dynamicFilterOptions.cms.find(cm => {
+      const cLower = String(cm).trim().toLowerCase();
+      return cLower === code || cLower === userName;
+    });
+    if (match) {
+      setSelectedCMs([match]);
+    } else {
+      setSelectedCMs(dynamicFilterOptions.cms);
+    }
+
     setSearchQuery('');
-    
+
     const d = new Date();
     d.setMonth(d.getMonth() - 3);
     setStartDate(d.toISOString().split('T')[0]);
-    
+
     const d2 = new Date();
     setEndDate(d2.toISOString().split('T')[0]);
-    
+
     setActiveCallFilter(activeTab === 'Dashboard' ? null : 'all');
     setCurrentPage(1);
     triggerNotification('Global filters reset to CM default limits.', 'info');
@@ -1623,7 +1738,7 @@ export const CMDashboardPage = () => {
             <div
               className={`cm-menu-item ${['Vendor Quality Monitoring', 'Charts', 'All Reports', 'SQC Analysis', 'SCADA Monitoring'].includes(activeTab) ? 'active' : ''}`}
               onClick={() => {
-                setActiveTab('Vendor Quality Monitoring');
+                setActiveTab('Charts');
                 setVendorMenuOpen(!vendorMenuOpen);
                 setCallMenuOpen(false);
                 setIeMenuOpen(false);
@@ -1838,7 +1953,7 @@ export const CMDashboardPage = () => {
             {/* First Row: 3 Cards */}
             <div className="cm-kpi-row cm-kpi-row-1">
               <div
-                className={`cm-kpi-card card-dark-green ${activeCallFilter === 'all' ? 'active' : ''}`}
+                className={`cm-kpi-card card-light-green ${activeCallFilter === 'all' ? 'active' : ''}`}
                 onClick={() => { setActiveCallFilter('all'); setCurrentPage(1); }}
               >
                 <div className="cm-kpi-header">
@@ -1862,7 +1977,7 @@ export const CMDashboardPage = () => {
               </div>
 
               <div
-                className={`cm-kpi-card card-ocean ${activeCallFilter === 'under_inspection' ? 'active' : ''}`}
+                className={`cm-kpi-card card-light-blue ${activeCallFilter === 'under_inspection' ? 'active' : ''}`}
                 onClick={() => { setActiveCallFilter('under_inspection'); setCurrentPage(1); }}
               >
                 <div className="cm-kpi-header">
@@ -1877,7 +1992,7 @@ export const CMDashboardPage = () => {
             {/* Second Row: 3 Cards */}
             <div className="cm-kpi-row cm-kpi-row-2">
               <div
-                className={`cm-kpi-card card-indigo ${activeCallFilter === 'ic_pending' ? 'active' : ''}`}
+                className={`cm-kpi-card card-light-indigo ${activeCallFilter === 'ic_pending' ? 'active' : ''}`}
                 onClick={() => { setActiveCallFilter('ic_pending'); setCurrentPage(1); }}
               >
                 <div className="cm-kpi-header">
@@ -1940,7 +2055,7 @@ export const CMDashboardPage = () => {
                 <i className="fa-solid fa-sliders" style={{ color: '#166534', fontSize: '13px' }} />
                 <span style={{ color: '#166534', fontWeight: '700', fontSize: '12px', letterSpacing: '0.3px' }}>Global Controls &amp; Filters</span>
                 <span style={{ background: '#f0fdf4', color: '#166534', borderRadius: '12px', padding: '2px 8px', fontSize: '10px', fontWeight: '700', border: '1px solid #bbf7d0', marginLeft: '6px' }}>
-                  {selectedRegions.length + selectedIEs.length + selectedProducts.length + selectedVendors.length + selectedStages.length + (startDate || endDate ? 1 : 0)} active
+                  {selectedCMs.length + selectedRegions.length + selectedIEs.length + selectedProducts.length + selectedVendors.length + selectedStages.length + (startDate || endDate ? 1 : 0)} active
                 </span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4b6b4b', fontSize: '11px', fontWeight: '500' }}>
@@ -1961,6 +2076,80 @@ export const CMDashboardPage = () => {
               <div style={{ padding: '12px 16px', display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center', background: '#fafafa', borderTop: '1px solid #f0fdf4', borderBottomLeftRadius: '12px', borderBottomRightRadius: '12px' }}>
                 {/* Inline Popover Selectors */}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+
+                  {/* CM Select */}
+                  <div style={{ position: 'relative' }}>
+                    <button
+                      onClick={() => setOpenDropdown(openDropdown === 'cm' ? null : 'cm')}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '7px 12px',
+                        borderRadius: '6px',
+                        background: selectedCMs.length < dynamicFilterOptions.cms.length ? '#f0fdf4' : '#fff',
+                        border: `1px solid ${selectedCMs.length < dynamicFilterOptions.cms.length ? '#bbf7d0' : '#e2e8f0'}`,
+                        color: selectedCMs.length < dynamicFilterOptions.cms.length ? '#166534' : '#4b5563',
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s'
+                      }}
+                    >
+                      <i className="fa-solid fa-user-gear" style={{ color: '#166534', opacity: 0.8 }} />
+                      <span>CM: {getCMsPreview()}</span>
+                      <i className="fa-solid fa-chevron-down" style={{ fontSize: '9px', opacity: 0.7, transform: openDropdown === 'cm' ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+                    </button>
+
+                    {openDropdown === 'cm' && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        marginTop: '6px',
+                        background: '#fff',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '8px',
+                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                        zIndex: 999,
+                        minWidth: '180px',
+                        padding: '8px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px'
+                      }}>
+                        <div style={{ padding: '4px 8px', fontSize: '9px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Filter by CM</div>
+                        {dynamicFilterOptions.cms.map(cm => {
+                          const on = selectedCMs.includes(cm);
+                          return (
+                            <div
+                              key={cm}
+                              onClick={() => toggleFilterOption(cm, selectedCMs, setSelectedCMs)}
+                              className={`cm-filter-dropdown-item ${on ? 'selected cm' : ''}`}
+                            >
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{
+                                  width: '14px',
+                                  height: '14px',
+                                  borderRadius: '3px',
+                                  border: `1px solid ${on ? '#166534' : '#cbd5e1'}`,
+                                  background: on ? '#166534' : '#fff',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: '#fff',
+                                  fontSize: '9px'
+                                }}>
+                                  {on && <i className="fa-solid fa-check" />}
+                                </div>
+                                {cm}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
 
                   {/* Region Select */}
                   <div style={{ position: 'relative' }}>
@@ -2004,7 +2193,7 @@ export const CMDashboardPage = () => {
                         gap: '4px'
                       }}>
                         <div style={{ padding: '4px 8px', fontSize: '9px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Filter by Region</div>
-                        {['RIO North', 'RIO East', 'RIO South', 'RIO West'].map(rio => {
+                        {dynamicFilterOptions.regions.map(rio => {
                           const on = selectedRegions.includes(rio);
                           return (
                             <div
@@ -2064,21 +2253,19 @@ export const CMDashboardPage = () => {
                     </button>
 
                     {openDropdown === 'ie' && (() => {
-                      const filteredIEs = INITIAL_IES.filter(ie =>
-                        ie.name.toLowerCase().includes(ieSearchQuery.toLowerCase())
+                      const filteredIEs = dynamicFilterOptions.ies.filter(ie =>
+                        ie.toLowerCase().includes(ieSearchQuery.toLowerCase())
                       );
-                      const areAllFilteredSelected = filteredIEs.length > 0 && filteredIEs.every(ie => selectedIEs.includes(ie.name));
+                      const areAllFilteredSelected = filteredIEs.length > 0 && filteredIEs.every(ie => selectedIEs.includes(ie));
 
                       const handleSelectAllIEs = () => {
                         if (areAllFilteredSelected) {
                           // Deselect all filtered IEs
-                          const filteredNames = filteredIEs.map(ie => ie.name);
-                          setSelectedIEs(prev => prev.filter(name => !filteredNames.includes(name)));
+                          setSelectedIEs(prev => prev.filter(name => !filteredIEs.includes(name)));
                         } else {
                           // Select all filtered IEs (union)
-                          const filteredNames = filteredIEs.map(ie => ie.name);
                           setSelectedIEs(prev => {
-                            const union = new Set([...prev, ...filteredNames]);
+                            const union = new Set([...prev, ...filteredIEs]);
                             return Array.from(union);
                           });
                         }
@@ -2173,11 +2360,11 @@ export const CMDashboardPage = () => {
                               {/* Filtered List */}
                               <div style={{ maxHeight: '160px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                 {filteredIEs.map(ie => {
-                                  const on = selectedIEs.includes(ie.name);
+                                  const on = selectedIEs.includes(ie);
                                   return (
                                     <div
-                                      key={ie.id}
-                                      onClick={() => toggleFilterOption(ie.name, selectedIEs, setSelectedIEs)}
+                                      key={ie}
+                                      onClick={() => toggleFilterOption(ie, selectedIEs, setSelectedIEs)}
                                       className={`cm-filter-dropdown-item ${on ? 'selected ie' : ''}`}
                                     >
                                       <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -2195,7 +2382,7 @@ export const CMDashboardPage = () => {
                                         }}>
                                           {on && <i className="fa-solid fa-check" />}
                                         </div>
-                                        {ie.name}
+                                        {ie}
                                       </span>
                                     </div>
                                   );
@@ -2310,21 +2497,19 @@ export const CMDashboardPage = () => {
                     </button>
 
                     {openDropdown === 'vendor' && (() => {
-                      const filteredVendors = INITIAL_VENDORS.filter(v =>
-                        v.name.toLowerCase().includes(vendorSearchQuery.toLowerCase())
+                      const filteredVendors = dynamicFilterOptions.vendors.filter(v =>
+                        v.toLowerCase().includes(vendorSearchQuery.toLowerCase())
                       );
-                      const areAllFilteredSelected = filteredVendors.length > 0 && filteredVendors.every(v => selectedVendors.includes(v.name));
+                      const areAllFilteredSelected = filteredVendors.length > 0 && filteredVendors.every(v => selectedVendors.includes(v));
 
                       const handleSelectAllVendors = () => {
                         if (areAllFilteredSelected) {
                           // Deselect all filtered Vendors
-                          const filteredNames = filteredVendors.map(v => v.name);
-                          setSelectedVendors(prev => prev.filter(name => !filteredNames.includes(name)));
+                          setSelectedVendors(prev => prev.filter(name => !filteredVendors.includes(name)));
                         } else {
                           // Select all filtered Vendors (union)
-                          const filteredNames = filteredVendors.map(v => v.name);
                           setSelectedVendors(prev => {
-                            const union = new Set([...prev, ...filteredNames]);
+                            const union = new Set([...prev, ...filteredVendors]);
                             return Array.from(union);
                           });
                         }
@@ -2419,11 +2604,11 @@ export const CMDashboardPage = () => {
                               {/* Filtered List */}
                               <div style={{ maxHeight: '160px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                 {filteredVendors.map(v => {
-                                  const on = selectedVendors.includes(v.name);
+                                  const on = selectedVendors.includes(v);
                                   return (
                                     <div
-                                      key={v.id}
-                                      onClick={() => toggleFilterOption(v.name, selectedVendors, setSelectedVendors)}
+                                      key={v}
+                                      onClick={() => toggleFilterOption(v, selectedVendors, setSelectedVendors)}
                                       className={`cm-filter-dropdown-item ${on ? 'selected vendor' : ''}`}
                                     >
                                       <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -2441,7 +2626,7 @@ export const CMDashboardPage = () => {
                                         }}>
                                           {on && <i className="fa-solid fa-check" />}
                                         </div>
-                                        {v.name}
+                                        {v}
                                       </span>
                                     </div>
                                   );
@@ -2496,7 +2681,7 @@ export const CMDashboardPage = () => {
                         gap: '4px'
                       }}>
                         <div style={{ padding: '4px 8px', fontSize: '9px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Filter by Stage</div>
-                        {['RM', 'Process', 'Final'].map(stg => {
+                        {dynamicFilterOptions.stages.map(stg => {
                           const on = selectedStages.includes(stg);
                           return (
                             <div
@@ -2642,63 +2827,30 @@ export const CMDashboardPage = () => {
           </section>
         )}
 
-        {/* Calls Table Section for CM Dashboard & Call Monitoring */}
-        {['Call Monitoring', 'IE wise Call Status', 'IE Performance Monitoring'].includes(activeTab) && (
-           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px', background: '#f4fbf6', padding: '20px', borderRadius: '12px' }}>
-             {/* Product Type Toggle */}
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  {['ERC', 'Sleeper', 'Rail Pad'].map(prod => {
-                    const isActive = selectedProducts.includes(prod);
-                    return (
-                      <button
-                        key={prod}
-                        onClick={() => {
-                          setSelectedProducts([prod]);
-                          setCurrentPage(1);
-                        }}
-                        style={{
-                          padding: '10px 24px',
-                          borderRadius: '24px',
-                          border: 'none',
-                          fontWeight: '700',
-                          fontSize: '13px',
-                          cursor: 'pointer',
-                          backgroundColor: isActive ? '#166534' : '#dcfce7',
-                          color: isActive ? '#fff' : '#166534',
-                          transition: 'all 0.2s ease',
-                          boxShadow: isActive ? '0 4px 6px rgba(22, 101, 52, 0.2)' : 'none'
-                        }}
-                      >
-                        {prod}
-                      </button>
-                    )
-                  })}
-                </div>
-                
-                {/* Date Range Picker - Show only for Call Monitoring */}
-                {activeTab === 'Call Monitoring' && (
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '16px', background: '#fff', padding: '12px 20px', borderRadius: '12px', border: '1px solid #bbf7d0', width: 'fit-content' }}>
-                    <span style={{ fontWeight: '700', color: '#166534', fontSize: '13px' }}>FROM</span>
-                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                      <input
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => { setStartDate(e.target.value); setCurrentPage(1); }}
-                        style={{ padding: '8px 12px', borderRadius: '8px', border: 'none', background: '#f0fdf4', color: '#166534', fontSize: '14px', outline: 'none', cursor: 'pointer', fontWeight: '500' }}
-                      />
-                    </div>
-                    <span style={{ fontWeight: '700', color: '#166534', fontSize: '13px' }}>TO</span>
-                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                      <input
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => { setEndDate(e.target.value); setCurrentPage(1); }}
-                        style={{ padding: '8px 12px', borderRadius: '8px', border: 'none', background: '#f0fdf4', color: '#166534', fontSize: '14px', outline: 'none', cursor: 'pointer', fontWeight: '500' }}
-                      />
-                    </div>
-                  </div>
-                )}
+        {/* Date Range Picker - Show only for Call Monitoring */}
+        {activeTab === 'Call Monitoring' && (
+          <div style={{ marginBottom: '10px', display: 'flex' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '16px', background: '#fff', padding: '10px 20px', borderRadius: '12px', border: '1px solid #bbf7d0', width: 'fit-content' }}>
+              <span style={{ fontWeight: '700', color: '#166534', fontSize: '13px' }}>FROM</span>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => { setStartDate(e.target.value); setCurrentPage(1); }}
+                  style={{ padding: '8px 12px', borderRadius: '8px', border: 'none', background: '#f0fdf4', color: '#166534', fontSize: '14px', outline: 'none', cursor: 'pointer', fontWeight: '500' }}
+                />
               </div>
+              <span style={{ fontWeight: '700', color: '#166534', fontSize: '13px' }}>TO</span>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => { setEndDate(e.target.value); setCurrentPage(1); }}
+                  style={{ padding: '8px 12px', borderRadius: '8px', border: 'none', background: '#f0fdf4', color: '#166534', fontSize: '14px', outline: 'none', cursor: 'pointer', fontWeight: '500' }}
+                />
+              </div>
+            </div>
+          </div>
         )}
 
         {((activeTab === 'Dashboard' && activeCallFilter !== null) || activeTab === 'Call Monitoring') && (
@@ -2753,13 +2905,13 @@ export const CMDashboardPage = () => {
                 <table className="cm-table">
                   <thead>
                     <tr>
-                      <th className="sortable" onClick={() => handleSort('callNumber')}>Call Number</th>
+                      <th className="sortable" style={{ whiteSpace: 'nowrap' }} onClick={() => handleSort('callNumber')}>Call Number</th>
                       <th className="sortable" onClick={() => handleSort('product')}>Product & Stage of Inspection</th>
                       <th className="sortable" onClick={() => handleSort('poNumber')}>PO Number</th>
-                      <th className="sortable" onClick={() => handleSort('dpDate')}>DP Date & EXT DP Date</th>
+                      <th className="sortable" style={{ minWidth: '130px' }} onClick={() => handleSort('dpDate')}>DP Date & EXT DP Date</th>
                       <th className="sortable" onClick={() => handleSort('vendorName')}>Vendor Name</th>
-                      <th className="sortable" onClick={() => handleSort('desiredInspectionDate')}>Inspection Desired Date</th>
-                      <th className="sortable" onClick={() => handleSort('callDate')}>Call Date</th>
+                      <th className="sortable" style={{ minWidth: '120px' }} onClick={() => handleSort('desiredInspectionDate')}>Inspection Desired Date</th>
+                      <th className="sortable" style={{ minWidth: '100px' }} onClick={() => handleSort('callDate')}>Call Date</th>
                       <th className="sortable" onClick={() => handleSort('ieName')}>IE Name</th>
                       <th>CM Name</th>
                       <th className="sortable" onClick={() => handleSort('ritesRio')}>RITES RIO</th>
@@ -2769,109 +2921,112 @@ export const CMDashboardPage = () => {
                   </thead>
                   <tbody>
                     {paginatedCalls.length > 0 ? (
-                      paginatedCalls.map((call) => {
-                        // Concatenated status is formatted exactly as `${call.status}-${call.subStatus}` (e.g. Pending-Raised)
-                        const concatenatedStatus = `${call.status}-${call.subStatus}`;
+                      paginatedCalls.flatMap((call) => {
+                        const ies = call.ieName ? call.ieName.split(',').map(ie => ie.trim()) : ['Unassigned'];
+                        return ies.map((singleIeName, ieIndex) => {
+                          // Concatenated status is formatted exactly as `${call.status}-${call.subStatus}` (e.g. Pending-Raised)
+                          const concatenatedStatus = `${call.status}-${call.subStatus}`;
 
-                        let statusColor = '#3b82f6';
-                        let statusBg = 'rgba(59, 130, 246, 0.1)';
-                        if (call.status === 'Pending') {
-                          statusColor = '#d97706';
-                          statusBg = '#fef3c7';
-                        } else if (call.status === 'Under Inspection') {
-                          statusColor = '#ea580c';
-                          statusBg = '#ffedd5';
-                        } else if (call.status === 'IC Issuance Pending') {
-                          statusColor = '#ef4444';
-                          statusBg = '#fee2e2';
-                        } else if (call.status === 'Completed') {
-                          statusColor = '#15803d';
-                          statusBg = '#dcfce7';
-                        }
+                          let statusColor = '#3b82f6';
+                          let statusBg = 'rgba(59, 130, 246, 0.1)';
+                          if (call.status === 'Pending') {
+                            statusColor = '#d97706';
+                            statusBg = '#fef3c7';
+                          } else if (call.status === 'Under Inspection') {
+                            statusColor = '#ea580c';
+                            statusBg = '#ffedd5';
+                          } else if (call.status === 'IC Issuance Pending') {
+                            statusColor = '#ef4444';
+                            statusBg = '#fee2e2';
+                          } else if (call.status === 'Completed') {
+                            statusColor = '#15803d';
+                            statusBg = '#dcfce7';
+                          }
 
-                        const overdueFlag = isOverdue(call);
+                          const overdueFlag = isOverdue(call);
 
-                        return (
-                          <tr key={call.id} style={{ background: overdueFlag ? '#fef2f2' : '' }}>
-                            {/* Call Number */}
-                            <td style={{ fontWeight: 'bold' }}>
-                              {call.callNumber}
-                              {overdueFlag && <span style={{ color: '#ef4444', marginLeft: '4px' }} title="Overdue Warning">⚠️</span>}
-                            </td>
+                          return (
+                            <tr key={`${call.id}-${ieIndex}`} style={{ background: overdueFlag ? '#fef2f2' : '' }}>
+                              {/* Call Number */}
+                              <td style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                                {call.callNumber}
+                                {overdueFlag && <span style={{ color: '#ef4444', marginLeft: '4px' }} title="Overdue Warning">⚠️</span>}
+                              </td>
 
-                            {/* Product & Stage of Inspection (eg. ERC- Process, Sleeper- Final…) */}
-                            <td>{`${call.product}- ${call.stage}`}</td>
+                              {/* Product & Stage of Inspection (eg. ERC- Process, Sleeper- Final…) */}
+                              <td className="wrap-cell">{`${call.product}- ${call.stage}`}</td>
 
-                            {/* PO Number - hyperlink to download PO */}
-                            <td>
-                              <a
-                                href="#download-po"
-                                className="cm-table-link"
-                                onClick={(e) => { e.preventDefault(); handleDownloadPdf(call.callNumber, 'PO'); }}
-                              >
-                                {call.poNumber}
-                              </a>
-                            </td>
-
-                            {/* DP Date & Ext DP Date */}
-                            <td>
-                              <div>{formatDate(call.dpDate)}</div>
-                              <div style={{ fontSize: '9px', color: '#4b6b4b' }}>{formatDate(call.extDpDate)}</div>
-                            </td>
-
-                            {/* Vendor Name */}
-                            <td>{call.vendorName}</td>
-
-                            {/* Inspection Desired Date */}
-                            <td>{formatDate(call.desiredInspectionDate)}</td>
-
-                            {/* Call Date */}
-                            <td>{formatDate(call.callDate)}</td>
-
-                            {/* IE Name */}
-                            <td>{call.ieName || 'Unassigned'}</td>
-
-                            {/* CM Name */}
-                            <td>{call.cmName}</td>
-
-                            {/* RITES RIO */}
-                            <td>{call.ritesRio}</td>
-
-                            {/* Concatenated Status */}
-                            <td>
-                              <span
-                                className="cm-status-badge"
-                                style={{ color: statusColor, background: statusBg, border: `1px solid ${statusColor}` }}
-                              >
-                                {concatenatedStatus}
-                              </span>
-                            </td>
-
-                            {/* Documents (Download single pdf sequence) */}
-                            <td>
-                              <div className="cm-doc-download-bar" style={{ justifyContent: 'center' }}>
-                                <button
-                                  className="cm-doc-link"
-                                  title="Download all documents as one PDF"
-                                  onClick={() => handleDownloadAllDocs(call.callNumber, call.docs)}
-                                  style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '4px',
-                                    height: '24px',
-                                    padding: '0 8px',
-                                    fontSize: '11px',
-                                    fontWeight: 'bold',
-                                    cursor: 'pointer'
-                                  }}
+                              {/* PO Number - hyperlink to download PO */}
+                              <td className="wrap-cell">
+                                <a
+                                  href="#download-po"
+                                  className="cm-table-link"
+                                  onClick={(e) => { e.preventDefault(); handleDownloadPdf(call.callNumber, 'PO'); }}
                                 >
-                                  <i className="fa-solid fa-download"></i>
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
+                                  {call.poNumber}
+                                </a>
+                              </td>
+
+                              {/* DP Date & Ext DP Date */}
+                              <td className="wrap-cell">
+                                <div>{formatDate(call.dpDate)}</div>
+                                {call.extDpDate && <div style={{ fontSize: '11px', color: '#4b6b4b' }}>({formatDate(call.extDpDate)})</div>}
+                              </td>
+
+                              {/* Vendor Name */}
+                              <td className="vendor-cell">{call.vendorName}</td>
+
+                              {/* Inspection Desired Date */}
+                              <td style={{ whiteSpace: 'nowrap' }}>{formatDate(call.desiredInspectionDate)}</td>
+
+                              {/* Call Date */}
+                              <td style={{ whiteSpace: 'nowrap' }}>{formatDate(call.callDate)}</td>
+
+                              {/* IE Name */}
+                              <td className="wrap-cell">{singleIeName}</td>
+
+                              {/* CM Name */}
+                              <td className="wrap-cell">{call.cmName}</td>
+
+                              {/* RITES RIO */}
+                              <td>{call.ritesRio}</td>
+
+                              {/* Concatenated Status */}
+                              <td>
+                                <span
+                                  className="cm-status-badge"
+                                  style={{ color: statusColor, background: statusBg, border: `1px solid ${statusColor}` }}
+                                >
+                                  {concatenatedStatus}
+                                </span>
+                              </td>
+
+                              {/* Documents (Download single pdf sequence) */}
+                              <td>
+                                <div className="cm-doc-download-bar" style={{ justifyContent: 'center' }}>
+                                  <button
+                                    className="cm-doc-link"
+                                    title="Download all documents as one PDF"
+                                    onClick={() => handleDownloadAllDocs(call.callNumber, call.docs)}
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: '4px',
+                                      height: '24px',
+                                      padding: '0 8px',
+                                      fontSize: '11px',
+                                      fontWeight: 'bold',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    <i className="fa-solid fa-download"></i>
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        });
                       })
                     ) : (
                       <tr>
@@ -2954,7 +3109,7 @@ export const CMDashboardPage = () => {
                       const ieName = ie.ieName || ie.name;
                       const ieId = ie.ieId || ie.id;
                       const ieCalls = filteredCalls.filter(c => c.ieName === ieName);
-                      
+
                       let pending = 0, underInspection = 0, icPending = 0, overdue = 0;
                       if (isApiData) {
                         pending = ie.noOfCallsPending || 0;
@@ -3147,7 +3302,7 @@ export const CMDashboardPage = () => {
                   <tbody>
                     {INITIAL_VENDORS.map((v) => (
                       <tr key={v.id}>
-                        <td style={{ fontWeight: 'bold' }}>{v.name}</td>
+                        <td className="vendor-cell" style={{ fontWeight: 'bold' }}>{v.name}</td>
                         <td>{v.region}</td>
                         <td>{v.inspections} tests</td>
                         <td>{v.activeCalls} calls</td>
@@ -4293,7 +4448,7 @@ export const CMDashboardPage = () => {
                       callPopupData.calls.map(call => (
                         <tr key={call.id}>
                           <td style={{ fontWeight: 'bold', color: '#0f172a', border: '1px solid #cbd5e1' }}>{call.callNumber}</td>
-                          <td style={{ border: '1px solid #cbd5e1' }}>{call.vendorName}</td>
+                          <td className="vendor-cell" style={{ border: '1px solid #cbd5e1' }}>{call.vendorName}</td>
                           <td style={{ fontFamily: 'monospace', fontSize: '11px', color: '#475569', border: '1px solid #cbd5e1' }}>{call.poNumber}</td>
                           <td style={{ fontWeight: '500', border: '1px solid #cbd5e1' }}>{call.desiredInspectionDate ? formatDate(call.desiredInspectionDate) : ''}</td>
                           <td style={{ border: '1px solid #cbd5e1' }}>{call.callDate ? formatDate(call.callDate) : ''}</td>

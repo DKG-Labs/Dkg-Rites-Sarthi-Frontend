@@ -478,6 +478,15 @@
 }
 
 /* Custom Icon Colors when inactive to retain card identity */
+.cm-kpi-card.card-light-green:not(.active) .cm-kpi-icon {
+  color: #15803d !important;
+}
+.cm-kpi-card.card-light-indigo:not(.active) .cm-kpi-icon {
+  color: #4338ca !important;
+}
+.cm-kpi-card.card-light-blue:not(.active) .cm-kpi-icon {
+  color: #2563eb !important;
+}
 .cm-kpi-card.card-dark-green:not(.active) .cm-kpi-icon {
   color: #4b5563 !important;
 }
@@ -583,6 +592,24 @@
 }
 
 
+.card-light-green {
+  background: #dcfce7 !important;
+  border: 1px solid #86efac !important;
+  color: #14532d !important;
+}
+
+.card-light-indigo {
+  background: #e0e7ff !important;
+  border: 1px solid #c7d2fe !important;
+  color: #3730a3 !important;
+}
+
+.card-light-blue {
+  background: #eff6ff !important;
+  border: 1px solid #bfdbfe !important;
+  color: #1e40af !important;
+}
+
 .card-spring-green {
   background: linear-gradient(135deg, #f0fdf4 0%, #bbf7d0 100%) !important;
   border: 1px solid #22c55e !important;
@@ -632,6 +659,60 @@
 
 .cm-kpi-card.card-amber .cm-kpi-icon {
   color: #ea580c !important;
+}
+
+.cm-kpi-card.card-light-green .cm-kpi-title {
+  color: #14532d !important;
+  opacity: 0.95;
+}
+
+.cm-kpi-card.card-light-green .cm-kpi-value {
+  color: #166534 !important;
+}
+
+.cm-kpi-card.card-light-green .cm-kpi-footer {
+  color: #15803d !important;
+  opacity: 0.95;
+}
+
+.cm-kpi-card.card-light-green .cm-kpi-icon {
+  color: #15803d !important;
+}
+
+.cm-kpi-card.card-light-indigo .cm-kpi-title {
+  color: #3730a3 !important;
+  opacity: 0.95;
+}
+
+.cm-kpi-card.card-light-indigo .cm-kpi-value {
+  color: #312e81 !important;
+}
+
+.cm-kpi-card.card-light-indigo .cm-kpi-footer {
+  color: #4338ca !important;
+  opacity: 0.95;
+}
+
+.cm-kpi-card.card-light-indigo .cm-kpi-icon {
+  color: #4338ca !important;
+}
+
+.cm-kpi-card.card-light-blue .cm-kpi-title {
+  color: #1e40af !important;
+  opacity: 0.95;
+}
+
+.cm-kpi-card.card-light-blue .cm-kpi-value {
+  color: #1e3a8a !important;
+}
+
+.cm-kpi-card.card-light-blue .cm-kpi-footer {
+  color: #2563eb !important;
+  opacity: 0.95;
+}
+
+.cm-kpi-card.card-light-blue .cm-kpi-icon {
+  color: #2563eb !important;
 }
 
 .cm-kpi-card.card-spring-green .cm-kpi-title {
@@ -726,7 +807,7 @@
   font-size: 13px !important;
   text-align: left !important;
   border: 1px solid #cbd5e1 !important;
-  white-space: normal !important; /* Allow header text to wrap naturally to make columns compact */
+  white-space: normal; /* Allow header text to wrap naturally to make columns compact */
   line-height: 1.2;
   vertical-align: bottom;
 }
@@ -746,7 +827,13 @@
   font-size: 13px !important;
   color: #1a2e1a;
   vertical-align: middle;
-  white-space: normal !important; /* Allow wrapping to fit within screen without horizontal scrolling */
+  white-space: nowrap !important; /* Force all cells to render on one line */
+}
+
+.cm-table td.vendor-cell,
+.cm-table td.wrap-cell {
+  white-space: normal !important; /* Allow specific cells to wrap */
+  word-break: break-word; /* Break long unbroken strings like PO Number if needed */
 }
 
 /* Force both dates in the DP Date column to have the same font size */
@@ -756,6 +843,10 @@
 
 .cm-table tbody tr:hover td {
   background: #f0fdf4 !important;
+}
+
+.cm-table tbody tr:nth-child(even) td {
+  background-color: #f8fafc;
 }
 
 /* Helper to center-align headers and cells for specific professional tables */

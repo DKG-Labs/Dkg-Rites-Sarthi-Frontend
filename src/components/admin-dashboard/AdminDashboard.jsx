@@ -25,14 +25,14 @@ export const AdminDashboard = () => {
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
     const refreshData = () => setRefreshTrigger(prev => prev + 1);
 
-    // Custom Success Modal State
-    const [successOpen, setSuccessOpen] = useState(false);
-    const [successDetails, setSuccessDetails] = useState({ title: '', message: '', employeeCode: '' });
-
     const handleCloseSnackbar = (event, reason) => {
         if (reason === 'clickaway') return;
         setSnackbar(prev => ({ ...prev, open: false }));
     };
+<<<<<<< HEAD
+=======
+
+>>>>>>> fixedcode
 // Fetch roles for dropdown
     React.useEffect(() => {
         const fetchRoles = async () => {
@@ -449,6 +449,7 @@ export const AdminDashboard = () => {
                 )}
             </Modal>
 
+<<<<<<< HEAD
             {/* Custom Success Dialog Modal */}
             <Modal
                 isOpen={successOpen}
@@ -531,6 +532,8 @@ export const AdminDashboard = () => {
                 </div>
             </Modal>
 
+=======
+>>>>>>> fixedcode
             <Snackbar 
                 open={snackbar.open} 
                 autoHideDuration={6000} 

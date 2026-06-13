@@ -167,6 +167,9 @@ export const fetchUserPendingCalls = async (forceRefresh = false) => {
     // - Process: userId is in processIes array
     // - Final: userId is in finalIes array
     const userTransitions = allTransitions.filter((transition) => {
+      // Hide calls where IC has already been generated
+      if (transition.status === 'GENERATE_IC') return false;
+
       const productType = transition.productType;
 
       if (productType === 'Raw Material') {

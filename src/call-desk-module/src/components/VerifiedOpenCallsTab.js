@@ -406,11 +406,13 @@ const VerifiedOpenCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
             onBlur={(e) => e.target.style.borderColor = '#cbd5e1'}
           >
             <option value="">All Statuses</option>
+            <option value="verified_registered">Verified & Registered</option>
             <option value="assigned_to_ie">IE Assigned</option>
             <option value="scheduled">Scheduled</option>
             <option value="under_inspection">Under Inspection</option>
-            <option value="withdrawn">Upheld</option>
-            <option value="ic_pending">IC Issuance</option>
+            <option value="under_lab_testing">Under Lab Testing</option>
+            <option value="billing_pending">Billing Pending</option>
+            <option value="payment_pending">Payment Pending</option>
           </select>
         </div>
       </div>

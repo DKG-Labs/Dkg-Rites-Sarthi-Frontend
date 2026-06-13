@@ -12,7 +12,7 @@ const BASE_URL = API_BASE_URL;
 export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
   const [pendingCalls, setPendingCalls] = useState([]);
   const [verifiedCalls, setVerifiedCalls] = useState([]);
-  const [disposedCalls] = useState([]);
+  const [disposedCalls, setDisposedCalls] = useState([]);
   const [dashboardKPIs, setDashboardKPIs] = useState(null);
   const [vendors] = useState([]);
   const [rioOffices] = useState([]);
@@ -107,6 +107,7 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
         poSerialNo: actualSerialNo,
         rlyShortName: rlyShortName,
         rlyPoSr: item.poNo || '-',
+        rawPoNo: item.rawPoNo || (actualPoNo !== '-' ? actualPoNo : ''),
         product: item.productType || (callType === 'SLEEPER' ? 'Sleeper' : callType === 'RAILPAD' ? 'Rail Pad' : '-'),
         productStage: item.productType || (callType === 'SLEEPER' ? 'Final' : callType === 'RAILPAD' ? 'Final' : '-'),
         desiredInspectionDate: item.desiredInspectionDate || item.createdDate,
@@ -177,7 +178,18 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
 
     const data = response.data.responseData || [];
     
-    return data.map(item => {
+    // Filter out completed, withdrawn, withheld, and cancelled calls
+    const openCalls = data.filter(item => {
+      const status = item.status ? item.status.toString().toUpperCase() : '';
+      return !(status.includes('COMPLETE') || 
+               status.includes('CONFIRM') || 
+               status.includes('IC') ||
+               status.includes('WITHDRAW') || 
+               status.includes('WITHHELD') || 
+               status.includes('CANCEL'));
+    });
+    
+    return openCalls.map(item => {
       // Map backend status to internal CALL_STATUS
       let internalStatus = item.status;
       const backendStatus = item.status ? item.status.toString().toUpperCase() : '';
@@ -219,6 +231,7 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
         submissionDateTime: item.createdDate,
         poNumber: actualPoNo,
         rlyShortName: rlyShortName,
+        rawPoNo: item.rawPoNo || (actualPoNo !== '-' ? actualPoNo : ''),
         product: item.productType || (callType === 'SLEEPER' ? 'Sleeper' : callType === 'RAILPAD' ? 'Rail Pad' : '-'),
         productStage: item.productType || (callType === 'SLEEPER' ? 'Final' : callType === 'RAILPAD' ? 'Final' : '-'),
         desiredInspectionDate: item.desiredInspectionDate || item.createdDate,
@@ -226,6 +239,99 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
         status: internalStatus,
         assignedIE: item.assignedToUserName || item.ieName || '-',
         rio: item.rio
+      };
+    });
+  }, [callType]);
+
+  // API: Fetch Disposed Calls
+  const fetchDisposedCalls = useCallback(async () => {
+    const user = getStoredUser();
+    
+    const endpoint = callType === 'SLEEPER'
+      ? `${BASE_URL}/api/sleeper-workflow/allFInalCallCompletedCalls`
+      : callType === 'RAILPAD'
+      ? `${BASE_URL}/api/railpad-workflow/allFInalCallCompletedCalls`
+      : `${BASE_URL}/allDisposedWorkflowTransitions`;
+
+    const response = await axios.get(
+      endpoint,
+      {
+        params: {
+          rio: user?.rio || '',
+        },
+        headers: {
+          ...getAuthHeaders(),
+        },
+      }
+    );
+
+    if (response.data?.responseStatus?.statusCode !== 0) {
+      throw new Error('Failed to fetch disposed calls');
+    }
+
+    const data = response.data.responseData || [];
+    
+    return data.map(item => {
+      let internalStatus = item.status;
+      const backendStatus = item.status ? item.status.toString().toUpperCase() : '';
+
+      if (backendStatus.includes('GENERATE_IC')) {
+        internalStatus = 'ic_pending';
+      } else if (backendStatus.includes('DSC_SIGN_IC')) {
+        internalStatus = 'ic_issued';
+      } else if (backendStatus.includes('INSPECTION_COMPLETE_CONFIRM')) {
+        internalStatus = 'inspection_completed';
+      } else if (backendStatus.includes('COMPLETE') || backendStatus.includes('CONFIRM') || backendStatus.includes('IC')) {
+        internalStatus = 'completed';
+      } else if (backendStatus.includes('VERIFIED') || backendStatus.includes('REGISTERED')) {
+        internalStatus = 'verified_registered';
+      } else if (backendStatus.includes('SCHEDULE')) {
+        internalStatus = 'scheduled';
+      } else if (backendStatus.includes('INITIATE') || backendStatus.includes('PROGRESS')) {
+        internalStatus = 'under_inspection';
+      } else if (backendStatus.includes('LAB')) {
+        internalStatus = 'under_lab_testing';
+      } else if (backendStatus.includes('BILLING')) {
+        internalStatus = 'billing_pending';
+      } else if (backendStatus.includes('PAYMENT') || backendStatus.includes('BLOCKED')) {
+        internalStatus = 'payment_pending';
+      } else if (backendStatus.includes('WITHDRAW') || backendStatus.includes('WITHHELD')) {
+        internalStatus = 'withdrawn';
+      } else if (backendStatus.includes('CANCEL')) {
+        internalStatus = 'cancelled_chargeable';
+      }
+
+      const poParts = (item.poNo || "").split("/").map(p => p.trim());
+      let rlyShortName = "-";
+      let actualPoNo = "-";
+
+      if (poParts.length > 0 && poParts[0]) {
+        const hasLetters = /[a-zA-Z]/.test(poParts[0]);
+        if (hasLetters) {
+          rlyShortName = poParts[0];
+          actualPoNo = poParts[1] || "-";
+        } else {
+          actualPoNo = poParts[0];
+        }
+      }
+
+      return {
+        id: item.workflowTransitionId,
+        callNumber: item.requestId,
+        vendor: { name: item.vendorName || item.vendorCode || '-' },
+        submissionDateTime: item.createdDate,
+        poNumber: actualPoNo,
+        rlyShortName: rlyShortName,
+        rawPoNo: item.rawPoNo || (actualPoNo !== '-' ? actualPoNo : ''),
+        vendorCode: item.vendorCode || '',
+        product: item.productType || (callType === 'SLEEPER' ? 'Sleeper' : callType === 'RAILPAD' ? 'Rail Pad' : '-'),
+        productStage: item.productType || (callType === 'SLEEPER' ? 'Final' : callType === 'RAILPAD' ? 'Final' : '-'),
+        desiredInspectionDate: item.desiredInspectionDate || item.createdDate,
+        placeOfInspection: item.placeOfInspection || item.poiCode || '-',
+        status: internalStatus,
+        assignedIE: item.assignedToUserName || item.ieName || '-',
+        rio: item.rio,
+        disposalReason: item.remarks || '-'
       };
     });
   }, [callType]);
@@ -245,9 +351,12 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
         fetchActions.push(fetchPendingVerificationCalls());
       } else if (targetTab === 'verified') {
         fetchActions.push(fetchVerifiedCalls());
+      } else if (targetTab === 'disposed') {
+        fetchActions.push(fetchDisposedCalls());
       } else {
         fetchActions.push(fetchPendingVerificationCalls());
         fetchActions.push(fetchVerifiedCalls());
+        fetchActions.push(fetchDisposedCalls());
       }
 
       // Use allSettled to handle partial failures
@@ -282,10 +391,19 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
           setError(verifiedResult.reason?.message || 'Failed to fetch verified calls');
         }
         newLoadedFlags.verified = true;
+      } else if (targetTab === 'disposed') {
+        const disposedResult = results[1];
+        if (disposedResult.status === 'fulfilled') {
+          setDisposedCalls(disposedResult.value);
+        } else {
+          setError(disposedResult.reason?.message || 'Failed to fetch disposed calls');
+        }
+        newLoadedFlags.disposed = true;
       } else {
         // Multi-fetch case (all tabs)
         const pendingResult = results[1];
         const verifiedResult = results[2];
+        const disposedResult = results[3];
 
         if (pendingResult?.status === 'fulfilled') {
           setPendingCalls(pendingResult.value);
@@ -293,12 +411,16 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
         if (verifiedResult?.status === 'fulfilled') {
           setVerifiedCalls(verifiedResult.value);
         }
+        if (disposedResult?.status === 'fulfilled') {
+          setDisposedCalls(disposedResult.value);
+        }
         
         newLoadedFlags.pending = true;
         newLoadedFlags.verified = true;
+        newLoadedFlags.disposed = true;
 
-        // Only set error if BOTH failed in this case
-        if (pendingResult?.status === 'rejected' && verifiedResult?.status === 'rejected') {
+        // Only set error if all failed in this case
+        if (pendingResult?.status === 'rejected' && verifiedResult?.status === 'rejected' && disposedResult?.status === 'rejected') {
           setError('Failed to fetch dashboard data');
         }
       }
@@ -311,7 +433,7 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, fetchPendingVerificationCalls, fetchDashboardKPIs, fetchVerifiedCalls]);
+  }, [activeTab, fetchPendingVerificationCalls, fetchDashboardKPIs, fetchVerifiedCalls, fetchDisposedCalls]);
 
 
   // Effect for initial load and tab switching
@@ -320,8 +442,9 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
     const needsKpi = !dataLoaded.kpis;
     const needsPending = activeTab === 'pending' && !dataLoaded.pending;
     const needsVerified = activeTab === 'verified' && !dataLoaded.verified;
+    const needsDisposed = activeTab === 'disposed' && !dataLoaded.disposed;
 
-    if (needsKpi || needsPending || needsVerified) {
+    if (needsKpi || needsPending || needsVerified || needsDisposed) {
       fetchData(activeTab);
     }
   }, [activeTab, fetchData, dataLoaded]);

@@ -7,13 +7,10 @@ import React, { useState, useMemo } from 'react';
 import DataTable from '../../../components/DataTable';
 import StatusBadge from '../../../components/StatusBadge';
 import CallsFilterSection from '../../../components/common/CallsFilterSection';
-import { CALL_STATUS_CONFIG } from '../utils/constants';
 import { formatDateTime } from '../utils/helpers';
 
-const DisposedCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
+const DisposedCallsTab = ({ calls = [], onViewHistory }) => {
   const [searchTerm] = useState('');
-
-  // Filter state
   const [showFilters, setShowFilters] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Product Type');
@@ -27,39 +24,7 @@ const DisposedCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
     callNumbers: []
   });
 
-  // KPI tiles data
-  const kpiTiles = [
-    {
-      label: 'Total Disposed',
-      value: kpis.total || 0,
-      color: '#6b7280',
-      icon: '📦'
-    },
-    {
-      label: 'Accepted IC issued',
-      value: kpis.completed || 0,
-      color: '#22c55e',
-      icon: '✅'
-    },
-    {
-      label: 'With held',
-      value: kpis.withdrawn || 0,
-      color: '#6b7280',
-      icon: '🔙'
-    },
-    {
-      label: 'Call Cancelled',
-      value: kpis.cancelled || 0,
-      color: '#f59e0b',
-      icon: '❌'
-    },
-    {
-      label: 'Rejection IC Issued',
-      value: kpis.rejected || 0,
-      color: '#ef4444',
-      icon: '🚫'
-    }
-  ];
+
 
   // Table columns
   const columns = [
@@ -73,18 +38,24 @@ const DisposedCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
       key: 'vendor',
       label: 'Vendor Name',
       sortable: true,
-      render: (value) => value?.name || '-'
+      render: (value) => <span className="text-sm font-medium">{value?.name || '-'}</span>
     },
     {
       key: 'submissionDateTime',
-      label: 'Submission Date/Time',
+      label: 'Call Status Date',
       sortable: true,
-      render: (value) => formatDateTime(value)
+      render: (value) => <span className="text-xs">{formatDateTime(value)}</span>
     },
     {
       key: 'poNumber',
       label: 'PO Number',
-      sortable: true
+      sortable: true,
+      render: (value, row) => (
+        <div className="text-xs">
+          <div>{value}</div>
+          <div className="text-gray-500 font-medium">{row.rlyShortName || '-'}</div>
+        </div>
+      )
     },
     {
       key: 'productStage',
@@ -99,25 +70,15 @@ const DisposedCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
     },
     {
       key: 'placeOfInspection',
-      label: 'Place of Inspection',
-      sortable: true
+      label: 'Place Of Inspection',
+      sortable: true,
+      render: (value) => <span className="text-xs font-semibold text-gray-700">{value}</span>
     },
     {
       key: 'status',
       label: 'Status',
-      render: (value) => {
-        const config = CALL_STATUS_CONFIG[value];
-        return config ? (
-          <StatusBadge
-            label={config.label}
-            color={config.color}
-            bgColor={config.bgColor}
-            borderColor={config.borderColor}
-          />
-        ) : (
-          <span className="text-sm font-medium">{value || '-'}</span>
-        );
-      }
+      sortable: true,
+      render: (value) => <StatusBadge status={value} />
     },
     {
       key: 'disposalReason',
@@ -131,17 +92,19 @@ const DisposedCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
     {
       key: 'actions',
       label: 'Actions',
-      render: (_, row) => (
-        <div className="action-buttons">
-          <button
-            className="btn btn-sm btn-secondary"
-            onClick={() => onViewHistory(row)}
-            title="View Call History"
-          >
-            📜 View History
-          </button>
-        </div>
-      )
+      render: (_, row) => {
+        return (
+          <div className="action-buttons" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            <button
+              className="btn btn-sm btn-secondary"
+              onClick={() => onViewHistory(row)}
+              title="View Call History"
+            >
+              📜 View History
+            </button>
+          </div>
+        );
+      }
     }
   ];
 
@@ -245,23 +208,6 @@ const DisposedCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
 
   return (
     <div className="calldesk-tab-content">
-      {/* KPI Tiles */}
-      <div className="calldesk-kpi-grid">
-        {kpiTiles.map((kpi, index) => (
-          <div key={index} className="stat-card">
-            <div className="stat-icon" style={{ color: kpi.color }}>
-              {kpi.icon}
-            </div>
-            <div className="stat-content">
-              <div className="stat-label">{kpi.label}</div>
-              <div className="stat-value" style={{ color: kpi.color }}>
-                {kpi.value}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
       {/* Filter Section */}
       <CallsFilterSection
         allCalls={callsForFilter}

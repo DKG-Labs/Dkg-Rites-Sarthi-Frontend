@@ -238,6 +238,43 @@ const CallDetailsModal = ({
     targetIEDisplay = call.assignedIeName;
   }
 
+  const downloadPoDoc = async () => {
+    const rawPoNo = call.rawPoNo || (call.poNumber && call.poNumber !== '-' ? call.poNumber : '');
+    if (!rawPoNo) {
+      if (showNotification) showNotification('No PO number available for this call.', 'error');
+      else alert('No PO number available for this call.');
+      return;
+    }
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/vendor/po-pdf-path`, {
+        params: { rawPoNo },
+        headers: getAuthHeaders()
+      });
+      const pdfPath = response.data?.responseData;
+      if (!pdfPath) {
+        if (showNotification) showNotification('No PO document found for this PO.', 'error');
+        else alert('No PO document found for this PO.');
+        return;
+      }
+      if (pdfPath.startsWith('http') || pdfPath.includes('ireps.gov.in')) {
+        const proxyUrl = `${API_BASE_URL}/api/vendor/proxy-pdf?url=${encodeURIComponent(pdfPath)}`;
+        const a = document.createElement('a');
+        a.href = proxyUrl;
+        a.download = `PO_${call.poNumber || rawPoNo}.pdf`;
+        a.target = '_blank';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } else {
+        window.open(pdfPath, '_blank');
+      }
+    } catch (err) {
+      console.error('Error downloading PO document:', err);
+      if (showNotification) showNotification('Failed to download PO document.', 'error');
+      else alert('Failed to download PO document.');
+    }
+  };
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div
@@ -569,28 +606,24 @@ const CallDetailsModal = ({
         </div>
 
         <div className="modal-footer flex flex-wrap gap-2 justify-between">
-          <div className="footer-left">
+          <div className="footer-left" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <button
               className="btn btn-secondary border-gray-300 hover:bg-gray-50"
               onClick={() => onDownloadLetter(call)}
             >
               📥 Download Call Letter
             </button>
+            <button
+              className="btn"
+              style={{ background: '#0ea5e9', color: 'white', border: 'none' }}
+              onClick={downloadPoDoc}
+              title="Download PO Document"
+            >
+              📄 Download PO
+            </button>
           </div>
 
           <div className="footer-right flex gap-2">
-            <button
-              className="btn bg-gray-600 text-white hover:bg-gray-700"
-              onClick={onClose}
-            >
-              Cancel
-            </button>
-            <button
-              className="btn bg-teal-600 text-white hover:bg-teal-700"
-              onClick={() => setShowWithdrawModal(true)}
-            >
-              📥 Withdraw
-            </button>
             <button
               className="btn bg-orange-500 text-white hover:bg-orange-600"
               onClick={() => onReroute(call, remarks)}

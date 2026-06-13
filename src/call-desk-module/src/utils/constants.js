@@ -27,7 +27,9 @@ export const CALL_STATUS = {
   WITHDRAWN: 'withdrawn',
   CANCELLED_CHARGEABLE: 'cancelled_chargeable',
   CANCELLED_NON_CHARGEABLE: 'cancelled_non_chargeable',
-  REJECTED_CLOSED: 'rejected_closed'
+  REJECTED_CLOSED: 'rejected_closed',
+  INSPECTION_COMPLETED: 'inspection_completed',
+  IC_ISSUED: 'ic_issued'
 };
 
 // Call Status Display Configuration
@@ -117,7 +119,7 @@ export const CALL_STATUS_CONFIG = {
     borderColor: 'rgba(34, 197, 94, 0.25)'
   },
   [CALL_STATUS.WITHDRAWN]: {
-    label: 'With held',
+    label: 'Withdrawn',
     color: '#6b7280',
     bgColor: 'rgba(107, 114, 128, 0.15)',
     borderColor: 'rgba(107, 114, 128, 0.25)'
@@ -139,6 +141,18 @@ export const CALL_STATUS_CONFIG = {
     color: '#dc2626',
     bgColor: 'rgba(220, 38, 38, 0.15)',
     borderColor: 'rgba(220, 38, 38, 0.25)'
+  },
+  [CALL_STATUS.INSPECTION_COMPLETED]: {
+    label: 'Inspection Completed',
+    color: '#3b82f6',
+    bgColor: 'rgba(59, 130, 246, 0.15)',
+    borderColor: 'rgba(59, 130, 246, 0.25)'
+  },
+  [CALL_STATUS.IC_ISSUED]: {
+    label: 'IC Issued',
+    color: '#22c55e',
+    bgColor: 'rgba(34, 197, 94, 0.15)',
+    borderColor: 'rgba(34, 197, 94, 0.25)'
   }
 };
 

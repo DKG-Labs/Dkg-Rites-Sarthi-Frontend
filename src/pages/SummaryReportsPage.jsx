@@ -491,6 +491,7 @@ const SummaryReportsPage = ({ onBack, heats = [], productModel = 'MK-III', inspe
     let pendingCount = 0;
     let acceptedCount = 0;
     let rejectedCount = 0;
+    // eslint-disable-next-line no-unused-vars
     let partiallyAcceptedCount = 0;
 
     heatSummaries.forEach(s => {

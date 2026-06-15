@@ -173,6 +173,7 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
   // Azure API data for pending tab and IC issuance; mock data for other tabs (billing, etc.)
   const pendingCount = combinedPendingCalls.length;
   const completedCount = completedCalls.length; // Use actual completed calls from API
+  // eslint-disable-next-line no-unused-vars
   const billingCount = MOCK_INSPECTION_CALLS.filter(call =>
     call.ic_issued === true &&
     call.billing_status &&

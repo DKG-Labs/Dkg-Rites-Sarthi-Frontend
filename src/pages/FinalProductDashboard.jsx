@@ -1072,7 +1072,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
 
   /* -------------------- SUBMODULE LIST -------------------- */
   const SUBMODULES = [
-    { key: "final-calibration-documents", icon: "📄", title: "Calibration & Documents", desc: "Verify calibration" },
+    { key: "final-calibration-documents", icon: "📄", title: "Calibration & Documents (Under Development)", desc: "Verify calibration" },
     { key: "final-visual-dimensional", icon: "📏", title: "Visual & Dimensional", desc: "Surface & dimensions" },
     { key: "final-chemical-analysis", icon: "🧪", title: "Chemical Analysis", desc: "Composition check" },
     { key: "final-hardness-test", icon: "💎", title: "Hardness Test", desc: "HRC measurement" },

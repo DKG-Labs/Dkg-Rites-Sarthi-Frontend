@@ -14,6 +14,7 @@ export const TOLERANCE_RULES = {
     },
     forgingTemperature: { min: 900, max: Infinity },
     temperingTemperature: { min: 400, max: 550 },
+    temperingDuration: { min: 55, max: 60 },
     temperingHardness: { min: 40, max: 44 },
     quenchingTemperature: { min: -Infinity, max: 70 },
     turningDia: {

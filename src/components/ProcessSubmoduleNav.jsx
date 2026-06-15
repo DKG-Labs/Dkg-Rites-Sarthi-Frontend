@@ -9,7 +9,7 @@ import './SubmoduleNav.css';
  */
 
 const PROCESS_SUBMODULES = [
-  { id: 'process-calibration-documents', label: 'Calibration', icon: '📄' },
+  { id: 'process-calibration-documents', label: 'Calibration (Under Development)', icon: '📄' },
   { id: 'process-static-periodic-check', label: 'Static Check', icon: '⚙️' },
   { id: 'process-parameters-grid', label: '8 Hr Grid', icon: '🔬' },
   { id: 'process-summary-reports', label: 'Reports', icon: '📊' },

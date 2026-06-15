@@ -7,6 +7,7 @@ import ProcessParametersGridPage from '../ProcessParametersGridPage';
 import ProcessSummaryReportsPage from '../ProcessSummaryReportsPage';
 import { useInspection } from '../../context/InspectionContext';
 import { ROUTES, PROCESS_SUBMODULE_ROUTES } from '../../routes';
+import { formatDate } from '../../utils/helpers';
 
 /**
  * Wrapper for ProcessDashboard
@@ -42,7 +43,23 @@ export const ProcessDashboardWrapper = () => {
     po_date: call.po_date,
     vendor_name: call.vendor_name,
     place_of_inspection: call.place_of_inspection,
-    rawMaterialICs: call.rm_heat_tc_mapping?.map(m => m.subPoNumber).filter(Boolean).join(', ') || '',
+    rawMaterialICs: (() => {
+      if (!call.rm_heat_tc_mapping) return '';
+      const uniqueIcs = new Set();
+      return call.rm_heat_tc_mapping
+        .map(m => {
+          if (!m.subPoNumber) return null;
+          const formattedDate = m.subPoDate ? formatDate(m.subPoDate).replace(/-/g, '/') : '';
+          const combined = formattedDate && formattedDate !== '-' && formattedDate !== 'Invalid Date'
+            ? `${m.subPoNumber} dated ${formattedDate}`
+            : m.subPoNumber;
+          if (uniqueIcs.has(combined)) return null;
+          uniqueIcs.add(combined);
+          return combined;
+        })
+        .filter(Boolean)
+        .join(', ');
+    })() || '',
     productType: call.product_type || 'ERC Process',
     // Additional fields for PO formatting
     poSerialNo: call.po_serial_no || call.serial_no || '',

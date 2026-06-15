@@ -188,9 +188,7 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
   const tabs = [
     { id: 'pending', label: 'List of Calls Pending', description: `${pendingCount} pending` },
     { id: 'certificates', label: 'Issuance of IC & Annexures', description: `${completedCount} ready for IC` },
-    { id: 'billing', label: 'Billing Stage', description: `${billingCount} in billing` },
     { id: 'completed', label: 'Calls Completed', description: `${signedCallsCount} completed` },
-    { id: 'performance', label: 'Performance', description: 'KPI overview' },
     ...(isProcessIE ? [{ id: 'defect-summary', label: 'Process Defect Summary', description: 'Call-wise defect data' }] : []),
   ];
 

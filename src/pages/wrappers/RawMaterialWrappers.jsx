@@ -165,7 +165,7 @@ export const PackingStorageWrapper = () => {
  */
 export const SummaryReportsWrapper = () => {
   const navigate = useNavigate();
-  const { rmHeats, selectedCall } = useInspection();
+  const { rmHeats, rmProductModel, selectedCall } = useInspection();
 
   const handleBack = () => navigate(ROUTES.RAW_MATERIAL);
   const handleNavigateSubmodule = (subModule) => {
@@ -177,6 +177,7 @@ export const SummaryReportsWrapper = () => {
     <SummaryReportsPage
       onBack={handleBack}
       heats={rmHeats}
+      productModel={rmProductModel}
       inspectionCallNo={selectedCall?.call_no || ''}
       onNavigateSubmodule={handleNavigateSubmodule}
     />

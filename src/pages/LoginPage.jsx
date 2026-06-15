@@ -234,11 +234,23 @@ const LoginPage = () => {
       // Handle any other roles that aren't part of the specific consolidation requirement
       roles.forEach(r => {
         if (!seenConsolidated.has(r) && r) {
+          let label = `${r} Dashboard`;
+          let description = `Access ${r} platform`;
+          let icon = '👤';
+          if (r === 'Rites Admin' || r === 'Rites ADMin') {
+            label = 'Railway Board Dashboard';
+            description = 'Access Railway Board Dashboard as Administrator';
+            icon = '🛤️';
+          } else if (r === 'RAILWAY_BOARD') {
+            label = 'Railway Board Dashboard';
+            description = 'Access Railway Board Dashboard';
+            icon = '🛤️';
+          }
           options.push({
             id: r,
-            label: `${r} Dashboard`,
-            description: `Access ${r} platform`,
-            icon: '👤',
+            label: label,
+            description: description,
+            icon: icon,
             roleToStore: r
           });
         }

@@ -112,8 +112,10 @@ const TemperingSection = ({
     }
 
     if (field === 'temperingDuration') {
-      // No validation rule for duration, so keep enabled (or default behavior)
-      return true;
+      return row.temperingDuration?.some(val => {
+        const { isValid, isApplicable } = checkTolerance('temperingDuration', val, productType);
+        return isApplicable && !isValid;
+      });
     }
 
     return false;
@@ -211,6 +213,7 @@ const TemperingSection = ({
                           value={row.temperingDuration[0] || ''}
                           onChange={e => updateData(idx, 'temperingDuration', e.target.value, 0)}
                           disabled={row.noProduction || !row.lotNo}
+                          style={getToleranceStyle('temperingDuration', row.temperingDuration[0], productType)}
                         />
                       </td>
                       <td rowSpan="3" className="tempering-td tempering-td--total-rejection">
@@ -240,6 +243,7 @@ const TemperingSection = ({
                           value={row.temperingDuration[1] || ''}
                           onChange={e => updateData(idx, 'temperingDuration', e.target.value, 1)}
                           disabled={row.noProduction || !row.lotNo}
+                          style={getToleranceStyle('temperingDuration', row.temperingDuration[1], productType)}
                         />
                       </td>
                     </tr>
@@ -354,6 +358,7 @@ const TemperingSection = ({
                             value={row.temperingDuration[sampleIdx] || ''}
                             onChange={e => updateData(idx, 'temperingDuration', e.target.value, sampleIdx)}
                             disabled={row.noProduction || !row.lotNo}
+                            style={getToleranceStyle('temperingDuration', row.temperingDuration[sampleIdx], productType)}
                           />
                         ))}
                       </div>

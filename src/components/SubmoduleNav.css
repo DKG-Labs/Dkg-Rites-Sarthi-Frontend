@@ -52,8 +52,7 @@
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
-  flex: 1;
-  min-width: 0;
+  flex-shrink: 0;
 }
 
 .submodule-nav-btn:hover {

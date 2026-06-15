@@ -776,8 +776,25 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         callMap.set(call.call_no, {
           call_no: call.call_no,
           po_no: call.po_no,
-          rawMaterialICs: (Array.isArray(call.rm_heat_tc_mapping) ? call.rm_heat_tc_mapping.map(m => m.subPoNumber).filter(Boolean).join(', ') : '') || '',
-          productType: call.erc_type || call.product_type || 'ERC Process'
+          rawMaterialICs: (() => {
+            if (!Array.isArray(call.rm_heat_tc_mapping)) return '';
+            const uniqueIcs = new Set();
+            return call.rm_heat_tc_mapping
+              .map(m => {
+                if (!m.subPoNumber) return null;
+                const formattedDate = m.subPoDate ? formatDate(m.subPoDate).replace(/-/g, '/') : '';
+                const combined = formattedDate && formattedDate !== '-' && formattedDate !== 'Invalid Date'
+                  ? `${m.subPoNumber} dated ${formattedDate}`
+                  : m.subPoNumber;
+                if (uniqueIcs.has(combined)) return null;
+                uniqueIcs.add(combined);
+                return combined;
+              })
+              .filter(Boolean)
+              .join(', ');
+          })() || '',
+          productType: call.erc_type || call.product_type || 'ERC Process',
+          rm_heat_tc_mapping: call.rm_heat_tc_mapping || []
         });
       }
       return Array.from(callMap.values());
@@ -1112,8 +1129,25 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     return call?.call_no ? {
       call_no: call.call_no,
       po_no: call.po_no,
-      rawMaterialICs: call.rm_heat_tc_mapping?.map(m => m.subPoNumber).filter(Boolean).join(', ') || '',
-      productType: call.erc_type || call.product_type || '' // Use erc_type from call data, not hardcoded
+      rawMaterialICs: (() => {
+        if (!call?.rm_heat_tc_mapping) return '';
+        const uniqueIcs = new Set();
+        return call.rm_heat_tc_mapping
+          .map(m => {
+            if (!m.subPoNumber) return null;
+            const formattedDate = m.subPoDate ? formatDate(m.subPoDate).replace(/-/g, '/') : '';
+            const combined = formattedDate && formattedDate !== '-' && formattedDate !== 'Invalid Date'
+              ? `${m.subPoNumber} dated ${formattedDate}`
+              : m.subPoNumber;
+            if (uniqueIcs.has(combined)) return null;
+            uniqueIcs.add(combined);
+            return combined;
+          })
+          .filter(Boolean)
+          .join(', ');
+      })() || '',
+      productType: call.erc_type || call.product_type || '', // Use erc_type from call data, not hardcoded
+      rm_heat_tc_mapping: call.rm_heat_tc_mapping || []
     } : null;
   }, [call?.call_no, call?.po_no, call?.rm_heat_tc_mapping, call?.erc_type, call?.product_type]);
 
@@ -1268,7 +1302,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           poNumber: poNumber,
           poSerialNo: poSerialNo,
           rlyShortName: data.rlyShortName || data.rlyCd || '',
-          rawMaterialICs: rmIcNumber,
+          rawMaterialICs: rmIcNumber || selectedCall?.rawMaterialICs || '',
           productType: ercType
         };
         updated[lineIndex] = updatedLine;
@@ -3633,9 +3667,10 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
   // Get lot/heat data from cached initiation data (from process_inspection_details table)
   // ONLY use cached initiation data - no fallback to rm_heat_tc_mapping to avoid mock data
   // Memoize lot numbers and maps to ensure stable references
-  const { lineLotNumbers, lineHeatNumbersMap, lotOfferedQtyMap, uniqueHeats, lotsByHeat } = useMemo(() => {
+  const { lineLotNumbers, lineHeatNumbersMap, lineRmIcMap, lotOfferedQtyMap, uniqueHeats, lotsByHeat } = useMemo(() => {
     let lotNumbers = [];
     let heatMap = {};
+    let rmIcMap = {};
     let offeredQtyMap = {}; // Map of lot number to offered quantity
 
     if (currentLineInitiationData) {
@@ -3649,6 +3684,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         // Build heat numbers map and offered quantity map
         currentLineInitiationData.lotDetailsList.forEach(lot => {
           heatMap[lot.lotNumber] = lot.heatNumber || '';
+          rmIcMap[lot.lotNumber] = lot.rmIcNumber || '';
           offeredQtyMap[lot.lotNumber] = lot.offeredQty || 0;
         });
 
@@ -3659,6 +3695,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         // Fallback to main lot number if lotDetailsList is not available
         const mainLotNumber = currentLineInitiationData.lotNumber || '';
         const mainHeatNumber = currentLineInitiationData.heatNumber || '';
+        const mainRmIcNumber = currentLineInitiationData.rmIcNumber || '';
 
         console.log('📋 [Lot Numbers] Main lot number from API:', mainLotNumber);
         console.log('📋 [Lot Numbers] Main heat number from API:', mainHeatNumber);
@@ -3667,6 +3704,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         if (mainLotNumber) {
           lotNumbers = [mainLotNumber];
           heatMap = { [mainLotNumber]: mainHeatNumber };
+          rmIcMap = { [mainLotNumber]: mainRmIcNumber };
           offeredQtyMap = { [mainLotNumber]: currentLineInitiationData.offeredQty || 0 };
         }
       }
@@ -3689,6 +3727,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     return {
       lineLotNumbers: lotNumbers,
       lineHeatNumbersMap: heatMap,
+      lineRmIcMap: rmIcMap,
       lotOfferedQtyMap: offeredQtyMap,
       uniqueHeats: uniqueHeatsList,
       lotsByHeat: heatToLots
@@ -5667,7 +5706,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
                             value={line.rawMaterialICs || '-'}
                             readOnly
                             disabled
-                            style={{ minWidth: '150px', backgroundColor: '#f3f4f6' }}
+                            style={{ minWidth: '350px', backgroundColor: '#f3f4f6' }}
                           />
                         </td>
                         <td data-label="Product Type">
@@ -5835,6 +5874,20 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
                 <span style={{ fontSize: '11px', color: '#64748b', display: 'block' }}>Lot Number</span>
                 <span style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937' }}>{lot}</span>
               </div>
+              <div style={{ marginBottom: '6px' }}>
+                <span style={{ fontSize: '11px', color: '#64748b', display: 'block' }}>RM IC No.</span>
+                <span style={{
+                  display: 'block',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  color: '#1f2937',
+                  background: '#f3f4f6',
+                  padding: '6px 10px',
+                  borderRadius: '4px',
+                  marginTop: '4px',
+                  wordBreak: 'break-all'
+                }}>{lineRmIcMap[lot] || '-'}</span>
+              </div>
               <div>
                 <span style={{ fontSize: '11px', color: '#64748b', display: 'block' }}>Heat No. (from RM IC)</span>
                 <span style={{
@@ -5882,7 +5935,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         <div className="process-submodule-buttons">
           <button className="process-submodule-btn" onClick={() => onNavigateToSubModule('process-calibration-documents', { selectedLine, productionLines: localProductionLines, allCallOptions, mapping: lineDisplayMapping, lotNumbers: getAllSelectedLotsForCurrentLine() })}>
             <span className="process-submodule-btn-icon">📄</span>
-            <p className="process-submodule-btn-title">Calibration & Documents</p>
+            <p className="process-submodule-btn-title">Calibration & Documents (Under Development)</p>
             <p className="process-submodule-btn-desc">Verify instrument calibration</p>
           </button>
           <button className="process-submodule-btn" onClick={() => onNavigateToSubModule('process-static-periodic-check', { selectedLine, productionLines: localProductionLines, allCallOptions, mapping: lineDisplayMapping, lotNumbers: getAllSelectedLotsForCurrentLine() })}>

@@ -90,20 +90,26 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
       updatedContractRef = datePart ? `${basePoString} dated ${datePart}` : basePoString;
     }
 
+    const vendorName = c.contractor || c.vendorName || c.vendor_name || "";
+    const inspPlace = po?.placeOfInspection || po?.inspPlace || c.placeOfInspection || "";
+    // Always use place of inspection as default (overrides old stored vendor name for old ICs too)
+    const storedConsigneeManuf = c.consigneeManufacturer || c.consigneeFinished || "";
+    const consigneeManufacturerDefault = inspPlace || storedConsigneeManuf;
+
     return {
       certificateNo: c.certificateNo || c.icNo || "",
       certificateDate: c.certificateDate || "",
       offeredInstNo: c.offeredInstNo || "",
       passedInstNo: c.passedInstNo || "",
-      contractor: c.contractor || c.vendorName || c.vendor_name || "",
+      contractor: vendorName,
       manufacturer: c.manufacturer || "",
-      placeOfInspection: (po?.placeOfInspection || po?.inspPlace) || c.placeOfInspection || "",
+      placeOfInspection: inspPlace,
       contractRef: updatedContractRef,
       contractorPo: c.contractorPo || c.poNo || c.po_no || "",
       billPayingOfficer: c.billPayingOfficer || c.billOfficer || "",
       consigneeRailway: c.consigneeRailway || c.consignee || "",
       purchasingAuthority: c.purchasingAuthority || "",
-      consigneeManufacturer: c.consigneeManufacturer || c.consigneeFinished || "",
+      consigneeManufacturer: consigneeManufacturerDefault,
       description: c.description || c.productDescription || "",
       drgNo: c.drgNo || "",
       specNo: c.specNo || "",

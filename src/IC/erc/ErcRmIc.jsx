@@ -70,6 +70,9 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
     .replace(/[\r\n]+/g, ' ')
     .trim();
 
+  // Default value for Consignee (Manufacturer): place of inspection always takes priority
+  const defaultConsigneeManufacturer = placeOfInspection || consigneeManufacturer;
+
   return (
     <div className="a4-page">
       <div className="certificate-container flex flex-col flex-grow">
@@ -224,7 +227,7 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
             <div className="mt-1 font-semibold text-[10px] pt-1">
               प्रेषिती (निर्मित उत्पाद निर्माता) / Consignee (Manufacturer of Finished Product)
             </div>
-            <EditableField isEditing={false} type="textarea" value={consigneeManufacturer} onChange={(val) => onChange("consigneeManufacturer", val)} className="break-words dynamic-text leading-tight" />
+            <EditableField isEditing={isEditing} type="textarea" value={defaultConsigneeManufacturer} onChange={(val) => onChange("consigneeManufacturer", val)} className="break-words dynamic-text leading-tight" />
           </div>
           <div className="p-2 text-[10px]">
             <div className="font-semibold pt-1.5">

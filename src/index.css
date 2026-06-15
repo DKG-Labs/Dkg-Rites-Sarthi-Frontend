@@ -3526,3 +3526,33 @@ input[type="number"] {
   color: #374151;
   font-weight: 500;
 }
+
+/* Custom overrides to decrease No Production column width and enlarge Lot No input/select controls */
+[class*="-th--checkbox"],
+[class*="-td--checkbox"],
+.mpi-th--checkbox,
+.mpi-td--checkbox {
+  min-width: 80px !important;
+  max-width: 80px !important;
+  width: 80px !important;
+  padding: 4px !important;
+  white-space: normal !important;
+  word-wrap: break-word !important;
+  text-align: center !important;
+}
+
+[class*="-th--lot"],
+[class*="-td--lot"] {
+  min-width: 180px !important;
+  width: 180px !important;
+}
+
+[class*="-td--lot"] select,
+[class*="-td--lot"] .form-control {
+  font-size: 14px !important;
+  padding: 6px 10px !important;
+  height: 38px !important;
+  font-weight: 500 !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}

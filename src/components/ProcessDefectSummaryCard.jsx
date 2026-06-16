@@ -91,6 +91,75 @@ export default function ProcessDefectSummaryPage() {
 
     const handleClear = () => { setCallNoInput(''); setSubmittedCallNo(''); setData([]); setError(''); };
 
+    const exportColumns = [
+        { label: 'Date', getValue: (s) => s.basicDetails?.date ? formatDate(s.basicDetails.date) : '—' },
+        { label: 'Shift', getValue: (s) => s.basicDetails?.shift || '—' },
+        { label: 'Sl.', getValue: (s, idx) => idx + 1 },
+        { label: 'PO_Sr. No.', getValue: (s) => s.basicDetails?.poSrNo || '—' },
+        { label: 'Lot No.', getValue: (s) => s.basicDetails?.lotNumber || '—' },
+        { label: 'Accepted Qty', getValue: (s) => s.basicDetails?.totalAcceptedQty ?? 0 },
+        { label: 'Rejected Qty', getValue: (s) => s.basicDetails?.totalRejectionQty ?? 0 },
+        { label: 'Shearing Prod', getValue: (s) => s.processQty?.shearingProductionQty ?? 0 },
+        { label: 'Shearing Rej', getValue: (s) => s.processQty?.shearingRejectionQty ?? 0 },
+        { label: 'Turning Prod', getValue: (s) => s.processQty?.turningProductionQty ?? 0 },
+        { label: 'Turning Rej', getValue: (s) => s.processQty?.turningRejectionQty ?? 0 },
+        { label: 'MPI Prod', getValue: (s) => s.processQty?.mpiProductionQty ?? 0 },
+        { label: 'MPI Rej', getValue: (s) => s.processQty?.mpiRejectionQty ?? 0 },
+        { label: 'Forging Prod', getValue: (s) => s.processQty?.forgingProductionQty ?? 0 },
+        { label: 'Forging Rej', getValue: (s) => s.processQty?.forgingRejectionQty ?? 0 },
+        { label: 'Quenching Prod', getValue: (s) => s.processQty?.quenchingProductionQty ?? 0 },
+        { label: 'Quenching Rej', getValue: (s) => s.processQty?.quenchingRejectionQty ?? 0 },
+        { label: 'Tempering Prod', getValue: (s) => s.processQty?.temperingProductionQty ?? 0 },
+        { label: 'Tempering Rej', getValue: (s) => s.processQty?.temperingRejectionQty ?? 0 },
+        { label: 'Shearing Cut Len', getValue: (s) => s.shearingDefects?.lengthOfCutBar ?? 0 },
+        { label: 'Shearing Ovality', getValue: (s) => s.shearingDefects?.ovalityImproperDiaAtEnd ?? 0 },
+        { label: 'Shearing Sharp Edges', getValue: (s) => s.shearingDefects?.sharpEdges ?? 0 },
+        { label: 'Shearing Cracks', getValue: (s) => s.shearingDefects?.crackedEdges ?? 0 },
+        { label: 'Turning Para Len', getValue: (s) => s.turningDefects?.parallelLength ?? 0 },
+        { label: 'Turning Full Turn', getValue: (s) => s.turningDefects?.fullTurningLength ?? 0 },
+        { label: 'Turning Turn Dia', getValue: (s) => s.turningDefects?.turningDia ?? 0 },
+        { label: 'MPI MPI Rej', getValue: (s) => s.processQty?.mpiRejectionQty ?? 0 },
+        { label: 'Forging Forge Temp', getValue: (s) => s.forgingDefects?.forgingTemperature ?? 0 },
+        { label: 'Forging Stabilise', getValue: (s) => s.forgingDefects?.forgingStabilisationRejection ?? 0 },
+        { label: 'Forging Improper', getValue: (s) => s.forgingDefects?.improperForging ?? 0 },
+        { label: 'Forging Defect', getValue: (s) => s.forgingDefects?.forgingMarksNotches ?? 0 },
+        { label: 'Quenching Hardness', getValue: (s) => s.quenchingDefects?.quenchingHardness ?? 0 },
+        { label: 'Tempering Temp.', getValue: (s) => s.temperingDefects?.temperingTemp ?? 0 },
+        { label: 'Tempering Dur.', getValue: (s) => s.temperingDefects?.temperingDuration ?? 0 },
+        { label: 'Dimensional Box Gauge', getValue: (s) => s.dimensionalDefects?.boxGauge ?? 0 },
+        { label: 'Dimensional Bearing Area', getValue: (s) => s.dimensionalDefects?.flatBearingArea ?? 0 },
+        { label: 'Dimensional Falling', getValue: (s) => s.dimensionalDefects?.fallingGauge ?? 0 },
+        { label: 'Visual Surface', getValue: (s) => s.visualDefects?.surfaceDefect ?? 0 },
+        { label: 'Visual Embossing', getValue: (s) => s.visualDefects?.embossingDefect ?? 0 },
+        { label: 'Visual Marking', getValue: (s) => s.visualDefects?.marking ?? 0 },
+        { label: 'Testing Temp Hard', getValue: (s) => s.testingDefects?.temperingHardness ?? 0 },
+        { label: 'Testing Toe Load', getValue: (s) => s.testingDefects?.toeLoad ?? 0 },
+        { label: 'Testing Weight', getValue: (s) => s.testingDefects?.weight ?? 0 },
+        { label: 'Finishing Paint ID', getValue: (s) => s.finishingDefects?.paintIdentification ?? 0 },
+        { label: 'Finishing Coating', getValue: (s) => s.finishingDefects?.ercCoating ?? 0 }
+    ];
+
+    const downloadExcel = () => {
+        if (!data || data.length === 0) return;
+        const headers = exportColumns.map(col => col.label).join(',');
+        const rows = data.map((shift, idx) => 
+            exportColumns.map(col => {
+                const val = col.getValue(shift, idx);
+                return `"${String(val ?? '').replace(/"/g, '""')}"`;
+            }).join(',')
+        ).join('\n');
+        
+        const csvContent = "\uFEFF" + headers + "\n" + rows;
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `Process_Defect_Summary_${submittedCallNo}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     const totalAccepted = data.reduce((s, r) => s + (r.basicDetails?.totalAcceptedQty ?? 0), 0);
     const totalRejected = data.reduce((s, r) => s + (r.basicDetails?.totalRejectionQty ?? 0), 0);
     const totalProduced = totalAccepted + totalRejected;
@@ -446,10 +515,35 @@ export default function ProcessDefectSummaryPage() {
                         </span>
                     </div>
                     {data.length > 0 && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                             <div style={{ padding: '3px 12px', background: '#eff6ff', borderRadius: 20, fontSize: '11px', fontWeight: 700, color: '#1d4ed8' }}>
                                 {data.length} shift{data.length !== 1 ? 's' : ''}
                             </div>
+                            <button
+                                onClick={downloadExcel}
+                                style={{
+                                    background: '#10b981',
+                                    color: 'white',
+                                    border: 'none',
+                                    padding: '6px 14px',
+                                    borderRadius: '8px',
+                                    fontSize: '11px',
+                                    fontWeight: '700',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)',
+                                    transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.background = '#059669'}
+                                onMouseLeave={e => e.currentTarget.style.background = '#10b981'}
+                            >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: '2px' }}>
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                                </svg>
+                                Export Excel
+                            </button>
                         </div>
                     )}
                 </div>

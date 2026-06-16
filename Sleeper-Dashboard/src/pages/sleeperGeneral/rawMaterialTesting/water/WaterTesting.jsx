@@ -289,12 +289,8 @@ const WaterTesting = ({ onBack }) => {
                                         <input 
                                             type="number" 
                                             step="0.01" 
-                                            min="6"
-                                            max="8"
                                             {...register('phValue', { 
-                                                required: "pH Value is required",
-                                                min: { value: 6, message: "pH Value must be between 6 and 8" },
-                                                max: { value: 8, message: "pH Value must be between 6 and 8" }
+                                                required: "pH Value is required"
                                             })} 
                                             placeholder="6.0–8.0"
                                             style={errors.phValue ? { borderColor: '#ef4444' } : {}}
@@ -311,11 +307,9 @@ const WaterTesting = ({ onBack }) => {
                                         <input 
                                             type="number"
                                             min="0"
-                                            max="2000"
                                             {...register('tdsResult', { 
                                                 required: "TDS (ppm) is required",
-                                                min: { value: 0, message: "TDS cannot be negative" },
-                                                max: { value: 2000, message: "TDS value cannot exceed 2000 PPM" }
+                                                min: { value: 0, message: "TDS cannot be negative" }
                                             })} 
                                             placeholder="Max 2000"
                                             style={errors.tdsResult ? { borderColor: '#ef4444' } : {}}

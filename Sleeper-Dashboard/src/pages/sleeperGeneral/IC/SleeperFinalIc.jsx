@@ -40,7 +40,8 @@ const SleeperFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldC
     "bookNo", "setNo", "offeredInstNo", "passedInstNo", "contractRef",
     "consignee", "purchasingAuthority", "descriptionOfStores", 
     "qtyOfferedPreviously", "qtyPassedPreviously", "qtyStillDue", "trRecDate",
-    "quantityNowPassedText", "sealingPattern", "facsimileText", "reasonsForRejection"
+    "quantityNowPassedText", "sealingPattern", "facsimileText", "reasonsForRejection",
+    "certificateNo", "certificateDate"
   ];
 
   const displayCertificateNo = String(certificateNo || '')
@@ -126,11 +127,15 @@ const SleeperFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldC
             <tr>
               <td style={{ border: '1px solid black', borderBottom: 'none', padding: '4px', textAlign: 'center', width: '40%', verticalAlign: 'middle' }}>
                 <div style={{ fontWeight: 'bold', fontSize: '9px' }}>प्रमाणपत्र पत्र सं. Certificate No.</div>
-                <div style={{ fontWeight: 'bold', fontSize: '11px', marginTop: '2px', wordBreak: 'break-all' }}>{displayCertificateNo}</div>
+                <div style={{ fontWeight: 'bold', fontSize: '11px', marginTop: '2px', wordBreak: 'break-all' }}>
+                  <EditableField value={displayCertificateNo || certificateNo} fieldName="certificateNo" style={{ textAlign: 'center', fontWeight: 'bold' }} />
+                </div>
               </td>
               <td style={{ border: '1px solid black', borderBottom: 'none', padding: '4px', textAlign: 'center', width: '20%', verticalAlign: 'middle' }}>
                 <div style={{ fontWeight: 'bold', fontSize: '9px' }}>दिनांक Date</div>
-                <div style={{ fontWeight: 'bold', fontSize: '11px', marginTop: '2px' }}>{certificateDate}</div>
+                <div style={{ fontWeight: 'bold', fontSize: '11px', marginTop: '2px' }}>
+                  <EditableField value={certificateDate} fieldName="certificateDate" style={{ textAlign: 'center', fontWeight: 'bold' }} />
+                </div>
               </td>
               <td style={{ border: '1px solid black', borderBottom: 'none', padding: '4px 8px', width: '40%', verticalAlign: 'middle', fontWeight: 'bold', fontSize: '9px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>

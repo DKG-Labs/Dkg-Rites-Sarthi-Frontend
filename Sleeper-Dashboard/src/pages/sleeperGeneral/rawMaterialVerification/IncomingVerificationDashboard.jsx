@@ -395,7 +395,7 @@ const RecordTable = ({ records, moduleId, onView, btnLabel, btnColor }) => {
 //  Main Dashboard Component
 // ─────────────────────────────────────────────
 
-const IncomingVerificationDashboard = ({ initialGroup = null }) => {
+const IncomingVerificationDashboard = ({ initialGroup = null, initialModuleId = null, hideHeader = false }) => {
     const { userId, dutyUnit } = useShift();
     const effectiveUserId = userId || localStorage.getItem('userId');
     const [loading, setLoading] = useState(false);
@@ -408,10 +408,12 @@ const IncomingVerificationDashboard = ({ initialGroup = null }) => {
     const [detailModal, setDetailModal] = useState(null); // row to show in the detail modal
     const [activeSubTab, setActiveSubTab] = useState('pending'); // 'pending' or 'verified'
 
-    // Filter MODULE_CONFIG by initialGroup if provided
-    const filteredModules = initialGroup
-        ? MODULE_CONFIG.filter(m => m.group === initialGroup)
-        : MODULE_CONFIG;
+    // Filter MODULE_CONFIG by initialGroup or initialModuleId if provided
+    const filteredModules = initialModuleId 
+        ? MODULE_CONFIG.filter(m => m.moduleId === initialModuleId)
+        : initialGroup
+            ? MODULE_CONFIG.filter(m => m.group === initialGroup)
+            : MODULE_CONFIG;
 
     // ── Load Data ──
     const loadData = useCallback(async () => {
@@ -510,34 +512,36 @@ const IncomingVerificationDashboard = ({ initialGroup = null }) => {
         <div className="verification-dashboard cement-forms-scope" style={{ fontFamily: "'Inter', sans-serif" }}>
 
             {/* Header */}
-            <header style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
-                <div>
-                    <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#13343b', margin: 0 }}>
-                        IE {initialGroup || 'Verification'} Dashboard
-                    </h2>
-                    <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '12px' }}>
-                        Records assigned to User ID: {effectiveUserId || 'Unknown'}
-                    </p>
-                </div>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                    <button
-                        onClick={loadData}
-                        disabled={loading}
-                        style={{
-                            display: 'flex', alignItems: 'center', gap: '6px',
-                            padding: '8px 16px', borderRadius: '8px', border: '1px solid #e2e8f0',
-                            background: '#fff', color: '#334155', fontSize: '12px', fontWeight: '600',
-                            cursor: loading ? 'not-allowed' : 'pointer'
-                        }}
-                    >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
-                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-                        </svg>
-                        {loading ? 'Refreshing…' : 'Refresh'}
-                    </button>
-                </div>
-            </header>
+            {!hideHeader && (
+                <header style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+                    <div>
+                        <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#13343b', margin: 0 }}>
+                            IE {initialGroup || 'Verification'} Dashboard
+                        </h2>
+                        <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '12px' }}>
+                            Records assigned to User ID: {effectiveUserId || 'Unknown'}
+                        </p>
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                        <button
+                            onClick={loadData}
+                            disabled={loading}
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: '6px',
+                                padding: '8px 16px', borderRadius: '8px', border: '1px solid #e2e8f0',
+                                background: '#fff', color: '#334155', fontSize: '12px', fontWeight: '600',
+                                cursor: loading ? 'not-allowed' : 'pointer'
+                            }}
+                        >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
+                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                            </svg>
+                            {loading ? 'Refreshing…' : 'Refresh'}
+                        </button>
+                    </div>
+                </header>
+            )}
 
             {/* Summary banner */}
             <div style={{
@@ -577,50 +581,52 @@ const IncomingVerificationDashboard = ({ initialGroup = null }) => {
 
             {!loading && (
                 <>
-                    {/* Module Tab Cards */}
-                    <div style={{
-                        display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '24px'
-                    }}>
-                        {filteredModules.map(mod => {
-                            const count = (enrichedByModule[mod.moduleId]?.pending || []).length;
-                            const isActive = selectedModuleId === mod.moduleId;
-                            return (
-                                <div
-                                    key={mod.moduleId}
-                                    onClick={() => setSelectedModuleId(mod.moduleId)}
-                                    style={{
-                                        minWidth: '130px', padding: '12px 16px',
-                                        borderRadius: '10px', cursor: 'pointer',
-                                        border: `2px solid ${isActive ? mod.color : '#e2e8f0'}`,
-                                        background: isActive ? `${mod.color}10` : '#fff',
-                                        transition: 'all 0.18s', userSelect: 'none'
-                                    }}
-                                >
-                                    <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>
-                                        {mod.group}
+                    {/* Module Tab Cards - hide if only one module is selected via initialModuleId */}
+                    {!initialModuleId && (
+                        <div style={{
+                            display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '24px'
+                        }}>
+                            {filteredModules.map(mod => {
+                                const count = (enrichedByModule[mod.moduleId]?.pending || []).length;
+                                const isActive = selectedModuleId === mod.moduleId;
+                                return (
+                                    <div
+                                        key={mod.moduleId}
+                                        onClick={() => setSelectedModuleId(mod.moduleId)}
+                                        style={{
+                                            minWidth: '130px', padding: '12px 16px',
+                                            borderRadius: '10px', cursor: 'pointer',
+                                            border: `2px solid ${isActive ? mod.color : '#e2e8f0'}`,
+                                            background: isActive ? `${mod.color}10` : '#fff',
+                                            transition: 'all 0.18s', userSelect: 'none'
+                                        }}
+                                    >
+                                        <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>
+                                            {mod.group}
+                                        </div>
+                                        <div style={{ fontWeight: '700', fontSize: '13px', color: isActive ? mod.color : '#334155' }}>
+                                            {mod.label}
+                                        </div>
+                                        <div style={{ marginTop: '6px' }}>
+                                            {count > 0 ? (
+                                                <span style={{
+                                                    fontSize: '10px', fontWeight: '700',
+                                                    background: '#fff7ed',
+                                                    color: '#c2410c',
+                                                    padding: '2px 8px', borderRadius: '10px',
+                                                    border: '1px solid #fed7aa'
+                                                }}>
+                                                    {count} Pending
+                                                </span>
+                                            ) : (
+                                                <span style={{ fontSize: '10px', color: '#94a3b8' }}>All Clear</span>
+                                            )}
+                                        </div>
                                     </div>
-                                    <div style={{ fontWeight: '700', fontSize: '13px', color: isActive ? mod.color : '#334155' }}>
-                                        {mod.label}
-                                    </div>
-                                    <div style={{ marginTop: '6px' }}>
-                                        {count > 0 ? (
-                                            <span style={{
-                                                fontSize: '10px', fontWeight: '700',
-                                                background: '#fff7ed',
-                                                color: '#c2410c',
-                                                padding: '2px 8px', borderRadius: '10px',
-                                                border: '1px solid #fed7aa'
-                                            }}>
-                                                {count} Pending
-                                            </span>
-                                        ) : (
-                                            <span style={{ fontSize: '10px', color: '#94a3b8' }}>All Clear</span>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
 
                     {selectedModuleId && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>

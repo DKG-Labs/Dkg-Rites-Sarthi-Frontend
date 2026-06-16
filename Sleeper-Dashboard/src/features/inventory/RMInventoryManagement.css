@@ -1,0 +1,145 @@
+.rm-inventory-dashboard {
+    padding: 0.5rem;
+}
+
+.dashboard-header {
+    margin-bottom: 0.75rem;
+}
+
+.dashboard-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #1e293b;
+}
+
+.dashboard-header p {
+    margin: 0.5rem 0 0;
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+.rm-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 0.75rem;
+}
+
+.rm-card {
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 0.75rem;
+    box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.03);
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border-left: 1px solid #e2e8f0;
+    border-right: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.rm-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.rm-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.rm-card-title {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #334155;
+}
+
+.status-badge {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 20px;
+    font-weight: 800;
+}
+
+.status-badge.ok {
+    background-color: #f0fdf4;
+    color: #10b981;
+}
+
+.status-badge.low {
+    background-color: #fef2f2;
+    color: #ef4444;
+}
+
+.rm-stock-section {
+    margin-bottom: 0.75rem;
+}
+
+.stock-value {
+    font-size: 1.25rem;
+    font-weight: 900;
+    color: #1e293b;
+    margin-bottom: 0.1rem;
+}
+
+.stock-value .unit {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    font-weight: 700;
+}
+
+.progress-bar-bg {
+    width: 100%;
+    height: 4px;
+    background-color: #f1f5f9;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.rm-pending-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    background: #f8fafc;
+    padding: 0.5rem;
+    border-radius: 6px;
+}
+
+.pending-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.pending-label {
+    font-size: 0.75rem;
+    color: #475569;
+    font-weight: 600;
+}
+
+.pending-count {
+    font-size: 0.75rem;
+    font-weight: 800;
+    background: #e2e8f0;
+    color: #475569;
+    padding: 1px 5px;
+    border-radius: 12px;
+}
+
+.pending-count.active {
+    background: #fed7aa;
+    color: #c2410c;
+}
+
+.pending-count.active-consumption {
+    background: #bfdbfe;
+    color: #1d4ed8;
+}

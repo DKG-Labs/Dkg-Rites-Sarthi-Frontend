@@ -1,0 +1,127 @@
+.rm-inventory-register {
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.reg-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.reg-header h2 {
+    font-size: 1.25rem;
+    color: #1e293b;
+    margin: 0 0 0.25rem 0;
+    font-weight: 700;
+}
+
+.reg-header p {
+    color: #64748b;
+    margin: 0;
+    font-size: 0.85rem;
+}
+
+.reg-filters {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-end;
+    background: #f8fafc;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.filter-group label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #475569;
+}
+
+.filter-group input,
+.filter-group select {
+    padding: 0.4rem 0.75rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    color: #334155;
+    background: #ffffff;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.filter-group input:focus,
+.filter-group select:focus {
+    border-color: #0ea5e9;
+}
+
+.clear-filter-btn {
+    padding: 0.4rem 0.75rem;
+    background: #e2e8f0;
+    color: #475569;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.clear-filter-btn:hover {
+    background: #cbd5e1;
+}
+
+.reg-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.reg-table th, .reg-table td {
+    padding: 1rem 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.reg-table th {
+    background-color: #f8fafc;
+    color: #475569;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.reg-table td {
+    color: #334155;
+    vertical-align: middle;
+}
+
+.num-col {
+    text-align: right !important;
+}
+
+.positive {
+    color: #10b981;
+    font-weight: 600;
+}
+
+.negative {
+    color: #ef4444;
+    font-weight: 600;
+}
+
+.balance-col {
+    font-weight: 800;
+    color: #0f172a;
+    background: #f8fafc;
+}

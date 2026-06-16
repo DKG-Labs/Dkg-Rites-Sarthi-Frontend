@@ -22,8 +22,8 @@ export default function SleeperFinalProductCertificate() {
   const handleCloseNotification = () => setNotification({ ...notification, open: false });
 
   const [data, setData] = useState({
-      certificateNo: call?.certificateNo || call?.icNo || "C/HBMCPL/CHSEE0003/MAR",
-      certificateDate: "30/04/2026",
+      certificateNo: call?.certificateNo || call?.icNo || "C/SECR/C26060000/HKS",
+      certificateDate: new Date().toLocaleDateString('en-GB'),
       bookNo: "051",
       setNo: "014",
       offeredInstNo: "1",
@@ -61,7 +61,8 @@ export default function SleeperFinalProductCertificate() {
       if (call && Object.keys(call).length > 0) {
           setData(prev => ({
               ...prev,
-              certificateNo: call.certificateNo || call.icNo || call.workflowTransitionId || "",
+              certificateNo: call.certificateNo || call.icNo || (call.workflowTransitionId ? `C/SECR/C${call.workflowTransitionId}/HKS` : prev.certificateNo),
+              certificateDate: prev.certificateDate,
               poNo: call.poNo || call.po_no || call.po || prev.poNo,
               contractor: call.vendorName || call.vendorCode || call.contractor || prev.contractor,
               qtyNowOffered: call.qtyNowOffered || call.qty || prev.qtyNowOffered,

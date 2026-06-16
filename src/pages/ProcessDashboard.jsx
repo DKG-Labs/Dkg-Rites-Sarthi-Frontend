@@ -4477,7 +4477,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           checkFields(tDur, 'Tempering Duration');
 
           checkRejection('tolerance', tTemp, 'Tempering Temp', 'temperingTemperatureRejected', 'temperingTemperature');
-          checkRejection('always', tDur, 'Tempering Duration', 'temperingDurationRejected');
+          checkRejection('tolerance', tDur, 'Tempering Duration', 'temperingDurationRejected', 'temperingDuration');
 
         } else if (moduleName === 'finalCheckData') {
           const fBox = ['boxGauge1', 'boxGauge2'];

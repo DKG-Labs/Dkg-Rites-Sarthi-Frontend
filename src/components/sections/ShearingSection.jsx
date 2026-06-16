@@ -29,53 +29,7 @@ const ShearingSection = ({
     };
   };
 
-  const updateData = (index, field, value, sampleIndex = null) => {
-    const updated = [...data];
-
-    // When marking No Production = true, clear the entire hour
-    if (field === 'noProduction') {
-      if (value === true) {
-        clearHour(updated, index);
-        onDataChange(updated);
-        return;
-      }
-      // If unchecking No Production, just set the flag to false
-      updated[index] = { ...(updated[index] || {}), noProduction: false };
-      onDataChange(updated);
-      return;
-    }
-
-    // Handle array fields (lengthCutBar, qualityDia, sharpEdges, crackedEdges, rejectedQty)
-    if (sampleIndex !== null) {
-      if (!Array.isArray(updated[index][field])) {
-        updated[index][field] = [];
-      }
-      const fieldArray = [...updated[index][field]];
-      fieldArray[sampleIndex] = value;
-      updated[index][field] = fieldArray;
-    } else {
-      // Handle non-array fields (remarks, lotNo)
-      updated[index][field] = value;
-    }
-    onDataChange(updated);
-  };
-
-  // Handle master "No Production" checkbox (toggle all 8 hours)
-  const handleMasterNoProduction = (checked) => {
-    const updated = [...data];
-    updated.forEach((row, idx) => {
-      row.noProduction = checked;
-      if (checked) {
-        clearHour(updated, idx);
-      }
-    });
-    onDataChange(updated);
-  };
-
-  // Check if all hours are marked as "No Production"
-  const allNoProduction = data.every(row => row.noProduction);
-
-  // Helper to determine if rejection input should be enabled
+  // Helper to determine if rejection input should be enabled (hoisted to support usage inside updates)
   const isRejectionEnabled = (row, type) => {
     if (row.noProduction || !row.lotNo) return false;
 
@@ -95,6 +49,69 @@ const ShearingSection = ({
         return false;
     }
   };
+
+  const autoClearRejections = (row) => {
+    if (!Array.isArray(row.rejectedQty)) {
+      row.rejectedQty = ['', '', '', ''];
+    }
+    const types = ['length', 'quality', 'sharpEdges', 'crackedEdges'];
+    types.forEach((type, idx) => {
+      if (!isRejectionEnabled(row, type)) {
+        row.rejectedQty[idx] = '';
+      }
+    });
+  };
+
+  const updateData = (index, field, value, sampleIndex = null) => {
+    const updated = [...data];
+
+    // When marking No Production = true, clear the entire hour
+    if (field === 'noProduction') {
+      if (value === true) {
+        clearHour(updated, index);
+        onDataChange(updated);
+        return;
+      }
+      // If unchecking No Production, just set the flag to false
+      updated[index] = { ...(updated[index] || {}), noProduction: false };
+      autoClearRejections(updated[index]);
+      onDataChange(updated);
+      return;
+    }
+
+    // Handle array fields (lengthCutBar, qualityDia, sharpEdges, crackedEdges, rejectedQty)
+    if (sampleIndex !== null) {
+      if (!Array.isArray(updated[index][field])) {
+        updated[index][field] = [];
+      }
+      const fieldArray = [...updated[index][field]];
+      fieldArray[sampleIndex] = value;
+      updated[index][field] = fieldArray;
+    } else {
+      // Handle non-array fields (remarks, lotNo)
+      updated[index][field] = value;
+    }
+
+    autoClearRejections(updated[index]);
+    onDataChange(updated);
+  };
+
+  // Handle master "No Production" checkbox (toggle all 8 hours)
+  const handleMasterNoProduction = (checked) => {
+    const updated = [...data];
+    updated.forEach((row, idx) => {
+      row.noProduction = checked;
+      if (checked) {
+        clearHour(updated, idx);
+      } else {
+        autoClearRejections(row);
+      }
+    });
+    onDataChange(updated);
+  };
+
+  // Check if all hours are marked as "No Production"
+  const allNoProduction = data.every(row => row.noProduction);
 
   return (
     <div className="card shearing-section">

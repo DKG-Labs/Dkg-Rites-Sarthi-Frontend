@@ -24,6 +24,19 @@ const MpiSection = ({
     };
   };
 
+  // Helper to determine if rejection input should be enabled (hoisted to support usage inside updates)
+  const isRejectionEnabled = (row) => {
+    if (row.noProduction || !row.lotNo) return false;
+    // Enable if any test result is 'NOT OK'
+    return row.testResults?.some(val => val === 'NOT OK');
+  };
+
+  const autoClearRejections = (row) => {
+    if (!isRejectionEnabled(row)) {
+      row.rejectedQty = '';
+    }
+  };
+
   const updateData = (idx, field, value, arrayIndex = null) => {
     const newData = [...data];
     if (field === 'noProduction') {
@@ -33,6 +46,7 @@ const MpiSection = ({
         return;
       }
       newData[idx] = { ...(newData[idx] || {}), noProduction: false };
+      autoClearRejections(newData[idx]);
       onDataChange(newData);
       return;
     }
@@ -44,6 +58,8 @@ const MpiSection = ({
     } else {
       newData[idx][field] = value;
     }
+
+    autoClearRejections(newData[idx]);
     onDataChange(newData);
   };
 
@@ -54,16 +70,11 @@ const MpiSection = ({
       row.noProduction = checked;
       if (checked) {
         clearHour(newData, idx);
+      } else {
+        autoClearRejections(row);
       }
     });
     onDataChange(newData);
-  };
-
-  // Helper to determine if rejection input should be enabled
-  const isRejectionEnabled = (row) => {
-    if (row.noProduction || !row.lotNo) return false;
-    // Enable if any test result is 'NOT OK'
-    return row.testResults?.some(val => val === 'NOT OK');
   };
 
   // Check if all hours are marked as "No Production"

@@ -27,47 +27,7 @@ const TurningSection = ({
     };
   };
 
-  const updateData = (idx, field, value, sampleIdx = null) => {
-    const newData = [...data];
-
-    if (field === 'noProduction') {
-      if (value === true) {
-        clearHour(newData, idx);
-        onDataChange(newData);
-        return;
-      }
-      newData[idx] = { ...(newData[idx] || {}), noProduction: false };
-      onDataChange(newData);
-      return;
-    }
-
-    if (sampleIdx !== null) {
-      if (!Array.isArray(newData[idx][field])) newData[idx][field] = [];
-      const arr = [...newData[idx][field]];
-      arr[sampleIdx] = value;
-      newData[idx][field] = arr;
-    } else {
-      newData[idx][field] = value;
-    }
-    onDataChange(newData);
-  };
-
-  // Handle master "No Production" checkbox (toggle all 8 hours)
-  const handleMasterNoProduction = (checked) => {
-    const newData = [...data];
-    newData.forEach((row, idx) => {
-      row.noProduction = checked;
-      if (checked) {
-        clearHour(newData, idx);
-      }
-    });
-    onDataChange(newData);
-  };
-
-  // Check if all hours are marked as "No Production"
-  const allNoProduction = data.every(row => row.noProduction);
-
-  // Helper to determine if rejection input should be enabled
+  // Helper to determine if rejection input should be enabled (hoisted to support usage inside updates)
   const isRejectionEnabled = (row, type) => {
     if (row.noProduction || !row.lotNo) return false;
 
@@ -91,6 +51,63 @@ const TurningSection = ({
         return false;
     }
   };
+
+  const autoClearRejections = (row) => {
+    if (!Array.isArray(row.rejectedQty)) {
+      row.rejectedQty = ['', '', ''];
+    }
+    const types = ['parallel', 'full', 'dia'];
+    types.forEach((type, idx) => {
+      if (!isRejectionEnabled(row, type)) {
+        row.rejectedQty[idx] = '';
+      }
+    });
+  };
+
+  const updateData = (idx, field, value, sampleIdx = null) => {
+    const newData = [...data];
+
+    if (field === 'noProduction') {
+      if (value === true) {
+        clearHour(newData, idx);
+        onDataChange(newData);
+        return;
+      }
+      newData[idx] = { ...(newData[idx] || {}), noProduction: false };
+      autoClearRejections(newData[idx]);
+      onDataChange(newData);
+      return;
+    }
+
+    if (sampleIdx !== null) {
+      if (!Array.isArray(newData[idx][field])) newData[idx][field] = [];
+      const arr = [...newData[idx][field]];
+      arr[sampleIdx] = value;
+      newData[idx][field] = arr;
+    } else {
+      newData[idx][field] = value;
+    }
+
+    autoClearRejections(newData[idx]);
+    onDataChange(newData);
+  };
+
+  // Handle master "No Production" checkbox (toggle all 8 hours)
+  const handleMasterNoProduction = (checked) => {
+    const newData = [...data];
+    newData.forEach((row, idx) => {
+      row.noProduction = checked;
+      if (checked) {
+        clearHour(newData, idx);
+      } else {
+        autoClearRejections(row);
+      }
+    });
+    onDataChange(newData);
+  };
+
+  // Check if all hours are marked as "No Production"
+  const allNoProduction = data.every(row => row.noProduction);
 
   return (
     <div className="turning-section">

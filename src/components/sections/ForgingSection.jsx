@@ -34,46 +34,7 @@ const ForgingSection = ({
     };
   };
 
-  const updateData = (idx, field, value, sampleIdx = null) => {
-    const newData = [...data];
-    if (field === 'noProduction') {
-      if (value === true) {
-        clearHour(newData, idx);
-        onDataChange(newData);
-        return;
-      }
-      newData[idx] = { ...(newData[idx] || {}), noProduction: false };
-      onDataChange(newData);
-      return;
-    }
-
-    if (sampleIdx !== null) {
-      if (!Array.isArray(newData[idx][field])) newData[idx][field] = [];
-      const arr = [...newData[idx][field]];
-      arr[sampleIdx] = value;
-      newData[idx][field] = arr;
-    } else {
-      newData[idx][field] = value;
-    }
-    onDataChange(newData);
-  };
-
-  // Handle master "No Production" checkbox (toggle all 8 hours)
-  const handleMasterNoProduction = (checked) => {
-    const newData = [...data];
-    newData.forEach((row, idx) => {
-      row.noProduction = checked;
-      if (checked) {
-        clearHour(newData, idx);
-      }
-    });
-    onDataChange(newData);
-  };
-
-  // Check if all hours are marked as "No Production"
-  const allNoProduction = data.every(row => row.noProduction);
-
-  // Helper to determine if rejection input should be enabled
+  // Helper to determine if rejection input should be enabled (hoisted to support usage inside updates)
   const isRejectionEnabled = (row, field) => {
     if (row.noProduction || !row.lotNo) return false;
 
@@ -88,6 +49,65 @@ const ForgingSection = ({
     // Fields: forgingStabilisation, improperForging, forgingDefect, embossingDefect
     return row[field]?.some(val => val === 'NOT OK');
   };
+
+  const autoClearRejections = (row) => {
+    const fieldsToCheck = [
+      { trigger: 'forgingTemperature', target: 'forgingTemperatureRejected' },
+      { trigger: 'forgingStabilisation', target: 'forgingStabilisationRejected' },
+      { trigger: 'improperForging', target: 'improperForgingRejected' },
+      { trigger: 'forgingDefect', target: 'forgingDefectRejected' },
+      { trigger: 'embossingDefect', target: 'embossingDefectRejected' }
+    ];
+    fieldsToCheck.forEach(({ trigger, target }) => {
+      if (!isRejectionEnabled(row, trigger)) {
+        row[target] = '';
+      }
+    });
+  };
+
+  const updateData = (idx, field, value, sampleIdx = null) => {
+    const newData = [...data];
+    if (field === 'noProduction') {
+      if (value === true) {
+        clearHour(newData, idx);
+        onDataChange(newData);
+        return;
+      }
+      newData[idx] = { ...(newData[idx] || {}), noProduction: false };
+      autoClearRejections(newData[idx]);
+      onDataChange(newData);
+      return;
+    }
+
+    if (sampleIdx !== null) {
+      if (!Array.isArray(newData[idx][field])) newData[idx][field] = [];
+      const arr = [...newData[idx][field]];
+      arr[sampleIdx] = value;
+      newData[idx][field] = arr;
+    } else {
+      newData[idx][field] = value;
+    }
+
+    autoClearRejections(newData[idx]);
+    onDataChange(newData);
+  };
+
+  // Handle master "No Production" checkbox (toggle all 8 hours)
+  const handleMasterNoProduction = (checked) => {
+    const newData = [...data];
+    newData.forEach((row, idx) => {
+      row.noProduction = checked;
+      if (checked) {
+        clearHour(newData, idx);
+      } else {
+        autoClearRejections(row);
+      }
+    });
+    onDataChange(newData);
+  };
+
+  // Check if all hours are marked as "No Production"
+  const allNoProduction = data.every(row => row.noProduction);
 
   return (
     <div className="forging-section">

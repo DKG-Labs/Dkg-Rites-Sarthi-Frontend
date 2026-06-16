@@ -30,41 +30,7 @@ const TestingFinishingSection = ({
     };
   };
 
-  const updateData = (idx, field, value, sampleIndex = null) => {
-    const newData = [...data];
-    if (field === 'noProduction') {
-      newData[idx].noProduction = !!value;
-      if (value) clearHour(newData, idx);
-      onDataChange(newData);
-      return;
-    }
-
-    if (sampleIndex !== null && Array.isArray(newData[idx][field])) {
-      const fieldArray = [...newData[idx][field]];
-      fieldArray[sampleIndex] = value;
-      newData[idx][field] = fieldArray;
-    } else {
-      newData[idx][field] = value;
-    }
-    onDataChange(newData);
-  };
-
-  // Handle master "No Production" checkbox (toggle all 8 hours)
-  const handleMasterNoProduction = (checked) => {
-    const newData = [...data];
-    newData.forEach((row, idx) => {
-      row.noProduction = checked;
-      if (checked) {
-        clearHour(newData, idx);
-      }
-    });
-    onDataChange(newData);
-  };
-
-  // Check if all hours are marked as "No Production"
-  const allNoProduction = data.every(row => row.noProduction);
-
-  // Helper to determine if rejection input should be enabled
+  // Helper to determine if rejection input should be enabled (hoisted to support usage inside updates)
   const isRejectionEnabled = (row, field) => {
     if (row.noProduction || !row.lotNo) return false;
 
@@ -85,6 +51,61 @@ const TestingFinishingSection = ({
     // Fields: paintIdentification, ercCoating
     return row[field]?.some(val => val === 'not ok' || val === 'NOT OK');
   };
+
+  const autoClearRejections = (row) => {
+    const fieldsToCheck = [
+      { trigger: 'toeLoad', target: 'toeLoadRejected' },
+      { trigger: 'weight', target: 'weightRejected' },
+      { trigger: 'paintIdentification', target: 'paintIdentificationRejected' },
+      { trigger: 'ercCoating', target: 'ercCoatingRejected' }
+    ];
+    fieldsToCheck.forEach(({ trigger, target }) => {
+      if (!isRejectionEnabled(row, trigger)) {
+        row[target] = '';
+      }
+    });
+  };
+
+  const updateData = (idx, field, value, sampleIndex = null) => {
+    const newData = [...data];
+    if (field === 'noProduction') {
+      newData[idx].noProduction = !!value;
+      if (value) {
+        clearHour(newData, idx);
+      } else {
+        autoClearRejections(newData[idx]);
+      }
+      onDataChange(newData);
+      return;
+    }
+
+    if (sampleIndex !== null && Array.isArray(newData[idx][field])) {
+      const fieldArray = [...newData[idx][field]];
+      fieldArray[sampleIndex] = value;
+      newData[idx][field] = fieldArray;
+    } else {
+      newData[idx][field] = value;
+    }
+    autoClearRejections(newData[idx]);
+    onDataChange(newData);
+  };
+
+  // Handle master "No Production" checkbox (toggle all 8 hours)
+  const handleMasterNoProduction = (checked) => {
+    const newData = [...data];
+    newData.forEach((row, idx) => {
+      row.noProduction = checked;
+      if (checked) {
+        clearHour(newData, idx);
+      } else {
+        autoClearRejections(row);
+      }
+    });
+    onDataChange(newData);
+  };
+
+  // Check if all hours are marked as "No Production"
+  const allNoProduction = data.every(row => row.noProduction);
 
   return (
     <div className="testing-finishing-section">

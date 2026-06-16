@@ -35,45 +35,7 @@ const QuenchingSection = ({
     };
   };
 
-  const updateData = (idx, field, value, sampleIndex = null) => {
-    const newData = [...data];
-    // handle noProduction specially: if set true, clear the hour
-    if (field === 'noProduction') {
-      newData[idx].noProduction = !!value;
-      if (value) {
-        clearHour(newData, idx);
-      }
-      onDataChange(newData);
-      return;
-    }
-
-    // normal updates
-    if (sampleIndex !== null && Array.isArray(newData[idx][field])) {
-      const fieldArray = [...newData[idx][field]];
-      fieldArray[sampleIndex] = value;
-      newData[idx][field] = fieldArray;
-    } else {
-      newData[idx][field] = value;
-    }
-    onDataChange(newData);
-  };
-
-  // Handle master "No Production" checkbox (toggle all 8 hours)
-  const handleMasterNoProduction = (checked) => {
-    const newData = [...data];
-    newData.forEach((row, idx) => {
-      row.noProduction = checked;
-      if (checked) {
-        clearHour(newData, idx);
-      }
-    });
-    onDataChange(newData);
-  };
-
-  // Check if all hours are marked as "No Production"
-  const allNoProduction = data.every(row => row.noProduction);
-
-  // Helper to determine if rejection input should be enabled
+  // Helper to determine if rejection input should be enabled (hoisted to support usage inside updates)
   const isRejectionEnabled = (row, field) => {
     if (row.noProduction || !row.lotNo) return false;
 
@@ -90,6 +52,66 @@ const QuenchingSection = ({
     // Fields: boxGauge, flatBearingArea, fallingGauge
     return row[field]?.some(val => val === 'NOT OK');
   };
+
+  const autoClearRejections = (row) => {
+    const fieldsToCheck = [
+      { trigger: 'quenchingTemperature', target: 'quenchingTemperatureRejected' },
+      { trigger: 'quenchingDuration', target: 'quenchingDurationRejected' },
+      { trigger: 'quenchingHardness', target: 'quenchingHardnessRejected' },
+      { trigger: 'boxGauge', target: 'boxGaugeRejected' },
+      { trigger: 'flatBearingArea', target: 'flatBearingAreaRejected' },
+      { trigger: 'fallingGauge', target: 'fallingGaugeRejected' }
+    ];
+    fieldsToCheck.forEach(({ trigger, target }) => {
+      if (!isRejectionEnabled(row, trigger)) {
+        row[target] = '';
+      }
+    });
+  };
+
+  const updateData = (idx, field, value, sampleIndex = null) => {
+    const newData = [...data];
+    // handle noProduction specially: if set true, clear the hour
+    if (field === 'noProduction') {
+      newData[idx].noProduction = !!value;
+      if (value) {
+        clearHour(newData, idx);
+      } else {
+        autoClearRejections(newData[idx]);
+      }
+      onDataChange(newData);
+      return;
+    }
+
+    // normal updates
+    if (sampleIndex !== null && Array.isArray(newData[idx][field])) {
+      const fieldArray = [...newData[idx][field]];
+      fieldArray[sampleIndex] = value;
+      newData[idx][field] = fieldArray;
+    } else {
+      newData[idx][field] = value;
+    }
+
+    autoClearRejections(newData[idx]);
+    onDataChange(newData);
+  };
+
+  // Handle master "No Production" checkbox (toggle all 8 hours)
+  const handleMasterNoProduction = (checked) => {
+    const newData = [...data];
+    newData.forEach((row, idx) => {
+      row.noProduction = checked;
+      if (checked) {
+        clearHour(newData, idx);
+      } else {
+        autoClearRejections(row);
+      }
+    });
+    onDataChange(newData);
+  };
+
+  // Check if all hours are marked as "No Production"
+  const allNoProduction = data.every(row => row.noProduction);
 
 
 

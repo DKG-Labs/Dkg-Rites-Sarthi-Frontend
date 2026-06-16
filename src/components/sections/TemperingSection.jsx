@@ -15,6 +15,27 @@ const TemperingSection = ({
 }) => {
   const [expanded] = useState(true);
 
+  // Helper to determine if rejection input should be enabled (defined at the top for hoisting/usage inside update functions)
+  const isRejectionEnabled = (row, field) => {
+    if (row.noProduction || !row.lotNo) return false;
+
+    if (field === 'temperingTemperature') {
+      return row.temperingTemperature?.some(val => {
+        const { isValid, isApplicable } = checkTolerance('temperingTemperature', val, productType);
+        return isApplicable && !isValid;
+      });
+    }
+
+    if (field === 'temperingDuration') {
+      return row.temperingDuration?.some(val => {
+        const { isValid, isApplicable } = checkTolerance('temperingDuration', val, productType);
+        return isApplicable && !isValid;
+      });
+    }
+
+    return false;
+  };
+
   const updateData = (idx, field, value, sampleIndex = null) => {
     const newData = [...data];
     if (sampleIndex !== null && Array.isArray(newData[idx][field])) {
@@ -24,6 +45,15 @@ const TemperingSection = ({
     } else {
       newData[idx][field] = value;
     }
+
+    // Auto-clear rejection fields when they become disabled/in-tolerance
+    if (!isRejectionEnabled(newData[idx], 'temperingTemperature')) {
+      newData[idx].temperingTemperatureRejected = '';
+    }
+    if (!isRejectionEnabled(newData[idx], 'temperingDuration')) {
+      newData[idx].temperingDurationRejected = '';
+    }
+
     onDataChange(newData);
   };
 
@@ -50,6 +80,15 @@ const TemperingSection = ({
         return;
       }
       newData[idx] = { ...(newData[idx] || {}), noProduction: false };
+      
+      // Auto-clear rejection fields when they become disabled/in-tolerance
+      if (!isRejectionEnabled(newData[idx], 'temperingTemperature')) {
+        newData[idx].temperingTemperatureRejected = '';
+      }
+      if (!isRejectionEnabled(newData[idx], 'temperingDuration')) {
+        newData[idx].temperingDurationRejected = '';
+      }
+
       onDataChange(newData);
       return;
     }
@@ -92,6 +131,14 @@ const TemperingSection = ({
       row.noProduction = checked;
       if (checked) {
         clearHour(newData, idx);
+      } else {
+        // Auto-clear rejection fields when they become disabled/in-tolerance
+        if (!isRejectionEnabled(row, 'temperingTemperature')) {
+          row.temperingTemperatureRejected = '';
+        }
+        if (!isRejectionEnabled(row, 'temperingDuration')) {
+          row.temperingDurationRejected = '';
+        }
       }
     });
     onDataChange(newData);
@@ -99,27 +146,6 @@ const TemperingSection = ({
 
   // Check if all hours are marked as "No Production"
   const allNoProduction = data.every(row => row.noProduction);
-
-  // Helper to determine if rejection input should be enabled
-  const isRejectionEnabled = (row, field) => {
-    if (row.noProduction || !row.lotNo) return false;
-
-    if (field === 'temperingTemperature') {
-      return row.temperingTemperature?.some(val => {
-        const { isValid, isApplicable } = checkTolerance('temperingTemperature', val, productType);
-        return isApplicable && !isValid;
-      });
-    }
-
-    if (field === 'temperingDuration') {
-      return row.temperingDuration?.some(val => {
-        const { isValid, isApplicable } = checkTolerance('temperingDuration', val, productType);
-        return isApplicable && !isValid;
-      });
-    }
-
-    return false;
-  };
 
   return (
     <div className="tempering-section">
@@ -256,7 +282,6 @@ const TemperingSection = ({
                         <input
                           type="number"
                           className="form-control tempering-input"
-                          placeholder="0"
                           value={row.temperingTemperatureRejected ?? ''}
                           onChange={e => updateData(idx, 'temperingTemperatureRejected', e.target.value)}
                           disabled={!isRejectionEnabled(row, 'temperingTemperature')}
@@ -266,7 +291,6 @@ const TemperingSection = ({
                         <input
                           type="number"
                           className="form-control tempering-input"
-                          placeholder="0"
                           value={row.temperingDurationRejected ?? ''}
                           onChange={e => updateData(idx, 'temperingDurationRejected', e.target.value)}
                           disabled={!isRejectionEnabled(row, 'temperingDuration')}
@@ -368,7 +392,6 @@ const TemperingSection = ({
                       <div className="tempering-mobile-field__value">
                         <input
                           type="number"
-                          placeholder="0"
                           value={row.temperingTemperatureRejected ?? ''}
                           onChange={e => updateData(idx, 'temperingTemperatureRejected', e.target.value)}
                           disabled={!isRejectionEnabled(row, 'temperingTemperature')}
@@ -380,7 +403,6 @@ const TemperingSection = ({
                       <div className="tempering-mobile-field__value">
                         <input
                           type="number"
-                          placeholder="0"
                           value={row.temperingDurationRejected ?? ''}
                           onChange={e => updateData(idx, 'temperingDurationRejected', e.target.value)}
                           disabled={!isRejectionEnabled(row, 'temperingDuration')}

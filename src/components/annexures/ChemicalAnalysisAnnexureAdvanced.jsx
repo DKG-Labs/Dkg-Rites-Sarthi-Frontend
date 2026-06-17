@@ -113,7 +113,7 @@ const ChemicalAnalysisAnnexureAdvanced = ({ data = [], selectedCall }) => {
                 <td className="annexure-td">{row.sNo || row.sno || (index + 1)}</td>
                 <td className="annexure-td data-cell">{row.date || (row.isEmpty ? '' : headerMeta.dateOfInspection)}</td>
                 <td className="annexure-td data-cell">{row.source || (row.isEmpty ? '' : headerMeta.manufacturer)}</td>
-                <td className="annexure-td data-cell">{row.certNo || (row.isEmpty ? '' : headerMeta.certificateNo)}</td>
+                <td className="annexure-td data-cell">{row.tcNumber || row.certNo || (row.isEmpty ? '' : headerMeta.certificateNo)}</td>
                 <td className="annexure-td data-cell">{row.heatNo || ''}</td>
                 <td className="annexure-td data-cell">{row.coilCode || ''}</td>
                 <td className="annexure-td data-cell">{row.quantity || (row.isEmpty ? '' : headerMeta.quantity)}</td>

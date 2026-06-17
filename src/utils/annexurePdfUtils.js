@@ -113,16 +113,29 @@ const addElementToPdf = async (element, pdf, options) => {
 
         // Stabilize Rotated Headers
         const rotatedHeaders = layout.querySelectorAll('.annexure-th.rotated-header');
-        rotatedHeaders.forEach(th => {
+        rotatedHeaders.forEach((th, index) => {
+          // Find corresponding th in the original document to copy its actual rendered height
+          const originalTable = element.querySelector('table');
+          let origHeight = 180; // Default safe fallback height
+          if (originalTable) {
+            const originalRotatedHeaders = originalTable.querySelectorAll('.annexure-th.rotated-header');
+            if (originalRotatedHeaders && originalRotatedHeaders[index]) {
+              const rect = originalRotatedHeaders[index].getBoundingClientRect();
+              if (rect.height > 0) {
+                origHeight = Math.ceil(rect.height);
+              }
+            }
+          }
+
           th.style.width = '45px';
           th.style.minWidth = '45px';
-          th.style.height = '140px';
+          th.style.height = `${origHeight}px`;
           th.style.position = 'relative';
 
           const span = th.querySelector('.rotated-text');
           if (span) {
             span.style.display = 'block';
-            span.style.width = '140px';
+            span.style.width = `${Math.max(origHeight + 35, 200)}px`;
             span.style.whiteSpace = 'nowrap';
             span.style.position = 'absolute';
             span.style.left = '50%';
@@ -130,8 +143,8 @@ const addElementToPdf = async (element, pdf, options) => {
             span.style.transform = 'translate(-50%, -50%) rotate(-90deg)';
             span.style.transformOrigin = 'center center';
             span.style.writingMode = 'horizontal-tb';
-            span.style.textAlign = 'left';
-            span.style.paddingLeft = '5px';
+            span.style.textAlign = 'center';
+            span.style.paddingLeft = '0px';
             span.style.fontWeight = 'bold';
           }
         });

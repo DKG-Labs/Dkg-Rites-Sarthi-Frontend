@@ -79,7 +79,7 @@ const ChemicalAnalysisAnnexure = ({ data = [], selectedCall }) => {
             { value: row.sNo, isData: false },
             { value: row.date || headerMeta.dateOfInspection, isData: true },
             { value: row.source || headerMeta.manufacturer, isData: true },
-            { value: row.certNo || headerMeta.certificateNo, isData: true },
+            { value: row.tcNumber || row.certNo || headerMeta.certificateNo, isData: true },
             { value: row.heatNo, isData: true },
             { value: row.coilCode || '', isData: true },
             { value: row.sampleNo, isData: true },

@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 const VisualInspectionForm = ({ onSubmit, onCancel, editData, currentShift, isViewOnly }) => {
   const [isFormLoading, setIsFormLoading] = useState(true);
   const [formData, setFormData] = useState({
-    sampleQuantity: 2,
+    sampleQuantity: 3,
     timeOfCheck: '',
     clearCutSides: 'Yes',
     smoothSurface: 'Yes',
@@ -44,7 +44,7 @@ const VisualInspectionForm = ({ onSubmit, onCancel, editData, currentShift, isVi
       setError('Defect Remarks are mandatory when visual checks fail.');
       return;
     }
-    
+
     setError('');
     onSubmit({
       ...formData,
@@ -61,10 +61,10 @@ const VisualInspectionForm = ({ onSubmit, onCancel, editData, currentShift, isVi
           <h2 className="form-header-title">{isViewOnly ? 'View' : (editData ? 'Edit' : 'Add')} Finishing (Visual Inspection)</h2>
         </div>
         <div className="form-modal-body">
-          <div style={{ 
-            background: '#f8fafc', 
-            padding: '12px', 
-            borderRadius: '8px', 
+          <div style={{
+            background: '#f8fafc',
+            padding: '12px',
+            borderRadius: '8px',
             marginBottom: '20px',
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
@@ -130,10 +130,10 @@ const VisualInspectionForm = ({ onSubmit, onCancel, editData, currentShift, isVi
         )}
 
         <fieldset disabled={isViewOnly} style={{ border: 'none', padding: 0, margin: 0, width: '100%' }}>
-          <div style={{ 
-            background: '#f8fafc', 
-            padding: '12px', 
-            borderRadius: '8px', 
+          <div style={{
+            background: '#f8fafc',
+            padding: '12px',
+            borderRadius: '8px',
             marginBottom: '20px',
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
@@ -169,8 +169,8 @@ const VisualInspectionForm = ({ onSubmit, onCancel, editData, currentShift, isVi
                 style={{ background: '#f1f5f9', cursor: 'not-allowed' }}
                 value={formData.sampleQuantity}
               />
-              <span style={{fontSize: '10px', color: '#64748b', marginTop: '4px', display: 'block'}}>
-                Mandate: Inspect 2 rail pads per hour.
+              <span style={{ fontSize: '10px', color: '#64748b', marginTop: '4px', display: 'block' }}>
+                Mandate: Inspect 3 rail pads per hour.
               </span>
             </div>
           </div>
@@ -185,7 +185,7 @@ const VisualInspectionForm = ({ onSubmit, onCancel, editData, currentShift, isVi
                 <option value="Yes">Yes</option>
                 <option value="No">No</option>
               </select>
-              <span style={{fontSize: '10px', color: '#64748b', marginTop: '4px', display: 'block'}}>
+              <span style={{ fontSize: '10px', color: '#64748b', marginTop: '4px', display: 'block' }}>
                 Ensure that the Rail pads have clear cut sides.
               </span>
             </div>
@@ -198,7 +198,7 @@ const VisualInspectionForm = ({ onSubmit, onCancel, editData, currentShift, isVi
                 <option value="Yes">Yes</option>
                 <option value="No">No</option>
               </select>
-              <span style={{fontSize: '10px', color: '#64748b', marginTop: '4px', display: 'block'}}>
+              <span style={{ fontSize: '10px', color: '#64748b', marginTop: '4px', display: 'block' }}>
                 Ensure that the Rail pads have smooth surface free from defects.
               </span>
             </div>
@@ -206,7 +206,7 @@ const VisualInspectionForm = ({ onSubmit, onCancel, editData, currentShift, isVi
 
           {(formData.clearCutSides === 'No' || formData.smoothSurface === 'No') && (
             <div className="form-group" style={{ marginTop: '1rem' }}>
-              <label>Defect Remarks <span style={{color: '#ef4444'}}>*</span></label>
+              <label>Defect Remarks <span style={{ color: '#ef4444' }}>*</span></label>
               <textarea
                 required
                 placeholder="Log specific observations here..."

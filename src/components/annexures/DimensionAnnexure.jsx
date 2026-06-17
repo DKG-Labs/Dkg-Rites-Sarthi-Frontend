@@ -48,7 +48,7 @@ const DimensionAnnexure = ({ data, selectedCall }) => {
       sNo: hIdx + 1,
       date: reportInfo.dateOfInspection,
       source: reportInfo.source,
-      certNo: reportInfo.certNo,
+      certNo: heat.tcNumber || reportInfo.certNo,
       heatNo: heat.heatNo,
       coilCode: reportInfo.colorCode,
       quantity: reportInfo.quantity,
@@ -151,10 +151,6 @@ const DimensionAnnexure = ({ data, selectedCall }) => {
         </table>
       </div>
 
-      {/* NOTE SECTION */}
-      <div className="dimension-note">
-        Note: Tolerance as per specified in the Specification.
-      </div>
 
       {/* FOOTER SECTION */}
       <div className="annexure-footer">

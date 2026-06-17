@@ -82,6 +82,7 @@ const ProfessionalCardSection = ({
     // New Performance Matrix Props from API
     perfData = [],
     perfLoading = false,
+    perfError = null,
     perfPagination = { totalElements: 0, totalPages: 0 },
     perfPage = 0,
     setPerfPage = () => { },
@@ -1006,7 +1007,7 @@ const ProfessionalCardSection = ({
                                 return <SleeperPerformance fromDate={fromDate} toDate={toDate} />;
                             }
                             if (isRailPad) {
-                                return <RailPadPerformance perfData={perfData} loading={perfLoading} />;
+                                return <RailPadPerformance perfData={perfData} loading={perfLoading} error={perfError} />;
                             }
                             return (
                                 <div className="performance-tab-content fade-in">

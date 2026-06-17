@@ -216,7 +216,8 @@ const FinalChemicalAnalysisPage = ({ onBack, onNavigateSubmodule }) => {
     p: { min: 0, max: 0.03 },
   };
 
-  /* Tolerance from ladle value */
+  /* Tolerance from ladle value - TEMPORARILY COMMENTED OUT */
+  /*
   const tolerances = {
     c: 0.03,
     mn: 0.04,
@@ -224,6 +225,7 @@ const FinalChemicalAnalysisPage = ({ onBack, onNavigateSubmodule }) => {
     s: 0.005,
     p: 0.005,
   };
+  */
 
   const handleChemChange = (lotNo, element, value) => {
     setChemValues((prev) => ({
@@ -241,16 +243,19 @@ const FinalChemicalAnalysisPage = ({ onBack, onNavigateSubmodule }) => {
     if (!productValue || productValue === "") return "";
 
     const pVal = parseFloat(productValue);
-    const lVal = parseFloat(ladleValue);
 
-    if (isNaN(pVal) || isNaN(lVal)) return "";
+    if (isNaN(pVal)) return "";
 
     const range = elementRanges[element];
-    const tolerance = tolerances[element];
 
     // Rule: Must be within absolute spec AND within tolerance from ladle
     const withinSpec = pVal >= (range.min - 0.0001) && pVal <= (range.max + 0.0001);
 
+    // TEMPORARILY COMMENTED OUT - Validation with Ladle values entered by vendor
+    /*
+    const lVal = parseFloat(ladleValue);
+    if (isNaN(lVal)) return "";
+    const tolerance = tolerances[element];
     // Special rule for Sulphur and Phosphorus
     if (element === "s" || element === "p") {
       // Must be within absolute spec AND not cross (Ladle + 0.005)
@@ -262,6 +267,9 @@ const FinalChemicalAnalysisPage = ({ onBack, onNavigateSubmodule }) => {
     const withinTolerance = diff <= (tolerance + 0.0001);
 
     return (withinTolerance && withinSpec) ? "pass" : "fail";
+    */
+
+    return withinSpec ? "pass" : "fail";
   };
 
   return (

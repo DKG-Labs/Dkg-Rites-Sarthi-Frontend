@@ -7,8 +7,7 @@ const SCADA_MANUFACTURERS = [
 
 const SCADA_UNITS = [
     { label: 'Wadiyaram Unit', value: 'WDM-U1' },
-    { label: 'TMQ-U1', value: 'TMQ-U1' },
-    { label: 'TMQ-U2', value: 'TMQ-U2' }
+    { label: 'Thirumangalam', value: 'Thirumangalam' }
 ];
 
 const SCADA_LINES = [
@@ -79,6 +78,7 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
     const [line, setLine] = useState('');
     const [stage, setStage] = useState('');
     const [data, setData] = useState([]);
+    const [hasMore, setHasMore] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [status, setStatus] = useState('No Data');
@@ -88,6 +88,7 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
         const fetchScadaData = async () => {
             if (!manufacturer || !unit || !line || !stage) {
                 setData([]);
+                setHasMore(false);
                 setStatus('No Data');
                 setLastTimestamp('N/A');
                 return;
@@ -97,35 +98,94 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
             setError(null);
             
             const apiType = 'SPLR';
-            
-            const params = new URLSearchParams({
-                type: apiType,
-                plant: manufacturer,
-                plantUnit: unit,
-                line: line,
-                machine: stage,
-                page: currentPage.toString(),
-                size: '30'
-            });
-            
-            const scadaUrl = `https://scada.ritesqasarthi.com/api/scada/scada-data?${params.toString()}`;
-                
             let success = false;
             let finalData = [];
+            let currentHasMore = false;
+            
+            const fetchOptions = {
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(localStorage.getItem('authToken') && { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` })
+                }
+            };
             
             try {
-                const fetchOptions = {
-                    headers: {
-                        'Content-Type': 'application/json',
-                        ...(localStorage.getItem('authToken') && { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` })
+                if (unit === 'Thirumangalam') {
+                    // Call API 2 times: 1 time for TMQ-U1, 1 time for TMQ-U2
+                    const params1 = new URLSearchParams({
+                        type: apiType,
+                        plant: manufacturer,
+                        plantUnit: 'TMQ-U1',
+                        line: line,
+                        machine: stage,
+                        page: currentPage.toString(),
+                        size: '30'
+                    });
+                    const params2 = new URLSearchParams({
+                        type: apiType,
+                        plant: manufacturer,
+                        plantUnit: 'TMQ-U2',
+                        line: line,
+                        machine: stage,
+                        page: currentPage.toString(),
+                        size: '30'
+                    });
+                    
+                    const url1 = `https://scada.ritesqasarthi.com/api/scada/scada-data?${params1.toString()}`;
+                    const url2 = `https://scada.ritesqasarthi.com/api/scada/scada-data?${params2.toString()}`;
+                    
+                    const [res1, res2] = await Promise.all([
+                        fetch(url1, fetchOptions),
+                        fetch(url2, fetchOptions)
+                    ]);
+                    
+                    let data1 = [];
+                    let data2 = [];
+                    
+                    if (res1.ok) {
+                        const json1 = await res1.json();
+                        data1 = Array.isArray(json1) ? json1 : (json1.content || []);
                     }
-                };
-                const response = await fetch(scadaUrl, fetchOptions);
-                
-                if (response.ok) {
-                    const resData = await response.json();
-                    finalData = Array.isArray(resData) ? resData : (resData.content || []);
-                    success = true;
+                    if (res2.ok) {
+                        const json2 = await res2.json();
+                        data2 = Array.isArray(json2) ? json2 : (json2.content || []);
+                    }
+                    
+                    const combined = [...data1, ...data2];
+                    
+                    // Sort by time descending
+                    combined.sort((a, b) => {
+                        const valA = a.time || a.Time;
+                        const valB = b.time || b.Time;
+                        if (!valA) return 1;
+                        if (!valB) return -1;
+                        const dateA = new Date(valA);
+                        const dateB = new Date(valB);
+                        return dateB.getTime() - dateA.getTime();
+                    });
+                    
+                    finalData = combined;
+                    currentHasMore = (data1.length === 30 || data2.length === 30);
+                    success = res1.ok || res2.ok;
+                } else {
+                    const params = new URLSearchParams({
+                        type: apiType,
+                        plant: manufacturer,
+                        plantUnit: unit,
+                        line: line,
+                        machine: stage,
+                        page: currentPage.toString(),
+                        size: '30'
+                    });
+                    const scadaUrl = `https://scada.ritesqasarthi.com/api/scada/scada-data?${params.toString()}`;
+                    const response = await fetch(scadaUrl, fetchOptions);
+                    
+                    if (response.ok) {
+                        const resData = await response.json();
+                        finalData = Array.isArray(resData) ? resData : (resData.content || []);
+                        currentHasMore = finalData.length === 30;
+                        success = true;
+                    }
                 }
             } catch (err) {
                 // silent fail
@@ -133,12 +193,14 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
             
             if (success) {
                 setData(finalData);
+                setHasMore(currentHasMore);
                 setStatus(finalData.length > 0 ? 'Live' : 'No Data');
                 setLastTimestamp(new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }));
             } else {
                 setError('Failed to connect to SCADA servers.');
                 setStatus('No Data');
                 setData([]);
+                setHasMore(false);
             }
             setLoading(false);
         };
@@ -195,11 +257,11 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
         }
     });
 
-    const rowsPerPage = 30;
-    const totalPages = data.length === 30 ? currentPage + 2 : currentPage + 1;
-    const start = currentPage * rowsPerPage;
+    const effectiveRowsPerPage = unit === 'Thirumangalam' ? 60 : 30;
+    const totalPages = hasMore ? currentPage + 2 : currentPage + 1;
+    const start = currentPage * effectiveRowsPerPage;
     const end = start + data.length;
-    const totalElements = data.length === 30 ? (currentPage + 2) * 30 : (currentPage * 30 + data.length);
+    const totalElements = hasMore ? (currentPage + 2) * effectiveRowsPerPage : (currentPage * effectiveRowsPerPage + data.length);
 
     const formatTimestamp = (val) => {
         if (!val) return 'N/A';

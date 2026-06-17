@@ -103,7 +103,7 @@ const RailwayBoardDashboard = () => {
         page: 0, size: 10000, ...dashboardFilters
     }), [dashboardFilters]);
 
-    const { data: perfData, pagination: perfPagination, loading: perfLoading } = useReportData(
+    const { data: perfData, pagination: perfPagination, loading: perfLoading, error: perfError } = useReportData(
         reportService.getPerformanceMatrix,
         (activeMainCard === 'performance' || activeMainCard === 'summary') ? perfParams : undefined
     );
@@ -566,7 +566,7 @@ const RailwayBoardDashboard = () => {
                             processPerformanceData={processPerformanceData}
                             paretoAnalysisData={paretoAnalysisData}
                             monthlyRejectionTrendData={monthlyRejectionTrendData}
-                            perfData={perfData} perfLoading={perfLoading} perfPagination={perfPagination}
+                            perfData={perfData} perfLoading={perfLoading} perfError={perfError} perfPagination={perfPagination}
                             perfPage={perfPage} setPerfPage={setPerfPage}
                             perfRowsPerPage={perfRowsPerPage} setPerfRowsPerPage={setPerfRowsPerPage}
                             mprData={mprData} mprLoading={mprLoading} mprPagination={mprPagination}

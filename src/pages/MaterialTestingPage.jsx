@@ -32,8 +32,9 @@ const SPEC_LIMITS = {
 };
 
 /**
- * Tolerance from ladle value (Same as Final Chemical Analysis)
+ * Tolerance from ladle value (Same as Final Chemical Analysis) - TEMPORARILY COMMENTED OUT
  */
+/*
 const TOLERANCES = {
   c: 0.03,
   mn: 0.04,
@@ -41,6 +42,7 @@ const TOLERANCES = {
   s: 0.005,
   p: 0.005,
 };
+*/
 
 
 /**
@@ -72,7 +74,8 @@ const MaterialTestingPage = ({ onBack, heats = [], productModel, onNavigateSubmo
     const limits = SPEC_LIMITS[field];
     if (!limits) return '';
 
-    // 1. Ladle Tolerance Check (if ladle analysis is available)
+    // 1. Ladle Tolerance Check (if ladle analysis is available) - TEMPORARILY COMMENTED OUT
+    /*
     if (ladleVal !== null && ladleVal !== undefined && TOLERANCES[field] !== undefined) {
       const lVal = parseFloat(ladleVal);
       const tolerance = TOLERANCES[field];
@@ -94,6 +97,7 @@ const MaterialTestingPage = ({ onBack, heats = [], productModel, onNavigateSubmo
         return (withinTolerance && withinSpec) ? 'pass' : 'fail';
       }
     }
+    */
 
     // 2. Fallback: Basic Specification Check (for non-chemical fields or if ladle is missing)
     const withinSpec = (numValue >= (limits.min - 0.0001) && numValue <= (limits.max + 0.0001));

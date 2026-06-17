@@ -1,18 +1,38 @@
 import React from 'react';
+import { downloadExcel } from '../SharedComponents';
 
-const RailPadPerformance = ({ perfData, loading }) => {
-    // Combined Mock Data for Performance Matrix
-    const mockPerformanceData = [
-        { ieName: 'A.K. Sharma', plant: 'Polymers India', rio: 'NRIO', inspected: 25000, accepted: 24500, rejected: 500, rejPct: 2, stage: 'PROCESS' },
-        { ieName: 'R.P. Singh', plant: 'Flexi Rubber', rio: 'WRIO', inspected: 18000, accepted: 17200, rejected: 800, rejPct: 4.4, stage: 'PROCESS' },
-        { ieName: 'M.L. Gupta', plant: 'Durable Pads', rio: 'SRIO', inspected: 30000, accepted: 29800, rejected: 200, rejPct: 0.67, stage: 'PROCESS' },
-        { ieName: 'S.K. Verma', plant: 'Polymers India', rio: 'NRIO', inspected: 15000, accepted: 14800, rejected: 200, rejPct: 1.33, stage: 'FINAL' },
-        { ieName: 'V.P. Yadav', plant: 'Flexi Rubber', rio: 'WRIO', inspected: 12000, accepted: 11500, rejected: 500, rejPct: 4.17, stage: 'FINAL' },
-        { ieName: 'N.K. Reddy', plant: 'Durable Pads', rio: 'SRIO', inspected: 20000, accepted: 19900, rejected: 100, rejPct: 0.5, stage: 'FINAL' },
-    ];
+const RailPadPerformance = ({ perfData, loading, error }) => {
+    // Format ie.name to Title Case
+    const formatIeName = (name) => {
+        if (!name || name === 'N/A' || name === 'null') return 'N/A';
+        return name
+            .split('.')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+    };
 
-    // Use the specified mock data
-    const performanceData = mockPerformanceData;
+    // Map the performance data dynamically from props
+    const performanceData = (perfData && perfData.length > 0) ? perfData.map(row => ({
+        plant: row.manufacturerName || row.plant || 'N/A',
+        rio: row.rio || 'N/A',
+        ieName: formatIeName(row.username || row.ieName),
+        stage: row.stage || 'PROCESS',
+        inspected: Number(row.inspectedQty ?? row.inspected ?? 0),
+        accepted: Number(row.acceptedQty ?? row.accepted ?? 0),
+        rejected: Number(row.rejectedQty ?? row.rejected ?? 0),
+        rejPct: Number(row.rejectionPercentage ?? row.rejPct ?? 0)
+    })) : [];
+
+    if (error) {
+        return (
+            <div className="railpad-performance-container fade-in" style={{ padding: '20px' }}>
+                <div className="alert alert-danger" style={{ background: '#fef2f2', border: '1px solid #fee2e2', color: '#991b1b', padding: '15px', borderRadius: '8px' }}>
+                    <h5 style={{ fontWeight: 'bold', marginBottom: '8px' }}>⚠️ Data Fetch Error</h5>
+                    <p style={{ margin: 0, fontSize: '14px' }}>{error}</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="railpad-performance-container fade-in">
@@ -22,7 +42,27 @@ const RailPadPerformance = ({ perfData, loading }) => {
                         Performance Monitoring Matrix
                     </span>
                     <div style={{ display: 'flex', gap: '12px' }}>
-                        <button className="prof-badge" style={{ background: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0', cursor: 'pointer' }}>
+                        <button 
+                            className="prof-badge" 
+                            style={{ background: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0', cursor: 'pointer' }}
+                            onClick={() => {
+                                const headers = [
+                                    { label: 'MANUFACTURING PLANT', key: 'plant' },
+                                    { label: 'RIO', key: 'rio' },
+                                    { label: 'INSPECTING ENGINEER (IE)', key: 'ieName' },
+                                    { label: 'STAGE', key: 'stage' },
+                                    { label: 'INSPECTED (PCS)', key: 'inspected' },
+                                    { label: 'ACCEPTED (PCS)', key: 'accepted' },
+                                    { label: 'REJECTED (PCS)', key: 'rejected' },
+                                    { label: 'REJECTION %', key: 'rejPct' }
+                                ];
+                                const excelData = performanceData.map((row, i) => ({
+                                    ...row,
+                                    rejPct: `${row.rejPct.toFixed(2)}%`
+                                }));
+                                downloadExcel(excelData, headers, 'RailPad_Performance_Monitoring_Matrix');
+                            }}
+                        >
                             <i className="fa-solid fa-download" style={{ marginRight: '6px' }}></i> Export Excel
                         </button>
                     </div>
@@ -53,35 +93,43 @@ const RailPadPerformance = ({ perfData, loading }) => {
                             </tr>
                         </thead>
                         <tbody>
-                            {performanceData.map((row, i) => (
-                                <tr key={i} className={i % 2 === 0 ? 'row-odd' : 'row-even'}>
-                                    <td>{i + 1}</td>
-                                    <td style={{ fontWeight: '600' }}>{row.plant}</td>
-                                    <td><span className="prof-badge" style={{ background: '#f0fdf4', color: '#166534' }}>{row.rio}</span></td>
-                                    <td>👤 {row.ieName}</td>
-                                    <td>
-                                        <span className="prof-badge" style={{ 
-                                            background: row.stage === 'PROCESS' ? '#f0f9ff' : '#f5f3ff', 
-                                            color: row.stage === 'PROCESS' ? '#075985' : '#5b21b6' 
-                                        }}>
-                                            {row.stage}
-                                        </span>
-                                    </td>
-                                    <td className="text-right">{row.inspected.toLocaleString()}</td>
-                                    <td className="text-right" style={{ color: '#16a34a' }}>{row.accepted.toLocaleString()}</td>
-                                    <td className="text-right" style={{ color: '#dc2626' }}>{row.rejected.toLocaleString()}</td>
-                                    <td className="text-right">
-                                        <span className="prof-badge" style={{ 
-                                            background: '#fff7ed', 
-                                            color: '#9a3412',
-                                            minWidth: '50px',
-                                            textAlign: 'center'
-                                        }}>
-                                            {(Number(row.rejPct) || 0).toFixed(2)}%
-                                        </span>
+                            {performanceData.length > 0 ? (
+                                performanceData.map((row, i) => (
+                                    <tr key={i} className={i % 2 === 0 ? 'row-odd' : 'row-even'}>
+                                        <td>{i + 1}</td>
+                                        <td style={{ fontWeight: '600' }}>{row.plant}</td>
+                                        <td><span className="prof-badge" style={{ background: '#f0fdf4', color: '#166534' }}>{row.rio}</span></td>
+                                        <td>👤 {row.ieName}</td>
+                                        <td>
+                                            <span className="prof-badge" style={{ 
+                                                background: row.stage === 'PROCESS' ? '#f0f9ff' : '#f5f3ff', 
+                                                color: row.stage === 'PROCESS' ? '#075985' : '#5b21b6' 
+                                            }}>
+                                                {row.stage}
+                                            </span>
+                                        </td>
+                                        <td className="text-right">{row.inspected.toLocaleString()}</td>
+                                        <td className="text-right" style={{ color: '#16a34a' }}>{row.accepted.toLocaleString()}</td>
+                                        <td className="text-right" style={{ color: '#dc2626' }}>{row.rejected.toLocaleString()}</td>
+                                        <td className="text-right">
+                                            <span className="prof-badge" style={{ 
+                                                background: '#fff7ed', 
+                                                color: '#9a3412',
+                                                minWidth: '50px',
+                                                textAlign: 'center'
+                                            }}>
+                                                {(Number(row.rejPct) || 0).toFixed(2)}%
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan="9" style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
+                                        No performance records found matching the filter criteria.
                                     </td>
                                 </tr>
-                            ))}
+                            )}
                         </tbody>
                     </table>
                 </div>

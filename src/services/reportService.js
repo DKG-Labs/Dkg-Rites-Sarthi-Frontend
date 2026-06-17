@@ -163,8 +163,13 @@ const reportService = {
      * @param {Object} params - { page, size, startDate, endDate }
      */
     getPerformanceMatrix: async (params) => {
-        const { page = 0, size = 10, startDate, endDate, rio, zone, vendor } = params || {};
-        const url = new URL(`${API_BASE_URL}/api/SummaryReports/dashboard`);
+        const { page = 0, size = 10, startDate, endDate, rio, zone, vendor, product } = params || {};
+        let url;
+        if (product === 'Rail Pad') {
+            url = new URL(`${API_BASE_URL}/api/reports/railpad/performance`);
+        } else {
+            url = new URL(`${API_BASE_URL}/api/SummaryReports/dashboard`);
+        }
 
         url.searchParams.append('page', page);
         url.searchParams.append('size', size);

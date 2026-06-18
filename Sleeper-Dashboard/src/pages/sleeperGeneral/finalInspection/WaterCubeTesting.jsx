@@ -313,9 +313,9 @@ const WaterCubeTesting = () => {
                         batchNo: r.batchNumber,
                         castingDate: r.castingDate,
                         testDate: r.createdDate ? new Date(r.createdDate).toISOString().split('T')[0] : '',
-                        sample1Results: r.details?.filter(d => d.sampleNumber === 1).map(d => d.strengthNmm2) || [],
-                        sample2Results: r.details?.filter(d => d.sampleNumber === 2).map(d => d.strengthNmm2) || [],
-                        avgStrength: r.avgX,
+                        sample1Results: r.details?.filter(d => d.sampleNumber === 1).map(d => d.strength ?? d.strengthNmm2) || [],
+                        sample2Results: r.details?.filter(d => d.sampleNumber === 2).map(d => d.strength ?? d.strengthNmm2) || [],
+                        avgStrength: r.avgStrength ?? r.avgX,
                         status: r.finalTestResult,
                         raw: r
                     }));
@@ -346,28 +346,28 @@ const WaterCubeTesting = () => {
                     lineNo: batch.lineNo,
                     concreteGrade: batch.grade || batch.concreteGrade,
                     batchNumber: batch.batchNo || batch.batchNumber,
-                    avgStrength: data.avgStrength,
-                    status: data.status,
+                    avgX: data.avgStrength,
+                    finalTestResult: data.status,
                     plantId: dutyUnit || localStorage.getItem('dutyUnit'),
                     vendorCode: vendorCode || localStorage.getItem('vendorCode'),
                     details: [
                         ...data.sample1Results.map((r, i) => ({
-                            id: isModifyingTest ? (batch.raw?.details?.find(d => d.sampleNumber === 1 && d.cubeNumber === i + 1)?.id || 0) : 0,
+                            id: isModifyingTest ? (batch.raw?.details?.find(d => d.sampleNumber === 1 && (d.cubeIndex === i + 1 || d.cubeNumber === i + 1))?.id || 0) : 0,
                             sampleNumber: 1,
-                            cubeNumber: i + 1,
+                            cubeIndex: i + 1,
                             cubeId: batch.sample1?.[i] || '',
-                            weight: r.weight,
-                            load: r.load,
-                            strength: r.strength
+                            weightKg: r.weight,
+                            loadKn: r.load,
+                            strengthNmm2: r.strength
                         })),
                         ...data.sample2Results.map((r, i) => ({
-                            id: isModifyingTest ? (batch.raw?.details?.find(d => d.sampleNumber === 2 && d.cubeNumber === i + 1)?.id || 0) : 0,
+                            id: isModifyingTest ? (batch.raw?.details?.find(d => d.sampleNumber === 2 && (d.cubeIndex === i + 1 || d.cubeNumber === i + 1))?.id || 0) : 0,
                             sampleNumber: 2,
-                            cubeNumber: i + 1,
+                            cubeIndex: i + 1,
                             cubeId: batch.sample2?.[i] || '',
-                            weight: r.weight,
-                            load: r.load,
-                            strength: r.strength
+                            weightKg: r.weight,
+                            loadKn: r.load,
+                            strengthNmm2: r.strength
                         }))
                     ]
                 };
@@ -581,7 +581,7 @@ const WaterCubeTesting = () => {
                                     render: (_, row) => (
                                         <div style={{ display: 'flex', gap: '4px' }}>
                                             {row.sample1Results?.map((s, i) => (
-                                                <span key={i} style={{ background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: '700' }}>{s.toFixed(1)}</span>
+                                                <span key={i} style={{ background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: '700' }}>{s != null ? s.toFixed(1) : '-'}</span>
                                             ))}
                                         </div>
                                     )
@@ -592,12 +592,12 @@ const WaterCubeTesting = () => {
                                     render: (_, row) => (
                                         <div style={{ display: 'flex', gap: '4px' }}>
                                             {row.sample2Results?.map((s, i) => (
-                                                <span key={i} style={{ background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: '700' }}>{s.toFixed(1)}</span>
+                                                <span key={i} style={{ background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: '700' }}>{s != null ? s.toFixed(1) : '-'}</span>
                                             ))}
                                         </div>
                                     )
                                 },
-                                { key: 'avgStrength', label: 'Avg Strength', render: (val) => <strong>{val.toFixed(2)}</strong> },
+                                { key: 'avgStrength', label: 'Avg Strength', render: (val) => <strong>{val != null ? val.toFixed(2) : '-'}</strong> },
                                 {
                                     key: 'status',
                                     label: 'Result',
@@ -1129,7 +1129,7 @@ const TestDetailPopup = ({ batch, onClose, onModify, onSaveTest, onDelete, onDel
                                         <div style={{ fontSize: '9px', fontWeight: '700', color: '#4f46e5', marginBottom: '4px' }}>SAMPLE 1 STRENGTHS (N/mm²)</div>
                                         <div style={{ display: 'flex', gap: '6px' }}>
                                             {batch.raw.sample1Results?.map((s, i) => (
-                                                <span key={i} style={{ background: '#fff', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: '800', border: '1px solid #a5b4fc', color: '#312e81' }}>{s.toFixed(1)}</span>
+                                                <span key={i} style={{ background: '#fff', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: '800', border: '1px solid #a5b4fc', color: '#312e81' }}>{s != null ? s.toFixed(1) : '-'}</span>
                                             )) || 'N/A'}
                                         </div>
                                     </div>
@@ -1137,7 +1137,7 @@ const TestDetailPopup = ({ batch, onClose, onModify, onSaveTest, onDelete, onDel
                                         <div style={{ fontSize: '9px', fontWeight: '700', color: '#4f46e5', marginBottom: '4px' }}>SAMPLE 2 STRENGTHS (N/mm²)</div>
                                         <div style={{ display: 'flex', gap: '6px' }}>
                                             {batch.raw.sample2Results?.map((s, i) => (
-                                                <span key={i} style={{ background: '#fff', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: '800', border: '1px solid #a5b4fc', color: '#312e81' }}>{s.toFixed(1)}</span>
+                                                <span key={i} style={{ background: '#fff', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: '800', border: '1px solid #a5b4fc', color: '#312e81' }}>{s != null ? s.toFixed(1) : '-'}</span>
                                             )) || 'N/A'}
                                         </div>
                                     </div>

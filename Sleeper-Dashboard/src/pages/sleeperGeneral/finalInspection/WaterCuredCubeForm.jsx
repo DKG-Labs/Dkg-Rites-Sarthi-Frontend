@@ -131,7 +131,15 @@ const WaterCuredCubeForm = ({ batch, preFillData, onSave, onCancel }) => {
         if (saving) return;
         setSaving(true);
         try {
-            await onSave({ cubes, results });
+            const sample1Results = cubes.filter(c => c.sample === 1);
+            const sample2Results = cubes.filter(c => c.sample === 2);
+            await onSave({
+                testDate: cubes[0]?.date || new Date().toISOString().split('T')[0],
+                avgStrength: results.x,
+                status: results.testResult,
+                sample1Results,
+                sample2Results
+            });
         } catch (err) {
             setSaving(false);
         }

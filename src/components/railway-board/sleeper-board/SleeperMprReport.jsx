@@ -8,7 +8,7 @@ const SleeperMprReport = ({ mprData = [], loading = false }) => {
         return name.split('~')[0];
     };
 
-    const data = Array.isArray(mprData) ? mprData : [];
+    const data = useMemo(() => Array.isArray(mprData) ? mprData : [], [mprData]);
 
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 

@@ -22,7 +22,7 @@ const FeedbackSection = ({ selectedProduct }) => {
     }, [selectedProduct]);
     
     const currentUser = getStoredUser();
-    const isRailwayBoard = currentUser?.roleName === 'RAILWAY_BOARD' || currentUser?.roleName === 'SUPER_ADMIN';
+    const isRailwayBoard = currentUser?.roleName === 'RAILWAY_BOARD' || currentUser?.roleName === 'SUPER_ADMIN' || currentUser?.roleName === 'ZONAL RAILWAY' || currentUser?.roleName === 'Zonal Railway';
 
     // Current product context (can be dynamic based on which dashboard we are in)
     // For Railway Board, it's 'General' or 'HQ'

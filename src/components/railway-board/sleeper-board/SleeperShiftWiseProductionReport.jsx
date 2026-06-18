@@ -97,9 +97,15 @@ const SleeperShiftWiseProductionReport = () => {
         ...manufacturers.map(m => ({ label: m, value: m }))
     ];
 
+    const formatPlantId = (plantId) => {
+        if (!plantId) return '';
+        const parts = plantId.split('/');
+        return parts[parts.length - 1];
+    };
+
     const plantOptions = [
         { label: 'All Plants', value: 'All Plants' },
-        ...plants.map(p => ({ label: p.plantName, value: p.plantId }))
+        ...plants.map(p => ({ label: formatPlantId(p.plantId), value: p.plantId }))
     ];
 
     // ── Handle Plant Selection ──
@@ -109,7 +115,7 @@ const SleeperShiftWiseProductionReport = () => {
             setSelectedPlantId('');
         } else {
             const selected = plants.find(p => p.plantId === val);
-            setPlant(selected ? selected.plantName : val);
+            setPlant(selected ? formatPlantId(selected.plantId) : formatPlantId(val));
             setSelectedPlantId(val);
         }
     };

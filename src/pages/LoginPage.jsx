@@ -241,7 +241,7 @@ const LoginPage = () => {
             label = 'Railway Board Dashboard';
             description = 'Access Railway Board Dashboard as Administrator';
             icon = '🛤️';
-          } else if (r === 'RAILWAY_BOARD') {
+          } else if (r === 'RAILWAY_BOARD' || r === 'ZONAL RAILWAY' || r === 'Zonal Railway') {
             label = 'Railway Board Dashboard';
             description = 'Access Railway Board Dashboard';
             icon = '🛤️';

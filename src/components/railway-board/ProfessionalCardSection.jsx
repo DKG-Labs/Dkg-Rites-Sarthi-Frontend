@@ -524,7 +524,7 @@ const ProfessionalCardSection = ({
                             return (
                                 <div className="summary-tab-content">
                                     <div className="g3 mb">
-                                        <div className="prof-card card-dark-green" 
+                                        <div className="prof-card card-dark-green"
                                             style={{ textAlign: 'center', cursor: 'pointer' }}
                                             onClick={handlePoIssuedClick}
                                         >
@@ -577,7 +577,7 @@ const ProfessionalCardSection = ({
                                                         <span className="prof-badge" style={{ background: '#f8fafc', color: '#64748b', fontSize: '10px' }}>CALLS</span>
                                                     </div>
                                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                                                        <div 
+                                                        <div
                                                             style={{ cursor: 'pointer', padding: '6px', borderRadius: '8px', transition: 'all 0.2s' }}
                                                             onClick={() => handleInspectionCallClick(cat, 'Under Inspection')}
                                                             onMouseEnter={e => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.12)'}
@@ -587,7 +587,7 @@ const ProfessionalCardSection = ({
                                                             <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '700' }}>UNDER INSPECTION</div>
                                                             <div style={{ fontSize: '28px', fontWeight: '800', color: '#f59e0b' }}>{d?.under?.toLocaleString() || '0'}</div>
                                                         </div>
-                                                        <div 
+                                                        <div
                                                             style={{ textAlign: 'right', cursor: 'pointer', padding: '6px', borderRadius: '8px', transition: 'all 0.2s' }}
                                                             onClick={() => handleInspectionCallClick(cat, 'Pending')}
                                                             onMouseEnter={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)'}
@@ -674,15 +674,15 @@ const ProfessionalCardSection = ({
 
                         case 'quality':
                             if (isSleeper) {
-                                return <SleeperQuality 
-                                    fromDate={fromDate} 
-                                    toDate={toDate} 
-                                    setFromDate={setFromDate} 
-                                    setToDate={setToDate} 
+                                return <SleeperQuality
+                                    fromDate={fromDate}
+                                    toDate={toDate}
+                                    setFromDate={setFromDate}
+                                    setToDate={setToDate}
                                 />;
                             }
                             if (isRailPad) {
-                                return <RailPadQuality 
+                                return <RailPadQuality
                                     paretoData={paretoAnalysisData}
                                     rejectionTrendData={monthlyRejectionTrendData}
                                 />;
@@ -728,24 +728,24 @@ const ProfessionalCardSection = ({
                                                 <ResponsiveContainer width="100%" height="100%">
                                                     <PieChart>
                                                         <Pie
-                                                            data={stepWiseRejectionData?.length ? stepWiseRejectionData : [
+                                                            data={[...(stepWiseRejectionData?.length ? stepWiseRejectionData : [
                                                                 { name: 'Shearing', value: 12, color: '#3b82f6' },
                                                                 { name: 'Turning', value: 22, color: '#f59e0b' },
                                                                 { name: 'MPI', value: 10, color: '#8b5cf6' },
                                                                 { name: 'Forging', value: 18, color: '#ef4444' },
                                                                 { name: 'Quenching', value: 14, color: '#10b981' },
                                                                 { name: 'Tempering', value: 9, color: '#06b6d4' }
-                                                            ]}
+                                                            ])].sort((a, b) => (b.value || 0) - (a.value || 0))}
                                                             innerRadius={60}
                                                             outerRadius={90}
                                                             paddingAngle={3}
                                                             dataKey="value"
                                                         >
-                                                            {(stepWiseRejectionData?.length ? stepWiseRejectionData : [
+                                                            {[...(stepWiseRejectionData?.length ? stepWiseRejectionData : [
                                                                 { color: '#3b82f6' }, { color: '#f59e0b' },
                                                                 { color: '#8b5cf6' }, { color: '#ef4444' },
                                                                 { color: '#10b981' }, { color: '#06b6d4' }
-                                                            ]).map((entry, i) => (
+                                                            ])].sort((a, b) => (b.value || 0) - (a.value || 0)).map((entry, i) => (
                                                                 <Cell key={`cell-${i}`} fill={entry.color} />
                                                             ))}
                                                         </Pie>
@@ -754,24 +754,23 @@ const ProfessionalCardSection = ({
                                                             layout="vertical"
                                                             align="right"
                                                             verticalAlign="middle"
-                                                            iconType="circle"
-                                                            formatter={(value, entry) => (
-                                                                <span style={{
-                                                                    color: entry.color,
-                                                                    fontWeight: '700',
-                                                                    display: 'inline-flex',
-                                                                    justifyContent: 'space-between',
-                                                                    width: '160px',
-                                                                    verticalAlign: 'middle'
-                                                                }}>
-                                                                    <span>{value}</span>
-                                                                    <span>{entry.payload.value}%</span>
-                                                                </span>
-                                                            )}
-                                                            wrapperStyle={{
-                                                                fontSize: '13px',
-                                                                paddingLeft: '20px',
-                                                                lineHeight: '28px'
+                                                            content={({ payload }) => {
+                                                                const sorted = [...(payload || [])].sort(
+                                                                    (a, b) => (b.payload?.value || 0) - (a.payload?.value || 0)
+                                                                );
+                                                                return (
+                                                                    <div style={{ paddingLeft: '20px', lineHeight: '28px', fontSize: '13px' }}>
+                                                                        {sorted.map((entry, i) => (
+                                                                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: entry.color, flexShrink: 0 }} />
+                                                                                <span style={{ color: entry.color, fontWeight: '700', display: 'inline-flex', justifyContent: 'space-between', width: '160px' }}>
+                                                                                    <span>{entry.value}</span>
+                                                                                    <span>{entry.payload?.value}%</span>
+                                                                                </span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                );
                                                             }}
                                                         />
                                                     </PieChart>
@@ -780,19 +779,33 @@ const ProfessionalCardSection = ({
                                         </div>
                                         <div className="prof-card">
                                             <div className="sec-title">Pareto Analysis</div>
-                                            <div className="chart-wrap" style={{ height: '300px' }}>
+                                            <div className="chart-wrap" style={{ height: '380px' }}>
                                                 <ResponsiveContainer width="100%" height="100%">
-                                                    <ComposedChart data={paretoAnalysisData?.map(d => ({ ...d, count: d.count || d.value || 0 }))}>
+                                                    <ComposedChart data={paretoAnalysisData?.map(d => ({ ...d, count: d.count || d.value || 0 }))} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                                         <XAxis
                                                             dataKey="name"
                                                             axisLine={false}
                                                             tickLine={false}
                                                             interval={0}
-                                                            height={120}
-                                                            angle={-45}
-                                                            textAnchor="end"
-                                                            style={{ fontSize: '10px' }}
+                                                            height={160}
+                                                            tick={({ x, y, payload }) => (
+                                                                <g transform={`translate(${x},${y + 10})`}>
+                                                                    <text
+                                                                        x={0}
+                                                                        y={0}
+                                                                        dy={3.5}
+                                                                        transform="rotate(90)"
+                                                                        textAnchor="start"
+                                                                        fill="#475569"
+                                                                        style={{ fontSize: '10px', fontWeight: '500', fontFamily: 'sans-serif' }}
+                                                                    >
+                                                                        {payload.value.length > 22
+                                                                            ? payload.value.substring(0, 20) + '…'
+                                                                            : payload.value}
+                                                                    </text>
+                                                                </g>
+                                                            )}
                                                         />
                                                         <YAxis yAxisId="left" axisLine={false} tickLine={false} style={{ fontSize: '9px' }} />
                                                         <YAxis
@@ -1225,6 +1238,7 @@ const ProfessionalCardSection = ({
                                                                                 displayMauData,
                                                                                 [
                                                                                     { label: 'Manufacturer', key: 'manufacturer' },
+                                                                                    { label: 'RITES RIO', key: 'rio' },
                                                                                     { label: 'Manufactured', key: 'manufactured' },
                                                                                     { label: 'Inspected', key: 'inspected' },
                                                                                     { label: 'Rejected', key: 'rejected' },
@@ -1243,6 +1257,7 @@ const ProfessionalCardSection = ({
                                                                         <thead>
                                                                             <tr className="sortable-header">
                                                                                 <th onClick={() => handleMauSort('manufacturer')}>Manufacturer {renderSortIcon('manufacturer', mauSort)}</th>
+                                                                                <th onClick={() => handleMauSort('rio')}>RITES RIO {renderSortIcon('rio', mauSort)}</th>
                                                                                 <th className="text-right" onClick={() => handleMauSort('manufactured')}>Manufactured {renderSortIcon('manufactured', mauSort)}</th>
                                                                                 <th className="text-right" onClick={() => handleMauSort('inspected')}>Inspected {renderSortIcon('inspected', mauSort)}</th>
                                                                                 <th className="text-right" onClick={() => handleMauSort('rejected')}>Rejected {renderSortIcon('rejected', mauSort)}</th>
@@ -1255,6 +1270,7 @@ const ProfessionalCardSection = ({
                                                                             {displayMauData.slice(mauPage * mauRowsPerPage, (mauPage + 1) * mauRowsPerPage).map((row, idx) => (
                                                                                 <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
                                                                                     <td>{row.manufacturer}</td>
+                                                                                    <td>{row.rio || '-'}</td>
                                                                                     <td className="text-right">{row.manufactured?.toLocaleString()}</td>
                                                                                     <td className="text-right">{row.inspected?.toLocaleString()}</td>
                                                                                     <td className="text-right" style={{ color: '#dc2626' }}>{row.rejected?.toLocaleString()}</td>
@@ -1489,7 +1505,7 @@ const ProfessionalCardSection = ({
                                                 }
                                             })()
                                         )
-                                    }
+                                        }
                                     </div>
                                 </div>
                             );
@@ -1520,7 +1536,7 @@ const ProfessionalCardSection = ({
             )}
 
             {/* PO Issued Details Modal */}
-            <PoIssuedModal 
+            <PoIssuedModal
                 isOpen={isPoModalOpen}
                 onClose={() => setIsPoModalOpen(false)}
                 data={poModalData}
@@ -1528,7 +1544,7 @@ const ProfessionalCardSection = ({
             />
 
             {/* Active Inspection Call Status Modal */}
-            <InspectionCallStatusModal 
+            <InspectionCallStatusModal
                 isOpen={isIcModalOpen}
                 onClose={() => setIsIcModalOpen(false)}
                 data={icModalData}
@@ -1547,7 +1563,7 @@ const Level4ReportTable = ({ data }) => {
         // Lock body/window scroll so ONLY the table container scrolls internally
         const prevBodyOverflow = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
-        
+
         // Also lock main-content
         const mainContent = document.querySelector('.main-content');
         const prevMainOverflow = mainContent ? mainContent.style.overflow : '';
@@ -1578,9 +1594,9 @@ const Level4ReportTable = ({ data }) => {
     // Inline sticky styles — guaranteed to override any global CSS
     const stickyTop = { position: 'sticky', top: 0, zIndex: 52 };
     const stickyBot = { position: 'sticky', top: '42px', zIndex: 51 };
-    const greenBg  = { background: '#d1fae5', color: '#065f46' };
-    const emerBg   = { background: '#a7f3d0', color: '#064e3b' };
-    const redBg    = { background: '#fee2e2', color: '#991b1b' };
+    const greenBg = { background: '#d1fae5', color: '#065f46' };
+    const emerBg = { background: '#a7f3d0', color: '#064e3b' };
+    const redBg = { background: '#fee2e2', color: '#991b1b' };
 
     return (
         <div ref={wrapperRef} className="report-table-wrapper sticky-header level-4-enhanced" style={{ overflowY: 'auto', overflowX: 'auto', minHeight: '200px' }}>
@@ -1849,121 +1865,121 @@ const MpiaReportPage = ({ manufacturer, data, showFooter = true }) => {
                     background: 'white'
                 }}
             >
-            <div className="text-center mb-2">
-                <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">{manufacturer}</h2>
-                <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mt-1">Manufacturer Performance Analysis (Monthly)</p>
-                <div className="h-1 w-20 bg-emerald-500 mx-auto mt-4 rounded-full"></div>
-            </div>
+                <div className="text-center mb-2">
+                    <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">{manufacturer}</h2>
+                    <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mt-1">Manufacturer Performance Analysis (Monthly)</p>
+                    <div className="h-1 w-20 bg-emerald-500 mx-auto mt-4 rounded-full"></div>
+                </div>
 
-            <div className="grid grid-cols-2 gap-8 items-start">
-                <div className="flex flex-col items-center">
-                    <h3 className="font-bold text-slate-700 mb-2 text-sm uppercase">Process Defect Distribution</h3>
-                    {pieData.length > 0 ? (
-                        <PieChart
-                            width={340}
-                            height={280}
-                            margin={{ top: 0, right: 60, bottom: 0, left: 60 }}
-                        >
-                            <Pie
-                                data={pieData} cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={5} minAngle={15} dataKey="value"
-                                isAnimationActive={false}
-                                label={({ cx, cy, midAngle, outerRadius, name, percent, payload }) => {
-                                    const RADIAN = Math.PI / 180;
-                                    const radius = outerRadius + 25;
-                                    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                                    const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                                    return (
-                                        <text x={x} y={y} fill="#475569" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize="10" fontWeight="700">
-                                            {`${name} ${payload.rate.toFixed(2)}%`}
-                                        </text>
-                                    );
-                                }}
-                                labelLine={{ stroke: '#cbd5e1', strokeWidth: 1.5 }}
+                <div className="grid grid-cols-2 gap-8 items-start">
+                    <div className="flex flex-col items-center">
+                        <h3 className="font-bold text-slate-700 mb-2 text-sm uppercase">Process Defect Distribution</h3>
+                        {pieData.length > 0 ? (
+                            <PieChart
+                                width={340}
+                                height={280}
+                                margin={{ top: 0, right: 60, bottom: 0, left: 60 }}
                             >
-                                {pieData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                ))}
-                            </Pie>
-                        </PieChart>
-                    ) : (
-                        <div className="h-[300px] flex items-center justify-center border-2 border-dashed border-slate-100 rounded-2xl w-full">
-                            <p className="text-slate-400 italic text-sm">No process defects recorded.</p>
-                        </div>
-                    )}
-                    <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-2 w-full">
-                        {pieData.map((d, i) => (
-                            <div key={i} className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-                                <div className="w-2 h-2 rounded-full" style={{ background: COLORS[i % COLORS.length] }}></div>
-                                <span>{d.name}: {d.value} Nos. ({((d.value / totalDefects) * 100).toFixed(0)}%)</span>
+                                <Pie
+                                    data={pieData} cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={5} minAngle={15} dataKey="value"
+                                    isAnimationActive={false}
+                                    label={({ cx, cy, midAngle, outerRadius, name, percent, payload }) => {
+                                        const RADIAN = Math.PI / 180;
+                                        const radius = outerRadius + 25;
+                                        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                                        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                                        return (
+                                            <text x={x} y={y} fill="#475569" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize="10" fontWeight="700">
+                                                {`${name} ${payload.rate.toFixed(2)}%`}
+                                            </text>
+                                        );
+                                    }}
+                                    labelLine={{ stroke: '#cbd5e1', strokeWidth: 1.5 }}
+                                >
+                                    {pieData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                            </PieChart>
+                        ) : (
+                            <div className="h-[300px] flex items-center justify-center border-2 border-dashed border-slate-100 rounded-2xl w-full">
+                                <p className="text-slate-400 italic text-sm">No process defects recorded.</p>
                             </div>
-                        ))}
+                        )}
+                        <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-2 w-full">
+                            {pieData.map((d, i) => (
+                                <div key={i} className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                                    <div className="w-2 h-2 rounded-full" style={{ background: COLORS[i % COLORS.length] }}></div>
+                                    <span>{d.name}: {d.value} Nos. ({((d.value / totalDefects) * 100).toFixed(0)}%)</span>
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                </div>
 
-                <div>
-                    <h3 className="font-bold text-slate-700 mb-6 text-sm flex items-center gap-2 uppercase">Monthly Performance</h3>
-                    <div className="overflow-hidden border border-slate-100 rounded-xl">
-                        <table className="w-full text-xs">
-                            <thead className="bg-slate-800 text-white" style={{ backgroundColor: '#1e293b', color: 'white', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
-                                <tr>
-                                    <th className="p-3 text-left">MONTH</th>
-                                    <th className="p-3 text-right">INSPECTED (Nos.)</th>
-                                    <th className="p-3 text-right">REJECTED (Nos.)</th>
-                                    <th className="p-3 text-right">% REJ</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {data.map((m, i) => (
-                                    <tr key={i} className="hover:bg-slate-50 transition-colors">
-                                        <td className="p-3 font-bold text-slate-700 uppercase">
-                                            {(() => {
-                                                const [year, month] = (m.month || '').split('-');
-                                                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                                                return month ? `${months[parseInt(month) - 1]} ${year}` : m.month;
-                                            })()}
-                                        </td>
-                                        <td className="p-3 text-right font-medium text-slate-600">{m.inspected?.toLocaleString()}</td>
-                                        <td className="p-3 text-right font-bold text-red-600">{m.processRejected?.toLocaleString()}</td>
-                                        <td className="p-3 text-right">
-                                            <span className="bg-red-50 text-red-700 px-2 py-0.5 rounded font-bold">
-                                                {m.processRejPercent?.toFixed(2)}%
-                                            </span>
-                                        </td>
+                    <div>
+                        <h3 className="font-bold text-slate-700 mb-6 text-sm flex items-center gap-2 uppercase">Monthly Performance</h3>
+                        <div className="overflow-hidden border border-slate-100 rounded-xl">
+                            <table className="w-full text-xs">
+                                <thead className="bg-slate-800 text-white" style={{ backgroundColor: '#1e293b', color: 'white', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+                                    <tr>
+                                        <th className="p-3 text-left">MONTH</th>
+                                        <th className="p-3 text-right">INSPECTED (Nos.)</th>
+                                        <th className="p-3 text-right">REJECTED (Nos.)</th>
+                                        <th className="p-3 text-right">% REJ</th>
                                     </tr>
-                                ))}
-                                {data.length === 0 && (
-                                    <tr><td colSpan="4" className="p-4 text-center italic text-slate-400">No data available.</td></tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {data.map((m, i) => (
+                                        <tr key={i} className="hover:bg-slate-50 transition-colors">
+                                            <td className="p-3 font-bold text-slate-700 uppercase">
+                                                {(() => {
+                                                    const [year, month] = (m.month || '').split('-');
+                                                    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                                                    return month ? `${months[parseInt(month) - 1]} ${year}` : m.month;
+                                                })()}
+                                            </td>
+                                            <td className="p-3 text-right font-medium text-slate-600">{m.inspected?.toLocaleString()}</td>
+                                            <td className="p-3 text-right font-bold text-red-600">{m.processRejected?.toLocaleString()}</td>
+                                            <td className="p-3 text-right">
+                                                <span className="bg-red-50 text-red-700 px-2 py-0.5 rounded font-bold">
+                                                    {m.processRejPercent?.toFixed(2)}%
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {data.length === 0 && (
+                                        <tr><td colSpan="4" className="p-4 text-center italic text-slate-400">No data available.</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
 
-                    <div className="mt-8 grid grid-cols-3 gap-4">
-                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
-                            <p className="text-[9px] text-slate-400 font-bold mb-1">INSPECTED (Nos.)</p>
-                            <p className="text-sm font-black text-slate-800">{data.reduce((acc, m) => acc + (m.inspected || 0), 0).toLocaleString()}</p>
-                        </div>
-                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
-                            <p className="text-[9px] text-slate-400 font-bold mb-1">REJECTED (Nos.)</p>
-                            <p className="text-sm font-black text-red-600">{data.reduce((acc, m) => acc + (m.processRejected || 0), 0).toLocaleString()}</p>
-                        </div>
-                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
-                            <p className="text-[9px] text-slate-400 font-bold mb-1">AVG% REJ</p>
-                            <p className="text-sm font-black text-slate-800">
-                                {totalInspectedAllMonths > 0 ? ((data.reduce((acc, m) => acc + (m.processRejected || 0), 0) / totalInspectedAllMonths) * 100).toFixed(2) : 0}%
-                            </p>
+                        <div className="mt-8 grid grid-cols-3 gap-4">
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
+                                <p className="text-[9px] text-slate-400 font-bold mb-1">INSPECTED (Nos.)</p>
+                                <p className="text-sm font-black text-slate-800">{data.reduce((acc, m) => acc + (m.inspected || 0), 0).toLocaleString()}</p>
+                            </div>
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
+                                <p className="text-[9px] text-slate-400 font-bold mb-1">REJECTED (Nos.)</p>
+                                <p className="text-sm font-black text-red-600">{data.reduce((acc, m) => acc + (m.processRejected || 0), 0).toLocaleString()}</p>
+                            </div>
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
+                                <p className="text-[9px] text-slate-400 font-bold mb-1">AVG% REJ</p>
+                                <p className="text-sm font-black text-slate-800">
+                                    {totalInspectedAllMonths > 0 ? ((data.reduce((acc, m) => acc + (m.processRejected || 0), 0) / totalInspectedAllMonths) * 100).toFixed(2) : 0}%
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                {showFooter && (
+                    <div className="mt-8 pt-4 border-t border-slate-100 text-[10px] text-slate-300 flex justify-between font-bold uppercase">
+                        <span>SARTHI RAILWAY DASHBOARD - CONFIDENTIAL</span>
+                        <span>GENERATED ON: {new Date().toLocaleDateString()}</span>
+                    </div>
+                )}
             </div>
-
-            {showFooter && (
-                <div className="mt-8 pt-4 border-t border-slate-100 text-[10px] text-slate-300 flex justify-between font-bold uppercase">
-                    <span>SARTHI RAILWAY DASHBOARD - CONFIDENTIAL</span>
-                    <span>GENERATED ON: {new Date().toLocaleDateString()}</span>
-                </div>
-            )}
-        </div>
         </>
     );
 };
@@ -2000,7 +2016,7 @@ const ScadaMonitor = ({ selectedProduct }) => {
     useEffect(() => {
         const fetchScadaData = async () => {
             if (selectedProduct === 'Rail Pad') return;
-            
+
             if (!manufacturer || !unit || !line || !stage) {
                 setData([]);
                 setStatus('No Data');
@@ -2024,10 +2040,10 @@ const ScadaMonitor = ({ selectedProduct }) => {
             });
 
             const scadaUrl = `https://scada.ritesqasarthi.com/api/scada/scada?${params.toString()}`;
-                
+
             let success = false;
             let finalData = [];
-            
+
             try {
                 const fetchOptions = {
                     headers: {
@@ -2065,10 +2081,10 @@ const ScadaMonitor = ({ selectedProduct }) => {
     if (selectedProduct === 'Rail Pad') {
         return (
             <div className="scada-monitor-container fade-in" style={{ padding: '20px 0' }}>
-                <div className="prof-card" style={{ 
-                    padding: '80px 20px', 
-                    background: '#fff', 
-                    borderRadius: '16px', 
+                <div className="prof-card" style={{
+                    padding: '80px 20px',
+                    background: '#fff',
+                    borderRadius: '16px',
                     border: '1px dashed #10b981',
                     textAlign: 'center',
                     display: 'flex',
@@ -2095,7 +2111,7 @@ const ScadaMonitor = ({ selectedProduct }) => {
                     <p style={{ color: '#64748b', fontSize: '16px', maxWidth: '400px', lineHeight: '1.6' }}>
                         We are currently integrating the SCADA systems for Rail Pad manufacturing units. This feature will be available soon.
                     </p>
-                    <div style={{ 
+                    <div style={{
                         marginTop: '30px',
                         padding: '8px 16px',
                         background: '#f0fdf4',

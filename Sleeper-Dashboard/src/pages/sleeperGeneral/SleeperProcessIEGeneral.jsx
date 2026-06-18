@@ -3,7 +3,7 @@ import { useShift } from '../../context/ShiftContext';
 // Dashboards
 import RawMaterialDashboard from './rawMaterialTesting/RawMaterialDashboard';
 import FinalInspectionDashboard from './finalInspection/FinalInspectionDashboard';
-import RawMaterialInventory from '../../features/inventory/RawMaterialInventory';
+import RMInventoryManagement from '../../features/inventory/RMInventoryManagement';
 import IncomingVerificationDashboard from './rawMaterialVerification/IncomingVerificationDashboard';
 import PlantDeclarationVerification from './plantDeclaration/PlantDeclarationVerification';
 import DutyMetaInfo from '../../features/duty/components/DutyMetaInfo';
@@ -23,18 +23,10 @@ const SUB_COLUMNS = [
         icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0-4.4-3.6-8-8-8s-8 3.6-8 8" /><path d="M20 22h-16" /><path d="M20 15v7" /><path d="M4 15v7" /><path d="M8 22v-4" /><path d="M16 22v-4" /><path d="m17 7-5-5-5 5" /><path d="M12 2v20" /></svg>
     },
     {
-        id: 'incoming-verification',
-        label: 'Incoming Raw Material Verification',
-        description: 'Verify Raw Material Entry',
-        icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></svg>,
-        isUnderDevelopment: true,
-    },
-    {
-        id: 'inventory',
-        label: 'RM Inventory',
-        description: 'Stock Levels & Consumption',
-        icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" /><path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" /></svg>,
-        isUnderDevelopment: true,
+        id: 'rm-inventory-management',
+        label: 'RM Inventory Management',
+        description: 'Stock, Verification & Register',
+        icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" /><path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" /></svg>
     },
     {
         id: 'raw-material',
@@ -164,13 +156,9 @@ const SleeperProcessIEGeneral = () => {
                     </div>
                 )}
 
-                {activeSubView === 'incoming-verification' && (
-                    <IncomingVerificationDashboard initialGroup="Incoming Verification" />
-                )}
-
-                {activeSubView === 'inventory' && (
+                {activeSubView === 'rm-inventory-management' && (
                     <div className="fade-in">
-                        <RawMaterialInventory displayMode="inline" />
+                        <RMInventoryManagement />
                     </div>
                 )}
 

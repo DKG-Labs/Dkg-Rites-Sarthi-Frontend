@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import './SleeperSummary.css';
 
 const SleeperMprReport = ({ mprData = [], loading = false }) => {
@@ -6,6 +6,53 @@ const SleeperMprReport = ({ mprData = [], loading = false }) => {
     const formatManufacturer = (name) => {
         if (!name) return 'N/A';
         return name.split('~')[0];
+    };
+
+    const data = Array.isArray(mprData) ? mprData : [];
+
+    const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
+    const requestSort = (key) => {
+        let direction = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const sortedData = useMemo(() => {
+        let sortableItems = [...data];
+        if (sortConfig.key !== null) {
+            sortableItems.sort((a, b) => {
+                let aValue = a[sortConfig.key];
+                let bValue = b[sortConfig.key];
+
+                // Formatting before sort if necessary
+                if (sortConfig.key === 'manufacturer') {
+                    aValue = formatManufacturer(aValue) || '';
+                    bValue = formatManufacturer(bValue) || '';
+                } else if (typeof aValue === 'string') {
+                    aValue = aValue.toLowerCase();
+                    bValue = (bValue || '').toLowerCase();
+                }
+
+                if (aValue < bValue) {
+                    return sortConfig.direction === 'asc' ? -1 : 1;
+                }
+                if (aValue > bValue) {
+                    return sortConfig.direction === 'asc' ? 1 : -1;
+                }
+                return 0;
+            });
+        }
+        return sortableItems;
+    }, [data, sortConfig]);
+
+    const getSortIndicator = (key) => {
+        if (sortConfig.key !== key) {
+            return <span style={{ opacity: 0.3, marginLeft: '4px', fontSize: '10px' }}>↕</span>;
+        }
+        return sortConfig.direction === 'asc' ? <span style={{ marginLeft: '4px', fontSize: '12px' }}>↑</span> : <span style={{ marginLeft: '4px', fontSize: '12px' }}>↓</span>;
     };
 
     if (loading) {
@@ -18,8 +65,6 @@ const SleeperMprReport = ({ mprData = [], loading = false }) => {
             </div>
         );
     }
-
-    const data = Array.isArray(mprData) ? mprData : [];
 
     return (
         <div className="sleeper-report-container animate-up">
@@ -38,18 +83,18 @@ const SleeperMprReport = ({ mprData = [], loading = false }) => {
                     <thead>
                         <tr>
                             <th>S.NO.</th>
-                            <th>RLY</th>
-                            <th>PO NUMBER</th>
-                            <th>MANUFACTURER</th>
-                            <th className="text-right">PO QTY</th>
-                            <th className="text-right">DISPATCHED (MONTH)</th>
-                            <th className="text-right">TOTAL DISPATCHED</th>
-                            <th className="text-right">BALANCE</th>
+                            <th onClick={() => requestSort('rly')} style={{ cursor: 'pointer' }}>RLY {getSortIndicator('rly')}</th>
+                            <th onClick={() => requestSort('poNo')} style={{ cursor: 'pointer' }}>PO NUMBER {getSortIndicator('poNo')}</th>
+                            <th onClick={() => requestSort('manufacturer')} style={{ cursor: 'pointer' }}>MANUFACTURER {getSortIndicator('manufacturer')}</th>
+                            <th onClick={() => requestSort('poQty')} className="text-right" style={{ cursor: 'pointer' }}>PO QTY {getSortIndicator('poQty')}</th>
+                            <th onClick={() => requestSort('dispatchedInPeriod')} className="text-right" style={{ cursor: 'pointer' }}>DISPATCHED (MONTH) {getSortIndicator('dispatchedInPeriod')}</th>
+                            <th onClick={() => requestSort('totalDispatched')} className="text-right" style={{ cursor: 'pointer' }}>TOTAL DISPATCHED {getSortIndicator('totalDispatched')}</th>
+                            <th onClick={() => requestSort('balance')} className="text-right" style={{ cursor: 'pointer' }}>BALANCE {getSortIndicator('balance')}</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {data.length > 0 ? (
-                            data.map((row, idx) => (
+                        {sortedData.length > 0 ? (
+                            sortedData.map((row, idx) => (
                                 <tr key={row.id || idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
                                     <td>{idx + 1}</td>
                                     <td><span className="prof-badge" style={{ background: '#f1f5f9', color: '#475569' }}>{row.rly}</span></td>

@@ -70,6 +70,59 @@ const Pagination = ({ currentPage, totalPages, start, end, totalCount, onPageCha
         </div>
     </div>
 );
+const getCellToleranceStyle = (stage, colName, value, row) => {
+    if (!stage || !colName || value === undefined || value === null || value === '') return {};
+    
+    const colLower = colName.toLowerCase();
+    const valFloat = parseFloat(value);
+    
+    if (stage === 'VIBRATOR') {
+        // 1. vibrator rpm - 8640 to 9360
+        if (colLower.includes('rpm')) {
+            if (!isNaN(valFloat) && (valFloat < 8640 || valFloat > 9360)) {
+                return { backgroundColor: '#fee2e2', color: '#991b1b', fontWeight: '700' };
+            }
+        }
+        // 2. vibration time 2 to 4
+        if (colLower.includes('vibrator') && colLower.includes('time')) {
+            if (!isNaN(valFloat) && (valFloat < 2 || valFloat > 4)) {
+                return { backgroundColor: '#fee2e2', color: '#991b1b', fontWeight: '700' };
+            }
+        }
+    }
+    
+    if (stage === 'CHAMBER') {
+        // 1. Actual status for cycle status == constant - 55 to 60
+        if (colLower === 'act_temp') {
+            const cycleStatus = String(row.Cycle_Status || row.cycle_status || '').toLowerCase();
+            if (cycleStatus === 'constant') {
+                if (!isNaN(valFloat) && (valFloat < 55 || valFloat > 60)) {
+                    return { backgroundColor: '#fee2e2', color: '#991b1b', fontWeight: '700' };
+                }
+            }
+        }
+    }
+    
+    if (stage === 'STEAM CUBE') {
+        // 1. Strength - greater than 50
+        if (colLower === 'strength') {
+            if (!isNaN(valFloat) && valFloat <= 50) {
+                return { backgroundColor: '#fee2e2', color: '#991b1b', fontWeight: '700' };
+            }
+        }
+    }
+    
+    if (stage === 'WATER CUBE') {
+        // 1. Strength - greater than 60
+        if (colLower === 'strength') {
+            if (!isNaN(valFloat) && valFloat <= 60) {
+                return { backgroundColor: '#fee2e2', color: '#991b1b', fontWeight: '700' };
+            }
+        }
+    }
+    
+    return {};
+};
 
 const SleeperScadaMonitor = ({ selectedProduct }) => {
     const [currentPage, setCurrentPage] = useState(0);
@@ -416,15 +469,27 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
                             <tbody>
                                 {data.map((row, idx) => (
                                     <tr key={idx} style={{ background: idx % 2 === 0 ? '#fff' : '#f9fafb', borderBottom: '1px solid #f1f5f9', transition: 'background 0.2s' }}>
-                                        {columns.map(col => (
-                                            <td key={col} style={{ padding: '14px 16px', fontSize: '13px', color: col.toLowerCase() === 'time' ? '#64748b' : '#1e293b', fontWeight: (col === 'PO_No' || col === 'Batch_No') ? '700' : '500' }}>
-                                                {col.toLowerCase() === 'time' 
-                                                    ? formatTimestamp(row[col]) 
-                                                    : typeof row[col] === 'object' 
-                                                        ? JSON.stringify(row[col]) 
-                                                        : String(row[col])}
-                                            </td>
-                                        ))}
+                                        {columns.map(col => {
+                                            const toleranceStyle = getCellToleranceStyle(stage, col, row[col], row);
+                                            return (
+                                                <td 
+                                                    key={col} 
+                                                    style={{ 
+                                                        padding: '14px 16px', 
+                                                        fontSize: '13px', 
+                                                        color: col.toLowerCase() === 'time' ? '#64748b' : '#1e293b', 
+                                                        fontWeight: (col === 'PO_No' || col === 'Batch_No') ? '700' : '500',
+                                                        ...toleranceStyle
+                                                    }}
+                                                >
+                                                    {col.toLowerCase() === 'time' 
+                                                        ? formatTimestamp(row[col]) 
+                                                        : typeof row[col] === 'object' 
+                                                            ? JSON.stringify(row[col]) 
+                                                            : String(row[col])}
+                                                </td>
+                                            );
+                                        })}
                                     </tr>
                                 ))}
                             </tbody>

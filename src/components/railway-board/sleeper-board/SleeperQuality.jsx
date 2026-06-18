@@ -65,19 +65,35 @@ const SleeperQuality = ({ qualityData }) => {
         });
 
         const categoryColors = {
+            // Original names (local dev)
             'Visual (Demoulding)': '#10b981',
             'Dimension (Demoulding)': '#3b82f6',
             'Final (Visual)': '#f59e0b',
             'Final (Critical)': '#ef4444',
             'Final (Non-Critical)': '#8b5cf6',
             'Cube Strength': '#06b6d4',
-            'MR Deficiency': '#ec4899'
+            'MR Deficiency': '#ec4899',
+            // Server / production names
+            'Visual Defects': '#10b981',
+            'Critical Dimensions': '#ef4444',
+            'General Dimensional Defect': '#3b82f6',
+            'Non Critical': '#8b5cf6',
+            'Demoulding Rejection': '#f59e0b',
+            'Cube Strength Failure': '#06b6d4',
         };
 
-        return Object.keys(categories).map(cat => ({
+        // Fallback palette — ensures colors even for unknown category names
+        const FALLBACK_PALETTE = [
+            '#10b981', '#3b82f6', '#f59e0b', '#ef4444',
+            '#8b5cf6', '#06b6d4', '#ec4899', '#f97316',
+            '#14b8a6', '#a855f7', '#84cc16', '#eab308',
+        ];
+
+        const catKeys = Object.keys(categories);
+        return catKeys.map((cat, idx) => ({
             name: cat,
             value: categories[cat],
-            color: categoryColors[cat] || '#94a3b8'
+            color: categoryColors[cat] || FALLBACK_PALETTE[idx % FALLBACK_PALETTE.length],
         })).sort((a, b) => b.value - a.value);
     }, [defectData]);
 

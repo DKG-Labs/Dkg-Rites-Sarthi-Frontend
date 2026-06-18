@@ -211,23 +211,23 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
     const STAGE_CONFIGS = {
         'VIBRATOR': {
             order: ['time', 'Batch_No', 'Bench_No', 'Running_Bench', 'Vibrator1_RPM', 'Vibrator1_Time', 'Vibrator2_RPM', 'Vibrator2_Time', 'Vibrator3_RPM', 'Vibrator3_Time', 'Vibrator4_RPM', 'Vibrator4_Time', 'Vibrator5_RPM', 'Vibrator5_Time', 'Vibrator6_RPM', 'Vibrator6_Time', 'Vibrator7_RPM', 'Vibrator7_Time', 'Vibrator8_RPM', 'Vibrator8_Time'],
-            labels: { 'time': 'Time', 'Batch_No': 'Batch No', 'Bench_No': 'Bench No', 'Running_Bench': 'Running Bench', 'Vibrator1_RPM': 'Vibrator 1 RPM', 'Vibrator1_Time': 'Vibrator 1 Time', 'Vibrator2_RPM': 'Vibrator 2 RPM', 'Vibrator2_Time': 'Vibrator 2 Time', 'Vibrator3_RPM': 'Vibrator 3 RPM', 'Vibrator3_Time': 'Vibrator 3 Time', 'Vibrator4_RPM': 'Vibrator 4 RPM', 'Vibrator4_Time': 'Vibrator 4 Time', 'Vibrator5_RPM': 'Vibrator 5 RPM', 'Vibrator5_Time': 'Vibrator 5 Time', 'Vibrator6_RPM': 'Vibrator 6 RPM', 'Vibrator6_Time': 'Vibrator 6 Time', 'Vibrator7_RPM': 'Vibrator 7 RPM', 'Vibrator7_Time': 'Vibrator 7 Time', 'Vibrator8_RPM': 'Vibrator 8 RPM', 'Vibrator8_Time': 'Vibrator 8 Time' }
+            labels: { 'time': 'Time', 'Batch_No': 'Batch No', 'Bench_No': 'Bench No', 'Running_Bench': 'Running Bench', 'Vibrator1_RPM': 'Vibrator 1 RPM', 'Vibrator1_Time': 'Vibrator 1 Time (minutes)', 'Vibrator2_RPM': 'Vibrator 2 RPM', 'Vibrator2_Time': 'Vibrator 2 Time (minutes)', 'Vibrator3_RPM': 'Vibrator 3 RPM', 'Vibrator3_Time': 'Vibrator 3 Time (minutes)', 'Vibrator4_RPM': 'Vibrator 4 RPM', 'Vibrator4_Time': 'Vibrator 4 Time (minutes)', 'Vibrator5_RPM': 'Vibrator 5 RPM', 'Vibrator5_Time': 'Vibrator 5 Time (minutes)', 'Vibrator6_RPM': 'Vibrator 6 RPM', 'Vibrator6_Time': 'Vibrator 6 Time (minutes)', 'Vibrator7_RPM': 'Vibrator 7 RPM', 'Vibrator7_Time': 'Vibrator 7 Time (minutes)', 'Vibrator8_RPM': 'Vibrator 8 RPM', 'Vibrator8_Time': 'Vibrator 8 Time (minutes)' }
         },
         'STEAM CUBE': {
             order: ['time', 'Batch_No', 'Date_Of_Casting', 'LBC_Time', 'Cube_No', 'Type_of_Sleeper', 'Chamber_No', 'Age', 'Weight', 'Load(KN)', 'Strength'],
-            labels: { 'time': 'Time', 'Batch_No': 'Batch No', 'Date_Of_Casting': 'Date of Casting', 'LBC_Time': 'LBC Time', 'Cube_No': 'Cube No', 'Type_of_Sleeper': 'Type of Sleeper', 'Chamber_No': 'Chamber No', 'Age': 'Age', 'Weight': 'Weight', 'Load(KN)': 'Load(KN)', 'Strength': 'Strength' }
+            labels: { 'time': 'Time', 'Batch_No': 'Batch No', 'Date_Of_Casting': 'Date of Casting', 'LBC_Time': 'LBC Time', 'Cube_No': 'Cube No', 'Type_of_Sleeper': 'Type of Sleeper', 'Chamber_No': 'Chamber No', 'Age': 'Age (Hrs.)', 'Weight': 'Weight (Kg)', 'Load(KN)': 'Load (KN)', 'Strength': 'Strength (N/mm2)' }
         },
         'CHAMBER': {
             order: ['time', 'Batch_No', 'Chamber_No', 'Set_Temp', 'Act_Temp', 'Start_Time', 'Cycle_Status'],
-            labels: { 'time': 'Time', 'Batch_No': 'Batch No', 'Chamber_No': 'Chamber No', 'Set_Temp': 'Set Temp', 'Act_Temp': 'Act Temp', 'Start_Time': 'Start Time', 'Cycle_Status': 'Cycle Status' }
+            labels: { 'time': 'Time', 'Batch_No': 'Batch No', 'Chamber_No': 'Chamber No', 'Set_Temp': 'Set Temp (°C)', 'Act_Temp': 'Act Temp (°C)', 'Start_Time': 'Start Time', 'Cycle_Status': 'Cycle Status' }
         },
         'WATER CUBE': {
             order: ['time', 'Batch_No', 'Date_Of_Casting', 'LBC_Time', 'Cube_No', 'Type_of_Sleeper', 'Age', 'Weight', 'Load(KN)', 'Strength'],
-            labels: { 'time': 'Time', 'Batch_No': 'Batch No', 'Date_Of_Casting': 'Date of Casting', 'LBC_Time': 'LBC Time', 'Cube_No': 'Cube No', 'Type_of_Sleeper': 'Type of Sleeper', 'Age': 'Age', 'Weight': 'Weight', 'Load(KN)': 'Load(KN)', 'Strength': 'Strength' }
+            labels: { 'time': 'Time', 'Batch_No': 'Batch No', 'Date_Of_Casting': 'Date of Casting', 'LBC_Time': 'LBC Time', 'Cube_No': 'Cube No', 'Type_of_Sleeper': 'Type of Sleeper', 'Age': 'Age (Hrs.)', 'Weight': 'Weight (Kg)', 'Load(KN)': 'Load (KN)', 'Strength': 'Strength (N/mm2)' }
         },
         'TENSIONING': {
             order: ['time', 'Batch_No', 'Bench_No', 'Wire_Length', 'Total_Cross_Section', 'Young_Modulus', '10%_LU', '10%_LL', '10%_RU', '10%_RL', '100%_LU', '100%_LL', '100%_RU', '100%_RL', 'Measured_Elongation', 'Pressed_Load', 'Total_Pressed_Load', 'Final_Load'],
-            labels: { 'time': 'Time', 'Batch_No': 'Batch No', 'Bench_No': 'Bench No', 'Wire_Length': 'Wire Length', 'Total_Cross_Section': 'Total Cross Section', 'Young_Modulus': 'Young Modulus', '10%_LU': '10% LU', '10%_LL': '10% LL', '10%_RU': '10% RU', '10%_RL': '10% RL', '100%_LU': '100% LU', '100%_LL': '100% LL', '100%_RU': '100% RU', '100%_RL': '100% RL', 'Measured_Elongation': 'Measured Elongation', 'Pressed_Load': 'Pressed Load', 'Total_Pressed_Load': 'Total Pressed Load', 'Final_Load': 'Final Load' }
+            labels: { 'time': 'Time', 'Batch_No': 'Batch No', 'Bench_No': 'Bench No', 'Wire_Length': 'Wire Length (mm)', 'Total_Cross_Section': 'Total Cross Section (mm2)', 'Young_Modulus': 'Young\'s Modulus (KN/mm2)', '10%_LU': '10% LU (mm)', '10%_LL': '10% LL (mm)', '10%_RU': '10% RU (mm)', '10%_RL': '10% RL (mm)', '100%_LU': '100% LU (mm)', '100%_LL': '100% LL (mm)', '100%_RU': '100% RU (mm)', '100%_RL': '100% RL (mm)', 'Measured_Elongation': 'Total Elongation (mm)', 'Pressed_Load': 'Pre stress (KN)', 'Total_Pressed_Load': 'Total Pre stress (KN)', 'Final_Load': 'Final Load (KN)' }
         }
     };
 

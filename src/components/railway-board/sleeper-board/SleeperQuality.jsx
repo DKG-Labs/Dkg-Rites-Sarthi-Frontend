@@ -6,7 +6,13 @@ import {
 } from 'recharts';
 import './SleeperSummary.css'; // Reusing some base styles
 
-const SleeperQuality = ({ qualityData, fromDate, toDate, setFromDate, setToDate }) => {
+const SleeperQuality = ({ qualityData }) => {
+    const [fromDate, setFromDate] = useState(() => {
+        const d = new Date();
+        d.setMonth(d.getMonth() - 2);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+    });
+    const [toDate, setToDate] = useState(() => new Date().toISOString().split('T')[0]);
     const [defectData, setDefectData] = useState([]);
     const [paretoApiData, setParetoApiData] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -157,7 +163,7 @@ const SleeperQuality = ({ qualityData, fromDate, toDate, setFromDate, setToDate 
                     <button 
                         onClick={() => {
                             const d = new Date();
-                            d.setMonth(d.getMonth() - 6);
+                            d.setMonth(d.getMonth() - 2);
                             setFromDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`);
                             setToDate(new Date().toISOString().split('T')[0]);
                         }}

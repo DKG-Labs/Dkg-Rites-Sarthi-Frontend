@@ -224,7 +224,7 @@ const PoWiseMonthlyReport = ({ fromDate, toDate }) => {
                                 <th rowSpan="3">P.O. No. & Date</th>
                                 <th rowSpan="3">Quantity Inspected</th>
                                 <th rowSpan="3">Quantity Accepted</th>
-                                <th colSpan="18" className="rejection-main-header">No. of ERC rejected & reasons for rejection</th>
+                                <th colSpan="17" className="rejection-main-header">No. of ERC rejected & reasons for rejection</th>
                                 <th rowSpan="3">%age rejection</th>
                             </tr>
                             <tr>
@@ -297,9 +297,11 @@ const PoWiseMonthlyReport = ({ fromDate, toDate }) => {
                                             <td className="text-right">{fmt(vendor.finalToeLoadDefect)}</td>
                                             {/* Rejection % */}
                                             <td className="text-right font-bold">
-                                                {vendor.qtyInspected > 0
-                                                    ? ((vendor.totalRejected / vendor.qtyInspected) * 100).toFixed(2) + '%'
-                                                    : '0.00%'
+                                                {vendor.agePercentage != null
+                                                    ? Number(vendor.agePercentage).toFixed(2) + '%'
+                                                    : vendor.qtyInspected > 0
+                                                        ? ((vendor.totalRejected / vendor.qtyInspected) * 100).toFixed(2) + '%'
+                                                        : '0.00%'
                                                 }
                                             </td>
                                         </tr>

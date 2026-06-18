@@ -6,6 +6,7 @@ const EnhancedDataTable = ({
   title,
   onRowClick,
   selectable = true,
+  onSelectionChange,
   loading = false,
   emptyMessage = "No records found"
 }) => {
@@ -31,19 +32,27 @@ const EnhancedDataTable = ({
   const totalPages = Math.ceil(filteredData.length / perPage) || 1;
 
   const toggleSelectAll = () => {
-    if (selectedRows.length === paginatedData.length) {
-      setSelectedRows([]);
+    const isAllSelected = paginatedData.length > 0 && paginatedData.every(row => selectedRows.includes(row));
+    let newSelected;
+    if (isAllSelected) {
+      newSelected = selectedRows.filter(row => !paginatedData.includes(row));
     } else {
-      setSelectedRows(paginatedData.map((_, idx) => idx));
+      const toAdd = paginatedData.filter(row => !selectedRows.includes(row));
+      newSelected = [...selectedRows, ...toAdd];
     }
+    setSelectedRows(newSelected);
+    if (onSelectionChange) onSelectionChange(newSelected);
   };
 
-  const toggleRowSelect = (idx) => {
-    if (selectedRows.includes(idx)) {
-      setSelectedRows(selectedRows.filter(i => i !== idx));
+  const toggleRowSelect = (row) => {
+    let newSelected;
+    if (selectedRows.includes(row)) {
+      newSelected = selectedRows.filter(r => r !== row);
     } else {
-      setSelectedRows([...selectedRows, idx]);
+      newSelected = [...selectedRows, row];
     }
+    setSelectedRows(newSelected);
+    if (onSelectionChange) onSelectionChange(newSelected);
   };
 
   return (
@@ -77,7 +86,7 @@ const EnhancedDataTable = ({
             <tr>
               {selectable && (
                 <th className="checkbox-cell">
-                  <input type="checkbox" onChange={toggleSelectAll} checked={selectedRows.length === paginatedData.length && paginatedData.length > 0} />
+                  <input type="checkbox" onChange={toggleSelectAll} checked={paginatedData.length > 0 && paginatedData.every(row => selectedRows.includes(row))} />
                 </th>
               )}
               {columns.map(col => (
@@ -99,7 +108,7 @@ const EnhancedDataTable = ({
               <tr key={idx} onClick={() => onRowClick && onRowClick(row)} style={{ cursor: onRowClick ? 'pointer' : 'default' }}>
                 {selectable && (
                   <td className="checkbox-cell" onClick={(e) => e.stopPropagation()}>
-                    <input type="checkbox" checked={selectedRows.includes(idx)} onChange={() => toggleRowSelect(idx)} />
+                    <input type="checkbox" checked={selectedRows.includes(row)} onChange={() => toggleRowSelect(row)} />
                   </td>
                 )}
                 {columns.map(col => (

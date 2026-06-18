@@ -68,13 +68,19 @@ const WaterTesting = ({ onBack }) => {
 
     const pendingStocks = waterSources;
 
-    const { register, handleSubmit, reset, formState: { errors } } = useForm({
+    const { register, handleSubmit, reset, watch, formState: { errors } } = useForm({
         defaultValues: {
             testDate: new Date().toISOString().split('T')[0],
             phValue: '',
             tdsResult: ''
         }
     });
+
+    const currentPh = watch('phValue');
+    const currentTds = watch('tdsResult');
+    
+    const isPhOutOfTolerance = currentPh !== undefined && currentPh !== '' && !isNaN(parseFloat(currentPh)) && (parseFloat(currentPh) < 6 || parseFloat(currentPh) > 8);
+    const isTdsOutOfTolerance = currentTds !== undefined && currentTds !== '' && !isNaN(parseFloat(currentTds)) && parseFloat(currentTds) > 2000;
 
     const canModify = (createdAt) => {
         if (!createdAt) return false;
@@ -293,7 +299,10 @@ const WaterTesting = ({ onBack }) => {
                                                 required: "pH Value is required"
                                             })} 
                                             placeholder="6.0–8.0"
-                                            style={errors.phValue ? { borderColor: '#ef4444' } : {}}
+                                            style={{
+                                                ...(errors.phValue ? { borderColor: '#ef4444' } : {}),
+                                                ...(isPhOutOfTolerance ? { backgroundColor: '#fee2e2', borderColor: '#ef4444', color: '#991b1b' } : {})
+                                            }}
                                         />
                                         {errors.phValue && (
                                             <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'block' }}>
@@ -312,7 +321,10 @@ const WaterTesting = ({ onBack }) => {
                                                 min: { value: 0, message: "TDS cannot be negative" }
                                             })} 
                                             placeholder="Max 2000"
-                                            style={errors.tdsResult ? { borderColor: '#ef4444' } : {}}
+                                            style={{
+                                                ...(errors.tdsResult ? { borderColor: '#ef4444' } : {}),
+                                                ...(isTdsOutOfTolerance ? { backgroundColor: '#fee2e2', borderColor: '#ef4444', color: '#991b1b' } : {})
+                                            }}
                                         />
                                         {errors.tdsResult && (
                                             <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'block' }}>

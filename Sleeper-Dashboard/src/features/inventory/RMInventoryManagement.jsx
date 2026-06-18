@@ -79,15 +79,6 @@ const RMInventoryManagement = () => {
         }
     };
 
-    if (selectedRm) {
-        return (
-            <RMDrillDownView 
-                rmCategory={selectedRm} 
-                onBack={() => setSelectedRm(null)} 
-            />
-        );
-    }
-
     if (loading) {
         return <div style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>Loading Inventory Data...</div>;
     }
@@ -96,53 +87,58 @@ const RMInventoryManagement = () => {
         <div className="rm-inventory-dashboard fade-in">
             <div className="dashboard-header">
                 <h3>RM Inventory Management System</h3>
-                <p>Verify and approve all Raw Material procurement and consumption entries.</p>
             </div>
 
-            <div className="rm-cards-grid">
+            <div className="ie-sub-nav-grid scrollbar-hide" style={{ paddingBottom: '16px', borderBottom: 'none', marginBottom: selectedRm ? '24px' : '0', display: 'flex', overflowX: 'auto', flexWrap: 'nowrap', gap: '16px' }}>
                 {inventoryData.map(item => {
-                    const percentage = Math.min(100, (item.currentStock / item.capacity) * 100);
+                    const isActive = selectedRm?.id === item.id;
                     return (
                         <div 
                             key={item.id} 
-                            className="rm-card hover-lift" 
-                            style={{ borderTop: `4px solid ${item.color}` }}
-                            onClick={() => setSelectedRm(item)}
+                            className={`ie-sub-nav-card ${isActive ? 'active' : ''}`} 
+                            style={{ borderLeft: `4px solid ${item.color}`, flex: 1, minWidth: 0, padding: '10px 12px' }}
+                            onClick={() => setSelectedRm(isActive ? null : item)}
                         >
-                            <div className="rm-card-header">
-                                <h4 className="rm-card-title">{item.name}</h4>
-                                <span className={`status-badge ${item.status === 'Low' ? 'low' : 'ok'}`}>
-                                    {item.status}
-                                </span>
+                            <div className="card-icon-wrapper" style={{ background: `${item.color}15`, color: item.color }}>
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
                             </div>
                             
-                            <div className="rm-stock-section">
-                                <div className="stock-value">
-                                    {item.currentStock.toLocaleString()} <span className="unit">{item.unit}</span>
+                            <div className="card-info" style={{ flexGrow: 1 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                    <h3 className="ie-sub-nav-card-title" style={{ fontSize: '0.75rem' }}>{item.name}</h3>
+                                    <span className={`status-badge ${item.status === 'Low' ? 'low' : 'ok'}`} style={{ fontSize: '0.55rem' }}>
+                                        {item.status}
+                                    </span>
                                 </div>
-                                <div className="progress-bar-bg">
-                                    <div className="progress-bar-fill" style={{ width: `${percentage}%`, backgroundColor: item.color }}></div>
+                                
+                                <div className="stock-value" style={{ margin: '4px 0', fontSize: '1rem', fontWeight: '700', color: '#1e293b' }}>
+                                    {item.currentStock.toLocaleString()} <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: '600' }}>{item.unit}</span>
                                 </div>
-                            </div>
 
-                            <div className="rm-pending-section">
-                                <div className="pending-item">
-                                    <span className="pending-label">Procurement Verifications</span>
-                                    <span className={`pending-count ${item.pendingProcurement > 0 ? 'active' : ''}`}>
-                                        {item.pendingProcurement}
-                                    </span>
-                                </div>
-                                <div className="pending-item">
-                                    <span className="pending-label">Consumption Verifications</span>
-                                    <span className={`pending-count ${item.pendingConsumption > 0 ? 'active-consumption' : ''}`}>
-                                        {item.pendingConsumption}
-                                    </span>
+                                <div className="pv-card-stats" style={{ marginTop: '0' }}>
+                                    <div className="pv-stat-row-summary" style={{ gap: '12px' }}>
+                                        <span className="stat-v" style={{ color: item.pendingProcurement > 0 ? '#d97706' : '#64748b' }}>
+                                            Proc: {item.pendingProcurement}
+                                        </span>
+                                        <span className="stat-p" style={{ color: item.pendingConsumption > 0 ? '#1d4ed8' : '#64748b' }}>
+                                            Cons: {item.pendingConsumption}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     );
                 })}
             </div>
+
+            {selectedRm && (
+                <div className="fade-in" style={{ borderTop: '1px solid #e2e8f0', paddingTop: '24px' }}>
+                    <RMDrillDownView 
+                        rmCategory={selectedRm} 
+                        onBack={() => setSelectedRm(null)} 
+                    />
+                </div>
+            )}
         </div>
     );
 };

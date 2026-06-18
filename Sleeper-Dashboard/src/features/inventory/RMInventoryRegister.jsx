@@ -11,7 +11,8 @@ const MOCK_LEDGER_DATA = [
 
 const RMInventoryRegister = ({ rmCategory }) => {
     const [loading, setLoading] = useState(false);
-    const [filterDate, setFilterDate] = useState('');
+    const [filterStartDate, setFilterStartDate] = useState('');
+    const [filterEndDate, setFilterEndDate] = useState('');
     const [filterSubType, setFilterSubType] = useState('');
 
     // Simulate API fetch
@@ -21,11 +22,12 @@ const RMInventoryRegister = ({ rmCategory }) => {
             setLoading(false);
         }, 500);
         return () => clearTimeout(timer);
-    }, [rmCategory, filterDate, filterSubType]);
+    }, [rmCategory, filterStartDate, filterEndDate, filterSubType]);
 
     // Apply filters
     const filteredData = MOCK_LEDGER_DATA.filter(row => {
-        if (filterDate && row.date !== filterDate) return false;
+        if (filterStartDate && row.date < filterStartDate) return false;
+        if (filterEndDate && row.date > filterEndDate) return false;
         if (filterSubType && row.subType !== filterSubType) return false;
         return true;
     });
@@ -39,11 +41,19 @@ const RMInventoryRegister = ({ rmCategory }) => {
                 </div>
                 <div className="reg-filters">
                     <div className="filter-group">
-                        <label>Date Filter</label>
+                        <label>From Date</label>
                         <input 
                             type="date" 
-                            value={filterDate} 
-                            onChange={(e) => setFilterDate(e.target.value)} 
+                            value={filterStartDate} 
+                            onChange={(e) => setFilterStartDate(e.target.value)} 
+                        />
+                    </div>
+                    <div className="filter-group">
+                        <label>To Date</label>
+                        <input 
+                            type="date" 
+                            value={filterEndDate} 
+                            onChange={(e) => setFilterEndDate(e.target.value)} 
                         />
                     </div>
                     <div className="filter-group">
@@ -57,7 +67,7 @@ const RMInventoryRegister = ({ rmCategory }) => {
                             <option value="PPC">PPC</option>
                         </select>
                     </div>
-                    <button className="clear-filter-btn" onClick={() => { setFilterDate(''); setFilterSubType(''); }}>
+                    <button className="clear-filter-btn" onClick={() => { setFilterStartDate(''); setFilterEndDate(''); setFilterSubType(''); }}>
                         Clear
                     </button>
                 </div>

@@ -57,7 +57,7 @@ const DimensionTestAnnexure = ({ data, selectedCall }) => {
                   <th rowSpan={2} className="annexure-th">Sample size</th>
                   <th colSpan={2} className="annexure-th">Main gauge acceptance</th>
                   <th colSpan={2} className="annexure-th">Falling in Gauges</th>
-                  <th colSpan={2} className="annexure-th">Flat bearing length</th>
+                  <th colSpan={2} className="annexure-th">Flat bearing length clause 7.6.2</th>
                   <th rowSpan={2} className="annexure-th">No. of defectives</th>
                   <th rowSpan={2} className="annexure-th">Cumulative No. of defectives</th>
                   <th rowSpan={2} className="annexure-th">Accepted / Not accepted</th>

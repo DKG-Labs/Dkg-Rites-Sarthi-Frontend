@@ -18,6 +18,7 @@ const appDeflectionHeaderRows = [
     { label: "Quantity (in nos.)", rowSpan: 1 },
     { label: "Sample Size", rowSpan: 1 },
     { label: "No. of Defectives", rowSpan: 1 },
+    { label: "Cumulative No. of Defectives", rowSpan: 1 },
     { label: "Application & Deflection Test", rowSpan: 1 },
     { label: "Remarks / Accepted - Rejected", rowSpan: 1 },
     { label: "Sign. Of Supervisor", rowSpan: 1 }
@@ -68,6 +69,7 @@ const ApplicationDeflectionAnnexure = ({ data, selectedCall }) => {
               <td className="annexure-td data-cell">{page.quantity || '-'}</td>
               <td className="annexure-td data-cell">{page.sampleSize || '-'}</td>
               <td className="annexure-td data-cell">{page.noOfDefectives}</td>
+              <td className="annexure-td data-cell">{page.cumulativeDefectives !== undefined ? page.cumulativeDefectives : '-'}</td>
               <td className="annexure-td data-cell">{page.testResult}</td>
               <td className="annexure-td data-cell" style={{ fontWeight: 'bold' }}>{page.status}</td>
               <td className="annexure-td data-cell"></td>

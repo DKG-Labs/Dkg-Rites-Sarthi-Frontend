@@ -82,8 +82,8 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
   };
 
   return (
-    <div className="a4-page">
-      <div className="certificate-container flex flex-col flex-grow">
+    <div className="a4-page text-black">
+      <div className="certificate-container flex flex-col flex-grow text-black">
         {/* Row 1 & 2: RE-CENTERED HEADER UNIT (Red-Marked Design) */}
         <div className="flex flex-col items-center pt-2 w-full">
           {/* Centered Box */}
@@ -352,7 +352,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
         </div>
 
         {/* Bottom Footer row */}
-        <div className="border-x border-b border-black p-1 text-center text-[9px] text-gray-700 leading-tight">
+        <div className="border-x border-b border-black p-1 text-center text-[9px] text-black leading-tight">
           <span className="font-bold">Distribution: </span>
           Manufacturer Office copy with case, RITES Bill Copy, Contractor, Purchaser (Railway), Consignee (Railway), Consignee (Manufacturer of finished product), RITES Office copy, RITES for final IC
           <div className="h-1" />

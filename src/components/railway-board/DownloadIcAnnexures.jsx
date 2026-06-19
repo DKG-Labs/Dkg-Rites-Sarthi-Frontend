@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Pagination from '../Pagination';
 import { useInspection } from '../../context/InspectionContext';
@@ -37,7 +37,7 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
     const [records, setRecords] = useState([]);
     const [loading, setLoading] = useState(false);
     const [isViewingAnnexures, setIsViewingAnnexures] = useState(false);
-    const { setSelectedCall } = useInspection();
+    const { setSelectedCall, getIcAnnexuresCachedData, updateIcAnnexuresCache, clearIcAnnexuresCache } = useInspection();
     const [, setSearchParams] = useSearchParams();
 
     // 2. Local Filters state
@@ -78,31 +78,44 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
         }));
     }, [initialFromDate, initialToDate]);
 
-    // Fetch IC Annexures data from backend
-    useEffect(() => {
-        const fetchRecords = async () => {
-            setLoading(true);
-            try {
-                const url = `${API_ENDPOINTS.REPORTS}/downloadIcAnnexures?product=${encodeURIComponent(selectedProduct)}`;
-                const response = await fetch(url, {
-                    method: 'GET',
-                    headers: getAuthHeaders()
-                });
-                const data = await handleResponse(response);
-                if (data && data.responseData) {
-                    setRecords(data.responseData);
-                } else {
-                    setRecords([]);
-                }
-            } catch (err) {
-                console.error("Error fetching IC Annexures report:", err);
-                setRecords([]);
-            } finally {
-                setLoading(false);
+    // Fetch IC Annexures data with caching support
+    const fetchRecords = useCallback(async (forceRefresh = false) => {
+        if (forceRefresh) {
+            clearIcAnnexuresCache(selectedProduct);
+        } else {
+            const cache = getIcAnnexuresCachedData(selectedProduct);
+            if (cache.isCached) {
+                setRecords(cache.records);
+                return;
             }
-        };
-        fetchRecords();
-    }, [selectedProduct]);
+        }
+
+        setLoading(true);
+        try {
+            const url = `${API_ENDPOINTS.REPORTS}/downloadIcAnnexures?product=${encodeURIComponent(selectedProduct)}`;
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: getAuthHeaders()
+            });
+            const data = await handleResponse(response);
+            if (data && data.responseData) {
+                setRecords(data.responseData);
+                updateIcAnnexuresCache(selectedProduct, data.responseData);
+            } else {
+                setRecords([]);
+            }
+        } catch (err) {
+            console.error("Error fetching IC Annexures report:", err);
+            setRecords([]);
+        } finally {
+            setLoading(false);
+        }
+    }, [selectedProduct, getIcAnnexuresCachedData, updateIcAnnexuresCache, clearIcAnnexuresCache]);
+
+    // Initial load and selectedProduct changes
+    useEffect(() => {
+        fetchRecords(false);
+    }, [fetchRecords]);
 
     // Reset pagination when filter triggers or tab changes
     useEffect(() => {
@@ -372,6 +385,9 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
                         </button>
                         <button className="ic-btn-reset" onClick={handleResetFilters}>
                             <i className="fa-solid fa-arrows-rotate"></i> Reset
+                        </button>
+                        <button className="ic-btn-refresh" onClick={() => fetchRecords(true)}>
+                            <i className="fa-solid fa-arrows-rotate"></i> Refresh
                         </button>
                     </div>
                 </div>

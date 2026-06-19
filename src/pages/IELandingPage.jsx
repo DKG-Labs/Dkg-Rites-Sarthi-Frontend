@@ -17,8 +17,11 @@ import { markAsScheduled, isCallInitiated, getCallStatusData } from '../services
 import { fetchCompletedCallsForIC, fetchSignedCallsForIC, getCurrentUserId } from '../services/workflowApiService';
 // import { fetchRawMaterialCallsByStatus } from '../services/rawMaterial/rawMaterialApiService';
 import ProcessDefectSummaryCard from '../components/ProcessDefectSummaryCard';
+import { useInspection } from '../context/InspectionContext';
 
 const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelectedCall, setContextSelectedCalls, setCurrentPage, initialTab = 'pending', setInspectionShift, setInspectionDate, setProcessShift }) => {
+  const { completedCallsCache, setCompletedCallsCache } = useInspection();
+
   // Restore active tab from sessionStorage on page load, fallback to initialTab
   const [activeTab, setActiveTab] = useState(() => {
     const savedTab = sessionStorage.getItem('ie_landing_active_tab');
@@ -95,19 +98,24 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
       if (!userId) {
         // console.warn('⚠️ User ID not found, cannot fetch completed calls');
         setCompletedCalls([]);
+        setCompletedCallsCache([]);
         return;
       }
 
       const calls = await fetchCompletedCallsForIC(userId);
       if (calls && calls.error) {
         setCompletedCalls([]);
+        setCompletedCallsCache([]);
       } else {
-        setCompletedCalls(calls || []);
+        const fetched = calls || [];
+        setCompletedCalls(fetched);
+        setCompletedCallsCache(fetched);
       }
     } catch (error) {
       setCompletedCalls([]);
+      setCompletedCallsCache([]);
     }
-  }, []);
+  }, [setCompletedCallsCache]);
 
   // Only fetch pending data on mount. Fetch completed calls only when the
   // 'Issuance of IC' tab becomes active, and only once per session.
@@ -139,14 +147,17 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
   }, [activeTab, fetchPendingData]);
 
   useEffect(() => {
-    if (activeTab === 'certificates' && !hasFetchedCompletedRef.current) {
-      // Fetch completed calls only when user opens Issuance tab
-      fetchCompletedCalls();
-      hasFetchedCompletedRef.current = true;
+    if (activeTab === 'certificates') {
+      if (completedCallsCache !== null) {
+        setCompletedCalls(completedCallsCache);
+        hasFetchedCompletedRef.current = true;
+      } else if (!hasFetchedCompletedRef.current) {
+        // Fetch completed calls only when user opens Issuance tab
+        fetchCompletedCalls();
+        hasFetchedCompletedRef.current = true;
+      }
     }
-    // We intentionally depend on activeTab only
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  }, [activeTab, completedCallsCache, fetchCompletedCalls]);
 
   // Fetch signed calls count silently on mount for the tab badge
   useEffect(() => {
@@ -942,6 +953,7 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
           calls={completedCalls}
           setSelectedCall={setSelectedCall}
           setCurrentPage={setCurrentPage}
+          isLoaded={completedCallsCache !== null}
         />
       )}
 

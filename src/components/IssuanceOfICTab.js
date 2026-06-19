@@ -12,7 +12,7 @@ import { performTransitionAction } from '../services/workflowService';
 
 
 
-const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage }) => {
+const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage, isLoaded }) => {
   const [showFilters, setShowFilters] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Call Number');
@@ -42,9 +42,9 @@ const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage }) => {
   // Fetch completed calls from API on component mount only if parent didn't provide them.
   const hasFetchedRef = useRef(false);
   useEffect(() => {
-    // If parent already passed `calls` prop (from IELandingPage), use that and skip fetching.
-    if (Array.isArray(calls) && calls.length > 0) {
-      setCompletedCalls(calls);
+    // If parent already passed/loaded `calls` prop, use that and skip fetching.
+    if (isLoaded || (Array.isArray(calls) && calls.length > 0)) {
+      setCompletedCalls(calls || []);
       hasFetchedRef.current = true;
       return;
     }
@@ -81,7 +81,7 @@ const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage }) => {
 
     loadCompletedCalls();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [calls]);
+  }, [calls, isLoaded]);
 
   // Use completed calls from API instead of filtering from props
   const icCalls = completedCalls;

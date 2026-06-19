@@ -19,10 +19,6 @@ const RMDrillDownView = ({ rmCategory, onBack }) => {
                     </svg>
                     Back to Inventory
                 </button>
-                <div className="title-area">
-                    <div className="badge-color" style={{ backgroundColor: rmCategory.color }}></div>
-                    <h2>{rmCategory.name} Verification & Ledger</h2>
-                </div>
             </div>
 
             {/* Navigation Tabs */}

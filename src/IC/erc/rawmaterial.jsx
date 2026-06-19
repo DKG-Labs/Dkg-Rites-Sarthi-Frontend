@@ -9,7 +9,7 @@ import {
     Box
 } from "@mui/material";
 import { exportToPdf, generatePdfBase64 } from "../../utils/exportUtils";
-import { uploadSignedCertificate, saveRmIcEditData, getRmIcEditData, validateBookSetNo } from "../../services/certificateService";
+import { uploadSignedCertificate, saveRmIcEditData, getRmIcEditData, saveRmIcSaveChanges, getRmIcSaveChanges, validateBookSetNo } from "../../services/certificateService";
 import { performTransitionAction } from "../../services/workflowService";
 import { getCurrentUserId } from "../../services/workflowApiService";
 import { getStoredUser } from "../../services/authService";
@@ -188,7 +188,10 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
         let initialData = transformCallToIC(call, poDetails);
         const icNumber = initialData.certificateNo || call.icNo || call.call_no;
         if (icNumber) {
-          const savedEdit = await getRmIcEditData(icNumber);
+          let savedEdit = await getRmIcSaveChanges(icNumber);
+          if (!savedEdit) {
+            savedEdit = await getRmIcEditData(icNumber);
+          }
           if (savedEdit) {
             initialData = {
               ...initialData,
@@ -197,6 +200,15 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
               offeredInstNo: savedEdit.offeredInstallmentNo || initialData.offeredInstNo,
               passedInstNo: savedEdit.passedInstallmentNo || initialData.passedInstNo,
               drgNo: savedEdit.drawingNo || initialData.drgNo,
+              manufacturer: savedEdit.manufacturer || initialData.manufacturer,
+              contractorPo: savedEdit.contractorPo || initialData.contractorPo,
+              consigneeRailway: savedEdit.consigneeRailway || initialData.consigneeRailway,
+              consigneeManufacturer: savedEdit.consigneeManufacturer || initialData.consigneeManufacturer,
+              purchasingAuthority: savedEdit.purchasingAuthority || initialData.purchasingAuthority,
+              description: savedEdit.description || initialData.description,
+              specNo: savedEdit.specNo || initialData.specNo,
+              qapNo: savedEdit.qapNo || initialData.qapNo,
+              chpClause: savedEdit.chpClause || initialData.chpClause,
             };
           }
         }
@@ -218,6 +230,37 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
       newArray[index] = { ...newArray[index], [field]: value };
       return { ...prev, [arrayField]: newArray };
     });
+  };
+  const handleSaveChanges = async () => {
+    try {
+      setNotification({ open: true, message: "Saving draft changes...", severity: 'info' });
+      const payloadToSave = {
+          icNumber: dataToPass.certificateNo || call.icNo || call.call_no || "RawMaterial_IC",
+          certificateId: null,
+          bookNo: dataToPass.bookNo,
+          setNo: dataToPass.setNo,
+          offeredInstallmentNo: dataToPass.offeredInstNo,
+          passedInstallmentNo: dataToPass.passedInstNo,
+          drawingNo: dataToPass.drgNo,
+          manufacturer: dataToPass.manufacturer,
+          contractorPo: dataToPass.contractorPo,
+          consigneeRailway: dataToPass.consigneeRailway,
+          consigneeManufacturer: dataToPass.consigneeManufacturer,
+          purchasingAuthority: dataToPass.purchasingAuthority,
+          description: dataToPass.description,
+          specNo: dataToPass.specNo,
+          qapNo: dataToPass.qapNo,
+          chpClause: dataToPass.chpClause,
+          createdBy: getCurrentUserId()?.toString(),
+          updatedBy: getCurrentUserId()?.toString()
+      };
+      await saveRmIcSaveChanges(payloadToSave);
+      setNotification({ open: true, message: "Changes saved successfully as draft!", severity: 'success' });
+      setIsEditing(false);
+    } catch (error) {
+      console.error("Save Changes Error:", error);
+      setNotification({ open: true, message: error.message || "Failed to save draft changes.", severity: 'error' });
+    }
   };
 
   const dataToPass = editableData || transformCallToIC(call, poDetails);
@@ -288,7 +331,17 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
           offeredInstallmentNo: dataToPass.offeredInstNo,
           passedInstallmentNo: dataToPass.passedInstNo,
           drawingNo: dataToPass.drgNo,
-          createdBy: getCurrentUserId()?.toString()
+          manufacturer: dataToPass.manufacturer,
+          contractorPo: dataToPass.contractorPo,
+          consigneeRailway: dataToPass.consigneeRailway,
+          consigneeManufacturer: dataToPass.consigneeManufacturer,
+          purchasingAuthority: dataToPass.purchasingAuthority,
+          description: dataToPass.description,
+          specNo: dataToPass.specNo,
+          qapNo: dataToPass.qapNo,
+          chpClause: dataToPass.chpClause,
+          createdBy: getCurrentUserId()?.toString(),
+          updatedBy: getCurrentUserId()?.toString()
       };
       console.log("📤 Sending payload to saveRmIcEditData:", payloadToSave);
       
@@ -362,7 +415,7 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
             variant="outlined" 
             color="primary" 
             size="small" 
-            onClick={() => setIsEditing(!isEditing)}
+            onClick={isEditing ? handleSaveChanges : () => setIsEditing(true)}
             disabled={isESigning}
           >
             {isEditing ? "Save Changes" : "Edit Certificate"}

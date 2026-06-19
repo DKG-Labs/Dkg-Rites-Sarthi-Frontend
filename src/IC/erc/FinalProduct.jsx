@@ -11,7 +11,7 @@ import {
 import { formatDate } from "../../utils/helpers";
 import ErcFinalIc from "./ErcFinalIc";
 import { exportToPdf, generatePdfBase64 } from "../../utils/exportUtils";
-import { uploadSignedCertificate, saveFinalIcEditData, getFinalIcEditData, validateBookSetNo } from "../../services/certificateService";
+import { uploadSignedCertificate, saveFinalIcEditData, getFinalIcEditData, saveFinalIcSaveChanges, getFinalIcSaveChanges, validateBookSetNo } from "../../services/certificateService";
 import { performTransitionAction } from "../../services/workflowService";
 import { getCurrentUserId } from "../../services/workflowApiService";
 import { getStoredUser } from "../../services/authService";
@@ -103,6 +103,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
         inspectingEngineer: "",
         lotDetails: [],
         remarks: "",
+        maNumberAndDate: "",
       };
     }
 
@@ -138,6 +139,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
       inspectingEngineer: c.inspectingEngineer || "",
       lotDetails: c.lotDetails || [],
       remarks: c.remarks || "",
+      maNumberAndDate: c.maNumberAndDate || "",
     };
   };
 
@@ -149,7 +151,10 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
         let initialData = transformCallToIC(call);
         const icNumber = initialData.certificateNo || call.icNo || call.call_no;
         if (icNumber) {
-          const savedEdit = await getFinalIcEditData(icNumber);
+          let savedEdit = await getFinalIcSaveChanges(icNumber);
+          if (!savedEdit) {
+            savedEdit = await getFinalIcEditData(icNumber);
+          }
           if (savedEdit) {
             initialData = {
               ...initialData,
@@ -161,6 +166,10 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
               qtyOfferedPreviously: savedEdit.cummQtyOfferedPrev || initialData.qtyOfferedPreviously,
               qtyPassedPreviously: savedEdit.qtyPrevPassed || initialData.qtyPassedPreviously,
               qtyStillDue: savedEdit.qtyStillDue || initialData.qtyStillDue,
+              maNumberAndDate: savedEdit.maNumberAndDate || initialData.maNumberAndDate,
+              purchasingAuthority: savedEdit.purchasingAuthority || initialData.purchasingAuthority,
+              description: savedEdit.description || initialData.description,
+              trRecDate: savedEdit.trRecDate || initialData.trRecDate,
             };
           }
         }
@@ -175,6 +184,35 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
     setData(prev => ({ ...prev, [fieldName]: value }));
     if (fieldName === 'bookNo' || fieldName === 'setNo') {
       setBookSetValidation({ isValid: false, message: null, isValidating: false });
+    }
+  };
+
+  const handleSaveChanges = async () => {
+    try {
+      setNotification({ open: true, message: "Saving draft changes...", severity: 'info' });
+      await saveFinalIcSaveChanges({
+          icNumber: data.certificateNo || call.icNo || call.call_no || "FinalProduct_IC",
+          certificateId: null,
+          bookNo: data.bookNo,
+          setNo: data.setNo,
+          offeredInstallmentNo: data.offeredInstNo,
+          passedInstallmentNo: data.passedInstNo,
+          consignee: data.consignee,
+          cummQtyOfferedPrev: data.qtyOfferedPreviously,
+          qtyPrevPassed: data.qtyPassedPreviously,
+          qtyStillDue: data.qtyStillDue,
+          maNumberAndDate: data.maNumberAndDate,
+          purchasingAuthority: data.purchasingAuthority,
+          description: data.description,
+          trRecDate: data.trRecDate,
+          createdBy: getCurrentUserId()?.toString(),
+          updatedBy: getCurrentUserId()?.toString()
+      });
+      setNotification({ open: true, message: "Changes saved successfully as draft!", severity: 'success' });
+      setIsEditing(false);
+    } catch (error) {
+      console.error("Save Changes Error:", error);
+      setNotification({ open: true, message: error.message || "Failed to save draft changes.", severity: 'error' });
     }
   };
 
@@ -245,7 +283,12 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
           cummQtyOfferedPrev: data.qtyOfferedPreviously,
           qtyPrevPassed: data.qtyPassedPreviously,
           qtyStillDue: data.qtyStillDue,
-          createdBy: getCurrentUserId()?.toString()
+          maNumberAndDate: data.maNumberAndDate,
+          purchasingAuthority: data.purchasingAuthority,
+          description: data.description,
+          trRecDate: data.trRecDate,
+          createdBy: getCurrentUserId()?.toString(),
+          updatedBy: getCurrentUserId()?.toString()
       });
 
       // 2. Generate PDF Snapshot from Frontend (Bypasses PE-02 Backend parsing issues)
@@ -311,11 +354,11 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
         <button onClick={onBack} className="btn btn-outline">← Back</button>
         <div style={{ display: "flex", gap: 8 }}>
           <button
-            onClick={() => setIsEditing(!isEditing)}
+            onClick={isEditing ? handleSaveChanges : () => setIsEditing(true)}
             className={isEditing ? "btn btn-primary" : "btn btn-outline"}
             disabled={isESigning}
           >
-            {isEditing ? "✓ Done Editing" : "✎ Edit"}
+            {isEditing ? "Save Changes" : "✎ Edit"}
           </button>
           <Button 
             variant="contained" 

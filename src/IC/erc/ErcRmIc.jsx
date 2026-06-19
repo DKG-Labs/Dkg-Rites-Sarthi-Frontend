@@ -293,7 +293,7 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
           </div>
 
           <div className="grid grid-cols-[1.2fr_1fr_1.2fr_0.8fr_1fr_0.8fr] text-left border-b border-black">
-            <EditableField isEditing={false} type="textarea" value={chpClause} onChange={(val) => onChange("chpClause", val)} className="border-r border-black py-1 px-2 break-words dynamic-text" />
+            <EditableField isEditing={isEditing} type="textarea" value={chpClause} onChange={(val) => onChange("chpClause", val)} className="border-r border-black py-1 px-2 break-words dynamic-text" />
             <EditableField isEditing={false} type="textarea" value={contractChpReq} onChange={(val) => onChange("contractChpReq", val)} className="border-r border-black py-1 px-2 break-words dynamic-text" />
             <EditableField isEditing={false} type="textarea" value={inspectionDetails} onChange={(val) => onChange("inspectionDetails", val)} className="border-r border-black py-1 px-2 break-words dynamic-text" />
             <EditableField isEditing={false} type="textarea" value={result} onChange={(val) => onChange("result", val)} className="border-r border-black py-1 px-2 break-words" />

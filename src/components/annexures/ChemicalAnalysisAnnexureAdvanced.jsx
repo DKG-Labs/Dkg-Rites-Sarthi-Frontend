@@ -103,8 +103,8 @@ const ChemicalAnalysisAnnexureAdvanced = ({ data = [], selectedCall }) => {
               <th className="annexure-th sub-header">±0.03</th>
               <th className="annexure-th sub-header">±0.04</th>
               <th className="annexure-th sub-header">±0.05</th>
-              <th className="annexure-th sub-header">±0.005</th>
-              <th className="annexure-th sub-header">±0.005</th>
+              <th className="annexure-th sub-header">+0.005</th>
+              <th className="annexure-th sub-header">+0.005</th>
             </tr>
           </thead>
           <tbody>
@@ -132,7 +132,14 @@ const ChemicalAnalysisAnnexureAdvanced = ({ data = [], selectedCall }) => {
                 <td className="annexure-td data-cell">{row.hardness || ''}</td>
                 <td className="annexure-td data-cell">{row.decarb || ''}</td>
                 <td className="annexure-td data-cell">{row.freedomFromDefects || row.freedom || ''}</td>
-                <td className="annexure-td data-cell">{row.acceptedOrNot || row.accepted || ''}</td>
+                <td className="annexure-td data-cell">
+                  {(() => {
+                    const status = row.acceptedOrNot || row.accepted || '';
+                    if (status === 'OK') return 'Accepted';
+                    if (status === 'NOT OK') return 'Not Accepted';
+                    return status;
+                  })()}
+                </td>
                 <td className="annexure-td data-cell">{row.sign || ''}</td>
               </tr>
             ))}

@@ -72,8 +72,8 @@ const FinalChemicalAnalysisAnnexure = ({ data = [], selectedCall }) => {
               <th className="annexure-th spec-value">± 0.03</th>
               <th className="annexure-th spec-value">± 0.04</th>
               <th className="annexure-th spec-value">± 0.05</th>
-              <th className="annexure-th spec-value">± 0.005</th>
-              <th className="annexure-th spec-value">± 0.005</th>
+              <th className="annexure-th spec-value">+ 0.005</th>
+              <th className="annexure-th spec-value">+ 0.005</th>
             </tr>
           </thead>
           <tbody>
@@ -92,7 +92,14 @@ const FinalChemicalAnalysisAnnexure = ({ data = [], selectedCall }) => {
                 <td className="annexure-td data-cell">{row.sulphurPercent || ''}</td>
                 <td className="annexure-td data-cell">{row.phosphorusPercent || ''}</td>
                 <td className="annexure-td data-cell">{row.remarks || ''}</td>
-                <td className="annexure-td data-cell">{row.acceptedOrRejected || ''}</td>
+                <td className="annexure-td data-cell">
+                  {(() => {
+                    const status = row.acceptedOrRejected || '';
+                    if (status === 'OK') return 'Accepted';
+                    if (status === 'NOT OK') return 'Not Accepted';
+                    return status;
+                  })()}
+                </td>
                 <td className="annexure-td data-cell">{row.signOfSupervisor || ''}</td>
               </tr>
             ))}

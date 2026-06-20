@@ -1,5 +1,5 @@
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import FormField from "../components/FormField";
 import { formatDate, formatPoNoWithSerial } from "../utils/helpers";
 import { markAsWithheld } from '../services/callStatusService';
@@ -853,7 +853,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
    * Returns 1st SAMPLE (n1) based on Lot Size Range
    * For lots 2-150: Double sampling not provided → use single sampling
    */
-  const calculateSampleSize = (lotSz) => {
+  const calculateSampleSize = useCallback((lotSz) => {
     if (lotSz <= 0) return 0;
     /* 2-150: Double sampling not provided, use single sampling (Table 1) */
     if (lotSz <= 8) return 2;
@@ -872,10 +872,10 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     if (lotSz <= 150000) return 315;/* 35001-150000 → n1=315 */
     if (lotSz <= 500000) return 500;/* 150001-500000 → n1=500 */
     return 500;
-  };
+  }, []);
 
   /* Table 1 - Sample Size for Bags for Sampling calculation */
-  const calculateBagsForSampling = (quantity) => {
+  const calculateBagsForSampling = useCallback((quantity) => {
     if (quantity <= 0) return 0;
     if (quantity <= 8) return 2;
     if (quantity <= 15) return 3;
@@ -892,29 +892,33 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     if (quantity <= 150000) return 500;
     if (quantity <= 500000) return 800;
     return 1250;
-  };
+  }, []);
 
 
   /* -------------------- LOTS DATA (Fetched from Backend) -------------------- */
   // lotsFromVendorCall is now fetched from backend in useEffect above
 
   /* Calculate Sample Size for each lot based on Lot Size (IS 2500 Table 2) */
-  const lotsWithSampling = (lotsFromVendorCall && Array.isArray(lotsFromVendorCall) && lotsFromVendorCall.length > 0)
-    ? lotsFromVendorCall.map((lot) => {
-      const sampleSize = calculateSampleSize(lot.lotSize);
-      return { ...lot, sampleSize };
-    })
-    : [];
+  const lotsWithSampling = useMemo(() => {
+    return (lotsFromVendorCall && Array.isArray(lotsFromVendorCall) && lotsFromVendorCall.length > 0)
+      ? lotsFromVendorCall.map((lot) => {
+        const sampleSize = calculateSampleSize(lot.lotSize);
+        return { ...lot, sampleSize };
+      })
+      : [];
+  }, [lotsFromVendorCall, calculateSampleSize]);
 
   /* Calculate totals */
-  const totalQtyOffered = lotsWithSampling.reduce((sum, l) => sum + (l.lotSize || 0), 0);
-  const totalSampleSize = lotsWithSampling.reduce((sum, l) => sum + (l.sampleSize || 0), 0);
-  const bagsForSampling = calculateBagsForSampling(totalSampleSize);
+  const totalQtyOffered = useMemo(() => lotsWithSampling.reduce((sum, l) => sum + (l.lotSize || 0), 0), [lotsWithSampling]);
+  const totalSampleSize = useMemo(() => lotsWithSampling.reduce((sum, l) => sum + (l.sampleSize || 0), 0), [lotsWithSampling]);
+  const bagsForSampling = useMemo(() => calculateBagsForSampling(totalSampleSize), [totalSampleSize, calculateBagsForSampling]);
 
   /* No. of Bags Offered - Auto-fetched from Vendor Call */
-  const bagsOffered = (lotsFromVendorCall && Array.isArray(lotsFromVendorCall) && lotsFromVendorCall.length > 0)
-    ? lotsFromVendorCall.reduce((sum, lot) => sum + (parseInt(lot.noOfBags) || 0), 0)
-    : 0;
+  const bagsOffered = useMemo(() => {
+    return (lotsFromVendorCall && Array.isArray(lotsFromVendorCall) && lotsFromVendorCall.length > 0)
+      ? lotsFromVendorCall.reduce((sum, lot) => sum + (parseInt(lot.noOfBags) || 0), 0)
+      : 0;
+  }, [lotsFromVendorCall]);
 
   /* -------------------- FINAL INSPECTION RESULTS DATA -------------------- */
   /* Test results per lot - Fetched from backend in useEffect above */
@@ -1013,16 +1017,16 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
   }, [lotInspectionData, selectedCall?.call_no]);
 
   /* Get overall lot status: 'REJECTED' | 'PENDING' | 'ACCEPTED' */
-  const getLotStatus = (lotNo) => {
+  const getLotStatus = useCallback((lotNo) => {
     const tests = testResultsPerLot[lotNo];
     if (!tests || Object.keys(tests).length === 0) return 'PENDING';
     if (Object.values(tests).some(v => v === 'NOT OK')) return 'REJECTED';
     if (Object.values(tests).some(v => v === 'Pending')) return 'PENDING';
     return 'ACCEPTED';
-  };
+  }, [testResultsPerLot]);
 
   /* Keep isLotRejected for backward-compat with qty calculations */
-  const isLotRejected = (lotNo) => getLotStatus(lotNo) === 'REJECTED';
+  const isLotRejected = useCallback((lotNo) => getLotStatus(lotNo) === 'REJECTED', [getLotStatus]);
 
   /* Packing verification checkboxes - with localStorage persistence */
   const [packedInHDPE, setPackedInHDPE] = useState(() => {
@@ -1213,7 +1217,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
    * - Cache automatically expires after 5 minutes, triggering fresh API call
    * - This ensures data consistency while avoiding unnecessary API calls
    */
-  const handleSaveDraft = useCallback(() => {
+  const handleSaveDraft = useCallback(async () => {
     const callNo = selectedCall?.call_no;
     if (!callNo) {
       alert('❌ Call number not found. Cannot save draft.');
@@ -1223,7 +1227,102 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     setIsSavingDraft(true);
 
     try {
-      // Collect all dashboard form data
+      console.log('🚀 Saving Final Product draft to backend for call:', callNo);
+
+      // Prepare all data first (same as finish/pause inspection)
+      const ercUsed = lotsWithSampling.reduce((sum, lot) => sum + (parseInt(lotInspectionData[lot.lotNo]?.ercUsedForTesting) || 0), 0);
+      const qtyRejected = lotsWithSampling.filter(lot => isLotRejected(lot.lotNo)).reduce((sum, lot) => sum + lot.lotSize, 0);
+      const qtyNowPassed = totalQtyOffered - ercUsed - qtyRejected;
+      const poQty = poData?.poQty || 10000;
+      const poSrQty = poData?.poSrQty || 0;
+      const cummPassed = poData?.cummQtyPassedPreviously || 0;
+      const qtyStillDue = poSrQty - cummPassed - qtyNowPassed;
+
+      // Get current user for audit fields
+      const currentUser = getStoredUser()?.userId || 'SYSTEM';
+      const now = new Date().toISOString();
+
+      // 1. Prepare cumulative results data
+      const cumulativeData = {
+        inspectionCallNo: callNo,
+        poNo: poData?.po_no || selectedCall?.po_no,
+        poQty: poQty,
+        cummQtyOfferedPreviously: poData?.cummQtyOfferedPreviously || 0,
+        cummQtyPassedPreviously: cummPassed,
+        qtyNowOffered: totalQtyOffered,
+        qtyNowPassed: qtyNowPassed,
+        qtyNowRejected: qtyRejected,
+        qtyStillDue: qtyStillDue,
+        totalSampleSize: totalSampleSize,
+        bagsForSampling: bagsForSampling,
+        bagsOffered: bagsOffered,
+        dateOfInspection: sessionStorage.getItem('inspectionDate') || new Date().toISOString().split('T')[0],
+        createdBy: currentUser,
+        createdAt: now,
+        updatedBy: currentUser,
+        updatedAt: now
+      };
+
+      // 2. Prepare inspection summary data
+      const summaryData = {
+        inspectionCallNo: callNo,
+        packedInHdpe: packedInHDPE,
+        cleanedWithCoating: cleanedWithCoating,
+        inspectionStatus: 'PAUSED', // Set to PAUSED for draft persistence in DB
+        createdBy: currentUser,
+        createdAt: now,
+        updatedBy: currentUser,
+        updatedAt: now
+      };
+
+      // 3. Prepare lot results data for all lots
+      const lotResultsDataArray = lotsWithSampling.map(lot => {
+        const lotData = lotInspectionData[lot.lotNo] || {};
+        const tests = testResultsPerLot[lot.lotNo] || {};
+
+        return {
+          inspectionCallNo: callNo,
+          lotNo: lot.lotNo,
+          heatNo: lot.heatNo,
+          calibrationStatus: tests.calibration || 'PENDING',
+          visualDimStatus: tests.visualDim || 'PENDING',
+          hardnessStatus: tests.hardness || 'PENDING',
+          inclusionStatus: tests.inclusion || 'PENDING',
+          deflectionStatus: tests.deflection || 'PENDING',
+          toeLoadStatus: tests.toeLoad || 'PENDING',
+          weightStatus: tests.weight || 'PENDING',
+          chemicalStatus: tests.chemical || 'PENDING',
+          ercUsedForTesting: parseInt(lotData.ercUsedForTesting) || 0,
+          stdPackingNo: parseInt(lotData.stdPackingNo) || 50,
+          bagsWithStdPacking: parseInt(lotData.bagsStdPacking) || 0,
+          nonStdBagsCount: parseInt(lotData.nonStdBagsCount) || 0,
+          nonStdBagsQty: JSON.stringify(lotData.nonStdBagsQty || []),
+          hologramDetails: JSON.stringify(lotData.holograms || []),
+          remarks: lotData.remarks || '',
+          lotStatus: isLotRejected(lot.lotNo) ? 'REJECTED' : 'ACCEPTED',
+          createdBy: currentUser,
+          createdAt: now,
+          updatedBy: currentUser,
+          updatedAt: now
+        };
+      });
+
+      console.log('💾 Saving dashboard results (cumulative, summary, and lot results)...');
+      const dashboardSavePromises = [
+        saveCumulativeResults(cumulativeData),
+        saveInspectionSummary(summaryData),
+        ...lotResultsDataArray.map(lotData => saveLotResults(lotData))
+      ];
+
+      await Promise.all(dashboardSavePromises);
+      console.log('✅ Dashboard results saved successfully to backend');
+
+      // Step 2: Call the finish inspection API for submodules
+      console.log('💾 Saving submodule data...');
+      const results = await finishInspection(callNo);
+      console.log('✅ Submodule data saved:', results);
+
+      // Step 3: Save to localStorage locally
       const draftData = {
         savedAt: new Date().toISOString(),
         lotInspectionData: lotInspectionData,
@@ -1231,7 +1330,6 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
         cleanedWithCoating: cleanedWithCoating
       };
 
-      // Save to localStorage with call number as key
       const storageKey = `${DASHBOARD_DRAFT_KEY}${callNo}`;
       localStorage.setItem(storageKey, JSON.stringify(draftData));
 
@@ -1241,14 +1339,34 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
       localStorage.setItem(`fpCleanedWithCoating_${callNo}`, String(cleanedWithCoating));
 
       console.log('✅ Draft and form states saved to localStorage');
-      alert(`✅ Draft saved successfully at ${new Date().toLocaleTimeString()}`);
+      
+      let summaryMsg = `✅ Draft saved successfully both locally and to the backend at ${new Date().toLocaleTimeString()}!\n\n`;
+      summaryMsg += `Saved submodules: ${results.success.length}\n`;
+      if (results.failed.length > 0) {
+        summaryMsg += `⚠️ Failed submodules: ${results.failed.length} (${results.failed.map(f => f.module).join(', ')})`;
+      }
+      alert(summaryMsg);
     } catch (error) {
       console.error('Error saving draft:', error);
-      alert(`Failed to save draft: ${error.message}`);
+      alert(`❌ Failed to save draft: ${error.message}`);
     } finally {
       setIsSavingDraft(false);
     }
-  }, [selectedCall?.call_no, lotInspectionData, packedInHDPE, cleanedWithCoating]);
+  }, [
+    selectedCall?.call_no,
+    selectedCall?.po_no,
+    lotInspectionData,
+    packedInHDPE,
+    cleanedWithCoating,
+    lotsWithSampling,
+    totalQtyOffered,
+    totalSampleSize,
+    bagsForSampling,
+    bagsOffered,
+    poData,
+    testResultsPerLot,
+    isLotRejected
+  ]);
 
   // Load draft data from localStorage on mount
   useEffect(() => {
@@ -2129,22 +2247,44 @@ Workflow Status: ✅ Transitioned to COMPLETED
             <button
               className="btn btn-outline"
               onClick={handleSaveDraft}
-              disabled={isSavingDraft}
+              disabled={isSavingDraft || isPausingInspection || isFinishingInspection}
+              style={{
+                cursor: (isSavingDraft || isPausingInspection || isFinishingInspection) ? 'not-allowed' : 'pointer',
+                opacity: (isSavingDraft || isPausingInspection || isFinishingInspection) ? 0.6 : 1
+              }}
             >
               {isSavingDraft ? '💾 Saving...' : '💾 Save Draft'}
             </button>
             <button
               className="btn btn-outline"
               onClick={handlePauseInspection}
-              disabled={isPausingInspection}
+              disabled={isPausingInspection || isSavingDraft || isFinishingInspection}
+              style={{
+                cursor: (isSavingDraft || isPausingInspection || isFinishingInspection) ? 'not-allowed' : 'pointer',
+                opacity: (isSavingDraft || isPausingInspection || isFinishingInspection) ? 0.6 : 1
+              }}
             >
               {isPausingInspection ? '⏸️ Pausing...' : '⏸️ Pause Inspection'}
             </button>
-            <button className="btn btn-outline" onClick={handleOpenWithheldModal}>Withheld Inspection</button>
+            <button 
+              className="btn btn-outline" 
+              onClick={handleOpenWithheldModal}
+              disabled={isSavingDraft || isPausingInspection || isFinishingInspection}
+              style={{
+                cursor: (isSavingDraft || isPausingInspection || isFinishingInspection) ? 'not-allowed' : 'pointer',
+                opacity: (isSavingDraft || isPausingInspection || isFinishingInspection) ? 0.6 : 1
+              }}
+            >
+              Withheld Inspection
+            </button>
             <button
               className="btn btn-primary"
               onClick={handleFinishInspection}
-              disabled={isFinishingInspection}
+              disabled={isFinishingInspection || isSavingDraft || isPausingInspection}
+              style={{
+                cursor: (isSavingDraft || isPausingInspection || isFinishingInspection) ? 'not-allowed' : 'pointer',
+                opacity: (isSavingDraft || isPausingInspection || isFinishingInspection) ? 0.6 : 1
+              }}
             >
               {isFinishingInspection ? '⏳ Finishing...' : '✅ Finish Inspection'}
             </button>

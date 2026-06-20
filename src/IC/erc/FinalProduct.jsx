@@ -16,6 +16,59 @@ import { performTransitionAction } from "../../services/workflowService";
 import { getCurrentUserId } from "../../services/workflowApiService";
 import { getStoredUser } from "../../services/authService";
 
+const numberToWords = (num) => {
+    if (num === 0) return "Zero";
+    const a = ["", "One ", "Two ", "Three ", "Four ", "Five ", "Six ", "Seven ", "Eight ", "Nine ", "Ten ", "Eleven ", "Twelve ", "Thirteen ", "Fourteen ", "Fifteen ", "Sixteen ", "Seventeen ", "Eighteen ", "Nineteen "];
+    const b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+    
+    if ((num = num.toString()).length > 9) return "Overflow";
+    let n = ("000000000" + num).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+    if (!n) return "";
+    let str = "";
+    str += (n[1] != 0) ? (a[Number(n[1])] || b[n[1][0]] + " " + a[n[1][1]]) + "Crore " : "";
+    str += (n[2] != 0) ? (a[Number(n[2])] || b[n[2][0]] + " " + a[n[2][1]]) + "Lakh " : "";
+    str += (n[3] != 0) ? (a[Number(n[3])] || b[n[3][0]] + " " + a[n[3][1]]) + "Thousand " : "";
+    str += (n[4] != 0) ? (a[Number(n[4])] || b[n[4][0]] + " " + a[n[4][1]]) + "Hundred " : "";
+    str += (n[5] != 0) ? ((str != "") ? "and " : "") + (a[Number(n[5])] || b[n[5][0]] + " " + a[n[5][1]]) : "";
+    return str.trim();
+};
+
+const generateQuantityRemarks = (c) => {
+    const qtyNowPassed = Number(c.qtyNowPassed || 0) > Number(c.qtyOnOrder || 0) ? Number(c.qtyOnOrder || 0) : Number(c.qtyNowPassed || 0);
+    const qtyRejected = Number(c.qtyNowRejected || 0);
+    const words = numberToWords(qtyNowPassed).toLowerCase();
+    
+    let text = `Quantity Now Passed ${words} Nos only.\n`;
+    
+    if (c.lotDetails && c.lotDetails.length > 0) {
+        let markings = c.lotDetails.map(l => `${l.lotNo || ''}, H No - ${l.heatNo || ''}`).join(' & ');
+        text += `\nMarking - ${markings}\n`;
+    }
+    
+    if (qtyNowPassed > 0) {
+        let bagsOf50 = Math.floor(qtyNowPassed / 50);
+        let rem = qtyNowPassed % 50;
+        let packText = [];
+        if (bagsOf50 > 0) packText.push(`${bagsOf50.toString().padStart(2, '0')} Bags x 50 Nos`);
+        if (rem > 0) packText.push(`01 Bag x ${rem} Nos`);
+        if (packText.length > 0) {
+            text += `\nPacking - ${packText.join(', ')}\n`;
+        }
+    }
+
+    if (c.rmIcNo && c.processIcNo) {
+        text += `\nRM Inspection and Process Inspection Accepted against Vide\nRM IC No-${c.rmIcNo} Date- ${c.rmIcDate}\n& Process IC No-${c.processIcNo} Date- ${c.processIcDate}\n`;
+    }
+
+    text += `\nThe material is found conforming to the specifications against Vide Lab Report No. [FILL_LAB_REPORT] dated [FILL_DATE].\n`;
+    
+    if (qtyRejected > 0 && qtyNowPassed === 0) {
+        text += `\nMaterial is Non-conforming as per Lab Report No. [FILL_LAB_REPORT]. In the chemical test, the observed value was [OBSERVED], which exceeds the specified limit.\n`;
+    }
+    
+    return text;
+};
+
 export default function FinalProductCertificate({ call = {}, onBack }) {
   const printAreaRef = useRef();
   const [isEditing, setIsEditing] = useState(false);
@@ -124,7 +177,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
       qtyOfferedPreviously: c.qtyOfferedPreviously || 0,
       qtyPassedPreviously: c.qtyPassedPreviously || 0,
       qtyNowOffered: c.qtyNowOffered || 0,
-      qtyNowPassed: c.qtyNowPassed || 0,
+      qtyNowPassed: Number(c.qtyNowPassed || 0) > Number(c.qtyOnOrder || 0) ? Number(c.qtyOnOrder || 0) : Number(c.qtyNowPassed || 0),
       qtyNowRejected: c.qtyNowRejected || 0,
       qtyStillDue: c.qtyStillDue || 0,
       noOfItemsChecked: c.noOfItemsChecked || "",
@@ -132,7 +185,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
       noOfVisits: c.noOfVisits || "",
       datesOfInspection: c.inspectionDates || c.datesOfInspection || "",
       trRecDate: c.trRecDate || "",
-      quantityNowPassedText: c.quantityNowPassedText || "",
+      quantityNowPassedText: c.quantityNowPassedText || generateQuantityRemarks(c),
       sealingPattern: c.sealingPattern || "",
       facsimileText: c.facsimileText || "",
       reasonsForRejection: c.reasonsForRejection || "Not Applicable",

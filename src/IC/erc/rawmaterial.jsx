@@ -122,9 +122,9 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
       specNo: c.specNo || "",
       qapNo: c.qapNo || "",
       inspectionType: c.inspectionType || "",
-      inspectionDetails: c.inspectionDetails || "",
+      inspectionDetails: c.inspectionDetails || c.contractChpReq || "Visual, Dimensional, Mechanical & Chemical",
       chpClause: c.chpClause || "",
-      contractChpReq: c.contractChpReq || "",
+      contractChpReq: c.contractChpReq || "Visual, Dimensional, Mechanical & Chemical",
       result: c.result || "",
       clearedQty: (() => {
         if (c.heatDetails && Array.isArray(c.heatDetails) && c.heatDetails.length > 0) {
@@ -150,9 +150,9 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
             }
             
             if (ercNos > 0) {
-              resultText = `NO OF ERC = ${ercNos} NOs (Appoximate)`;
+              resultText = `${lines.join(",\n")}\nTotal Qty -${totalMt.toFixed(3)} MT\nNO OF ERC = ${ercNos} NOs (Approximate)`;
             } else {
-              resultText = `${lines.join(",\n")},\nTotal Qty -${totalMt.toFixed(3)} MT`;
+              resultText = `${lines.join(",\n")}\nTotal Qty -${totalMt.toFixed(3)} MT`;
             }
             return resultText;
           }

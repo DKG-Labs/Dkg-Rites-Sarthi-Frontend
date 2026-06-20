@@ -69,6 +69,17 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
   const totalAccepted = lots.reduce((s, l) => s + (l.acceptedQty || 0), 0).toFixed(3);
   const totalRejected = lots.reduce((s, l) => s + (l.rejectedQty || 0), 0).toFixed(3);
 
+  const extractPoSrNo = (refStr) => {
+    if (!refStr) return "001";
+    const refPart = refStr.split(/dated/i)[0].trim();
+    const parts = refPart.split('/');
+    if (parts.length > 1) {
+      return parts[parts.length - 1];
+    }
+    return "001";
+  };
+  const poSrNoStr = extractPoSrNo(contractRef);
+
   return (
     <div className="a4-page">
       <div className="certificate-container flex flex-col flex-grow">
@@ -235,7 +246,7 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
         <div className="grid grid-cols-3 border-x border-b border-black min-h-[40px]">
           <div className="border-r border-black p-1">
             <div className="font-semibold text-[10px]">
-              विवरण / Description (PO Sr. No. 001)
+              विवरण / Description (PO Sr. No. {poSrNoStr})
             </div>
             <EditableField isEditing={isEditing} type="textarea" value={description} onChange={(val) => onChange("description", val)} className="break-words dynamic-text leading-tight" />
           </div>

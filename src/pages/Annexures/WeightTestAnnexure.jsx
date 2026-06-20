@@ -15,7 +15,7 @@ const weightHeaderRows = [
     { label: "Sample Size", rowSpan: 2 },
     {
       label:
-        "Weight (kg)\nERC MK-III: 0.920 ±0.010\nERC MK-V: 1.088 ±0.020",
+        "Nominal Weight of Clip (g) 920 (+17 / -16 ) and 1088 (+20/- 20)",
       rowSpan: 2,
     },
     { label: "No. of Defectives", rowSpan: 2 },

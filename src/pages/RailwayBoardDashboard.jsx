@@ -471,7 +471,7 @@ const RailwayBoardDashboard = () => {
                         </div>
                         {isRitesAdmin && selectedProduct === 'Sleeper' && (
                             <div className={`nav-item ${activeMainCard === 'sleeper-anomaly' ? 'active' : ''}`} onClick={() => handleSwitchTab('sleeper-anomaly')}>
-                                <i className="fa-solid fa-microchip"></i> {!isSidebarCollapsed && <span>AI Diagnostics</span>}
+                                <i className="fa-solid fa-microchip"></i> {!isSidebarCollapsed && <span>AI Engine</span>}
                             </div>
                         )}
 

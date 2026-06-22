@@ -36,6 +36,7 @@ import SleeperShiftWiseProductionReport from './sleeper-board/SleeperShiftWisePr
 import SqcAnalysis from './SqcAnalysis';
 import PoIssuedModal from './PoIssuedModal';
 import InspectionCallStatusModal from './InspectionCallStatusModal';
+import SleeperAnomalyDiagnostics from './sleeper-anomaly/SleeperAnomalyDiagnostics';
 import DownloadIcAnnexures from './DownloadIcAnnexures';
 
 const formatPoDate = (dateStr) => {
@@ -445,7 +446,7 @@ const ProfessionalCardSection = ({
         const isErc = product.includes('erc') || product === 'all' || !product;
 
         const isRailPad = product.includes('rail pad') || product.includes('railpad');
-        const isUnderDev = (!isErc && !isSleeper && !isRailPad) || (isSleeper && activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'reports' && activeMainCard !== 'scada' && activeMainCard !== 'performance');
+        const isUnderDev = (!isErc && !isSleeper && !isRailPad) || (isSleeper && activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'reports' && activeMainCard !== 'scada' && activeMainCard !== 'performance' && activeMainCard !== 'sleeper-anomaly');
 
 
 
@@ -1516,6 +1517,8 @@ const ProfessionalCardSection = ({
                             return <SqcAnalysis selectedProduct={selectedProduct} />;
                         case 'scada':
                             return isSleeper ? <SleeperScadaMonitor selectedProduct={selectedProduct} /> : <ScadaMonitor selectedProduct={selectedProduct} />;
+                        case 'sleeper-anomaly':
+                            return <SleeperAnomalyDiagnostics />;
                         default:
                             return null;
                     }

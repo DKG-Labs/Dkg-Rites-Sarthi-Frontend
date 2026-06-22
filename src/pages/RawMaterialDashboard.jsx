@@ -1267,15 +1267,22 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       };
 
       const allPending = Object.values(heatStatuses).every(s => s === 'Pending');
-      const anyPending = Object.values(heatStatuses).some(s => s === 'Pending');
-      const dimensionalNotOk = heatStatuses.dimensional === 'NOT OK';
-      const materialTestNotOk = heatStatuses.materialTest === 'NOT OK';
-      const visualNotOk = heatStatuses.visual === 'NOT OK';
 
       // Rule 1: If all modules are pending, can't finish
       if (allPending) {
         return { canFinish: false, reason: `Heat ${heatNo}: All modules are pending` };
       }
+
+      // Treat pending calibration as OK for the remaining completion checks
+      const effectiveStatuses = {
+        ...heatStatuses,
+        calibration: heatStatuses.calibration === 'Pending' ? 'OK' : heatStatuses.calibration
+      };
+
+      const anyPending = Object.values(effectiveStatuses).some(s => s === 'Pending');
+      const dimensionalNotOk = effectiveStatuses.dimensional === 'NOT OK';
+      const materialTestNotOk = effectiveStatuses.materialTest === 'NOT OK';
+      const visualNotOk = effectiveStatuses.visual === 'NOT OK';
 
       // Rule 2: If Dimension or Material Testing is NOT OK, complete heat is rejected
       // This is allowed to finish
@@ -1305,7 +1312,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       }
 
       // Rule 5: If any module is OK and others are pending, can't finish
-      const anyOk = Object.values(heatStatuses).some(s => s === 'OK');
+      const anyOk = Object.values(effectiveStatuses).some(s => s === 'OK');
       if (anyOk && anyPending) {
         return { canFinish: false, reason: `Heat ${heatNo}: Some modules are OK but others are still pending` };
       }
@@ -1620,8 +1627,15 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           materialTest: 'Pending',
           packing: 'Pending'
         };
-        const dimensionalNotOk = heatStatuses.dimensional === 'NOT OK';
-        const materialTestNotOk = heatStatuses.materialTest === 'NOT OK';
+
+        // Treat pending calibration as OK for overall status and backend submission
+        const effectiveStatuses = {
+          ...heatStatuses,
+          calibration: heatStatuses.calibration === 'Pending' ? 'OK' : heatStatuses.calibration
+        };
+
+        const dimensionalNotOk = effectiveStatuses.dimensional === 'NOT OK';
+        const materialTestNotOk = effectiveStatuses.materialTest === 'NOT OK';
         const weight = heat.weight; // Already aggregated in consolidatedHeats
 
         let totalRejectedWeight = 0;
@@ -1646,7 +1660,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           totalRejectedWeight = calculateVisualRejectedWeight(heatVisualData);
 
           // Check if any modules are still pending
-          const anyPending = Object.values(heatStatuses).some(s => s === 'Pending');
+          const anyPending = Object.values(effectiveStatuses).some(s => s === 'Pending');
 
           if (anyPending) {
             acceptedQtyMt = 0;
@@ -1687,7 +1701,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           acceptedQtyMt: Math.floor(wtAcceptedNumbers),
 
           // Per-Submodule Status
-          calibrationStatus: heatStatuses.calibration,
+          calibrationStatus: effectiveStatuses.calibration,
           visualStatus: heatStatuses.visual,
           dimensionalStatus: heatStatuses.dimensional,
           materialTestStatus: heatStatuses.materialTest,

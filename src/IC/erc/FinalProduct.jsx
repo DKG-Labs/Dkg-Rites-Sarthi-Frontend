@@ -62,6 +62,8 @@ const generateQuantityRemarks = (c) => {
 
     text += `\nThe material is found conforming to the specifications against Vide Lab Report No. [FILL_LAB_REPORT] dated [FILL_DATE].\n`;
     
+    text += `\nExcluding of xxxxx Nos consumed in destructive testing\n`;
+    
     if (qtyRejected > 0 && qtyNowPassed === 0) {
         text += `\nMaterial is Non-conforming as per Lab Report No. [FILL_LAB_REPORT]. In the chemical test, the observed value was [OBSERVED], which exceeds the specified limit.\n`;
     }

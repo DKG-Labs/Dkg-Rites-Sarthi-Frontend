@@ -41,7 +41,8 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
   const allowedFields = [
     "bookNo", "setNo", "offeredInstNo", "passedInstNo", "maNumberAndDate",
     "consignee", "purchasingAuthority", "description", 
-    "qtyOfferedPreviously", "qtyPassedPreviously", "qtyStillDue", "trRecDate"
+    "qtyOfferedPreviously", "qtyPassedPreviously", "qtyStillDue", "trRecDate",
+    "quantityNowPassedText"
   ];
 
   // Sanitize certificate number for display
@@ -284,6 +285,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
             <EditableField
               value={quantityNowPassedText}
               fieldName="quantityNowPassedText"
+              type="textarea"
               placeholder="QUANTITY NOW PASSED: (In words and details...)"
               className="font-bold text-black block leading-normal uppercase italic"
             />

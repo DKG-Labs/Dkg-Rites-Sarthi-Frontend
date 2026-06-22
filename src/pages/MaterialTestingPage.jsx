@@ -474,7 +474,7 @@ const MaterialTestingPage = ({ onBack, heats = [], productModel, onNavigateSubmo
                     <th>%P</th>
                     <th>%S</th>
                     <th>Grain Size</th>
-                    <th>Hardness (HRC)</th>
+                    <th>Hardness ( HBW/HRC/HV )</th>
                     <th>Decarb (mm)</th>
                   </tr>
                 </thead>

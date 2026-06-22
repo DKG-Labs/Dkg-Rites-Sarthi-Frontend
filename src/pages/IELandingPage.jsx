@@ -178,7 +178,20 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
   // Use pending calls directly from API (includes Raw Material, Process, and Final)
   // No need to combine with mock data anymore
   const combinedPendingCalls = useMemo(() => {
-    return pendingCalls;
+    // Sort pending calls by call_date in descending order (latest on top)
+    return [...pendingCalls].sort((a, b) => {
+      const parseDate = (d) => {
+        if (!d) return 0;
+        if (/^\d{2}[-/]\d{2}[-/]\d{4}/.test(d)) {
+          const parts = d.split(/[-/]/);
+          const val = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).getTime();
+          return isNaN(val) ? 0 : val;
+        }
+        const val = new Date(d).getTime();
+        return isNaN(val) ? 0 : val;
+      };
+      return parseDate(b.call_date) - parseDate(a.call_date);
+    });
   }, [pendingCalls]);
 
   // Azure API data for pending tab and IC issuance; mock data for other tabs (billing, etc.)

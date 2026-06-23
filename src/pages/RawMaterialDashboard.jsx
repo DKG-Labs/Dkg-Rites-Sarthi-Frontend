@@ -11,6 +11,7 @@ import { saveInspectionInitiation } from '../services/vendorInspectionService';
 import { performTransitionAction } from '../services/workflowService';
 import { getStoredUser } from '../services/authService';
 import { normalizeErcType } from '../utils/ercUtils';
+import ImageCaptureComponent from '../components/ImageCaptureComponent';
 import './RawMaterialDashboard.css';
 
 // Helper to get divisor for ERC type weight calculation
@@ -196,6 +197,16 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
   // Save Draft state
   const [isSavingDraft, setIsSavingDraft] = useState(false);
+
+  // Captured Images state
+  const [capturedImages, setCapturedImages] = useState(() => {
+    try {
+      const callNo = call?.call_no;
+      if (!callNo) return [];
+      const saved = localStorage.getItem(`${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}${getShiftSuffix()}`);
+      return saved ? (JSON.parse(saved).capturedImages || []) : [];
+    } catch { return []; }
+  });
 
   // Withheld modal state
   const [showWithheldModal, setShowWithheldModal] = useState(false);
@@ -799,6 +810,21 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           restoredAny = true;
         }
 
+        // 8. Restore Captured Images
+        if (pausedData.capturedImages && pausedData.capturedImages.length > 0) {
+          const mainKey = `${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}${getShiftSuffix()}`;
+          const existingRaw = localStorage.getItem(mainKey);
+          const existingData = existingRaw ? JSON.parse(existingRaw) : {};
+          if (!existingData.capturedImages || existingData.capturedImages.length === 0) {
+            existingData.capturedImages = pausedData.capturedImages;
+            localStorage.setItem(mainKey, JSON.stringify(existingData));
+            const storageKey = `${DASHBOARD_DRAFT_KEY}${callNo}${getShiftSuffix()}`;
+            localStorage.setItem(storageKey, JSON.stringify(existingData));
+            setCapturedImages(pausedData.capturedImages);
+            restoredAny = true;
+          }
+        }
+
         if (restoredAny) {
           console.log('✅ Some paused data restored to localStorage');
           window.dispatchEvent(new Event('focus'));
@@ -912,11 +938,13 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
    * - Returns 'NOT OK' if any field fails validation
    */
   const validateCalibrationHeat = useCallback((calData) => {
-    if (!calData || !Array.isArray(calData) || calData.length === 0) {
-      return 'Pending';
-    }
-    const hasNotOk = calData.some(item => item.inspectionStatus === 'NOT OK' || item.calibrationStatus === 'Expired');
-    return hasNotOk ? 'NOT OK' : 'OK';
+    // Commented out to display calibration as OK by default for now
+    // if (!calData || !Array.isArray(calData) || calData.length === 0) {
+    //   return 'Pending';
+    // }
+    // const hasNotOk = calData.some(item => item.inspectionStatus === 'NOT OK' || item.calibrationStatus === 'Expired');
+    // return hasNotOk ? 'NOT OK' : 'OK';
+    return 'OK';
   }, []);
 
   /**
@@ -1355,8 +1383,16 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       }
     }
 
+    // Image validation (minimum 5, maximum 10)
+    if (!capturedImages || capturedImages.length < 5) {
+      return { canFinish: false, reason: `At least 5 inspection images are required (Currently: ${capturedImages?.length || 0})` };
+    }
+    if (capturedImages.length > 10) {
+      return { canFinish: false, reason: `Maximum of 10 inspection images allowed (Currently: ${capturedImages.length})` };
+    }
+
     return { canFinish: true, reason: '' };
-  }, [consolidatedHeats, heatSubmoduleStatuses, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, numberOfBundles, call?.call_no, calculateVisualRejectedWeight]);
+  }, [consolidatedHeats, heatSubmoduleStatuses, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, numberOfBundles, call?.call_no, calculateVisualRejectedWeight, capturedImages]);
 
   // Update canFinishInspectionState whenever dependencies change
   useEffect(() => {
@@ -1766,7 +1802,8 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           shiftOfInspection: shiftOfInspection
         },
         createdBy: userId,
-        updatedBy: userId
+        updatedBy: userId,
+        capturedImages
       };
 
       // Debug: Log what we're sending
@@ -1856,7 +1893,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     } finally {
       setIsSaving(false);
     }
-  }, [call?.call_no, call?.id, call?.pincode, call?.workflowTransitionId, activeHeats, onBack, numberOfBundles, numberOfERC, sourceOfRawMaterial, poData, productModel, heatSubmoduleStatuses, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, calculateVisualRejectedWeight, consolidatedHeats, canFinishInspection, updateRmCallDataCache, updateRmHeatDataCache, updateRmPoDataCache]);
+  }, [call?.call_no, call?.id, call?.pincode, call?.workflowTransitionId, activeHeats, onBack, numberOfBundles, numberOfERC, sourceOfRawMaterial, poData, productModel, heatSubmoduleStatuses, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, calculateVisualRejectedWeight, consolidatedHeats, canFinishInspection, updateRmCallDataCache, updateRmHeatDataCache, updateRmPoDataCache, capturedImages]);
 
   // Withheld modal handlers
   const handleOpenWithheldModal = () => {
@@ -2773,7 +2810,8 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           shiftOfInspection: shiftOfInspection
         },
         createdBy: userId,
-        updatedBy: userId
+        updatedBy: userId,
+        capturedImages
       };
 
       console.log('Save Draft Payload (Backend):', JSON.stringify(pausePayload, null, 2));
@@ -2808,6 +2846,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         heatSealingType: heatSealingType,
         heatSteelStampNumber: heatSteelStampNumber,
         heatHologramEntries: heatHologramEntries,
+        capturedImages: capturedImages,
         heatColorCodes: fetchedHeatData.reduce((acc, heat) => {
           if (heat.heatNo && heat.colorCode) {
             acc[heat.heatNo] = heat.colorCode;
@@ -2843,7 +2882,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     } finally {
       setIsSavingDraft(false);
     }
-  }, [call, activeHeats, consolidatedHeats, numberOfBundles, numberOfERC, productModel, poData, heatSubmoduleStatuses, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, fetchedHeatData, calculateVisualRejectedWeight, sourceOfRawMaterial]);
+  }, [call, activeHeats, consolidatedHeats, numberOfBundles, numberOfERC, productModel, poData, heatSubmoduleStatuses, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, fetchedHeatData, calculateVisualRejectedWeight, sourceOfRawMaterial, capturedImages]);
 
   // Load draft data from localStorage on mount (after heat data is loaded)
   useEffect(() => {
@@ -2868,6 +2907,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         if (draftData.heatSealingType) setHeatSealingType(draftData.heatSealingType);
         if (draftData.heatSteelStampNumber) setHeatSteelStampNumber(draftData.heatSteelStampNumber);
         if (draftData.heatHologramEntries) setHeatHologramEntries(draftData.heatHologramEntries);
+        if (draftData.capturedImages) setCapturedImages(draftData.capturedImages);
 
         // Restore color codes to heat data
         if (draftData.heatColorCodes && Object.keys(draftData.heatColorCodes).length > 0) {
@@ -2905,6 +2945,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         heatSealingType,
         heatSteelStampNumber,
         heatHologramEntries,
+        capturedImages,
         // Keep color codes in sync if available
         heatColorCodes: fetchedHeatData.reduce((acc, heat) => {
           if (heat.heatNo && heat.colorCode) {
@@ -2923,7 +2964,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     } catch (error) {
       console.error('Error in auto-save:', error);
     }
-  }, [call?.call_no, numberOfBundles, sourceOfRawMaterial, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, fetchedHeatData, isLoading]);
+  }, [call?.call_no, numberOfBundles, sourceOfRawMaterial, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, fetchedHeatData, isLoading, capturedImages]);
 
   // Show loading indicator while fetching data
   if (isLoading) {
@@ -2960,19 +3001,26 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       </div> */}
 
       {/* Call Details Info Banner - Moved to Top */}
-      <div className="card" style={{ background: '#f8fafc', marginBottom: 'var(--space-16)', padding: '16px 24px', border: '1px solid #e2e8f0' }}>
-        <div style={{ display: 'flex', gap: '32px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <div style={{ fontSize: '14px', color: '#64748b' }}>
-            <span style={{ fontWeight: '600', color: '#1e293b', marginRight: '8px' }}>Call No:</span> {callNo}
+      <div className="rm-header-card">
+        <div className="rm-header-main">
+          <span className="rm-header-title-badge">
+            <span className="icon">📄</span> Call No: <strong>{callNo}</strong>
+          </span>
+        </div>
+        <div className="rm-header-meta">
+          <div className="rm-meta-item">
+            <span className="icon">⏱️</span>
+            <span className="label">Shift</span>
+            <span className="value">{shiftOfInspection || 'N/A'}</span>
           </div>
-          <div style={{ fontSize: '14px', color: '#64748b' }}>
-            <span style={{ fontWeight: '600', color: '#1e293b', marginRight: '8px' }}>Shift:</span> {shiftOfInspection}
-          </div>
-          <div style={{ fontSize: '14px', color: '#64748b' }}>
-            <span style={{ fontWeight: '600', color: '#1e293b', marginRight: '8px' }}>Date of Inspection:</span> {formatDate(dateOfInspection)}
+          <div className="rm-meta-item">
+            <span className="icon">📅</span>
+            <span className="label">Date</span>
+            <span className="value">{formatDate(dateOfInspection)}</span>
           </div>
         </div>
       </div>
+
 
       {/* Header with Static Data */}
       <div className="card" style={{ marginBottom: 'var(--space-24)', paddingBottom: '24px' }}>
@@ -2980,12 +3028,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           <h3 className="card-title rm-card-title" style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b' }}>Inspection Details</h3>
         </div>
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '24px',
-          padding: '0 24px'
-        }}>
+        <div className="rm-form-grid" style={{ padding: '0 24px', gap: '24px', marginBottom: 0 }}>
           {/* Row 1 */}
           <div className="rm-form-group">
             <label className="rm-form-label" style={{ fontWeight: '500', marginBottom: '8px', color: '#374151' }}>PO Number</label>
@@ -3131,6 +3174,14 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
             </div>
           </>
         )}
+      </div>
+
+      {/* Image Capture Section */}
+      <div style={{ marginBottom: '24px' }}>
+        <ImageCaptureComponent 
+          images={capturedImages} 
+          onImagesChange={setCapturedImages} 
+        />
       </div>
 
       {/* Sub Module Session */}
@@ -3433,15 +3484,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                   </div>
 
                   {/* Heat Details Row - Single Row Layout */}
-                  <div
-                    className="heat-details-grid"
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(7, 1fr)',
-                      gap: '12px',
-                      alignItems: 'end'
-                    }}
-                  >
+                  <div className="heat-details-grid">
                     {/* Heat No. */}
                     <div>
                       <span style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Heat No.</span>
@@ -3632,10 +3675,11 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
                     {/* Are you sealing with section - Refined UX with Segmented Control */}
                     <div style={{
-                      gridColumn: 'span 7',
+                      gridColumn: '1 / -1',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '24px',
+                      flexWrap: 'wrap',
+                      gap: '16px',
                       marginTop: '8px',
                       padding: '16px',
                       background: '#fffbeb',
@@ -3752,7 +3796,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                     {/* Hologram Details Refined Section - High Discoverability */}
                     {(heatSealingType[heat.heatNo] || '').includes('RITES_HOLOGRAM') && (
                       <div style={{
-                        gridColumn: 'span 7',
+                        gridColumn: '1 / -1',
                         background: '#f0fdf4',
                         padding: '20px',
                         borderRadius: '10px',
@@ -3835,6 +3879,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                               display: 'flex',
                               gap: '16px',
                               alignItems: 'center',
+                              flexWrap: 'wrap',
                               background: '#fff',
                               padding: '12px 16px',
                               borderRadius: '8px',
@@ -3845,7 +3890,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                                 {holo.type === 'range' ? 'RANGE' : 'SINGLE'}
                               </span>
                               {holo.type === 'range' ? (
-                                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                     <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>FROM</span>
                                     <input

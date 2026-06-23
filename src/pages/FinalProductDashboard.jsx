@@ -1,20 +1,22 @@
 
 import { useState, useCallback, useEffect, useMemo } from "react";
 import FormField from "../components/FormField";
-import { formatDate, formatPoNoWithSerial } from "../utils/helpers";
+import { formatDate, formatPoNoWithSerial, getCleanErrorMessage } from "../utils/helpers";
 import { markAsWithheld } from '../services/callStatusService';
 import { useInspection } from '../context/InspectionContext';
 import {
   getFinalDashboardData,
   saveCumulativeResults,
   saveInspectionSummary,
-  saveLotResults
+  saveLotResults,
+  getInspectionSummary
 } from '../services/finalProductInspectionService';
 import { getHardnessToeLoadAQL, getDimensionWeightAQL } from '../utils/is2500Calculations';
 import { normalizeErcType } from '../utils/ercUtils';
 import { finishInspection } from '../services/finalInspectionSubmoduleService';
 import { performTransitionAction } from '../services/workflowService';
 import { getStoredUser } from '../services/authService';
+import ImageCaptureComponent from '../components/ImageCaptureComponent';
 import "./FinalProductDashboard.css";
 
 // Reason options for withheld inspection
@@ -42,6 +44,24 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
   const [pauseSuccessData, setPauseSuccessData] = useState(null); // for pause success modal
   const [pauseErrorData, setPauseErrorData] = useState(null);    // for pause failure modal
   const [showPauseConfirm, setShowPauseConfirm] = useState(false); // for pause confirmation modal
+  
+  // Captured Images state
+  const [capturedImages, setCapturedImages] = useState(() => {
+    try {
+      const callNo = selectedCall?.call_no;
+      if (!callNo) return [];
+      const saved = localStorage.getItem(`fpCapturedImages_${callNo}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+
+  // Persist captured images to localStorage
+  useEffect(() => {
+    const callNo = selectedCall?.call_no;
+    if (callNo) {
+      localStorage.setItem(`fpCapturedImages_${callNo}`, JSON.stringify(capturedImages));
+    }
+  }, [capturedImages, selectedCall?.call_no]);
 
   // Calculate Rejected Counts (R1 + R2) per lot from all submodules
   useEffect(() => {
@@ -1002,6 +1022,36 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
           setCleanedWithCoating(persistedCleanedWithCoating === 'true');
           console.log('✅ Cleaned with coating state restored from localStorage');
         }
+
+        // Fetch inspection summary from backend if not present in local storage
+        const fetchSummary = async () => {
+          try {
+            const summary = await getInspectionSummary(callNo);
+            if (summary) {
+              console.log('✅ Fetched inspection summary from backend:', summary);
+              
+              const localPacked = localStorage.getItem(`fpPackedInHDPE_${callNo}`);
+              const localCleaned = localStorage.getItem(`fpCleanedWithCoating_${callNo}`);
+              const localImages = localStorage.getItem(`fpCapturedImages_${callNo}`);
+
+              if (localPacked === null && summary.packedInHdpe !== undefined) {
+                setPackedInHDPE(summary.packedInHdpe);
+                localStorage.setItem(`fpPackedInHDPE_${callNo}`, String(summary.packedInHdpe));
+              }
+              if (localCleaned === null && summary.cleanedWithCoating !== undefined) {
+                setCleanedWithCoating(summary.cleanedWithCoating);
+                localStorage.setItem(`fpCleanedWithCoating_${callNo}`, String(summary.cleanedWithCoating));
+              }
+              if ((!localImages || JSON.parse(localImages).length === 0) && summary.capturedImages && summary.capturedImages.length > 0) {
+                setCapturedImages(summary.capturedImages);
+                localStorage.setItem(`fpCapturedImages_${callNo}`, JSON.stringify(summary.capturedImages));
+              }
+            }
+          } catch (e) {
+            console.log('ℹ️ No paused inspection summary found in backend:', e.message);
+          }
+        };
+        fetchSummary();
       } catch (error) {
         console.error('Error restoring form state from localStorage:', error);
       }
@@ -1348,7 +1398,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
       alert(summaryMsg);
     } catch (error) {
       console.error('Error saving draft:', error);
-      alert(`❌ Failed to save draft: ${error.message}`);
+      alert(`❌ Failed to save draft: ${getCleanErrorMessage(error)}`);
     } finally {
       setIsSavingDraft(false);
     }
@@ -1397,6 +1447,16 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     const callNo = selectedCall?.call_no;
     if (!callNo) {
       alert('❌ Call number not found. Cannot finish inspection.');
+      return;
+    }
+
+    // Image validation (minimum 5, maximum 10)
+    if (!capturedImages || capturedImages.length < 5) {
+      alert(`❌ At least 5 inspection images are required to finish the inspection (Currently: ${capturedImages?.length || 0})`);
+      return;
+    }
+    if (capturedImages.length > 10) {
+      alert(`❌ Maximum of 10 inspection images allowed (Currently: ${capturedImages.length})`);
       return;
     }
 
@@ -1456,7 +1516,8 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
         createdBy: currentUser,
         createdAt: now,
         updatedBy: currentUser,
-        updatedAt: now
+        updatedAt: now,
+        capturedImages
       };
 
       // 3. Prepare lot results data for all lots
@@ -1576,7 +1637,7 @@ Workflow Status: ✅ Transitioned to COMPLETED
       onBack();
     } catch (error) {
       console.error('❌ Error finishing inspection:', error);
-      const errorMsg = error.message || 'Failed to finish inspection. Please try again.';
+      const errorMsg = getCleanErrorMessage(error);
       alert(`❌ Error: ${errorMsg}`);
     } finally {
       setIsFinishingInspection(false);
@@ -1644,7 +1705,8 @@ Workflow Status: ✅ Transitioned to COMPLETED
         createdBy: currentUser,
         createdAt: now,
         updatedBy: currentUser,
-        updatedAt: now
+        updatedAt: now,
+        capturedImages
       };
 
       // 3. Prepare lot results data for all lots
@@ -1730,7 +1792,7 @@ Workflow Status: ✅ Transitioned to COMPLETED
       // onBack() is called when the user clicks OK in the modal
     } catch (error) {
       console.error('❌ Error pausing inspection:', error);
-      const errorMsg = error.message || 'Failed to pause inspection. Please try again.';
+      const errorMsg = getCleanErrorMessage(error);
       setPauseErrorData({ message: errorMsg });
     } finally {
       setIsPausingInspection(false);
@@ -1875,6 +1937,14 @@ Workflow Status: ✅ Transitioned to COMPLETED
                 <input className="fp-input" value={lotsWithSampling.reduce((sum, lot) => sum + calculateBagsForSampling(lot.noOfBags), 0) || "-"} disabled />
               </FormField>
             </div>
+          </div>
+
+          {/* Image Capture Section */}
+          <div style={{ marginBottom: '24px' }}>
+            <ImageCaptureComponent 
+              images={capturedImages} 
+              onImagesChange={setCapturedImages} 
+            />
           </div>
 
           {/* SUBMODULE GRID */}
@@ -2184,28 +2254,28 @@ Workflow Status: ✅ Transitioned to COMPLETED
                           {holo.type === 'range' ? (
                             <>
                               <input
-                                className="fp-input"
+                                className="fp-input fp-holo-input"
                                 placeholder="From"
                                 value={holo.from || ''}
                                 onChange={(e) => updateHologram(lot.lotNo, idx, 'from', e.target.value)}
-                                style={{ width: '80px', fontSize: '11px', padding: '4px' }}
+                                style={{ fontSize: '11px', padding: '6px' }}
                               />
                               <span style={{ fontSize: '10px' }}>to</span>
                               <input
-                                className="fp-input"
+                                className="fp-input fp-holo-input"
                                 placeholder="To"
                                 value={holo.to || ''}
                                 onChange={(e) => updateHologram(lot.lotNo, idx, 'to', e.target.value)}
-                                style={{ width: '80px', fontSize: '11px', padding: '4px' }}
+                                style={{ fontSize: '11px', padding: '6px' }}
                               />
                             </>
                           ) : (
                             <input
-                              className="fp-input"
+                              className="fp-input fp-holo-input"
                               placeholder="Hologram No."
                               value={holo.value || ''}
                               onChange={(e) => updateHologram(lot.lotNo, idx, 'value', e.target.value)}
-                              style={{ width: '120px', fontSize: '11px', padding: '4px' }}
+                              style={{ fontSize: '11px', padding: '6px' }}
                             />
                           )}
                           {data.holograms.length > 1 && (
@@ -2240,7 +2310,6 @@ Workflow Status: ✅ Transitioned to COMPLETED
               );
             }) : null}
           </div>
-
 
           {/* ACTION BUTTONS */}
           <div className="fp-actions">
@@ -2280,11 +2349,12 @@ Workflow Status: ✅ Transitioned to COMPLETED
             <button
               className="btn btn-primary"
               onClick={handleFinishInspection}
-              disabled={isFinishingInspection || isSavingDraft || isPausingInspection}
+              disabled={isFinishingInspection || isSavingDraft || isPausingInspection || !capturedImages || capturedImages.length < 5}
               style={{
-                cursor: (isSavingDraft || isPausingInspection || isFinishingInspection) ? 'not-allowed' : 'pointer',
-                opacity: (isSavingDraft || isPausingInspection || isFinishingInspection) ? 0.6 : 1
+                cursor: (isSavingDraft || isPausingInspection || isFinishingInspection || !capturedImages || capturedImages.length < 5) ? 'not-allowed' : 'pointer',
+                opacity: (isSavingDraft || isPausingInspection || isFinishingInspection || !capturedImages || capturedImages.length < 5) ? 0.6 : 1
               }}
+              title={(!capturedImages || capturedImages.length < 5) ? `At least 5 inspection images are required (Currently: ${capturedImages?.length || 0})` : ''}
             >
               {isFinishingInspection ? '⏳ Finishing...' : '✅ Finish Inspection'}
             </button>

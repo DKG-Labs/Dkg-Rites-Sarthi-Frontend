@@ -13,6 +13,7 @@
  */
 
 import React, { useState } from 'react';
+import { getCleanErrorMessage } from '../utils/helpers';
 
 const InspectionResultModal = ({
   isOpen,
@@ -342,7 +343,7 @@ const InspectionResultModal = ({
               fontWeight: '400'
             }}
           >
-            {message || getDefaultMessage(actionType)}
+            {message ? getCleanErrorMessage(message) : getDefaultMessage(actionType)}
           </p>
         </div>
 

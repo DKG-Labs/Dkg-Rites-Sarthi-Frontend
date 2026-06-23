@@ -377,3 +377,12 @@ export const getAcceptedQuantitySum = async (callNo, lotNo) => {
   return data.responseData || data;
 };
 
+export const getProcessInspectionByCallNo = async (callNo) => {
+  const response = await fetch(
+    `${API_BASE_URL}/inspection/${encodeURIComponent(callNo)}`,
+    { method: 'GET', headers: getAuthHeaders() }
+  );
+  const data = await handleResponse(response);
+  return data.responseData || null;
+};
+

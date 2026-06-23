@@ -42,6 +42,8 @@ const CompactionConcrete = ({
     displayMode = 'modal', 
     showForm: propsShowForm, 
     setShowForm: propsSetShowForm, 
+    batches = [],
+    tensionRecords = [],
     activeContainer, 
     loadShiftData, 
     sharedState = {} 
@@ -117,11 +119,48 @@ const CompactionConcrete = ({
 
             if (dateToUse && locationToUse) {
                 try {
-                    const data = await getBatchNosForCompaction({ 
-                        entryDate: dateToUse, 
-                        location: locationToUse
+                    const response = await getBatchNosForCompaction({ entryDate: dateToUse, location: locationToUse });
+                    
+                    // Merge API response with batches prop and deduplicate by batchNumber
+                    const uniqueBatches = new Map();
+                    
+                    // Add batches from prop (these come from BatchWeighment grouped by lineNo)
+                    if (Array.isArray(batches)) {
+                        batches.forEach(b => {
+                            const bLoc = (b.location || b.lineNo || "").trim();
+                            const cLoc = (locationToUse || "").trim();
+                            if (!bLoc || bLoc === cLoc) {
+                                const batchNum = b.batchNo || b.batchNumber;
+                                if (batchNum && !uniqueBatches.has(batchNum)) {
+                                    uniqueBatches.set(batchNum, { ...b, batchNumber: batchNum });
+                                }
+                            }
+                        });
+                    }
+
+                    // Add batches from Wire Tensioning (tensionRecords)
+                    if (Array.isArray(tensionRecords)) {
+                        tensionRecords.forEach(b => {
+                            const bLoc = (b.location || b.lineNo || "").trim();
+                            const cLoc = (locationToUse || "").trim();
+                            if (!bLoc || bLoc === cLoc) {
+                                const batchNum = b.batchNo || b.batchNumber;
+                                if (batchNum && !uniqueBatches.has(batchNum)) {
+                                    uniqueBatches.set(batchNum, { ...b, batchNumber: batchNum });
+                                }
+                            }
+                        });
+                    }
+
+                    // Add batches from API
+                    response.forEach(b => {
+                        const batchNum = b.batchNo || b.batchNumber;
+                        if (batchNum && !uniqueBatches.has(batchNum)) {
+                            uniqueBatches.set(batchNum, { ...b, batchNumber: batchNum });
+                        }
                     });
-                    setBatchOptions(data || []);
+                    
+                    setBatchOptions(Array.from(uniqueBatches.values()));
                 } catch (err) {
                     console.error("Error fetching batch numbers for compaction:", err);
                     setBatchOptions([]);
@@ -131,7 +170,7 @@ const CompactionConcrete = ({
             }
         };
         fetchBatches();
-    }, [manualForm.dateOfCasting, manualForm.location, showForm]);
+    }, [manualForm.dateOfCasting, manualForm.location, showForm, batches, tensionRecords]);
 
     // Mock SCADA Data 
     // Track SCADA records (real or mock)

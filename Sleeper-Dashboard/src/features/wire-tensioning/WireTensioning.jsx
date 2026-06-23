@@ -164,11 +164,23 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
 
         // From raw Scada feed
         if (scadaRecords) {
-            scadaRecords.forEach(r => { if (r.batchNo) bSet.add(String(r.batchNo)); });
+            scadaRecords.forEach(r => { 
+                const rLoc = (r.location || r.lineNo || "").trim();
+                const cLoc = (selectedLocation || "").trim();
+                if (!rLoc || rLoc === cLoc) {
+                    if (r.batchNo) bSet.add(String(r.batchNo)); 
+                }
+            });
         }
         // From existing logs
         if (tensionRecords) {
-            tensionRecords.forEach(r => { if (r.batchNo) bSet.add(String(r.batchNo)); });
+            tensionRecords.forEach(r => { 
+                const rLoc = (r.location || r.lineNo || "").trim();
+                const cLoc = (selectedLocation || "").trim();
+                if (!rLoc || rLoc === cLoc) {
+                    if (r.batchNo) bSet.add(String(r.batchNo)); 
+                }
+            });
         }
 
         return Array.from(bSet).sort();

@@ -250,12 +250,30 @@ export const ShiftProvider = ({ children }) => {
             const res = await apiService.getWireTensioningTodayRecord(params);
             if (res?.responseData) {
                 const flattenedRecords = mapWireTensionRecords(res.responseData);
-                setAllTensionRecords(prev => ({ ...prev, [activeContainerId]: flattenedRecords }));
+                
+                setAllTensionRecords(prev => {
+                    const nextState = { ...prev };
+                    // Clear existing arrays for a fresh fetch to prevent duplicate appending
+                    containers.forEach(c => {
+                        nextState[c.id] = [];
+                    });
+                    
+                    flattenedRecords.forEach(record => {
+                        const loc = (record.location || "").trim();
+                        const matchedContainer = containers.find(c => c.name.trim() === loc);
+                        const containerId = matchedContainer ? matchedContainer.id : 1;
+                        if (!nextState[containerId]) {
+                            nextState[containerId] = [];
+                        }
+                        nextState[containerId].push(record);
+                    });
+                    return nextState;
+                });
             }
         } catch (error) {
             console.error("Error fetching wire tension:", error);
         }
-    }, [userId, vendorCode, selectedShift, dutyUnit, dutyDate, activeContainerId]);
+    }, [userId, vendorCode, selectedShift, dutyUnit, dutyDate, activeContainerId, containers]);
 
     const fetchCompaction = useCallback(async () => {
         const currentUserId = userId || localStorage.getItem('userId');

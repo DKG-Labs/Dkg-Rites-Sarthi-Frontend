@@ -236,9 +236,11 @@ const SleeperProcessDuty = () => {
                                     compactionRecords,
                                     setAllCompactionRecords: (data) => setAllCompactionRecords(prev => ({ ...prev, [activeContainerId]: typeof data === 'function' ? data(prev[activeContainerId] || []) : data }))
                                 }}
+                                activeContainer={activeContainer}
                                 showForm={showCompactionForm}
                                 setShowForm={setShowCompactionForm}
                                 loadShiftData={fetchCompaction}
+                                tensionRecords={allTensionRecords?.[activeContainerId] || []}
                             />
                         </div>
                     )}

@@ -2365,7 +2365,8 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           shiftOfInspection: shiftOfInspection
         },
         createdBy: userId,
-        updatedBy: userId
+        updatedBy: userId,
+        capturedImages
       };
 
       console.log('Pause Inspection Payload:', JSON.stringify(pausePayload, null, 2));
@@ -2458,7 +2459,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       setIsSaving(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [call, onBack, activeHeats, numberOfBundles, numberOfERC, sourceOfRawMaterial, poData, productModel, heatSubmoduleStatuses, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, updateRmCallDataCache, updateRmHeatDataCache, updateRmPoDataCache]);
+  }, [call, onBack, activeHeats, numberOfBundles, numberOfERC, sourceOfRawMaterial, poData, productModel, heatSubmoduleStatuses, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, updateRmCallDataCache, updateRmHeatDataCache, updateRmPoDataCache, capturedImages]);
 
   // Save Draft handler - saves draft data locally and to the backend database
   const handleSaveDraft = useCallback(async () => {

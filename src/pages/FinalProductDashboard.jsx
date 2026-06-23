@@ -1322,7 +1322,8 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
         createdBy: currentUser,
         createdAt: now,
         updatedBy: currentUser,
-        updatedAt: now
+        updatedAt: now,
+        capturedImages
       };
 
       // 3. Prepare lot results data for all lots
@@ -1377,7 +1378,8 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
         savedAt: new Date().toISOString(),
         lotInspectionData: lotInspectionData,
         packedInHDPE: packedInHDPE,
-        cleanedWithCoating: cleanedWithCoating
+        cleanedWithCoating: cleanedWithCoating,
+        capturedImages: capturedImages
       };
 
       const storageKey = `${DASHBOARD_DRAFT_KEY}${callNo}`;
@@ -1415,7 +1417,8 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     bagsOffered,
     poData,
     testResultsPerLot,
-    isLotRejected
+    isLotRejected,
+    capturedImages
   ]);
 
   // Load draft data from localStorage on mount
@@ -1434,6 +1437,9 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
         if (draftData.lotInspectionData) setLotInspectionData(draftData.lotInspectionData);
         if (draftData.packedInHDPE !== undefined) setPackedInHDPE(draftData.packedInHDPE);
         if (draftData.cleanedWithCoating !== undefined) setCleanedWithCoating(draftData.cleanedWithCoating);
+        if (draftData.capturedImages && draftData.capturedImages.length > 0) {
+          setCapturedImages(draftData.capturedImages);
+        }
 
         console.log('✅ Draft data loaded successfully');
       }

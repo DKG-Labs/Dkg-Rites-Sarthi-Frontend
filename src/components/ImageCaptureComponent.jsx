@@ -3,6 +3,8 @@ import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import DeleteIcon from '@mui/icons-material/Delete';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import DownloadIcon from '@mui/icons-material/Download';
+import { API_BASE_URL } from '../services/apiConfig';
 
 /**
  * Component for capturing images and geofencing data
@@ -125,6 +127,60 @@ const ImageCaptureComponent = ({ images = [], onImagesChange }) => {
     const newImages = [...images];
     newImages.splice(index, 1);
     onImagesChange(newImages);
+  };
+
+  /**
+   * Returns the correct src URL for an image.
+   * Images loaded from backend arrive as "/api/images/filename.jpg" proxy paths.
+   * Newly captured images arrive as "data:image/jpeg;base64,..." data URLs.
+   */
+  const getImageSrc = (img) => {
+    const src = img.preview || img.base64Data;
+    if (!src) return null;
+    if (src.startsWith('/api/images/')) {
+      // Proxy path - prepend backend base URL so the browser fetches through our server
+      return `${API_BASE_URL}${src}`;
+    }
+    return src; // base64 data URL (newly captured, not yet saved)
+  };
+
+  /**
+   * Downloads an inspection photo to the user's device.
+   * - For proxy URLs: fetches the image through the backend proxy and saves as file.
+   * - For base64 data URLs: converts to blob and saves directly.
+   */
+  const downloadImage = async (img, index) => {
+    const src = img.preview || img.base64Data;
+    if (!src) return;
+    try {
+      let blobUrl;
+      let filename = `inspection_photo_${index + 1}.jpg`;
+      const token = localStorage.getItem('token');
+      if (src.startsWith('/api/images/')) {
+        const response = await fetch(`${API_BASE_URL}${src}`, {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const blob = await response.blob();
+        blobUrl = URL.createObjectURL(blob);
+        const namePart = src.split('/').pop();
+        if (namePart) filename = namePart;
+      } else {
+        const response = await fetch(src);
+        const blob = await response.blob();
+        blobUrl = URL.createObjectURL(blob);
+      }
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+    } catch (err) {
+      console.error('Download failed:', err);
+      alert('Failed to download image. Please try again.');
+    }
   };
 
   const getValidation = () => {
@@ -546,6 +602,31 @@ const ImageCaptureComponent = ({ images = [], onImagesChange }) => {
           transform: scale(1.15);
         }
 
+        .photo-download-btn {
+          position: absolute;
+          top: 8px;
+          right: 72px;
+          width: 26px;
+          height: 26px;
+          border-radius: 50%;
+          background-color: rgba(255, 255, 255, 0.95);
+          color: #16a34a;
+          border: none;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+          transition: all 0.2s ease;
+          z-index: 2;
+        }
+
+        .photo-download-btn:hover {
+          background-color: #16a34a;
+          color: #ffffff;
+          transform: scale(1.15);
+        }
+
         /* Lightbox modal styles */
         .lightbox-overlay {
           position: fixed;
@@ -795,6 +876,9 @@ const ImageCaptureComponent = ({ images = [], onImagesChange }) => {
         <div className="capture-title-group">
           <h3>📸 Photo Inspection Records</h3>
           <p>Enforce location verification and photo evidence logs</p>
+          <p style={{ margin: '4px 0 0 0', fontSize: '0.775rem', color: '#94a3b8' }}>
+            Max <strong style={{ color: '#0284c7' }}>10 images</strong> &nbsp;·&nbsp; Max file size: <strong style={{ color: '#0284c7' }}>10 MB</strong> per image
+          </p>
         </div>
         
         <div className="capture-header-right">
@@ -853,7 +937,6 @@ const ImageCaptureComponent = ({ images = [], onImagesChange }) => {
             id="empty-capture-button-file"
             multiple
             type="file"
-            capture="environment"
             onChange={handleFileChange}
           />
           <label 
@@ -877,7 +960,17 @@ const ImageCaptureComponent = ({ images = [], onImagesChange }) => {
             <div className="photo-card" key={index}>
               {/* Photo Index */}
               <div className="photo-index-tag">#{index + 1}</div>
-              
+
+              {/* Download Button */}
+              <button
+                type="button"
+                className="photo-download-btn"
+                onClick={() => downloadImage(img, index)}
+                title="Download photo"
+              >
+                <DownloadIcon sx={{ fontSize: '1rem' }} />
+              </button>
+
               {/* View Button */}
               <button 
                 type="button" 
@@ -898,8 +991,8 @@ const ImageCaptureComponent = ({ images = [], onImagesChange }) => {
                 <DeleteIcon sx={{ fontSize: '1rem' }} />
               </button>
 
-              {/* Photo image */}
-              <img src={img.preview || img.base64Data} alt={`Capture ${index + 1}`} />
+              {/* Photo image - use getImageSrc to handle both proxy URLs and base64 */}
+              <img src={getImageSrc(img)} alt={`Capture ${index + 1}`} />
 
               {/* HUD / Watermark Overlay */}
               <div className="photo-watermark-overlay">
@@ -928,7 +1021,6 @@ const ImageCaptureComponent = ({ images = [], onImagesChange }) => {
                 id="grid-capture-button-file"
                 multiple
                 type="file"
-                capture="environment"
                 onChange={handleFileChange}
               />
               <label 
@@ -971,7 +1063,7 @@ const ImageCaptureComponent = ({ images = [], onImagesChange }) => {
             {/* Image Container */}
             <div className="lightbox-image-container">
               <img 
-                src={activePreviewImage.preview || activePreviewImage.base64Data} 
+                src={getImageSrc(activePreviewImage)} 
                 alt="Full preview" 
               />
             </div>

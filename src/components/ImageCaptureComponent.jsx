@@ -132,6 +132,7 @@ const ImageCaptureComponent = ({ images = [], onImagesChange }) => {
   /**
    * Returns the correct src URL for an image.
    * Images loaded from backend arrive as "/api/images/filename.jpg" proxy paths.
+   * Legacy images (saved before proxy) may arrive as full Azure blob URLs.
    * Newly captured images arrive as "data:image/jpeg;base64,..." data URLs.
    */
   const getImageSrc = (img) => {
@@ -141,12 +142,20 @@ const ImageCaptureComponent = ({ images = [], onImagesChange }) => {
       // Proxy path - prepend backend base URL so the browser fetches through our server
       return `${API_BASE_URL}${src}`;
     }
+    // Handle legacy Azure blob URLs (stored in DB before proxy was implemented).
+    // These fail with 409 because the storage account has public access disabled.
+    // Extract the filename and redirect through our backend proxy instead.
+    if (src.includes('blob.core.windows.net')) {
+      const filename = src.split('/').pop();
+      if (filename) return `${API_BASE_URL}/api/images/${filename}`;
+    }
     return src; // base64 data URL (newly captured, not yet saved)
   };
 
   /**
    * Downloads an inspection photo to the user's device.
    * - For proxy URLs: fetches the image through the backend proxy and saves as file.
+   * - For Azure blob URLs: extracts filename and fetches through proxy.
    * - For base64 data URLs: converts to blob and saves directly.
    */
   const downloadImage = async (img, index) => {
@@ -156,20 +165,36 @@ const ImageCaptureComponent = ({ images = [], onImagesChange }) => {
       let blobUrl;
       let filename = `inspection_photo_${index + 1}.jpg`;
       const token = localStorage.getItem('token');
+
+      // Determine the fetch URL - always route through our backend proxy
+      let fetchUrl = null;
       if (src.startsWith('/api/images/')) {
-        const response = await fetch(`${API_BASE_URL}${src}`, {
+        fetchUrl = `${API_BASE_URL}${src}`;
+        const namePart = src.split('/').pop();
+        if (namePart) filename = namePart;
+      } else if (src.includes('blob.core.windows.net')) {
+        // Legacy Azure URL - redirect through proxy
+        const namePart = src.split('/').pop();
+        if (namePart) {
+          fetchUrl = `${API_BASE_URL}/api/images/${namePart}`;
+          filename = namePart;
+        }
+      }
+
+      if (fetchUrl) {
+        const response = await fetch(fetchUrl, {
           headers: token ? { 'Authorization': `Bearer ${token}` } : {}
         });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const blob = await response.blob();
         blobUrl = URL.createObjectURL(blob);
-        const namePart = src.split('/').pop();
-        if (namePart) filename = namePart;
       } else {
+        // base64 data URL - convert directly
         const response = await fetch(src);
         const blob = await response.blob();
         blobUrl = URL.createObjectURL(blob);
       }
+
       const link = document.createElement('a');
       link.href = blobUrl;
       link.download = filename;

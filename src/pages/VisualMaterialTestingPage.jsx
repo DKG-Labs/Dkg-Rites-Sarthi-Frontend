@@ -729,7 +729,7 @@ const VisualMaterialTestingPage = ({ onBack, heats = [], productModel = 'ERC-12'
                       <th>%P</th>
                       <th>%S</th>
                       <th>Grain Size</th>
-                      <th>Hardness (HRC)</th>
+                      <th>Hardness ( HBW/HRC/HV )</th>
                       <th>Decarb (mm)</th>
                     </tr>
                   </thead>
@@ -764,7 +764,7 @@ const VisualMaterialTestingPage = ({ onBack, heats = [], productModel = 'ERC-12'
                               value={sample.grainSize} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'grainSize', e.target.value)}
                               placeholder="≥6" />
                           </td>
-                          <td data-label="Hardness (HRC)">
+                          <td data-label="Hardness ( HBW/HRC/HV )">
                             <input type="number" step="1" className="form-control" required
                               value={sample.hardness} onChange={(e) => updateMaterialField(heatIndex, sampleIndex, 'hardness', e.target.value)} />
                           </td>

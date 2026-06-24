@@ -11,7 +11,7 @@ import {
 import { formatDate } from "../../utils/helpers";
 import ErcProcessIc from "./ErcProcessIc";
 import { exportToPdf, generatePdfBase64 } from "../../utils/exportUtils";
-import { uploadSignedCertificate, saveProcessIcEditData, getProcessIcEditData, validateBookSetNo } from "../../services/certificateService";
+import { uploadSignedCertificate, saveProcessIcEditData, getProcessIcEditData, saveProcessIcSaveChanges, getProcessIcSaveChanges, validateBookSetNo } from "../../services/certificateService";
 import { performTransitionAction } from "../../services/workflowService";
 import { getCurrentUserId } from "../../services/workflowApiService";
 import { getStoredUser } from "../../services/authService";
@@ -83,7 +83,10 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
         let initialData = transformCallToIC(call);
         const icNumber = initialData.certificateNo || call.icNo || call.call_no;
         if (icNumber) {
-          const savedEdit = await getProcessIcEditData(icNumber);
+          let savedEdit = await getProcessIcSaveChanges(icNumber);
+          if (!savedEdit) {
+            savedEdit = await getProcessIcEditData(icNumber);
+          }
           if (savedEdit) {
             initialData = {
               ...initialData,
@@ -92,6 +95,12 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
               offeredInstNo: savedEdit.offeredInstallmentNo || initialData.offeredInstNo,
               passedInstNo: savedEdit.passedInstallmentNo || initialData.passedInstNo,
               consigneeRailway: savedEdit.consignee || initialData.consigneeRailway,
+              contractRef: savedEdit.contractRef || initialData.contractRef,
+              maNumberAndDate: savedEdit.maNumberAndDate || initialData.maNumberAndDate,
+              billPayingOfficer: savedEdit.billPayingOfficer || initialData.billPayingOfficer,
+              purchasingAuthority: savedEdit.purchasingAuthority || initialData.purchasingAuthority,
+              description: savedEdit.description || initialData.description,
+              qapNo: savedEdit.qapNo || initialData.qapNo,
             };
           }
         }
@@ -114,6 +123,33 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
       newArray[index] = { ...newArray[index], [field]: value };
       return { ...prev, [arrayField]: newArray };
     });
+  };
+  const handleSaveChanges = async () => {
+    try {
+      setNotification({ open: true, message: "Saving draft changes...", severity: 'info' });
+      await saveProcessIcSaveChanges({
+          icNumber: dataToPass.certificateNo || call.icNo || call.call_no || "ProcessMaterial_IC",
+          certificateId: null,
+          bookNo: dataToPass.bookNo,
+          setNo: dataToPass.setNo,
+          offeredInstallmentNo: dataToPass.offeredInstNo,
+          passedInstallmentNo: dataToPass.passedInstNo,
+          consignee: dataToPass.consigneeRailway,
+          contractRef: dataToPass.contractRef,
+          maNumberAndDate: dataToPass.maNumberAndDate,
+          billPayingOfficer: dataToPass.billPayingOfficer,
+          purchasingAuthority: dataToPass.purchasingAuthority,
+          description: dataToPass.description,
+          qapNo: dataToPass.qapNo,
+          createdBy: getCurrentUserId()?.toString(),
+          updatedBy: getCurrentUserId()?.toString()
+      });
+      setNotification({ open: true, message: "Changes saved successfully as draft!", severity: 'success' });
+      setIsEditing(false);
+    } catch (error) {
+      console.error("Save Changes Error:", error);
+      setNotification({ open: true, message: error.message || "Failed to save draft changes.", severity: 'error' });
+    }
   };
 
   const dataToPass = editableData || transformCallToIC(call);
@@ -180,7 +216,14 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
           offeredInstallmentNo: dataToPass.offeredInstNo,
           passedInstallmentNo: dataToPass.passedInstNo,
           consignee: dataToPass.consigneeRailway,
-          createdBy: getCurrentUserId()?.toString()
+          contractRef: dataToPass.contractRef,
+          maNumberAndDate: dataToPass.maNumberAndDate,
+          billPayingOfficer: dataToPass.billPayingOfficer,
+          purchasingAuthority: dataToPass.purchasingAuthority,
+          description: dataToPass.description,
+          qapNo: dataToPass.qapNo,
+          createdBy: getCurrentUserId()?.toString(),
+          updatedBy: getCurrentUserId()?.toString()
       });
 
       // 3. Generate PDF Snapshot from Frontend (Bypasses PE-02 Backend parsing issues)
@@ -240,7 +283,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
             variant="outlined" 
             color="primary" 
             size="small" 
-            onClick={() => setIsEditing(!isEditing)}
+            onClick={isEditing ? handleSaveChanges : () => setIsEditing(true)}
             disabled={isESigning}
           >
             {isEditing ? "Save Changes" : "Edit Certificate"}

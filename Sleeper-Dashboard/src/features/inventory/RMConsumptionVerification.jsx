@@ -29,12 +29,6 @@ const RMConsumptionVerification = ({ rmCategory }) => {
 
     return (
         <div className="rm-consumption-verification fade-in">
-            <header className="cv-header">
-                <div>
-                    <h2>IE {rmCategory.name} Consumption Verification</h2>
-                    <p>Verify RM consumption and wastage entries submitted by the Vendor.</p>
-                </div>
-            </header>
 
             <div className="cv-tabs">
                 <button 

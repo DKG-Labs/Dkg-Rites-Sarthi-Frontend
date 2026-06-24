@@ -3,7 +3,7 @@ import ProcessLineToggle from '../components/ProcessLineToggle';
 import ProcessSubmoduleNav from '../components/ProcessSubmoduleNav';
 import StatusBadge from '../components/StatusBadge';
 import FormField from '../components/FormField';
-import { formatPoNoWithSerial } from '../utils/helpers';
+import { formatPoNoWithSerial, getCleanErrorMessage } from '../utils/helpers';
 import {
   getSummaryByPoLine,
   saveSummaryReport,
@@ -109,7 +109,7 @@ const ProcessSummaryReportsPage = ({ call, onBack, selectedLines = [], onNavigat
       alert('Process accepted and inspection completed!');
       onBack();
     } catch (err) {
-      alert('Failed to complete inspection: ' + err.message);
+      alert('Failed to complete inspection: ' + getCleanErrorMessage(err));
     } finally {
       setIsSaving(false);
     }
@@ -127,7 +127,7 @@ const ProcessSummaryReportsPage = ({ call, onBack, selectedLines = [], onNavigat
       alert('Process rejected');
       onBack();
     } catch (err) {
-      alert('Failed to reject: ' + err.message);
+      alert('Failed to reject: ' + getCleanErrorMessage(err));
     } finally {
       setIsSaving(false);
     }
@@ -150,7 +150,7 @@ const ProcessSummaryReportsPage = ({ call, onBack, selectedLines = [], onNavigat
       alert('Inspection paused');
       onBack();
     } catch (err) {
-      alert('Failed to pause: ' + err.message);
+      alert('Failed to pause: ' + getCleanErrorMessage(err));
     } finally {
       setIsSaving(false);
     }

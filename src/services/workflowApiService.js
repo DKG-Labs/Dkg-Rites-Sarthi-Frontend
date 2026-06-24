@@ -81,12 +81,11 @@ export const fetchCompletedCallsForIC = async (userId, forceRefresh = false) => 
             const isProcessIe = call.processIes && call.processIes.includes(Number(userId));
             const isFinalIe = call.finalIes && call.finalIes.includes(Number(userId));
             const isCreator = String(call.createdBy) === String(userId);
-            const isModifier = String(call.modifiedBy) === String(userId);
+            const isModified = String(call.modifiedBy) === String(userId);
             
-            // Grant access if user is assigned, creator, modifier, or in IE arrays.
-            // The API already scopes results by modifiedBy, so all returned calls
-            // are relevant to this user regardless of who is currently assignedToUser.
-            const hasAccess = isAssigned || isCreator || isModifier || isProcessIe || isFinalIe;
+            // If assignedToUser is null, fallback to checking if they are in the IEs array or creator.
+            // Also display if the current user modified this transition.
+            const hasAccess = isAssigned || isModified || ((!call.assignedToUser) && (isProcessIe || isFinalIe || isCreator));
             
             return hasAccess && call.status !== 'DSC_SIGN_IC';
         });

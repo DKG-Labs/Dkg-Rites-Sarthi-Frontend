@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import './RMInventoryRegister.css';
 
 const MOCK_LEDGER_DATA = [
@@ -32,13 +34,44 @@ const RMInventoryRegister = ({ rmCategory }) => {
         return true;
     });
 
+    // Download PDF function
+    const handleDownloadPDF = () => {
+        const doc = new jsPDF();
+        
+        doc.setFontSize(16);
+        doc.text(`${rmCategory.name} Inventory Register`, 14, 15);
+        
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 22);
+
+        autoTable(doc, {
+            startY: 28,
+            head: [['Date', 'Raw Material & Type', 'Quantity Procured', 'Quantity Used', 'Balance']],
+            body: filteredData.map(row => [
+                row.date,
+                `${rmCategory.name} - ${row.subType}`,
+                row.procured > 0 ? `+${row.procured} ${rmCategory.unit || 'MT'}` : '-',
+                row.used > 0 ? `-${row.used} ${rmCategory.unit || 'MT'}` : '-',
+                `${row.balance} ${rmCategory.unit || 'MT'}`
+            ]),
+            theme: 'striped',
+            headStyles: { fillColor: [66, 129, 140] },
+            styles: { fontSize: 9 },
+            columnStyles: {
+                2: { halign: 'right' },
+                3: { halign: 'right' },
+                4: { halign: 'right', fontStyle: 'bold' }
+            }
+        });
+
+        doc.save(`${rmCategory.name}_Inventory_Register.pdf`);
+    };
+
     return (
         <div className="rm-inventory-register fade-in">
             <header className="reg-header">
-                <div>
-                    <h2>{rmCategory.name} Inventory Register</h2>
-                    <p>Official inventory ledger tracking verified quantities procured vs used.</p>
-                </div>
+
                 <div className="reg-filters">
                     <div className="filter-group">
                         <label>From Date</label>
@@ -69,6 +102,14 @@ const RMInventoryRegister = ({ rmCategory }) => {
                     </div>
                     <button className="clear-filter-btn" onClick={() => { setFilterStartDate(''); setFilterEndDate(''); setFilterSubType(''); }}>
                         Clear
+                    </button>
+                    <button 
+                        className="download-pdf-btn" 
+                        onClick={handleDownloadPDF}
+                        disabled={filteredData.length === 0}
+                        style={{ marginLeft: '8px', padding: '0.4rem 0.75rem', background: '#42818c', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '0.85rem', fontWeight: '600', cursor: filteredData.length === 0 ? 'not-allowed' : 'pointer', opacity: filteredData.length === 0 ? 0.6 : 1 }}
+                    >
+                        Download PDF
                     </button>
                 </div>
             </header>

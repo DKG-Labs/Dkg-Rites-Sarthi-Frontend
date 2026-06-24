@@ -135,7 +135,7 @@ const heatResponsiveStyles = `
   /* Small mobile: 1 column */
   @media (max-width: 480px) {
     .heat-form-grid {
-      grid-template-columns: 1fr;
+      grid-template-columns: repeat(2, 1fr);
     }
 
     .heat-form-input {

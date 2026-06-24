@@ -49,7 +49,7 @@ const WeightTestAnnexure = ({ data, selectedCall }) => {
                   <th rowSpan={2} className="annexure-th">Colour code</th>
                   <th rowSpan={2} className="annexure-th">Quantity (in nos.)</th>
                   <th rowSpan={2} className="annexure-th">Sample Size.</th>
-                  <th colSpan={10} className="annexure-th">Weight (kg) ERC MK-III: 0.920 + 0.017 / - 0.016(g) ERC MK-V: 1.088 + 0.020 / - 0.020(g)</th>
+                  <th colSpan={10} className="annexure-th">Nominal Weight of Clip (g) 920 (+17 / -16 ) and 1088 (+20/- 20)</th>
                   <th rowSpan={2} className="annexure-th">No of Defectives</th>
                   <th rowSpan={2} className="annexure-th">Cumulative No.of Defectives</th>
                   <th rowSpan={2} className="annexure-th">Remarks</th>

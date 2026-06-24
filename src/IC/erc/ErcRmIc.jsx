@@ -73,6 +73,17 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
   // Default value for Consignee (Manufacturer): place of inspection always takes priority
   const defaultConsigneeManufacturer = placeOfInspection || consigneeManufacturer;
 
+  const extractPoSrNo = (refStr) => {
+    if (!refStr) return "001";
+    const refPart = refStr.split(/dated/i)[0].trim();
+    const parts = refPart.split('/');
+    if (parts.length > 1) {
+      return parts[parts.length - 1];
+    }
+    return "001";
+  };
+  const poSrNoStr = extractPoSrNo(contractRef);
+
   return (
     <div className="a4-page">
       <div className="certificate-container flex flex-col flex-grow">
@@ -240,7 +251,7 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
         {/* Description / Drg / Spec / QAP */}
         <div className="grid grid-cols-3 border-x border-b border-black min-h-[40px]">
           <div className="border-r border-black p-2">
-            <div className="font-semibold text-[10px] pt-1.5">विवरण / Description (PO Sr. No. 001)</div>
+            <div className="font-semibold text-[10px] pt-1.5">विवरण / Description (PO Sr. No. {poSrNoStr})</div>
             <EditableField isEditing={isEditing} type="textarea" value={description} onChange={(val) => onChange("description", val)} className="break-words dynamic-text leading-tight" />
           </div>
           <div className="border-r border-black p-2">
@@ -293,12 +304,12 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
           </div>
 
           <div className="grid grid-cols-[1.2fr_1fr_1.2fr_0.8fr_1fr_0.8fr] text-left border-b border-black">
-            <EditableField isEditing={false} type="textarea" value={chpClause} onChange={(val) => onChange("chpClause", val)} className="border-r border-black py-1 px-2 break-words dynamic-text" />
+            <EditableField isEditing={isEditing} type="textarea" value={chpClause} onChange={(val) => onChange("chpClause", val)} className="border-r border-black py-1 px-2 break-words dynamic-text" />
             <EditableField isEditing={false} type="textarea" value={contractChpReq} onChange={(val) => onChange("contractChpReq", val)} className="border-r border-black py-1 px-2 break-words dynamic-text" />
             <EditableField isEditing={false} type="textarea" value={inspectionDetails} onChange={(val) => onChange("inspectionDetails", val)} className="border-r border-black py-1 px-2 break-words dynamic-text" />
-            <EditableField isEditing={false} type="textarea" value={result} onChange={(val) => onChange("result", val)} className="border-r border-black py-1 px-2 break-words" />
-            <EditableField isEditing={false} type="textarea" value={clearedQty} onChange={(val) => onChange("clearedQty", val)} className="border-r border-black py-1 px-2 break-words" />
-            <EditableField isEditing={false} type="textarea" value={qtyRejected} onChange={(val) => onChange("qtyRejected", val)} className="py-1 px-2 break-words" />
+            <EditableField isEditing={false} type="textarea" value={result} onChange={(val) => onChange("result", val)} className="border-r border-black py-1 px-2 break-words whitespace-pre-wrap" />
+            <EditableField isEditing={false} type="textarea" value={clearedQty} onChange={(val) => onChange("clearedQty", val)} className="border-r border-black py-1 px-2 break-words whitespace-pre-wrap" />
+            <EditableField isEditing={false} type="textarea" value={qtyRejected} onChange={(val) => onChange("qtyRejected", val)} className="py-1 px-2 break-words whitespace-pre-wrap" />
           </div>
         </div>
 

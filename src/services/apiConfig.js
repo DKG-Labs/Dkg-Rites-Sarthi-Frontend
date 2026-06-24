@@ -9,7 +9,6 @@
  * import { API_BASE_URL } from './apiConfig';
  * const response = await fetch(`${API_BASE_URL}/api/your-endpoint`);
  */
-
 // Get API URL from environment variable or fallback to Azure production URL
 const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 export const API_BASE_URL = isLocal

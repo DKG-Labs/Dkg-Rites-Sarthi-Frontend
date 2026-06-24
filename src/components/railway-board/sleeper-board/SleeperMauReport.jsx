@@ -323,8 +323,13 @@ const SleeperMauReport = ({ startDate, endDate, mauData: propMauData, loading: p
         }
 
         // Handle string values (case insensitive)
-        valA = String(valA || '').toLowerCase();
-        valB = String(valB || '').toLowerCase();
+        if (key === 'plantName') {
+            valA = String(formatDisplayName(valA) || '').trim().toLowerCase();
+            valB = String(formatDisplayName(valB) || '').trim().toLowerCase();
+        } else {
+            valA = String(valA || '').trim().toLowerCase();
+            valB = String(valB || '').trim().toLowerCase();
+        }
 
         if (valA < valB) return direction === 'asc' ? -1 : 1;
         if (valA > valB) return direction === 'asc' ? 1 : -1;

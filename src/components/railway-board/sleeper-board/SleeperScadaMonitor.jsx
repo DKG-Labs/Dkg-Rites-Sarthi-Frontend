@@ -19,7 +19,9 @@ const SCADA_STAGES = [
     { label: 'STEAM CUBE', value: 'STEAM CUBE' },
     { label: 'CHAMBER', value: 'CHAMBER' },
     { label: 'WATER CUBE', value: 'WATER CUBE' },
-    { label: 'TENSIONING', value: 'TENSIONING' }
+    { label: 'TENSIONING', value: 'TENSIONING' },
+    { label: 'BATCHING', value: 'BATCHING' },
+    { label: 'SBT', value: 'SBT' }
 ];
 
 const ExportButton = ({ onClick }) => (
@@ -281,6 +283,14 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
         'TENSIONING': {
             order: ['time', 'Batch_No', 'Bench_No', 'Wire_Length', 'Total_Cross_Section', 'Young_Modulus', '10%_LU', '10%_LL', '10%_RU', '10%_RL', '100%_LU', '100%_LL', '100%_RU', '100%_RL', 'Measured_Elongation', 'Pressed_Load', 'Total_Pressed_Load', 'Final_Load'],
             labels: { 'time': 'Time', 'Batch_No': 'Batch No', 'Bench_No': 'Bench No', 'Wire_Length': 'Wire Length (mm)', 'Total_Cross_Section': 'Total Cross Section (mm2)', 'Young_Modulus': 'Young\'s Modulus (KN/mm2)', '10%_LU': '10% LU (mm)', '10%_LL': '10% LL (mm)', '10%_RU': '10% RU (mm)', '10%_RL': '10% RL (mm)', '100%_LU': '100% LU (mm)', '100%_LL': '100% LL (mm)', '100%_RU': '100% RU (mm)', '100%_RL': '100% RL (mm)', 'Measured_Elongation': 'Total Elongation (mm)', 'Pressed_Load': 'Pre stress (KN)', 'Total_Pressed_Load': 'Total Pre stress (KN)', 'Final_Load': 'Final Load (KN)' }
+        },
+        'BATCHING': {
+            order: ['time', 'Batch_No', 'Batch_Time', 'Running_Batch_No', 'Set_Cement', 'Act_Cement', 'Set_Sand', 'Act_Sand', 'Set_sand', 'Act_sand', 'Set_10mm', 'Act_10mm', 'Set_20mm', 'Act_20mm', 'Set_Water', 'Act_Water', 'Set_Admix', 'Act_Admix'],
+            labels: { 'time': 'Time', 'Batch_No': 'Batch No', 'Batch_Time': 'Batch Time', 'Running_Batch_No': 'Running Batch No', 'Set_Cement': 'Set Cement (kg)', 'Act_Cement': 'Act Cement (kg)', 'Set_Sand': 'Set Sand (kg)', 'Act_Sand': 'Act Sand (kg)', 'Set_sand': 'Set Sand (kg)', 'Act_sand': 'Act Sand (kg)', 'Set_10mm': 'Set 10mm (kg)', 'Act_10mm': 'Act 10mm (kg)', 'Set_20mm': 'Set 20mm (kg)', 'Act_20mm': 'Act 20mm (kg)', 'Set_Water': 'Set Water (kg)', 'Act_Water': 'Act Water (kg)', 'Set_Admix': 'Set Admix (kg)', 'Act_Admix': 'Act Admix (kg)' }
+        },
+        'SBT': {
+            order: ['time', 'Date_Of_Casting', 'Sleeper_No', 'Type_of_Sleeper', 'Age', 'MF_I', 'MF_II', 'MF_Bottom', 'MR_I', 'MR_II', 'Center_Top', 'Center_Bottom'],
+            labels: { 'time': 'Time', 'Date_Of_Casting': 'Date of Casting', 'Sleeper_No': 'Sleeper No', 'Type_of_Sleeper': 'Type of Sleeper', 'Age': 'Age (Hrs.)', 'MF_I': 'MF I', 'MF_II': 'MF II', 'MF_Bottom': 'MF Bottom', 'MR_I': 'MR I', 'MR_II': 'MR II', 'Center_Top': 'Center Top', 'Center_Bottom': 'Center Bottom' }
         }
     };
 

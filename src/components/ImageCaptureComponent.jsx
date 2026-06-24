@@ -164,7 +164,7 @@ const ImageCaptureComponent = ({ images = [], onImagesChange }) => {
     try {
       let blobUrl;
       let filename = `inspection_photo_${index + 1}.jpg`;
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('authToken');
 
       // Determine the fetch URL - always route through our backend proxy
       let fetchUrl = null;

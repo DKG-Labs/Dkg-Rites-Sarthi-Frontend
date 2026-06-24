@@ -12,7 +12,7 @@ const API_BASE_URL = API_ENDPOINTS.PROCESS_MATERIAL;
  * Get auth headers with JWT token
  */
 const getAuthHeaders = () => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('authToken');
   return {
     'Content-Type': 'application/json',
     'Authorization': token ? `Bearer ${token}` : ''

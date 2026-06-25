@@ -22,6 +22,7 @@ import FinalInspectionDashboard from './components/FinalInspection/FinalInspecti
 import AttendingCallsDashboard from './components/AttendingCallsDashboard';
 import InspectionInitiationPage from './pages/InspectionInitiationPage';
 import PlantDeclarationDashboard from './components/PlantDeclaration/PlantDeclarationDashboard';
+import RailpadFinalProductCertificate from './components/FinalInspection/RailpadFinalProductCertificate';
 
 const SUB_CARDS = [
   { id: 'raw-material', title: 'Raw Material Weighment', description: 'Monitor and log raw material proportions' },
@@ -870,6 +871,11 @@ const App = () => {
             }
             setActiveItem('FINAL_INSPECTION');
           }}
+          onIssueIc={(call, viewOnly = false) => {
+            setSelectedCallForInitiation(call);
+            setIsViewOnly(viewOnly);
+            setActiveItem('ISSUE_IC');
+          }}
         />
       ) : activeItem === 'INSPECTION_INITIATION' ? (
         <InspectionInitiationPage 
@@ -891,6 +897,14 @@ const App = () => {
             setActiveItem('FINAL_INSPECTION');
           }}
           onBack={() => setActiveItem('ATTENDING_CALLS')}
+        />
+      ) : activeItem === 'ISSUE_IC' ? (
+        <RailpadFinalProductCertificate 
+          call={selectedCallForInitiation}
+          isViewOnly={isViewOnly}
+          onBack={() => {
+            setActiveItem('ATTENDING_CALLS');
+          }}
         />
       ) : (
         <div className="dashboard-container" style={{ padding: '24px', background: '#f8fafc', minHeight: '100vh', width: '100%' }}>

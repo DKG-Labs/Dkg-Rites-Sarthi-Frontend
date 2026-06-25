@@ -146,6 +146,34 @@ export const generateFinalProductCertificate = async (icNumber) => {
 };
 
 /**
+ * Generate RailPad Inspection Certificate Details
+ * @param {string} callNo - Inspection Call No
+ * @returns {Promise<Object>} Certificate data
+ */
+export const generateRailpadIcDetails = async (callNo) => {
+  try {
+    console.log('🔍 Generating RailPad IC Details for Call No:', callNo);
+    const encodedCallNo = encodeURIComponent(callNo);
+    const response = await fetch(`${API_BASE_URL.replace('/certificate', '/rail-inspection-call')}/ic-details/${encodedCallNo}`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || `Failed to generate RailPad IC Details: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ RailPad IC Details generated successfully:', data);
+    return data.responseData || data;
+  } catch (error) {
+    console.error('❌ Error generating RailPad IC Details:', error);
+    throw error;
+  }
+};
+
+/**
  * Generate Final Material Inspection Certificate by IC Number
  * @param {string} icNumber - Inspection Call Number (e.g., "FM-IC-1767772023499")
  * @returns {Promise<Object>} Certificate data

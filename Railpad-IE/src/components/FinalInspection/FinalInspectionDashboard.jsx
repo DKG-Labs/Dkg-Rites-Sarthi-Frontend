@@ -2280,6 +2280,11 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         keysToRemove.forEach(key => localStorage.removeItem(key));
         localStorage.removeItem(`railpad_selected_lot_${currentCallId}`);
         showNotification(`Inspection for lot ${selectedLot} finished successfully with status: ${activeLotOverallStatus}`, 'success');
+        if (onPauseComplete) {
+          setTimeout(() => {
+            onPauseComplete();
+          }, 1000);
+        }
       } catch (error) {
         console.error('Error during finish inspection:', error);
         setIsSubmitting(false);

@@ -288,10 +288,10 @@ const RailwayBoardDashboard = () => {
         if (poSearch) {
             const query = poSearch.toLowerCase();
             result = result.filter(po =>
-                (po.rly || '').toLowerCase().includes(query) ||
+                (po.railway || '').toLowerCase().includes(query) ||
                 (po.poNo || '').toLowerCase().includes(query) ||
                 (po.vendor || '').toLowerCase().includes(query) ||
-                (po.region || '').toLowerCase().includes(query)
+                (po.inspectionRegion || '').toLowerCase().includes(query)
             );
         }
 
@@ -366,14 +366,14 @@ const RailwayBoardDashboard = () => {
                     <thead>
                         <tr className="sortable-header">
                             <th style={{ width: '40px' }}></th>
-                            <th onClick={() => handlePoSort('rly')} style={{ cursor: 'pointer' }}>Rly {renderSortIcon('rly')}</th>
+                            <th onClick={() => handlePoSort('railway')} style={{ cursor: 'pointer' }}>Rly {renderSortIcon('railway')}</th>
                             <th onClick={() => handlePoSort('poNo')} style={{ cursor: 'pointer' }}>PO No. {renderSortIcon('poNo')}</th>
                             <th onClick={() => handlePoSort('poDate')} style={{ cursor: 'pointer' }}>PO Date {renderSortIcon('poDate')}</th>
                             <th onClick={() => handlePoSort('vendor')} style={{ cursor: 'pointer' }}>Vendor {renderSortIcon('vendor')}</th>
-                            <th onClick={() => handlePoSort('region')} style={{ cursor: 'pointer' }}>Region {renderSortIcon('region')}</th>
-                            <th className="text-right" onClick={() => handlePoSort('poQuantityNos')} style={{ cursor: 'pointer' }}>PO Qty {renderSortIcon('poQuantityNos')}</th>
-                            <th className="text-right" onClick={() => handlePoSort('acceptedQty')} style={{ cursor: 'pointer' }}>Acc Qty {renderSortIcon('acceptedQty')}</th>
-                            <th className="text-right" onClick={() => handlePoSort('balanceQty')} style={{ cursor: 'pointer' }}>Bal Qty {renderSortIcon('balanceQty')}</th>
+                            <th onClick={() => handlePoSort('inspectionRegion')} style={{ cursor: 'pointer' }}>Region {renderSortIcon('inspectionRegion')}</th>
+                            <th className="text-right" onClick={() => handlePoSort('poQty')} style={{ cursor: 'pointer' }}>PO Qty {renderSortIcon('poQty')}</th>
+                            <th className="text-right" onClick={() => handlePoSort('finalQuantityAcceptedByRites')} style={{ cursor: 'pointer' }}>Acc Qty {renderSortIcon('finalQuantityAcceptedByRites')}</th>
+                            <th className="text-right" onClick={() => handlePoSort('balancePoQty')} style={{ cursor: 'pointer' }}>Bal Qty {renderSortIcon('balancePoQty')}</th>
                             <th className="text-right" onClick={() => handlePoSort('rawMaterialRejectionPercentage')} style={{ cursor: 'pointer' }}>RM % {renderSortIcon('rawMaterialRejectionPercentage')}</th>
                             <th className="text-right" onClick={() => handlePoSort('processInspectionRejectionPercentage')} style={{ cursor: 'pointer' }}>Proc % {renderSortIcon('processInspectionRejectionPercentage')}</th>
                             <th className="text-right" onClick={() => handlePoSort('finalInspectionRejectionPercentage')} style={{ cursor: 'pointer' }}>Final % {renderSortIcon('finalInspectionRejectionPercentage')}</th>

@@ -106,11 +106,14 @@ const NonCriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
 
     const renderSleeperList = (list, type) => {
         // Group by Bench
+        const isPnC = batch?.sleeperType?.toLowerCase().includes('pnc') || batch?.sleeperType?.toLowerCase().includes('turnout');
+        const defaultBenchName = batch?.benchNo || batch?.gangs?.[0]?.gangNo || batch?.chambers?.[0]?.benchNo || '1';
+
         const groups = {};
         list.forEach(s => {
-            // Derive bench from sleeperNo prefix (e.g., "21" from "21A") if benchNo is missing
-            const derivedBench = s.displayNo ? String(s.displayNo).match(/^\d+/)?.[0] : null;
-            const b = s.benchNo || derivedBench || 'Batch Items';
+            // Derive bench from sleeperNo prefix (e.g., "21" from "21A") if benchNo is missing, BUT skip for PnC
+            const derivedBench = (!isPnC && s.displayNo) ? String(s.displayNo).match(/^\d+/)?.[0] : null;
+            const b = s.benchNo || derivedBench || (isPnC ? defaultBenchName : 'Batch Items');
             if (!groups[b]) groups[b] = [];
             groups[b].push(s);
         });
@@ -129,15 +132,23 @@ const NonCriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
                             className="custom-scrollbar"
                             style={{ 
                                 display: 'flex', 
-                                flexWrap: 'nowrap', 
+                                flexWrap: 'wrap', 
                                 gap: '6px', 
-                                overflowX: 'auto', 
-                                paddingBottom: '8px',
-                                scrollbarWidth: 'thin'
+                                paddingBottom: '8px'
                             }}
                         >
                             {groups[bench]
-                                .sort((a, b) => (a.displayNo || '').toString().localeCompare((b.displayNo || '').toString(), undefined, { numeric: true }))
+                                .sort((a, b) => {
+                                    const valA = (a.displayNo || '').toString();
+                                    const valB = (b.displayNo || '').toString();
+                                    const isNumA = /^\d+$/.test(valA);
+                                    const isNumB = /^\d+$/.test(valB);
+                                    
+                                    if (!isNumA && isNumB) return -1;
+                                    if (isNumA && !isNumB) return 1;
+                                    
+                                    return valA.localeCompare(valB, undefined, { numeric: true });
+                                })
                                 .map(s => {
                                     const isSelected = selectedSleepers.includes(s.id);
                                     let bg = '#fff';

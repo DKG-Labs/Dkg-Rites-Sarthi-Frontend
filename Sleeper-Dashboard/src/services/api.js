@@ -230,6 +230,9 @@ export const apiService = {
     getAllPendingWorkflowTransitions: (roleName = 'IE', userId = '', plantId = '') =>
         api.get(`/sleeper-workflow/allPendingWorkflowTransition?roleName=${roleName}${userId ? `&assignedTo=${userId}` : ''}${plantId ? `&plantId=${plantId}` : ''}`),
 
+    getAllPendingWorkflowTransitionsModuleWise: (roleName = 'IE', moduleId, page = 0, size = 10) =>
+        api.get(`/sleeper-workflow/allPendingWorkflowTransitionModuelWise?roleName=${roleName}&moduleId=${moduleId}&page=${page}&size=${size}`),
+
     /**
      * IE Action: Verify or Request Change on a workflow transition.
      * @param {object} payload - { workflowTransitionId, action, actionBy, remarks }
@@ -297,6 +300,9 @@ export const apiService = {
 
     getAllCompletedWorkflowTransitions: (userId = '', plantId = '') =>
         api.get(`/sleeper-workflow/allCompletedCalls?roleName=IE${userId ? `&assignedTo=${userId}` : ''}${plantId ? `&plantId=${plantId}` : ''}`),
+
+    getAllCompletedWorkflowTransitionsModuleWise: (moduleId, page = 0, size = 10) =>
+        api.get(`/sleeper-workflow/allCompletedWorkflowTransitionModuleWise?moduleId=${moduleId}&page=${page}&size=${size}`),
 
 
     // ================= POI IE Mapping ================= //

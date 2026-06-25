@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { apiService } from '../../../services/api';
 import VerificationDetailModal from './VerificationDetailModal';
 import { useShift } from '../../../context/ShiftContext';
@@ -392,6 +392,45 @@ const RecordTable = ({ records, moduleId, onView, btnLabel, btnColor }) => {
 };
 
 // ─────────────────────────────────────────────
+//  Sub-component: Pagination Controls
+// ─────────────────────────────────────────────
+const PaginationControls = ({ page, setPage, pageSize, setPageSize, loading, totalItems }) => {
+    const totalPages = Math.ceil((totalItems || 0) / pageSize);
+    const hasNext = page < totalPages - 1;
+    return (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid #f1f5f9', background: '#f8fafc', borderBottomLeftRadius: '16px', borderBottomRightRadius: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '600' }}>Fetch Size:</span>
+                <select 
+                    value={pageSize} 
+                    onChange={(e) => { setPageSize(Number(e.target.value)); setPage(0); }}
+                    style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '13px', color: '#334155', fontWeight: '600', outline: 'none', cursor: 'pointer' }}
+                    disabled={loading}
+                >
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                    <option value={15}>15</option>
+                    <option value={20}>20</option>
+                </select>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <button 
+                    onClick={() => setPage(p => Math.max(0, p - 1))} 
+                    disabled={page === 0 || loading}
+                    style={{ padding: '6px 14px', borderRadius: '8px', border: '1px solid #e2e8f0', background: page === 0 ? '#f1f5f9' : '#fff', color: page === 0 ? '#94a3b8' : '#334155', cursor: page === 0 ? 'not-allowed' : 'pointer', fontWeight: '600', fontSize: '13px', transition: 'all 0.2s' }}
+                >Prev</button>
+                <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '600' }}>Page {page + 1} of {Math.max(1, totalPages)}</span>
+                <button 
+                    onClick={() => setPage(p => p + 1)} 
+                    disabled={loading || !hasNext} 
+                    style={{ padding: '6px 14px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff', color: '#334155', cursor: !hasNext ? 'not-allowed' : 'pointer', fontWeight: '600', fontSize: '13px', transition: 'all 0.2s', opacity: !hasNext ? 0.5 : 1 }}
+                >Next</button>
+            </div>
+        </div>
+    );
+};
+
+// ─────────────────────────────────────────────
 //  Main Dashboard Component
 // ─────────────────────────────────────────────
 
@@ -407,6 +446,11 @@ const IncomingVerificationDashboard = ({ initialGroup = null, initialModuleId = 
     const [selectedModuleId, setSelectedModuleId] = useState(null);
     const [detailModal, setDetailModal] = useState(null); // row to show in the detail modal
     const [activeSubTab, setActiveSubTab] = useState('pending'); // 'pending' or 'verified'
+    const [page, setPage] = useState(0);
+    const [pageSize, setPageSize] = useState(10);
+    const [totalPending, setTotalPending] = useState(0);
+    const [totalVerified, setTotalVerified] = useState(0);
+    const paginationCache = useRef({});
 
     // Filter MODULE_CONFIG by initialGroup or initialModuleId if provided
     const filteredModules = initialModuleId 
@@ -415,31 +459,82 @@ const IncomingVerificationDashboard = ({ initialGroup = null, initialModuleId = 
             ? MODULE_CONFIG.filter(m => m.group === initialGroup)
             : MODULE_CONFIG;
 
+    const filteredModuleIds = filteredModules.map(m => m.moduleId);
+
     // ── Load Data ──
-    const loadData = useCallback(async () => {
+    const loadData = useCallback(async (forceRefresh) => {
+        const isForceRefresh = forceRefresh === true; // explicitly boolean true
+        
+        if (isForceRefresh) {
+            paginationCache.current = {};
+        }
+
+        const cacheKey = `${page}-${pageSize}`;
+
+        const isModule11 = filteredModuleIds.length === 1 && filteredModuleIds[0] === 11;
+
+        if (!isForceRefresh && isModule11 && paginationCache.current[cacheKey]) {
+            setEnrichedByModule(paginationCache.current[cacheKey]);
+            return;
+        }
+
         setLoading(true);
         setError(null);
         try {
-            // Fetch pending and historical transitions separately as backend doesn't have a combined 'all' endpoint
-            const [pendingRes, completedRes] = await Promise.all([
-                apiService.getAllPendingWorkflowTransitions('IE', effectiveUserId, dutyUnit),
-                apiService.getAllCompletedWorkflowTransitions(effectiveUserId, dutyUnit)
-            ]);
+            let pendingRes, completedRes;
 
-            const parseRes = (res) => Array.isArray(res) ? res : (Array.isArray(res?.responseData) ? res.responseData : []);
+            if (!isForceRefresh && isModule11 && paginationCache.current['full_api_data']) {
+                pendingRes = paginationCache.current['full_api_data'].pendingRes;
+                completedRes = paginationCache.current['full_api_data'].completedRes;
+            } else {
+                // Fetch pending and historical transitions separately as backend doesn't have a combined 'all' endpoint
+                const fetched = await Promise.all([
+                    isModule11
+                        ? apiService.getAllPendingWorkflowTransitionsModuleWise('IE', 11, 0, 5000)
+                        : apiService.getAllPendingWorkflowTransitions('IE', effectiveUserId, dutyUnit),
+                    isModule11
+                        ? apiService.getAllCompletedWorkflowTransitionsModuleWise(11, 0, 5000)
+                        : apiService.getAllCompletedWorkflowTransitions(effectiveUserId, dutyUnit)
+                ]);
+                pendingRes = fetched[0];
+                completedRes = fetched[1];
+                
+                if (isModule11) {
+                    paginationCache.current['full_api_data'] = { pendingRes, completedRes };
+                }
+            }
+
+            const parseRes = (res) => {
+                if (Array.isArray(res)) return res;
+                if (Array.isArray(res?.responseData)) return res.responseData;
+                if (Array.isArray(res?.responseData?.content)) return res.responseData.content;
+                return [];
+            };
             const pendingList = parseRes(pendingRes);
             const verifiedList = parseRes(completedRes);
-
-            // Filter modules of interest
-            const filteredModuleIds = filteredModules.map(m => m.moduleId);
             const filterByModuleAndPlant = (list) => list.filter(r => {
                 const isCorrectModule = filteredModuleIds.includes(r.moduleId);
                 const isCorrectPlant = !dutyUnit || r.plantId === dutyUnit;
                 return isCorrectModule && isCorrectPlant;
             });
 
-            const myPending = filterByModuleAndPlant(pendingList);
-            const myVerified = filterByModuleAndPlant(verifiedList);
+            let myPending = filterByModuleAndPlant(pendingList);
+            let myVerified = filterByModuleAndPlant(verifiedList);
+
+            if (isModule11) {
+                // Sort by latest (descending createdDate)
+                myPending.sort((a, b) => new Date(b.createdDate || 0) - new Date(a.createdDate || 0));
+                myVerified.sort((a, b) => new Date(b.createdDate || 0) - new Date(a.createdDate || 0));
+
+                setTotalPending(myPending.length);
+                setTotalVerified(myVerified.length);
+
+                myPending = myPending.slice(page * pageSize, (page + 1) * pageSize);
+                myVerified = myVerified.slice(page * pageSize, (page + 1) * pageSize);
+            } else {
+                setTotalPending(myPending.length);
+                setTotalVerified(myVerified.length);
+            }
 
             // Group by moduleId and status
             const grouped = {};
@@ -478,7 +573,11 @@ const IncomingVerificationDashboard = ({ initialGroup = null, initialModuleId = 
                     };
                 })
             );
+            
             setEnrichedByModule(enriched);
+            if (filteredModuleIds.length === 1 && filteredModuleIds[0] === 11) {
+                paginationCache.current[cacheKey] = enriched;
+            }
 
             // Auto-select first module that has records
             if (filteredModules.length > 0 && selectedModuleId === null) {
@@ -490,7 +589,7 @@ const IncomingVerificationDashboard = ({ initialGroup = null, initialModuleId = 
         } finally {
             setLoading(false);
         }
-    }, [initialGroup, effectiveUserId, dutyUnit]); // eslint-disable-line
+    }, [initialGroup, effectiveUserId, dutyUnit, page, pageSize]); // eslint-disable-line
 
     useEffect(() => {
         loadData();
@@ -524,7 +623,7 @@ const IncomingVerificationDashboard = ({ initialGroup = null, initialModuleId = 
                     </div>
                     <div style={{ display: 'flex', gap: '10px' }}>
                         <button
-                            onClick={loadData}
+                            onClick={() => loadData(true)}
                             disabled={loading}
                             style={{
                                 display: 'flex', alignItems: 'center', gap: '6px',
@@ -722,7 +821,7 @@ const IncomingVerificationDashboard = ({ initialGroup = null, initialModuleId = 
                                     {currentPending.length === 0 ? (
                                         <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
                                             <div style={{ fontSize: '24px', marginBottom: '10px' }}>✅</div>
-                                            <strong>No pending records for this module.</strong>
+                                            <strong>No pending records for this module on the current page.</strong>
                                         </div>
                                     ) : (
                                         <RecordTable 
@@ -732,6 +831,9 @@ const IncomingVerificationDashboard = ({ initialGroup = null, initialModuleId = 
                                             btnLabel="Verify"
                                             btnColor="#0369a1"
                                         />
+                                    )}
+                                    {filteredModuleIds.length === 1 && filteredModuleIds[0] === 11 && (
+                                        <PaginationControls page={page} setPage={setPage} pageSize={pageSize} setPageSize={setPageSize} loading={loading} totalItems={totalPending} />
                                     )}
                                 </div>
                             ) : (
@@ -754,7 +856,7 @@ const IncomingVerificationDashboard = ({ initialGroup = null, initialModuleId = 
 
                                     {currentVerified.length === 0 ? (
                                         <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
-                                            <strong>No records have been verified yet.</strong>
+                                            <strong>No records have been verified yet on the current page.</strong>
                                         </div>
                                     ) : (
                                         <RecordTable 
@@ -764,6 +866,9 @@ const IncomingVerificationDashboard = ({ initialGroup = null, initialModuleId = 
                                             btnLabel="View Detail"
                                             btnColor="#64748b"
                                         />
+                                    )}
+                                    {filteredModuleIds.length === 1 && filteredModuleIds[0] === 11 && (
+                                        <PaginationControls page={page} setPage={setPage} pageSize={pageSize} setPageSize={setPageSize} loading={loading} totalItems={totalVerified} />
                                     )}
                                 </div>
                             )}
@@ -779,7 +884,7 @@ const IncomingVerificationDashboard = ({ initialGroup = null, initialModuleId = 
                     moduleLabel={MODULE_CONFIG.find(m => m.moduleId === detailModal.moduleId)?.label || `Module ${detailModal.moduleId}`}
                     actionBy={effectiveUserId}
                     onClose={() => setDetailModal(null)}
-                    onDone={loadData}
+                    onDone={() => loadData(true)}
                 />
             )}
         </div>

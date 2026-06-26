@@ -105,15 +105,19 @@ const CriticalDimensionForm = ({ batch, onSave, onCancel, shift }) => {
     const [saving, setSaving] = useState(false);
 
     const renderSleeperList = (list, type) => {
-        // Group by Bench
-        const isPnC = batch?.sleeperType?.toLowerCase().includes('pnc') || batch?.sleeperType?.toLowerCase().includes('turnout');
+        const typeLower = batch?.sleeperType?.toLowerCase() || '';
+        const isSingleBenchType = ['pnc', 'turnout', 'dc', 'scc', 'curved', 'dcs', 'ds'].some(kw => typeLower.includes(kw));
         const defaultBenchName = batch?.benchNo || batch?.gangs?.[0]?.gangNo || batch?.chambers?.[0]?.benchNo || '1';
 
         const groups = {};
         list.forEach(s => {
-            // Derive bench from sleeperNo prefix (e.g., "21" from "21A") if benchNo is missing, BUT skip for PnC
-            const derivedBench = (!isPnC && s.displayNo) ? String(s.displayNo).match(/^\d+/)?.[0] : null;
-            const b = s.benchNo || derivedBench || (isPnC ? defaultBenchName : 'Batch Items');
+            let b;
+            if (isSingleBenchType) {
+                b = defaultBenchName;
+            } else {
+                const derivedBench = s.displayNo ? String(s.displayNo).match(/^\d+/)?.[0] : null;
+                b = s.benchNo || derivedBench || 'Batch Items';
+            }
             if (!groups[b]) groups[b] = [];
             groups[b].push(s);
         });

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import RailpadFinalIc from "./RailpadFinalIc";
+import RailpadProcessIc from "./RailpadProcessIc";
 import {
   generateRailpadIcDetails,
   saveFinalIcEditData,
@@ -9,7 +10,13 @@ import {
   saveFinalIcSaveChanges,
   getFinalIcSaveChanges,
   validateBookSetNo,
-  uploadSignedCertificate
+  uploadSignedCertificate,
+  getProcessInspectionResult,
+  getInspectionCallSummary,
+  getProcessIcSaveChanges,
+  saveProcessIcSaveChanges,
+  getProcessIcEditData,
+  saveProcessIcEditData
 } from "../../services/certificateService";
 import { performTransitionAction } from "../../services/workflowService";
 import { getStoredUser } from "../../services/authService";
@@ -52,6 +59,7 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
   const [bookSetValidation, setBookSetValidation] = useState({ isValid: false, message: null, isValidating: false });
 
   const user = getStoredUser();
+  const isProcessCall = call?.callType === 'PROCESS' || call?.requestId?.startsWith('RPP-') || call?.callNo?.startsWith('RPP-');
 
   const showToast = (message, type = 'info') => {
     setNotification({ show: true, message, type });
@@ -154,10 +162,60 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
             lotDetails: []
         };
 
+        if (isProcessCall) {
+          try {
+            const processData = await getProcessInspectionResult(callNo);
+            if (processData) {
+              mappedData.qtyNowOffered = processData.totalManufacturedQty || 0;
+              mappedData.qtyNowPassed = processData.totalAcceptedQty || 0;
+              mappedData.qtyNowRejected = processData.totalRejectedQty || 0;
+              
+              if (processData.lotRangeFrom && processData.lotRangeTo) {
+                mappedData.lotNo = `${processData.lotRangeFrom} to ${processData.lotRangeTo}`;
+              } else {
+                mappedData.lotNo = "N/A";
+              }
+              
+              if (processData.remarks) {
+                mappedData.quantityNowPassedText = processData.remarks;
+              }
+              if (processData.reasonForRejection) {
+                mappedData.reasonsForRejection = processData.reasonForRejection;
+              }
+            }
+
+            const summaryData = await getInspectionCallSummary(callNo);
+            if (summaryData) {
+              if (summaryData.drawingNo) {
+                mappedData.drgNo = summaryData.drawingNo;
+              }
+            }
+
+            // Default dummy values for Spec. No. and QAP No. (user can edit manually)
+            mappedData.specNo = mappedData.specNo || "IRS T-55-2025 Rev.1";
+            mappedData.qapNo = mappedData.qapNo || "QAP/MG/CGRSP, REV-01 Effective Date: 14.01.2026";
+            mappedData.offeredInstNo = mappedData.offeredInstNo || "2nd & Final";
+          } catch (err) {
+            console.error("Failed to fetch process inspection result details:", err);
+          }
+        }
+
         // Attempt to fetch saved draft or final edit
-        let savedEdit = await getFinalIcSaveChanges(callNo);
-        if (!savedEdit) {
+        let savedEdit = null;
+        if (isProcessCall) {
+          savedEdit = await getProcessIcSaveChanges(callNo);
+          if (!savedEdit) {
+            savedEdit = await getProcessIcEditData(callNo);
+          }
+          // Map installmentNo back to offeredInstNo for the component
+          if (savedEdit && savedEdit.installmentNo) {
+            savedEdit.offeredInstNo = savedEdit.installmentNo;
+          }
+        } else {
+          savedEdit = await getFinalIcSaveChanges(callNo);
+          if (!savedEdit) {
             savedEdit = await getFinalIcEditData(callNo);
+          }
         }
 
         if (savedEdit) {
@@ -207,7 +265,11 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
     try {
       showToast("Saving draft...", "info");
       const callNo = call.callNo || call.call_no || call.requestId;
-      await saveFinalIcSaveChanges({ ...data, icNumber: callNo });
+      if (isProcessCall) {
+        await saveProcessIcSaveChanges({ ...data, icNumber: callNo, installmentNo: data.offeredInstNo });
+      } else {
+        await saveFinalIcSaveChanges({ ...data, icNumber: callNo });
+      }
       showToast("Draft saved successfully!", "success");
       setIsEditing(false);
     } catch (error) {
@@ -278,7 +340,11 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
       const callNo = call.callNo || call.call_no || call.requestId;
 
       showToast("Saving final certificate details...", "info");
-      await saveFinalIcEditData({ ...data, icNumber: callNo });
+      if (isProcessCall) {
+        await saveProcessIcEditData({ ...data, icNumber: callNo, installmentNo: data.offeredInstNo });
+      } else {
+        await saveFinalIcEditData({ ...data, icNumber: callNo });
+      }
 
       showToast("Generating PDF snapshot...", "info");
       
@@ -523,14 +589,25 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
         }}
       >
         <div ref={printAreaRef} style={{ background: 'white', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-          <RailpadFinalIc
-            data={data}
-            isEditing={isEditing}
-            isBusy={isESigning}
-            onFieldChange={handleFieldChange}
-            onVerifyBookSet={handleVerifyBookSet}
-            bookSetValidation={bookSetValidation}
-          />
+          {isProcessCall ? (
+            <RailpadProcessIc
+              data={data}
+              isEditing={isEditing}
+              isBusy={isESigning}
+              onFieldChange={handleFieldChange}
+              onVerifyBookSet={handleVerifyBookSet}
+              bookSetValidation={bookSetValidation}
+            />
+          ) : (
+            <RailpadFinalIc
+              data={data}
+              isEditing={isEditing}
+              isBusy={isESigning}
+              onFieldChange={handleFieldChange}
+              onVerifyBookSet={handleVerifyBookSet}
+              bookSetValidation={bookSetValidation}
+            />
+          )}
         </div>
       </div>
 

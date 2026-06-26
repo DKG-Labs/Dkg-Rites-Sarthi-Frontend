@@ -1,0 +1,92 @@
+/* Premium Pagination Styles */
+.pg-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 12px 16px;
+  font-family: 'Inter', sans-serif;
+  color: #64748b;
+  font-size: 13px;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.pg-count {
+  font-weight: 500;
+  color: #64748b;
+  margin-right: auto;
+}
+
+.pg-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pg-page-info {
+  font-size: 13px;
+  color: #475569;
+  font-weight: 600;
+}
+
+.pg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: white;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pg-btn:hover:not(:disabled) {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
+.pg-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #94a3b8;
+}
+
+/* Themes per Level */
+/* Level 1 - Default (Teal) */
+.pg-theme-teal .pg-btn:hover:not(:disabled) {
+  border-color: #0f3a5e;
+  color: #0f3a5e;
+  background: #f0f9ff;
+}
+
+/* --- Mobile Responsiveness --- */
+@media (max-width: 600px) {
+  .pg-wrapper {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .pg-count {
+    width: 100%;
+    margin-right: 0;
+    text-align: center;
+    order: 3;
+    padding-top: 4px;
+    border-top: 1px dashed #e2e8f0;
+  }
+
+  .pg-buttons {
+    order: 2;
+  }
+}

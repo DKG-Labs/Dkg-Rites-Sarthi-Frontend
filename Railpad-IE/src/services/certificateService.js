@@ -102,6 +102,58 @@ export const generateRailpadIcDetails = async (icNumber) => {
 };
 
 /**
+ * Fetch Process Inspection Details from Backend
+ * @param {string} callNo
+ * @returns {Promise<Object>} Process Inspection data
+ */
+export const getProcessInspectionResult = async (callNo) => {
+  try {
+    const response = await fetch(`${getBaseUrl()}/rail-inspection-call/process/inspect/${encodeURIComponent(callNo)}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('authToken') || ''}`
+      }
+    });
+    if (!response.ok) {
+      if (response.status === 404 || response.status === 204) return null;
+      throw new Error(`Failed to fetch Process Inspection Details: ${response.status}`);
+    }
+    const data = await response.json();
+    return data.responseData || data;
+  } catch (err) {
+    console.error('❌ Error fetching Process Inspection details:', err);
+    return null;
+  }
+};
+
+/**
+ * Fetch Inspection Call Summary Details
+ * @param {string} callNo
+ * @returns {Promise<Object>} Summary data
+ */
+export const getInspectionCallSummary = async (callNo) => {
+  try {
+    const response = await fetch(`${getBaseUrl()}/rail-inspection-call/summary/${encodeURIComponent(callNo)}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('authToken') || ''}`
+      }
+    });
+    if (!response.ok) {
+      if (response.status === 404 || response.status === 204) return null;
+      throw new Error(`Failed to fetch Inspection Call Summary: ${response.status}`);
+    }
+    const data = await response.json();
+    return data.responseData || data;
+  } catch (err) {
+    console.error('❌ Error fetching Inspection Call Summary details:', err);
+    return null;
+  }
+};
+
+/**
  * Save or update Final IC Edit Data (Final Saved Version)
  * @param {Object} payload 
  */
@@ -232,3 +284,98 @@ export const uploadSignedCertificate = async (payload) => {
   localStorage.setItem(`signed_cert_${payload.icNumber}`, JSON.stringify(payload));
   return { success: true, message: "Signed certificate uploaded successfully" };
 };
+
+// ─── Process IC Save Changes ──────────────────────────────────────────────────
+
+/**
+ * Fetch Process IC Save Changes (draft edits)
+ * @param {string} icNumber
+ */
+export const getProcessIcSaveChanges = async (icNumber) => {
+  try {
+    const response = await fetch(`${getBaseUrl()}/railpad-process-ic/save-changes/${encodeURIComponent(icNumber)}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('authToken') || ''}`
+      }
+    });
+    if (!response.ok) { if (response.status === 404) return null; throw new Error(`Failed: ${response.status}`); }
+    const data = await response.json();
+    return data.responseData || null;
+  } catch (err) {
+    console.error('❌ Error fetching Process IC Save Changes:', err);
+    return null;
+  }
+};
+
+/**
+ * Save Process IC draft edits (Save Changes button)
+ * @param {Object} payload RailpadProcessIcEditDTO
+ */
+export const saveProcessIcSaveChanges = async (payload) => {
+  try {
+    const response = await fetch(`${getBaseUrl()}/railpad-process-ic/save-changes`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('authToken') || ''}`
+      },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) throw new Error('Failed to save Process IC changes');
+    const result = await response.json();
+    return result.responseData || result;
+  } catch (err) {
+    console.error('❌ Error saving Process IC changes:', err);
+    throw err;
+  }
+};
+
+// ─── Process IC E-Sign ────────────────────────────────────────────────────────
+
+/**
+ * Fetch Process IC E-Sign data (signed final version)
+ * @param {string} icNumber
+ */
+export const getProcessIcEditData = async (icNumber) => {
+  try {
+    const response = await fetch(`${getBaseUrl()}/railpad-process-ic/edit/${encodeURIComponent(icNumber)}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('authToken') || ''}`
+      }
+    });
+    if (!response.ok) { if (response.status === 404) return null; throw new Error(`Failed: ${response.status}`); }
+    const data = await response.json();
+    return data.responseData || null;
+  } catch (err) {
+    console.error('❌ Error fetching Process IC Edit data:', err);
+    return null;
+  }
+};
+
+/**
+ * Save Process IC e-sign data (E-Sign IC button)
+ * @param {Object} payload RailpadProcessIcEditDTO
+ */
+export const saveProcessIcEditData = async (payload) => {
+  try {
+    const response = await fetch(`${getBaseUrl()}/railpad-process-ic/edit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('authToken') || ''}`
+      },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) throw new Error('Failed to save Process IC e-sign data');
+    const result = await response.json();
+    return result.responseData || result;
+  } catch (err) {
+    console.error('❌ Error saving Process IC e-sign data:', err);
+    throw err;
+  }
+};
+

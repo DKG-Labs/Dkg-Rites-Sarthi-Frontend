@@ -4,6 +4,80 @@ import Pagination from '../common/Pagination';
 import '../../styles/ProductionVerification.css';
 import { getBaseUrl, API_ENDPOINTS, getDefaultHeaders } from '../../services/apiConfig';
 
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("ErrorBoundary caught an error in ProductionVerificationScreen:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          padding: '32px',
+          background: '#fff5f5',
+          border: '1px solid #fee2e2',
+          borderRadius: '16px',
+          color: '#991b1b',
+          maxWidth: '800px',
+          margin: '40px auto',
+          boxShadow: '0 10px 15px -3px rgba(153, 27, 27, 0.05)'
+        }}>
+          <h2 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '12px' }}>
+            Verification Screen Rendering Error
+          </h2>
+          <p style={{ fontSize: '14px', color: '#7f1d1d', marginBottom: '20px', lineHeight: '1.5' }}>
+            React encountered a runtime error while rendering the verification details page. Please see the technical details below.
+          </p>
+          <pre style={{
+            background: '#fef2f2',
+            padding: '16px',
+            borderRadius: '8px',
+            border: '1px solid #fca5a5',
+            overflowX: 'auto',
+            fontSize: '13px',
+            fontFamily: 'monospace',
+            color: '#991b1b',
+            whiteSpace: 'pre-wrap'
+          }}>
+            {this.state.error && this.state.error.toString()}
+            {"\n\n"}
+            {this.state.error && this.state.error.stack}
+          </pre>
+          <button
+            onClick={() => {
+              this.setState({ hasError: false, error: null });
+              this.props.onReset();
+            }}
+            style={{
+              marginTop: '20px',
+              padding: '10px 20px',
+              background: '#ef4444',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: '700',
+              cursor: 'pointer'
+            }}
+          >
+            ← Back to Dashboard
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+
 const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShift, user }) => {
   const [activeTab, setActiveTab] = useState('pending');
   const [pendingDeclarations, setPendingDeclarations] = useState([]);
@@ -347,16 +421,33 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
     }
   };
 
+  // ─── Pagination computations (must be above any early returns to follow Rules of Hooks) ───
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+
+  const paginatedPending = useMemo(() => {
+    return pendingDeclarations.slice(startIndex, endIndex);
+  }, [pendingDeclarations, startIndex, endIndex]);
+
+  const paginatedVerified = useMemo(() => {
+    return verifiedDeclarations.slice(startIndex, endIndex);
+  }, [verifiedDeclarations, startIndex, endIndex]);
+
+  const totalCount = activeTab === 'pending' ? pendingDeclarations.length : verifiedDeclarations.length;
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
+
   if (selectedDeclaration) {
     return (
       <>
-        <ProductionVerificationScreen
-          declaration={selectedDeclaration}
-          isSubmitting={isLoading}
-          onBack={() => setSelectedDeclaration(null)}
-          onVerify={(rejectionData) => handleVerify(selectedDeclaration, rejectionData)}
-          onReturn={(remarks) => handleReturn(selectedDeclaration, remarks)}
-        />
+        <ErrorBoundary onReset={() => setSelectedDeclaration(null)}>
+          <ProductionVerificationScreen
+            declaration={selectedDeclaration}
+            isSubmitting={isLoading}
+            onBack={() => setSelectedDeclaration(null)}
+            onVerify={(rejectionData) => handleVerify(selectedDeclaration, rejectionData)}
+            onReturn={(remarks) => handleReturn(selectedDeclaration, remarks)}
+          />
+        </ErrorBoundary>
         {notification && (
           <div className="pv-notification-container">
             <div className={`pv-notification ${notification.type} ${notification.fading ? 'fade-out' : ''}`}>
@@ -372,20 +463,7 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
     );
   }
 
-  // Sliced datasets for tables
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
 
-  const paginatedPending = useMemo(() => {
-    return pendingDeclarations.slice(startIndex, endIndex);
-  }, [pendingDeclarations, startIndex, endIndex]);
-
-  const paginatedVerified = useMemo(() => {
-    return verifiedDeclarations.slice(startIndex, endIndex);
-  }, [verifiedDeclarations, startIndex, endIndex]);
-
-  const totalCount = activeTab === 'pending' ? pendingDeclarations.length : verifiedDeclarations.length;
-  const totalPages = Math.ceil(totalCount / itemsPerPage);
 
   return (
     <div className="pv-dashboard">

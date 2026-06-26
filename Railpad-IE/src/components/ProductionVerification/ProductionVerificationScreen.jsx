@@ -13,7 +13,7 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
   // ─── ALL HOOKS MUST BE CALLED UNCONDITIONALLY AT THE TOP ───
   const isReadOnly = (declaration?.status === 'Verified') && !declaration?.forceEdit;
 
-  const [rejections, setRejections] = useState(declaration?.rejections || []);
+  const [rejections, setRejections] = useState(Array.isArray(declaration?.rejections) ? declaration.rejections : []);
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [returnRemarks, setReturnRemarks] = useState('');
 
@@ -30,13 +30,14 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
       if (!item || !item.productType) return;
       const safeBatches = Array.isArray(item.batches) ? item.batches.filter(Boolean) : [];
       map[item.productType] = safeBatches.map(b => {
+        if (!b) return null;
         const batchValue = b.batchNo || (b.compoundA && b.compoundB ? `${b.compoundA} + ${b.compoundB}` : '');
         let label = b.batchNo || '';
         if (b.compoundA && b.compoundB) {
           label = `Comp A: ${b.compoundA} | Comp B: ${b.compoundB}`;
         }
         return { value: batchValue, label: label || batchValue };
-      }).filter(b => b.value);
+      }).filter(b => b && b.value);
     });
     return map;
   }, [safeItems]);
@@ -47,8 +48,10 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
   const totalProduced = useMemo(() => {
     let total = 0;
     safeItems.forEach(item => {
+      if (!item) return;
       const safeBatches = Array.isArray(item.batches) ? item.batches.filter(Boolean) : [];
       safeBatches.forEach(b => {
+        if (!b) return;
         total += parseInt(b.qtyProduced) || 0;
       });
     });
@@ -56,7 +59,8 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
   }, [safeItems]);
 
   const totalRejected = useMemo(() => {
-    return rejections.reduce((sum, rej) => sum + (rej ? (parseInt(rej.rejectedQty) || 0) : 0), 0);
+    const currentRejections = Array.isArray(rejections) ? rejections : [];
+    return currentRejections.reduce((sum, rej) => sum + (rej ? (parseInt(rej.rejectedQty) || 0) : 0), 0);
   }, [rejections]);
 
   const totalAccepted = totalProduced - totalRejected;
@@ -312,10 +316,14 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
                           return (
                             <tr key={bIdx}>
                               <td>
-                                {batch.batchNo || '—'}
-                                {batch.compoundA && (
+                                {batch.batchNo
+                                  ? batch.batchNo
+                                  : (batch.compoundA
+                                    ? `${batch.compoundA} + ${batch.compoundB}`
+                                    : '—')}
+                                {batch.batchNo && batch.compoundA && (
                                   <div className="pv-compound-info">
-                                    {batch.compoundA} + {batch.compoundB}
+                                    Comp A: {batch.compoundA} | Comp B: {batch.compoundB}
                                   </div>
                                 )}
                               </td>

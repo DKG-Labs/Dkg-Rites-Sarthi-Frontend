@@ -3,6 +3,7 @@ import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import RailpadFinalIc from "./RailpadFinalIc";
 import RailpadProcessIc from "./RailpadProcessIc";
+import AnnexureLoader from '../annexures/AnnexureLoader';
 import {
   generateRailpadIcDetails,
   saveFinalIcEditData,
@@ -154,7 +155,7 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
             datesOfInspection: fetchedData.dateOfInspection || "",
             trRecDate: fetchedData.trRecDt || "",
             quantityNowPassedText: fetchedData.quantityNowPassedInWords || "",
-            sealingPattern: "RITES HOLOGRAM FROM SL NO. W-XXXXXXX TO W-XXXXXXX AFFIXED WITH TAPE ON LEAD SEAL.",
+            sealingPattern: "RITES HOLOGRAM FROM SL NO. C0000599 TO C0001604 HAS BEEN AFFIXED ON THE LEAD SEAL ,TIED WITH SEALING WIRE TO THE PACKING STRIP OF EACH CORRUGATED BOX",
             facsimileText: "RITES HOLOGRAM SEAL",
             reasonsForRejection: fetchedData.reasonOfRejection || "Not Applicable",
             inspectingEngineer: user?.userName || "IE User",
@@ -431,22 +432,11 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '300px' }}>
-        <div style={{
-          border: '4px solid #f3f3f3',
-          borderTop: '4px solid #3b82f6',
-          borderRadius: '50%',
-          width: '40px',
-          height: '40px',
-          animation: 'spin 1s linear infinite'
-        }}></div>
-        <p style={{ marginTop: '16px', color: '#64748b', fontSize: '14px', fontWeight: 'bold' }}>Loading Inspection Certificate data...</p>
-        <style dangerouslySetInnerHTML={{__html: `
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}} />
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '80vh' }}>
+        <AnnexureLoader 
+          title="Loading Inspection Certificate"
+          subtitle="Fetching certificate data from Sarthi workflow..."
+        />
       </div>
     );
   }

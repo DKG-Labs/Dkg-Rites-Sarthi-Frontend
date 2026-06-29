@@ -1,12 +1,15 @@
 import React, { useState, useMemo } from 'react';
+import CustomSelect from '../common/CustomSelect';
 
 const REJECTION_REASONS = [
   'NIL',
-  'Short Moulding',
-  'Bubbles/Blisters',
-  'Uneven Edges',
-  'Surface Roughness',
-  'Improper Side Cut'
+  'Short Filling',
+  'Burn Edge',
+  'Poor Embossing',
+  'Uneven Thickness',
+  'Scratches',
+  'Dimension Not Ok',
+  'Cut Marks'
 ];
 
 const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn, isSubmitting }) => {
@@ -402,13 +405,13 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
                       />
                     </td>
                     <td>
-                      <select
+                      <CustomSelect
+                        options={getAvailableReasons(rej)}
                         value={rej.reason}
-                        onChange={(e) => handleUpdateRejection(rej.id, 'reason', e.target.value)}
+                        onChange={(value) => handleUpdateRejection(rej.id, 'reason', value)}
                         disabled={isReadOnly}
-                      >
-                        {getAvailableReasons(rej).map(r => <option key={r} value={r}>{r}</option>)}
-                      </select>
+                        placeholder="Select Reason"
+                      />
                     </td>
                     <td>
                       {!isReadOnly && (

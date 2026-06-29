@@ -171,9 +171,10 @@ const ShiftDutyForm = ({ onSubmit, onCancel, hideCompanyAndUnit = false, initial
               }}
             >
               <option value="" disabled>Select Shift</option>
-              <option value="A">Shift A (06:00 - 14:00)</option>
-              <option value="B">Shift B (14:00 - 22:00)</option>
-              <option value="C">Shift C (22:00 - 06:00)</option>
+              <option value="A">Shift A</option>
+              <option value="B">Shift B</option>
+              <option value="C">Shift C</option>
+              <option value="General">General Shift</option>
             </select>
           </div>
 

@@ -444,6 +444,12 @@
   padding: 12px;
 }
 
+.pv-rejection-table th:nth-child(1) { width: 22%; } /* Product Type */
+.pv-rejection-table th:nth-child(2) { width: 22%; } /* Batch No */
+.pv-rejection-table th:nth-child(3) { width: 14%; } /* Rejected Qty */
+.pv-rejection-table th:nth-child(4) { width: 38%; } /* Reason */
+.pv-rejection-table th:nth-child(5) { width: 4%; }  /* Remove btn */
+
 .pv-rejection-table td {
   padding: 8px 12px;
 }

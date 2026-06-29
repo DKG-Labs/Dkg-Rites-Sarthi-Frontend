@@ -28,7 +28,6 @@ function Level4Table({ callNo, parentSerial, railway }) {
                         <tr>
                             <th rowSpan="3">Date</th>
                             <th rowSpan="3">Shift</th>
-                            <th rowSpan="3">Sl No.</th>
                             <th rowSpan="3">PO + Sr. No.</th>
                             <th rowSpan="3">Lot Number</th>
                             <th rowSpan="3">Total Accepted Qty</th>
@@ -99,7 +98,6 @@ function Level4Table({ callNo, parentSerial, railway }) {
                                 <tr key={index} className={`${rowClass} text-center`}>
                                     <td>{shift.basicDetails?.date ? formatDate(shift.basicDetails.date) : 'Invalid Date'}</td>
                                     <td>{shift.basicDetails?.shift || '-'}</td>
-                                    <td>{index + 1}</td>
                                     <td>{shift.basicDetails?.poSrNo || callNo}</td>
                                     <td>{shift.basicDetails?.lotNumber || '-'}</td>
                                     <td>{shift.basicDetails?.totalAcceptedQty ?? 0}</td>
@@ -180,23 +178,20 @@ function Level3Row({ call, expandedCall, toggleCall, parentSerial, index, railwa
                 <td className="text-center">
                     {isProcess && <ExpandIcon isExpanded={isExpanded} isSubmenu={true} />}
                 </td>
-                <td className="font-medium text-teal" style={{ whiteSpace: 'nowrap' }}>{parentSerial}</td>
                 <td className="font-medium text-teal">{call.inspectionCallNumber}</td>
                 <td><StatusBadge status={call.stageOfInspection} /></td>
                 <td>{call.desiredDateOfInspection ? formatDate(call.desiredDateOfInspection) : '-'}</td>
                 <td>{call.inspectionStartDate ? formatDate(call.inspectionStartDate) : '-'}</td>
                 <td>{call.inspectionCompletionDate ? formatDate(call.inspectionCompletionDate) : '-'}</td>
-                <td className="text-center">{call.noOfVisitsOrMandays}</td>
                 <td className="text-right">{call.offeredOrManufacturedQty?.toLocaleString()}</td>
                 <td className="text-right">{call.acceptedQuantity?.toLocaleString()}</td>
                 <td className="text-right">{call.balanceQty?.toLocaleString()}</td>
                 <td className={call.rejectionPercentage > 5 ? 'text-red' : ''}>{formatDecimal(call.rejectionPercentage || 0)}%</td>
-                <td className="col-reason" title={call.mainReasonForRejection}>{call.mainReasonForRejection || '-'}</td>
                 <td>{call.icNumber}</td>
             </tr>
             {isExpanded && isProcess && (
                 <tr className="detail-row level-4-container">
-                    <td colSpan="14">
+                    <td colSpan="11">
                         <Level4Table callNo={call.inspectionCallNumber} parentSerial={parentSerial} railway={railway} />
                     </td>
                 </tr>
@@ -224,18 +219,15 @@ function Level3Table({ poNo, rlyPoSrNo, expandedCall, toggleCall, parentSerial, 
                 <thead>
                     <tr>
                         <th style={{ width: '40px' }}></th>
-                        <th>Rly-Sr.</th>
                         <th>Call</th>
                         <th>Stage</th>
-                        <th>Des Date</th>
-                        <th>Start</th>
-                        <th>End</th>
-                        <th>Visits</th>
-                        <th>Off</th>
+                        <th>Desired Inspection Date</th>
+                        <th>Inspection Start Date</th>
+                        <th>Inspection End Date</th>
+                        <th>Offered Qty</th>
                         <th>Acc</th>
-                        <th>Bal</th>
+                        <th>Rejection</th>
                         <th>Rej%</th>
-                        <th>Reason</th>
                         <th>IC No</th>
                     </tr>
                 </thead>
@@ -337,20 +329,20 @@ function Level2Table({ poNo, expandedSerial, toggleSerial, expandedCall, toggleC
                 <thead>
                     <tr>
                         <th style={{ width: '40px' }}></th>
-                        <th>Rly-Sr. No.</th>
+                        <th>PO Sr. No.</th>
                         <th>Consignee</th>
                         <th>DP Date</th>
                         <th>Ext DP</th>
                         <th>Qty</th>
-                        <th>Bal</th>
-                        <th>ICs</th>
-                        <th>Last IC</th>
-                        <th>RM Acc</th>
-                        <th>RM %</th>
-                        <th>Proc Acc</th>
-                        <th>Proc %</th>
-                        <th>Final Acc</th>
-                        <th>Final %</th>
+                        <th>Balance Qty</th>
+                        <th>No. of Final IC Issued</th>
+                        <th>Last Final IC Date</th>
+                        <th>RM Accepted</th>
+                        <th>RM Rej. %</th>
+                        <th>Process Accepted</th>
+                        <th>Process Rej. %</th>
+                        <th>Final Accepted</th>
+                        <th>Final Rej. %</th>
                     </tr>
                 </thead>
                 <tbody>

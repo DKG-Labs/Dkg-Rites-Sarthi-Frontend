@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import './SleeperSummary.css';
 import reportService from '../../../services/reportService';
-import { ExportButton, downloadExcel } from '../SharedComponents';
+import { ExportButton, ExportPdfButton, downloadExcel, downloadPdf } from '../SharedComponents';
 
 const SleeperPerformance = ({ fromDate, toDate }) => {
     const [performanceData, setPerformanceData] = useState([]);
@@ -35,17 +35,48 @@ const SleeperPerformance = ({ fromDate, toDate }) => {
                 });
                 
                 const rawList = response.responseData || response || [];
-                const mappedData = rawList.map((row, idx) => ({
+                
+                // Grouping logic
+                const groupedMap = {};
+                rawList.forEach(row => {
+                    const shift = row.shift || "N/A";
+                    let shiftGroup = "N/A";
+                    const s = String(shift).toUpperCase().trim();
+                    if (['A', 'B', 'C'].includes(s)) {
+                        shiftGroup = 'A,B,C';
+                    } else if (['G', 'GENERAL'].includes(s)) {
+                        shiftGroup = 'G';
+                    } else {
+                        shiftGroup = shift;
+                    }
+                    
+                    const ieKey = formatIeName(row.ieName);
+                    const company = row.companyName || "N/A";
+                    const plant = row.plantName || row.companyName || "Unassigned Plant";
+                    const stage = row.stageOfInspection || "Process";
+                    
+                    const key = `${company}_${plant}_${ieKey}_${stage}_${shiftGroup}`;
+                    
+                    if (!groupedMap[key]) {
+                        groupedMap[key] = {
+                            companyName: company,
+                            plantName: plant,
+                            plantId: row.plantId || "N/A",
+                            rio: row.rio || "N/A",
+                            ieName: ieKey,
+                            stage: stage,
+                            shift: shiftGroup, // Keeping it in object if needed for filtering
+                            shiftsWorked: 0,
+                            rejectedQty: 0
+                        };
+                    }
+                    groupedMap[key].shiftsWorked += (row.shiftsWorked ?? 0);
+                    groupedMap[key].rejectedQty += (row.rejectedSleepers ?? 0);
+                });
+                
+                const mappedData = Object.values(groupedMap).map((item, idx) => ({
                     id: idx + 1,
-                    companyName: row.companyName || "N/A",
-                    plantName: row.plantName || row.companyName || "Unassigned Plant",
-                    plantId: row.plantId || "N/A",
-                    rio: row.rio || "N/A",
-                    ieName: formatIeName(row.ieName),
-                    stage: row.stageOfInspection || "Process",
-                    shift: row.shift || "N/A",
-                    shiftsWorked: row.shiftsWorked ?? 0,
-                    rejectedQty: row.rejectedSleepers ?? 0
+                    ...item
                 }));
                 
                 setPerformanceData(mappedData);
@@ -121,9 +152,20 @@ const SleeperPerformance = ({ fromDate, toDate }) => {
                 let valA = a[sortConfig.key];
                 let valB = b[sortConfig.key];
 
-                if (typeof valA === 'string') {
-                    valA = valA.toLowerCase();
-                    valB = valB.toLowerCase();
+                // Handle null/undefined
+                if (valA === null || valA === undefined) valA = '';
+                if (valB === null || valB === undefined) valB = '';
+
+                // If both are numbers or numeric strings, compare as numbers
+                const numA = Number(valA);
+                const numB = Number(valB);
+                if (!isNaN(numA) && !isNaN(numB) && valA !== '' && valB !== '') {
+                    valA = numA;
+                    valB = numB;
+                } else {
+                    // Otherwise compare as strings (case-insensitive)
+                    valA = String(valA).toLowerCase();
+                    valB = String(valB).toLowerCase();
                 }
 
                 if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -176,15 +218,26 @@ const SleeperPerformance = ({ fromDate, toDate }) => {
                             { label: 'S.No.', key: 'id' },
                             { label: 'Company Name', key: 'companyName' },
                             { label: 'PSC Sleeper Plant', key: 'plantName' },
-                            { label: 'Plant ID', key: 'plantId' },
                             { label: 'RITES RIO', key: 'rio' },
                             { label: 'IE Name', key: 'ieName' },
                             { label: 'Stage of Inspection', key: 'stage' },
-                            { label: 'Shift', key: 'shift' },
                             { label: 'No. of Shifts Worked', key: 'shiftsWorked' },
                             { label: 'No. of Sleepers Rejected', key: 'rejectedQty' }
                         ];
                         downloadExcel(processedData, headers, 'Sleeper_Performance_Monitoring_Matrix');
+                    }} />
+                    <ExportPdfButton onClick={() => {
+                        const headers = [
+                            { label: 'S.No.', key: 'id' },
+                            { label: 'Company Name', key: 'companyName' },
+                            { label: 'PSC Sleeper Plant', key: 'plantName' },
+                            { label: 'RITES RIO', key: 'rio' },
+                            { label: 'IE Name', key: 'ieName' },
+                            { label: 'Stage of Inspection', key: 'stage' },
+                            { label: 'No. of Shifts Worked', key: 'shiftsWorked' },
+                            { label: 'No. of Sleepers Rejected', key: 'rejectedQty' }
+                        ];
+                        downloadPdf(processedData, headers, 'Sleeper_Performance_Monitoring_Matrix', 'Performance Monitoring Matrix (Sleeper)');
                     }} />
                     <input 
                         type="text" 
@@ -249,9 +302,6 @@ const SleeperPerformance = ({ fromDate, toDate }) => {
                             <th style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center' }} onClick={() => handleSort('plantName')}>
                                 PSC SLEEPER PLANT {sortConfig.key === 'plantName' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
                             </th>
-                            <th style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center' }} onClick={() => handleSort('plantId')}>
-                                PLANT ID {sortConfig.key === 'plantId' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
-                            </th>
                             <th style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center' }} onClick={() => handleSort('rio')}>
                                 RITES RIO {sortConfig.key === 'rio' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
                             </th>
@@ -260,9 +310,6 @@ const SleeperPerformance = ({ fromDate, toDate }) => {
                             </th>
                             <th style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center' }} onClick={() => handleSort('stage')}>
                                 STAGE OF INSPECTION {sortConfig.key === 'stage' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
-                            </th>
-                            <th style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center' }} onClick={() => handleSort('shift')}>
-                                SHIFT {sortConfig.key === 'shift' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
                             </th>
                             <th style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center' }} onClick={() => handleSort('shiftsWorked')}>
                                 NO. OF SHIFTS WORKED {sortConfig.key === 'shiftsWorked' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
@@ -279,18 +326,16 @@ const SleeperPerformance = ({ fromDate, toDate }) => {
                                     <td style={{ textAlign: 'center' }}>{idx + 1}</td>
                                     <td style={{ textAlign: 'center' }}>{row.companyName}</td>
                                     <td style={{ textAlign: 'center' }}><strong>{row.plantName}</strong></td>
-                                    <td style={{ textAlign: 'center' }}><code style={{ fontSize: '11px' }}>{row.plantId}</code></td>
                                     <td style={{ textAlign: 'center' }}><span className="prof-badge" style={{ background: '#f0fdf4', color: '#166534' }}>{row.rio}</span></td>
                                     <td style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>👤 {row.ieName}</td>
                                     <td style={{ textAlign: 'center' }}><span className="prof-badge" style={{ background: '#f0f9ff', color: '#075985' }}>{row.stage}</span></td>
-                                    <td style={{ textAlign: 'center' }}><span className="prof-badge" style={{ background: '#eff6ff', color: '#1e40af' }}>{row.shift}</span></td>
                                     <td style={{ textAlign: 'center' }} className="font-medium">{row.shiftsWorked}</td>
                                     <td style={{ textAlign: 'center' }} className="font-bold text-red-600">{row.rejectedQty?.toLocaleString()}</td>
                                 </tr>
                             ))
                         ) : (
                             <tr>
-                                <td colSpan="10" className="text-center p-8 text-slate-400">No performance records found matching the filter criteria.</td>
+                                <td colSpan="8" className="text-center p-8 text-slate-400">No performance records found matching the filter criteria.</td>
                             </tr>
                         )}
                     </tbody>

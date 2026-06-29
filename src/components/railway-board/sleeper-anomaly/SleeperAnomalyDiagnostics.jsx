@@ -85,6 +85,16 @@ function SleeperAnomalyDiagnostics() {
   const [testResults, setTestResults] = useState(null);
 
   const handleApiIngestion = async () => {
+      // Validate date range
+      if (!fromDate || !toDate) {
+          logToConsole('Please select both From and To dates before fetching.', 'faulty');
+          return;
+      }
+      if (toDate < fromDate) {
+          logToConsole(`Invalid date range: "To" date (${toDate}) cannot be before "From" date (${fromDate}).`, 'faulty');
+          return;
+      }
+
       setUploading(true);
       const plantLabel = SCADA_PLANTS.find(p => p.value === selectedPlant)?.label || selectedPlant;
       const unitLabel = SCADA_UNITS.find(u => u.value === selectedUnit)?.label || selectedUnit;
@@ -101,8 +111,27 @@ function SleeperAnomalyDiagnostics() {
       
       const friendlyFrom = formatLogDate(fromDate);
       const friendlyTo = formatLogDate(toDate);
+      const isSingleDay = fromDate === toDate;
+      const rangeLabel = isSingleDay ? friendlyFrom : `${friendlyFrom} to ${friendlyTo}`;
 
-      logToConsole(`Initiating live telemetry sync: ${plantLabel} - ${unitLabel} (${lineLabel}) from ${friendlyFrom} to ${friendlyTo}...`, 'system');
+      logToConsole(`Initiating live telemetry sync: ${plantLabel} - ${unitLabel} (${lineLabel}) | Range: ${rangeLabel}`, 'system');
+      logToConsole('Fetching all pages from SCADA API in parallel (this may take ~20s)...', 'system');
+
+      // Progress heartbeat — shows user the fetch is ongoing
+      let step = 0;
+      const progressSteps = [
+          'Parallel page fetch in progress — VIBRATOR data...',
+          'Parallel page fetch in progress — TENSIONING data...',
+          'Applying client-side date filter for selected range...',
+          'Running Isolation Forest anomaly inference...',
+          'Building dataset and computing metrics...'
+      ];
+      const progressInterval = setInterval(() => {
+          if (step < progressSteps.length) {
+              logToConsole(progressSteps[step], 'system');
+              step++;
+          }
+      }, 3500);
       
       try {
           const token = localStorage.getItem('authToken');
@@ -121,13 +150,16 @@ function SleeperAnomalyDiagnostics() {
               })
           });
           
+          clearInterval(progressInterval);
+
           if (!res.ok) {
               const errData = await res.json().catch(() => ({}));
               throw new Error(errData.error || 'Failed to ingest data from SCADA API');
           }
           
           const data = await res.json();
-          logToConsole(`SCADA telemetry dataset successfully pulled: ${data.dataset}`, 'normal');
+          logToConsole(`Date filter applied — dataset ready: "${data.dataset}"`, 'normal');
+          logToConsole(`Telemetry sync complete for ${rangeLabel}. Loading dashboard...`, 'normal');
           
           // Switch to new dataset and reload stats
           setActiveDataset(data.dataset);
@@ -135,6 +167,7 @@ function SleeperAnomalyDiagnostics() {
           await fetchSystemData(true);
           
       } catch (err) {
+          clearInterval(progressInterval);
           logToConsole(`API Ingestion Error: ${err.message}`, 'faulty');
       } finally {
           setUploading(false);
@@ -419,6 +452,7 @@ function SleeperAnomalyDiagnostics() {
                       type="date"
                       className="local-date-input"
                       value={fromDate}
+                      max={toDate}
                       onChange={(e) => setFromDate(e.target.value)}
                   />
               </div>
@@ -428,6 +462,8 @@ function SleeperAnomalyDiagnostics() {
                       type="date"
                       className="local-date-input"
                       value={toDate}
+                      min={fromDate}
+                      max={new Date().toISOString().split('T')[0]}
                       onChange={(e) => setToDate(e.target.value)}
                   />
               </div>

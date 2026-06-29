@@ -1,4 +1,6 @@
 import React from 'react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export const KPICard = ({ data, isActive, onClick }) => (
     <div
@@ -40,6 +42,25 @@ export const ExportButton = ({ onClick, label = "Export Excel", disabled = false
         ) : (
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 3V16M12 16L7 11M12 16L17 11M5 21H19" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+        )}
+        <span>{label}</span>
+    </button>
+);
+
+export const ExportPdfButton = ({ onClick, label = "Export PDF", disabled = false }) => (
+    <button
+        className={`btn-export-excel ${disabled ? 'disabled' : ''}`}
+        onClick={disabled ? null : onClick}
+        disabled={disabled}
+        title={disabled ? "Processing..." : "Download PDF Report"}
+        style={{ background: '#dc2626', borderColor: '#b91c1c' }}
+    >
+        {disabled ? (
+            <div className="spinner-small"></div>
+        ) : (
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 15V3M12 15L8 11M12 15L16 11M2 17L2.621 19.485C2.72915 19.9177 2.97882 20.3018 3.33033 20.5763C3.68184 20.8508 4.11501 20.9999 4.561 21H19.439C19.885 20.9999 20.3182 20.8508 20.6697 20.5763C21.0212 20.3018 21.2708 19.9177 21.379 19.485L22 17" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
         )}
         <span>{label}</span>
@@ -89,6 +110,44 @@ export const downloadExcel = (data, headers, filename) => {
     link.click();
     document.body.removeChild(link);
 };
+
+export const downloadPdf = (data, headers, filename, title) => {
+    if (!data || data.length === 0) {
+        alert("No data available to export.");
+        return;
+    }
+
+    const doc = new jsPDF('landscape');
+    
+    // Add title
+    doc.setFontSize(14);
+    doc.text(title || filename, 14, 15);
+    
+    const tableColumn = headers.map(h => h.label);
+    const tableRows = [];
+
+    data.forEach(row => {
+        const rowData = headers.map(header => {
+            let cellValue = row[header.key];
+            if (cellValue === null || cellValue === undefined) {
+                return '';
+            }
+            return String(cellValue);
+        });
+        tableRows.push(rowData);
+    });
+
+    autoTable(doc, {
+        head: [tableColumn],
+        body: tableRows,
+        startY: 20,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [4, 120, 87] }
+    });
+
+    doc.save(`${filename}_${new Date().toISOString().split('T')[0]}.pdf`);
+};
+
 
 export const SearchableDropdown = ({ value, onChange, options, placeholder = "Select option..." }) => {
     const [isOpen, setIsOpen] = React.useState(false);

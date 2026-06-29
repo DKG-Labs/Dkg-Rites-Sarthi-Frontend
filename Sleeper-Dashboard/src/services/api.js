@@ -235,6 +235,9 @@ export const apiService = {
     getAllPendingWorkflowTransitionsModuleWise: (roleName = 'IE', moduleId, page = 0, size = 10) =>
         api.get(`/sleeper-workflow/allPendingWorkflowTransitionModuelWise?roleName=${roleName}&moduleId=${moduleId}&page=${page}&size=${size}`),
 
+    getAllCompletedWorkflowTransitionsModuleWise: (moduleId, page = 0, size = 1000) =>
+        api.get(`/sleeper-workflow/allCompletedWorkflowTransitionModuleWise?moduleId=${moduleId}&page=${page}&size=${size}`),
+
     /**
      * IE Action: Verify or Request Change on a workflow transition.
      * @param {object} payload - { workflowTransitionId, action, actionBy, remarks }
@@ -385,4 +388,20 @@ export const apiService = {
     deleteETRecord: (id) => api.delete(`/et/${id}`),
     getETBatchSummary: () => api.get('/et/batch-summary'),
     getEtBatchSleepers: (batchId) => api.get(`/FinalInspectionController/inspection/Etbatch?batchId=${batchId}`),
+
+    // ================= RM Consumption Verification =================
+    /**
+     * Fetch paginated RM consumption records for a given plantId.
+     * GET /rm-consumption/by-plant?plantId=...&page=0&size=5
+     */
+    getRMConsumptionByPlant: (plantId, page = 0, size = 5) =>
+        api.get(`/rm-consumption/by-plant`, { params: { plantId, page, size } }),
+
+    /** Fetch paginated RM consumption records filtered by material for a plant */
+    getRMConsumptionByPlantAndMaterial: (plantId, material, page = 0, size = 5) =>
+        api.get(`/rm-consumption/by-plant-material`, { params: { plantId, material, page, size } }),
+
+    /** Fetch all consumption records for the plant (large page, for ledger view) */
+    getRMConsumptionByPlantAll: (plantId) =>
+        api.get(`/rm-consumption/by-plant`, { params: { plantId, page: 0, size: 1000 } }),
 };

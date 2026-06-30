@@ -85,9 +85,9 @@ const getCellToleranceStyle = (stage, colName, value, row) => {
                 return { backgroundColor: '#fee2e2', color: '#991b1b', fontWeight: '700' };
             }
         }
-        // 2. vibration time 2 to 4
+        // 2. vibration time 2 to 8
         if (colLower.includes('vibrator') && colLower.includes('time')) {
-            if (!isNaN(valFloat) && (valFloat < 2 || valFloat > 4)) {
+            if (!isNaN(valFloat) && (valFloat < 2 || valFloat > 8)) {
                 return { backgroundColor: '#fee2e2', color: '#991b1b', fontWeight: '700' };
             }
         }
@@ -249,7 +249,7 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
             if (success) {
                 if (stage === 'BATCHING') {
                     finalData = finalData.map(row => {
-                        const sum = ['Set_20mm', 'Act_20mm', 'Set_10mm', 'Act_10mm', 'Set_Sand', 'Act_Sand', 'Set_sand', 'Act_sand', 'Set_Cement', 'Act_Cement', 'Set_Water', 'Act_Water', 'Set_Admix', 'Act_Admix']
+                        const sum = ['Act_20mm', 'Act_10mm', 'Act_Sand', 'Act_sand', 'Act_Cement', 'Act_Water', 'Act_Admix']
                             .reduce((acc, key) => {
                                 const val = Number(row[key]);
                                 return acc + (isNaN(val) ? 0 : val);
@@ -498,12 +498,12 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
                 </div>
             ) : data.length > 0 ? (
                 <div className="prof-card" style={{ background: '#fff', padding: '0', borderRadius: '16px', border: '1px solid #d1fae5', overflow: 'hidden' }}>
-                    <div style={{ overflowX: 'auto' }}>
+                    <div style={{ overflow: 'auto', maxHeight: '600px' }}>
                         <table className="prof-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-                            <thead>
+                            <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                                 <tr>
                                     {columns.map(col => (
-                                        <th key={col} style={{ background: '#f8fafc', color: '#64748b', padding: '16px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'left', fontWeight: '800', borderBottom: '1px solid #e2e8f0' }}>
+                                        <th key={col} style={{ background: '#f8fafc', color: '#64748b', padding: '16px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'left', fontWeight: '800', borderBottom: '1px solid #e2e8f0', position: 'sticky', top: 0, zIndex: 10 }}>
                                             {COLUMN_LABELS[col] || COLUMN_LABELS[col.toLowerCase()] || col}
                                         </th>
                                     ))}

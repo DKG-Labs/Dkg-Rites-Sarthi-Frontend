@@ -85,9 +85,10 @@ const AppLayout = () => {
   const isAdminRoute = location.pathname.startsWith(ROUTES.ADMIN_DASHBOARD);
   const isRitesAdminRoute = location.pathname.startsWith('/rites-admin');
   const isCMRoute = location.pathname.startsWith(ROUTES.CM_DASHBOARD);
+  const isSmsRoute = location.pathname.startsWith('/sms');
 
   // Determine if sidebar should be hidden
-  const shouldHideSidebar = isCallDeskRoute || isRailwayBoardRoute || isAdminRoute || isRitesAdminRoute || isCMRoute;
+  const shouldHideSidebar = isCallDeskRoute || isRailwayBoardRoute || isAdminRoute || isRitesAdminRoute || isCMRoute || isSmsRoute;
 
   return (
     <div>

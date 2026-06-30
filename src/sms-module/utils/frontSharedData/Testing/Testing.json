@@ -1,0 +1,262 @@
+{
+    "testingGeneralInfo": {
+        "date": "01/01/2024",
+        "shift": "A"
+    },
+    "railGradeList": [
+        {
+          "key": "R260",
+          "value": "R260"
+        },
+        {
+          "key": "350HT",
+          "value": "350HT"
+        },
+        {
+          "key": "1080HH",
+          "value": "1080HH"
+        },
+        {
+          "key": "880",
+          "value": "880"
+        },
+        {
+          "key": "880NC",
+          "value": "880NC"
+        }
+    ],
+    "resultList": [
+      {
+        "key": "Pending",
+        "value": "Pending"
+      },
+      {
+        "key": "Pass",
+        "value": "Pass"
+      },
+      {
+        "key": "Partially Pass",
+        "value": "Partially Pass"
+      },
+      {
+        "key": "Reject",
+        "value": "Reject"
+      }
+    ],
+    "millList": [
+        {
+          "key": "URM",
+          "value": "URM"
+        },
+        {
+          "key": "RSM",
+          "value": "RSM"
+        }
+    ],
+    "testCategoryList": [
+        {
+          "key": "Chemical",
+          "value": "Chemical"
+        },
+        {
+          "key": "Tensile",
+          "value": "Tensile"
+        },
+        {
+          "key": "Tensile Foot",
+          "value": "Tensile Foot"
+        },
+        {
+          "key": "FWT(HS)",
+          "value": "FWT(HS)"
+        },
+        {
+          "key": "FWT(St.)",
+          "value": "FWT(St.)"
+        },
+        {
+            "key": "Sulphur Print",
+            "value": "Sulphur Print"
+        },
+        {
+            "key": "Hardness",
+            "value": "Hardness"
+        },
+        {
+            "key": "Profile Hardness",
+            "value": "Profile Hardness"
+        },
+        {
+            "key": "Micro",
+            "value": "Micro"
+        },
+        {
+            "key": "Decarb",
+            "value": "Decarb"
+        },
+        {
+            "key": "IR",
+            "value": "IR"
+        }
+    ],
+    "pendingTestSamplesColumns": [
+        { "title": "S. No.", "dataIndex": "serialNumber", "key": "serialNumber", "align": "center", "fixed": "left"},
+        { "title": "Heat No.", "dataIndex": "heatNumber", "key": "heatNumber", "align": "center" },
+        { "title": "Std.", "dataIndex": "standard", "key": "standard", "align": "center" },
+        { "title": "Mill", "dataIndex": "mill", "key": "mill", "align": "center" },
+        { "title": "Grade", "dataIndex": "grade", "key": "grade", "align": "center" },
+        { "title": "Sample Type", "dataIndex": "sampleType", "key": "sampleType", "align": "center" },
+        { "title": "Lot", "dataIndex": "lot", "key": "lot", "align": "center" },
+        { "title": "BSP Sample ID", "dataIndex": "bspSampleID", "key": "bspSampleID", "align": "center" },
+        { "title": "App Sample Identification", "dataIndex": "sampleIdentification", "key": "sampleIdentification", "align": "center" },
+        { "title": "Test", "dataIndex": "test", "key": "test", "align": "center" }
+    ],
+    "pendingTestSamplesData": [
+        {   "key": "1",
+            "serialNumber": "1",
+            "heatNumber": "068291",
+            "standard": "II",
+            "mill": "URM",
+            "grade": "R350HT",
+            "sampleType": "Regular",
+            "lot": "Lot 1",
+            "bspSampleID": "H25042024B003",
+            "sampleIdentification": "",
+            "test": "Chemical (L), Tensile, Sulphur"
+        },
+        {   "key": "2",
+            "serialNumber": "2",
+            "heatNumber": "068291",
+            "standard": "II",
+            "mill": "URM",
+            "grade": "R350HT",
+            "sampleType": "Regular",
+            "lot": "Lot 1",
+            "bspSampleID": "H25042024B003",
+            "sampleIdentification": "",
+            "test": "Chemical (L), Tensile, Sulphur"
+        },
+        {   "key": "3",
+            "serialNumber": "3",
+            "heatNumber": "068291",
+            "standard": "II",
+            "mill": "URM",
+            "grade": "R350HT",
+            "sampleType": "Regular",
+            "lot": "Lot 1",
+            "bspSampleID": "H25042024B003",
+            "sampleIdentification": "",
+            "test": "Chemical (L), Tensile, Sulphur"
+        },
+        {   "key": "4",
+            "serialNumber": "4",
+            "heatNumber": "068291",
+            "standard": "II",
+            "mill": "URM",
+            "grade": "R350HT",
+            "sampleType": "Regular",
+            "lot": "Lot 1",
+            "bspSampleID": "H25042024B003",
+            "sampleIdentification": "",
+            "test": "Chemical (L), Tensile, Sulphur"
+        },
+        {   "key": "5",
+            "serialNumber": "5",
+            "heatNumber": "068291",
+            "standard": "II",
+            "mill": "URM",
+            "grade": "R350HT",
+            "sampleType": "Regular",
+            "lot": "Lot 1",
+            "bspSampleID": "H25042024B003",
+            "sampleIdentification": "",
+            "test": "Chemical (L), Tensile, Sulphur"
+        }
+    ],
+    "testingReportColumns": [
+      { "title": "S. No.", "dataIndex": "serialNumber", "key": "serialNumber", "align": "center", "fixed": "left"},
+      { "title": "Heat No.", "dataIndex": "heatNumber", "key": "heatNumber", "align": "center" },
+      { "title": "Mill", "dataIndex": "mill", "key": "mill", "align": "center" },
+      { "title": "Chem", "dataIndex": "chem", "key": "chem", "align": "center" },
+      { "title": "FWT", "dataIndex": "fwt", "key": "fwt", "align": "center" },
+      { "title": "Tensile", "dataIndex": "tensile", "key": "tensile", "align": "center" },
+      { "title": "Hard", "dataIndex": "hard", "key": "hard", "align": "center" },
+      { "title": "SP", "dataIndex": "sp", "key": "sp", "align": "center" },
+      { "title": "Micro", "dataIndex": "micro", "key": "micro", "align": "center" },
+      { "title": "IR", "dataIndex": "ir", "key": "ir", "align": "center" },
+      { "title": "DC", "dataIndex": "dc", "key": "dc", "align": "center" },
+      { "title": "PH", "dataIndex": "ph", "key": "ph", "align": "center" }
+    ],
+    "testingReportData": [
+      {   "key": "1",
+          "serialNumber": "1",
+          "heatNumber": "068291",
+          "mill": "URM",
+          "chem": "P",
+          "fwt": "",
+          "tensile": "",
+          "hard": "",
+          "sp": "P",
+          "micro": "",
+          "ir": "",
+          "dc": "",
+          "ph": ""
+      },
+      {   "key": "2",
+          "serialNumber": "2",
+          "heatNumber": "068291",
+          "mill": "URM",
+          "chem": "",
+          "fwt": "",
+          "tensile": "P",
+          "hard": "P",
+          "sp": "",
+          "micro": "",
+          "ir": "",
+          "dc": "",
+          "ph": "P"
+      },
+      {   "key": "3",
+          "serialNumber": "3",
+          "heatNumber": "068291",
+          "mill": "URM",
+          "chem": "P",
+          "fwt": "",
+          "tensile": "",
+          "hard": "",
+          "sp": "P",
+          "micro": "",
+          "ir": "",
+          "dc": "",
+          "ph": ""
+      },
+      {   "key": "4",
+          "serialNumber": "4",
+          "heatNumber": "068291",
+          "mill": "URM",
+          "chem": "",
+          "fwt": "",
+          "tensile": "P",
+          "hard": "P",
+          "sp": "",
+          "micro": "",
+          "ir": "",
+          "dc": "",
+          "ph": ""
+      },
+      {   "key": "5",
+          "serialNumber": "5",
+          "heatNumber": "068291",
+          "mill": "URM",
+          "chem": "",
+          "fwt": "",
+          "tensile": "",
+          "hard": "",
+          "sp": "",
+          "micro": "P",
+          "ir": "",
+          "dc": "",
+          "ph": "P"
+      }
+    ]
+}

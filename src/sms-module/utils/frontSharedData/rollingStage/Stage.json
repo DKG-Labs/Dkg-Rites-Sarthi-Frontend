@@ -1,0 +1,263 @@
+{
+    "rollingStageGeneralInfo": {
+        "date": "01/01/2024",
+        "shift": "A",
+        "railGrade": "R260",
+        "mill": "URM",
+        "railSec": "60E1"
+    },
+    "rollingControl60E1GeneralInfo": {
+        "date": "01/01/2024",
+        "shift": "A",
+        "railGrade": "R260",
+        "mill": "URM",
+        "railSec": "60E1"
+    },
+    "rollingControlIRS52GeneralInfo": {
+        "date": "01/01/2024",
+        "shift": "A",
+        "railGrade": "R260",
+        "mill": "URM",
+        "railSec": "IRS52"
+    },
+    "rollingControl60E1A1GeneralInfo": {
+        "date": "01/01/2024",
+        "shift": "A",
+        "railGrade": "R260",
+        "mill": "URM",
+        "railSec": "60E1A1"
+    },
+    "micrometerNumberList": [
+        {
+            "key": "MM1",
+            "value": "MM1"
+        },
+        {
+            "key": "MM2",
+            "value": "MM2"
+        },
+        {
+            "key": "MM3",
+            "value": "MM3"
+        }
+    ],
+    "vernierNumberList": [
+        {
+            "key": "VC1",
+            "value": "VC1"
+        },
+        {
+            "key": "VC2",
+            "value": "VC2"
+        },
+        {
+            "key": "VC3",
+            "value": "VC3"
+        },
+        {
+            "key": "VC4",
+            "value": "VC4"
+        }
+    ],
+    "weighingMachineList": [
+        {
+            "key": "WM1",
+            "value": "WM1"
+        },
+        {
+            "key": "WM2",
+            "value": "WM2"
+        },
+        {
+            "key": "WM3",
+            "value": "WM3"
+        },
+        {
+            "key": "WM4",
+            "value": "WM4"
+        }
+    ],
+    "rollingControlTableData": [
+        {
+            "sNo": 1,
+            "sampleHeatNo": "076229",
+            "timing": "11:02",
+            "results": "OHT"
+        },
+        {
+            "sNo": 2,
+            "sampleHeatNo": "077832",
+            "timing": "12:40",
+            "results": "OK"
+        }
+    ],
+    "sampleLocationList": [
+        {
+            "key": "Front",
+            "value": "Front"
+        },
+        {
+            "key": "Middle",
+            "value": "Middle"
+        },
+        {
+            "key": "Back",
+            "value": "Back"
+        }
+    ],
+    "headList": [
+        {
+            "key": "OK",
+            "value": "OK"
+        },
+        {
+            "key": "HH",
+            "value": "HH"
+        },
+        {
+            "key": "LH",
+            "value": "LH"
+        }
+    ],
+    "asyList": [
+        {
+            "key": "OK",
+            "value": "OK"
+        },
+        {
+            "key": "Asy(-)",
+            "value": "Asy(-)"
+        },
+        {
+            "key": "Asy(+)",
+            "value": "Asy(+)"
+        }
+    ],
+    "footToeList": [
+        {
+            "key": "OK",
+            "value": "OK"
+        },
+        {
+            "key": "TF(-)",
+            "value": "TF(-)"
+        },
+        {
+            "key": "TF(+)",
+            "value": "TF(+)"
+        }
+    ],
+    "crownProfileList": [
+        {
+            "key": "OK",
+            "value": "OK"
+        },
+        {
+            "key": "CP(-)",
+            "value": "CP(-)"
+        },
+        {
+            "key": "CP(+)",
+            "value": "CP(+)"
+        }
+    ],
+    "fishingHeightList": [
+        {
+            "key": "OK",
+            "value": "OK"
+        },
+        {
+            "key": "HF(-)",
+            "value": "HF(-)"
+        },
+        {
+            "key": "HF(+)",
+            "value": "HF(+)"
+        }
+    ],
+    "footFlatnessList": [
+        {
+            "key": "OK",
+            "value": "OK"
+        },
+        {
+            "key": "FBCx",
+            "value": "FBCx"
+        },
+        {
+            "key": "FBC (> 0.3)",
+            "value": "FBC (> 0.3)"
+        }
+    ],
+    "footFlatnessIRS52List": [
+        {
+            "key": "OK",
+            "value": "OK"
+        },
+        {
+            "key": "FBCx",
+            "value": "FBCx"
+        },
+        {
+            "key": "FBC (> 0.4)",
+            "value": "FBC (> 0.4)"
+        }
+    ],
+    "htSequenceTableData": [
+        {
+          "sNo": 1,
+          "railID": "H290424B001",
+          "bloomQuality": "CC",
+          "htStatus": "OK",
+          "testSampleMarked": ""
+        },
+        {
+            "sNo": 2,
+            "railID": "H290424B002",
+            "bloomQuality": "CC",
+            "htStatus": "Not OK",
+            "testSampleMarked": ""
+        },
+        {
+            "sNo": 3,
+            "railID": "H290424B003",
+            "bloomQuality": "CO",
+            "htStatus": "OK",
+            "testSampleMarked": "RSH PH Micro"
+        },
+        {
+            "sNo": 4,
+            "railID": "H290424B004",
+            "bloomQuality": "CC",
+            "htStatus": "OK",
+            "testSampleMarked": ""
+        },
+        {
+            "sNo": 5,
+            "railID": "H290424B005",
+            "bloomQuality": "CC",
+            "htStatus": "OK",
+            "testSampleMarked": ""
+        }
+    ],
+    "bloomQualityList": [
+        {
+            "key": "CC",
+            "value": "CC"
+        },
+        {
+            "key": "CO",
+            "value": "CO"
+        }
+    ],
+    "htStatusList": [
+        {
+            "key": true,
+            "value": "OK"
+        },
+        {
+            "key": false,
+            "value": "NOT OK"
+        }
+    ]
+}

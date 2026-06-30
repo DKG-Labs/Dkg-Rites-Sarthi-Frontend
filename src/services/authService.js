@@ -36,6 +36,15 @@ const HARDCODED_USERS = {
       token: 'finance-mock-token-' + Date.now()
     }
   },
+  'Rail SMS': {
+    password: 'password',
+    userData: {
+      userId: 'Rail SMS',
+      userName: 'Rail SMS Officer',
+      roleName: 'Rail SMS',
+      token: 'sms-mock-token-' + Date.now()
+    }
+  },
   'Railwayboard': {
     password: 'password',
     userData: {

@@ -221,10 +221,10 @@ function Level3Table({ poNo, rlyPoSrNo, expandedCall, toggleCall, parentSerial, 
                         <th style={{ width: '40px' }}></th>
                         <th>Call</th>
                         <th>Stage</th>
-                        <th>Desired Inspection Date</th>
-                        <th>Inspection Start Date</th>
-                        <th>Inspection End Date</th>
-                        <th>Offered Qty</th>
+                        <th>Desired Inspection<br />Date</th>
+                        <th>Inspection Start<br />Date</th>
+                        <th>Inspection End<br />Date</th>
+                        <th>Offered<br />Qty</th>
                         <th>Acc</th>
                         <th>Rejection</th>
                         <th>Rej%</th>
@@ -329,20 +329,20 @@ function Level2Table({ poNo, expandedSerial, toggleSerial, expandedCall, toggleC
                 <thead>
                     <tr>
                         <th style={{ width: '40px' }}></th>
-                        <th>PO Sr. No.</th>
+                        <th>PO Sr.<br />No.</th>
                         <th>Consignee</th>
                         <th>DP Date</th>
                         <th>Ext DP</th>
                         <th>Qty</th>
-                        <th>Balance Qty</th>
-                        <th>No. of Final IC Issued</th>
-                        <th>Last Final IC Date</th>
-                        <th>RM Accepted</th>
-                        <th>RM Rej. %</th>
-                        <th>Process Accepted</th>
-                        <th>Process Rej. %</th>
-                        <th>Final Accepted</th>
-                        <th>Final Rej. %</th>
+                        <th>Balance<br />Qty</th>
+                        <th>No. of Final<br />IC Issued</th>
+                        <th>Last Final<br />IC Date</th>
+                        <th>RM<br />Accepted</th>
+                        <th>RM<br />Rej. %</th>
+                        <th>Process<br />Accepted</th>
+                        <th>Process<br />Rej. %</th>
+                        <th>Final<br />Accepted</th>
+                        <th>Final<br />Rej. %</th>
                     </tr>
                 </thead>
                 <tbody>

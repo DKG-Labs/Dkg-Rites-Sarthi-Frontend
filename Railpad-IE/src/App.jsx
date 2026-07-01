@@ -23,6 +23,7 @@ import AttendingCallsDashboard from './components/AttendingCallsDashboard';
 import InspectionInitiationPage from './pages/InspectionInitiationPage';
 import PlantDeclarationDashboard from './components/PlantDeclaration/PlantDeclarationDashboard';
 import RailpadFinalProductCertificate from './components/FinalInspection/RailpadFinalProductCertificate';
+import RailpadProcessInspectionDashboard from './components/ProcessInspection/RailpadProcessInspectionDashboard';
 
 const SUB_CARDS = [
   { id: 'raw-material', title: 'Raw Material Weighment', description: 'Monitor and log raw material proportions' },
@@ -856,6 +857,7 @@ const App = () => {
         </div>
       ) : activeItem === 'ATTENDING_CALLS' ? (
         <AttendingCallsDashboard 
+          onBackToPortal={() => setActiveItem('PortalHome')}
           onStart={(call) => {
             setSelectedCallForInitiation(call);
             setActiveItem('INSPECTION_INITIATION');
@@ -869,7 +871,11 @@ const App = () => {
                 user: loggedInUser ? `${loggedInUser.userName}` : 'Railpad-IE'
               });
             }
-            setActiveItem('FINAL_INSPECTION');
+            if (call?.requestId?.startsWith('RPP-') || call?.callNo?.startsWith('RPP-')) {
+              setActiveItem('PROCESS_INSPECTION');
+            } else {
+              setActiveItem('FINAL_INSPECTION');
+            }
           }}
           onIssueIc={(call, viewOnly = false) => {
             setSelectedCallForInitiation(call);
@@ -894,9 +900,31 @@ const App = () => {
                 user: loggedInUser ? `${loggedInUser.userName}` : 'Railpad-IE'
               });
             }
-            setActiveItem('FINAL_INSPECTION');
+            if (selectedCallForInitiation?.requestId?.startsWith('RPP-') || selectedCallForInitiation?.callNo?.startsWith('RPP-')) {
+              setActiveItem('PROCESS_INSPECTION');
+            } else {
+              setActiveItem('FINAL_INSPECTION');
+            }
           }}
           onBack={() => setActiveItem('ATTENDING_CALLS')}
+        />
+      ) : activeItem === 'PROCESS_INSPECTION' ? (
+        <RailpadProcessInspectionDashboard 
+          user={loggedInUser}
+          call={selectedCallForInitiation}
+          currentShift={currentShift}
+          onBack={() => setActiveItem('ATTENDING_CALLS')}
+          onUpdateCall={(updatedData) => {
+            setSelectedCallForInitiation(prev => ({
+              ...prev,
+              ...updatedData
+            }));
+          }}
+          onPauseComplete={() => {
+            localStorage.setItem('railpad_ie_active_item', 'ATTENDING_CALLS');
+            setActiveItem('ATTENDING_CALLS');
+            window.location.reload();
+          }}
         />
       ) : activeItem === 'ISSUE_IC' ? (
         <RailpadFinalProductCertificate 

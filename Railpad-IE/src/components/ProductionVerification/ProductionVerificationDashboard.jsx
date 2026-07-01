@@ -1,7 +1,82 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import ProductionVerificationScreen from './ProductionVerificationScreen';
+import Pagination from '../common/Pagination';
 import '../../styles/ProductionVerification.css';
 import { getBaseUrl, API_ENDPOINTS, getDefaultHeaders } from '../../services/apiConfig';
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("ErrorBoundary caught an error in ProductionVerificationScreen:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          padding: '32px',
+          background: '#fff5f5',
+          border: '1px solid #fee2e2',
+          borderRadius: '16px',
+          color: '#991b1b',
+          maxWidth: '800px',
+          margin: '40px auto',
+          boxShadow: '0 10px 15px -3px rgba(153, 27, 27, 0.05)'
+        }}>
+          <h2 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '12px' }}>
+            Verification Screen Rendering Error
+          </h2>
+          <p style={{ fontSize: '14px', color: '#7f1d1d', marginBottom: '20px', lineHeight: '1.5' }}>
+            React encountered a runtime error while rendering the verification details page. Please see the technical details below.
+          </p>
+          <pre style={{
+            background: '#fef2f2',
+            padding: '16px',
+            borderRadius: '8px',
+            border: '1px solid #fca5a5',
+            overflowX: 'auto',
+            fontSize: '13px',
+            fontFamily: 'monospace',
+            color: '#991b1b',
+            whiteSpace: 'pre-wrap'
+          }}>
+            {this.state.error && this.state.error.toString()}
+            {"\n\n"}
+            {this.state.error && this.state.error.stack}
+          </pre>
+          <button
+            onClick={() => {
+              this.setState({ hasError: false, error: null });
+              this.props.onReset();
+            }}
+            style={{
+              marginTop: '20px',
+              padding: '10px 20px',
+              background: '#ef4444',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: '700',
+              cursor: 'pointer'
+            }}
+          >
+            ← Back to Dashboard
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 
 const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShift, user }) => {
   const [activeTab, setActiveTab] = useState('pending');
@@ -10,6 +85,14 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
   const [selectedDeclaration, setSelectedDeclaration] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab]);
 
   const fetchDeclarations = async () => {
     if (!user || !currentShift) return;
@@ -37,7 +120,7 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
             const declUrl = `${getBaseUrl()}${API_ENDPOINTS.PRODUCTION_DECLARATION.GET_BY_ID}/${t.requestId}`;
             const declResponse = await fetch(declUrl, { headers: getDefaultHeaders(user.token) });
             const declData = await declResponse.json();
-            
+
             if (declData.responseStatus?.statusCode === 0) {
               const d = declData.responseData;
               return {
@@ -49,9 +132,10 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
                 status: t.status,
                 submittedAt: t.createdDate,
                 workflowTransitionId: t.workflowTransitionId,
-                items: d.products.map(p => ({
+                items: (d.products || []).map(p => ({
                   productType: p.productType,
-                  batches: p.batches.map(b => ({
+                  drawingNo: p.drawingNo,
+                  batches: (p.batches || []).map(b => ({
                     batchNo: b.batchNo,
                     compoundA: b.compABatch,
                     compoundB: b.compBBatch,
@@ -64,7 +148,9 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
             }
             return null;
           }));
-          setPendingDeclarations(declarations.filter(d => d !== null));
+          const finalPending = declarations.filter(d => d !== null);
+          finalPending.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
+          setPendingDeclarations(finalPending);
         }
       } else {
         // --- VERIFIED (COMPLETED) CALLS LOGIC ---
@@ -76,10 +162,10 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
 
         if (completedData.responseStatus?.statusCode === 0) {
           const completed = completedData.responseData || [];
-          
+
           // Filter for current role and plant
-          const myCompleted = completed.filter(c => 
-            c.currentRole === 'Rail Process IE' && 
+          const myCompleted = completed.filter(c =>
+            c.currentRole === 'Rail Process IE' &&
             c.plantId?.trim() === currentShift.unit?.trim() &&
             Number(c.moduleId) === 3
           );
@@ -115,9 +201,10 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
                     totalAccepted: v.totalAcceptedPieces
                   } : { totalProduced: 0, totalRejected: 0, totalAccepted: 0 },
                   rejections: v ? v.rejections : [],
-                  items: d.products.map(p => ({
+                  items: (d.products || []).map(p => ({
                     productType: p.productType,
-                    batches: p.batches.map(b => ({
+                    drawingNo: p.drawingNo,
+                    batches: (p.batches || []).map(b => ({
                       batchNo: b.batchNo,
                       compoundA: b.compABatch,
                       compoundB: b.compBBatch,
@@ -134,7 +221,9 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
             return null;
           }));
 
-          setVerifiedDeclarations(verifiedEntries.filter(v => v !== null));
+          const finalVerified = verifiedEntries.filter(v => v !== null);
+          finalVerified.sort((a, b) => new Date(b.verifiedAt).getTime() - new Date(a.verifiedAt).getTime());
+          setVerifiedDeclarations(finalVerified);
         }
       }
     } catch (error) {
@@ -193,9 +282,10 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
         totalPiecesProduced: rejectionData.summary.totalProduced,
         totalPiecesRejected: rejectionData.summary.totalRejected,
         totalAcceptedPieces: rejectionData.summary.totalAccepted,
-        productionInfos: declaration.items.flatMap(item => 
+        productionInfos: declaration.items.flatMap(item =>
           item.batches.map(b => ({
             productType: item.productType,
+            drawingNo: item.drawingNo,
             batchNo: b.batchNo || (b.compoundA && b.compoundB ? `${b.compoundA} + ${b.compoundB}` : ''),
             initialWt: b.initialWeight,
             finalWt: b.finalWeight,
@@ -252,7 +342,7 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
       setPendingDeclarations(prev => prev.filter(d => d.id !== declaration.id));
       setSelectedDeclaration(null);
       showNotification('Production successfully verified and accepted!');
-      
+
       // Refresh the page after 2 seconds to ensure clean state as requested
       setTimeout(() => {
         window.location.reload();
@@ -293,14 +383,14 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
           method: 'DELETE',
           headers: getDefaultHeaders(user.token)
         });
-        
+
         setVerifiedDeclarations(prev => prev.filter(d => d.id !== declaration.id));
       }
 
       setPendingDeclarations(prev => prev.filter(d => d.id !== declaration.id));
       setSelectedDeclaration(null);
       showNotification('Production successfully returned to vendor.');
-      
+
       // Refresh the page after 2 seconds to ensure clean state as requested
       setTimeout(() => {
         window.location.reload();
@@ -331,16 +421,33 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
     }
   };
 
+  // ─── Pagination computations (must be above any early returns to follow Rules of Hooks) ───
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+
+  const paginatedPending = useMemo(() => {
+    return pendingDeclarations.slice(startIndex, endIndex);
+  }, [pendingDeclarations, startIndex, endIndex]);
+
+  const paginatedVerified = useMemo(() => {
+    return verifiedDeclarations.slice(startIndex, endIndex);
+  }, [verifiedDeclarations, startIndex, endIndex]);
+
+  const totalCount = activeTab === 'pending' ? pendingDeclarations.length : verifiedDeclarations.length;
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
+
   if (selectedDeclaration) {
     return (
       <>
-        <ProductionVerificationScreen 
-          declaration={selectedDeclaration}
-          isSubmitting={isLoading}
-          onBack={() => setSelectedDeclaration(null)}
-          onVerify={(rejectionData) => handleVerify(selectedDeclaration, rejectionData)}
-          onReturn={(remarks) => handleReturn(selectedDeclaration, remarks)}
-        />
+        <ErrorBoundary onReset={() => setSelectedDeclaration(null)}>
+          <ProductionVerificationScreen
+            declaration={selectedDeclaration}
+            isSubmitting={isLoading}
+            onBack={() => setSelectedDeclaration(null)}
+            onVerify={(rejectionData) => handleVerify(selectedDeclaration, rejectionData)}
+            onReturn={(remarks) => handleReturn(selectedDeclaration, remarks)}
+          />
+        </ErrorBoundary>
         {notification && (
           <div className="pv-notification-container">
             <div className={`pv-notification ${notification.type} ${notification.fading ? 'fade-out' : ''}`}>
@@ -356,6 +463,8 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
     );
   }
 
+
+
   return (
     <div className="pv-dashboard">
       <div className="pv-header">
@@ -364,14 +473,14 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
           <p>Review vendor declarations and log process rejections</p>
         </div>
         <div className="pv-tabs">
-          <button 
+          <button
             className={`pv-tab-btn ${activeTab === 'pending' ? 'active' : ''}`}
             onClick={() => setActiveTab('pending')}
           >
             Production Pending for Verification
             <span className="pv-badge">{pendingDeclarations.length}</span>
           </button>
-          <button 
+          <button
             className={`pv-tab-btn ${activeTab === 'verified' ? 'active' : ''}`}
             onClick={() => setActiveTab('verified')}
           >
@@ -411,20 +520,21 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
                 <p>All vendor submissions have been verified.</p>
               </div>
             ) : (
-              <table className="pv-table">
-                <thead>
-                  <tr>
-                    <th>Vendor Name</th>
-                    <th>Date / Shift</th>
-                    <th>Production Line</th>
-                    <th>Items</th>
-                    <th>Submitted</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pendingDeclarations.map(decl => (
-                    <tr key={decl.id}>
+              <>
+                <table className="pv-table">
+                  <thead>
+                    <tr>
+                      <th>Vendor Name</th>
+                      <th>Date / Shift</th>
+                      <th>Production Line</th>
+                      <th>Items</th>
+                      <th>Submitted</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedPending.map(decl => (
+                      <tr key={decl.id}>
                         <td>
                           <div className="pv-vendor-cell">
                             <span className="pv-vendor-name">
@@ -436,33 +546,42 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
                             <span className="pv-decl-id">ID: {decl.id}</span>
                           </div>
                         </td>
-                      <td>
-                        <div className="pv-date-cell">
-                          <span className="pv-date">{decl.date}</span>
-                          <span className="pv-shift-badge">Shift {decl.shift}</span>
-                        </div>
-                      </td>
-                      <td>{decl.line}</td>
-                      <td>
-                        <div className="pv-items-preview">
-                          {decl.items.map((item, idx) => (
-                            <span key={idx} className="pv-item-tag">{item.productType}</span>
-                          ))}
-                        </div>
-                      </td>
-                      <td>{new Date(decl.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                      <td>
-                        <button 
-                          className="pv-action-btn verify"
-                          onClick={() => setSelectedDeclaration(decl)}
-                        >
-                          Verify Now
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        <td>
+                          <div className="pv-date-cell">
+                            <span className="pv-date">{decl.date}</span>
+                            <span className="pv-shift-badge">Shift {decl.shift}</span>
+                          </div>
+                        </td>
+                        <td>{decl.line}</td>
+                        <td>
+                          <div className="pv-items-preview">
+                            {decl.items.map((item, idx) => (
+                              <span key={idx} className="pv-item-tag">{item.productType}</span>
+                            ))}
+                          </div>
+                        </td>
+                        <td>{new Date(decl.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                        <td>
+                          <button
+                            className="pv-action-btn verify"
+                            onClick={() => setSelectedDeclaration(decl)}
+                          >
+                            Verify Now
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalCount={pendingDeclarations.length}
+                  startIndex={startIndex}
+                  endIndex={endIndex}
+                  onPageChange={setCurrentPage}
+                />
+              </>
             )}
           </div>
         ) : (
@@ -474,73 +593,83 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
                 <p>Completed verifications will appear here.</p>
               </div>
             ) : (
-              <table className="pv-table">
-                <thead>
-                  <tr>
-                    <th>Vendor Name</th>
-                    <th>Date / Shift</th>
-                    <th>Verified At</th>
-                    <th>Accepted Qty</th>
-                    <th>Rejected Qty</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {verifiedDeclarations.map(decl => {
-                    const modifiable = isModifiable(decl.verifiedAt);
-                    return (
-                      <tr key={decl.id}>
-                        <td>
-                          <div className="pv-vendor-cell">
-                            <span className="pv-vendor-name">{decl.vendorName}</span>
-                          </div>
-                        </td>
-                        <td>{decl.date} / {decl.shift}</td>
-                        <td>{new Date(decl.verifiedAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</td>
-                        <td className="pv-qty-accepted">{decl.summary.totalAccepted.toLocaleString()}</td>
-                        <td className="pv-qty-rejected">{decl.summary.totalRejected.toLocaleString()}</td>
-                        <td>
-                          <span className="pv-status-locked">
-                            {modifiable ? '🔓 Modifiable' : '🔒 Locked'}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="pv-row-actions">
-                            {modifiable && (
-                              <button 
-                                className="pv-icon-btn edit"
-                                onClick={() => setSelectedDeclaration({ ...decl, forceEdit: true })}
-                                title="Edit Rejections"
+              <>
+                <table className="pv-table">
+                  <thead>
+                    <tr>
+                      <th>Vendor Name</th>
+                      <th>Date / Shift</th>
+                      <th>Verified At</th>
+                      <th>Accepted Qty</th>
+                      <th>Rejected Qty</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedVerified.map(decl => {
+                      const modifiable = isModifiable(decl.verifiedAt);
+                      return (
+                        <tr key={decl.id}>
+                          <td>
+                            <div className="pv-vendor-cell">
+                              <span className="pv-vendor-name">{decl.vendorName}</span>
+                            </div>
+                          </td>
+                          <td>{decl.date} / {decl.shift}</td>
+                          <td>{decl.verifiedAt ? new Date(decl.verifiedAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : '—'}</td>
+                          <td className="pv-qty-accepted">{(decl.summary?.totalAccepted ?? 0).toLocaleString()}</td>
+                          <td className="pv-qty-rejected">{(decl.summary?.totalRejected ?? 0).toLocaleString()}</td>
+                          <td>
+                            <span className="pv-status-locked">
+                              {modifiable ? '🔓 Modifiable' : '🔒 Locked'}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="pv-row-actions">
+                              {modifiable && (
+                                <button
+                                  className="pv-icon-btn edit"
+                                  onClick={() => setSelectedDeclaration({ ...decl, forceEdit: true })}
+                                  title="Edit Rejections"
+                                >
+                                  ✏️
+                                </button>
+                              )}
+                              <button
+                                className="pv-icon-btn view"
+                                onClick={() => setSelectedDeclaration(decl)}
+                                title="View Details"
                               >
-                                ✏️
+                                👁️
                               </button>
-                            )}
-                            <button 
-                              className="pv-icon-btn view"
-                              onClick={() => setSelectedDeclaration(decl)}
-                              title="View Details"
-                            >
-                              👁️
-                            </button>
-                            {modifiable ? (
-                              <button 
-                                className="pv-icon-btn delete"
-                                onClick={() => handleDeleteVerified(decl)}
-                                title="Delete & Return to Pending"
-                              >
-                                🗑️
-                              </button>
-                            ) : (
-                              <span className="pv-lock-icon" title="Permanently Locked">🔒</span>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                              {modifiable ? (
+                                <button
+                                  className="pv-icon-btn delete"
+                                  onClick={() => handleDeleteVerified(decl)}
+                                  title="Delete & Return to Pending"
+                                >
+                                  🗑️
+                                </button>
+                              ) : (
+                                <span className="pv-lock-icon" title="Permanently Locked">🔒</span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalCount={verifiedDeclarations.length}
+                  startIndex={startIndex}
+                  endIndex={endIndex}
+                  onPageChange={setCurrentPage}
+                />
+              </>
             )}
           </div>
         )}

@@ -1,109 +1,203 @@
 import React, { useState, useMemo } from 'react';
+import CustomSelect from '../common/CustomSelect';
 
 const REJECTION_REASONS = [
   'NIL',
-  'Short Moulding',
-  'Bubbles/Blisters',
-  'Uneven Edges',
-  'Surface Roughness',
-  'Improper Side Cut'
+  'Short Filling',
+  'Burn Edge',
+  'Poor Embossing',
+  'Uneven Thickness',
+  'Scratches',
+  'Dimension Not Ok',
+  'Cut Marks'
 ];
 
 const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn, isSubmitting }) => {
-  const isReadOnly = declaration.status === 'Verified' && !declaration.forceEdit;
-  const [rejections, setRejections] = useState(declaration.rejections || []);
+  // ─── ALL HOOKS MUST BE CALLED UNCONDITIONALLY AT THE TOP ───
+  const isReadOnly = (declaration?.status === 'Verified') && !declaration?.forceEdit;
+
+  const [rejections, setRejections] = useState(Array.isArray(declaration?.rejections) ? declaration.rejections : []);
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [returnRemarks, setReturnRemarks] = useState('');
+
+  // Safe items array - always an array, never null
+  const safeItems = useMemo(() => {
+    if (!declaration || !Array.isArray(declaration.items)) return [];
+    return declaration.items.filter(Boolean);
+  }, [declaration]);
 
   // Flatten products and batches for the dropdowns
   const availableBatches = useMemo(() => {
     const map = {};
-    declaration.items.forEach(item => {
-      map[item.productType] = item.batches.map(b => {
+    safeItems.forEach(item => {
+      if (!item || !item.productType) return;
+      const safeBatches = Array.isArray(item.batches) ? item.batches.filter(Boolean) : [];
+      map[item.productType] = safeBatches.map(b => {
+        if (!b) return null;
         const batchValue = b.batchNo || (b.compoundA && b.compoundB ? `${b.compoundA} + ${b.compoundB}` : '');
-        let label = b.batchNo;
+        let label = b.batchNo || '';
         if (b.compoundA && b.compoundB) {
           label = `Comp A: ${b.compoundA} | Comp B: ${b.compoundB}`;
         }
         return { value: batchValue, label: label || batchValue };
-      });
+      }).filter(b => b && b.value);
     });
     return map;
-  }, [declaration]);
+  }, [safeItems]);
 
   const productTypes = Object.keys(availableBatches);
 
-  const handleAddRejection = () => {
-    setRejections([
-      ...rejections,
-      { 
-        id: Date.now(), 
-        productType: '', 
-        batchNo: '', 
-        rejectedQty: '', 
-        reason: 'NIL' 
-      }
-    ]);
-  };
-
-  const handleUpdateRejection = (id, field, value) => {
-    setRejections(rejections.map(rej => {
-      if (rej.id === id) {
-        let updated = { ...rej, [field]: value };
-        
-        // If product type changed, reset batch no to empty string
-        if (field === 'productType') {
-          updated.batchNo = '';
-        }
-
-        // Logic for 0 Rejection -> NIL Reason
-        if (field === 'rejectedQty') {
-          const qty = parseInt(value) || 0;
-          if (qty === 0) {
-            updated.reason = 'NIL';
-          } else if (updated.reason === 'NIL') {
-            updated.reason = REJECTION_REASONS[1];
-          }
-        }
-
-        if (field === 'reason' && value === 'NIL') {
-          updated.rejectedQty = 0;
-        } else if (field === 'reason' && value !== 'NIL' && parseInt(updated.rejectedQty) === 0) {
-          updated.rejectedQty = 1;
-        }
-
-        return updated;
-      }
-      return rej;
-    }));
-  };
-
-  const handleRemoveRejection = (id) => {
-    setRejections(rejections.filter(rej => rej.id !== id));
-  };
-
-  // Summary Calculations
+  // Summary Calculations — safe against null/undefined
   const totalProduced = useMemo(() => {
     let total = 0;
-    declaration.items.forEach(item => {
-      item.batches.forEach(b => {
-        total += b.qtyProduced;
+    safeItems.forEach(item => {
+      if (!item) return;
+      const safeBatches = Array.isArray(item.batches) ? item.batches.filter(Boolean) : [];
+      safeBatches.forEach(b => {
+        if (!b) return;
+        total += parseInt(b.qtyProduced) || 0;
       });
     });
     return total;
-  }, [declaration]);
+  }, [safeItems]);
 
   const totalRejected = useMemo(() => {
-    return rejections.reduce((sum, rej) => sum + (parseInt(rej.rejectedQty) || 0), 0);
+    const currentRejections = Array.isArray(rejections) ? rejections : [];
+    return currentRejections.reduce((sum, rej) => sum + (rej ? (parseInt(rej.rejectedQty) || 0) : 0), 0);
   }, [rejections]);
 
   const totalAccepted = totalProduced - totalRejected;
 
+  // ─── Now we can safely return early if declaration is missing ───
+  if (!declaration) {
+    return (
+      <div className="pv-screen">
+        <div className="pv-screen-header">
+          <button className="pv-back-btn" onClick={onBack}>← Back</button>
+          <div className="pv-screen-title">
+            <h2>Shift Production Verification</h2>
+          </div>
+        </div>
+        <div style={{ padding: '40px', textAlign: 'center', color: '#ef4444' }}>
+          <h3>Error: No declaration data found.</h3>
+          <p>Please go back and try again.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Handlers ───
+  const handleAddRejection = () => {
+    setRejections(prev => [
+      ...prev,
+      { id: Date.now(), productType: '', batchNo: '', rejectedQty: '', reason: 'NIL' }
+    ]);
+  };
+
+  const handleUpdateRejection = (id, field, value) => {
+    setRejections(prev => prev.map(rej => {
+      if (rej.id !== id) return rej;
+      let updated = { ...rej, [field]: value };
+
+      if (field === 'productType') {
+        updated.batchNo = '';
+        updated.reason = 'NIL';
+        updated.rejectedQty = '';
+      }
+
+      if (field === 'batchNo') {
+        if (value) {
+          const currentQty = parseInt(updated.rejectedQty) || 0;
+          const otherUsedReasons = prev
+            .filter(r => r.id !== id && r.productType === updated.productType && r.batchNo === value)
+            .map(r => r.reason);
+          if (currentQty > 0) {
+            if (updated.reason === 'NIL' || otherUsedReasons.includes(updated.reason)) {
+              const available = REJECTION_REASONS.filter(r => r !== 'NIL' && !otherUsedReasons.includes(r));
+              updated.reason = available.length > 0 ? available[0] : 'NIL';
+            }
+          } else {
+            updated.reason = 'NIL';
+          }
+        } else {
+          updated.reason = 'NIL';
+          updated.rejectedQty = '';
+        }
+      }
+
+      if (field === 'rejectedQty') {
+        const qty = parseInt(value) || 0;
+        if (qty === 0) {
+          updated.reason = 'NIL';
+        } else {
+          const otherUsedReasons = prev
+            .filter(r => r.id !== id && r.productType === updated.productType && r.batchNo === updated.batchNo)
+            .map(r => r.reason);
+          if (updated.reason === 'NIL' || otherUsedReasons.includes(updated.reason)) {
+            const available = REJECTION_REASONS.filter(r => r !== 'NIL' && !otherUsedReasons.includes(r));
+            updated.reason = available.length > 0 ? available[0] : 'NIL';
+          }
+        }
+      }
+
+      if (field === 'reason') {
+        if (value === 'NIL') {
+          updated.rejectedQty = 0;
+        } else {
+          if (parseInt(updated.rejectedQty) === 0 || !updated.rejectedQty) {
+            updated.rejectedQty = 1;
+          }
+          const otherUsedReasons = prev
+            .filter(r => r.id !== id && r.productType === updated.productType && r.batchNo === updated.batchNo)
+            .map(r => r.reason);
+          if (otherUsedReasons.includes(value)) {
+            alert(`The reason "${value}" is already logged for this product and batch combination.`);
+            return rej;
+          }
+        }
+      }
+
+      return updated;
+    }));
+  };
+
+  const handleRemoveRejection = (id) => {
+    setRejections(prev => prev.filter(rej => rej.id !== id));
+  };
+
+  const getAvailableReasons = (currentRej) => {
+    if (!currentRej || !currentRej.productType || !currentRej.batchNo) return REJECTION_REASONS;
+    const usedReasons = rejections
+      .filter(r => r && r.id !== currentRej.id && r.productType === currentRej.productType && r.batchNo === currentRej.batchNo)
+      .map(r => r.reason);
+    return REJECTION_REASONS.filter(reason => !usedReasons.includes(reason) || reason === currentRej.reason);
+  };
+
   const handleFinalSubmit = () => {
-    // Basic validation
     const hasIncomplete = rejections.some(r => !r.productType || !r.batchNo);
     if (hasIncomplete) {
       alert('Please complete all rejection entries (Select Product and Batch).');
+      return;
+    }
+
+    const seen = new Set();
+    let hasDuplicate = false;
+    let duplicateInfo = '';
+    for (const r of rejections) {
+      if (r.productType && r.batchNo && r.reason && r.reason !== 'NIL') {
+        const key = `${r.productType}|${r.batchNo}|${r.reason}`;
+        if (seen.has(key)) {
+          hasDuplicate = true;
+          const batches = availableBatches[r.productType] || [];
+          const matchedBatch = batches.find(b => b.value === r.batchNo);
+          duplicateInfo = `"${r.reason}" for Product: ${r.productType}, Batch: ${matchedBatch ? matchedBatch.label : r.batchNo}`;
+          break;
+        }
+        seen.add(key);
+      }
+    }
+    if (hasDuplicate) {
+      alert(`Duplicate rejection reason found: ${duplicateInfo}. Each reason can only be logged once per product and batch combination.`);
       return;
     }
 
@@ -111,15 +205,8 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
       alert('Total accepted pieces cannot be negative. Please check rejections.');
       return;
     }
-    
-    onVerify({
-      rejections: rejections,
-      summary: {
-        totalProduced,
-        totalRejected,
-        totalAccepted
-      }
-    });
+
+    onVerify({ rejections, summary: { totalProduced, totalRejected, totalAccepted } });
   };
 
   const handleConfirmReturn = () => {
@@ -131,6 +218,7 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
     setShowReturnModal(false);
   };
 
+  // ─── Render ───
   return (
     <div className="pv-screen">
       {showReturnModal && (
@@ -144,9 +232,8 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
               <div className="modal-context-info-slim">
                 <span><b>{declaration.vendorName}</b> (#{declaration.id}) | {declaration.date}</span>
               </div>
-
               <div className="modal-input-section">
-                <textarea 
+                <textarea
                   className="remarks-textarea ultra-compact"
                   placeholder="Reason for returning (required)..."
                   value={returnRemarks}
@@ -157,7 +244,7 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
             </div>
             <div className="modal-footer">
               <button className="modal-cancel-btn" onClick={() => setShowReturnModal(false)}>Cancel</button>
-              <button className="modal-confirm-btn" onClick={handleConfirmReturn}>Confirm & Send to Vendor</button>
+              <button className="modal-confirm-btn" onClick={handleConfirmReturn}>Confirm &amp; Send to Vendor</button>
             </div>
           </div>
         </div>
@@ -171,8 +258,8 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
         </div>
         {!isReadOnly && (
           <div className="pv-header-actions">
-            <button 
-              className="pv-return-btn" 
+            <button
+              className="pv-return-btn"
               disabled={isSubmitting}
               onClick={() => {
                 window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
@@ -181,8 +268,8 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
             >
               Return to Vendor
             </button>
-            <button 
-              className="pv-submit-btn" 
+            <button
+              className="pv-submit-btn"
               onClick={handleFinalSubmit}
               disabled={isSubmitting}
             >
@@ -200,46 +287,65 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
             <h3>Vendor Production Information</h3>
             <span className="pv-readonly-badge">Read-Only</span>
           </div>
-          
-          <div className="pv-vendor-data-grid">
-            {declaration.items.map((item, idx) => (
-              <div key={idx} className="pv-product-group">
-                <div className="pv-product-header">
-                  <h4>{item.productType}</h4>
-                </div>
-                <table className="pv-data-table">
-                  <thead>
-                    <tr>
-                      <th>Batch No.</th>
-                      <th>Initial Wt. (kg)</th>
-                      <th>Final Wt. (kg)</th>
-                      <th>Final Product Numbers (Nos.)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {item.batches.map((batch, bIdx) => (
-                      <tr key={bIdx}>
-                        <td>
-                          {batch.batchNo}
-                          {batch.compoundA && (
-                            <div className="pv-compound-info">
-                              {batch.compoundA} + {batch.compoundB}
-                            </div>
-                          )}
-                        </td>
-                        <td>{batch.initialWeight}</td>
-                        <td>{batch.finalWeight}</td>
-                        <td>{batch.qtyProduced.toLocaleString()}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ))}
-          </div>
+
+          {safeItems.length === 0 ? (
+            <div className="pv-no-rejections">
+              <p>No production items found in this declaration.</p>
+            </div>
+          ) : (
+            <div className="pv-vendor-data-grid">
+              {safeItems.map((item, idx) => {
+                const safeBatches = Array.isArray(item.batches) ? item.batches.filter(Boolean) : [];
+                return (
+                  <div key={idx} className="pv-product-group">
+                    <div className="pv-product-header" style={{ display: 'flex', alignItems: 'baseline' }}>
+                      <h4 style={{ margin: 0 }}>{item.productType}</h4>
+                      {item.drawingNo && (
+                        <span style={{ fontSize: '14px', color: '#64748b', marginLeft: '8px' }}>({item.drawingNo})</span>
+                      )}
+                    </div>
+                    <table className="pv-data-table">
+                      <thead>
+                        <tr>
+                          <th>Batch No.</th>
+                          <th>Initial Wt. (kg)</th>
+                          <th>Final Wt. (kg)</th>
+                          <th>Final Product Numbers (Nos.)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {safeBatches.map((batch, bIdx) => {
+                          const qty = parseInt(batch.qtyProduced) || 0;
+                          return (
+                            <tr key={bIdx}>
+                              <td>
+                                {batch.batchNo
+                                  ? batch.batchNo
+                                  : (batch.compoundA
+                                    ? `${batch.compoundA} + ${batch.compoundB}`
+                                    : '—')}
+                                {batch.batchNo && batch.compoundA && (
+                                  <div className="pv-compound-info">
+                                    Comp A: {batch.compoundA} | Comp B: {batch.compoundB}
+                                  </div>
+                                )}
+                              </td>
+                              <td>{batch.initialWeight ?? '—'}</td>
+                              <td>{batch.finalWeight ?? '—'}</td>
+                              <td>{qty.toLocaleString()}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
-        {/* Section 2: Entry of Rejected Rail Pads */}
+        {/* Section 2: Log Physical Rejections */}
         <div className="pv-section">
           <div className="pv-section-header">
             <span className="pv-section-num">2</span>
@@ -263,10 +369,10 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
                 </tr>
               </thead>
               <tbody>
-                {rejections.map(rej => (
+                {rejections.filter(Boolean).map(rej => (
                   <tr key={rej.id}>
                     <td>
-                      <select 
+                      <select
                         value={rej.productType}
                         onChange={(e) => handleUpdateRejection(rej.id, 'productType', e.target.value)}
                         disabled={isReadOnly}
@@ -277,7 +383,7 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
                       </select>
                     </td>
                     <td>
-                      <select 
+                      <select
                         value={rej.batchNo}
                         onChange={(e) => handleUpdateRejection(rej.id, 'batchNo', e.target.value)}
                         disabled={isReadOnly || !rej.productType}
@@ -290,8 +396,8 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
                       </select>
                     </td>
                     <td>
-                      <input 
-                        type="number" 
+                      <input
+                        type="number"
                         value={rej.rejectedQty}
                         onChange={(e) => handleUpdateRejection(rej.id, 'rejectedQty', e.target.value)}
                         min="0"
@@ -299,16 +405,18 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
                       />
                     </td>
                     <td>
-                      <select 
+                      <CustomSelect
+                        options={getAvailableReasons(rej)}
                         value={rej.reason}
-                        onChange={(e) => handleUpdateRejection(rej.id, 'reason', e.target.value)}
+                        onChange={(value) => handleUpdateRejection(rej.id, 'reason', value)}
                         disabled={isReadOnly}
-                      >
-                        {REJECTION_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
-                      </select>
+                        placeholder="Select Reason"
+                      />
                     </td>
                     <td>
-                      {!isReadOnly && <button className="pv-remove-btn" onClick={() => handleRemoveRejection(rej.id)}>×</button>}
+                      {!isReadOnly && (
+                        <button className="pv-remove-btn" onClick={() => handleRemoveRejection(rej.id)}>×</button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -318,7 +426,7 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
         </div>
       </div>
 
-      {/* Section 3: Production Summary & Final Acceptance */}
+      {/* Section 3: Production Summary */}
       <div className="pv-summary-footer">
         <div className="pv-summary-grid">
           <div className="pv-summary-item">

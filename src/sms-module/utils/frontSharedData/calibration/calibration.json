@@ -1,0 +1,188 @@
+{
+    "calibrationGeneralInfo": {
+        "date": "01/01/2024",
+        "shift": "A"
+    },
+    "instrumentMapping": {
+        "Measuring Instrument": ["Vernier", "Micrometer", "Feeler Gauge", "Weighing Scale", "Measuring Tape", "Measuring Scale"],
+        "Testing Machines": ["Hydris", "Leco / Gas Analyser", "Spectro", "Tensile Testing Machine", "Hardness", "TLT Machine", "FWT System", "FBW M/c"],
+        "Gauge (Working)": [ "Head & Web Gauge", "Height Gauge", "Fish Gauge", "Foot Gauge", "Asymmetry +", "Asymmetry -", "Toe Thk +", "Toe Thk -", "Crown (F)", "Crown (M)", "Foot Concavity", "Hole - Base", "Hole - End", "Right Angle", "FWT Bearer Head", "FWT Striker Head" ],
+        "Gauge (Master)": ["NA"],
+        "Straight Edge": ["3m","2m","1.5m","1m","0.85m","100mm"],
+        "Templates": ["FWT Bearer Head", "FWT Striker Head"]
+    },
+    "railSectionList": [
+        {
+            "key": "60E1-Prime",
+            "value": "60E1-Prime"
+        },
+        {
+            "key": "60E1-IU",
+            "value": "60E1-IU"
+        },
+        {
+            "key": "IRS52-Prime",
+            "value": "IRS52-Prime"
+        },
+        {
+            "key": "IRS52-IU",
+            "value": "IRS52-IU"
+        },
+        {
+            "key": "60E1A1-Prime",
+            "value": "60E1A1-Prime"
+        },
+        {
+            "key": "60E1A1-IU",
+            "value": "60E1A1-IU"
+        },
+        {
+            "key": "NA",
+            "value": "NA"
+        }
+    ],
+    "columns": [
+        {
+            "title": "S.No.",
+            "dataIndex": "serialNumber",
+            "key": "serialNumber",
+            "fixed": "left",
+            "align": "center"
+        },
+        {
+            "title": "Instrument",
+            "dataIndex": "instrument",
+            "key": "instrument",
+            "fixed": "left",
+            "align": "center"
+        },
+        {
+            "title": "Detail",
+            "dataIndex": "detail",
+            "key": "detail",
+            "align": "center"
+        },
+        {
+            "title": "Rail Section",
+            "dataIndex": "railSection",
+            "key": "railSection",
+            "align": "center"
+        },
+        {
+            "title": "Serial Number",
+            "dataIndex": "sNumber",
+            "key": "sNumber",
+            "align": "center"
+        },
+        {
+            "title": "Gauge Status",
+            "dataIndex": "gaugeStatus",
+            "key": "gaugeStatus",
+            "align": "center"
+        },
+        {
+            "title": "Calibration Due Date",
+            "dataIndex": "dueDate",
+            "key": "dueDate",
+            "align": "center"
+        }
+    ],
+    "reportInfo": [
+        {
+            "key": "1",
+            "serialNumber": "1",
+            "instrument": "Vernier",
+            "detail": "xyz",
+            "railSection": "60E1A1 - Prime",
+            "sNumber": "002",
+            "gaugeStatus": "pass",
+            "dueDate": "2024-09-04"
+        },
+        {
+            "key": "2",
+            "serialNumber": "2",
+            "instrument": "Vernier",
+            "detail": "xyz",
+            "railSection": "60E1A1 - Prime",
+            "sNumber": "002",
+            "gaugeStatus": "pass",
+            "dueDate": "2024-09-04"
+        },
+        {
+            "key": "3",
+            "serialNumber": "3",
+            "instrument": "Vernier",
+            "detail": "xyz",
+            "railSection": "60E1A1 - Prime",
+            "sNumber": "002",
+            "gaugeStatus": "pass",
+            "dueDate": "2024-09-04"
+        },
+        {
+            "key": "4",
+            "serialNumber": "4",
+            "instrument": "Vernier",
+            "detail": "xyz",
+            "railSection": "60E1A1 - Prime",
+            "sNumber": "002",
+            "gaugeStatus": "pass",
+            "dueDate": "2024-09-04"
+        },
+        {
+            "key": "5",
+            "serialNumber": "5",
+            "instrument": "Vernier",
+            "detail": "xyz",
+            "railSection": "60E1A1 - Prime",
+            "sNumber": "002",
+            "gaugeStatus": "pass",
+            "dueDate": "2024-09-04"
+        }
+    ],
+    "calResultList": [
+        {
+            "key": "OK",
+            "value": "OK"
+        },
+        {
+            "key": "Not OK",
+            "value": "Not OK"
+        },
+        {
+            "key": "Discarded",
+            "value": "Discarded"
+        }
+    ],
+    "detailList": [
+        {
+            "key": "BSP1",
+            "value": "BSP1"
+        },
+        {
+            "key": "BSP2",
+            "value": "BSP2"
+        },
+        {
+            "key": "BSP3",
+            "value": "BSP3"
+        }
+    ],
+    "serialNumberList": [
+        {
+            "key": "Item 1",
+            "value": "Item 1"
+        },
+        {
+            "key": "Item 2",
+            "value": "Item 2"
+        },
+        {
+            "key": "Item 3",
+            "value": "Item 3"
+        },
+        {
+            "key": "Item 4",
+            "value": "Item 4"
+        }
+    ]
+}

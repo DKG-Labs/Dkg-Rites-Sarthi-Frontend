@@ -6,7 +6,7 @@ import { getStoredUser } from '../services/authService';
 
 import ShiftDutyForm from './ShiftDutyForm';
 
-const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc }) => {
+const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal }) => {
   const [activeTab, setActiveTab] = useState(() => {
     return localStorage.getItem('railpad_attending_calls_tab') || 'pending';
   });
@@ -287,7 +287,7 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc }) => {
   };
 
   return (
-    <div className="dashboard-container" style={{ padding: '24px', background: '#f8fafc', minHeight: '100vh' }}>
+    <div className="dashboard-container" style={{ padding: '24px', background: '#ffffff', minHeight: '100vh' }}>
       {/* Notification Component */}
       <Notification
         message={notification.message}
@@ -296,10 +296,36 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc }) => {
         onClose={() => setNotification({ ...notification, message: '' })}
       />
 
-      <div style={{ marginBottom: '32px' }}>
-        <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#0f172a', margin: '0 0 8px 0', letterSpacing: '-0.02em' }}>
+      <div style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 8px' }}>
+        <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#0f172a', margin: '0', letterSpacing: '-0.02em' }}>
           RailPad IE Dashboard
         </h1>
+        {onBackToPortal && (
+          <button
+            onClick={onBackToPortal}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              margin: '0',
+              borderRadius: '8px',
+              border: '1px solid #e2e8f0',
+              background: '#ffffff',
+              color: '#475569',
+              fontSize: '13px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.borderColor = '#cbd5e1'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
+          >
+            <span style={{ fontSize: '16px' }}>←</span>
+            Back to Portal Home
+          </button>
+        )}
       </div>
 
       {/* Tabs as Cards */}
@@ -454,6 +480,23 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc }) => {
                           }}
                         >
                           {isSubmitting ? '...' : 'START'}
+                        </button>
+                      )}
+                      {(call.jobStatus === 'INITIATED' || call.status === 'INITIATED') && (
+                        <button
+                          onClick={() => onStart(call)}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '6px',
+                            border: '1px solid #fde68a',
+                            background: '#fffbeb',
+                            color: '#92400e',
+                            fontSize: '11px',
+                            fontWeight: '700',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          RESUME
                         </button>
                       )}
                       {(call.jobStatus === 'PO_VERIFICATION' || call.status === 'PO_VERIFICATION' || call.jobStatus === 'RESUME' || call.status === 'RESUME') && (

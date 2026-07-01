@@ -230,8 +230,11 @@ export const apiService = {
     getAllPendingWorkflowTransitions: (roleName = 'IE', userId = '', plantId = '') =>
         api.get(`/sleeper-workflow/allPendingWorkflowTransition?roleName=${roleName}${userId ? `&assignedTo=${userId}` : ''}${plantId ? `&plantId=${plantId}` : ''}`),
 
-    getAllPendingWorkflowTransitionsModuleWise: (roleName = 'IE', moduleId, page = 0, size = 10) =>
-        api.get(`/sleeper-workflow/allPendingWorkflowTransitionModuelWise?roleName=${roleName}&moduleId=${moduleId}&page=${page}&size=${size}`),
+    getAllPendingWorkflowTransitionsModuleWise: (roleName = 'IE', moduleId, plantId, page = 0, size = 10) =>
+        api.get(`/sleeper-workflow/allPendingWorkflowTransitionModuelWise?roleName=${roleName}&moduleId=${moduleId}&plantId=${plantId}&page=${page}&size=${size}`),
+
+    getAllCompletedWorkflowTransitionsModuleWise: (moduleId, plantId, page = 0, size = 10) =>
+        api.get(`/sleeper-workflow/allCompletedWorkflowTransitionModuleWise?moduleId=${moduleId}&plantId=${plantId}&page=${page}&size=${size}`),
 
     /**
      * IE Action: Verify or Request Change on a workflow transition.
@@ -300,9 +303,6 @@ export const apiService = {
 
     getAllCompletedWorkflowTransitions: (userId = '', plantId = '') =>
         api.get(`/sleeper-workflow/allCompletedCalls?roleName=IE${userId ? `&assignedTo=${userId}` : ''}${plantId ? `&plantId=${plantId}` : ''}`),
-
-    getAllCompletedWorkflowTransitionsModuleWise: (moduleId, page = 0, size = 10) =>
-        api.get(`/sleeper-workflow/allCompletedWorkflowTransitionModuleWise?moduleId=${moduleId}&page=${page}&size=${size}`),
 
 
     // ================= POI IE Mapping ================= //
@@ -383,4 +383,20 @@ export const apiService = {
     deleteETRecord: (id) => api.delete(`/et/${id}`),
     getETBatchSummary: () => api.get('/et/batch-summary'),
     getEtBatchSleepers: (batchId) => api.get(`/FinalInspectionController/inspection/Etbatch?batchId=${batchId}`),
+
+    // ================= RM Consumption Verification =================
+    /**
+     * Fetch paginated RM consumption records for a given plantId.
+     * GET /rm-consumption/by-plant?plantId=...&page=0&size=5
+     */
+    getRMConsumptionByPlant: (plantId, page = 0, size = 5) =>
+        api.get(`/rm-consumption/by-plant`, { params: { plantId, page, size } }),
+
+    /** Fetch paginated RM consumption records filtered by material for a plant */
+    getRMConsumptionByPlantAndMaterial: (plantId, material, page = 0, size = 5) =>
+        api.get(`/rm-consumption/by-plant-material`, { params: { plantId, material, page, size } }),
+
+    /** Fetch all consumption records for the plant (large page, for ledger view) */
+    getRMConsumptionByPlantAll: (plantId) =>
+        api.get(`/rm-consumption/by-plant`, { params: { plantId, page: 0, size: 1000 } }),
 };

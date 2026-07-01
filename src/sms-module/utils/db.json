@@ -1,0 +1,332 @@
+{
+  "shiftList": [
+    {
+      "key": "A",
+      "value": "A"
+    },
+    {
+      "key": "B",
+      "value": "B"
+    },
+    {
+      "key": "C",
+      "value": "C"
+    }
+  ],
+  "millList": [
+        {
+          "key": "URM",
+          "value": "URM"
+        },
+        {
+          "key": "RSM",
+          "value": "RSM"
+        }
+    ],
+    "railSectionList": [
+      {
+          "key": "60E1",
+          "value": "60E1"
+      },
+      {
+          "key": "IRS52",
+          "value": "IRS52"
+      },
+      {
+        "key": "UIC 60",
+        "value": "UIC 60"
+      },
+      {
+          "key": "60E1A1",
+          "value": "60E1A1"
+      },
+      {
+        "key": "136RE",
+        "value": "136RE"
+      }
+  ],
+  "railGradeList": [
+    {
+      "key": "R260",
+      "value": "R260"
+    },
+    {
+      "key": "350HT",
+      "value": "350HT"
+    },
+    {
+      "key": "1080HH",
+      "value": "1080HH"
+    },
+    {
+      "key": "880",
+      "value": "880"
+    },
+    {
+      "key": "880NC",
+      "value": "880NC"
+    }
+  ],
+  "smsList": [
+    {
+      "key": "SMS 2",
+      "value": "SMS 2"
+    },
+    {
+      "key": "SMS 3",
+      "value": "SMS 3"
+    }
+  ],
+  "smsGeneralInfo": {
+    "date": "01/01/2024",
+    "shift": "A",
+    "sms": "SMS - 3",
+    "railGrade": "R260"
+  },
+  "smsHeatListData": [
+    {
+      "key": "1",
+      "serialNumber": "1",
+      "heatNumber": "080446",
+      "casterNumber": "CV1",
+      "seqNumber": "375/ 48",
+      "ladleChemicalAnalysis": "Sent to CCL Lab",
+      "n": "0.0043",
+      "o": "-",
+      "h": "0.9",
+      "vacuumLevel": "0.74",
+      "degTime": "15"
+    },
+    {
+      "key": "2",
+      "serialNumber": "2",
+      "heatNumber": "080450",
+      "casterNumber": "CV1",
+      "seqNumber": "375/ 49",
+      "ladleChemicalAnalysis": "Pass",
+      "n": "0.0047",
+      "o": "-",
+      "h": "1.0",
+      "vacuumLevel": "0.74",
+      "degTime": "15"
+    },
+    {
+      "key": "3",
+      "serialNumber": "3",
+      "heatNumber": "080451",
+      "casterNumber": "CV2",
+      "seqNumber": "375/ 50",
+      "ladleChemicalAnalysis": "Awaited",
+      "n": "0.0045",
+      "o": "-",
+      "h": "0.8",
+      "vacuumLevel": "0.74",
+      "degTime": "15"
+    }
+  ],
+  "smsVerificationReportData":[
+    {
+      "key": "1",
+      "stage": "Converter",
+      "castNumber": "1234",
+      "turnDownTemperature": "1500°C",
+      "witnessedVerified": "Yes"
+    },
+    {
+      "key": "2",
+      "stage": "Degassing",
+      "castNumber": "5678",
+      "turnDownTemperature": "1550°C",
+      "witnessedVerified": "No"
+    },
+    {
+      "key": "3",
+      "stage": "Casting Temp",
+      "castNumber": "9101",
+      "turnDownTemperature": "1600°C",
+      "witnessedVerified": "Yes"
+    },
+    {
+      "key": "4",
+      "stage": "Use Of Shroud",
+      "castNumber": "1121",
+      "turnDownTemperature": "1450°C",
+      "witnessedVerified": "Yes"
+    },
+    {
+      "key": "5",
+      "stage": "CO Blooms",
+      "castNumber": "3141",
+      "turnDownTemperature": "1505°C",
+      "witnessedVerified": "No"
+    }
+  ],
+  "smsCheckListData": [
+    {
+      "key": "1",
+      "serialNo": "1",
+      "castNo": "080450",
+      "machine": "CV1",
+      "probeMakeName": "HEN",
+      "h2": "0.9",
+      "isHydrisMeasured": "Yes",
+      "isProbeDipped": "Yes",
+      "importedCastingPowder": "Yes"
+    },
+    {
+      "key": "2",
+      "serialNo": "2",
+      "castNo": "080451",
+      "machine": "Cv2",
+      "probeMakeName": "HEN",
+      "h2": "0.9",
+      "isHydrisMeasured": "Yes",
+      "isProbeDipped": "Yes",
+      "importedCastingPowder": "Yes"
+    },
+    {
+      "key": "3",
+      "serialNo": "3",
+      "castNo": "080452",
+      "machine": "Cv1",
+      "probeMakeName": "HEN",
+      "h2": "1.0",
+      "isHydrisMeasured": "Yes",
+      "isProbeDipped": "Yes",
+      "importedCastingPowder": "Yes"
+    }
+  ],
+  "smsSummaryCalibrationDetails": {
+    "hydrisCalibrationDetails": {
+      "CV1": "25/06/2024",
+      "CV2": "26/06/2024",
+      "M/c IV": "27/06/2024",
+      "M/c V": "28/06/2024"
+    },
+    "lecoCalibrationDetails": {
+      "Leco 1": "02/07/2024",
+      "Leco 2": "03/07/2024",
+      "Leco 3": "04/07/2024",
+      "Leco 4": "05/07/2024"
+    }
+  },
+  "smsShiftSummaryTableData": [
+    {
+      "sNo": 1,
+      "heatNo": "076229",
+      "sequenceNo": "351/062",
+      "h2": "1.1",
+      "stage": "Bloom Cutting",
+      "heatRemark": "Diverted"
+    },
+    {
+      "sNo": 2,
+      "heatNo": "076230",
+      "sequenceNo": "351/064",
+      "h2": "0.9",
+      "stage": "Chemical Analysis",
+      "heatRemark": ""
+    },
+    {
+      "sNo": 3,
+      "heatNo": "076232",
+      "sequenceNo": "352/065",
+      "h2": "1.0",
+      "stage": "Casting",
+      "heatRemark": ""
+    },
+    {
+      "sNo": 4,
+      "heatNo": "076234",
+      "sequenceNo": "",
+      "h2": "1.2",
+      "stage": "Degassing",
+      "heatRemark": ""
+    },
+    {
+      "sNo": 5,
+      "heatNo": "076237",
+      "sequenceNo": "",
+      "h2": "1.0",
+      "stage": "Converter",
+      "heatRemark": ""
+    }
+  ], 
+  "visualInspectionGeneralInfo": {
+    "date": "01/01/2024",
+    "shift": "A",
+    "railGrade": "R260",
+    "mill": "URM",
+    "line": "03",
+    "railSec": "60E1",
+    "length": "130m"
+  },
+  "visualInspectionAcceptanceData": {
+    "accLengthList": [
+      {
+        "key": "130",
+        "value": "130"
+      },
+      {
+        "key": "117",
+        "value": "117"
+      },
+      {
+        "key": "86.67",
+        "value": "86.67"
+      },
+      {
+        "key": "65",
+        "value": "65"
+      },
+      {
+        "key": "52",
+        "value": "52"
+      },
+      {
+          "key": "26",
+          "value": "26"
+      },
+      {
+          "key": "25",
+          "value": "25"
+      },
+      {
+          "key": "24",
+          "value": "24"
+      },
+      {
+          "key": "13",
+          "value": "13"
+      },
+      {
+          "key": "12",
+          "value": "12"
+      },
+      {
+          "key": "11",
+          "value": "11"
+      },
+      {
+          "key": "10",
+          "value": "10"
+      }
+    ],
+    "railClassList": [
+        {
+          "key": "A",
+          "value": "A"
+        },
+        {
+          "key": "A + 0.1",
+          "value": "A + 0.1"
+        }
+    ]
+  },
+  "visualInspectionDefectData": {
+    "Dimension": ["HH","LH","OHT","UHT","NF","WF","TF(+)","TF(-)","HF(+)","HF(-)","HS","LS","TNW","TKW","Asy(+)","Asy(-)","OL","SL","OS","FBC","FBCX","CP(+)","CP(-)","Other"],
+    "Surface": [ "NMI", "MDF", "MDM", "LAP", "GM", "BR", "Crack", "BNT", "CE", "Other" ],
+    "Straightness": [ "KK", "TW", "-C -R/C", "WY", "NS", "BE", "US", "DS", "Other" ],
+    "Others": [ "NHN", "RM", "UT", "HNP", "Heat Reject(HR)", "Other" ]
+}
+}

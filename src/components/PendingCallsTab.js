@@ -8,6 +8,7 @@ import { getAllSchedules } from '../services/scheduleService';
 import { getDisplayStatus, isCallPaused, isCallInitiated } from '../services/callStatusService';
 import { getDisplayStatus as getDisplayStatusFromMapper, getAvailableActions, shouldShowScheduleDate, API_STATUS } from '../utils/statusMapper';
 import AnnexureLoader from './annexures/AnnexureLoader';
+import PendingCallDetailsModal from './PendingCallDetailsModal';
 
 // Responsive styles for mobile
 const responsiveStyles = `
@@ -122,9 +123,13 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
   const [selectedRows, setSelectedRows] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
+  const [globalSearchTerm, setGlobalSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Call Number');
   const [selectionError, setSelectionError] = useState('');
   const [scheduledCalls, setScheduledCalls] = useState({});
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedCallForView, setSelectedCallForView] = useState(null);
+  const [selectedCallActions, setSelectedCallActions] = useState([]);
   const [filters, setFilters] = useState({
     productTypes: [],
     vendors: [],
@@ -201,8 +206,17 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
       result = result.filter(call => filters.callNumbers.includes(call.call_no));
     }
 
+    if (globalSearchTerm) {
+      const lowerSearch = globalSearchTerm.toLowerCase();
+      result = result.filter(call => 
+        (call.call_no && call.call_no.toLowerCase().includes(lowerSearch)) ||
+        (call.po_no && call.po_no.toLowerCase().includes(lowerSearch)) ||
+        (call.vendor_name && call.vendor_name.toLowerCase().includes(lowerSearch))
+      );
+    }
+
     return result;
-  }, [pendingCalls, filters]);
+  }, [pendingCalls, filters, globalSearchTerm]);
 
   // (removed unused `uniqueStages` and `activeFilterCount` to satisfy CI lint rules)
 
@@ -369,38 +383,24 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
       }
     }
 
-    // No actions if none are available
     if (availableActions.length === 0) {
-      return null;
+      availableActions = ['view'];
+    } else if (!availableActions.includes('view')) {
+      availableActions.push('view');
     }
 
     return selectedRows.includes(row.id) ? (
       <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
-        {availableActions.includes('schedule') && (
-          <button className="btn btn-sm btn-secondary" onClick={() => onSchedule(row, refreshSchedules)}>
-            SCHEDULE
-          </button>
-        )}
-        {availableActions.includes('reschedule') && (
-          <button className="btn btn-sm btn-secondary" onClick={() => onReschedule(row, refreshSchedules)}>
-            RESCHEDULE
-          </button>
-        )}
-        {availableActions.includes('start') && (
-          <button className="btn btn-sm btn-primary" onClick={() => onStart(row, scheduledCalls[row.call_no])}>
-            START
-          </button>
-        )}
-        {availableActions.includes('resume') && (
-          <button className="btn btn-sm btn-primary" onClick={() => onEnterShiftDetails(row, true)}>
-            RESUME
-          </button>
-        )}
-        {availableActions.includes('enterShiftDetails') && (
-          <button className="btn btn-sm btn-primary" onClick={() => onEnterShiftDetails(row)}>
-            ENTER SHIFT DETAILS
-          </button>
-        )}
+        <button 
+          className="btn btn-sm btn-primary" 
+          onClick={() => {
+            setSelectedCallForView(row);
+            setSelectedCallActions(availableActions);
+            setShowDetailsModal(true);
+          }}
+        >
+          VIEW ACTIONS
+        </button>
       </div>
     ) : null;
   } : null;
@@ -682,15 +682,59 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
       })()}
 
       <div style={{ marginBottom: 'var(--space-16)' }}>
-        <div className="pending-calls-filter-toggle" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--space-12)' }}>
-          <button
-            className="btn btn-outline"
-            onClick={() => setShowFilters(!showFilters)}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-8)', minHeight: '44px' }}
-          >
-            <span style={{ transform: showFilters ? 'rotate(180deg)' : 'none' }}>▾</span>
-            <span>{showFilters ? 'Hide Filters' : 'Show Filters'}</span>
-          </button>
+        <div className="pending-calls-filter-toggle" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1 }}>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              style={{ 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: '8px', 
+                minHeight: '40px',
+                padding: '0 16px',
+                backgroundColor: showFilters ? '#3b5a82' : '#476b9b', // matching the blue color from screenshot
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: '500',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                transition: 'background-color 0.2s'
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+              </svg>
+              <span>Show Filters</span>
+              <span style={{ transform: showFilters ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s ease', fontSize: '12px' }}>▼</span>
+            </button>
+
+            {/* Global Search Bar */}
+            <div style={{ position: 'relative', flex: 1, maxWidth: '400px' }}>
+              <input
+                type="text"
+                placeholder="Search by Call No., PO No., Vendor..."
+                value={globalSearchTerm || ''}
+                onChange={(e) => setGlobalSearchTerm(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '10px 36px 10px 16px',
+                  borderRadius: '8px',
+                  border: '1px solid #e2e8f0',
+                  fontSize: '14px',
+                  background: '#fff',
+                  outline: 'none',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                }}
+              />
+              <span style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+              </span>
+            </div>
+          </div>
           <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
             Showing {typeof filteredCalls !== 'undefined' ? filteredCalls.length : effectivePendingCalls.length} of {effectivePendingCalls.length} results
           </div>
@@ -729,7 +773,7 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
             zIndex: 1000,
             display: 'flex',
             flexDirection: 'column',
-            animation: 'slideUp 0.3s ease-out'
+            animation: 'modalSlideUpFade 0.3s ease-out'
           }}>
             {/* Header */}
             <div style={{
@@ -1386,9 +1430,37 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
             onSelectionChange={handleSelectionChange}
             initialPageSize={10}
             hidePageSize={true}
+            hideSearch={true}
           />
         )}
       </div>
+
+      <PendingCallDetailsModal
+        isOpen={showDetailsModal}
+        onClose={() => {
+          setShowDetailsModal(false);
+          setSelectedCallForView(null);
+          setSelectedCallActions([]);
+        }}
+        call={selectedCallForView}
+        availableActions={selectedCallActions}
+        onSchedule={() => {
+          onSchedule(selectedCallForView, refreshSchedules);
+          setShowDetailsModal(false);
+        }}
+        onReschedule={() => {
+          onReschedule(selectedCallForView, refreshSchedules);
+          setShowDetailsModal(false);
+        }}
+        onStart={() => {
+          onStart(selectedCallForView, scheduledCalls[selectedCallForView?.call_no]);
+          setShowDetailsModal(false);
+        }}
+        onEnterShiftDetails={(isResume) => {
+          onEnterShiftDetails(selectedCallForView, isResume);
+          setShowDetailsModal(false);
+        }}
+      />
     </div>
   );
 };

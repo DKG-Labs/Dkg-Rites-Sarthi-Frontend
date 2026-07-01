@@ -199,24 +199,6 @@ const DataTable = ({ columns, data, onRowClick, actions, selectable, selectedRow
     }
   };
 
-  const handleSelectAll = (e) => {
-    if (e.target.checked) {
-      // Create a set of currently selected rows to avoid duplicates
-      const currentSelectedSet = new Set(selectedRows);
-
-      // Add all visible row IDs to the selection
-      paginatedData.forEach(row => currentSelectedSet.add(row.id));
-
-      onSelectionChange(Array.from(currentSelectedSet));
-    } else {
-      // Only remove the currently visible rows from the selection
-      const visibleIds = new Set(paginatedData.map(row => row.id));
-      const newSelection = selectedRows.filter(id => !visibleIds.has(id));
-
-      onSelectionChange(newSelection);
-    }
-  };
-
   const handleSelectRow = (rowId) => {
     if (selectedRows.includes(rowId)) {
       onSelectionChange(selectedRows.filter(id => id !== rowId));
@@ -241,34 +223,35 @@ const DataTable = ({ columns, data, onRowClick, actions, selectable, selectedRow
     }
   };
 
-  const isAllSelected = selectable && paginatedData.length > 0 && paginatedData.every(row => selectedRows.includes(row.id));
 
   return (
     <div className="data-table-wrapper">
-      <div className="table-controls">
-        {!hideSearch && (
-          <input
-            type="text"
-            className="form-control search-box"
-            placeholder="Search..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        )}
-        {!hidePageSize && (
-          <select
-            className="form-control"
-            style={{ width: '120px' }}
-            value={pageSize}
-            onChange={(e) => setPageSize(Number(e.target.value))}
-          >
-            <option value={5}>5 / page</option>
-            <option value={10}>10 / page</option>
-            <option value={15}>15 / page</option>
-            <option value={20}>20 / page</option>
-          </select>
-        )}
-      </div>
+      {(!hideSearch || !hidePageSize) && (
+        <div className="table-controls">
+          {!hideSearch && (
+            <input
+              type="text"
+              className="form-control search-box"
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          )}
+          {!hidePageSize && (
+            <select
+              className="form-control"
+              style={{ width: '120px' }}
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+            >
+              <option value={5}>5 / page</option>
+              <option value={10}>10 / page</option>
+              <option value={15}>15 / page</option>
+              <option value={20}>20 / page</option>
+            </select>
+          )}
+        </div>
+      )}
 
       <div className="data-table-container">
         <table className="data-table">
@@ -276,11 +259,7 @@ const DataTable = ({ columns, data, onRowClick, actions, selectable, selectedRow
             <tr>
               {selectable && (
                 <th style={{ width: '50px' }}>
-                  <input
-                    type="checkbox"
-                    checked={isAllSelected}
-                    onChange={handleSelectAll}
-                  />
+                  {/* Header checkbox removed */}
                 </th>
               )}
               {columns.map(col => (

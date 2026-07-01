@@ -51,6 +51,7 @@ import { CallDeskDashboardWrapper } from './pages/wrappers/CallDeskWrapper';
 import { FinanceDashboardWrapper } from './pages/wrappers/FinanceWrapper';
 import { RailwayBoardDashboardWrapper } from './pages/wrappers/RailwayBoardWrapper';
 import { AdminDashboardWrapper } from './pages/wrappers/AdminDashboardWrapper';
+import { SmsDashboardWrapper } from './pages/wrappers/SmsWrapper';
 import AnnexurePage from './pages/AnnexurePage';
 import { useNavigate } from 'react-router-dom';
 import RitesAdminDashboard from './pages/RitesAdminDashboard';
@@ -83,6 +84,11 @@ const RoleBasedRedirect = () => {
   if (isSleeperRole(roleName)) {
     window.location.href = '/sleeper/';
     return null;
+  }
+
+  // Handle internal SMS redirect
+  if (isSmsRole(roleName)) {
+    return <Navigate to="/sms" replace />;
   }
 
   if (isRailpadRole(roleName)) {
@@ -127,6 +133,11 @@ const LandingPageGuard = () => {
   if (isSleeperRole(roleName)) {
     window.location.href = '/sleeper/';
     return null;
+  }
+
+  // Handle internal SMS redirect
+  if (isSmsRole(roleName)) {
+    return <Navigate to="/sms" replace />;
   }
 
   if (isRailpadRole(roleName)) {
@@ -284,6 +295,16 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
+
+            {/* SMS Module Route */}
+            <Route 
+              path="/sms/*"
+              element={
+                <ProtectedRoute allowedRoles={['Rail SMS']}>
+                  <SmsDashboardWrapper />
+                </ProtectedRoute>
+              }
+            />
           </Route>
 
           {/* Catch-all redirect - role-based */}
@@ -318,6 +339,14 @@ const isRailpadRole = (role) => {
   return railpadRoles.some(r =>
     role === r || (typeof role === 'string' && role.includes(r))
   );
+};
+
+/**
+ * Helper to identify if a role belongs to the SMS Dashboard
+ */
+const isSmsRole = (role) => {
+  if (!role) return false;
+  return role === 'Rail SMS' || (typeof role === 'string' && role.includes('Rail SMS'));
 };
 
 export default App;

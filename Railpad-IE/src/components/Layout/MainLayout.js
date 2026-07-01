@@ -35,18 +35,7 @@ const MainLayout = ({ children, activeItem, onItemClick, onLogout, user, isShift
                 boxSizing: 'border-box'
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <button
-                        className="mobile-menu-btn"
-                        onClick={() => setIsMobileMenuOpen(true)}
-                        aria-label="Open menu"
-                        style={{ background: '#f5f5f5', border: 'none', borderRadius: '4px', padding: '8px', display: 'none', cursor: 'pointer' }}
-                    >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <line x1="3" y1="12" x2="21" y2="12"></line>
-                            <line x1="3" y1="6" x2="21" y2="6"></line>
-                            <line x1="3" y1="18" x2="21" y2="18"></line>
-                        </svg>
-                    </button>
+
 
                     <div className="brand-block" style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                         <img
@@ -63,30 +52,52 @@ const MainLayout = ({ children, activeItem, onItemClick, onLogout, user, isShift
                     </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '50%',
-                            background: '#1e3a5f',
-                            color: 'white',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '12px',
-                            fontWeight: '600'
-                        }}>{userInitial}</div>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>{user?.userName || 'Railpad-IE'}</span>
-                            <button
-                                onClick={onLogout}
-                                style={{ padding: '0', background: 'transparent', border: 'none', color: '#64748b', fontSize: '11px', fontWeight: '500', cursor: 'pointer', textAlign: 'left' }}
-                            >
-                                Logout
-                            </button>
+                        <div style={{ 
+                            width: '38px', height: '38px', 
+                            borderRadius: '50%', 
+                            background: '#0f172a', 
+                            color: 'white', 
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '15px', fontWeight: '600',
+                            boxShadow: '0 2px 4px rgba(15, 23, 42, 0.1)'
+                        }}>
+                            {user?.userName?.charAt(0)?.toUpperCase() || 'U'}
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                            <span style={{ fontSize: '14px', fontWeight: '600', color: '#0f172a', lineHeight: '1.2', letterSpacing: '0.2px' }}>
+                                {user?.userName || 'Nitin Rajput'}
+                            </span>
+                            <span style={{ fontSize: '12px', color: '#64748b', marginTop: '3px', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span>{user?.roleName || 'ERC Main IE'}</span>
+                                <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#cbd5e1' }}></span>
+                                <span style={{ color: '#475569' }}>ID: {user?.employeeCode || user?.employeeId || '12191'}</span>
+                            </span>
                         </div>
                     </div>
+                    
+                    <div style={{ width: '1px', height: '32px', background: '#e2e8f0' }} />
+                    
+                    <button 
+                        onClick={onLogout}
+                        style={{ 
+                            display: 'flex', alignItems: 'center', gap: '8px',
+                            padding: '8px 16px', background: '#ffffff', border: '1px solid #cbd5e1', 
+                            borderRadius: '6px', color: '#334155', fontSize: '13px', fontWeight: '600', 
+                            cursor: 'pointer', transition: 'all 0.2s ease',
+                            boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.borderColor = '#94a3b8'; e.currentTarget.style.color = '#0f172a'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.color = '#334155'; }}
+                    >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                            <polyline points="16 17 21 12 16 7"></polyline>
+                            <line x1="21" y1="12" x2="9" y2="12"></line>
+                        </svg>
+                        Logout
+                    </button>
                 </div>
             </header>
 
@@ -105,7 +116,7 @@ const MainLayout = ({ children, activeItem, onItemClick, onLogout, user, isShift
                     onClick={() => setIsSidebarPinned(!isSidebarPinned)}
                 />
 
-                <main className="main-content" style={{ flex: 1, padding: '24px', overflowY: 'auto', boxSizing: 'border-box', background: '#f8fafc' }}>
+                <main className="main-content" style={{ flex: 1, padding: '24px', overflowY: 'auto', boxSizing: 'border-box', background: '#ffffff' }}>
                     {children}
                 </main>
             </div>

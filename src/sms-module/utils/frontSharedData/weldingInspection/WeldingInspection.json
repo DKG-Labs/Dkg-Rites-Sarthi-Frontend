@@ -1,0 +1,430 @@
+{
+    "weldingInspectionGeneralInfo": {
+        "date": "01/01/2024",
+        "shift": "A",
+        "railGrade": "R260",
+        "mill": "URM",
+        "Welding Line": "L3",
+        "railSec": "60E1"
+    },
+    "weldingTestGeneralInfo": {
+        "date": "01/01/2024",
+        "shift": "A",
+        "railGrade": "R260",
+        "mill": "URM",
+        "Welding Line": "L3",
+        "railSec": "60E1",
+        "Weld Machine Number": "BSP1"
+    },
+    "weldingColumns": [
+        {"title": "Counter", "dataIndex": "counter", "key": "counter", "align": "center" },
+        {"title": "BSP1", "dataIndex": "bsp1", "key": "bsp1", "align": "center"},
+        {"title": "BSP2", "dataIndex": "bsp2", "key": "bsp2", "align": "center"},
+        {"title": "BSP4", "dataIndex": "bsp4", "key": "bsp4", "align": "center"}
+    ],
+    "weldingData": [
+        {
+            "key": "1",
+            "counter": "TLT",
+            "bsp1": "",
+            "bsp2": "",
+            "bsp4": ""
+        },
+        {
+            "key": "2",
+            "counter": "Macro",
+            "bsp1": "",
+            "bsp2": "",
+            "bsp4": ""
+        },
+        {
+            "key": "3",
+            "counter": "Hardness",
+            "bsp1": "",
+            "bsp2": "",
+            "bsp4": ""
+        },
+        {
+            "key": "4",
+            "counter": "Micro",
+            "bsp1": "",
+            "bsp2": "",
+            "bsp4": ""
+        }
+    ],
+    "lineNumberList": [
+        {
+          "key": "Line 3",
+          "value": "Line 3"
+        },
+        {
+            "key": "Line 4",
+            "value": "Line 4"
+        },
+        {
+            "key": "Line 5",
+            "value": "Line 5"
+        },
+        {
+            "key": "Line 6",
+            "value": "Line 6"
+        },
+        {
+            "key": "RSM",
+            "value": "RSM"
+        }
+    ],
+    "weldData": [
+        {   "key": "1",
+            "panelID": "23280624",
+            "weldJointNumber": "14290624BSP2\n14300624BSP2",
+            "railID": "U010724A001\nU010724A002",
+            "status": "Accepted"
+        },
+        {   "key": "2",
+            "panelID": "23280624",
+            "weldJointNumber": "14310624BSP2\n14300624BSP2",
+            "railID": "U010720A003\nU010724A004",
+            "status": "Hold"
+        }
+    ],
+    "weldColumns": [
+        { "title": "Panel ID", "dataIndex": "panelID", "key": "panelID", "align": "center"},
+        { "title": "Weld Joint No.", "dataIndex": "details", "key": "details", "align": "center" },
+        { "title": "Rail ID", "dataIndex": "railID", "key": "railID", "align": "center" },
+        { "title": "Status", "dataIndex": "status", "key": "status", "align": "center" }
+    ],
+    "weldParameterDropdownList": [
+        {
+          "key": true,
+          "value": "OK"
+        },
+        {
+            "key": false,
+            "value": "Not OK"
+        }
+    ],
+    "reasonDimensionDropdownList": [
+        {
+          "key": "LH",
+          "value": "LH"
+        },
+        {
+            "key": "1m RH",
+            "value": "1m RH"
+        },
+        {
+            "key": "1m Vertical",
+            "value": "1m Vertical"
+        },
+        {
+            "key": "10cm LH",
+            "value": "10m LH"
+        },
+        {
+            "key": "10cm RH",
+            "value": "10cm RH"
+        },
+        {
+            "key": "10cm Vertical",
+            "value": "10cm Vertical"
+        }
+    ],
+    "reasonUSFDDropdownList": [
+        {
+          "key": "Head",
+          "value": "Head"
+        },
+        {
+            "key": "Foot",
+            "value": "Foot"
+        },
+        {
+            "key": "Web",
+            "value": "Web"
+        }
+    ],
+    "resultDropdownList": [
+        {
+          "key": "Accepted",
+          "value": "Accepted"
+        },
+        {
+            "key": "Rejected",
+            "value": "Rejected"
+        },
+        {
+            "key": "Refinish",
+            "value": "Refinish"
+        },
+        {
+            "key": "Cut & Reweld",
+            "value": "Cut & Reweld"
+        }
+    ],
+    "weldResultList": [
+        {
+          "key": "OK",
+          "value": "OK"
+        },
+        {
+            "key": "Hold",
+            "value": "Hold"
+        },
+        {
+            "key": "Reject",
+            "value": "Reject"
+        }
+    ],
+    "reasonForNotOkList": [
+        {
+          "key": "Hole Dia",
+          "value": "Hole Dia"
+        },
+        {
+            "key": "Distance from End",
+            "value": "Distance from End"
+        },
+        {
+            "key": "Distance from Base",
+            "value": "Distance from Base"
+        },
+        {
+            "key": "Chamfering",
+            "value": "Chamfering"
+        }
+    ],
+    "panelLengthDropdownList": [
+        {
+          "key": "260",
+          "value": "260"
+        },
+        {
+            "key": "259",
+            "value": "259"
+        }
+    ],
+    "panelDecisionDropdownList": [
+        {
+          "key": "Accepted",
+          "value": "Accepted"
+        },
+        {
+            "key": "Hold",
+            "value": "Hold"
+        },
+        {
+            "key": "Reject",
+            "value": "Reject"
+        },
+        {
+            "key": "Refinish",
+            "value": "Refinish"
+        }
+    ],
+    "railGradeDropdownList": [
+        {
+            "key": "R260",
+            "value": "R260"
+        },
+        {
+            "key": "350HT",
+            "value": "350HT"
+        },
+        {
+            "key": "1080HH",
+            "value": "1080HH"
+        },
+        {
+            "key": "880",
+            "value": "880"
+        },
+        {
+            "key": "880NC",
+            "value": "880NC"
+        }
+    ],
+    "railSectionList": [
+        {
+          "key": "60E1",
+          "value": "60E1"
+        },
+        {
+          "key": "IRS52",
+          "value": "IRS52"
+        },
+        {
+          "key": "UIC60",
+          "value": "UIC60"
+        },
+        {
+          "key": "60E1A1",
+          "value": "60E1A1"
+        },
+        {
+          "key": "136RE",
+          "value": "136RE"
+        }
+    ],
+    "weldNumberList": [
+        {
+          "key": "BSP1",
+          "value": "BSP1"
+        },
+        {
+          "key": "BSP2",
+          "value": "BSP2"
+        },
+        {
+          "key": "BSP4",
+          "value": "BSP4"
+        }
+    ],
+    "heldRejectedPanelTableData": [
+        {
+          "key": 1,
+          "dateInspection": "10/06/2023",
+          "shift": "A",
+          "panelID": "13120624",
+          "railID1": "U150624B105",
+          "railID2": "U150624B106",
+          "status": "Held"
+        },
+        {
+            "key": 2,
+            "dateInspection": "10/06/2023",
+            "shift": "C",
+            "panelID": "13140624",
+            "railID1": "U150624B105",
+            "railID2": "U150624B106",
+            "status": "Refinished"
+        },
+        {
+            "key": 3,
+            "dateInspection": "10/06/2023",
+            "shift": "A",
+            "panelID": "13120922",
+            "railID1": "",
+            "railID2": "",
+            "status": "Held"
+        },
+        {
+            "key": 4,
+            "dateInspection": "10/06/2023",
+            "shift": "B",
+            "panelID": "13820624",
+            "railID1": "",
+            "railID2": "",
+            "status": "Held"
+        },
+        {
+            "key": 5,
+            "dateInspection": "10/06/2023",
+            "shift": "B",
+            "panelID": "13120624",
+            "railID1": "",
+            "railID2": "",
+            "status": "Refinished"
+        }
+    ],
+    "samplesDeclaredTableData": [
+        {
+          "key": 1,
+          "test": "TLT",
+          "jointNumber": "",
+          "dateShift": ""
+        },
+        {
+            "key": 2,
+            "test": "Hardness",
+            "jointNumber": "",
+            "dateShift": ""
+        },
+        {
+            "key": 3,
+            "test": "Micro",
+            "jointNumber": "",
+            "dateShift": ""
+        },
+        {
+            "key": 4,
+            "test": "Macro",
+            "jointNumber": "",
+            "dateShift": ""
+        }
+    ],
+    "testDetailsColumns": [
+        { "title": "Test", "dataIndex": "test", "key": "test", "align": "center"},
+        { "title": "Joint Number", "dataIndex": "jointNumber", "key": "jointNumber", "align": "center" },
+        { "title": "Date & Shift", "dataIndex": "dateShift", "key": "dateShift", "align": "center" },
+        { "title": "Counter", "dataIndex": "counter", "key": "counter", "align": "center" }
+    ],
+    "testDetailsData": [
+        {   "key": "1",
+            "test": "TLT",
+            "jointNumber": "",
+            "dateShift": "",
+            "counter": ""
+        },
+        {   "key": "2",
+            "test": "Hardness",
+            "jointNumber": "",
+            "dateShift": "",
+            "counter": ""
+        },
+        {   "key": "3",
+            "test": "Macro",
+            "jointNumber": "",
+            "dateShift": "",
+            "counter": ""
+        }
+    ],
+    "checkBoxItems": [
+        {
+          "key": "1",
+          "value": "TLT"
+        },
+        {
+          "key": "2",
+          "value": "Hardness"
+        },
+        {
+            "key": "3",
+            "value": "Macro"
+        },
+        {
+            "key": "4",
+            "value": "Micro"
+        }  
+    ],
+    "parameterStatusList": [
+        {
+          "key": true,
+          "value": "OK"
+        },
+        {
+          "key": false,
+          "value": "Not OK"
+        }
+    ],
+    "brokenOrNotList": [
+        {
+          "key": true,
+          "value": "Broken"
+        },
+        {
+            "key": false,
+            "value": "Not Broken"
+        }
+    ],
+    "deviationList": [
+        {
+            "key": true,
+            "value": "Yes"
+        },
+        {
+            "key": false,
+            "value": "No"
+        }
+    ]
+}

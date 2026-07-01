@@ -27,7 +27,7 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldC
     datesOfInspection = "",
     trRecDate = "",
     quantityNowPassedText = "",
-    sealingPattern = "",
+    sealingPattern = "RITES HOLOGRAM FROM SL NO. C0000599 TO C0001604 HAS BEEN AFFIXED ON THE LEAD SEAL ,TIED WITH SEALING WIRE TO THE PACKING STRIP OF EACH CORRUGATED BOX",
     facsimileText = "",
     reasonsForRejection = "N/A",
     inspectingEngineer = "",
@@ -40,7 +40,7 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldC
     "bookNo", "setNo", "offeredInstNo", "passedInstNo", "contractRef",
     "billPayingOfficer", "consignee", "purchasingAuthority", "description", 
     "quantityNowPassedText", "noOfItemsChecked", "datesOfInspection", 
-    "trRecDate", "reasonsForRejection"
+    "trRecDate", "reasonsForRejection", "sealingPattern"
   ];
 
   const displayCertificateNo = (certificateNo || '')
@@ -412,62 +412,89 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldC
 
           {/* STORES DATA ROWS */}
           <tr>
-            <td style={{ ...tdCenterStyle, paddingTop: '15px' }}>{itemNo}</td>
-            <td style={{ ...tdStyle, padding: '8px', fontSize: '8.5px', lineHeight: '1.25' }}>
+            <td rowSpan={3} style={{ ...tdCenterStyle, paddingTop: '15px', verticalAlign: 'top', borderBottom: 'none' }}>{itemNo}</td>
+            <td rowSpan={3} style={{ ...tdStyle, padding: '8px', fontSize: '8.5px', lineHeight: '1.25', verticalAlign: 'top', borderBottom: 'none' }}>
               <EditableField value={description} fieldName="description" type="textarea" style={{ fontSize: '8.5px' }} />
             </td>
-            <td style={{ ...tdCenterStyle, paddingTop: '15px' }}>
+            <td style={{ ...tdCenterStyle, paddingTop: '15px', borderBottom: 'none' }}>
               <div>{qtyOnOrder}</div>
               <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>Nos.</div>
             </td>
-            <td style={{ ...tdCenterStyle, paddingTop: '15px' }}>
+            <td style={{ ...tdCenterStyle, paddingTop: '15px', borderBottom: 'none' }}>
               <EditableField value={qtyOfferedPreviously} fieldName="qtyOfferedPreviously" style={{ textAlign: 'center', width: '45px' }} />
               {!isEditing && <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>Nos.</div>}
             </td>
-            <td style={{ ...tdCenterStyle, paddingTop: '15px' }}>
+            <td style={{ ...tdCenterStyle, paddingTop: '15px', borderBottom: 'none' }}>
               <EditableField value={qtyPassedPreviously} fieldName="qtyPassedPreviously" style={{ textAlign: 'center', width: '45px' }} />
               {!isEditing && <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>Nos.</div>}
             </td>
-            <td style={{ ...tdCenterStyle, paddingTop: '15px' }}>
+            <td style={{ ...tdCenterStyle, paddingTop: '15px', borderBottom: 'none' }}>
               <div>{qtyNowOffered}</div>
               <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>Nos.</div>
             </td>
-            <td style={{ ...tdCenterStyle, paddingTop: '15px' }}>
+            <td style={{ ...tdCenterStyle, paddingTop: '15px', borderBottom: 'none' }}>
               <div>{qtyNowPassed}</div>
               <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>Nos.</div>
             </td>
-            <td style={{ ...tdCenterStyle, paddingTop: '15px' }}>
+            <td style={{ ...tdCenterStyle, paddingTop: '15px', borderBottom: 'none' }}>
               <EditableField value={qtyNowRejected} fieldName="qtyNowRejected" style={{ textAlign: 'center', width: '45px' }} />
               {!isEditing && <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>Nos.</div>}
             </td>
-            <td style={{ ...tdCenterStyle, paddingTop: '15px' }}>
+            <td style={{ ...tdCenterStyle, paddingTop: '15px', borderBottom: 'none' }}>
               <EditableField value={qtyStillDue} fieldName="qtyStillDue" style={{ textAlign: 'center', width: '45px' }} />
               {!isEditing && <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>Nos.</div>}
             </td>
           </tr>
 
+          {/* FILLER ROW ABOVE TEXT BOX */}
           <tr>
-            <td style={tdCenterStyle}></td>
-            <td style={tdCenterStyle}></td>
-            <td style={tdCenterStyle}></td>
-            <td colSpan={6} style={{ ...tdStyle, padding: '10px', boxSizing: 'border-box' }}>
+            <td style={{ ...tdCenterStyle, borderTop: 'none', borderBottom: 'none', padding: 0 }}>
+              <div style={{ minHeight: '20px' }}></div>
+            </td>
+            <td style={{ ...tdCenterStyle, borderTop: 'none', borderBottom: 'none' }}></td>
+            <td style={{ ...tdCenterStyle, borderTop: 'none', borderBottom: 'none' }}></td>
+            <td style={{ ...tdCenterStyle, borderTop: 'none', borderBottom: 'none' }}></td>
+            <td style={{ ...tdCenterStyle, borderTop: 'none', borderBottom: 'none' }}></td>
+            <td style={{ ...tdCenterStyle, borderTop: 'none', borderBottom: 'none' }}></td>
+            <td style={{ ...tdCenterStyle, borderTop: 'none', borderBottom: 'none' }}></td>
+          </tr>
+          <tr style={{ height: '1px' }}>
+            <td colSpan={7} style={{ 
+              ...tdStyle, 
+              padding: '0', 
+              boxSizing: 'border-box', 
+              border: 'none',
+              background: 'white'
+            }}>
               <div style={{
                 border: '1px solid black',
                 padding: '8px 12px',
-                background: 'white',
-                borderRadius: '1px',
                 textAlign: 'left',
                 fontSize: '8px',
                 fontWeight: 'bold',
                 lineHeight: '1.4',
                 textTransform: 'uppercase',
                 boxSizing: 'border-box',
-                width: '100%',
-                minHeight: '80px'
+                width: 'calc(100% - 12px)',
+                minHeight: '80px',
+                margin: '0 0 0 12px'
               }}>
                 <EditableField value={quantityNowPassedText} fieldName="quantityNowPassedText" type="textarea" style={{ fontSize: '8px', fontWeight: 'bold' }} />
               </div>
             </td>
+          </tr>
+
+          {/* FILLER ROW to draw vertical lines below the text box */}
+          <tr style={{ height: '100%' }}>
+            <td style={{ ...tdCenterStyle, borderTop: 'none', padding: 0 }}>
+              <div style={{ minHeight: '70px' }}></div>
+            </td>
+            <td style={{ ...tdCenterStyle, borderTop: 'none' }}></td>
+            <td style={{ ...tdCenterStyle, borderTop: 'none' }}></td>
+            <td style={{ ...tdCenterStyle, borderTop: 'none' }}></td>
+            <td style={{ ...tdCenterStyle, borderTop: 'none' }}></td>
+            <td style={{ ...tdCenterStyle, borderTop: 'none' }}></td>
+            <td style={{ ...tdCenterStyle, borderTop: 'none' }}></td>
           </tr>
 
           {/* INSPECTION DETAILS — flex row inside single colSpan=9 for independent widths */}

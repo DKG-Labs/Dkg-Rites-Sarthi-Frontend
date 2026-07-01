@@ -16,24 +16,22 @@ const formatPoSrNo = (value) => {
 
 const InspectionCallStatusModal = ({ isOpen, onClose, data, title }) => {
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedStatus, setSelectedStatus] = useState('all');
     const [selectedStage, setSelectedStage] = useState('all');
 
     // Filtered data
     const filteredData = useMemo(() => {
         if (!data) return [];
         return data.filter(item => {
-            const matchesSearch =
-                (item.inspectionCallNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (item.vendor || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (item.poSrNo || '').toLowerCase().includes(searchTerm.toLowerCase());
-
-            const matchesStatus = selectedStatus === 'all' || item.status === selectedStatus;
+            const matchesSearch = 
+                   (item.inspectionCallNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                   (item.vendor || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                   (item.poSrNo || '').toLowerCase().includes(searchTerm.toLowerCase());
+                   
             const matchesStage = selectedStage === 'all' || item.stageOfInspection === selectedStage;
-
-            return matchesSearch && matchesStatus && matchesStage;
+            
+            return matchesSearch && matchesStage;
         });
-    }, [data, searchTerm, selectedStatus, selectedStage]);
+    }, [data, searchTerm, selectedStage]);
 
     if (!isOpen) return null;
 
@@ -73,7 +71,7 @@ const InspectionCallStatusModal = ({ isOpen, onClose, data, title }) => {
             item.stageOfInspection,
             item.poSrNo,
             item.dpDate || '-',
-            item.status
+            (item.mainStatus && item.subStatus) ? `${item.mainStatus} - ${item.subStatus}` : (item.mainStatus || item.subStatus || '-')
         ]);
         
         doc.autoTable({
@@ -116,18 +114,6 @@ const InspectionCallStatusModal = ({ isOpen, onClose, data, title }) => {
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="modal-search-input"
                         />
-                    </div>
-                    <div className="filter-group">
-                        <label>Status Filter</label>
-                        <select
-                            value={selectedStatus}
-                            onChange={(e) => setSelectedStatus(e.target.value)}
-                            className="modal-select"
-                        >
-                            <option value="all">All Statuses</option>
-                            <option value="Pending">Pending</option>
-                            <option value="Under Inspection">Under Inspection</option>
-                        </select>
                     </div>
                     <div className="filter-group">
                         <label>Stage Filter</label>
@@ -181,13 +167,25 @@ const InspectionCallStatusModal = ({ isOpen, onClose, data, title }) => {
                                         <td style={{ fontSize: '12px', fontFamily: 'monospace' }}>{formatPoSrNo(item.poSrNo)}</td>
                                         <td>{item.dpDate || '-'}</td>
                                         <td>
-                                            <span style={{
-                                                color: item.status === 'Under Inspection' ? '#d97706' : '#dc2626',
-                                                fontWeight: '800',
-                                                fontSize: '12px'
-                                            }}>
-                                                &#9679; {item.status}
-                                            </span>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                                <span style={{
+                                                    color: item.mainStatus === 'Under Inspection' ? '#d97706' : '#dc2626',
+                                                    fontWeight: '800',
+                                                    fontSize: '12px'
+                                                }}>
+                                                    &#9679; {item.mainStatus || ''}
+                                                </span>
+                                                {item.mainStatus && item.subStatus && (
+                                                    <span style={{ color: '#94a3b8', fontWeight: 'bold' }}>-</span>
+                                                )}
+                                                <span style={{
+                                                    color: '#475569',
+                                                    fontWeight: '600',
+                                                    fontSize: '12px'
+                                                }}>
+                                                    {item.subStatus || ''}
+                                                </span>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))

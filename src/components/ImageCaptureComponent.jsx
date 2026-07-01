@@ -5,6 +5,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import DownloadIcon from '@mui/icons-material/Download';
 import { API_BASE_URL } from '../services/apiConfig';
+import { Snackbar } from '@mui/material';
 
 /**
  * Component for capturing images and geofencing data
@@ -18,6 +19,12 @@ const ImageCaptureComponent = ({ images = [], onImagesChange }) => {
   const [locationError, setLocationError] = useState('');
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [activePreviewImage, setActivePreviewImage] = useState(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
+
+  const showNotification = (msg, severity = 'warning') => {
+    setNotification({ open: true, message: msg, severity });
+  };
 
   useEffect(() => {
     getLocation();
@@ -66,7 +73,7 @@ const ImageCaptureComponent = ({ images = [], onImagesChange }) => {
 
   const handleFileChange = (e) => {
     if (!location) {
-      alert("Please allow location access before capturing images.");
+      showNotification("Please allow location access before capturing images.", "warning");
       getLocation();
       return;
     }
@@ -74,16 +81,16 @@ const ImageCaptureComponent = ({ images = [], onImagesChange }) => {
     let files = Array.from(e.target.files);
     
     if (images.length >= 10) {
-      alert("Maximum limit of 10 images reached.");
+      showNotification("Maximum limit of 10 images reached.", "warning");
       e.target.value = null;
       return;
     }
 
-    // 10MB size validation
-    const maxSize = 10 * 1024 * 1024;
+    // 2MB size validation
+    const maxSize = 2 * 1024 * 1024;
     const largeFiles = files.filter(f => f.size > maxSize);
     if (largeFiles.length > 0) {
-      alert(`Some files exceed the 10MB limit and were skipped:\n${largeFiles.map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(2)} MB)`).join('\n')}`);
+      showNotification(`Uploaded image exceeded size limit (Max: 2MB). Skipped: ${largeFiles.map(f => f.name).join(', ')}`, "error");
       files = files.filter(f => f.size <= maxSize);
     }
 
@@ -94,7 +101,7 @@ const ImageCaptureComponent = ({ images = [], onImagesChange }) => {
 
     if (images.length + files.length > 10) {
       const allowedCount = 10 - images.length;
-      alert(`You can only upload up to 10 images. Adding only the first ${allowedCount} selected images.`);
+      showNotification(`You can only upload up to 10 images. Adding only the first ${allowedCount} selected images.`, "warning");
       files = files.slice(0, allowedCount);
     }
 
@@ -204,7 +211,7 @@ const ImageCaptureComponent = ({ images = [], onImagesChange }) => {
       setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
     } catch (err) {
       console.error('Download failed:', err);
-      alert('Failed to download image. Please try again.');
+      showNotification('Failed to download image. Please try again.', 'error');
     }
   };
 
@@ -246,7 +253,7 @@ const ImageCaptureComponent = ({ images = [], onImagesChange }) => {
       <style>{`
         .inspection-capture-card {
           margin: 24px 0;
-          padding: 24px;
+          padding: ${isExpanded ? '24px' : '16px 24px'};
           border-radius: 16px;
           border: 1px solid #e2e8f0;
           background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
@@ -258,7 +265,7 @@ const ImageCaptureComponent = ({ images = [], onImagesChange }) => {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 20px;
+          margin-bottom: ${isExpanded ? '20px' : '0'};
           flex-wrap: wrap;
           gap: 16px;
         }
@@ -902,7 +909,7 @@ const ImageCaptureComponent = ({ images = [], onImagesChange }) => {
           <h3>📸 Photo Inspection Records</h3>
           <p>Enforce location verification and photo evidence logs</p>
           <p style={{ margin: '4px 0 0 0', fontSize: '0.775rem', color: '#94a3b8' }}>
-            Max <strong style={{ color: '#0284c7' }}>10 images</strong> &nbsp;·&nbsp; Max file size: <strong style={{ color: '#0284c7' }}>10 MB</strong> per image
+            Max <strong style={{ color: '#0284c7' }}>10 images</strong> &nbsp;·&nbsp; Max file size: <strong style={{ color: '#0284c7' }}>2 MB</strong> per image
           </p>
         </div>
         
@@ -944,11 +951,35 @@ const ImageCaptureComponent = ({ images = [], onImagesChange }) => {
           <div className={`status-badge ${val.type}`}>
             {val.text}
           </div>
+
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            style={{
+              background: 'none',
+              border: '1px solid #e2e8f0',
+              borderRadius: '6px',
+              padding: '6px 12px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              color: '#475569',
+              fontSize: '13px',
+              fontWeight: '500',
+              backgroundColor: '#f8fafc',
+              marginLeft: '8px'
+            }}
+          >
+            {isExpanded ? 'Collapse' : 'Expand'}
+            <span style={{ fontSize: '10px' }}>{isExpanded ? '▲' : '▼'}</span>
+          </button>
         </div>
       </div>
 
       {/* Empty State or Image Grid */}
-      {images.length === 0 ? (
+      {isExpanded && (
+        <>
+          {images.length === 0 ? (
         <div className="empty-state-container">
           <div className="empty-state-icon">
             <CameraAltIcon sx={{ fontSize: '2rem', color: '#94a3b8' }} />
@@ -970,7 +1001,7 @@ const ImageCaptureComponent = ({ images = [], onImagesChange }) => {
             onClick={(e) => {
               if (!location) {
                 e.preventDefault();
-                alert("Please lock GPS location before capturing images.");
+                showNotification("Please lock GPS location before capturing images.", "warning");
                 getLocation();
               }
             }}
@@ -1054,7 +1085,7 @@ const ImageCaptureComponent = ({ images = [], onImagesChange }) => {
                 onClick={(e) => {
                   if (!location) {
                     e.preventDefault();
-                    alert("Please lock GPS location before capturing images.");
+                    showNotification("Please lock GPS location before capturing images.", "warning");
                     getLocation();
                   }
                 }}
@@ -1070,6 +1101,8 @@ const ImageCaptureComponent = ({ images = [], onImagesChange }) => {
             </div>
           )}
         </div>
+          )}
+        </>
       )}
 
       {/* Lightbox Modal */}
@@ -1108,6 +1141,63 @@ const ImageCaptureComponent = ({ images = [], onImagesChange }) => {
           </div>
         </div>
       )}
+
+      {/* MUI Snackbar Notification with Premium Custom Styling */}
+      <Snackbar 
+        open={notification.open} 
+        autoHideDuration={5000} 
+        onClose={() => setNotification({ ...notification, open: false })}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        sx={{ mt: 7 }} // margin top to clear headers
+      >
+        <div style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '14px',
+          background: '#ffffff',
+          border: '1px solid #e2e8f0',
+          borderLeft: `4px solid ${notification.severity === 'error' ? '#ef4444' : '#f59e0b'}`,
+          padding: '16px 20px',
+          borderRadius: '10px',
+          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+          minWidth: '320px',
+          maxWidth: '450px'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '24px',
+            height: '24px',
+            borderRadius: '50%',
+            background: notification.severity === 'error' ? '#fef2f2' : '#fffbeb',
+            color: notification.severity === 'error' ? '#ef4444' : '#f59e0b',
+            fontSize: '14px',
+            fontWeight: 'bold',
+            flexShrink: 0,
+            marginTop: '2px'
+          }}>
+             {notification.severity === 'error' ? '✕' : '!'}
+          </div>
+          <div style={{ flex: 1 }}>
+             <h4 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 600, color: '#0f172a' }}>
+               {notification.severity === 'error' ? 'Action Failed' : 'Action Required'}
+             </h4>
+             <p style={{ margin: '6px 0 0 0', fontSize: '0.825rem', color: '#475569', lineHeight: '1.5' }}>
+               {notification.message}
+             </p>
+          </div>
+          <button 
+             onClick={() => setNotification({ ...notification, open: false })}
+             style={{
+               background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', 
+               padding: '2px', fontSize: '1.2rem', lineHeight: 1, flexShrink: 0
+             }}
+          >
+             ×
+          </button>
+        </div>
+      </Snackbar>
     </div>
   );
 };

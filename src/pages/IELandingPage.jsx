@@ -936,7 +936,7 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
         <div className="breadcrumb-item breadcrumb-active">Landing Page</div>
       </div> */}
 
-      <h1 style={{ marginBottom: 'var(--space-24)' }}>IE Dashboard</h1>
+
 
       <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 

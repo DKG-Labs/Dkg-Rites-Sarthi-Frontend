@@ -191,8 +191,8 @@
   /* Primitive Color Tokens */
   --color-white: rgba(255, 255, 255, 1);
   --color-black: rgba(0, 0, 0, 1);
-  --color-cream-50: rgba(252, 252, 249, 1);
-  --color-cream-100: rgba(255, 255, 253, 1);
+  --color-cream-50: rgba(255, 255, 255, 1);
+  --color-cream-100: rgba(255, 255, 255, 1);
   --color-gray-200: rgba(245, 245, 245, 1);
   --color-gray-300: rgba(167, 169, 169, 1);
   --color-gray-400: rgba(119, 124, 124, 1);
@@ -241,8 +241,8 @@
   /* Light cyan */
 
   /* Semantic Color Tokens (Light Mode) */
-  --color-background: var(--color-cream-50);
-  --color-surface: var(--color-cream-100);
+  --color-background: #ffffff;
+  --color-surface: #ffffff;
   --color-text: var(--color-slate-900);
   --color-text-secondary: var(--color-slate-500);
   --color-primary: var(--color-teal-500);
@@ -2513,7 +2513,7 @@ select.form-control {
   }
 }
 
-@keyframes slideUp {
+@keyframes modalSlideUpFade {
   from {
     opacity: 0;
     transform: translate(-50%, -45%);

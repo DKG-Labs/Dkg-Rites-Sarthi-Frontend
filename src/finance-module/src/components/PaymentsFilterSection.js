@@ -190,11 +190,24 @@ const PaymentsFilterSection = ({
       <div style={{ marginBottom: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
           <button
-            className="btn btn-outline"
             onClick={() => setShowFilters(!showFilters)}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', minHeight: '44px' }}
+            style={{ 
+              display: 'inline-flex', 
+              alignItems: 'center', 
+              gap: '8px', 
+              minHeight: '40px',
+              padding: '0 16px',
+              backgroundColor: showFilters ? '#0f766e' : '#0d9488', 
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: '500',
+              boxShadow: '0 2px 4px rgba(13, 148, 136, 0.2)',
+              transition: 'background-color 0.2s'
+            }}
           >
-            <span style={{ transform: showFilters ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▾</span>
+            <span style={{ transform: showFilters ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s ease' }}>▾</span>
             <span>{showFilters ? 'Hide Filters' : 'Show Filters'}</span>
           </button>
           <div style={{ fontSize: '14px', color: '#6b7280' }}>

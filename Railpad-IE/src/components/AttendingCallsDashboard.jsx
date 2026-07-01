@@ -287,7 +287,7 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal 
   };
 
   return (
-    <div className="dashboard-container" style={{ padding: '24px', background: '#f8fafc', minHeight: '100vh' }}>
+    <div className="dashboard-container" style={{ padding: '24px', background: '#ffffff', minHeight: '100vh' }}>
       {/* Notification Component */}
       <Notification
         message={notification.message}

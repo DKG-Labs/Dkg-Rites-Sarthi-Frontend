@@ -53,6 +53,15 @@ const getShiftSuffix = () => {
   return shift ? `_${shift}` : '';
 };
 
+// Helper to extract heat data from either array format or new robust object format
+const getStoredHeatData = (storageData, hNo, idx) => {
+  if (!storageData) return null;
+  const nhNo = (hNo || '').toString().trim().toUpperCase();
+  if (typeof storageData === 'object' && !Array.isArray(storageData) && storageData[nhNo]) return storageData[nhNo];
+  if (Array.isArray(storageData) && storageData[idx]) return storageData[idx];
+  return null;
+};
+
 const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChange, onProductModelChange, onLadleValuesChange }) => {
   // Import cache functions from context
   const {
@@ -1017,7 +1026,8 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     if (!allCountsFilled) return 'Pending';
 
     // All counts are filled, so it's NOT OK (defects found)
-    return 'NOT OK';
+    // But since visual defects can result in a partial rejection, we return 'PARTIAL' instead of 'NOT OK'
+    return 'PARTIAL';
   }, []);
 
   /**
@@ -1214,11 +1224,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
         // Visual, Dimensional, etc. use the heatNo as key (with fallback to index for legacy support)
         const getHeatData = (storageData, hNo, idx) => {
-          if (!storageData) return null;
-          const nhNo = (hNo || '').toString().trim().toUpperCase();
-          if (typeof storageData === 'object' && !Array.isArray(storageData) && storageData[nhNo]) return storageData[nhNo];
-          if (Array.isArray(storageData) && storageData[idx]) return storageData[idx];
-          return null;
+          return getStoredHeatData(storageData, hNo, idx);
         };
 
         const vh = getHeatData(visualData, normalizedHNo, heatIndex);
@@ -1328,7 +1334,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
         // Find this unique heat's visual data index
         const uniqueHeatIndex = consolidatedHeats.findIndex(h => (h.heatNo || h.heat_no) === heatNo);
-        const heatVisualData = Array.isArray(visualData) && uniqueHeatIndex >= 0 ? visualData[uniqueHeatIndex] : null;
+        let heatVisualData = getStoredHeatData(visualData, heatNo, uniqueHeatIndex);
         const rejectedWeight = calculateVisualRejectedWeight(heatVisualData);
         const offeredWeight = heat.weight;
 
@@ -1692,7 +1698,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           const visualData = visualRaw ? JSON.parse(visualRaw) : [];
 
           // Use the index from consolidated list
-          const heatVisualData = Array.isArray(visualData) && heatIndex >= 0 ? visualData[heatIndex] : null;
+          const heatVisualData = getStoredHeatData(visualData, heatNo || heat?.heatNo || heat?.heat_no, heatIndex);
           totalRejectedWeight = calculateVisualRejectedWeight(heatVisualData);
 
           // Check if any modules are still pending
@@ -2280,7 +2286,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
             const originalHeatNumber = originalHeat.heatNo || originalHeat.heat_no;
             if (!processedHeatNumbers.has(originalHeatNumber)) {
               const heatIndex = activeHeats.findIndex(h => (h.heatNo || h.heat_no) === originalHeatNumber);
-              const heatVisualData = Array.isArray(visualData) && heatIndex >= 0 ? visualData[heatIndex] : null;
+              const heatVisualData = getStoredHeatData(visualData, heatNo || heat?.heatNo || heat?.heat_no, heatIndex);
               const rejectedWeight = calculateVisualRejectedWeight(heatVisualData);
               totalRejectedWeight += rejectedWeight;
               processedHeatNumbers.add(originalHeatNumber);
@@ -2726,7 +2732,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
             const originalHeatNumber = originalHeat.heatNo || originalHeat.heat_no;
             if (!processedHeatNumbers.has(originalHeatNumber)) {
               const heatIndex = activeHeats.findIndex(h => (h.heatNo || h.heat_no) === originalHeatNumber);
-              const heatVisualData = Array.isArray(visualData) && heatIndex >= 0 ? visualData[heatIndex] : null;
+              const heatVisualData = getStoredHeatData(visualData, heatNo || heat?.heatNo || heat?.heat_no, heatIndex);
               const rejectedWeight = calculateVisualRejectedWeight(heatVisualData);
               totalRejectedWeight += rejectedWeight;
               processedHeatNumbers.add(originalHeatNumber);
@@ -3315,7 +3321,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                 const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${call?.call_no}${getShiftSuffix()}`;
                 const visualRaw = localStorage.getItem(visualKey);
                 const visualData = visualRaw ? JSON.parse(visualRaw) : [];
-                const heatVisualData = Array.isArray(visualData) && heatIndex >= 0 ? visualData[heatIndex] : null;
+                const heatVisualData = getStoredHeatData(visualData, heatNo || heat?.heatNo || heat?.heat_no, heatIndex);
                 const totalRejectedWeight = calculateVisualRejectedWeight(heatVisualData);
                 const offeredWeight = parseFloat(heat.weight) || 0;
                 const acceptedWeight = offeredWeight - totalRejectedWeight;
@@ -3391,7 +3397,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
               const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${call?.call_no}${getShiftSuffix()}`;
               const visualRaw = localStorage.getItem(visualKey);
               const visualData = visualRaw ? JSON.parse(visualRaw) : [];
-              const heatVisualData = Array.isArray(visualData) && heatIndex >= 0 ? visualData[heatIndex] : null;
+              const heatVisualData = getStoredHeatData(visualData, heatNo || heat?.heatNo || heat?.heat_no, heatIndex);
               const totalRejectedWeight = calculateVisualRejectedWeight(heatVisualData);
               const offeredWeight = parseFloat(heat.weight) || 0;
               const acceptedWeight = offeredWeight - totalRejectedWeight;
@@ -3555,7 +3561,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                           const visualData = visualRaw ? JSON.parse(visualRaw) : [];
 
                           // Use unique index from consolidated list
-                          const heatVisualData = Array.isArray(visualData) && heatIndex >= 0 ? visualData[heatIndex] : null;
+                          const heatVisualData = getStoredHeatData(visualData, heatNo || heat?.heatNo || heat?.heat_no, heatIndex);
                           const totalRejectedWeight = calculateVisualRejectedWeight(heatVisualData);
 
                           const offeredTons = parseFloat(heat.weight) || 0;
@@ -3601,7 +3607,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                           const visualRaw = localStorage.getItem(visualKey);
                           const visualData = visualRaw ? JSON.parse(visualRaw) : [];
 
-                          const heatVisualData = Array.isArray(visualData) && heatIndex >= 0 ? visualData[heatIndex] : null;
+                          const heatVisualData = getStoredHeatData(visualData, heatNo || heat?.heatNo || heat?.heat_no, heatIndex);
                           const totalRejectedWeight = calculateVisualRejectedWeight(heatVisualData);
 
                           // Calculate: Accepted Qty (Tons) = Offered Qty - Rejected Weight
@@ -3648,7 +3654,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                           const visualRaw = localStorage.getItem(visualKey);
                           const visualData = visualRaw ? JSON.parse(visualRaw) : [];
 
-                          const heatVisualData = Array.isArray(visualData) && heatIndex >= 0 ? visualData[heatIndex] : null;
+                          const heatVisualData = getStoredHeatData(visualData, heatNo || heat?.heatNo || heat?.heat_no, heatIndex);
                           const totalRejectedWeight = calculateVisualRejectedWeight(heatVisualData);
 
                           // Show calculated rejected weight from visual defects

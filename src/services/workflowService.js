@@ -9,7 +9,6 @@
  */
 
 import { getAuthToken, getStoredUser } from './authService';
-import { cleanVendorName } from './poDataService';
 import { processVendorName } from '../utils/vendorMapper';
 import { API_BASE_URL } from './apiConfig';
 
@@ -189,8 +188,6 @@ export const fetchUserPendingCalls = async (forceRefresh = false) => {
       if (vendorName && typeof vendorName === 'string' && vendorName.trim() !== '') {
         // First, check if it's a vendor code and convert it
         vendorName = processVendorName(vendorName);
-        // Then clean the vendor name (remove extra spaces, etc.)
-        vendorName = cleanVendorName(vendorName);
       } else {
         // Explicit fallback when vendor name is null/empty per requirement
         vendorName = 'SHIVAM HIGHRISE PVT. LTD';

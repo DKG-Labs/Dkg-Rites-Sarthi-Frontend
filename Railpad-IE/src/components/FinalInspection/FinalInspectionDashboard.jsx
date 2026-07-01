@@ -4077,8 +4077,10 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     if (!s || !s.s20 || !s.s90) return { d1: 0, d2: 0, stiffness: 0, isS20Complete: false, isS90Complete: false };
     const isS20Complete = s.s20 && Object.values(s.s20).every(v => v !== '');
     const isS90Complete = s.s90 && Object.values(s.s90).every(v => v !== '');
-    const d1 = isS20Complete ? (parseFloat(s.s20.a) + parseFloat(s.s20.b) + parseFloat(s.s20.c) + parseFloat(s.s20.d)) / 4 : 0;
-    const d2 = isS90Complete ? (parseFloat(s.s90.a) + parseFloat(s.s90.b) + parseFloat(s.s90.c) + parseFloat(s.s90.d)) / 4 : 0;
+    const d1Raw = isS20Complete ? (parseFloat(s.s20.a) + parseFloat(s.s20.b) + parseFloat(s.s20.c) + parseFloat(s.s20.d)) / 4 : 0;
+    const d2Raw = isS90Complete ? (parseFloat(s.s90.a) + parseFloat(s.s90.b) + parseFloat(s.s90.c) + parseFloat(s.s90.d)) / 4 : 0;
+    const d1 = isS20Complete ? Math.round(d1Raw * 100) / 100 : 0;
+    const d2 = isS90Complete ? Math.round(d2Raw * 100) / 100 : 0;
     const diff = d2 - d1;
     const stiffness = (isS20Complete && isS90Complete && Math.abs(diff) > 0.0001) ? (70 / diff).toFixed(2) : 0;
     return { d1, d2, stiffness, isS20Complete, isS90Complete };
@@ -6010,7 +6012,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                       }} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
                                     </td>
                                   ))}
-                                  <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: '#21808d', background: '#f8fafc' }}>{res.isS20Complete ? res.d1.toFixed(3) : '-'}</td>
+                                  <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: '#21808d', background: '#f8fafc' }}>{res.isS20Complete ? res.d1.toFixed(2) : '-'}</td>
                                   <td rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: res.stiffness >= 15 && res.stiffness <= 25 ? '#166534' : '#ef4444', background: '#f1f5f9', fontSize: '18px' }}>
                                     {res.stiffness > 0 ? res.stiffness : '-'}
                                   </td>
@@ -6027,7 +6029,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                       }} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
                                     </td>
                                   ))}
-                                  <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: '#21808d', background: '#f8fafc' }}>{res.isS90Complete ? res.d2.toFixed(3) : '-'}</td>
+                                  <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: '#21808d', background: '#f8fafc' }}>{res.isS90Complete ? res.d2.toFixed(2) : '-'}</td>
                                 </tr>
                               </React.Fragment>
                             );
@@ -7099,8 +7101,10 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                         const secantDoubleResults = specData.secant.map(s => {
                           const isS20Complete = s.s20 && Object.values(s.s20).every(v => v !== '');
                           const isS90Complete = s.s90 && Object.values(s.s90).every(v => v !== '');
-                          const d1 = isS20Complete ? (parseFloat(s.s20.a) + parseFloat(s.s20.b) + parseFloat(s.s20.c) + parseFloat(s.s20.d)) / 4 : 0;
-                          const d2 = isS90Complete ? (parseFloat(s.s90.a) + parseFloat(s.s90.b) + parseFloat(s.s90.c) + parseFloat(s.s90.d)) / 4 : 0;
+                          const d1Raw = isS20Complete ? (parseFloat(s.s20.a) + parseFloat(s.s20.b) + parseFloat(s.s20.c) + parseFloat(s.s20.d)) / 4 : 0;
+                          const d2Raw = isS90Complete ? (parseFloat(s.s90.a) + parseFloat(s.s90.b) + parseFloat(s.s90.c) + parseFloat(s.s90.d)) / 4 : 0;
+                          const d1 = isS20Complete ? Math.round(d1Raw * 100) / 100 : 0;
+                          const d2 = isS90Complete ? Math.round(d2Raw * 100) / 100 : 0;
                           const diff = d2 - d1;
                           const stiffness = (isS20Complete && isS90Complete && Math.abs(diff) > 0.0001) ? (70 / diff).toFixed(2) : 0;
                           return { d1, d2, stiffness, isS20Complete, isS90Complete };
@@ -7148,7 +7152,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                               }} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
                                             </td>
                                           ))}
-                                          <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: '#21808d', background: '#f8fafc' }}>{res.isS20Complete ? res.d1.toFixed(3) : '-'}</td>
+                                          <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: '#21808d', background: '#f8fafc' }}>{res.isS20Complete ? res.d1.toFixed(2) : '-'}</td>
                                           <td rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: res.stiffness >= 15 && res.stiffness <= 25 ? '#166534' : '#ef4444', background: '#f1f5f9', fontSize: '18px' }}>
                                             {res.stiffness > 0 ? res.stiffness : '-'}
                                           </td>
@@ -7165,7 +7169,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                               }} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
                                             </td>
                                           ))}
-                                          <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: '#21808d', background: '#f8fafc' }}>{res.isS90Complete ? res.d2.toFixed(3) : '-'}</td>
+                                          <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: '#21808d', background: '#f8fafc' }}>{res.isS90Complete ? res.d2.toFixed(2) : '-'}</td>
                                         </tr>
                                       </React.Fragment>
                                     );

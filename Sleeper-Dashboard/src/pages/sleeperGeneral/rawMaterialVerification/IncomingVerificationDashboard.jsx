@@ -484,25 +484,22 @@ const IncomingVerificationDashboard = ({ initialGroup = null, initialModuleId = 
             let pendingRes, completedRes;
 
             if (!isForceRefresh && isModule11 && paginationCache.current['full_api_data']) {
-                pendingRes = paginationCache.current['full_api_data'].pendingRes;
-                completedRes = paginationCache.current['full_api_data'].completedRes;
-            } else {
-                // Fetch pending and historical transitions separately as backend doesn't have a combined 'all' endpoint
-                const fetched = await Promise.all([
-                    isModule11
-                        ? apiService.getAllPendingWorkflowTransitionsModuleWise('IE', 11, 0, 5000)
-                        : apiService.getAllPendingWorkflowTransitions('IE', effectiveUserId, dutyUnit),
-                    isModule11
-                        ? apiService.getAllCompletedWorkflowTransitionsModuleWise(11, 0, 5000)
-                        : apiService.getAllCompletedWorkflowTransitions(effectiveUserId, dutyUnit)
-                ]);
-                pendingRes = fetched[0];
-                completedRes = fetched[1];
-                
-                if (isModule11) {
-                    paginationCache.current['full_api_data'] = { pendingRes, completedRes };
-                }
+                // Previously, we cached all 5000 items. With server-side pagination,
+                // we no longer use full_api_data.
+                // We rely on the cacheKey (page-pageSize) check above.
             }
+            
+            // Fetch pending and historical transitions separately as backend doesn't have a combined 'all' endpoint
+            const fetched = await Promise.all([
+                isModule11
+                    ? apiService.getAllPendingWorkflowTransitionsModuleWise('IE', 11, dutyUnit, page, pageSize)
+                    : apiService.getAllPendingWorkflowTransitions('IE', effectiveUserId, dutyUnit),
+                isModule11
+                    ? apiService.getAllCompletedWorkflowTransitionsModuleWise(11, dutyUnit, page, pageSize)
+                    : apiService.getAllCompletedWorkflowTransitions(effectiveUserId, dutyUnit)
+            ]);
+            pendingRes = fetched[0];
+            completedRes = fetched[1];
 
             const parseRes = (res) => {
                 if (Array.isArray(res)) return res;
@@ -526,11 +523,12 @@ const IncomingVerificationDashboard = ({ initialGroup = null, initialModuleId = 
                 myPending.sort((a, b) => new Date(b.createdDate || 0) - new Date(a.createdDate || 0));
                 myVerified.sort((a, b) => new Date(b.createdDate || 0) - new Date(a.createdDate || 0));
 
-                setTotalPending(myPending.length);
-                setTotalVerified(myVerified.length);
-
-                myPending = myPending.slice(page * pageSize, (page + 1) * pageSize);
-                myVerified = myVerified.slice(page * pageSize, (page + 1) * pageSize);
+                const pendingTotal = pendingRes?.responseData?.totalElements ?? myPending.length;
+                const verifiedTotal = completedRes?.responseData?.totalElements ?? myVerified.length;
+                setTotalPending(pendingTotal);
+                setTotalVerified(verifiedTotal);
+                
+                // No client-side slicing needed because we are using server-side pagination now
             } else {
                 setTotalPending(myPending.length);
                 setTotalVerified(myVerified.length);

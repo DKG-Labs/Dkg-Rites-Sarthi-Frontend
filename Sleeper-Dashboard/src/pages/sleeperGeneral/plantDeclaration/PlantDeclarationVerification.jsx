@@ -29,7 +29,7 @@ const PLANT_DECLARATION_MODULES = [
 
 const MODULE_TABLE_FIELDS = {
     1: [
-        { label: 'Plant Name',     key: 'plantNameLocation' },
+        { label: 'Plant Name',     key: 'plantName' },
         { label: 'Vendor Code',    key: 'vendorCode' },
         { label: 'Type Of Plant',  key: 'plantType' },
         { label: 'Sheds / Lines',  key: 'numberOfSheds' },
@@ -54,7 +54,7 @@ const MODULE_TABLE_FIELDS = {
         { label: 'Approval Ref',   key: 'approvalReference' },
     ],
     4: [
-        { label: 'Mix ID',         key: 'identification' },
+        { label: 'Mix ID',         key: 'mixId' },
         { label: 'Grade',          key: 'concreteGrade' },
         { label: 'Authority',      key: 'authorityOfApproval' },
     ],
@@ -123,24 +123,40 @@ const PlantDeclarationVerification = () => {
     const [submitting, setSubmitting]             = useState(false);
     const [enriching, setEnriching]               = useState(false);
 
+    // Pagination states
+    const [pendingPage, setPendingPage] = useState(0);
+    const [pendingPageSize, setPendingPageSize] = useState(10);
+    const [totalPendingElements, setTotalPendingElements] = useState(0);
+
+    const [completedPage, setCompletedPage] = useState(0);
+    const [completedPageSize, setCompletedPageSize] = useState(10);
+    const [totalCompletedElements, setTotalCompletedElements] = useState(0);
 
     // ── Load High-Level Lists ──
     const loadData = useCallback(async () => {
+        // If no module is selected yet, let the useEffect set it and re-trigger
+        if (!selectedModuleId) return;
+
         setLoading(true);
         setError(null);
         try {
-            const [pendingRes, completedRes] = await Promise.all([
-                apiService.getAllPendingWorkflowTransitions('IE', effectiveUserId, dutyUnit),
-                getAllCompletedCalls()
-            ]);
+            // For Bench/Mould (Module 2), we also need to fetch Long Line (Module 12)
+            const modulesToFetch = selectedModuleId === 2 ? [2, 12] : [selectedModuleId];
+            
+            let allPending = [];
+            let pTotal = 0;
 
-            const rawPending = Array.isArray(pendingRes) ? pendingRes : (pendingRes?.responseData || []);
-            const rawCompleted = Array.isArray(completedRes) ? completedRes : (completedRes?.responseData || []);
+            for (const mid of modulesToFetch) {
+                const pendingRes = await apiService.getAllPendingWorkflowTransitionsModuleWise('IE', mid, dutyUnit, pendingPage, pendingPageSize);
+                const pList = Array.isArray(pendingRes) ? pendingRes : (pendingRes?.responseData?.content || pendingRes?.responseData || []);
+                allPending = [...allPending, ...pList];
+                pTotal += pendingRes?.responseData?.totalElements ?? pList.length;
+            }
 
-            // Helper to filter and group by moduleId
+            setTotalPendingElements(pTotal);
+
             const groupRecords = (list) => {
                 const plantModuleIds = PLANT_DECLARATION_MODULES.map(m => m.moduleId);
-                // Filter by moduleId AND active plantId (dutyUnit)
                 const plantRecords = list.filter(r => {
                     const isCorrectModule = plantModuleIds.includes(r.moduleId);
                     const isCorrectPlant = !dutyUnit || r.plantId === dutyUnit;
@@ -155,71 +171,66 @@ const PlantDeclarationVerification = () => {
                 return grouped;
             };
 
-            const pGrouped = groupRecords(rawPending);
-            const cGrouped = groupRecords(rawCompleted);
-
-            setRawPendingByModule(pGrouped);
-            setRawCompletedByModule(cGrouped);
+            const pGrouped = groupRecords(allPending);
+            setRawPendingByModule(prev => ({ ...prev, ...pGrouped }));
             
-            // Clear enriched cache on manual refresh
-            setEnrichedPending({});
-            setEnrichedCompleted({});
+            const initialEnrichedP = {};
+            Object.keys(pGrouped).forEach(mid => {
+                initialEnrichedP[mid] = pGrouped[mid].map(item => ({...item, detail: item}));
+            });
+            
+            setEnrichedPending(prev => ({ ...prev, ...initialEnrichedP }));
+            setLoading(false); // Stop loader and show pending immediately
 
-            if (selectedModuleId === null) {
-                setSelectedModuleId(PLANT_DECLARATION_MODULES[0].moduleId);
-            }
+            // Fetch Completed in the background
+            (async () => {
+                try {
+                    let allCompleted = [];
+                    let cTotal = 0;
+
+                    for (const mid of modulesToFetch) {
+                        const completedRes = await apiService.getAllCompletedWorkflowTransitionsModuleWise(mid, dutyUnit, completedPage, completedPageSize);
+                        const cList = Array.isArray(completedRes) ? completedRes : (completedRes?.responseData?.content || completedRes?.responseData || []);
+                        allCompleted = [...allCompleted, ...cList];
+                        cTotal += completedRes?.responseData?.totalElements ?? cList.length;
+                    }
+
+                    setTotalCompletedElements(cTotal);
+                    const cGrouped = groupRecords(allCompleted);
+                    setRawCompletedByModule(prev => ({ ...prev, ...cGrouped }));
+
+                    const initialEnrichedC = {};
+                    Object.keys(cGrouped).forEach(mid => {
+                        initialEnrichedC[mid] = cGrouped[mid].map(item => ({...item, detail: item}));
+                    });
+                    
+                    setEnrichedCompleted(prev => ({ ...prev, ...initialEnrichedC }));
+                } catch (err) {
+                    console.error('Failed to load completed list:', err);
+                }
+            })();
+
         } catch (err) {
             setError(err.message || 'Failed to load list.');
-        } finally {
             setLoading(false);
+        }
+    }, [selectedModuleId, dutyUnit, pendingPage, pendingPageSize, completedPage, completedPageSize]);
+
+    useEffect(() => {
+        if (selectedModuleId === null) {
+            setSelectedModuleId(PLANT_DECLARATION_MODULES[0].moduleId);
+        } else {
+            // Reset pagination when module changes
+            setPendingPage(0);
+            setCompletedPage(0);
         }
     }, [selectedModuleId]);
 
-    // ── Lazy Enrichment of Active Tab ──
-    const enrichModule = useCallback(async (mid) => {
-        if (!mid) return;
-        
-        // If already enriched, skip (unless we want to force refresh)
-        if (enrichedPending[mid] || enrichedCompleted[mid]) return;
-
-        setEnriching(true);
-        try {
-            const midsToEnrich = mid === 2 ? [2, 12] : [mid];
-            
-            for (const targetMid of midsToEnrich) {
-                const pItems = rawPendingByModule[targetMid] || [];
-                const cItems = rawCompletedByModule[targetMid] || [];
-
-                const [pEnriched, cEnriched] = await Promise.all([
-                    Promise.all(pItems.map(async item => ({
-                        ...item,
-                        detail: (await fetchRecordDetail(targetMid, item.requestId)) || {}
-                    }))),
-                    Promise.all(cItems.map(async item => ({
-                        ...item,
-                        detail: (await fetchRecordDetail(targetMid, item.requestId)) || {}
-                    })))
-                ]);
-
-                setEnrichedPending(prev => ({ ...prev, [targetMid]: pEnriched }));
-                setEnrichedCompleted(prev => ({ ...prev, [targetMid]: cEnriched }));
-            }
-        } catch (err) {
-            console.error("Enrichment error:", err);
-        } finally {
-            setEnriching(false);
-        }
-    }, [rawPendingByModule, rawCompletedByModule, enrichedPending, enrichedCompleted]);
-
     useEffect(() => {
-        loadData();
-    }, []); // Run once on mount
-
-    useEffect(() => {
-        if (selectedModuleId && !loading) {
-            enrichModule(selectedModuleId);
+        if (selectedModuleId !== null) {
+            loadData();
         }
-    }, [selectedModuleId, loading, rawPendingByModule]);
+    }, [loadData, selectedModuleId]); // Run on mount and when selectedModuleId changes
 
 
     const handleAction = async (row, action) => {
@@ -246,6 +257,46 @@ const PlantDeclarationVerification = () => {
         } finally {
             setSubmitting(false);
         }
+    };
+
+    const PaginationControls = ({ page, pageSize, setPage, setPageSize, totalElements }) => {
+        const totalPages = Math.max(1, Math.ceil(totalElements / pageSize));
+        const hasNext = page < totalPages - 1;
+
+        return (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', borderRadius: '0 0 12px 12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '13px', color: '#64748b' }}>Rows per page:</span>
+                    <select 
+                        value={pageSize} 
+                        onChange={e => { setPageSize(Number(e.target.value)); setPage(0); }} 
+                        style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                    >
+                        <option value={5}>5</option>
+                        <option value={10}>10</option>
+                        <option value={15}>15</option>
+                        <option value={20}>20</option>
+                    </select>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <button 
+                        onClick={() => setPage(p => Math.max(0, p - 1))} 
+                        disabled={page === 0 || loading} 
+                        style={{ padding: '6px 14px', borderRadius: '8px', border: '1px solid #e2e8f0', background: page === 0 ? '#f1f5f9' : '#fff', color: page === 0 ? '#94a3b8' : '#334155', cursor: page === 0 ? 'not-allowed' : 'pointer', fontWeight: '600', fontSize: '13px' }}
+                    >
+                        Prev
+                    </button>
+                    <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '600' }}>Page {page + 1} of {totalPages}</span>
+                    <button 
+                        onClick={() => setPage(p => p + 1)} 
+                        disabled={loading || !hasNext} 
+                        style={{ padding: '6px 14px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff', color: '#334155', cursor: !hasNext ? 'not-allowed' : 'pointer', fontWeight: '600', fontSize: '13px', opacity: !hasNext ? 0.5 : 1 }}
+                    >
+                        Next
+                    </button>
+                </div>
+            </div>
+        );
     };
 
     const renderTable = (records, isHistory = false) => {
@@ -405,17 +456,26 @@ const PlantDeclarationVerification = () => {
                                         Fetching record details...
                                     </div>
                                 ) : (
-                                    renderTable(
-                                        selectedModuleId === 2
-                                            ? [...(enrichedPending[2] || []), ...(enrichedPending[12] || [])].filter(r => {
-                                                const type = r.detail?.plantType || '';
-                                                return benchType === 'STRESS_BENCH' 
-                                                    ? type.toUpperCase().includes('STRESS')
-                                                    : type.toUpperCase().includes('LONG');
-                                              })
-                                            : (enrichedPending[selectedModuleId] || []),
-                                        false
-                                    )
+                                    <>
+                                        {renderTable(
+                                            selectedModuleId === 2
+                                                ? [...(enrichedPending[2] || []), ...(enrichedPending[12] || [])].filter(r => {
+                                                    const type = r.detail?.plantType || '';
+                                                    return benchType === 'STRESS_BENCH' 
+                                                        ? type.toUpperCase().includes('STRESS')
+                                                        : type.toUpperCase().includes('LONG');
+                                                  })
+                                                : (enrichedPending[selectedModuleId] || []),
+                                            false
+                                        )}
+                                        <PaginationControls 
+                                            page={pendingPage} 
+                                            pageSize={pendingPageSize} 
+                                            setPage={setPendingPage} 
+                                            setPageSize={setPendingPageSize} 
+                                            totalElements={totalPendingElements} 
+                                        />
+                                    </>
                                 )}
                             </div>
 
@@ -436,20 +496,28 @@ const PlantDeclarationVerification = () => {
                                         Fetching record details...
                                     </div>
                                 ) : (
-                                    renderTable(
-                                        selectedModuleId === 2
-                                            ? [...(enrichedCompleted[2] || []), ...(enrichedCompleted[12] || [])].filter(r => {
-                                                const type = r.detail?.plantType || '';
-                                                return benchType === 'STRESS_BENCH' 
-                                                    ? type.toUpperCase().includes('STRESS')
-                                                    : type.toUpperCase().includes('LONG');
-                                              })
-                                            : (enrichedCompleted[selectedModuleId] || []),
-                                        true
-                                    )
+                                    <>
+                                        {renderTable(
+                                            selectedModuleId === 2
+                                                ? [...(enrichedCompleted[2] || []), ...(enrichedCompleted[12] || [])].filter(r => {
+                                                    const type = r.detail?.plantType || '';
+                                                    return benchType === 'STRESS_BENCH' 
+                                                        ? type.toUpperCase().includes('STRESS')
+                                                        : type.toUpperCase().includes('LONG');
+                                                  })
+                                                : (enrichedCompleted[selectedModuleId] || []),
+                                            true
+                                        )}
+                                        <PaginationControls 
+                                            page={completedPage} 
+                                            pageSize={completedPageSize} 
+                                            setPage={setCompletedPage} 
+                                            setPageSize={setCompletedPageSize} 
+                                            totalElements={totalCompletedElements} 
+                                        />
+                                    </>
                                 )}
                             </div>
-
                         </div>
                     )}
                 </>

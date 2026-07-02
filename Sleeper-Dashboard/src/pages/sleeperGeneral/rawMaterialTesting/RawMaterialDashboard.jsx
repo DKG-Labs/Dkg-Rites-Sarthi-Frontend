@@ -26,33 +26,12 @@ const RawMaterialDashboard = () => {
                 const callsList = Array.isArray(calls) ? calls : [];
                 setCompletedCalls(callsList);
 
-                // Fetch details for each call
+                // API now natively provides the details.
                 const detailsMap = {};
-                const fetchPromises = callsList.map(async (call) => {
-                    if (call.requestId) {
-                        const typeMap = {
-                            6: 'cement',
-                            8: 'aggregates',
-                            7: 'admixture',
-                            5: 'hts-wire',
-                            9: 'sgci-insert'
-                        };
-                        const type = typeMap[call.moduleId];
-                        if (type) {
-                            try {
-                                const details = await import('../../../services/workflowService').then(m => m.getMaterialDetail(type, call.requestId));
-                                if (details) {
-                                    detailsMap[call.requestId] = details;
-                                }
-                            } catch (err) {
-                                console.error(`Error fetching detail for requestId ${call.requestId} (type: ${type}):`, err);
-                                // Continue with other requests
-                            }
-                        }
-                    }
+                callsList.forEach(call => {
+                    detailsMap[call.requestId] = call;
                 });
-
-                await Promise.all(fetchPromises);
+                
                 setEnrichedData(detailsMap);
             } catch (err) {
                 console.error("Failed to fetch calls:", err);

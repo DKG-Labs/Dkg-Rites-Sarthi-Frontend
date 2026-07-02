@@ -39,35 +39,6 @@ const MODULE_CONFIG = [
     { moduleId: 11, label: 'Production Declaration', group: 'Production Verification', color: '#0891b2' },
 ];
 
-/** Fetch the actual record data for a given moduleId + requestId */
-const fetchRecordDetail = async (moduleId, requestId) => {
-
-    const fetchers = {
-        1: apiService.getPlantProfileById,
-        2: apiService.getBenchMouldMasterById,
-        3: apiService.getRawMaterialSourceById,
-        4: apiService.getMixDesignById,
-        5: apiService.getHtsWireRecordById,
-        6: apiService.getCementRecordById,
-        7: apiService.getAdmixtureRecordById,
-        8: apiService.getAggregateRecordById,
-        9: apiService.getSgciRecordById,
-        10: apiService.getDowelRecordById,
-        11: apiService.getProductionDeclarationRecordById,
-    };
-
-    const fn = fetchers[moduleId];
-
-    if (!fn) return null;
-
-    try {
-        const res = await fn(requestId);
-        return res?.responseData ?? null;
-    } catch (error) {
-        console.error("Error fetching record detail", error);
-        return null;
-    }
-};
 
 // ─────────────────────────────────────────────
 //  Sub-component: Record Detail Modal
@@ -481,25 +452,10 @@ const IncomingVerificationDashboard = ({ initialGroup = null, initialModuleId = 
         setLoading(true);
         setError(null);
         try {
-            let pendingRes, completedRes;
-
-            if (!isForceRefresh && isModule11 && paginationCache.current['full_api_data']) {
-                // Previously, we cached all 5000 items. With server-side pagination,
-                // we no longer use full_api_data.
-                // We rely on the cacheKey (page-pageSize) check above.
-            }
-            
-            // Fetch pending and historical transitions separately as backend doesn't have a combined 'all' endpoint
-            const fetched = await Promise.all([
-                isModule11
-                    ? apiService.getAllPendingWorkflowTransitionsModuleWise('IE', 11, dutyUnit, page, pageSize)
-                    : apiService.getAllPendingWorkflowTransitions('IE', effectiveUserId, dutyUnit),
-                isModule11
-                    ? apiService.getAllCompletedWorkflowTransitionsModuleWise(11, dutyUnit, page, pageSize)
-                    : apiService.getAllCompletedWorkflowTransitions(effectiveUserId, dutyUnit)
-            ]);
-            pendingRes = fetched[0];
-            completedRes = fetched[1];
+            // Fetch Pending First
+            const pendingRes = isModule11
+                ? await apiService.getAllPendingWorkflowTransitionsModuleWise('IE', 11, dutyUnit, page, pageSize)
+                : await apiService.getAllPendingWorkflowTransitions('IE', effectiveUserId, dutyUnit);
 
             const parseRes = (res) => {
                 if (Array.isArray(res)) return res;
@@ -507,84 +463,89 @@ const IncomingVerificationDashboard = ({ initialGroup = null, initialModuleId = 
                 if (Array.isArray(res?.responseData?.content)) return res.responseData.content;
                 return [];
             };
-            const pendingList = parseRes(pendingRes);
-            const verifiedList = parseRes(completedRes);
             const filterByModuleAndPlant = (list) => list.filter(r => {
                 const isCorrectModule = filteredModuleIds.includes(r.moduleId);
                 const isCorrectPlant = !dutyUnit || r.plantId === dutyUnit;
                 return isCorrectModule && isCorrectPlant;
             });
 
+            const pendingList = parseRes(pendingRes);
             let myPending = filterByModuleAndPlant(pendingList);
-            let myVerified = filterByModuleAndPlant(verifiedList);
 
             if (isModule11) {
-                // Sort by latest (descending createdDate)
                 myPending.sort((a, b) => new Date(b.createdDate || 0) - new Date(a.createdDate || 0));
-                myVerified.sort((a, b) => new Date(b.createdDate || 0) - new Date(a.createdDate || 0));
-
-                const pendingTotal = pendingRes?.responseData?.totalElements ?? myPending.length;
-                const verifiedTotal = completedRes?.responseData?.totalElements ?? myVerified.length;
-                setTotalPending(pendingTotal);
-                setTotalVerified(verifiedTotal);
-                
-                // No client-side slicing needed because we are using server-side pagination now
+                setTotalPending(pendingRes?.responseData?.totalElements ?? myPending.length);
             } else {
                 setTotalPending(myPending.length);
-                setTotalVerified(myVerified.length);
             }
 
-            // Group by moduleId and status
-            const grouped = {};
+            const groupedPending = {};
             for (const mod of filteredModules) {
-                grouped[mod.moduleId] = { pending: [], verified: [] };
+                groupedPending[mod.moduleId] = [];
             }
-            
             myPending.forEach(item => {
-                if (grouped[item.moduleId]) grouped[item.moduleId].pending.push(item);
-            });
-            myVerified.forEach(item => {
-                if (grouped[item.moduleId]) grouped[item.moduleId].verified.push(item);
+                if (groupedPending[item.moduleId]) groupedPending[item.moduleId].push(item);
             });
 
-            // Fetch detail for each record in parallel
             const enriched = {};
-            await Promise.all(
-                Object.entries(grouped).map(async ([modId, categories]) => {
-                    const numId = Number(modId);
-                    const modConf = MODULE_CONFIG.find(m => m.moduleId === numId);
-                    
-                    const processCategory = async (items) => {
-                        return Promise.all(items.map(async item => {
-                            const detail = await fetchRecordDetail(numId, item.requestId);
-                            return {
-                                ...item,
-                                detail: detail || {},
-                                moduleLabel: modConf?.label || `Module ${numId}`,
-                            };
-                        }));
-                    };
-
-                    enriched[numId] = {
-                        pending: await processCategory(categories.pending),
-                        verified: await processCategory(categories.verified)
-                    };
-                })
-            );
-            
-            setEnrichedByModule(enriched);
-            if (filteredModuleIds.length === 1 && filteredModuleIds[0] === 11) {
-                paginationCache.current[cacheKey] = enriched;
+            for (const [modId, items] of Object.entries(groupedPending)) {
+                const numId = Number(modId);
+                const modConf = MODULE_CONFIG.find(m => m.moduleId === numId);
+                enriched[numId] = {
+                    pending: items.map(item => ({ ...item, detail: item, moduleLabel: modConf?.label || `Module ${numId}` })),
+                    verified: []
+                };
             }
 
-            // Auto-select first module that has records
+            setEnrichedByModule(enriched);
+            setLoading(false); // Render pending immediately!
+
+            // Auto-select first module that has records if none selected
             if (filteredModules.length > 0 && selectedModuleId === null) {
                 const firstWithRecords = filteredModules.find(m => (enriched[m.moduleId]?.pending || []).length > 0);
                 setSelectedModuleId(firstWithRecords ? firstWithRecords.moduleId : filteredModules[0].moduleId);
             }
+
+            // Now fetch Completed asynchronously
+            (async () => {
+                try {
+                    const completedRes = isModule11
+                        ? await apiService.getAllCompletedWorkflowTransitionsModuleWise(11, dutyUnit, page, pageSize)
+                        : await apiService.getAllCompletedWorkflowTransitions(effectiveUserId, dutyUnit);
+
+                    const verifiedList = parseRes(completedRes);
+                    let myVerified = filterByModuleAndPlant(verifiedList);
+
+                    if (isModule11) {
+                        myVerified.sort((a, b) => new Date(b.createdDate || 0) - new Date(a.createdDate || 0));
+                        setTotalVerified(completedRes?.responseData?.totalElements ?? myVerified.length);
+                    } else {
+                        setTotalVerified(myVerified.length);
+                    }
+
+                    setEnrichedByModule(prev => {
+                        const newEnriched = { ...prev };
+                        const verifiedGrouped = {};
+                        for (const mod of filteredModules) { verifiedGrouped[mod.moduleId] = []; }
+                        myVerified.forEach(item => { if (verifiedGrouped[item.moduleId]) verifiedGrouped[item.moduleId].push(item); });
+
+                        for (const [modId, verifiedItems] of Object.entries(verifiedGrouped)) {
+                            const numId = Number(modId);
+                            const modConf = MODULE_CONFIG.find(m => m.moduleId === numId);
+                            if (!newEnriched[numId]) {
+                                newEnriched[numId] = { pending: [] };
+                            }
+                            newEnriched[numId].verified = verifiedItems.map(item => ({ ...item, detail: item, moduleLabel: modConf?.label || `Module ${numId}` }));
+                        }
+                        return newEnriched;
+                    });
+                } catch (err) {
+                    console.error('Failed to load completed records.', err);
+                }
+            })();
+
         } catch (err) {
             setError(err.message || 'Failed to load records.');
-        } finally {
             setLoading(false);
         }
     }, [initialGroup, effectiveUserId, dutyUnit, page, pageSize]); // eslint-disable-line

@@ -28,7 +28,7 @@ const RMInventoryManagement = () => {
     const loadData = async () => {
         setLoading(true);
         try {
-            // 1. Fetch stock data
+            // 1. Fetch stock data (fast)
             const [cementRes, htsRes, aggregateRes, sgciRes] = await Promise.all([
                 apiService.getAllCementInventory().catch(() => ({ responseData: [] })),
                 apiService.getAllHtsWireInventory().catch(() => ({ responseData: [] })),
@@ -50,31 +50,42 @@ const RMInventoryManagement = () => {
                 'admixture': 2300 // Mock for missing API
             };
 
-            // 2. Fetch pending workflow transitions for procurement verification
-            const pendingRes = await apiService.getAllPendingWorkflowTransitions('IE', effectiveUserId, dutyUnit);
-            const pendingList = Array.isArray(pendingRes) ? pendingRes : (pendingRes?.responseData || []);
-            
-            const pendingCounts = {};
-            pendingList.forEach(item => {
-                pendingCounts[item.moduleId] = (pendingCounts[item.moduleId] || 0) + 1;
-            });
-
-            // Combine data
-            const mappedData = RM_CATEGORIES.map(cat => {
+            // Set initial data with stocks (pending = 0)
+            const initialData = RM_CATEGORIES.map(cat => {
                 const stock = stockMap[cat.id] || 0;
                 return {
                     ...cat,
                     currentStock: stock,
-                    pendingProcurement: pendingCounts[cat.moduleId] || 0,
+                    pendingProcurement: 0,
                     pendingConsumption: Math.floor(Math.random() * 3), // Mock data for missing Consumption API
                     status: stock < (cat.capacity * 0.2) ? 'Low' : 'OK'
                 };
             });
+            setInventoryData(initialData);
+            setLoading(false); // Render immediately!
 
-            setInventoryData(mappedData);
+            // 2. Fetch pending workflow transitions asynchronously
+            (async () => {
+                try {
+                    const pendingRes = await apiService.getAllPendingWorkflowTransitions('IE', effectiveUserId, dutyUnit);
+                    const pendingList = Array.isArray(pendingRes) ? pendingRes : (pendingRes?.responseData || []);
+                    
+                    const pendingCounts = {};
+                    pendingList.forEach(item => {
+                        pendingCounts[item.moduleId] = (pendingCounts[item.moduleId] || 0) + 1;
+                    });
+
+                    setInventoryData(prev => prev.map(cat => ({
+                        ...cat,
+                        pendingProcurement: pendingCounts[cat.moduleId] || 0
+                    })));
+                } catch (error) {
+                    console.error("Failed to load pending transitions:", error);
+                }
+            })();
+
         } catch (error) {
             console.error("Failed to load inventory data:", error);
-        } finally {
             setLoading(false);
         }
     };

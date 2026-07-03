@@ -2868,7 +2868,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     } finally {
       setIsSavingDraft(false);
     }
-  }, [call, activeHeats, consolidatedHeats, numberOfBundles, numberOfERC, productModel, poData, heatSubmoduleStatuses, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, fetchedHeatData, calculateVisualRejectedWeight, sourceOfRawMaterial, capturedImages]);
+  }, [call, activeHeats, consolidatedHeats, numberOfBundles, numberOfERC, productModel, poData, heatSubmoduleStatuses, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, calculateVisualRejectedWeight, sourceOfRawMaterial, capturedImages]);
 
   // Load draft data from localStorage on mount (after heat data is loaded)
   useEffect(() => {

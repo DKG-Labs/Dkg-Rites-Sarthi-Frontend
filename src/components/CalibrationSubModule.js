@@ -26,7 +26,6 @@ import SaveIcon from '@mui/icons-material/Save';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { 
   fetchVendorCalibrations, 
-  lookupVendorCodeByName, 
   saveIeCalibrationInspection,
   fetchIeCalibrationInspection 
 } from '../services/ieCalibrationService';
@@ -73,7 +72,7 @@ const CalibrationSubModule = ({ vendorCode = '', vendorName = '', inspectionCall
 
   const [error, setError] = useState(null);
   const [expandedCategories, setExpandedCategories] = useState({});
-  const [resolvedVendorCode, setResolvedVendorCode] = useState(vendorCode);
+  const resolvedVendorCode = vendorCode;
   
   // Verification states
   const [verifications, setVerifications] = useState(() => {
@@ -242,7 +241,6 @@ const CalibrationSubModule = ({ vendorCode = '', vendorName = '', inspectionCall
           poNumber: currentPoNo,
           vendorCode: resolvedCode || vendorCode,
           details: instruments.map(row => {
-            const defaultStatus = row.calibrationStatus === 'Expired' ? 'NOT OK' : '';
             return {
               instrumentName: row.instrumentName,
               capacity: row.capacity,
@@ -262,7 +260,7 @@ const CalibrationSubModule = ({ vendorCode = '', vendorName = '', inspectionCall
     } finally {
       setLoading(false);
     }
-  }, [vendorCode, vendorName, inspectionCallNo, poNo]);
+  }, [vendorCode, inspectionCallNo, poNo, moduleType]);
 
   useEffect(() => {
     loadCalibrations();

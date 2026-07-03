@@ -1408,7 +1408,8 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           rawMaterialICs: transition.rmIcNumber || '',
           poQty: transition.poQty || 0,
           callQty: transition.callQty || 0,
-          cmApproval: transition.cmApproval || 'NO'
+          cmApproval: transition.cmApproval || 'NO',
+          createdBy: transition.createdBy || ''
         };
       });
 

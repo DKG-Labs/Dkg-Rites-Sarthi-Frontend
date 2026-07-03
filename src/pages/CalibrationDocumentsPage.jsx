@@ -23,6 +23,7 @@ const CalibrationDocumentsPage = ({ onBack, onNavigateSubmodule, inspectionCallN
         vendorCode={vendorCode}
         vendorName={vendorName}
         poNo={poNo}
+        moduleType="RM"
       />
     </div>
   );

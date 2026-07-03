@@ -76,6 +76,7 @@ export const getStoredUser = () => {
     userName: localStorage.getItem('userName'),
     roleName: localStorage.getItem('roleName'),
     vendorCode: localStorage.getItem('vendorCode'), // Allow components to easily read
+    employeeCode: localStorage.getItem('employeeCode'),
     token: token,
   };
 };

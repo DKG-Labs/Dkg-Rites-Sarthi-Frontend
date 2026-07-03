@@ -133,9 +133,9 @@ const AppLayout = () => {
                 {currentUser?.userName || 'Nitin Rajput'}
               </span>
               <span style={{ fontSize: '12px', color: '#64748b', marginTop: '3px', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span>{currentUser?.roleName || 'ERC Main IE'}</span>
+                <span>Role: {currentUser?.roleName || 'ERC Main IE'}</span>
                 <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#cbd5e1' }}></span>
-                <span style={{ color: '#475569' }}>ID: {currentUser?.employeeCode || currentUser?.employeeId || currentUser?.userId || '12191'}</span>
+                <span style={{ color: '#475569' }}>EMP CODE : {currentUser?.employeeCode || currentUser?.employeeId || currentUser?.userId || '12191'}</span>
               </span>
             </div>
           </div>

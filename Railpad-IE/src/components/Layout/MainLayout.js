@@ -70,9 +70,9 @@ const MainLayout = ({ children, activeItem, onItemClick, onLogout, user, isShift
                                 {user?.userName || 'Nitin Rajput'}
                             </span>
                             <span style={{ fontSize: '12px', color: '#64748b', marginTop: '3px', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <span>{user?.roleName || 'ERC Main IE'}</span>
+                                <span>Role: {user?.roleName || 'ERC Main IE'}</span>
                                 <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#cbd5e1' }}></span>
-                                <span style={{ color: '#475569' }}>ID: {user?.employeeCode || user?.employeeId || '12191'}</span>
+                                <span style={{ color: '#475569' }}>EMP CODE : {user?.employeeCode || user?.employeeId || user?.userId || '12191'}</span>
                             </span>
                         </div>
                     </div>

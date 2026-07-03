@@ -300,8 +300,33 @@ const DataTable = ({ columns, data, onRowClick, actions, selectable, selectedRow
             })}
             {paginatedData.length === 0 && (
               <tr>
-                <td colSpan={columns.length + (selectable ? 1 : 0) + (actions ? 1 : 0)} style={{ textAlign: 'center', padding: '40px', color: '#9ca3af' }}>
-                  {emptyMessage}
+                <td colSpan={columns.length + (selectable ? 1 : 0) + (actions ? 1 : 0)} style={{ textAlign: 'center', padding: '60px 20px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px' }}>
+                    <div style={{
+                      backgroundColor: '#f8fafc',
+                      borderRadius: '50%',
+                      padding: '24px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: 'inset 0 2px 4px 0 rgb(0 0 0 / 0.05)'
+                    }}>
+                      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M22 12h-6l-2 3h-4l-2-3H2" />
+                        <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '18px', fontWeight: '600', color: '#334155', marginBottom: '8px' }}>
+                        {emptyMessage === 'No data available' ? 'No Data Found' : emptyMessage}
+                      </div>
+                      <div style={{ fontSize: '14px', color: '#64748b', maxWidth: '400px', margin: '0 auto', lineHeight: '1.5' }}>
+                        {searchTerm 
+                          ? `We couldn't find any results matching "${searchTerm}". Try adjusting your search or filters.` 
+                          : 'There are currently no records to display in this table. New records will appear here once they are added.'}
+                      </div>
+                    </div>
+                  </div>
                 </td>
               </tr>
             )}
@@ -311,7 +336,10 @@ const DataTable = ({ columns, data, onRowClick, actions, selectable, selectedRow
 
       <div className="table-pagination">
         <div className="pagination-info">
-          Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, filteredData.length)} of {filteredData.length} entries
+          {filteredData.length === 0 
+            ? 'Showing 0 of 0 entries'
+            : `Showing ${((currentPage - 1) * pageSize) + 1} to ${Math.min(currentPage * pageSize, filteredData.length)} of ${filteredData.length} entries`
+          }
         </div>
         <div className="pagination-controls">
           <select
@@ -327,15 +355,15 @@ const DataTable = ({ columns, data, onRowClick, actions, selectable, selectedRow
           </select>
           <button
             className="btn btn-sm btn-outline"
-            disabled={currentPage === 1}
+            disabled={currentPage === 1 || totalPages === 0}
             onClick={() => setCurrentPage(currentPage - 1)}
           >
             Previous
           </button>
-          <span>Page {currentPage} of {totalPages}</span>
+          <span>Page {totalPages === 0 ? 0 : currentPage} of {totalPages}</span>
           <button
             className="btn btn-sm btn-outline"
-            disabled={currentPage === totalPages}
+            disabled={currentPage === totalPages || totalPages === 0}
             onClick={() => setCurrentPage(currentPage + 1)}
           >
             Next

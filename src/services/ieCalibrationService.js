@@ -95,14 +95,14 @@ const flattenCalibrationData = (headers) => {
  * @param {string} vendorCode - The vendor code (typically from selectedCall.createdBy)
  * @returns {Promise<{ success: boolean, data: Array, raw: Array, error?: string }>}
  */
-export const fetchVendorCalibrations = async (vendorCode) => {
-  if (!vendorCode) {
-    return { success: false, data: [], raw: [], error: 'No vendor code provided' };
+export const fetchVendorCalibrations = async (callNo) => {
+  if (!callNo) {
+    return { success: false, data: [], raw: [], error: 'No call number provided' };
   }
 
   try {
-    const url = `${BASE}/allCalibrations/${encodeURIComponent(vendorCode)}`;
-    console.log('🔧 IE Calibration: Fetching vendor calibrations for:', vendorCode);
+    const url = `${BASE}/by-call/${encodeURIComponent(callNo)}`;
+    console.log('🔧 IE Calibration: Fetching vendor calibrations for call no:', callNo);
 
     const response = await fetch(url, {
       method: 'GET',

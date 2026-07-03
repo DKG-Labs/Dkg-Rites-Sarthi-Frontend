@@ -76,10 +76,11 @@ const ProcessCalibrationDocumentsPage = ({ call, onBack, selectedLines = [], onN
 
       {/* 4. Live Calibration Data */}
       <CalibrationSubModule
-        vendorCode={vendorCode}
+        vendorCode={currentCallData?.createdBy || currentCallData?.created_by || call?.createdBy || call?.created_by || vendorCode}
         vendorName={vendorName || currentCallData?.vendor_name || call?.vendor_name || currentCallData?.company_name || call?.company_name || ''}
         inspectionCallNo={inspectionCallNo}
         poNo={poNo}
+        moduleType="Process"
       />
     </div>
   );

@@ -1373,26 +1373,10 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
       const results = await finishInspection(callNo);
       console.log('✅ Submodule data saved:', results);
 
-      // Step 3: Save to localStorage locally
-      const draftData = {
-        savedAt: new Date().toISOString(),
-        lotInspectionData: lotInspectionData,
-        packedInHDPE: packedInHDPE,
-        cleanedWithCoating: cleanedWithCoating,
-        capturedImages: capturedImages
-      };
-
-      const storageKey = `${DASHBOARD_DRAFT_KEY}${callNo}`;
-      localStorage.setItem(storageKey, JSON.stringify(draftData));
-
-      // Also persist individual form states for recovery on navigation
-      localStorage.setItem(`fpLotInspectionData_${callNo}`, JSON.stringify(lotInspectionData));
-      localStorage.setItem(`fpPackedInHDPE_${callNo}`, String(packedInHDPE));
-      localStorage.setItem(`fpCleanedWithCoating_${callNo}`, String(cleanedWithCoating));
-
-      console.log('✅ Draft and form states saved to localStorage');
+      // Step 3: LocalStorage draft persistence removed
+      // Data is now saved exclusively via backend APIs to prevent quota issues
       
-      let summaryMsg = `✅ Draft saved successfully both locally and to the backend at ${new Date().toLocaleTimeString()}!\n\n`;
+      let summaryMsg = `✅ Draft saved successfully to the backend at ${new Date().toLocaleTimeString()}!\n\n`;
       summaryMsg += `Saved submodules: ${results.success.length}\n`;
       if (results.failed.length > 0) {
         summaryMsg += `⚠️ Failed submodules: ${results.failed.length} (${results.failed.map(f => f.module).join(', ')})`;

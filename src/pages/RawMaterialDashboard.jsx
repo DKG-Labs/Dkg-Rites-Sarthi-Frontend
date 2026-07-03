@@ -2844,29 +2844,8 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       await pauseRawMaterialInspection(pausePayload);
       console.log('✅ Inspection data saved to backend successfully');
 
-      // Step 3: Save to localStorage locally
-      const draftData = {
-        savedAt: new Date().toISOString(),
-        numberOfBundles: numberOfBundles,
-        sourceOfRawMaterial: sourceOfRawMaterial,
-        heatRemarks: heatRemarks,
-        heatSealingType: heatSealingType,
-        heatSteelStampNumber: heatSteelStampNumber,
-        heatHologramEntries: heatHologramEntries,
-        capturedImages: capturedImages,
-        heatColorCodes: fetchedHeatData.reduce((acc, heat) => {
-          if (heat.heatNo && heat.colorCode) {
-            acc[heat.heatNo] = heat.colorCode;
-          }
-          return acc;
-        }, {})
-      };
-
-      const storageKey = `${DASHBOARD_DRAFT_KEY}${inspectionCallNo}${getShiftSuffix()}`;
-      const mainKey = `${STORAGE_KEYS.MAIN_INSPECTION}_${inspectionCallNo}${getShiftSuffix()}`;
-
-      localStorage.setItem(storageKey, JSON.stringify(draftData));
-      localStorage.setItem(mainKey, JSON.stringify(draftData));
+      // Step 3: LocalStorage draft persistence removed
+      // Data is now saved exclusively via backend APIs to prevent quota issues
 
       // Show success modal
       setResultModalConfig({

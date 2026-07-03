@@ -1,0 +1,1662 @@
+/* Scoped CSS for SCADA Sleeper Anomaly Detection Dashboard */
+
+.sleeper-anomaly-app {
+    /* Premium Modern Light Theme Variables */
+    --bg-main: #f8fafc; /* Soft off-white background */
+    --bg-card: #ffffff; /* Clean pure white cards */
+    --bg-glass-border: #e2e8f0; /* Fine slate border */
+    --bg-glass-glow: rgba(16, 185, 129, 0.02);
+    
+    /* Modern Status Accent Colors (Emerald/Mint focused matching Sarthi) */
+    --accent-blue: #2563eb;
+    --accent-blue-rgb: 37, 99, 235;
+    --accent-green: #10b981;
+    --accent-green-rgb: 16, 185, 129;
+    --accent-red: #ef4444;
+    --accent-red-rgb: 239, 68, 68;
+    --accent-orange: #ea580c;
+    --accent-orange-rgb: 234, 88, 12;
+    
+    /* Typography Text Colors (High Contrast, Human-friendly Slate) */
+    --text-primary: #0f172a; /* Deep slate */
+    --text-secondary: #475569; /* Slate secondary */
+    --text-muted: #64748b; /* Slate muted */
+    
+    /* Typography Font stacks */
+    --font-title: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-body: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-mono: 'Fira Code', Courier, monospace;
+    
+    /* Layout Constants */
+    --border-radius-lg: 16px;
+    --border-radius-md: 10px;
+    
+    /* Premium Soft Shadows (No neon glows, look clean and hand-coded) */
+    --shadow-neon-blue: 0 4px 12px rgba(37, 99, 235, 0.08);
+    --shadow-neon-green: 0 4px 12px rgba(16, 185, 129, 0.08);
+    --shadow-neon-red: 0 4px 12px rgba(220, 38, 38, 0.08);
+    --shadow-neon-orange: 0 4px 12px rgba(234, 88, 12, 0.08);
+    --shadow-glass: 0 4px 20px 0 rgba(148, 163, 184, 0.06);
+
+    /* Background and Sizing */
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    width: 100%;
+    min-height: calc(100vh - 120px);
+    border-radius: 16px;
+    padding: 24px;
+    box-sizing: border-box;
+    overflow-y: auto;
+    position: relative;
+    border: 1px solid #e2e8f0;
+}
+
+/* Local resets inside our scoped container */
+.sleeper-anomaly-app * {
+    box-sizing: border-box;
+}
+
+.sleeper-anomaly-app h1, 
+.sleeper-anomaly-app h2, 
+.sleeper-anomaly-app h3, 
+.sleeper-anomaly-app h4, 
+.sleeper-anomaly-app h5 {
+    font-family: var(--font-title);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+.sleeper-anomaly-app p {
+    line-height: 1.5;
+}
+
+/* Glassmorphism Panel styles */
+.sleeper-anomaly-app .glass-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--bg-glass-border);
+    border-radius: var(--border-radius-lg);
+    box-shadow: 0 4px 15px rgba(148, 163, 184, 0.05);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sleeper-anomaly-app .glass-panel:hover {
+    border-color: #cbd5e1;
+    transform: translateY(-2px);
+    box-shadow: 0 12px 20px rgba(148, 163, 184, 0.1);
+}
+
+/* Badges */
+.sleeper-anomaly-app .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    gap: 5px;
+}
+
+.sleeper-anomaly-app .bench-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 0.95rem;
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.05), rgba(37, 99, 235, 0.01));
+    border: 1.5px solid rgba(37, 99, 235, 0.2);
+    color: #1e293b;
+    letter-spacing: 0.05em;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sleeper-anomaly-app .bench-badge:hover {
+    transform: translateY(-1.5px) scale(1.02);
+    border-color: var(--accent-blue);
+    background: rgba(37, 99, 235, 0.08);
+    box-shadow: var(--shadow-neon-blue);
+    color: #2563eb;
+}
+
+.sleeper-anomaly-app .bench-badge.anomaly-highlight {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(239, 68, 68, 0.03));
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #b91c1c;
+    box-shadow: var(--shadow-neon-red);
+    animation: criticalPulseBadge 1.8s infinite ease-in-out;
+}
+
+.sleeper-anomaly-app .bench-badge.anomaly-highlight:hover {
+    border-color: var(--accent-red);
+    background: rgba(239, 68, 68, 0.12);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
+    color: #dc2626;
+}
+
+@keyframes criticalPulseBadge {
+    0% { border-color: rgba(239, 68, 68, 0.4); }
+    50% { border-color: rgba(239, 68, 68, 0.7); }
+    100% { border-color: rgba(239, 68, 68, 0.4); }
+}
+
+.sleeper-anomaly-app .badge.blue {
+    background: rgba(37, 99, 235, 0.08);
+    color: var(--accent-blue);
+    border: 1px solid rgba(37, 99, 235, 0.15);
+}
+
+.sleeper-anomaly-app .badge.green {
+    background: rgba(16, 185, 129, 0.08);
+    color: var(--accent-green);
+    border: 1px solid rgba(16, 185, 129, 0.15);
+}
+
+.sleeper-anomaly-app .badge.red {
+    background: rgba(239, 68, 68, 0.08);
+    color: var(--accent-red);
+    border: 1px solid rgba(239, 68, 68, 0.15);
+}
+
+.sleeper-anomaly-app .badge.orange {
+    background: rgba(234, 88, 12, 0.08);
+    color: var(--accent-orange);
+    border: 1px solid rgba(234, 88, 12, 0.15);
+}
+
+.sleeper-anomaly-app .pulsing {
+    animation: indicatorPulse 2s infinite ease-in-out;
+}
+
+@keyframes indicatorPulse {
+    0% { transform: scale(0.95); opacity: 0.7; }
+    50% { transform: scale(1.08); opacity: 1; }
+    100% { transform: scale(0.95); opacity: 0.7; }
+}
+
+.sleeper-anomaly-app .blinking {
+    animation: blinkFeed 1.2s infinite ease-in-out;
+}
+
+@keyframes blinkFeed {
+    0% { opacity: 0.4; }
+    50% { opacity: 1; }
+    100% { opacity: 0.4; }
+}
+
+/* PANELS ARCHITECTURE */
+.sleeper-anomaly-app .panel {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    animation: fadeInTab 0.35s ease;
+}
+
+@keyframes fadeInTab {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* TAB: DASHBOARD */
+.sleeper-anomaly-app .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+}
+
+.sleeper-anomaly-app .stat-card {
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    background: #ffffff;
+}
+
+.sleeper-anomaly-app #stat-total-benches {
+    background: linear-gradient(135deg, #ffffff 0%, rgba(37, 99, 235, 0.015) 100%);
+}
+
+.sleeper-anomaly-app #stat-anomalies-detected {
+    background: linear-gradient(135deg, #ffffff 0%, rgba(239, 68, 68, 0.015) 100%);
+}
+
+.sleeper-anomaly-app #stat-normal-benches {
+    background: linear-gradient(135deg, #ffffff 0%, rgba(16, 185, 129, 0.015) 100%);
+}
+
+.sleeper-anomaly-app #stat-anomaly-rate {
+    background: linear-gradient(135deg, #ffffff 0%, rgba(234, 88, 12, 0.015) 100%);
+}
+
+.sleeper-anomaly-app .stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--border-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.sleeper-anomaly-app .stat-icon svg {
+    width: 22px;
+    height: 22px;
+}
+
+.sleeper-anomaly-app .stat-icon.blue { background: rgba(37, 99, 235, 0.08); border: 1px solid rgba(37, 99, 235, 0.15); color: var(--accent-blue); }
+.sleeper-anomaly-app .stat-icon.red { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.15); color: var(--accent-red); }
+.sleeper-anomaly-app .stat-icon.green { background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.15); color: var(--accent-green); }
+.sleeper-anomaly-app .stat-icon.orange { background: rgba(234, 88, 12, 0.08); border: 1px solid rgba(234, 88, 12, 0.15); color: var(--accent-orange); }
+
+.sleeper-anomaly-app .stat-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.sleeper-anomaly-app .stat-title {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    letter-spacing: 0.08em;
+}
+
+.sleeper-anomaly-app .stat-value {
+    font-family: var(--font-title);
+    font-size: 1.85rem;
+    font-weight: 700;
+    margin: 4px 0 2px 0;
+    line-height: 1.1;
+}
+
+.sleeper-anomaly-app .stat-desc {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+.sleeper-anomaly-app .text-red { color: var(--accent-red) !important; }
+.sleeper-anomaly-app .text-red-sub { color: rgba(239, 68, 68, 0.75) !important; }
+.sleeper-anomaly-app .text-green { color: var(--accent-green) !important; }
+.sleeper-anomaly-app .text-green-sub { color: rgba(16, 185, 129, 0.75) !important; }
+.sleeper-anomaly-app .text-orange { color: var(--accent-orange) !important; }
+.sleeper-anomaly-app .text-orange-sub { color: rgba(234, 88, 12, 0.75) !important; }
+
+/* Dashboard Cards Layout */
+.sleeper-anomaly-app .dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+}
+
+@media (max-width: 1024px) {
+    .sleeper-anomaly-app .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+    .sleeper-anomaly-app .col-span-2 {
+        grid-column: span 1 / span 1;
+    }
+}
+
+.sleeper-anomaly-app .col-span-2 {
+    grid-column: span 2 / span 2;
+}
+
+.sleeper-anomaly-app .grid-card {
+    display: flex;
+    flex-direction: column;
+    height: 380px;
+}
+
+.sleeper-anomaly-app .card-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.sleeper-anomaly-app .card-header h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.sleeper-anomaly-app .card-body {
+    padding: 24px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.sleeper-anomaly-app .chart-container-large {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.sleeper-anomaly-app .clear-terminal-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.sleeper-anomaly-app .clear-terminal-btn:hover {
+    color: var(--text-primary);
+}
+
+.sleeper-anomaly-app .terminal-log {
+    background: #0f172a; /* Sleek cyber-slate background */
+    border: 1px solid #1e293b;
+    border-radius: 12px;
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    padding: 18px 22px;
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.25);
+    height: 290px;
+}
+
+.sleeper-anomaly-app .log-line {
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: normal;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+}
+
+.sleeper-anomaly-app .log-line.system { color: #38bdf8; } /* Sky Blue */
+.sleeper-anomaly-app .log-line.normal { color: #4ade80; } /* Mint Green */
+.sleeper-anomaly-app .log-line.faulty { color: #f87171; font-weight: 600; } /* Coral Red Alert */
+.sleeper-anomaly-app .log-line.warn { color: #fbbf24; } /* Amber Orange */
+
+/* TAB: SIMULATOR */
+.sleeper-anomaly-app .simulator-layout {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 24px;
+}
+
+@media (max-width: 900px) {
+    .sleeper-anomaly-app .simulator-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+.sleeper-anomaly-app .sim-ctrl-card {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.sleeper-anomaly-app .sim-brand h3 {
+    font-size: 1.15rem;
+    margin-top: 8px;
+}
+
+.sleeper-anomaly-app .sim-brand p {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    margin-top: 6px;
+}
+
+.sleeper-anomaly-app .sim-stats-mini {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.sleeper-anomaly-app .mini-stat {
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: var(--border-radius-md);
+}
+
+.sleeper-anomaly-app .mini-stat span {
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.06em;
+}
+
+.sleeper-anomaly-app .mini-stat h4 {
+    font-size: 1.1rem;
+    margin-top: 2px;
+}
+
+.sleeper-anomaly-app .sim-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.sleeper-anomaly-app .sim-btn {
+    border: none;
+    padding: 12px 18px;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    color: #ffffff;
+}
+
+.sleeper-anomaly-app .sim-btn.play {
+    background: var(--accent-green);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+}
+.sleeper-anomaly-app .sim-btn.play:hover {
+    background: #059669;
+}
+
+.sleeper-anomaly-app .sim-btn.pause {
+    background: var(--accent-red);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
+}
+.sleeper-anomaly-app .sim-btn.pause:hover {
+    background: #dc2626;
+}
+
+.sleeper-anomaly-app .sim-btn.step {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: var(--text-primary);
+}
+.sleeper-anomaly-app .sim-btn.step:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+
+.sleeper-anomaly-app .sim-btn.reset {
+    background: transparent;
+    border: 1px dashed #cbd5e1;
+    color: var(--text-secondary);
+}
+.sleeper-anomaly-app .sim-btn.reset:hover {
+    border-color: #94a3b8;
+    color: var(--text-primary);
+}
+
+.sleeper-anomaly-app .sim-settings {
+    padding-top: 10px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.sleeper-anomaly-app .setting-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.sleeper-anomaly-app .setting-item label {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.sleeper-anomaly-app .setting-item select {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    padding: 8px 12px;
+    border-radius: var(--border-radius-md);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+.sleeper-anomaly-app .sim-feed-card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 520px;
+}
+
+.sleeper-anomaly-app .stream-container {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-right: 4px;
+    max-height: 480px;
+}
+
+.sleeper-anomaly-app .stream-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-muted);
+    text-align: center;
+    gap: 16px;
+    padding: 40px 0;
+}
+
+.sleeper-anomaly-app .stream-empty-state svg {
+    width: 48px;
+    height: 48px;
+}
+
+.sleeper-anomaly-app .stream-empty-state p {
+    font-size: 0.85rem;
+    max-width: 280px;
+}
+
+.sleeper-anomaly-app .stream-row {
+    display: grid;
+    grid-template-columns: 80px 100px 90px 80px 1fr 100px;
+    align-items: center;
+    padding: 12px 16px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: var(--border-radius-md);
+    animation: streamSlideIn 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+    gap: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.01);
+}
+
+@keyframes streamSlideIn {
+    from { opacity: 0; transform: translateY(-15px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.sleeper-anomaly-app .stream-time {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+.sleeper-anomaly-app .stream-bench-id {
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.sleeper-anomaly-app .stream-batch-id {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.sleeper-anomaly-app .stream-score {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+}
+
+.sleeper-anomaly-app .stream-alert-msg {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sleeper-anomaly-app .stream-btn-inspect {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    color: var(--text-secondary);
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.72rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.sleeper-anomaly-app .stream-btn-inspect:hover {
+    background: rgba(37, 99, 235, 0.05);
+    border-color: rgba(37, 99, 235, 0.2);
+    color: var(--accent-blue);
+}
+
+/* TAB: EXPLORER */
+.sleeper-anomaly-app .explorer-card {
+    display: flex;
+    flex-direction: column;
+    min-height: 500px;
+}
+
+.sleeper-anomaly-app .explorer-filters {
+    padding: 20px 24px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.sleeper-anomaly-app .filter-search {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+}
+
+.sleeper-anomaly-app .filter-search svg {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    color: var(--text-muted);
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.sleeper-anomaly-app .filter-search input {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    padding: 10px 16px 10px 42px;
+    border-radius: var(--border-radius-md);
+    color: var(--text-primary);
+    width: 100%;
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+}
+
+.sleeper-anomaly-app .filter-search input:focus {
+    border-color: #3b82f6;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.sleeper-anomaly-app .filter-buttons {
+    display: flex;
+    gap: 6px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    padding: 4px;
+    border-radius: var(--border-radius-md);
+}
+
+.sleeper-anomaly-app .filter-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-family: var(--font-body);
+    font-weight: 500;
+    font-size: 0.8rem;
+    padding: 6px 14px;
+    border-radius: 6px;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+}
+
+.sleeper-anomaly-app .filter-btn:hover {
+    color: var(--text-primary);
+}
+
+.sleeper-anomaly-app .filter-btn.active {
+    background: #ffffff;
+    color: var(--text-primary);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    border: 1px solid #e2e8f0;
+}
+
+.sleeper-anomaly-app .filter-sort {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sleeper-anomaly-app .filter-sort label {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+}
+
+.sleeper-anomaly-app .filter-sort select {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    padding: 8px 12px;
+    border-radius: var(--border-radius-md);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+/* Registry Table Styling */
+.sleeper-anomaly-app .table-container {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 480px;
+}
+
+.sleeper-anomaly-app .registry-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+.sleeper-anomaly-app .registry-table th {
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    padding: 14px 24px;
+    text-transform: uppercase;
+}
+
+.sleeper-anomaly-app .registry-table td {
+    border-bottom: 1px solid #e2e8f0;
+    padding: 14px 24px;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+}
+
+.sleeper-anomaly-app .registry-table tbody tr {
+    transition: background 0.15s ease;
+}
+
+.sleeper-anomaly-app .registry-table tbody tr:hover {
+    background: #f8fafc;
+}
+
+.sleeper-anomaly-app .registry-table td.text-center {
+    text-align: center;
+    color: var(--text-muted);
+}
+
+.sleeper-anomaly-app .table-footer {
+    padding: 16px 24px;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+/* Mini layouts */
+.sleeper-anomaly-app .list-mini {
+    max-height: 300px;
+    margin-top: 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: var(--border-radius-md);
+}
+
+.sleeper-anomaly-app .registry-table.mini td, 
+.sleeper-anomaly-app .registry-table.mini th {
+    padding: 10px 16px;
+    font-size: 0.78rem;
+}
+
+/* TAB: TEST UPLINK */
+.sleeper-anomaly-app .uplink-grid {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 24px;
+}
+
+@media (max-width: 900px) {
+    .sleeper-anomaly-app .uplink-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.sleeper-anomaly-app .uplink-console-card {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.sleeper-anomaly-app .uplink-intro {
+    text-align: center;
+}
+
+.sleeper-anomaly-app .uplink-globe {
+    width: 60px;
+    height: 60px;
+    background: rgba(37, 99, 235, 0.05);
+    border: 1px solid rgba(37, 99, 235, 0.15);
+    border-radius: 50%;
+    color: var(--accent-blue);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px auto;
+}
+
+.sleeper-anomaly-app .uplink-globe svg {
+    width: 30px;
+    height: 30px;
+}
+
+.sleeper-anomaly-app .uplink-intro h3 {
+    font-size: 1.15rem;
+}
+
+.sleeper-anomaly-app .uplink-intro p {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    margin-top: 6px;
+}
+
+.sleeper-anomaly-app .uplink-files-info h4 {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+    margin-bottom: 12px;
+}
+
+.sleeper-anomaly-app .file-tag {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: var(--border-radius-md);
+    margin-bottom: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.01);
+}
+
+.sleeper-anomaly-app .file-tag svg {
+    width: 16px;
+    height: 16px;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.sleeper-anomaly-app .file-tag div {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.sleeper-anomaly-app .file-tag span {
+    font-size: 0.75rem;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sleeper-anomaly-app .file-tag small {
+    font-size: 0.62rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.sleeper-anomaly-app .uplink-btn {
+    background: var(--accent-blue);
+    border: none;
+    padding: 12px 18px;
+    border-radius: var(--border-radius-md);
+    color: #ffffff;
+    cursor: pointer;
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
+}
+
+.sleeper-anomaly-app .uplink-btn:hover {
+    background: #1d4ed8;
+}
+
+.sleeper-anomaly-app .uplink-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.sleeper-anomaly-app .uplink-result-card {
+    min-height: 520px;
+}
+
+.sleeper-anomaly-app .stats-grid.mini {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 14px;
+}
+
+.sleeper-anomaly-app .stat-card.mini {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+}
+
+.sleeper-anomaly-app .mini-title {
+    font-size: 0.58rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+}
+
+.sleeper-anomaly-app .mini-value {
+    font-family: var(--font-title);
+    font-size: 1.3rem;
+    font-weight: 700;
+}
+
+.sleeper-anomaly-app .uplink-result-placeholder {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 40px;
+    gap: 16px;
+}
+
+.sleeper-anomaly-app .uplink-result-placeholder svg {
+    width: 64px;
+    height: 64px;
+}
+
+.sleeper-anomaly-app .uplink-result-placeholder p {
+    font-size: 0.85rem;
+    max-width: 360px;
+    line-height: 1.5;
+}
+
+/* SIDE SLIDE-OVER DRAWER */
+.sleeper-anomaly-app .drawer-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(6px);
+    z-index: 999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.sleeper-anomaly-app .drawer-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.sleeper-anomaly-app .drawer-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.9);
+    width: 580px;
+    max-width: 92vw;
+    max-height: 85vh;
+    background: #ffffff;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    z-index: 1000;
+    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.15);
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    border-radius: var(--border-radius-lg);
+    overflow: hidden;
+}
+
+@media (max-width: 600px) {
+    .sleeper-anomaly-app .drawer-panel {
+        width: 95vw;
+        max-height: 90vh;
+    }
+}
+
+.sleeper-anomaly-app .drawer-panel.active {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.sleeper-anomaly-app .drawer-header {
+    padding: 24px 28px;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #ffffff;
+}
+
+.sleeper-anomaly-app .drawer-title h3 {
+    font-size: 1.45rem;
+    margin-top: 6px;
+    color: var(--text-primary);
+    font-weight: 700;
+    font-family: var(--font-title);
+    letter-spacing: -0.02em;
+}
+
+.sleeper-anomaly-app .drawer-subtitle-batch {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-top: 3px;
+}
+
+.sleeper-anomaly-app .drawer-close {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+    border: 1px solid #e2e8f0;
+}
+
+.sleeper-anomaly-app .drawer-close:hover {
+    background: #f8fafc;
+    color: var(--text-primary);
+    border-color: #cbd5e1;
+    transform: rotate(90deg);
+}
+
+.sleeper-anomaly-app .drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    background: #fdfdfd;
+}
+
+/* Premium Score Card Layout */
+.sleeper-anomaly-app .glass-panel-score {
+    background: #ffffff;
+    border: 1px solid var(--bg-glass-border);
+    border-radius: var(--border-radius-lg);
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    box-shadow: var(--shadow-glass);
+}
+
+.sleeper-anomaly-app .score-radial-container {
+    position: relative;
+    width: 96px;
+    height: 96px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.sleeper-anomaly-app .score-radial-glow {
+    position: absolute;
+    width: 80px;
+    height: 80px;
+    background: rgba(16, 185, 129, 0.04);
+    filter: blur(12px);
+    border-radius: 50%;
+}
+
+.sleeper-anomaly-app .score-radial {
+    position: relative;
+    width: 90px;
+    height: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sleeper-anomaly-app .radial-ring-background {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 6px solid #f1f5f9;
+}
+
+.sleeper-anomaly-app .radial-ring-fill {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 6px solid transparent;
+    transform: rotate(45deg);
+}
+
+.sleeper-anomaly-app .radial-ring-fill.green {
+    border-top-color: var(--accent-green);
+    border-right-color: var(--accent-green);
+}
+
+.sleeper-anomaly-app .radial-ring-fill.red {
+    border-top-color: var(--accent-red);
+    border-right-color: var(--accent-red);
+}
+
+.sleeper-anomaly-app .radial-inner {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    z-index: 2;
+}
+
+.sleeper-anomaly-app .score-label {
+    font-size: 8px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.sleeper-anomaly-app .score-number {
+    font-family: var(--font-mono);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 1px 0;
+    letter-spacing: -0.01em;
+}
+
+.sleeper-anomaly-app .score-sub-label {
+    font-size: 7px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.sleeper-anomaly-app .score-interpretation h4 {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.sleeper-anomaly-app .score-interpretation p {
+    font-size: 0.84rem;
+    color: var(--text-secondary);
+    margin-top: 6px;
+    line-height: 1.45;
+    font-weight: 500;
+}
+
+/* Pulsing Badge for Header */
+.sleeper-anomaly-app .pulsing-badge {
+    animation: alarmPulse 2.2s infinite ease-in-out;
+}
+
+@keyframes alarmPulse {
+    0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.2); }
+    70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+/* Parameter Diagnostics Section */
+.sleeper-anomaly-app .drawer-features-section {
+    display: flex;
+    flex-direction: column;
+}
+
+.sleeper-anomaly-app .section-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.sleeper-anomaly-app .drawer-features-section h4 {
+    font-size: 0.92rem;
+    color: var(--text-primary);
+    font-weight: 700;
+    font-family: var(--font-title);
+}
+
+.sleeper-anomaly-app .features-count-tag {
+    background: #f1f5f9;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 0.68rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.sleeper-anomaly-app .section-subtitle {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+    line-height: 1.4;
+}
+
+.sleeper-anomaly-app .features-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* Modern Card for Sensor Features */
+.sleeper-anomaly-app .feature-item-modern {
+    background: #ffffff;
+    border: 1px solid #f1f5f9;
+    border-radius: var(--border-radius-md);
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.015);
+    transition: all 0.2s ease;
+    border-left: 4px solid #cbd5e1; /* Default normal state marker */
+}
+
+.sleeper-anomaly-app .feature-item-modern:hover {
+    transform: translateY(-1.5px);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+    border-color: #e2e8f0;
+}
+
+.sleeper-anomaly-app .feature-item-modern.warn-border {
+    border-color: rgba(245, 158, 11, 0.15);
+    border-left: 4px solid var(--accent-orange);
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.015) 0%, rgba(255,255,255,0) 100%);
+}
+
+.sleeper-anomaly-app .feature-item-modern.crit-border {
+    border-color: rgba(239, 68, 68, 0.15);
+    border-left: 4px solid var(--accent-red);
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.015) 0%, rgba(255,255,255,0) 100%);
+}
+
+.sleeper-anomaly-app .feat-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.sleeper-anomaly-app .feat-name {
+    font-family: var(--font-title);
+    font-weight: 600;
+    font-size: 0.88rem;
+    color: var(--text-primary);
+}
+
+.sleeper-anomaly-app .feat-zbadge-modern {
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 6px;
+    letter-spacing: 0.01em;
+}
+
+.sleeper-anomaly-app .feat-zbadge-modern.normal {
+    background: #f1f5f9;
+    color: var(--text-secondary);
+}
+
+.sleeper-anomaly-app .feat-zbadge-modern.warn {
+    background: rgba(245, 158, 11, 0.08);
+    color: var(--accent-orange);
+}
+
+.sleeper-anomaly-app .feat-zbadge-modern.crit {
+    background: rgba(239, 68, 68, 0.08);
+    color: var(--accent-red);
+}
+
+.sleeper-anomaly-app .feat-values-grid {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #f8fafc;
+    border: 1px solid #f1f5f9;
+    padding: 10px 16px;
+    border-radius: 8px;
+}
+
+.sleeper-anomaly-app .val-box {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.sleeper-anomaly-app .val-box-divider {
+    width: 1px;
+    background: #e2e8f0;
+    align-self: stretch;
+    margin: 4px 8px;
+}
+
+.sleeper-anomaly-app .val-label {
+    color: var(--text-muted);
+    font-size: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.sleeper-anomaly-app .val-text {
+    font-size: 0.88rem;
+    color: var(--text-primary);
+    margin-top: 2px;
+    font-family: var(--font-mono);
+    font-weight: 700;
+}
+
+/* Anomaly Scientific Basis Section */
+.sleeper-anomaly-app .basis-panel {
+    margin-top: 8px;
+}
+
+.sleeper-anomaly-app .basis-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+@media (max-width: 768px) {
+    .sleeper-anomaly-app .basis-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.sleeper-anomaly-app .basis-card {
+    display: flex;
+    gap: 20px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    padding: 20px;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.01);
+}
+
+.sleeper-anomaly-app .basis-card:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+}
+
+.sleeper-anomaly-app .basis-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.sleeper-anomaly-app .basis-icon svg {
+    width: 22px;
+    height: 22px;
+}
+
+.sleeper-anomaly-app .basis-icon.blue {
+    background: rgba(37, 99, 235, 0.05);
+    border: 1px solid rgba(37, 99, 235, 0.15);
+    color: var(--accent-blue);
+}
+
+.sleeper-anomaly-app .basis-icon.red {
+    background: rgba(220, 38, 38, 0.05);
+    border: 1px solid rgba(220, 38, 38, 0.15);
+    color: var(--accent-red);
+}
+
+.sleeper-anomaly-app .basis-content h4 {
+    font-size: 0.98rem;
+    font-family: var(--font-title);
+    margin-bottom: 6px;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+}
+
+.sleeper-anomaly-app .basis-content p {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 12px;
+}
+
+.sleeper-anomaly-app .basis-math {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    padding: 12px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.sleeper-anomaly-app .basis-math .formula {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 0.92rem;
+    color: #0f172a;
+}
+
+.sleeper-anomaly-app .basis-math .desc {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    line-height: 1.35;
+}
+
+/* Local components Segmented Control tabs */
+.sleeper-anomaly-app .local-tabs {
+    display: inline-flex;
+    background: #e2e8f0;
+    padding: 4px;
+    border-radius: 12px;
+    border: 1px solid #cbd5e1;
+    gap: 2px;
+    margin-bottom: 24px;
+}
+
+.sleeper-anomaly-app .local-tab-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-family: var(--font-title);
+    font-size: 0.88rem;
+    font-weight: 600;
+    padding: 8px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sleeper-anomaly-app .local-tab-btn:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.4);
+}
+
+.sleeper-anomaly-app .local-tab-btn.active {
+    color: #047857;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.1), 0 1px 2px rgba(15, 23, 42, 0.06);
+    border: 1px solid rgba(15, 23, 42, 0.02);
+}
+
+/* Local components sub header */
+.sleeper-anomaly-app .local-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.sleeper-anomaly-app .local-header-title h1 {
+    font-size: 1.6rem;
+    color: #1e293b;
+}
+
+.sleeper-anomaly-app .local-header-title p {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+.sleeper-anomaly-app .local-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.sleeper-anomaly-app .local-action-btn {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: var(--text-secondary);
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.sleeper-anomaly-app .local-action-btn:hover {
+    color: #0f172a;
+    background: #f8fafc;
+    border-color: #94a3b8;
+}
+
+.sleeper-anomaly-app .local-action-btn.primary {
+    background: #10b981;
+    color: #ffffff;
+    border: none;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+}
+
+.sleeper-anomaly-app .local-action-btn.primary:hover {
+    background: #059669;
+}
+
+.sleeper-anomaly-app .local-dataset-select {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: #047857;
+    font-family: var(--font-title);
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.sleeper-anomaly-app .local-date-input {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: var(--text-secondary);
+    font-family: var(--font-title);
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.sleeper-anomaly-app .local-date-input:hover {
+    border-color: #94a3b8;
+    background: #f8fafc;
+}
+
+.sleeper-anomaly-app .local-date-input:focus {
+    border-color: var(--accent-green);
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.1);
+}
+
+/* SCADA API Ingestion Panel Styles */
+.sleeper-anomaly-app .scada-pull-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--bg-glass-border);
+    border-radius: var(--border-radius-lg);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow-glass);
+    flex-wrap: wrap;
+    transition: all 0.25s ease;
+}
+
+.sleeper-anomaly-app .scada-pull-panel:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 6px 20px rgba(148, 163, 184, 0.08);
+}
+
+.sleeper-anomaly-app .scada-pull-panel-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-primary);
+    font-family: var(--font-title);
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+.sleeper-anomaly-app .scada-pull-panel-title svg {
+    color: var(--accent-green);
+}
+
+.sleeper-anomaly-app .scada-pull-controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.sleeper-anomaly-app .scada-control-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sleeper-anomaly-app .scada-control-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}

@@ -1,0 +1,257 @@
+{
+    "testSampleDecGeneralInfo": {
+        "date": "01/01/2024",
+        "shift": "A",
+        "railGrade": "R260",
+        "mill": "URM",
+        "railSec": "60E1"
+    },
+    "testSampleTableData": [
+        {
+          "sNo": 1,
+          "heatNo": "076229",
+          "timing": "11:02",
+          "type": "Accp"
+        },
+        {
+          "sNo": 2,
+          "heatNo": "076230",
+          "timing": "12:40",
+          "type": "Retest"
+        },
+        {
+          "sNo": 3,
+          "heatNo": "076232",
+          "timing": "14:42",
+          "type": "Q. Cr."
+        }
+    ],
+    "testDropdownList": [
+      {
+        "key": "Acceptance Test",
+        "value": "Acceptance Test"
+      },
+      {
+        "key": "Retest Samples",
+        "value": "Retest Samples"
+      }
+    ],
+    "railGradeDropdownList": [
+        {
+          "key": "R260",
+          "value": "R260"
+        },
+        {
+          "key": "880",
+          "value": "880"
+        },
+        {
+          "key": "880NC",
+          "value": "880NC"
+        },
+        {
+            "key": "R350HT",
+            "value": "R350HT"
+        },
+        {
+            "key": "1080HH",
+            "value": "1080HH"
+        }
+    ],
+    "strandDropdownList": [
+      {
+        "key": "I",
+        "value": "I"
+      },
+      {
+        "key": "II",
+        "value": "II"
+      },
+      {
+          "key": "III",
+          "value": "III"
+      },
+      {
+          "key": "IV",
+          "value": "IV"
+      },
+      {
+          "key": "V",
+          "value": "V"
+      },
+      {
+          "key": "VI",
+          "value": "VI"
+      }
+    ],
+    "sampleLotDropdownList": [
+      {
+        "key": "Lot 1",
+        "value": "Lot 1"
+      },
+      {
+        "key": "Lot 2",
+        "value": "Lot 2"
+      },
+      {
+          "key": "NA",
+          "value": "NA"
+      }
+    ],
+    "sampleDropdownList": [
+      {
+        "key": "Regular",
+        "value": "Regular"
+      },
+      {
+        "key": "USB",
+        "value": "USB"
+      },
+      {
+          "key": "LOB",
+          "value": "LOB"
+      }
+    ],
+    "checkBoxItems": [
+      {
+        "key": "1",
+        "value": "Chem. (P)"
+      },
+      {
+        "key": "2",
+        "value": "O2"
+      },
+      {
+          "key": "3",
+          "value": "N2"
+      },
+      {
+          "key": "4",
+          "value": "FWT (HS)"
+      },
+      {
+          "key": "5",
+          "value": "FWT (St.)"
+      },
+      {
+          "key": "6",
+          "value": "FWT (St.) - SR"
+      },
+      {
+          "key": "7",
+          "value": "Mechanical"
+      },
+      {
+          "key": "8",
+          "value": "Tensile Foot"
+      },
+      {
+          "key": "9",
+          "value": "SP"
+      },
+      {
+          "key": "10",
+          "value": "Micro"
+      },
+      {
+          "key": "11",
+          "value": "IR"
+      },
+      {
+          "key": "12",
+          "value": "Decarb"
+      }
+    ],
+    "retestNameDropdownList": [
+      {
+        "key": "1",
+        "value": "Chemical (P)"
+      },
+      {
+        "key": "2",
+        "value": "Tensile"
+      },
+      {
+          "key": "3",
+          "value": "Hardness"
+      },
+      {
+          "key": "4",
+          "value": "FWT (HS)"
+      },
+      {
+          "key": "5",
+          "value": "Sulphur Print"
+      },
+      {
+          "key": "6",
+          "value": "Micro"
+      },
+      {
+          "key": "7",
+          "value": "Oxygen"
+      },
+      {
+          "key": "8",
+          "value": "Nitrogen"
+      },
+      {
+          "key": "9",
+          "value": "Inclusion Rating Level"
+      },
+      {
+          "key": "10",
+          "value": "Decarb"
+      }
+  ],
+  "retestNameSecDropdownList": [
+      {
+        "key": "1",
+        "value": "Chemical (P)"
+      },
+      {
+        "key": "2",
+        "value": "Tensile"
+      },
+      {
+          "key": "3",
+          "value": "Tensile Foot"
+      },
+      {
+          "key": "4",
+          "value": "PH"
+      },
+      {
+          "key": "5",
+          "value": "RSH"
+      },
+      {
+          "key": "6",
+          "value": "FWT (HS)"
+      },
+      {
+          "key": "7",
+          "value": "Sulphur Print"
+      },
+      {
+          "key": "8",
+          "value": "Micro"
+      },
+      {
+          "key": "9",
+          "value": "Oxygen"
+      },
+      {
+          "key": "10",
+          "value": "Nitrogen"
+      },
+      {
+          "key": "11",
+          "value": "Inclusion Rating Level"
+      },
+      {
+          "key": "12",
+          "value": "Decarb"
+      }
+    ]
+}

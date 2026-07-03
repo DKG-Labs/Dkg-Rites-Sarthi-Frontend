@@ -19,7 +19,9 @@ const SCADA_STAGES = [
     { label: 'STEAM CUBE', value: 'STEAM CUBE' },
     { label: 'CHAMBER', value: 'CHAMBER' },
     { label: 'WATER CUBE', value: 'WATER CUBE' },
-    { label: 'TENSIONING', value: 'TENSIONING' }
+    { label: 'TENSIONING', value: 'TENSIONING' },
+    { label: 'BATCHING', value: 'BATCHING' },
+    { label: 'SBT', value: 'SBT' }
 ];
 
 const ExportButton = ({ onClick }) => (
@@ -83,9 +85,9 @@ const getCellToleranceStyle = (stage, colName, value, row) => {
                 return { backgroundColor: '#fee2e2', color: '#991b1b', fontWeight: '700' };
             }
         }
-        // 2. vibration time 2 to 4
+        // 2. vibration time 2 to 8
         if (colLower.includes('vibrator') && colLower.includes('time')) {
-            if (!isNaN(valFloat) && (valFloat < 2 || valFloat > 4)) {
+            if (!isNaN(valFloat) && (valFloat < 2 || valFloat > 8)) {
                 return { backgroundColor: '#fee2e2', color: '#991b1b', fontWeight: '700' };
             }
         }
@@ -245,6 +247,16 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
             }
             
             if (success) {
+                if (stage === 'BATCHING') {
+                    finalData = finalData.map(row => {
+                        const sum = ['Act_20mm', 'Act_10mm', 'Act_Sand', 'Act_sand', 'Act_Cement', 'Act_Water', 'Act_Admix']
+                            .reduce((acc, key) => {
+                                const val = Number(row[key]);
+                                return acc + (isNaN(val) ? 0 : val);
+                            }, 0);
+                        return { ...row, Total: sum > 0 ? parseFloat(sum.toFixed(3)) : '' };
+                    });
+                }
                 setData(finalData);
                 setHasMore(currentHasMore);
                 setStatus(finalData.length > 0 ? 'Live' : 'No Data');
@@ -281,33 +293,64 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
         'TENSIONING': {
             order: ['time', 'Batch_No', 'Bench_No', 'Wire_Length', 'Total_Cross_Section', 'Young_Modulus', '10%_LU', '10%_LL', '10%_RU', '10%_RL', '100%_LU', '100%_LL', '100%_RU', '100%_RL', 'Measured_Elongation', 'Pressed_Load', 'Total_Pressed_Load', 'Final_Load'],
             labels: { 'time': 'Time', 'Batch_No': 'Batch No', 'Bench_No': 'Bench No', 'Wire_Length': 'Wire Length (mm)', 'Total_Cross_Section': 'Total Cross Section (mm2)', 'Young_Modulus': 'Young\'s Modulus (KN/mm2)', '10%_LU': '10% LU (mm)', '10%_LL': '10% LL (mm)', '10%_RU': '10% RU (mm)', '10%_RL': '10% RL (mm)', '100%_LU': '100% LU (mm)', '100%_LL': '100% LL (mm)', '100%_RU': '100% RU (mm)', '100%_RL': '100% RL (mm)', 'Measured_Elongation': 'Total Elongation (mm)', 'Pressed_Load': 'Pre stress (KN)', 'Total_Pressed_Load': 'Total Pre stress (KN)', 'Final_Load': 'Final Load (KN)' }
+        },
+        'BATCHING': {
+            order: ['time', 'Batch_No', 'Batch_Time', 'Running_Batch_No', 'Set_20mm', 'Act_20mm', 'Set_10mm', 'Act_10mm', 'Set_Sand', 'Act_Sand', 'Set_sand', 'Act_sand', 'Set_Cement', 'Act_Cement', 'Set_Water', 'Act_Water', 'Set_Admix', 'Act_Admix', 'Total'],
+            labels: { 'time': 'Time', 'Batch_No': 'Batch No', 'Batch_Time': 'Batch Time', 'Running_Batch_No': 'Running Batch No', 'Set_20mm': 'Set 20mm (kg)', 'Act_20mm': 'Act 20mm (kg)', 'Set_10mm': 'Set 10mm (kg)', 'Act_10mm': 'Act 10mm (kg)', 'Set_Sand': 'Set Sand (kg)', 'Act_Sand': 'Act Sand (kg)', 'Set_sand': 'Set Sand (kg)', 'Act_sand': 'Act Sand (kg)', 'Set_Cement': 'Set Cement (kg)', 'Act_Cement': 'Act Cement (kg)', 'Set_Water': 'Set Water (kg)', 'Act_Water': 'Act Water (kg)', 'Set_Admix': 'Set Admix (kg)', 'Act_Admix': 'Act Admix (kg)', 'Total': 'Total' }
+        },
+        'SBT': {
+            order: ['Batch_No', 'Type_of_Sleeper', 'Sleeper_No', 'Date_Of_Casting', 'time', 'Center_Top', 'Center_Bottom', 'MR_I', 'MR_II', 'MF_I', 'MF_II', 'MF_Bottom'],
+            labels: { 'time': 'Time', 'Batch_No': 'Batch No', 'Date_Of_Casting': 'Date of Casting', 'Sleeper_No': 'Sleeper No', 'Type_of_Sleeper': 'Type of Sleeper', 'Age': 'Age (Hrs.)', 'MF_I': 'MF I', 'MF_II': 'MF II', 'MF_Bottom': 'MF Bottom', 'MR_I': 'MR I', 'MR_II': 'MR II', 'Center_Top': 'Center Top', 'Center_Bottom': 'Center Bottom' }
         }
     };
 
     const currentConfig = STAGE_CONFIGS[stage] || { order: ['time'], labels: { 'time': 'Time' } };
     const COLUMN_ORDER = currentConfig.order;
     const COLUMN_LABELS = currentConfig.labels;
-    const EXCLUDED_COLUMNS = ['line', 'module', 'plant', 'topic', 'machine', 'host', 'result', 'table'];
+    const EXCLUDED_COLUMNS = ['line', 'module', 'plant', 'topic', 'machine', 'host', 'table', 'result'];
+    
+    if (stage === 'SBT') {
+        EXCLUDED_COLUMNS.push('Age', 'age');
+    }
 
-    const rawKeys = data.length > 0 
-        ? Object.keys(data[0]).filter(key => !EXCLUDED_COLUMNS.includes(key)) 
-        : [];
+    // Get all unique keys across all rows to avoid relying only on data[0]
+    const allKeysSet = new Set();
+    data.forEach(row => {
+        if (row) {
+            Object.keys(row).forEach(key => allKeysSet.add(key));
+        }
+    });
 
-    const columns = [];
+    const rawKeys = Array.from(allKeysSet).filter(key => !EXCLUDED_COLUMNS.includes(key));
+
+    const normalizeKey = (key) => String(key).replace(/[\s_]/g, '').toLowerCase();
+
+    const allColumns = [];
     // First, add columns in the specified order
     COLUMN_ORDER.forEach(orderedKey => {
-        // Try exact match or case-insensitive match
-        const actualKey = rawKeys.find(rk => rk === orderedKey || rk.toLowerCase() === orderedKey.toLowerCase());
-        if (actualKey) {
-            columns.push(actualKey);
-        }
+        const normOrdered = normalizeKey(orderedKey);
+        // Find ALL matching keys in rawKeys to handle cases where API returns multiple variations (e.g., null 'Batch_No' and populated 'BATCH NO')
+        const matchingKeys = rawKeys.filter(rk => rk === orderedKey || normalizeKey(rk) === normOrdered);
+        matchingKeys.forEach(match => {
+            if (!allColumns.includes(match)) {
+                allColumns.push(match);
+            }
+        });
     });
 
     // Then add any other columns that are not in the order list
     rawKeys.forEach(k => {
-        if (!columns.includes(k)) {
-            columns.push(k);
+        if (!allColumns.includes(k)) {
+            allColumns.push(k);
         }
+    });
+
+    // Filter out columns that have no data across all rows
+    const columns = allColumns.filter(col => {
+        return data.some(row => {
+            const val = row[col];
+            return val !== null && val !== undefined && String(val).trim() !== '';
+        });
     });
 
     const effectiveRowsPerPage = unit === 'Thirumangalam' ? 60 : 30;
@@ -455,12 +498,12 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
                 </div>
             ) : data.length > 0 ? (
                 <div className="prof-card" style={{ background: '#fff', padding: '0', borderRadius: '16px', border: '1px solid #d1fae5', overflow: 'hidden' }}>
-                    <div style={{ overflowX: 'auto' }}>
+                    <div style={{ overflow: 'auto', maxHeight: '600px' }}>
                         <table className="prof-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-                            <thead>
+                            <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                                 <tr>
                                     {columns.map(col => (
-                                        <th key={col} style={{ background: '#f8fafc', color: '#64748b', padding: '16px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'left', fontWeight: '800', borderBottom: '1px solid #e2e8f0' }}>
+                                        <th key={col} style={{ background: '#f8fafc', color: '#64748b', padding: '16px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'left', fontWeight: '800', borderBottom: '1px solid #e2e8f0', position: 'sticky', top: 0, zIndex: 10 }}>
                                             {COLUMN_LABELS[col] || COLUMN_LABELS[col.toLowerCase()] || col}
                                         </th>
                                     ))}

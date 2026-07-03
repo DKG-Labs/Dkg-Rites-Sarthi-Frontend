@@ -90,6 +90,20 @@ export const InspectionProvider = ({ children }) => {
     return saved ? JSON.parse(saved) : {};
   });
 
+  // ==================== DOWNLOAD IC & ANNEXURES CACHING ====================
+  const [icAnnexuresCache, setIcAnnexuresCache] = useState(() => {
+    const saved = sessionStorage.getItem('icAnnexuresCache');
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  const [icAnnexuresCacheTimestamp, setIcAnnexuresCacheTimestamp] = useState(() => {
+    const saved = sessionStorage.getItem('icAnnexuresCacheTimestamp');
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  // Memory cache for completed calls (for IE landing page certificates tab)
+  const [completedCallsCache, setCompletedCallsCache] = useState(null);
+
   // Process shared state
   const [processShift, setProcessShift] = useState(() => {
     return sessionStorage.getItem('processShift') || 'A';
@@ -309,9 +323,6 @@ export const InspectionProvider = ({ children }) => {
     return STABLE_NOT_CACHED;
   }, [fpDataCacheTimestamp, fpDashboardDataCache]);
 
-  /**
-   * Clear Final Product cache for a specific call or all caches
-   */
   const clearFpCache = useCallback((callNo = null) => {
     if (callNo) {
       // Clear specific call cache
@@ -333,6 +344,69 @@ export const InspectionProvider = ({ children }) => {
       setFpDataCacheTimestamp({});
       sessionStorage.removeItem('fpDashboardDataCache');
       sessionStorage.removeItem('fpDataCacheTimestamp');
+    }
+  }, []);
+
+  /**
+   * Update IC & Annexures cache for a specific product
+   * @param {string} product - Product type ('ERC', 'Sleeper', 'Rail Pad')
+   * @param {array} records - Records list to cache
+   */
+  const updateIcAnnexuresCache = useCallback((product, records) => {
+    setIcAnnexuresCache(prev => {
+      const updated = { ...prev, [product]: records };
+      sessionStorage.setItem('icAnnexuresCache', JSON.stringify(updated));
+      return updated;
+    });
+    setIcAnnexuresCacheTimestamp(prev => {
+      const updated = { ...prev, [product]: Date.now() };
+      sessionStorage.setItem('icAnnexuresCacheTimestamp', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  /**
+   * Get cached IC & Annexures data for a specific product
+   * Returns null/isCached=false if cache is expired (older than 5 minutes)
+   */
+  const getIcAnnexuresCachedData = useCallback((product) => {
+    const timestamp = icAnnexuresCacheTimestamp[product];
+    const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+    if (timestamp && (Date.now() - timestamp) < CACHE_DURATION) {
+      if (icAnnexuresCache[product]) {
+        return {
+          records: icAnnexuresCache[product],
+          isCached: true
+        };
+      }
+    }
+
+    return STABLE_NOT_CACHED;
+  }, [icAnnexuresCache, icAnnexuresCacheTimestamp]);
+
+  /**
+   * Clear IC & Annexures cache for a specific product or all caches
+   */
+  const clearIcAnnexuresCache = useCallback((product = null) => {
+    if (product) {
+      setIcAnnexuresCache(prev => {
+        const updated = { ...prev };
+        delete updated[product];
+        sessionStorage.setItem('icAnnexuresCache', JSON.stringify(updated));
+        return updated;
+      });
+      setIcAnnexuresCacheTimestamp(prev => {
+        const updated = { ...prev };
+        delete updated[product];
+        sessionStorage.setItem('icAnnexuresCacheTimestamp', JSON.stringify(updated));
+        return updated;
+      });
+    } else {
+      setIcAnnexuresCache({});
+      setIcAnnexuresCacheTimestamp({});
+      sessionStorage.removeItem('icAnnexuresCache');
+      sessionStorage.removeItem('icAnnexuresCacheTimestamp');
     }
   }, []);
 
@@ -398,7 +472,10 @@ export const InspectionProvider = ({ children }) => {
 
     // Clear all caches
     clearRmCache();
-  }, [clearRmCache]);
+    clearFpCache();
+    clearIcAnnexuresCache();
+    setCompletedCallsCache(null);
+  }, [clearRmCache, clearFpCache, clearIcAnnexuresCache, setCompletedCallsCache]);
 
   // Save call_no separately for easier fallback access in submodules
   useEffect(() => {
@@ -444,6 +521,13 @@ export const InspectionProvider = ({ children }) => {
     updateFpDashboardDataCache,
     getFpCachedData,
     clearFpCache,
+    // Cache management functions - Download IC & Annexures
+    updateIcAnnexuresCache,
+    getIcAnnexuresCachedData,
+    clearIcAnnexuresCache,
+    // Completed calls cache for IE Landing Page
+    completedCallsCache,
+    setCompletedCallsCache,
   };
 
   return (

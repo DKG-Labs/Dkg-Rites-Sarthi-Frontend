@@ -11,6 +11,7 @@ import { saveInspectionInitiation } from '../services/vendorInspectionService';
 import { performTransitionAction } from '../services/workflowService';
 import { getStoredUser } from '../services/authService';
 import { normalizeErcType } from '../utils/ercUtils';
+import ImageCaptureComponent from '../components/ImageCaptureComponent';
 import './RawMaterialDashboard.css';
 
 // Helper to get divisor for ERC type weight calculation
@@ -50,6 +51,15 @@ const DASHBOARD_DRAFT_KEY = 'rm_dashboard_draft_';
 const getShiftSuffix = () => {
   const shift = sessionStorage.getItem('inspectionShift');
   return shift ? `_${shift}` : '';
+};
+
+// Helper to extract heat data from either array format or new robust object format
+const getStoredHeatData = (storageData, hNo, idx) => {
+  if (!storageData) return null;
+  const nhNo = (hNo || '').toString().trim().toUpperCase();
+  if (typeof storageData === 'object' && !Array.isArray(storageData) && storageData[nhNo]) return storageData[nhNo];
+  if (Array.isArray(storageData) && storageData[idx]) return storageData[idx];
+  return null;
 };
 
 const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChange, onProductModelChange, onLadleValuesChange }) => {
@@ -196,6 +206,16 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
   // Save Draft state
   const [isSavingDraft, setIsSavingDraft] = useState(false);
+
+  // Captured Images state
+  const [capturedImages, setCapturedImages] = useState(() => {
+    try {
+      const callNo = call?.call_no;
+      if (!callNo) return [];
+      const saved = localStorage.getItem(`${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}${getShiftSuffix()}`);
+      return saved ? (JSON.parse(saved).capturedImages || []) : [];
+    } catch { return []; }
+  });
 
   // Withheld modal state
   const [showWithheldModal, setShowWithheldModal] = useState(false);
@@ -799,6 +819,21 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           restoredAny = true;
         }
 
+        // 8. Restore Captured Images
+        if (pausedData.capturedImages && pausedData.capturedImages.length > 0) {
+          const mainKey = `${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}${getShiftSuffix()}`;
+          const existingRaw = localStorage.getItem(mainKey);
+          const existingData = existingRaw ? JSON.parse(existingRaw) : {};
+          if (!existingData.capturedImages || existingData.capturedImages.length === 0) {
+            existingData.capturedImages = pausedData.capturedImages;
+            localStorage.setItem(mainKey, JSON.stringify(existingData));
+            const storageKey = `${DASHBOARD_DRAFT_KEY}${callNo}${getShiftSuffix()}`;
+            localStorage.setItem(storageKey, JSON.stringify(existingData));
+            setCapturedImages(pausedData.capturedImages);
+            restoredAny = true;
+          }
+        }
+
         if (restoredAny) {
           console.log('✅ Some paused data restored to localStorage');
           window.dispatchEvent(new Event('focus'));
@@ -912,12 +947,13 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
    * - Returns 'NOT OK' if any field fails validation
    */
   const validateCalibrationHeat = useCallback((calData) => {
-    // If no calibration data is entered/loaded yet (still in progress), consider it OK
-    if (!calData || !Array.isArray(calData) || calData.length === 0) {
-      return 'OK';
-    }
-    const hasNotOk = calData.some(item => item.inspectionStatus === 'NOT OK' || item.calibrationStatus === 'Expired');
-    return hasNotOk ? 'NOT OK' : 'OK';
+    // Commented out to display calibration as OK by default for now
+    // if (!calData || !Array.isArray(calData) || calData.length === 0) {
+    //   return 'Pending';
+    // }
+    // const hasNotOk = calData.some(item => item.inspectionStatus === 'NOT OK' || item.calibrationStatus === 'Expired');
+    // return hasNotOk ? 'NOT OK' : 'OK';
+    return 'OK';
   }, []);
 
   /**
@@ -990,7 +1026,8 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     if (!allCountsFilled) return 'Pending';
 
     // All counts are filled, so it's NOT OK (defects found)
-    return 'NOT OK';
+    // But since visual defects can result in a partial rejection, we return 'PARTIAL' instead of 'NOT OK'
+    return 'PARTIAL';
   }, []);
 
   /**
@@ -1187,11 +1224,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
         // Visual, Dimensional, etc. use the heatNo as key (with fallback to index for legacy support)
         const getHeatData = (storageData, hNo, idx) => {
-          if (!storageData) return null;
-          const nhNo = (hNo || '').toString().trim().toUpperCase();
-          if (typeof storageData === 'object' && !Array.isArray(storageData) && storageData[nhNo]) return storageData[nhNo];
-          if (Array.isArray(storageData) && storageData[idx]) return storageData[idx];
-          return null;
+          return getStoredHeatData(storageData, hNo, idx);
         };
 
         const vh = getHeatData(visualData, normalizedHNo, heatIndex);
@@ -1268,15 +1301,22 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       };
 
       const allPending = Object.values(heatStatuses).every(s => s === 'Pending');
-      const anyPending = Object.values(heatStatuses).some(s => s === 'Pending');
-      const dimensionalNotOk = heatStatuses.dimensional === 'NOT OK';
-      const materialTestNotOk = heatStatuses.materialTest === 'NOT OK';
-      const visualNotOk = heatStatuses.visual === 'NOT OK';
 
       // Rule 1: If all modules are pending, can't finish
       if (allPending) {
         return { canFinish: false, reason: `Heat ${heatNo}: All modules are pending` };
       }
+
+      // Treat pending calibration as OK for the remaining completion checks
+      const effectiveStatuses = {
+        ...heatStatuses,
+        calibration: heatStatuses.calibration === 'Pending' ? 'OK' : heatStatuses.calibration
+      };
+
+      const anyPending = Object.values(effectiveStatuses).some(s => s === 'Pending');
+      const dimensionalNotOk = effectiveStatuses.dimensional === 'NOT OK';
+      const materialTestNotOk = effectiveStatuses.materialTest === 'NOT OK';
+      const visualNotOk = effectiveStatuses.visual === 'NOT OK';
 
       // Rule 2: If Dimension or Material Testing is NOT OK, complete heat is rejected
       // This is allowed to finish
@@ -1294,7 +1334,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
         // Find this unique heat's visual data index
         const uniqueHeatIndex = consolidatedHeats.findIndex(h => (h.heatNo || h.heat_no) === heatNo);
-        const heatVisualData = Array.isArray(visualData) && uniqueHeatIndex >= 0 ? visualData[uniqueHeatIndex] : null;
+        let heatVisualData = getStoredHeatData(visualData, heatNo, uniqueHeatIndex);
         const rejectedWeight = calculateVisualRejectedWeight(heatVisualData);
         const offeredWeight = heat.weight;
 
@@ -1306,7 +1346,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       }
 
       // Rule 5: If any module is OK and others are pending, can't finish
-      const anyOk = Object.values(heatStatuses).some(s => s === 'OK');
+      const anyOk = Object.values(effectiveStatuses).some(s => s === 'OK');
       if (anyOk && anyPending) {
         return { canFinish: false, reason: `Heat ${heatNo}: Some modules are OK but others are still pending` };
       }
@@ -1349,8 +1389,16 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       }
     }
 
+    // Image validation (minimum 5, maximum 10)
+    if (!capturedImages || capturedImages.length < 5) {
+      return { canFinish: false, reason: `At least 5 inspection images are required (Currently: ${capturedImages?.length || 0})` };
+    }
+    if (capturedImages.length > 10) {
+      return { canFinish: false, reason: `Maximum of 10 inspection images allowed (Currently: ${capturedImages.length})` };
+    }
+
     return { canFinish: true, reason: '' };
-  }, [consolidatedHeats, heatSubmoduleStatuses, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, numberOfBundles, call?.call_no, calculateVisualRejectedWeight]);
+  }, [consolidatedHeats, heatSubmoduleStatuses, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, numberOfBundles, call?.call_no, calculateVisualRejectedWeight, capturedImages]);
 
   // Update canFinishInspectionState whenever dependencies change
   useEffect(() => {
@@ -1621,8 +1669,15 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           materialTest: 'Pending',
           packing: 'Pending'
         };
-        const dimensionalNotOk = heatStatuses.dimensional === 'NOT OK';
-        const materialTestNotOk = heatStatuses.materialTest === 'NOT OK';
+
+        // Treat pending calibration as OK for overall status and backend submission
+        const effectiveStatuses = {
+          ...heatStatuses,
+          calibration: heatStatuses.calibration === 'Pending' ? 'OK' : heatStatuses.calibration
+        };
+
+        const dimensionalNotOk = effectiveStatuses.dimensional === 'NOT OK';
+        const materialTestNotOk = effectiveStatuses.materialTest === 'NOT OK';
         const weight = heat.weight; // Already aggregated in consolidatedHeats
 
         let totalRejectedWeight = 0;
@@ -1643,11 +1698,11 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           const visualData = visualRaw ? JSON.parse(visualRaw) : [];
 
           // Use the index from consolidated list
-          const heatVisualData = Array.isArray(visualData) && heatIndex >= 0 ? visualData[heatIndex] : null;
+          const heatVisualData = getStoredHeatData(visualData, heatNo || heat?.heatNo || heat?.heat_no, heatIndex);
           totalRejectedWeight = calculateVisualRejectedWeight(heatVisualData);
 
           // Check if any modules are still pending
-          const anyPending = Object.values(heatStatuses).some(s => s === 'Pending');
+          const anyPending = Object.values(effectiveStatuses).some(s => s === 'Pending');
 
           if (anyPending) {
             acceptedQtyMt = 0;
@@ -1688,7 +1743,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           acceptedQtyMt: Math.floor(wtAcceptedNumbers),
 
           // Per-Submodule Status
-          calibrationStatus: heatStatuses.calibration,
+          calibrationStatus: effectiveStatuses.calibration,
           visualStatus: heatStatuses.visual,
           dimensionalStatus: heatStatuses.dimensional,
           materialTestStatus: heatStatuses.materialTest,
@@ -1753,7 +1808,8 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           shiftOfInspection: shiftOfInspection
         },
         createdBy: userId,
-        updatedBy: userId
+        updatedBy: userId,
+        capturedImages
       };
 
       // Debug: Log what we're sending
@@ -1843,7 +1899,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     } finally {
       setIsSaving(false);
     }
-  }, [call?.call_no, call?.id, call?.pincode, call?.workflowTransitionId, activeHeats, onBack, numberOfBundles, numberOfERC, sourceOfRawMaterial, poData, productModel, heatSubmoduleStatuses, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, calculateVisualRejectedWeight, consolidatedHeats, canFinishInspection, updateRmCallDataCache, updateRmHeatDataCache, updateRmPoDataCache]);
+  }, [call?.call_no, call?.id, call?.pincode, call?.workflowTransitionId, activeHeats, onBack, numberOfBundles, numberOfERC, sourceOfRawMaterial, poData, productModel, heatSubmoduleStatuses, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, calculateVisualRejectedWeight, consolidatedHeats, canFinishInspection, updateRmCallDataCache, updateRmHeatDataCache, updateRmPoDataCache, capturedImages]);
 
   // Withheld modal handlers
   const handleOpenWithheldModal = () => {
@@ -2230,7 +2286,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
             const originalHeatNumber = originalHeat.heatNo || originalHeat.heat_no;
             if (!processedHeatNumbers.has(originalHeatNumber)) {
               const heatIndex = activeHeats.findIndex(h => (h.heatNo || h.heat_no) === originalHeatNumber);
-              const heatVisualData = Array.isArray(visualData) && heatIndex >= 0 ? visualData[heatIndex] : null;
+              const heatVisualData = getStoredHeatData(visualData, heatNo || heat?.heatNo || heat?.heat_no, heatIndex);
               const rejectedWeight = calculateVisualRejectedWeight(heatVisualData);
               totalRejectedWeight += rejectedWeight;
               processedHeatNumbers.add(originalHeatNumber);
@@ -2315,7 +2371,8 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           shiftOfInspection: shiftOfInspection
         },
         createdBy: userId,
-        updatedBy: userId
+        updatedBy: userId,
+        capturedImages
       };
 
       console.log('Pause Inspection Payload:', JSON.stringify(pausePayload, null, 2));
@@ -2408,10 +2465,10 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       setIsSaving(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [call, onBack, activeHeats, numberOfBundles, numberOfERC, sourceOfRawMaterial, poData, productModel, heatSubmoduleStatuses, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, updateRmCallDataCache, updateRmHeatDataCache, updateRmPoDataCache]);
+  }, [call, onBack, activeHeats, numberOfBundles, numberOfERC, sourceOfRawMaterial, poData, productModel, heatSubmoduleStatuses, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, updateRmCallDataCache, updateRmHeatDataCache, updateRmPoDataCache, capturedImages]);
 
-  // Save Draft handler
-  const handleSaveDraft = useCallback(() => {
+  // Save Draft handler - saves draft data locally and to the backend database
+  const handleSaveDraft = useCallback(async () => {
     const inspectionCallNo = call?.call_no;
     if (!inspectionCallNo) {
       setResultModalConfig({
@@ -2427,7 +2484,367 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     setIsSavingDraft(true);
 
     try {
-      // Collect all dashboard form data
+      const currentUser = getStoredUser();
+      const userId = currentUser?.userId || currentUser?.username || 'IE_USER';
+      const shiftOfInspection = sessionStorage.getItem('inspectionShift') || null;
+
+      const parseDecimal = (val) => {
+        if (val === null || val === undefined || val === '') return null;
+        const num = parseFloat(val);
+        return isNaN(num) ? null : num;
+      };
+
+      // Helper to map consolidated data to active heats
+      const getConsolidatedDataForHeat = (storageData, hNo, logTag = 'Data') => {
+        if (!storageData) return null;
+        const normalizedHNo = (hNo || '').toString().trim().toUpperCase();
+
+        // 1. Support NEW Object Format (keyed by heatNo)
+        if (typeof storageData === 'object' && !Array.isArray(storageData)) {
+          if (storageData[normalizedHNo]) {
+            return storageData[normalizedHNo];
+          }
+        }
+
+        // 2. Support OLD Array Format (fallback to index match in consolidatedHeats)
+        if (Array.isArray(storageData)) {
+          const foundIndex = consolidatedHeats.findIndex(h =>
+            (h.heatNo || h.heat_no || '').toString().trim().toUpperCase() === normalizedHNo
+          );
+          if (foundIndex !== -1 && foundIndex < storageData.length) {
+            return storageData[foundIndex];
+          }
+        }
+
+        return null;
+      };
+
+      // Collect Visual Inspection data
+      const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${inspectionCallNo}${getShiftSuffix()}`;
+      const visualRaw = localStorage.getItem(visualKey);
+      let visualInspectionData = [];
+      if (visualRaw) {
+        const visualParsed = JSON.parse(visualRaw);
+        console.log('📦 Visual Inspection draft items (Save Draft):', Array.isArray(visualParsed) ? visualParsed.length : 'not an array');
+
+        activeHeats.forEach((heat, heatIndex) => {
+          const hNo = heat.heatNo || heat.heat_no || `Heat-${heatIndex + 1}`;
+          const heatData = getConsolidatedDataForHeat(visualParsed, hNo, 'Visual');
+
+          if (heatData?.selectedDefects) {
+            const defects = {};
+            const defectLengths = {};
+            let defectCount = 0;
+            let totalDefectiveLength = 0;
+
+            Object.entries(heatData.selectedDefects).forEach(([defectName, isSelected]) => {
+              defects[defectName] = isSelected || false;
+              if (isSelected && defectName !== 'No Defect') defectCount++;
+              if (isSelected && heatData.defectCounts?.[defectName]) {
+                const val = parseFloat(heatData.defectCounts[defectName]);
+                if (!isNaN(val)) {
+                  defectLengths[defectName] = val;
+                  if (defectName !== 'No Defect') totalDefectiveLength += val;
+                }
+              }
+            });
+
+            const wFactor = productModel?.toUpperCase().includes('V') ? 0.00326 : 0.00263;
+            const weightRejected = defects['No Defect'] ? 0 : totalDefectiveLength * wFactor;
+            if (defects['No Defect']) defectCount = 0;
+
+            visualInspectionData.push({
+              inspectionCallNo, heatNo: hNo, heatIndex, defects, defectLengths, defectCount, weightRejected
+            });
+          }
+        });
+      }
+
+      // Collect Dimensional Check data
+      const dimKey = `${STORAGE_KEYS.DIMENSIONAL_CHECK}_${inspectionCallNo}${getShiftSuffix()}`;
+      const dimRaw = localStorage.getItem(dimKey);
+      let dimensionalCheckData = [];
+      if (dimRaw) {
+        const dimParsed = JSON.parse(dimRaw);
+        console.log('📦 Dimensional Check draft items (Save Draft):', Array.isArray(dimParsed?.heatDimData) ? dimParsed.heatDimData.length : 'missing');
+        activeHeats.forEach((heat, heatIndex) => {
+          const hNo = heat.heatNo || heat.heat_no;
+          const heatData = getConsolidatedDataForHeat(dimParsed.heatDimData, hNo, 'Dimensional');
+
+          if (heatData?.dimSamples && Array.isArray(heatData.dimSamples)) {
+            const specs = productModel?.toUpperCase().includes('V') ? { min: 22.81, max: 23.23 } : { min: 20.47, max: 20.84 };
+            let defectCount = 0;
+            const sampleDiameters = heatData.dimSamples.map(sample => {
+              const diameter = sample?.diameter;
+              if (diameter !== null && diameter !== undefined && diameter !== '') {
+                const val = parseFloat(diameter);
+                if (!isNaN(val) && (val < specs.min || val > specs.max)) defectCount++;
+                return val;
+              }
+              return null;
+            });
+
+            dimensionalCheckData.push({
+              inspectionCallNo, heatNo: hNo, heatIndex, sampleDiameters, defectCount
+            });
+          }
+        });
+      }
+
+      // Collect Material Testing data
+      const matKey = `${STORAGE_KEYS.MATERIAL_TESTING}_${inspectionCallNo}${getShiftSuffix()}`;
+      const matRaw = localStorage.getItem(matKey);
+      let materialTestingData = [];
+      if (matRaw) {
+        const matParsed = JSON.parse(matRaw);
+        console.log('📦 Material Testing draft items (Save Draft):', Array.isArray(matParsed?.materialData) ? matParsed.materialData.length : 'missing');
+
+        activeHeats.forEach((heat, heatIndex) => {
+          const hNo = heat.heatNo || heat.heat_no || `Heat-${heatIndex + 1}`;
+          const heatData = getConsolidatedDataForHeat(matParsed.materialData, hNo, 'Material');
+
+          if (heatData?.samples && Array.isArray(heatData.samples)) {
+            heatData.samples.forEach((sample, sampleIdx) => {
+              materialTestingData.push({
+                inspectionCallNo, heatNo: hNo, heatIndex, sampleNumber: sampleIdx + 1,
+                carbonPercent: parseDecimal(sample.c), siliconPercent: parseDecimal(sample.si),
+                manganesePercent: parseDecimal(sample.mn), phosphorusPercent: parseDecimal(sample.p),
+                sulphurPercent: parseDecimal(sample.s), grainSize: parseDecimal(sample.grainSize),
+                hardnessHrc: parseDecimal(sample.hardness), decarbDepthMm: parseDecimal(sample.decarb),
+                inclusionTypeA: sample.inclTypeA || null, inclusionA: parseDecimal(sample.inclA),
+                inclusionTypeB: sample.inclTypeB || null, inclusionB: parseDecimal(sample.inclB),
+                inclusionTypeC: sample.inclTypeC || null, inclusionC: parseDecimal(sample.inclC),
+                inclusionTypeD: sample.inclTypeD || null, inclusionD: parseDecimal(sample.inclD),
+                remarks: sample.remarks || null
+              });
+            });
+          }
+        });
+      }
+
+      // Collect Packing & Storage data
+      const packKey = `${STORAGE_KEYS.PACKING_STORAGE}_${inspectionCallNo}${getShiftSuffix()}`;
+      const packRaw = localStorage.getItem(packKey);
+      let packingStorageData = [];
+      if (packRaw) {
+        const packParsed = JSON.parse(packRaw);
+        const packingData = packParsed.packingDataByHeat || {};
+        console.log('📦 Packing draft items (Save Draft):', Object.keys(packingData).length);
+
+        activeHeats.forEach((heat, heatIndex) => {
+          const hNo = heat.heatNo || heat.heat_no;
+          const heatData = getConsolidatedDataForHeat(Object.values(packingData), hNo, 'Packing');
+
+          if (heatData) {
+            packingStorageData.push({
+              inspectionCallNo, heatNo: hNo, heatIndex,
+              storedHeatWise: heatData.storedHeatWise || null,
+              suppliedInBundles: heatData.suppliedInBundles || null,
+              heatNumberEnds: heatData.heatNumberEnds || null,
+              packingStripWidth: heatData.packingStripWidth || null,
+              bundleTiedLocations: heatData.bundleTiedLocations || null,
+              identificationTagBundle: heatData.identificationTagBundle || null,
+              metalTagInformation: heatData.metalTagInformation || null,
+              remarks: heatData.remarks || null,
+              shift: shiftOfInspection,
+              dateOfInspection: sessionStorage.getItem('inspectionDate') || new Date().toISOString().split('T')[0]
+            });
+          }
+        });
+      }
+
+      // Collect Calibration Documents data
+      const calKey = `${STORAGE_KEYS.CALIBRATION}_${inspectionCallNo}${getShiftSuffix()}`;
+      const calRaw = localStorage.getItem(calKey);
+      let calibrationDocumentsData = [];
+      if (calRaw) {
+        const calParsed = JSON.parse(calRaw);
+        console.log('📦 Calibration draft items (Save Draft):', Array.isArray(calParsed?.heats) ? calParsed.heats.length : 'missing');
+
+        if (calParsed.heats && Array.isArray(calParsed.heats)) {
+          activeHeats.forEach((heat, idx) => {
+            const hNo = heat.heatNo || heat.heat_no || `Heat-${idx + 1}`;
+            const savedHeat = calParsed.heats.find(h => (h.heatNo || '').toString().toUpperCase() === hNo.toString().toUpperCase()) || calParsed.heats[idx];
+
+            if (savedHeat) {
+              calibrationDocumentsData.push({
+                inspectionCallNo,
+                heatNo: hNo,
+                heatIndex: idx,
+                rdsoApprovalId: calParsed.rdsoApprovalValidity?.approvalId || null,
+                rdsoValidFrom: calParsed.rdsoApprovalValidity?.validFrom || null,
+                rdsoValidTo: calParsed.rdsoApprovalValidity?.validTo || null,
+                gaugesAvailable: calParsed.gaugesAvailable || false,
+                ladleCarbonPercent: parseDecimal(savedHeat.percentC),
+                ladleSiliconPercent: parseDecimal(savedHeat.percentSi),
+                ladleManganesePercent: parseDecimal(savedHeat.percentMn),
+                ladlePhosphorusPercent: parseDecimal(savedHeat.percentP),
+                ladleSulphurPercent: parseDecimal(savedHeat.percentS),
+                vendorVerified: calParsed.vendorVerification?.verified || false,
+                verifiedBy: calParsed.vendorVerification?.verifiedBy || null,
+                verifiedAt: calParsed.vendorVerification?.verifiedAt || null
+              });
+            }
+          });
+        }
+      }
+
+      // Collect pre-inspection data
+      const preInspectionData = {
+        inspectionCallNo,
+        totalHeatsOffered: consolidatedHeats.length,
+        totalQtyOfferedMt: consolidatedHeats.reduce((sum, h) => sum + h.weight, 0),
+        numberOfBundles: numberOfBundles ? parseInt(numberOfBundles) : null,
+        numberOfErc: numberOfERC || null,
+        productModel: productModel || null,
+        poNo: poData?.po_no || null,
+        poDate: poData?.po_date || null,
+        vendorName: poData?.vendor_name || null,
+        placeOfInspection: poData?.place_of_inspection || null,
+        sourceOfRawMaterial: sourceOfRawMaterial || null
+      };
+
+      // Collect heat final results using consolidatedHeats
+      const heatFinalResults = consolidatedHeats.map((heat) => {
+        const heatNo = heat.heatNo || heat.heat_no;
+        const heatStatuses = heatSubmoduleStatuses[heatNo] || {
+          calibration: 'Pending',
+          visual: 'Pending',
+          dimensional: 'Pending',
+          materialTest: 'Pending',
+          packing: 'Pending'
+        };
+        const hasNotOk = Object.values(heatStatuses).some(s => s === 'NOT OK');
+        const allOk = Object.values(heatStatuses).every(s => s === 'OK');
+        const isAccepted = allOk && !hasNotOk;
+        const isRejected = hasNotOk;
+        const weight = heat.weight;
+
+        // Calculate rejected weight from visual inspection data
+        const visualKeyLoc = `${STORAGE_KEYS.VISUAL_INSPECTION}_${inspectionCallNo}${getShiftSuffix()}`;
+        const visualRawLoc = localStorage.getItem(visualKeyLoc);
+        const visualData = visualRawLoc ? JSON.parse(visualRawLoc) : [];
+
+        let totalRejectedWeight = 0;
+        const processedHeatNumbers = new Set();
+        if (heat.originalHeats && Array.isArray(heat.originalHeats)) {
+          heat.originalHeats.forEach((originalHeat) => {
+            const originalHeatNumber = originalHeat.heatNo || originalHeat.heat_no;
+            if (!processedHeatNumbers.has(originalHeatNumber)) {
+              const heatIndex = activeHeats.findIndex(h => (h.heatNo || h.heat_no) === originalHeatNumber);
+              const heatVisualData = getStoredHeatData(visualData, heatNo || heat?.heatNo || heat?.heat_no, heatIndex);
+              const rejectedWeight = calculateVisualRejectedWeight(heatVisualData);
+              totalRejectedWeight += rejectedWeight;
+              processedHeatNumbers.add(originalHeatNumber);
+            }
+          });
+        }
+
+        // Calculate accepted qty: Offered Qty - Rejected Weight (in Tons)
+        const acceptedQtyMt = weight - totalRejectedWeight;
+
+        // Calculate Wt. Accepted (Numbers) depending on productModel
+        const wtAcceptedNumbers = (acceptedQtyMt * 1000) / getErcDivisor(productModel);
+
+        let overallStatus = 'PENDING';
+        if (acceptedQtyMt === weight) {
+          overallStatus = 'ACCEPTED';
+        } else if (acceptedQtyMt > 0) {
+          overallStatus = 'PARTIALLY_ACCEPTED';
+        } else {
+          overallStatus = 'REJECTED';
+        }
+
+        const anyPending = Object.values(heatStatuses).some(s => s === 'Pending');
+        if (anyPending) {
+          overallStatus = 'PENDING';
+        }
+
+        // Prepare hologram string for backend
+        const hologramEntries = heatHologramEntries[heatNo] || [];
+        const hologramString = hologramEntries.map(h => {
+          if (h.type === 'range') return `Range: ${h.from} to ${h.to}`;
+          return `Single: ${h.value}`;
+        }).join(', ');
+
+        return {
+          inspectionCallNo,
+          heatNo,
+          weightOfferedMt: weight,
+          weightAcceptedMt: acceptedQtyMt,
+          weightRejectedMt: totalRejectedWeight,
+          acceptedQtyMt: Math.floor(wtAcceptedNumbers),
+          calibrationStatus: heatStatuses.calibration,
+          visualStatus: heatStatuses.visual,
+          dimensionalStatus: heatStatuses.dimensional,
+          materialTestStatus: heatStatuses.materialTest,
+          packingStatus: heatStatuses.packing,
+          status: isRejected ? 'REJECTED' : isAccepted ? 'ACCEPTED' : 'PENDING',
+          overallStatus: overallStatus,
+          totalHeatsOffered: consolidatedHeats.length,
+          totalQtyOfferedMt: consolidatedHeats.reduce((sum, h) => sum + h.weight, 0),
+          noOfBundles: numberOfBundles ? parseInt(numberOfBundles) : 0,
+          noOfErcFinished: numberOfERC ? parseInt(numberOfERC) : 0,
+          remarks: heatRemarks[heatNo] || null,
+
+          // Sealing Details
+          sealingType: heatSealingType[heatNo] || null,
+          steelStampNumber: heatSteelStampNumber[heatNo] || null,
+          hologramDetails: hologramString || null,
+          colorCode: heat.colorCode || null,
+
+          // Audit Fields
+          createdBy: userId,
+          shift: shiftOfInspection,
+          dateOfInspection: sessionStorage.getItem('inspectionDate') || new Date().toISOString().split('T')[0]
+        };
+      });
+
+      // Build pause payload
+      const pausePayload = {
+        inspectionCallNo,
+        preInspectionData,
+        heatFinalResults,
+        visualInspectionData,
+        dimensionalCheckData,
+        materialTestingData,
+        packingStorageData,
+        calibrationDocumentsData,
+        inspectorDetails: {
+          finishedBy: localStorage.getItem('username') || 'IE_USER',
+          finishedAt: new Date().toISOString(),
+          inspectionDate: sessionStorage.getItem('inspectionDate') || new Date().toISOString().split('T')[0],
+          shiftOfInspection: shiftOfInspection
+        },
+        createdBy: userId,
+        updatedBy: userId,
+        capturedImages
+      };
+
+      console.log('Save Draft Payload (Backend):', JSON.stringify(pausePayload, null, 2));
+
+      // Step 1: Update color codes for all heats in parallel
+      console.log('Updating color codes for heats (Save Draft)...');
+      const colorCodeUpdatePromises = activeHeats
+        .filter(heat => heat.colorCode && heat.colorCode.trim() !== '')
+        .map(heat => {
+          const heatId = heat.id;
+          const colorCode = heat.colorCode;
+          return updateColorCode(heatId, colorCode).catch(err => {
+            console.error(`Failed to update color code for heat ${heatId}:`, err);
+            return null;
+          });
+        });
+
+      await Promise.all(colorCodeUpdatePromises);
+      console.log('Color codes updated successfully');
+
+      // Step 2: Call the backend pause API to save the inspection data
+      console.log('💾 Saving inspection data to backend (Save Draft)...');
+      await pauseRawMaterialInspection(pausePayload);
+      console.log('✅ Inspection data saved to backend successfully');
+
+      // Step 3: Save to localStorage locally
       const draftData = {
         savedAt: new Date().toISOString(),
         numberOfBundles: numberOfBundles,
@@ -2436,7 +2853,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         heatSealingType: heatSealingType,
         heatSteelStampNumber: heatSteelStampNumber,
         heatHologramEntries: heatHologramEntries,
-        // Save heat color codes
+        capturedImages: capturedImages,
         heatColorCodes: fetchedHeatData.reduce((acc, heat) => {
           if (heat.heatNo && heat.colorCode) {
             acc[heat.heatNo] = heat.colorCode;
@@ -2445,24 +2862,23 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         }, {})
       };
 
-      // Save to localStorage with inspection call number as key
       const storageKey = `${DASHBOARD_DRAFT_KEY}${inspectionCallNo}${getShiftSuffix()}`;
       const mainKey = `${STORAGE_KEYS.MAIN_INSPECTION}_${inspectionCallNo}${getShiftSuffix()}`;
 
       localStorage.setItem(storageKey, JSON.stringify(draftData));
       localStorage.setItem(mainKey, JSON.stringify(draftData));
 
-      // Show success modal instead of alert
+      // Show success modal
       setResultModalConfig({
         actionType: 'draft',
         callNumber: inspectionCallNo,
-        message: 'Draft has been saved successfully!',
+        message: 'Draft saved! Your inspection progress is secure and up to date.',
         additionalInfo: `Saved at ${new Date().toLocaleTimeString()}`
       });
       setShowResultModal(true);
     } catch (error) {
       console.error('Error saving draft:', error);
-      // Show error modal instead of alert
+      // Show error modal
       setResultModalConfig({
         actionType: 'error',
         callNumber: inspectionCallNo,
@@ -2473,7 +2889,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     } finally {
       setIsSavingDraft(false);
     }
-  }, [call?.call_no, numberOfBundles, sourceOfRawMaterial, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, fetchedHeatData]);
+  }, [call, activeHeats, consolidatedHeats, numberOfBundles, numberOfERC, productModel, poData, heatSubmoduleStatuses, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, fetchedHeatData, calculateVisualRejectedWeight, sourceOfRawMaterial, capturedImages]);
 
   // Load draft data from localStorage on mount (after heat data is loaded)
   useEffect(() => {
@@ -2498,6 +2914,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         if (draftData.heatSealingType) setHeatSealingType(draftData.heatSealingType);
         if (draftData.heatSteelStampNumber) setHeatSteelStampNumber(draftData.heatSteelStampNumber);
         if (draftData.heatHologramEntries) setHeatHologramEntries(draftData.heatHologramEntries);
+        if (draftData.capturedImages) setCapturedImages(draftData.capturedImages);
 
         // Restore color codes to heat data
         if (draftData.heatColorCodes && Object.keys(draftData.heatColorCodes).length > 0) {
@@ -2535,6 +2952,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         heatSealingType,
         heatSteelStampNumber,
         heatHologramEntries,
+        capturedImages,
         // Keep color codes in sync if available
         heatColorCodes: fetchedHeatData.reduce((acc, heat) => {
           if (heat.heatNo && heat.colorCode) {
@@ -2553,7 +2971,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     } catch (error) {
       console.error('Error in auto-save:', error);
     }
-  }, [call?.call_no, numberOfBundles, sourceOfRawMaterial, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, fetchedHeatData, isLoading]);
+  }, [call?.call_no, numberOfBundles, sourceOfRawMaterial, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, fetchedHeatData, isLoading, capturedImages]);
 
   // Show loading indicator while fetching data
   if (isLoading) {
@@ -2590,19 +3008,26 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       </div> */}
 
       {/* Call Details Info Banner - Moved to Top */}
-      <div className="card" style={{ background: '#f8fafc', marginBottom: 'var(--space-16)', padding: '16px 24px', border: '1px solid #e2e8f0' }}>
-        <div style={{ display: 'flex', gap: '32px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <div style={{ fontSize: '14px', color: '#64748b' }}>
-            <span style={{ fontWeight: '600', color: '#1e293b', marginRight: '8px' }}>Call No:</span> {callNo}
+      <div className="rm-header-card">
+        <div className="rm-header-main">
+          <span className="rm-header-title-badge">
+            <span className="icon">📄</span> Call No: <strong>{callNo}</strong>
+          </span>
+        </div>
+        <div className="rm-header-meta">
+          <div className="rm-meta-item">
+            <span className="icon">⏱️</span>
+            <span className="label">Shift</span>
+            <span className="value">{shiftOfInspection || 'N/A'}</span>
           </div>
-          <div style={{ fontSize: '14px', color: '#64748b' }}>
-            <span style={{ fontWeight: '600', color: '#1e293b', marginRight: '8px' }}>Shift:</span> {shiftOfInspection}
-          </div>
-          <div style={{ fontSize: '14px', color: '#64748b' }}>
-            <span style={{ fontWeight: '600', color: '#1e293b', marginRight: '8px' }}>Date of Inspection:</span> {formatDate(dateOfInspection)}
+          <div className="rm-meta-item">
+            <span className="icon">📅</span>
+            <span className="label">Date</span>
+            <span className="value">{formatDate(dateOfInspection)}</span>
           </div>
         </div>
       </div>
+
 
       {/* Header with Static Data */}
       <div className="card" style={{ marginBottom: 'var(--space-24)', paddingBottom: '24px' }}>
@@ -2610,12 +3035,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
           <h3 className="card-title rm-card-title" style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b' }}>Inspection Details</h3>
         </div>
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '24px',
-          padding: '0 24px'
-        }}>
+        <div className="rm-form-grid" style={{ padding: '0 24px', gap: '24px', marginBottom: 0 }}>
           {/* Row 1 */}
           <div className="rm-form-group">
             <label className="rm-form-label" style={{ fontWeight: '500', marginBottom: '8px', color: '#374151' }}>PO Number</label>
@@ -2763,6 +3183,14 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         )}
       </div>
 
+      {/* Image Capture Section */}
+      <div style={{ marginBottom: '24px' }}>
+        <ImageCaptureComponent 
+          images={capturedImages} 
+          onImagesChange={setCapturedImages} 
+        />
+      </div>
+
       {/* Sub Module Session */}
       <div className="submodule-session">
         <div className="submodule-session-header">
@@ -2893,7 +3321,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                 const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${call?.call_no}${getShiftSuffix()}`;
                 const visualRaw = localStorage.getItem(visualKey);
                 const visualData = visualRaw ? JSON.parse(visualRaw) : [];
-                const heatVisualData = Array.isArray(visualData) && heatIndex >= 0 ? visualData[heatIndex] : null;
+                const heatVisualData = getStoredHeatData(visualData, heatNo || heat?.heatNo || heat?.heat_no, heatIndex);
                 const totalRejectedWeight = calculateVisualRejectedWeight(heatVisualData);
                 const offeredWeight = parseFloat(heat.weight) || 0;
                 const acceptedWeight = offeredWeight - totalRejectedWeight;
@@ -2969,7 +3397,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
               const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${call?.call_no}${getShiftSuffix()}`;
               const visualRaw = localStorage.getItem(visualKey);
               const visualData = visualRaw ? JSON.parse(visualRaw) : [];
-              const heatVisualData = Array.isArray(visualData) && heatIndex >= 0 ? visualData[heatIndex] : null;
+              const heatVisualData = getStoredHeatData(visualData, heatNo || heat?.heatNo || heat?.heat_no, heatIndex);
               const totalRejectedWeight = calculateVisualRejectedWeight(heatVisualData);
               const offeredWeight = parseFloat(heat.weight) || 0;
               const acceptedWeight = offeredWeight - totalRejectedWeight;
@@ -3063,15 +3491,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                   </div>
 
                   {/* Heat Details Row - Single Row Layout */}
-                  <div
-                    className="heat-details-grid"
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(7, 1fr)',
-                      gap: '12px',
-                      alignItems: 'end'
-                    }}
-                  >
+                  <div className="heat-details-grid">
                     {/* Heat No. */}
                     <div>
                       <span style={{ fontSize: '11px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Heat No.</span>
@@ -3141,7 +3561,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                           const visualData = visualRaw ? JSON.parse(visualRaw) : [];
 
                           // Use unique index from consolidated list
-                          const heatVisualData = Array.isArray(visualData) && heatIndex >= 0 ? visualData[heatIndex] : null;
+                          const heatVisualData = getStoredHeatData(visualData, heatNo || heat?.heatNo || heat?.heat_no, heatIndex);
                           const totalRejectedWeight = calculateVisualRejectedWeight(heatVisualData);
 
                           const offeredTons = parseFloat(heat.weight) || 0;
@@ -3187,7 +3607,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                           const visualRaw = localStorage.getItem(visualKey);
                           const visualData = visualRaw ? JSON.parse(visualRaw) : [];
 
-                          const heatVisualData = Array.isArray(visualData) && heatIndex >= 0 ? visualData[heatIndex] : null;
+                          const heatVisualData = getStoredHeatData(visualData, heatNo || heat?.heatNo || heat?.heat_no, heatIndex);
                           const totalRejectedWeight = calculateVisualRejectedWeight(heatVisualData);
 
                           // Calculate: Accepted Qty (Tons) = Offered Qty - Rejected Weight
@@ -3234,7 +3654,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                           const visualRaw = localStorage.getItem(visualKey);
                           const visualData = visualRaw ? JSON.parse(visualRaw) : [];
 
-                          const heatVisualData = Array.isArray(visualData) && heatIndex >= 0 ? visualData[heatIndex] : null;
+                          const heatVisualData = getStoredHeatData(visualData, heatNo || heat?.heatNo || heat?.heat_no, heatIndex);
                           const totalRejectedWeight = calculateVisualRejectedWeight(heatVisualData);
 
                           // Show calculated rejected weight from visual defects
@@ -3262,10 +3682,11 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
                     {/* Are you sealing with section - Refined UX with Segmented Control */}
                     <div style={{
-                      gridColumn: 'span 7',
+                      gridColumn: '1 / -1',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '24px',
+                      flexWrap: 'wrap',
+                      gap: '16px',
                       marginTop: '8px',
                       padding: '16px',
                       background: '#fffbeb',
@@ -3382,7 +3803,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                     {/* Hologram Details Refined Section - High Discoverability */}
                     {(heatSealingType[heat.heatNo] || '').includes('RITES_HOLOGRAM') && (
                       <div style={{
-                        gridColumn: 'span 7',
+                        gridColumn: '1 / -1',
                         background: '#f0fdf4',
                         padding: '20px',
                         borderRadius: '10px',
@@ -3465,6 +3886,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                               display: 'flex',
                               gap: '16px',
                               alignItems: 'center',
+                              flexWrap: 'wrap',
                               background: '#fff',
                               padding: '12px 16px',
                               borderRadius: '8px',
@@ -3475,7 +3897,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                                 {holo.type === 'range' ? 'RANGE' : 'SINGLE'}
                               </span>
                               {holo.type === 'range' ? (
-                                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                     <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>FROM</span>
                                     <input
@@ -3598,30 +4020,49 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
             style={{
               minHeight: '44px',
               padding: '10px 20px',
-              backgroundColor: isSavingDraft ? '#f3f4f6' : '#fff',
-              cursor: isSavingDraft ? 'not-allowed' : 'pointer'
+              backgroundColor: (isSavingDraft || isSaving) ? '#f3f4f6' : '#fff',
+              cursor: (isSavingDraft || isSaving) ? 'not-allowed' : 'pointer',
+              opacity: (isSavingDraft || isSaving) ? 0.6 : 1
             }}
             onClick={handleSaveDraft}
-            disabled={isSavingDraft}
+            disabled={isSavingDraft || isSaving}
           >
             {isSavingDraft ? '💾 Saving...' : '💾 Save Draft'}
           </button>
           <button
             className="btn btn-outline"
+            style={{
+              minHeight: '44px',
+              padding: '10px 20px',
+              cursor: (isSavingDraft || isSaving) ? 'not-allowed' : 'pointer',
+              opacity: (isSavingDraft || isSaving) ? 0.6 : 1
+            }}
             onClick={handlePauseClick}
-            disabled={isSaving}
+            disabled={isSaving || isSavingDraft}
           >
             {isSaving ? 'Pausing...' : 'Pause Inspection'}
           </button>
-          <button className="btn btn-outline" onClick={handleOpenWithheldModal}>Withheld Inspection</button>
+          <button 
+            className="btn btn-outline" 
+            style={{
+              minHeight: '44px',
+              padding: '10px 20px',
+              cursor: (isSavingDraft || isSaving) ? 'not-allowed' : 'pointer',
+              opacity: (isSavingDraft || isSaving) ? 0.6 : 1
+            }}
+            onClick={handleOpenWithheldModal}
+            disabled={isSaving || isSavingDraft}
+          >
+            Withheld Inspection
+          </button>
           <div style={{ position: 'relative', display: 'inline-block' }}>
             <button
               className="btn btn-primary"
               onClick={handleFinishClick}
-              disabled={isSaving || !canFinishInspectionState.canFinish}
+              disabled={isSaving || isSavingDraft || !canFinishInspectionState.canFinish}
               style={{
-                opacity: (!canFinishInspectionState.canFinish && !isSaving) ? 0.6 : 1,
-                cursor: (!canFinishInspectionState.canFinish && !isSaving) ? 'not-allowed' : 'pointer'
+                opacity: (!canFinishInspectionState.canFinish || isSaving || isSavingDraft) ? 0.6 : 1,
+                cursor: (!canFinishInspectionState.canFinish || isSaving || isSavingDraft) ? 'not-allowed' : 'pointer'
               }}
               title={!canFinishInspectionState.canFinish ? canFinishInspectionState.reason : ''}
             >

@@ -10,7 +10,7 @@ const API_BASE_URL = `${API_ROOT}/api/inspection-form`;
  * Get auth headers with JWT token
  */
 const getAuthHeaders = () => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('authToken');
   return {
     'Content-Type': 'application/json',
     'Authorization': token ? `Bearer ${token}` : ''

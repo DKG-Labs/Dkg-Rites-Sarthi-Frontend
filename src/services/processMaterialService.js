@@ -12,7 +12,7 @@ const API_BASE_URL = API_ENDPOINTS.PROCESS_MATERIAL;
  * Get auth headers with JWT token
  */
 const getAuthHeaders = () => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('authToken');
   return {
     'Content-Type': 'application/json',
     'Authorization': token ? `Bearer ${token}` : ''
@@ -375,5 +375,14 @@ export const getAcceptedQuantitySum = async (callNo, lotNo) => {
   );
   const data = await handleResponse(response);
   return data.responseData || data;
+};
+
+export const getProcessInspectionByCallNo = async (callNo) => {
+  const response = await fetch(
+    `${API_BASE_URL}/inspection/${encodeURIComponent(callNo)}`,
+    { method: 'GET', headers: getAuthHeaders() }
+  );
+  const data = await handleResponse(response);
+  return data.responseData || null;
 };
 

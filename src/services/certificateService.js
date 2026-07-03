@@ -11,7 +11,7 @@ const API_BASE_URL = API_ENDPOINTS.CERTIFICATES;
  * Get auth headers with JWT token
  */
 const getAuthHeaders = () => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('authToken');
   return {
     'Content-Type': 'application/json',
     'Authorization': token ? `Bearer ${token}` : ''
@@ -141,6 +141,34 @@ export const generateFinalProductCertificate = async (icNumber) => {
     return data.responseData || data;
   } catch (error) {
     console.error('❌ Error generating Final Product certificate:', error);
+    throw error;
+  }
+};
+
+/**
+ * Generate RailPad Inspection Certificate Details
+ * @param {string} callNo - Inspection Call No
+ * @returns {Promise<Object>} Certificate data
+ */
+export const generateRailpadIcDetails = async (callNo) => {
+  try {
+    console.log('🔍 Generating RailPad IC Details for Call No:', callNo);
+    const encodedCallNo = encodeURIComponent(callNo);
+    const response = await fetch(`${API_BASE_URL.replace('/certificate', '/rail-inspection-call')}/ic-details/${encodedCallNo}`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || `Failed to generate RailPad IC Details: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ RailPad IC Details generated successfully:', data);
+    return data.responseData || data;
+  } catch (error) {
+    console.error('❌ Error generating RailPad IC Details:', error);
     throw error;
   }
 };
@@ -368,7 +396,7 @@ export const saveRmIcEditData = async (payload) => {
 export const getRmIcEditData = async (icNumber) => {
   try {
     const encodedIcNumber = encodeURIComponent(icNumber);
-    const response = await fetch(`${API_BASE_URL.replace('/api/certificate', '/api/rm-ic-edit')}/${encodedIcNumber}`, {
+    const response = await fetch(`${API_BASE_URL.replace('/api/certificate', '/api/rm-ic-edit')}?icNumber=${encodedIcNumber}`, {
       method: 'GET',
       headers: getAuthHeaders()
     });
@@ -407,7 +435,7 @@ export const saveFinalIcEditData = async (payload) => {
 export const getFinalIcEditData = async (icNumber) => {
   try {
     const encodedIcNumber = encodeURIComponent(icNumber);
-    const response = await fetch(`${API_BASE_URL.replace('/api/certificate', '/api/final-ic-edit')}/${encodedIcNumber}`, {
+    const response = await fetch(`${API_BASE_URL.replace('/api/certificate', '/api/final-ic-edit')}?icNumber=${encodedIcNumber}`, {
       method: 'GET',
       headers: getAuthHeaders()
     });
@@ -446,7 +474,7 @@ export const saveProcessIcEditData = async (payload) => {
 export const getProcessIcEditData = async (icNumber) => {
   try {
     const encodedIcNumber = encodeURIComponent(icNumber);
-    const response = await fetch(`${API_BASE_URL.replace('/api/certificate', '/api/process-ic-edit')}/${encodedIcNumber}`, {
+    const response = await fetch(`${API_BASE_URL.replace('/api/certificate', '/api/process-ic-edit')}?icNumber=${encodedIcNumber}`, {
       method: 'GET',
       headers: getAuthHeaders()
     });
@@ -455,6 +483,123 @@ export const getProcessIcEditData = async (icNumber) => {
     return await response.json();
   } catch (error) {
     console.error('Error fetching Process IC edit data:', error);
+    return null;
+  }
+};
+
+/**
+ * Save or update Rm IC Save Changes Data (Draft)
+ * @param {Object} payload 
+ */
+export const saveRmIcSaveChanges = async (payload) => {
+  try {
+    const response = await fetch(`${API_BASE_URL.replace('/api/certificate', '/api/rm-ic-save-changes')}`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) throw new Error('Failed to save draft IC changes');
+    return await response.json();
+  } catch (error) {
+    console.error('Error saving draft IC changes:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get Rm IC Save Changes Data (Draft)
+ * @param {string} icNumber 
+ */
+export const getRmIcSaveChanges = async (icNumber) => {
+  try {
+    const encodedIcNumber = encodeURIComponent(icNumber);
+    const response = await fetch(`${API_BASE_URL.replace('/api/certificate', '/api/rm-ic-save-changes')}?icNumber=${encodedIcNumber}`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    if (response.status === 204) return null; // No content
+    if (!response.ok) throw new Error('Failed to fetch draft IC changes');
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching draft IC changes:', error);
+    return null;
+  }
+};
+
+/**
+ * Save or update Process IC Save Changes Data (Draft)
+ * @param {Object} payload 
+ */
+export const saveProcessIcSaveChanges = async (payload) => {
+  try {
+    const response = await fetch(`${API_BASE_URL.replace('/api/certificate', '/api/process-ic-save-changes')}`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) throw new Error('Failed to save draft Process IC changes');
+    return await response.json();
+  } catch (error) {
+    console.error('Error saving draft Process IC changes:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get Process IC Save Changes Data (Draft)
+ * @param {string} icNumber 
+ */
+export const getProcessIcSaveChanges = async (icNumber) => {
+  try {
+    const encodedIcNumber = encodeURIComponent(icNumber);
+    const response = await fetch(`${API_BASE_URL.replace('/api/certificate', '/api/process-ic-save-changes')}?icNumber=${encodedIcNumber}`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    if (response.status === 204) return null; // No content
+    if (!response.ok) throw new Error('Failed to fetch draft Process IC changes');
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching draft Process IC changes:', error);
+    return null;
+  }
+};
+
+/**
+ * Save or update Final IC Save Changes Data (Draft)
+ * @param {Object} payload 
+ */
+export const saveFinalIcSaveChanges = async (payload) => {
+  try {
+    const response = await fetch(`${API_BASE_URL.replace('/api/certificate', '/api/final-ic-save-changes')}`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) throw new Error('Failed to save draft Final IC changes');
+    return await response.json();
+  } catch (error) {
+    console.error('Error saving draft Final IC changes:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get Final IC Save Changes Data (Draft)
+ * @param {string} icNumber 
+ */
+export const getFinalIcSaveChanges = async (icNumber) => {
+  try {
+    const encodedIcNumber = encodeURIComponent(icNumber);
+    const response = await fetch(`${API_BASE_URL.replace('/api/certificate', '/api/final-ic-save-changes')}?icNumber=${encodedIcNumber}`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    if (response.status === 204) return null; // No content
+    if (!response.ok) throw new Error('Failed to fetch draft Final IC changes');
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching draft Final IC changes:', error);
     return null;
   }
 };

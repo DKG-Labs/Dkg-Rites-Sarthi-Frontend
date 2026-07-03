@@ -63,12 +63,16 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
             };
         });
 
+        const typeLower = (batch?.sleeperType || '').toLowerCase();
+        const isSingleBenchType = ['pnc', 'turnout', 'dc', 'scc', 'curved', 'dcs', 'ds'].some(kw => typeLower.includes(kw));
+
         // Deduplicate by sleeperNo to handle cases where production_sleeper table
         // has duplicate rows (e.g., double-submit on production declaration).
         // Note: duplicate rows have DIFFERENT sleeperId (DB ids) but same sleeperNo.
+        // Exception: For single-bench types (Turnout, PnC, etc.), duplicate sleeper numbers are valid.
         const seen = new Set();
         return mapped.filter(s => {
-            const key = s.displayNo || s.id;
+            const key = isSingleBenchType ? s.id : (s.displayNo || s.id);
             if (seen.has(key)) return false;
             seen.add(key);
             return true;
@@ -90,12 +94,19 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
     }, [sleepers, searchTerm]);
 
     const renderSleeperList = (list, type) => {
-        // Group by Bench
+        const typeLower = batch?.sleeperType?.toLowerCase() || '';
+        const isSingleBenchType = ['pnc', 'turnout', 'dc', 'scc', 'curved', 'dcs', 'ds'].some(kw => typeLower.includes(kw));
+        const defaultBenchName = batch?.benchNo || batch?.gangs?.[0]?.gangNo || batch?.chambers?.[0]?.benchNo || '1';
+
         const groups = {};
         list.forEach(s => {
-            // Derive bench from sleeperNo prefix (e.g., "21" from "21A") if benchNo is missing
-            const derivedBench = s.displayNo ? String(s.displayNo).match(/^\d+/)?.[0] : null;
-            const b = s.benchNo || derivedBench || 'Batch Items';
+            let b;
+            if (isSingleBenchType) {
+                b = defaultBenchName;
+            } else {
+                const derivedBench = s.displayNo ? String(s.displayNo).match(/^\d+/)?.[0] : null;
+                b = s.benchNo || derivedBench || 'Batch Items';
+            }
             if (!groups[b]) groups[b] = [];
             groups[b].push(s);
         });
@@ -115,15 +126,23 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                             className="custom-scrollbar"
                             style={{ 
                                 display: 'flex', 
-                                flexWrap: 'nowrap', 
+                                flexWrap: 'wrap', 
                                 gap: '6px', 
-                                overflowX: 'auto', 
-                                paddingBottom: '8px',
-                                scrollbarWidth: 'thin'
+                                paddingBottom: '8px'
                             }}
                         >
                             {groups[bench]
-                                .sort((a, b) => (a.displayNo || '').toString().localeCompare((b.displayNo || '').toString(), undefined, { numeric: true }))
+                                .sort((a, b) => {
+                                    const valA = (a.displayNo || '').toString();
+                                    const valB = (b.displayNo || '').toString();
+                                    const isNumA = /^\d+$/.test(valA);
+                                    const isNumB = /^\d+$/.test(valB);
+                                    
+                                    if (!isNumA && isNumB) return -1;
+                                    if (isNumA && !isNumB) return 1;
+                                    
+                                    return valA.localeCompare(valB, undefined, { numeric: true });
+                                })
                                 .map(s => {
                                     const isSelected = selectedSleepers.includes(s.id);
                                     let bg = '#fff';
@@ -420,7 +439,22 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
                 sleeperType: batch.sleeperType,
                 shift: shift || 'General',
                 createdBy: parseInt(localStorage.getItem('userId') || '118', 10),
-                sleepers: sleepers.filter(s => selectedSleepers.includes(s.id) && (!s.moduleId || s.moduleId === 1)).map(s => {
+                sleepers: sleepers.filter(s => {
+                    if (!selectedSleepers.includes(s.id)) return false;
+                    if (s.moduleId && s.moduleId !== 1) return false;
+                    
+                    const currentIsRejected = sections.some(sect => {
+                        const sectState = sectionStates[sect.id];
+                        return sectState.result === 'all-rejected' || sectState.failedSleepers.includes(s.id);
+                    });
+
+                    // PREVENT OVERWRITING REJECTED SLEEPERS TO OK:
+                    // If a sleeper was already rejected and has not been explicitly re-rejected in this session,
+                    // we skip sending it. It will maintain its rejected state and reason in the database.
+                    if (s.status === 'rejected' && !currentIsRejected) return false;
+                    
+                    return true;
+                }).map(s => {
                     const currentIsRejected = sections.some(sect => {
                         const sectState = sectionStates[sect.id];
                         return sectState.result === 'all-rejected' || sectState.failedSleepers.includes(s.id);

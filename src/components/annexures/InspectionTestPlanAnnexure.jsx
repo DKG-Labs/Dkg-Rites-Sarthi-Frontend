@@ -494,13 +494,13 @@ const InspectionTestPlanAnnexure = ({ data = {}, selectedCall }) => {
                         <td>% S</td>
                         <td>0.03 max</td>
                         <td>% S</td>
-                        <td>– 0.005</td>
+                        <td>+0.005</td>
                       </tr>
                       <tr>
                         <td>% P</td>
                         <td>0.03 max</td>
                         <td>% P</td>
-                        <td>– 0.005</td>
+                        <td>+0.005</td>
                       </tr>
                     </tbody>
                   </table>
@@ -735,13 +735,13 @@ const InspectionTestPlanAnnexure = ({ data = {}, selectedCall }) => {
                         <td>% S</td>
                         <td>0.03 max</td>
                         <td>% S</td>
-                        <td>– 0.005</td>
+                        <td>+0.005</td>
                       </tr>
                       <tr>
                         <td>% P</td>
                         <td>0.03 max</td>
                         <td>% P</td>
-                        <td>– 0.005</td>
+                        <td>+0.005</td>
                       </tr>
                     </tbody>
                   </table>

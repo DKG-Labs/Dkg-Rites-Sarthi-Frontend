@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { formatDate } from '../utils/helpers';
+
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { getStoredUser, logoutUser } from '../services/authService';
 import { useInspection } from '../context/InspectionContext';
@@ -85,9 +85,10 @@ const AppLayout = () => {
   const isAdminRoute = location.pathname.startsWith(ROUTES.ADMIN_DASHBOARD);
   const isRitesAdminRoute = location.pathname.startsWith('/rites-admin');
   const isCMRoute = location.pathname.startsWith(ROUTES.CM_DASHBOARD);
+  const isSmsRoute = location.pathname.startsWith('/sms');
 
   // Determine if sidebar should be hidden
-  const shouldHideSidebar = isCallDeskRoute || isRailwayBoardRoute || isAdminRoute || isRitesAdminRoute || isCMRoute;
+  const shouldHideSidebar = isCallDeskRoute || isRailwayBoardRoute || isAdminRoute || isRitesAdminRoute || isCMRoute || isSmsRoute;
 
   return (
     <div>
@@ -114,32 +115,52 @@ const AppLayout = () => {
             </div>
           </div>
         </div>
-        <div className="header-right">
-          {!shouldHideSidebar && (
-            <button
-              className="btn btn-sm btn-outline hamburger-btn"
-              onClick={() => setIsSidebarOpen(open => !open)}
-              aria-label="Toggle menu"
-              style={{ marginRight: '8px' }}
-            >
-              ☰
-            </button>
-          )}
-          <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
-            {formatDate(new Date())}
-          </div>
-          <div className="user-info">
-            <div className="user-avatar">{currentUser?.userName?.charAt(0)?.toUpperCase() || 'U'}</div>
-            <div>
-              <div style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--color-text)' }}>
-                {currentUser?.userName || 'User'}
-              </div>
-              <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
-                {currentUser?.roleName || 'Inspector'}
-              </div>
+        <div className="header-right" style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ 
+              width: '38px', height: '38px', 
+              borderRadius: '50%', 
+              background: '#0f172a', 
+              color: 'white', 
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '15px', fontWeight: '600',
+              boxShadow: '0 2px 4px rgba(15, 23, 42, 0.1)'
+            }}>
+              {currentUser?.userName?.charAt(0)?.toUpperCase() || 'U'}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <span style={{ fontSize: '14px', fontWeight: '600', color: '#0f172a', lineHeight: '1.2', letterSpacing: '0.2px' }}>
+                {currentUser?.userName || 'Nitin Rajput'}
+              </span>
+              <span style={{ fontSize: '12px', color: '#64748b', marginTop: '3px', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>{currentUser?.roleName || 'ERC Main IE'}</span>
+                <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#cbd5e1' }}></span>
+                <span style={{ color: '#475569' }}>ID: {currentUser?.employeeCode || currentUser?.employeeId || currentUser?.userId || '12191'}</span>
+              </span>
             </div>
           </div>
-          <button className="btn btn-sm btn-outline" onClick={handleLogout}>Logout</button>
+          
+          <div style={{ width: '1px', height: '32px', background: '#e2e8f0' }} />
+          
+          <button 
+            onClick={handleLogout}
+            style={{ 
+              display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '8px 16px', background: '#ffffff', border: '1px solid #cbd5e1', 
+              borderRadius: '6px', color: '#334155', fontSize: '13px', fontWeight: '600', 
+              cursor: 'pointer', transition: 'all 0.2s ease',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.borderColor = '#94a3b8'; e.currentTarget.style.color = '#0f172a'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.color = '#334155'; }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+            Logout
+          </button>
         </div>
       </header>
 

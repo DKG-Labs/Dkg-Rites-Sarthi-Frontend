@@ -12,9 +12,10 @@ import { performTransitionAction } from '../services/workflowService';
 
 
 
-const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage }) => {
+const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage, isLoaded }) => {
   const [showFilters, setShowFilters] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
+  const [globalSearchTerm, setGlobalSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Call Number');
   const [notification, setNotification] = useState({ show: false, message: '', type: '' });
   const [isLoadingCertificate, setIsLoadingCertificate] = useState(false);
@@ -42,9 +43,9 @@ const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage }) => {
   // Fetch completed calls from API on component mount only if parent didn't provide them.
   const hasFetchedRef = useRef(false);
   useEffect(() => {
-    // If parent already passed `calls` prop (from IELandingPage), use that and skip fetching.
-    if (Array.isArray(calls) && calls.length > 0) {
-      setCompletedCalls(calls);
+    // If parent already passed/loaded `calls` prop, use that and skip fetching.
+    if (isLoaded || (Array.isArray(calls) && calls.length > 0)) {
+      setCompletedCalls(calls || []);
       hasFetchedRef.current = true;
       return;
     }
@@ -81,7 +82,7 @@ const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage }) => {
 
     loadCompletedCalls();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [calls]);
+  }, [calls, isLoaded]);
 
   // Use completed calls from API instead of filtering from props
   const icCalls = completedCalls;
@@ -112,8 +113,17 @@ const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage }) => {
       result = result.filter(call => filters.callNumbers.includes(call.call_no));
     }
 
+    if (globalSearchTerm) {
+      const lowerSearch = globalSearchTerm.toLowerCase();
+      result = result.filter(call => 
+        (call.call_no && call.call_no.toLowerCase().includes(lowerSearch)) ||
+        (call.po_no && call.po_no.toLowerCase().includes(lowerSearch)) ||
+        (call.vendor_name && call.vendor_name.toLowerCase().includes(lowerSearch))
+      );
+    }
+
     return result;
-  }, [icCalls, filters]);
+  }, [icCalls, filters, globalSearchTerm]);
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
@@ -344,33 +354,7 @@ const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage }) => {
 
   return (
     <div style={{ padding: 'var(--space-20) 0' }}>
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 'var(--space-24)',
-        flexWrap: 'wrap',
-        gap: 'var(--space-20)'
-      }}>
-        <div style={{ flex: '1', minWidth: '300px' }}>
-          <h2 style={{
-            fontSize: 'var(--font-size-3xl)',
-            fontWeight: '700',
-            marginBottom: 'var(--space-4)',
-            color: 'var(--color-text)'
-          }}>
-            Issuance of IC & Annexures
-          </h2>
-          <p style={{
-            color: 'var(--color-text-secondary)',
-            fontSize: 'var(--font-size-base)',
-            margin: 0,
-            maxWidth: '600px'
-          }}>
-            Manage inspection certificates and track technical annexures for completed calls in one place.
-          </p>
-        </div>
-      </div>
+
 
       {/* Loading State */}
       {isLoadingCalls && (
@@ -405,6 +389,8 @@ const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage }) => {
             handleFilterChange={handleFilterChange}
             handleMultiSelectToggle={handleMultiSelectToggle}
             summaryLabel="IC-ready calls"
+            globalSearchTerm={globalSearchTerm}
+            setGlobalSearchTerm={setGlobalSearchTerm}
           />
           {/* Certificate Generation Notification */}
           {notification.show && (
@@ -423,6 +409,7 @@ const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage }) => {
             actions={actions}
             initialPageSize={10}
             hidePageSize={true}
+            hideSearch={true}
           />
         </>
       )}

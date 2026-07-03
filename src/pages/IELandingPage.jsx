@@ -17,8 +17,11 @@ import { markAsScheduled, isCallInitiated, getCallStatusData } from '../services
 import { fetchCompletedCallsForIC, fetchSignedCallsForIC, getCurrentUserId } from '../services/workflowApiService';
 // import { fetchRawMaterialCallsByStatus } from '../services/rawMaterial/rawMaterialApiService';
 import ProcessDefectSummaryCard from '../components/ProcessDefectSummaryCard';
+import { useInspection } from '../context/InspectionContext';
 
 const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelectedCall, setContextSelectedCalls, setCurrentPage, initialTab = 'pending', setInspectionShift, setInspectionDate, setProcessShift }) => {
+  const { completedCallsCache, setCompletedCallsCache } = useInspection();
+
   // Restore active tab from sessionStorage on page load, fallback to initialTab
   const [activeTab, setActiveTab] = useState(() => {
     const savedTab = sessionStorage.getItem('ie_landing_active_tab');
@@ -95,19 +98,24 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
       if (!userId) {
         // console.warn('⚠️ User ID not found, cannot fetch completed calls');
         setCompletedCalls([]);
+        setCompletedCallsCache([]);
         return;
       }
 
       const calls = await fetchCompletedCallsForIC(userId);
       if (calls && calls.error) {
         setCompletedCalls([]);
+        setCompletedCallsCache([]);
       } else {
-        setCompletedCalls(calls || []);
+        const fetched = calls || [];
+        setCompletedCalls(fetched);
+        setCompletedCallsCache(fetched);
       }
     } catch (error) {
       setCompletedCalls([]);
+      setCompletedCallsCache([]);
     }
-  }, []);
+  }, [setCompletedCallsCache]);
 
   // Only fetch pending data on mount. Fetch completed calls only when the
   // 'Issuance of IC' tab becomes active, and only once per session.
@@ -139,14 +147,17 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
   }, [activeTab, fetchPendingData]);
 
   useEffect(() => {
-    if (activeTab === 'certificates' && !hasFetchedCompletedRef.current) {
-      // Fetch completed calls only when user opens Issuance tab
-      fetchCompletedCalls();
-      hasFetchedCompletedRef.current = true;
+    if (activeTab === 'certificates') {
+      if (completedCallsCache !== null) {
+        setCompletedCalls(completedCallsCache);
+        hasFetchedCompletedRef.current = true;
+      } else if (!hasFetchedCompletedRef.current) {
+        // Fetch completed calls only when user opens Issuance tab
+        fetchCompletedCalls();
+        hasFetchedCompletedRef.current = true;
+      }
     }
-    // We intentionally depend on activeTab only
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  }, [activeTab, completedCallsCache, fetchCompletedCalls]);
 
   // Fetch signed calls count silently on mount for the tab badge
   useEffect(() => {
@@ -167,7 +178,20 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
   // Use pending calls directly from API (includes Raw Material, Process, and Final)
   // No need to combine with mock data anymore
   const combinedPendingCalls = useMemo(() => {
-    return pendingCalls;
+    // Sort pending calls by call_date in descending order (latest on top)
+    return [...pendingCalls].sort((a, b) => {
+      const parseDate = (d) => {
+        if (!d) return 0;
+        if (/^\d{2}[-/]\d{2}[-/]\d{4}/.test(d)) {
+          const parts = d.split(/[-/]/);
+          const val = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).getTime();
+          return isNaN(val) ? 0 : val;
+        }
+        const val = new Date(d).getTime();
+        return isNaN(val) ? 0 : val;
+      };
+      return parseDate(b.call_date) - parseDate(a.call_date);
+    });
   }, [pendingCalls]);
 
   // Azure API data for pending tab and IC issuance; mock data for other tabs (billing, etc.)
@@ -912,7 +936,7 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
         <div className="breadcrumb-item breadcrumb-active">Landing Page</div>
       </div> */}
 
-      <h1 style={{ marginBottom: 'var(--space-24)' }}>IE Dashboard</h1>
+
 
       <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
@@ -942,6 +966,7 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
           calls={completedCalls}
           setSelectedCall={setSelectedCall}
           setCurrentPage={setCurrentPage}
+          isLoaded={completedCallsCache !== null}
         />
       )}
 

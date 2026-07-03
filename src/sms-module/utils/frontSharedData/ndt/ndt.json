@@ -1,0 +1,180 @@
+{
+    "ndtGeneralInfo": {
+        "date": "01/01/2024",
+        "shift": "A",
+        "railGrade": "R260",
+        "mill": "URM",
+        "ndt": "NDT 2",
+        "railSec": "60E1"
+    },
+    "checkBoxItems": [
+        { "key": 1,
+          "value": "UT"
+        },
+        { "key": 2,
+          "value": "ECT"
+        },
+        { "key": 3,
+          "value": "FMG"
+        },
+        { "key": 4,
+          "value": "OSIRIS"
+        }
+    ],
+    "ndtRailWiseData": [
+      {
+        "key": "1",
+        "serialNumber": "1",
+        "railID": "076227",
+        "heatNumber": "112424",
+        "dateTime": "03/06/2024",
+        "surfaceDefect": "",
+        "dimensionDefect": "",
+        "utDefect": "",
+        "ndtReport": "link"
+      },
+      {
+        "key": "2",
+        "serialNumber": "2",
+        "railID": "076227",
+        "heatNumber": "112424",
+        "dateTime": "03/06/2024",
+        "surfaceDefect": "",
+        "dimensionDefect": "",
+        "utDefect": "",
+        "ndtReport": ""
+      },
+      {
+        "key": "3",
+        "serialNumber": "3",
+        "railID": "076227",
+        "heatNumber": "112424",
+        "dateTime": "03/06/2024",
+        "surfaceDefect": "",
+        "dimensionDefect": "",
+        "utDefect": "",
+        "ndtReport": ""
+      },
+      {
+        "key": "4",
+        "serialNumber": "4",
+        "railID": "076227",
+        "heatNumber": "112424",
+        "dateTime": "03/06/2024",
+        "surfaceDefect": "",
+        "dimensionDefect": "",
+        "utDefect": "",
+        "ndtReport": ""
+      },
+      {
+        "key": "5",
+        "serialNumber": "5",
+        "railID": "076227",
+        "heatNumber": "112424",
+        "dateTime": "03/06/2024",
+        "surfaceDefect": "",
+        "dimensionDefect": "",
+        "utDefect": "",
+        "ndtReport": ""
+      },
+      {
+        "key": "6",
+        "serialNumber": "6",
+        "railID": "076227",
+        "heatNumber": "112424",
+        "dateTime": "03/06/2024",
+        "surfaceDefect": "",
+        "dimensionDefect": "",
+        "utDefect": "",
+        "ndtReport": ""
+      },
+      {
+        "key": "7",
+        "serialNumber": "7",
+        "railID": "076227",
+        "heatNumber": "112424",
+        "dateTime": "03/06/2024",
+        "surfaceDefect": "",
+        "dimensionDefect": "",
+        "utDefect": "",
+        "ndtReport": ""
+      },
+      {
+        "key": "8",
+        "serialNumber": "8",
+        "railID": "076227",
+        "heatNumber": "112424",
+        "dateTime": "03/06/2024",
+        "surfaceDefect": "",
+        "dimensionDefect": "",
+        "utDefect": "",
+        "ndtReport": ""
+      },
+      {
+        "key": "9",
+        "serialNumber": "9",
+        "railID": "076227",
+        "heatNumber": "112424",
+        "dateTime": "03/06/2024",
+        "surfaceDefect": "",
+        "dimensionDefect": "",
+        "utDefect": "",
+        "ndtReport": ""
+      },
+      {
+        "key": "10",
+        "serialNumber": "10",
+        "railID": "076227",
+        "heatNumber": "112424",
+        "dateTime": "03/06/2024",
+        "surfaceDefect": "",
+        "dimensionDefect": "",
+        "utDefect": "",
+        "ndtReport": ""
+      }
+    ],
+    "columns": [
+      {
+        "title": "S.No.",
+        "dataIndex": "serialNumber",
+        "key": "serialNumber",
+        "fixed": "left"
+      },
+      {
+        "title": "Rail ID",
+        "dataIndex": "railID",
+        "key": "railID",
+        "fixed": "left"
+      },
+      {
+        "title": "Heat No.",
+        "dataIndex": "heatNumber",
+        "key": "heatNumber"
+      },
+      {
+        "title": "Date & Time",
+        "dataIndex": "dateTime",
+        "key": "dateTime"
+      },
+      {
+        "title": "Surface Defect",
+        "dataIndex": "surfaceDefect",
+        "key": "surfaceDefect"
+      },
+      {
+        "title": "Dimensional Defect",
+        "dataIndex": "dimensionDefect",
+        "key": "dimensionDefect"
+      },
+      {
+        "title": "UT Defect",
+        "dataIndex": "utDefect",
+        "key": "utDefect"
+      },
+      {
+        "title": "NDT Report",
+        "dataIndex": "ndtReport",
+        "key": "ndtReport"
+      }
+    ]
+}

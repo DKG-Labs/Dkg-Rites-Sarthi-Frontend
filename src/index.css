@@ -191,8 +191,8 @@
   /* Primitive Color Tokens */
   --color-white: rgba(255, 255, 255, 1);
   --color-black: rgba(0, 0, 0, 1);
-  --color-cream-50: rgba(252, 252, 249, 1);
-  --color-cream-100: rgba(255, 255, 253, 1);
+  --color-cream-50: rgba(255, 255, 255, 1);
+  --color-cream-100: rgba(255, 255, 255, 1);
   --color-gray-200: rgba(245, 245, 245, 1);
   --color-gray-300: rgba(167, 169, 169, 1);
   --color-gray-400: rgba(119, 124, 124, 1);
@@ -241,8 +241,8 @@
   /* Light cyan */
 
   /* Semantic Color Tokens (Light Mode) */
-  --color-background: var(--color-cream-50);
-  --color-surface: var(--color-cream-100);
+  --color-background: #ffffff;
+  --color-surface: #ffffff;
   --color-text: var(--color-slate-900);
   --color-text-secondary: var(--color-slate-500);
   --color-primary: var(--color-teal-500);
@@ -1421,6 +1421,7 @@ body {
     background: var(--color-charcoal-800);
   }
 }
+
 [data-color-scheme="dark"] .segmented-item.active {
   background: var(--color-charcoal-800);
 }
@@ -2512,7 +2513,7 @@ select.form-control {
   }
 }
 
-@keyframes slideUp {
+@keyframes modalSlideUpFade {
   from {
     opacity: 0;
     transform: translate(-50%, -45%);
@@ -2792,9 +2793,9 @@ input[type="number"] {
 /* Process Dashboard Mobile Enhancements */
 @media (max-width: 768px) {
 
-  /* Process form grid - stack vertically */
+  /* Process form grid - 2 columns on mobile */
   .process-form-grid {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: repeat(2, 1fr) !important;
     gap: 12px;
   }
 
@@ -2867,22 +2868,19 @@ input[type="number"] {
 }
 
 /* Breadcrumb mobile responsive */
-@media (max-width: 640px) {
+@media (max-width: 1024px) {
   .breadcrumb {
     font-size: var(--font-size-xs);
     overflow-x: auto;
     white-space: nowrap;
     -webkit-overflow-scrolling: touch;
     padding-bottom: var(--space-4);
+    flex-wrap: nowrap !important;
   }
 
   .breadcrumb::-webkit-scrollbar {
-    height: 4px;
-  }
-
-  .breadcrumb::-webkit-scrollbar-thumb {
-    background: var(--color-border);
-    border-radius: var(--radius-full);
+    display: none;
+    /* Hide scrollbar for native swipe feel */
   }
 }
 
@@ -3555,4 +3553,108 @@ input[type="number"] {
   font-weight: 500 !important;
   width: 100% !important;
   box-sizing: border-box !important;
+}
+
+/* Shared Dashboard Header Styling (Process / Raw Material) */
+.rm-header-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02), 0 1px 2px rgba(0, 0, 0, 0.04);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  border-left: 4px solid #0284c7;
+  /* Brand accent left border */
+}
+
+.rm-header-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rm-header-title-badge {
+  font-size: 15px;
+  color: #1e293b;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rm-header-title-badge strong {
+  background-color: #f0f9ff;
+  color: #0369a1;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid #e0f2fe;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+  font-size: 14px;
+}
+
+.rm-header-meta {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.rm-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.rm-meta-item .icon {
+  font-size: 16px;
+}
+
+.rm-meta-item .label {
+  font-weight: 500;
+  color: #94a3b8;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rm-meta-item .value {
+  font-weight: 600;
+  color: #334155;
+}
+
+/* Mobile responsive layout for header card */
+@media (max-width: 768px) {
+  .rm-header-card {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .rm-header-main {
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 12px;
+    width: 100%;
+  }
+
+  .rm-header-meta {
+    justify-content: space-between;
+    width: 100%;
+    gap: 12px;
+  }
+
+  .rm-meta-item {
+    flex: 1;
+    background: #f8fafc;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #f1f5f9;
+    justify-content: center;
+  }
 }

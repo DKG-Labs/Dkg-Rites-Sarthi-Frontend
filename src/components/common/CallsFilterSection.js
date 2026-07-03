@@ -137,7 +137,9 @@ const CallsFilterSection = ({
   clearAllFilters,
   handleFilterChange,
   handleMultiSelectToggle,
-  summaryLabel = 'results'
+  summaryLabel = 'results',
+  globalSearchTerm,
+  setGlobalSearchTerm
 }) => {
   const categories = ['Product Type', 'Vendor', 'Stage', 'Call Number', 'PO Number'];
   if (filters?.statuses) categories.push('Status');
@@ -357,79 +359,77 @@ const CallsFilterSection = ({
       )}
 
       <div style={{ marginBottom: '16px' }}>
-        <div className="pending-calls-filter-toggle" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 16px',
-              backgroundColor: showFilters ? '#f0fdf4' : 'white',
-              border: showFilters ? '1px solid #16a34a' : '1px solid #cbd5e1',
-              borderRadius: '6px',
-              color: showFilters ? '#16a34a' : '#334155',
-              fontSize: '13px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-              minHeight: '38px',
-              outline: 'none'
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = showFilters ? '#e8fbf0' : '#f8fafc';
-              e.currentTarget.style.borderColor = showFilters ? '#15803d' : '#94a3b8';
-              e.currentTarget.style.transform = 'translateY(-1px)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = showFilters ? '#f0fdf4' : 'white';
-              e.currentTarget.style.borderColor = showFilters ? '#16a34a' : '#cbd5e1';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-            onMouseDown={(e) => {
-              e.currentTarget.style.transform = 'translateY(0.5px)';
-            }}
-          >
-            <svg 
-              width="14" 
-              height="14" 
-              viewBox="0 0 24 24" 
-              fill="none" 
-              stroke="currentColor" 
-              strokeWidth="2.5" 
-              strokeLinecap="round" 
-              strokeLinejoin="round"
-              style={{
-                transition: 'transform 0.2s ease',
-                transform: showFilters ? 'rotate(180deg)' : 'none'
+        <div className="pending-calls-filter-toggle" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1 }}>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              style={{ 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: '8px', 
+                minHeight: '40px',
+                padding: '0 16px',
+                backgroundColor: showFilters ? '#3b5a82' : '#476b9b', // matching the blue color from screenshot
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: '500',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                transition: 'background-color 0.2s'
               }}
             >
-              {showFilters ? (
-                <path d="M18 15l-6-6-6 6" />
-              ) : (
-                <path d="M4 6h16M4 12h12M4 18h8" />
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+              </svg>
+              <span>Show Filters</span>
+              <span style={{ transform: showFilters ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s ease', fontSize: '12px' }}>▼</span>
+              {activeFilters.length > 0 && (
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: 'rgba(255, 255, 255, 0.25)',
+                  color: 'white',
+                  fontSize: '11px',
+                  fontWeight: '600',
+                  borderRadius: '10px',
+                  padding: '2px 6px',
+                  marginLeft: '4px'
+                }}>
+                  {activeFilters.length}
+                </span>
               )}
-            </svg>
-            <span>{showFilters ? 'Hide Advanced Filters' : 'Show Advanced Filters'}</span>
-            {activeFilters.length > 0 && (
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: '#16a34a',
-                color: 'white',
-                fontSize: '10px',
-                fontWeight: '700',
-                borderRadius: '50%',
-                width: '18px',
-                height: '18px',
-                marginLeft: '4px'
-              }}>
-                {activeFilters.length}
-              </span>
+            </button>
+
+            {/* Global Search Bar */}
+            {typeof setGlobalSearchTerm !== 'undefined' && (
+              <div style={{ position: 'relative', flex: 1, maxWidth: '400px' }}>
+                <input
+                  type="text"
+                  placeholder="Search by Call No., PO No., Vendor..."
+                  value={globalSearchTerm || ''}
+                  onChange={(e) => setGlobalSearchTerm(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 36px 10px 16px',
+                    borderRadius: '8px',
+                    border: '1px solid #e2e8f0',
+                    fontSize: '14px',
+                    background: '#fff',
+                    outline: 'none',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                  }}
+                />
+                <span style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                  </svg>
+                </span>
+              </div>
             )}
-          </button>
+          </div>
           <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '500' }}>
             Showing <strong style={{ color: '#334155' }}>{filteredCalls.length}</strong> of <strong style={{ color: '#334155' }}>{effectiveCalls.length}</strong> {summaryLabel}
           </div>
@@ -466,7 +466,7 @@ const CallsFilterSection = ({
             zIndex: 1000,
             display: 'flex',
             flexDirection: 'column',
-            animation: 'slideUp 0.3s ease-out'
+            animation: 'modalSlideUpFade 0.3s ease-out'
           }}>
             <div style={{
               padding: '16px 20px',

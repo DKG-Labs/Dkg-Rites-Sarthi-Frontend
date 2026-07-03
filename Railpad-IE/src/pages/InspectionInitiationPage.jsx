@@ -404,7 +404,7 @@ const InspectionInitiationPage = ({ call, onProceed, onBack, onUpdateCall }) => 
                     </div>
                     <div className="data-item">
                       <label>STAGE OF INSPECTION</label>
-                      <div className="value-mock">Final</div>
+                      <div className="value-mock">{call?.requestId?.startsWith('RPP-') ? 'Process' : 'Final'}</div>
                     </div>
                     <div className="data-item">
                       <label>Call Qty (Nos/Set/RMT)</label>

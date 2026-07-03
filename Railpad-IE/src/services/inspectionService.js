@@ -2,7 +2,14 @@ import { getBaseUrl, API_ENDPOINTS } from './apiConfig';
 
 export const fetchInspectionCallSummary = async (callNo) => {
   try {
-    const response = await fetch(`${getBaseUrl()}${API_ENDPOINTS.RAILPAD_INSPECTION_CALL.GET_SUMMARY}/${encodeURIComponent(callNo)}`);
+    let url = `${getBaseUrl()}${API_ENDPOINTS.RAILPAD_INSPECTION_CALL.GET_SUMMARY}/${encodeURIComponent(callNo)}`;
+    
+    // For Railpad Process calls, use the new process summary API
+    if (callNo && callNo.startsWith('RPP-')) {
+      url = `${getBaseUrl()}/rail-inspection-call/process/summary/${encodeURIComponent(callNo)}`;
+    }
+    
+    const response = await fetch(url);
     const data = await response.json();
     if (data.responseStatus?.statusCode === 0) {
       return data.responseData;

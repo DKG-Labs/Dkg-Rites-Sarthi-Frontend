@@ -11,6 +11,7 @@ import AnnexureLoader from './annexures/AnnexureLoader';
 const CompletedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
   const [showFilters, setShowFilters] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
+  const [globalSearchTerm, setGlobalSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Call Number');
   const [notificationMessage, setNotificationMessage] = useState('');
   const [notificationType, setNotificationType] = useState('error');
@@ -81,8 +82,17 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
       result = result.filter(call => filters.callNumbers.includes(call.call_no));
     }
 
+    if (globalSearchTerm) {
+      const lowerSearch = globalSearchTerm.toLowerCase();
+      result = result.filter(call => 
+        (call.call_no && call.call_no.toLowerCase().includes(lowerSearch)) ||
+        (call.po_no && call.po_no.toLowerCase().includes(lowerSearch)) ||
+        (call.vendor_name && call.vendor_name.toLowerCase().includes(lowerSearch))
+      );
+    }
+
     return result;
-  }, [completedCalls, filters]);
+  }, [completedCalls, filters, globalSearchTerm]);
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
@@ -197,6 +207,8 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
         handleFilterChange={handleFilterChange}
         handleMultiSelectToggle={handleMultiSelectToggle}
         summaryLabel="completed calls"
+        globalSearchTerm={globalSearchTerm}
+        setGlobalSearchTerm={setGlobalSearchTerm}
       />
 
       {/* Loading State */}
@@ -230,6 +242,7 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
           actions={actions}
           initialPageSize={10}
           hidePageSize={true}
+          hideSearch={true}
         />
       )}
     </div>

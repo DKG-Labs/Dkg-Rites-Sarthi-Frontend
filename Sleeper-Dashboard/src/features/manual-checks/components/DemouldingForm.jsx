@@ -56,7 +56,19 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
     const [benches, setBenches] = useState([]);
     const [sleeperTypes, setSleeperTypes] = useState([]);
     const [availableLocations, setAvailableLocations] = useState([]);
-    const [availableSleepers, setAvailableSleepers] = useState(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']);
+    const [availableSleepersByBench, setAvailableSleepersByBench] = useState({});
+    const [isBenchDropdownOpen, setIsBenchDropdownOpen] = useState(false);
+    const benchDropdownRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (benchDropdownRef.current && !benchDropdownRef.current.contains(event.target)) {
+                setIsBenchDropdownOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
     const vendorId = contextVendorId || localStorage.getItem('vendorId') || "134";
 
@@ -95,7 +107,7 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                 inspectionDate: formatFromBackendDatePart(initialData.inspectionDate || (initialData.dateTime ? initialData.dateTime.split('T')[0] : '') || initialData.date || ''),
                 inspectionTime: initialData.inspectionTime?.slice(0, 5) || "",
                 batch: initialData.batch || initialData.batchNo || '',
-                gangNo: initialData.gangNo || initialData.benchNo || '',
+                gangNo: (initialData.gangNo || initialData.benchNo || '').toString().split(',').map(s => s.trim()).filter(Boolean),
                 type: initialData.sleeperType || initialData.type || '',
                 casting: formatFromBackendDatePart(initialData.castingDate || initialData.casting || initialData.dateOfCasting),
                 process: initialData.processStatus || initialData.process || '',
@@ -195,11 +207,11 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                         const newBenches = response.responseData;
                         setBenches(newBenches);
 
-                        // Autofetch: If there's a bench, select the first one (ALWAYS on batch change)
+                        // Autofetch: If there's benches, select ALL of them by default on batch change
                         if (newBenches.length > 0) {
                             setFormData(prev => ({
                                 ...prev,
-                                gangNo: String(newBenches[0])
+                                gangNo: newBenches.map(String)
                             }));
                         }
                     }
@@ -225,10 +237,10 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
 
     // Fetch sleeper types when bench changes
     useEffect(() => {
-        if (formData.batch && formData.gangNo && !initialData) {
+        if (formData.batch && formData.gangNo && formData.gangNo.length > 0 && !initialData) {
             const fetchSleeperTypes = async () => {
                 try {
-                    const response = await apiService.getAllProductionSleeperTypes(formData.batch, formData.gangNo, formData.location);
+                    const response = await apiService.getAllProductionSleeperTypes(formData.batch, formData.gangNo[0], formData.location);
                     if (response?.responseData) {
                         const newTypes = response.responseData;
                         setSleeperTypes(newTypes);
@@ -246,45 +258,53 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                 }
             };
             fetchSleeperTypes();
-        } else if (!formData.gangNo) {
+        } else if (!formData.gangNo || formData.gangNo.length === 0) {
             setSleeperTypes([]);
         }
     }, [formData.batch, formData.gangNo, initialData]);
     
     // Fetch available sleepers when type changes
     useEffect(() => {
-        if (formData.batch && formData.gangNo && formData.type && !initialData) {
+        if (formData.batch && formData.gangNo && formData.gangNo.length > 0 && formData.type) {
             const fetchSleepers = async () => {
                 try {
-                    const response = await apiService.getAllProductionSleepers(
-                        formData.batch, 
-                        formData.gangNo, 
-                        formData.type, 
-                        formData.location
-                    );
-                    if (response?.responseData && response.responseData.length > 0) {
-                        setAvailableSleepers(response.responseData);
-                    } else {
-                        setAvailableSleepers(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']);
+                    const sleepersMap = { ...availableSleepersByBench };
+                    for (const bench of formData.gangNo) {
+                        const response = await apiService.getAllProductionSleepers(
+                            formData.batch, 
+                            bench, 
+                            formData.type, 
+                            formData.location
+                        );
+                        if (response?.responseData && response.responseData.length > 0) {
+                            sleepersMap[bench] = response.responseData;
+                        } else {
+                            sleepersMap[bench] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+                        }
                     }
+                    setAvailableSleepersByBench(sleepersMap);
                 } catch (error) {
                     console.error("Error fetching sleeper list:", error);
-                    setAvailableSleepers(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']);
+                    const defaultMap = {};
+                    formData.gangNo.forEach(b => defaultMap[b] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']);
+                    setAvailableSleepersByBench(defaultMap);
                 }
             };
             fetchSleepers();
+        } else if (!formData.gangNo || formData.gangNo.length === 0) {
+            setAvailableSleepersByBench({});
         }
-    }, [formData.batch, formData.gangNo, formData.type, formData.location, initialData]);
+    }, [formData.batch, formData.gangNo, formData.type, formData.location]);
 
     const handleChange = (field, value) => {
         setFormData(prev => {
             const newState = { ...prev, [field]: value };
 
             if (field === 'batch' || field === 'gangNo') {
-                setAvailableSleepers(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']);
+                setAvailableSleepersByBench({});
             }
             if (field === 'batch') {
-                newState.gangNo = '';
+                newState.gangNo = [];
                 newState.type = '';
             }
             if (field === 'gangNo') {
@@ -293,10 +313,11 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
 
             // Auto-update defective sleepers bench number if bench (gangNo) changes
             if (field === 'gangNo') {
+                const benchStr = Array.isArray(value) ? value.join(', ') : value;
                 newState.defectiveSleeperDetails = (newState.defectiveSleeperDetails || []).map(d => ({
                     ...d,
-                    benchNo: value,
-                    sleeperNo: (value && d.sequence) ? `${value}${d.sequence}` : d.sleeperNo
+                    benchNo: benchStr,
+                    sleeperNo: (benchStr && d.sequence) ? `${benchStr}${d.sequence}` : d.sleeperNo
                 }));
             }
 
@@ -305,19 +326,20 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
             const isAllRejectedDim = newState.dimCheck === 'All Rejected';
 
             if (isAllRejectedVisual || isAllRejectedDim) {
-                const ALL_SEQS = availableSleepers;
                 const currentDecls = [...newState.defectiveSleeperDetails];
-
-                ALL_SEQS.forEach(seq => {
-                    if (!currentDecls.find(d => d.sequence === seq || d.sleeperNo === seq)) {
-                        currentDecls.push({
-                            benchNo: newState.gangNo || '',
-                            sequence: seq,
-                            sleeperNo: seq,
-                            visualReason: '',
-                            dimReason: ''
-                        });
-                    }
+                (newState.gangNo || []).forEach(bench => {
+                    const seqs = availableSleepersByBench[bench] || ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+                    seqs.forEach(seq => {
+                        if (!currentDecls.find(d => d.benchNo === bench && (d.sequence === seq || d.sleeperNo === seq))) {
+                            currentDecls.push({
+                                benchNo: bench,
+                                sequence: seq,
+                                sleeperNo: seq,
+                                visualReason: '',
+                                dimReason: ''
+                            });
+                        }
+                    });
                 });
                 newState.defectiveSleeperDetails = currentDecls;
             } else if (newState.visualCheck === 'All OK' && newState.dimCheck === 'All OK') {
@@ -335,8 +357,9 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
 
     const handleSave = () => {
         const errors = [];
+        const gangNoStr = Array.isArray(formData.gangNo) ? formData.gangNo.join(', ') : (formData.gangNo || '');
         if (!formData.batch) errors.push('Batch No.');
-        if (!formData.gangNo) errors.push(`${fieldLabel} No.`);
+        if (!gangNoStr) errors.push(`${fieldLabel} No.`);
         if (!formData.type) errors.push('Sleeper Type');
         if (!formData.process) errors.push('Process Status');
         if (!formData.remarks) errors.push('Overall Remarks');
@@ -370,21 +393,21 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
         // Build defective sleepers payload:
         // - "All OK": auto-send all 8 positions with empty reasons (backend requires non-empty array)
         // - Non-OK: use manually selected sleepers with their reasons
-        const gangNo = formData.gangNo || '';
-        const allSleeperSeqs = availableSleepers;
-
         const mappedDefectiveSleepers = bothAllOk
-            ? allSleeperSeqs.map(seq => ({
-                benchGangNo: gangNo,
-                sequenceNo: seq,
-                sleeperNo: seq,
-                visualReason: "",
-                dimReason: ""
-            }))
+            ? (formData.gangNo || []).flatMap(bench => {
+                const seqs = availableSleepersByBench[bench] || ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+                return seqs.map(seq => ({
+                    benchGangNo: String(bench),
+                    sequenceNo: String(seq),
+                    sleeperNo: String(seq),
+                    visualReason: "",
+                    dimReason: ""
+                }));
+            })
             : formData.defectiveSleeperDetails.map(item => ({
-                benchGangNo: String(item.benchNo || gangNo || ""),
+                benchGangNo: String(item.benchNo || gangNoStr || ""),
                 sequenceNo: String(item.sequence || ""),
-                sleeperNo: String(item.sleeperNo || `${item.benchNo || gangNo}${item.sequence}` || ""),
+                sleeperNo: String(item.sleeperNo || `${item.benchNo || gangNoStr}${item.sequence}` || ""),
                 visualReason: formData.visualCheck !== 'All OK' ? String(item.visualReason || "") : "",
                 dimReason: formData.dimCheck !== 'All OK' ? String(item.dimReason || "") : ""
             }));
@@ -399,7 +422,7 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
             inspectionTime: formData.inspectionTime,
             castingDate: formatToBackendDate(formData.casting),
             batchNo: String(formData.batch || ''),
-            benchNo: String(formData.gangNo || ''),
+            benchNo: String(gangNoStr),
             sleeperType: formData.type || 'RT-1234',
             processStatus: formData.process || 'Satisfactory',
             visualCheck: formData.visualCheck || 'All OK',
@@ -426,16 +449,19 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
     };
 
     const addDefectiveSleeper = () => {
-        setFormData(prev => ({
-            ...prev,
-            defectiveSleeperDetails: [...prev.defectiveSleeperDetails, {
-                benchNo: prev.gangNo || '',
-                sequence: '',
-                sleeperNo: '',
-                visualReason: '',
-                dimReason: ''
-            }]
-        }));
+        setFormData(prev => {
+            const gangStr = Array.isArray(prev.gangNo) ? prev.gangNo.join(', ') : (prev.gangNo || '');
+            return {
+                ...prev,
+                defectiveSleeperDetails: [...prev.defectiveSleeperDetails, {
+                    benchNo: gangStr,
+                    sequence: '',
+                    sleeperNo: '',
+                    visualReason: '',
+                    dimReason: ''
+                }]
+            };
+        });
     };
 
     const updateDefectiveSleeper = (index, field, value) => {
@@ -533,19 +559,122 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                 </div>
 
                 <div className="form-field">
-                    <label htmlFor="dim-gang" style={{ fontSize: '11px', fontWeight: '700' }}>{fieldLabel} No. <span className="required">*</span></label>
-                    <select
-                        id="dim-gang"
-                        className="form-input-standard"
-                        value={formData.gangNo}
-                        onChange={e => handleChange('gangNo', e.target.value)}
-                        style={{ border: (showValidation && !formData.gangNo) ? '2px solid #ef4444' : '', background: (showValidation && !formData.gangNo) ? '#fef2f2' : '' }}
-                    >
-                        <option value="">-- Select Bench --</option>
-                        {benches.map((b, idx) => (
-                            <option key={idx} value={b}>{b}</option>
-                        ))}
-                    </select>
+                    <label style={{ fontSize: '11px', fontWeight: '700' }}>{fieldLabel} No. <span className="required">*</span></label>
+                    <div ref={benchDropdownRef} style={{ position: 'relative', width: '100%' }}>
+                        <div 
+                            className="form-input-standard"
+                            onClick={() => setIsBenchDropdownOpen(!isBenchDropdownOpen)}
+                            style={{ 
+                                cursor: 'pointer', 
+                                border: (showValidation && (!formData.gangNo || formData.gangNo.length === 0)) ? '2px solid #ef4444' : '', 
+                                background: (showValidation && (!formData.gangNo || formData.gangNo.length === 0)) ? '#fef2f2' : '#fff',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                minHeight: '38px',
+                                padding: '8px 12px',
+                                userSelect: 'none'
+                            }}
+                        >
+                            <span style={{ 
+                                color: (formData.gangNo && formData.gangNo.length > 0) ? '#1e293b' : '#64748b',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                fontSize: '13px'
+                            }}>
+                                {(formData.gangNo && formData.gangNo.length > 0) ? formData.gangNo.join(', ') : '-- Select Bench --'}
+                            </span>
+                            <span style={{ fontSize: '10px' }}>▼</span>
+                        </div>
+                        
+                        {isBenchDropdownOpen && (
+                            <div style={{
+                                position: 'absolute',
+                                top: '100%',
+                                left: 0,
+                                right: 0,
+                                background: '#fff',
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '8px',
+                                marginTop: '4px',
+                                maxHeight: '200px',
+                                overflowY: 'auto',
+                                zIndex: 50,
+                                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'
+                            }}>
+                                {benches.length === 0 ? (
+                                    <div style={{ padding: '8px 12px', color: '#64748b', fontSize: '12px' }}>No benches available</div>
+                                ) : (
+                                    <>
+                                        <div
+                                            onClick={() => {
+                                                const allSelected = formData.gangNo && formData.gangNo.length === benches.length;
+                                                if (allSelected) {
+                                                    handleChange('gangNo', []);
+                                                } else {
+                                                    handleChange('gangNo', benches.map(String));
+                                                }
+                                            }}
+                                            style={{
+                                                padding: '8px 12px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '8px',
+                                                cursor: 'pointer',
+                                                background: '#f8fafc',
+                                                borderBottom: '1px solid #cbd5e1'
+                                            }}
+                                        >
+                                            <input 
+                                                type="checkbox" 
+                                                checked={formData.gangNo && formData.gangNo.length === benches.length && benches.length > 0}
+                                                readOnly
+                                                style={{ margin: 0, cursor: 'pointer' }}
+                                            />
+                                            <span style={{ fontSize: '13px', color: '#1e293b', fontWeight: 'bold' }}>Select All</span>
+                                        </div>
+                                        {benches.map((b, idx) => {
+                                        const isChecked = formData.gangNo && formData.gangNo.includes(String(b));
+                                        return (
+                                            <div 
+                                                key={idx} 
+                                                onClick={() => {
+                                                    let newSelected = [...(formData.gangNo || [])];
+                                                    const valStr = String(b);
+                                                    if (newSelected.includes(valStr)) {
+                                                        newSelected = newSelected.filter(v => v !== valStr);
+                                                    } else {
+                                                        newSelected.push(valStr);
+                                                    }
+                                                    handleChange('gangNo', newSelected);
+                                                }}
+                                                style={{
+                                                    padding: '8px 12px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '8px',
+                                                    cursor: 'pointer',
+                                                    background: isChecked ? '#f0f9ff' : '#fff',
+                                                    borderBottom: idx < benches.length - 1 ? '1px solid #f1f5f9' : 'none'
+                                                }}
+                                            >
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={isChecked}
+                                                    readOnly
+                                                    style={{ margin: 0, cursor: 'pointer' }}
+                                                />
+                                                <span style={{ fontSize: '13px', color: '#1e293b' }}>{b}</span>
+                                            </div>
+                                        );
+                                    })
+                                    }
+                                    </>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 <div className="form-field">
@@ -612,7 +741,7 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ef4444' }}></div>
                             <h4 style={{ margin: 0, color: '#1e293b', fontSize: '15px', fontWeight: '800' }}>
-                                DEFECTIVE SLEEPERS — {fieldLabel.toUpperCase()} {formData.gangNo || '—'}
+                                DEFECTIVE SLEEPERS — {fieldLabel.toUpperCase()} {(formData.gangNo && formData.gangNo.length > 0) ? formData.gangNo.join(', ') : '—'}
                             </h4>
                         </div>
                         <div style={{ fontSize: '11px', color: '#ef4444', fontStyle: 'italic', fontWeight: '700', background: '#fef2f2', padding: '4px 10px', borderRadius: '6px', border: '1px solid #fecaca' }}>
@@ -623,76 +752,82 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                     </div>
 
                     {/* The Grid Tooltips/Chips */}
-                    <div style={{
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        gap: '10px',
-                        padding: '16px',
-                        background: '#f8fafc',
-                        borderRadius: '12px',
-                        border: '1px dashed #cbd5e1',
-                        marginBottom: '20px'
-                    }}>
-                        {availableSleepers.map(seq => {
-                            // Check if this sleeper is currently marked as defective
-                            const isDefective = formData.defectiveSleeperDetails.some(d => d.sequence === seq || d.sleeperNo === seq);
+                    {(formData.gangNo || []).map(bench => (
+                        <div key={bench} style={{ marginBottom: '24px' }}>
+                            <div style={{ fontSize: '13px', fontWeight: '800', marginBottom: '10px', color: '#334155', textTransform: 'uppercase' }}>
+                                {fieldLabel} {bench}
+                            </div>
+                            <div style={{
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                                gap: '10px',
+                                padding: '16px',
+                                background: '#f8fafc',
+                                borderRadius: '12px',
+                                border: '1px dashed #cbd5e1',
+                            }}>
+                                {(availableSleepersByBench[bench] || ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']).map(seq => {
+                                    // Check if this sleeper is currently marked as defective for this bench
+                                    const isDefective = formData.defectiveSleeperDetails.some(d => String(d.benchNo) === String(bench) && (d.sequence === seq || d.sleeperNo === seq));
 
-                            // Check if rejection is forced by "All Rejected" status
-                            const isAllRejectedVisual = formData.visualCheck === 'All Rejected';
-                            const isAllRejectedDim = formData.dimCheck === 'All Rejected';
-                            const isForced = isAllRejectedVisual || isAllRejectedDim;
+                                    // Check if rejection is forced by "All Rejected" status
+                                    const isAllRejectedVisual = formData.visualCheck === 'All Rejected';
+                                    const isAllRejectedDim = formData.dimCheck === 'All Rejected';
+                                    const isForced = isAllRejectedVisual || isAllRejectedDim;
 
-                            const handleClick = () => {
-                                if (isForced) return; // Cannot toggle if forced by "All Rejected"
+                                    const handleClick = () => {
+                                        if (isForced) return; // Cannot toggle if forced by "All Rejected"
 
-                                setFormData(prev => {
-                                    const exists = prev.defectiveSleeperDetails.some(d => d.sequence === seq);
-                                    let updated;
-                                    if (exists) {
-                                        updated = prev.defectiveSleeperDetails.filter(d => d.sequence !== seq && d.sleeperNo !== seq);
-                                    } else {
-                                        updated = [...prev.defectiveSleeperDetails, {
-                                            benchNo: prev.gangNo || '',
-                                            sequence: seq,
-                                            sleeperNo: seq,
-                                            visualReason: '',
-                                            dimReason: ''
-                                        }];
-                                    }
-                                    return { ...prev, defectiveSleeperDetails: updated };
-                                });
-                            };
+                                        setFormData(prev => {
+                                            const exists = prev.defectiveSleeperDetails.some(d => String(d.benchNo) === String(bench) && (d.sequence === seq || d.sleeperNo === seq));
+                                            let updated;
+                                            if (exists) {
+                                                updated = prev.defectiveSleeperDetails.filter(d => !(String(d.benchNo) === String(bench) && (d.sequence === seq || d.sleeperNo === seq)));
+                                            } else {
+                                                updated = [...prev.defectiveSleeperDetails, {
+                                                    benchNo: bench,
+                                                    sequence: seq,
+                                                    sleeperNo: seq,
+                                                    visualReason: '',
+                                                    dimReason: ''
+                                                }];
+                                            }
+                                            return { ...prev, defectiveSleeperDetails: updated };
+                                        });
+                                    };
 
-                            return (
-                                <div
-                                    key={seq}
-                                    onClick={handleClick}
-                                    style={{
-                                        minWidth: '56px',
-                                        height: '44px',
-                                        padding: '0 10px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        borderRadius: '8px',
-                                        fontSize: '14px',
-                                        fontWeight: '800',
-                                        cursor: isForced ? 'not-allowed' : 'pointer',
-                                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                                        background: (isDefective || isForced) ? '#fee2e2' : '#fff',
-                                        color: (isDefective || isForced) ? '#b91c1c' : '#64748b',
-                                        borderWidth: '2px',
-                                        borderStyle: 'solid',
-                                        borderColor: (isDefective || isForced) ? '#ef4444' : '#e2e8f0',
-                                        boxShadow: (isDefective || isForced) ? '0 4px 12px rgba(239, 68, 68, 0.2)' : 'none',
-                                        transform: (isDefective || isForced) ? 'scale(1.05)' : 'scale(1)'
-                                    }}
-                                >
-                                    {seq}
-                                </div>
-                            );
-                        })}
-                    </div>
+                                    return (
+                                        <div
+                                            key={seq}
+                                            onClick={handleClick}
+                                            style={{
+                                                minWidth: '56px',
+                                                height: '44px',
+                                                padding: '0 10px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                borderRadius: '8px',
+                                                fontSize: '14px',
+                                                fontWeight: '800',
+                                                cursor: isForced ? 'not-allowed' : 'pointer',
+                                                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                background: (isDefective || isForced) ? '#fee2e2' : '#fff',
+                                                color: (isDefective || isForced) ? '#b91c1c' : '#64748b',
+                                                borderWidth: '2px',
+                                                borderStyle: 'solid',
+                                                borderColor: (isDefective || isForced) ? '#ef4444' : '#e2e8f0',
+                                                boxShadow: (isDefective || isForced) ? '0 4px 12px rgba(239, 68, 68, 0.2)' : 'none',
+                                                transform: (isDefective || isForced) ? 'scale(1.05)' : 'scale(1)'
+                                            }}
+                                        >
+                                            {seq}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    ))}
 
                     {/* Defect Reasons Table */}
                     {formData.defectiveSleeperDetails.length > 0 && (
@@ -716,7 +851,7 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                                     {formData.defectiveSleeperDetails.map((item, idx) => (
                                         <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
                                             <td style={{ padding: '12px', fontWeight: '800', color: '#1e293b' }}>
-                                                {item.sleeperNo || `${item.benchNo}${item.sequence}`}
+                                                {item.benchNo ? `${fieldLabel} ${item.benchNo} - ` : ''}{item.sleeperNo || `${item.benchNo}${item.sequence}`}
                                             </td>
 
                                             {(formData.visualCheck !== 'All OK' && !(formData.visualCheck === 'Partially OK' && formData.dimCheck === 'All Rejected')) && (

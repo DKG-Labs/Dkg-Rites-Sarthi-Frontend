@@ -8,7 +8,7 @@ import { fetchPendingWorkflowTransitions, performTransitionAction, fetchLatestWo
 import { getStoredUser } from '../services/authService';
 import { cleanVendorName } from '../services/poDataService';
 import { processVendorName } from '../utils/vendorMapper';
-import { getQuantitySummary, getPoSerialNumberByCallId, getManufacturedQtyOfPo, finishProcessInspection, pauseProcessInspection, getAcceptedQuantitySum } from '../services/processMaterialService';
+import { getQuantitySummary, getPoSerialNumberByCallId, getManufacturedQtyOfPo, finishProcessInspection, pauseProcessInspection, getAcceptedQuantitySum, getProcessInspectionByCallNo } from '../services/processMaterialService';
 import InspectionInitiationFormContent from '../components/InspectionInitiationFormContent';
 import Notification from '../components/Notification';
 import { resetSessionControl } from '../utils/inspectionSessionControl';
@@ -21,6 +21,7 @@ import Modal from '../components/Modal';
 import { scheduleInspection, rescheduleInspection, getScheduleByCallNo, validateScheduleLimit, MAX_CALLS_PER_DAY } from '../services/scheduleService';
 import { clearWorkflowCache } from '../services/workflowService';
 import { checkTolerance } from '../utils/toleranceValidation';
+import ImageCaptureComponent from '../components/ImageCaptureComponent';
 
 // Reason options for withheld/cancel call
 const WITHHELD_REASONS = [
@@ -383,7 +384,9 @@ const staticDataStyles = `
       display: none;
     }
     .process-dashboard .final-inspection-table tbody tr {
-      display: block;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
       margin-bottom: 16px;
       border: 1px solid #e2e8f0;
       border-radius: 8px;
@@ -396,10 +399,12 @@ const staticDataStyles = `
     }
     .process-dashboard .final-inspection-table tbody td {
       display: flex;
-      justify-content: space-between;
-      padding: 8px 0;
+      flex-direction: column;
+      align-items: flex-start;
+      padding: 4px 0;
       border: none;
-      border-bottom: 1px solid #f1f5f9;
+      border-bottom: none;
+      justify-content: flex-start;
     }
     .process-dashboard .final-inspection-table tbody td:last-child {
       border-bottom: none;
@@ -408,7 +413,13 @@ const staticDataStyles = `
       content: attr(data-label);
       font-weight: 600;
       color: #64748b;
-      margin-right: 12px;
+      margin-bottom: 4px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      min-height: 28px;
+      align-items: flex-end;
     }
     .process-dashboard .final-inspection-table tbody tr.total-row td::before {
       color: rgba(255,255,255,0.8);
@@ -512,7 +523,9 @@ const staticDataStyles = `
   }
 
   .heat-wise-accoutnal-table tbody tr {
-    display: block;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
     margin-bottom: 16px;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
@@ -522,10 +535,11 @@ const staticDataStyles = `
 
   .heat-wise-accoutnal-table tbody td {
     display: flex;
-    justify-content: space-between;
-    padding: 8px 0;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 4px 0;
     border: none;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: none;
   }
 
   .heat-wise-accoutnal-table tbody td:last-child {
@@ -536,8 +550,13 @@ const staticDataStyles = `
     content: attr(data-label);
     font-weight: 600;
     color: #64748b;
-    margin-right: 12px;
-    min-width: 120px;
+    margin-bottom: 4px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    min-height: 28px;
+    align-items: flex-end;
   }
 
   @media (min-width: 769px) {
@@ -648,7 +667,7 @@ const staticDataStyles = `
     width: 100%;
   }
 
-  /* Mobile: Ensure full width on small screens */
+  /* Mobile: Ensure full width on small screens and 2-column layout */
   @media (max-width: 768px) {
     .production-lines-card {
       margin-left: calc(-1 * var(--space-16, 16px));
@@ -660,6 +679,60 @@ const staticDataStyles = `
     .production-lines-table-wrapper {
       margin: 0;
       padding: 0;
+    }
+
+    .production-lines-table tbody tr {
+      display: grid !important;
+      grid-template-columns: repeat(2, 1fr) !important;
+      gap: 12px !important;
+      padding: 12px !important;
+    }
+
+    .production-lines-table tbody td {
+      display: flex !important;
+      flex-direction: column !important;
+      padding: 4px 0 !important;
+      border-bottom: none !important;
+    }
+
+    .production-lines-table tbody td::before {
+      display: flex !important;
+      min-height: 32px !important;
+      align-items: flex-end !important;
+      margin-bottom: 6px !important;
+      font-size: 11px !important;
+    }
+
+    .production-lines-table tbody td input,
+    .production-lines-table tbody td select {
+      width: 100% !important;
+      min-width: 0 !important;
+    }
+
+    .production-lines-table tbody td button {
+      width: 100% !important;
+      padding: 8px 12px !important;
+      border: 1px solid #dc2626 !important;
+      background-color: #fff !important;
+      color: #dc2626 !important;
+      border-radius: 6px !important;
+      font-weight: 500 !important;
+      display: inline-flex !important;
+      justify-content: center !important;
+      align-items: center !important;
+      cursor: pointer !important;
+      box-shadow: 0 1px 2px rgba(220, 38, 38, 0.05) !important;
+      transition: all 0.2s ease !important;
+    }
+
+    .production-lines-table tbody td button:hover {
+      background-color: #fef2f2 !important;
+      border-color: #b91c1c !important;
+      color: #b91c1c !important;
+    }
+
+    .production-lines-table tbody td button:active {
+      transform: scale(0.98) !important;
     }
   }
 
@@ -707,6 +780,232 @@ const staticDataStyles = `
       width: auto;
     }
   }
+
+  /* Scoped Premium Styling for Process Dashboard Header & Breadcrumbs */
+  .process-dashboard .breadcrumb {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    margin-bottom: var(--space-20) !important;
+    font-size: 13.5px !important;
+    color: #64748b !important;
+    font-weight: 500 !important;
+  }
+
+  .process-dashboard .breadcrumb-item {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    color: #64748b !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    cursor: pointer !important;
+    font-size: 13.5px !important;
+    font-weight: 500 !important;
+    box-shadow: none !important;
+    transform: none !important;
+    transition: color 0.2s ease !important;
+  }
+
+  .process-dashboard .breadcrumb-item:hover {
+    color: #0ea5e9 !important;
+    background: transparent !important;
+    text-decoration: none !important;
+  }
+
+  .process-dashboard .breadcrumb-separator {
+    color: #cbd5e1 !important;
+    font-weight: 400 !important;
+  }
+
+  .process-dashboard .breadcrumb-active {
+    color: #1e293b !important;
+    font-weight: 600 !important;
+  }
+
+  .process-dashboard .rm-header-card {
+    background: #ffffff !important;
+    border: 1px solid rgba(226, 232, 240, 0.8) !important;
+    border-radius: 16px !important;
+    padding: 18px 24px !important;
+    margin-bottom: 24px !important;
+    box-shadow: 
+      0 10px 25px -5px rgba(0, 0, 0, 0.03), 
+      0 8px 10px -6px rgba(0, 0, 0, 0.03),
+      inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+    gap: 16px !important;
+    position: relative !important;
+    overflow: hidden !important;
+    transition: all 0.3s ease !important;
+    border-left: none !important;
+  }
+
+  .process-dashboard .rm-header-card::before {
+    content: '' !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    height: 100% !important;
+    width: 5px !important;
+    background: linear-gradient(to bottom, #0284c7, #0ea5e9) !important;
+  }
+
+  .process-dashboard .rm-header-main {
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+  }
+
+  .process-dashboard .rm-header-title-badge {
+    font-size: 15px !important;
+    color: #1e293b !important;
+    font-weight: 600 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+
+  .process-dashboard .rm-header-title-badge strong {
+    background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%) !important;
+    color: #0369a1 !important;
+    padding: 5px 12px !important;
+    border-radius: 8px !important;
+    border: 1px solid #bae6fd !important;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace !important;
+    font-size: 14.5px !important;
+    letter-spacing: 0.25px !important;
+    box-shadow: 0 1px 2px rgba(3, 105, 161, 0.05) !important;
+  }
+
+  .process-dashboard .rm-header-meta {
+    display: flex !important;
+    align-items: center !important;
+    gap: 16px !important;
+  }
+
+  .process-dashboard .rm-meta-item {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    font-size: 13.5px !important;
+    color: #475569 !important;
+    background: #f8fafc !important;
+    border: 1px solid #f1f5f9 !important;
+    padding: 8px 16px !important;
+    border-radius: 10px !important;
+    transition: all 0.2s ease !important;
+    box-shadow: none !important;
+  }
+
+  .process-dashboard .rm-meta-item:hover {
+    background: #f1f5f9 !important;
+    border-color: #e2e8f0 !important;
+  }
+
+  .process-dashboard .rm-meta-item .icon {
+    font-size: 18px !important;
+  }
+
+  .process-dashboard .rm-meta-item .label {
+    font-weight: 700 !important;
+    color: #94a3b8 !important;
+    font-size: 10px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.8px !important;
+  }
+
+  .process-dashboard .rm-meta-item .value {
+    font-weight: 700 !important;
+    color: #1e293b !important;
+  }
+  /* Desktop Layout for Actions */
+  .process-actions-wrapper {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    width: 100% !important;
+    margin-top: 24px !important;
+  }
+
+  .process-actions-right {
+    display: flex !important;
+    gap: 16px !important;
+    align-items: center !important;
+  }
+
+  /* Mobile Layout for Actions */
+  @media (max-width: 768px) {
+    .process-actions-wrapper {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 12px !important;
+      margin-top: 20px !important;
+      width: 100% !important;
+    }
+
+    .process-actions-right {
+      display: grid !important;
+      grid-template-columns: repeat(2, 1fr) !important;
+      gap: 12px !important;
+      width: 100% !important;
+      order: 1 !important;
+    }
+
+    /* Save Draft and Shift Completed side-by-side */
+    .process-actions-right button:nth-child(1),
+    .process-actions-right button:nth-child(2) {
+      grid-column: span 1 !important;
+      width: 100% !important;
+      margin: 0 !important;
+      min-height: 44px !important;
+    }
+
+    /* Finish Inspection button occupies full width (span 2) */
+    .process-actions-right .process-btn-finish {
+      grid-column: span 2 !important;
+      width: 100% !important;
+      margin: 0 !important;
+      min-height: 48px !important;
+      font-size: 15px !important;
+    }
+
+    /* Return button occupies full width at the bottom */
+    .process-btn-return {
+      order: 2 !important;
+      width: 100% !important;
+      min-height: 48px !important;
+      font-size: 15px !important;
+      display: inline-flex !important;
+      justify-content: center !important;
+      align-items: center !important;
+      margin-top: 12px !important;
+    }
+
+    /* Make outline buttons look clean and professional on mobile */
+    .process-actions-right .btn-outline {
+      background-color: #fff !important;
+      border: 1px solid #cbd5e1 !important;
+      color: #334155 !important;
+      border-radius: 8px !important;
+      font-weight: 500 !important;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+      display: inline-flex !important;
+      justify-content: center !important;
+      align-items: center !important;
+      min-height: 44px !important;
+    }
+
+    .process-actions-right .btn-outline:hover {
+      background-color: #f8fafc !important;
+      border-color: #94a3b8 !important;
+    }
+  }
 `;
 
 const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines: initialProductionLines = [], availableCalls = [], shift = 'A' }) => {
@@ -739,6 +1038,17 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
 
   // State for production lines section
   const [productionLinesExpanded, setProductionLinesExpanded] = useState(true);
+
+  // Captured Images state
+  const [capturedImages, setCapturedImages] = useState(() => {
+    try {
+      const callNoForScoping = call?.call_no;
+      if (!callNoForScoping) return [];
+      const storageKey = `${DASHBOARD_DRAFT_KEY}${callNoForScoping}_${shift}`;
+      const savedDraft = localStorage.getItem(storageKey);
+      return savedDraft ? (JSON.parse(savedDraft).capturedImages || []) : [];
+    } catch { return []; }
+  });
 
   // State for editable production lines - persisted in sessionStorage - scoped to call number
   const [localProductionLines, setLocalProductionLines] = useState(() => {
@@ -2111,6 +2421,24 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
 
         // Mark as fetched to prevent duplicate calls
         hasFetchedRef.current = true;
+
+        // Fetch paused inspection data from backend to restore images and draft info
+        try {
+          const pausedData = await getProcessInspectionByCallNo(callNo);
+          if (pausedData && pausedData.capturedImages && pausedData.capturedImages.length > 0) {
+            console.log('✅ [Process Dashboard] Restoring captured images from backend:', pausedData.capturedImages.length);
+            const storageKey = `${DASHBOARD_DRAFT_KEY}${callNo}_${shift}`;
+            const existingRaw = localStorage.getItem(storageKey);
+            const existingData = existingRaw ? JSON.parse(existingRaw) : {};
+            if (!existingData.capturedImages || existingData.capturedImages.length === 0) {
+              existingData.capturedImages = pausedData.capturedImages;
+              localStorage.setItem(storageKey, JSON.stringify(existingData));
+              setCapturedImages(pausedData.capturedImages);
+            }
+          }
+        } catch (err) {
+          console.log('⚠️ [Process Dashboard] No paused inspection data found in backend:', err.message);
+        }
       } catch (error) {
         console.error('⚠️ [Process Dashboard] Error fetching inspection data:', error.message);
       } finally {
@@ -2120,7 +2448,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
 
     fetchInspectionData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [call?.call_no, call?.po_no, availableCalls, callInitiationDataCache]);
+  }, [call?.call_no, call?.po_no, availableCalls, callInitiationDataCache, shift]);
 
   // Auto-fetch data for production lines that have call numbers but missing RM IC or product type
   useEffect(() => {
@@ -2643,7 +2971,8 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         productionLines: localProductionLines,
         selectedLine: selectedLine,
         finalInspectionRemarks: finalInspectionRemarks,
-        productionLinesExpanded: productionLinesExpanded
+        productionLinesExpanded: productionLinesExpanded,
+        capturedImages: capturedImages
       };
 
       // Save to localStorage with inspection call number as key
@@ -2669,7 +2998,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     } finally {
       setIsSavingDraft(false);
     }
-  }, [call?.call_no, localProductionLines, selectedLine, finalInspectionRemarks, productionLinesExpanded, shift]);
+  }, [call?.call_no, localProductionLines, selectedLine, finalInspectionRemarks, productionLinesExpanded, shift, capturedImages]);
 
   // Load draft data from localStorage on mount
   useEffect(() => {
@@ -2705,6 +3034,11 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         // Restore expanded state
         if (typeof draftData.productionLinesExpanded === 'boolean') {
           setProductionLinesExpanded(draftData.productionLinesExpanded);
+        }
+
+        // Restore captured images if present in draft
+        if (draftData.capturedImages) {
+          setCapturedImages(draftData.capturedImages);
         }
 
         console.log('Draft data restored from localStorage:', draftData.savedAt);
@@ -4704,6 +5038,16 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
    * Groups by unique (callNumber + lotNumber) combinations and sends separate API calls for each
    */
   const handleInspectionCompleted = useCallback(async () => {
+    // Image validation (minimum 5, maximum 10)
+    if (!capturedImages || capturedImages.length < 5) {
+      showNotification('error', `At least 5 inspection images are required to complete the shift (Currently: ${capturedImages?.length || 0})`);
+      return;
+    }
+    if (capturedImages.length > 10) {
+      showNotification('error', `Maximum of 10 inspection images allowed (Currently: ${capturedImages.length})`);
+      return;
+    }
+
     // STEP 1: Validate all 8-hour grid data before proceeding
     console.log('🔍 [Shift Completed] Starting validation...');
     const validation = validateAllLots();
@@ -4869,7 +5213,8 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         remarks: 'Shift Completed',
         shift: linesData.length > 0 ? linesData[0].lineFinalResult?.shift || call.shiftOfInspection || call.shift : call.shiftOfInspection || call.shift,
         linesData: linesData,
-        createdBy: userId
+        createdBy: userId,
+        capturedImages
       };
 
       console.log('Sending pause (shift complete) payload:', pausePayload);
@@ -5081,13 +5426,23 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     } finally {
       setIsSaving(false);
     }
-  }, [call, localProductionLines, allCallOptions, callInitiationDataCache, manufacturedQtyByLine, manufacturingLines, onBack, resetProductionLinesState, validateAllLots, selectedLotByLine, shift]);
+  }, [call, localProductionLines, allCallOptions, callInitiationDataCache, manufacturedQtyByLine, manufacturingLines, onBack, resetProductionLinesState, validateAllLots, selectedLotByLine, shift, capturedImages]);
 
   /**
    * Finishes inspection for the selected calls
    * Saves data and marks as complete
    */
   const executeFinishInspection = useCallback(async (selectedCalls = []) => {
+    // Image validation (minimum 5, maximum 10)
+    if (!capturedImages || capturedImages.length < 5) {
+      showNotification('error', `At least 5 inspection images are required to finish the inspection (Currently: ${capturedImages?.length || 0})`);
+      return;
+    }
+    if (capturedImages.length > 10) {
+      showNotification('error', `Maximum of 10 inspection images allowed (Currently: ${capturedImages.length})`);
+      return;
+    }
+
     try {
       if (!selectedCalls || selectedCalls.length === 0) {
         // If no calls selected explicitly, try to use all available
@@ -5215,7 +5570,8 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         shift: linesData.length > 0 ? linesData[0].lineFinalResult?.shift || sessionStorage.getItem('inspectionShift') || call.shiftOfInspection || call.shift : sessionStorage.getItem('inspectionShift') || call.shiftOfInspection || call.shift,
         shiftCode: (linesData.length > 0 ? linesData[0].lineFinalResult?.shift || sessionStorage.getItem('inspectionShift') || call.shiftOfInspection || call.shift : sessionStorage.getItem('inspectionShift') || call.shiftOfInspection || call.shift)?.charAt(0).toUpperCase() || 'A',
         linesData: linesData,
-        createdBy: userId
+        createdBy: userId,
+        capturedImages
       };
 
       console.log('Sending finish payload:', payload);
@@ -5240,7 +5596,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       console.error('❌ [Finish] Error finishing inspection:', error);
       throw error; // Propagate error to caller
     }
-  }, [call, localProductionLines, manufacturingLines, onBack, resetProductionLinesState, callInitiationDataCache, manufacturedQtyByLine, selectedLotByLine, shift]);
+  }, [call, localProductionLines, manufacturingLines, onBack, resetProductionLinesState, callInitiationDataCache, manufacturedQtyByLine, selectedLotByLine, shift, capturedImages]);
 
   /**
    * Handle finish selected calls from modal
@@ -5587,13 +5943,26 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       </div>
 
       {/* Inspection Call Info Banner */}
-      <div className="card" style={{ background: 'var(--color-primary-light)', marginBottom: 'var(--space-16)', padding: 'var(--space-16)' }}>
-        <div style={{ display: 'flex', gap: 'var(--space-24)', flexWrap: 'wrap' }}>
-          <div><strong>Call No:</strong> {callNo}</div>
-          <div><strong>Shift:</strong> {shiftOfInspection}</div>
-          <div><strong>Date of Inspection:</strong> {formatDate(dateOfInspection)}</div>
+      <div className="rm-header-card" style={{ borderLeftColor: 'var(--color-primary)' }}>
+        <div className="rm-header-main">
+          <span className="rm-header-title-badge">
+            <span className="icon">📄</span> Call No: <strong>{callNo}</strong>
+          </span>
+        </div>
+        <div className="rm-header-meta">
+          <div className="rm-meta-item">
+            <span className="icon">⏱️</span>
+            <span className="label">Shift</span>
+            <span className="value">{shiftOfInspection || 'N/A'}</span>
+          </div>
+          <div className="rm-meta-item">
+            <span className="icon">📅</span>
+            <span className="label">Date</span>
+            <span className="value">{formatDate(dateOfInspection)}</span>
+          </div>
         </div>
       </div>
+
 
       <div className="process-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-24)' }}>
         <h1>ERC Process Inspection - {callNo}</h1>
@@ -5921,6 +6290,14 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           <span style={{ background: '#dbeafe', padding: '2px 6px', borderRadius: '4px', color: '#1d4ed8' }}>ℹ️</span>
           3 readings per hour are required for all process parameters
         </div>
+      </div>
+
+      {/* Image Capture Section */}
+      <div style={{ marginBottom: '24px' }}>
+        <ImageCaptureComponent 
+          images={capturedImages} 
+          onImagesChange={setCapturedImages} 
+        />
       </div>
 
       {/* Sub Module Session - Shows for selected line */}
@@ -6676,52 +7053,43 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       )}
 
       {/* Action Buttons */}
-      <div className="rm-action-buttons" style={{ display: 'flex', gap: '16px', justifyContent: 'flex-end', flexWrap: 'wrap', marginTop: '24px' }}>
-        <button
-          className="btn btn-outline"
-          style={{
-            minHeight: '44px',
-            padding: '10px 20px',
-            backgroundColor: isSavingDraft ? '#f3f4f6' : '#fff',
-            cursor: isSavingDraft ? 'not-allowed' : 'pointer'
-          }}
-          onClick={handleSaveDraft}
-          disabled={isSavingDraft}
-        >
-          {isSavingDraft ? '💾 Saving...' : '💾 Save Draft'}
-        </button>
-        {/* <button
+      <div className="process-actions-wrapper">
+        <button className="btn btn-secondary process-btn-return" onClick={onBack}>Return to Landing Page</button>
+        
+        <div className="process-actions-right">
+          <button
             className="btn btn-outline"
-            onClick={handlePauseInspection}
+            style={{
+              minHeight: '44px',
+              padding: '10px 20px',
+              backgroundColor: isSavingDraft ? '#f3f4f6' : '#fff',
+              cursor: isSavingDraft ? 'not-allowed' : 'pointer'
+            }}
+            onClick={handleSaveDraft}
+            disabled={isSavingDraft}
+          >
+            {isSavingDraft ? '💾 Saving...' : '💾 Save Draft'}
+          </button>
+          <button
+            className="btn btn-outline process-btn-shift-completed"
+            onClick={handleInspectionCompleted}
             disabled={isSaving}
           >
-            {isSaving ? 'Pausing...' : 'Pause Inspection'}
-          </button> */}
-        {/* <button
-            className="btn btn-outline"
-            onClick={handleOpenWithheldModal}
+            Shift Completed
+          </button>
+          <button
+            className="btn btn-primary process-btn-finish"
+            onClick={handleFinishInspectionClick}
+            disabled={isSaving || !capturedImages || capturedImages.length < 5}
+            style={{
+              cursor: (isSaving || !capturedImages || capturedImages.length < 5) ? 'not-allowed' : 'pointer',
+              opacity: (isSaving || !capturedImages || capturedImages.length < 5) ? 0.6 : 1
+            }}
+            title={(!capturedImages || capturedImages.length < 5) ? `At least 5 inspection images are required (Currently: ${capturedImages?.length || 0})` : ''}
           >
-            Withheld Inspection
-          </button> */}
-        <button
-          className="btn btn-outline"
-          onClick={handleInspectionCompleted}
-          disabled={isSaving}
-        >
-          Shift Completed
-        </button>
-        <button
-          className="btn btn-primary"
-          onClick={handleFinishInspectionClick}
-          disabled={isSaving}
-        >
-          {isSaving ? 'Saving...' : 'Finish Inspection'}
-        </button>
-      </div>
-
-      {/* Return button */}
-      <div style={{ marginTop: 'var(--space-24)' }}>
-        <button className="btn btn-secondary" onClick={onBack}>Return to Landing Page</button>
+            {isSaving ? 'Saving...' : 'Finish Inspection'}
+          </button>
+        </div>
       </div>
 
       {/* Withheld Modal */}

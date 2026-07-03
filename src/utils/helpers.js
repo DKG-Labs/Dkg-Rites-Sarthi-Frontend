@@ -233,3 +233,36 @@ export const getISTDateOnly = () => {
     // Return in YYYY-MM-DD format
     return istDate.toISOString().split('T')[0];
 };
+
+/**
+ * Clean up raw backend HTTP/JSON error messages to display user-friendly output
+ * @param {string|Error} error - Raw error string or object
+ * @returns {string} Clean error message
+ */
+export const getCleanErrorMessage = (error) => {
+  if (!error) return 'Unknown error occurred';
+  let msg = typeof error === 'string' ? error : (error.message || String(error));
+
+  try {
+    // Look for JSON string inside the message
+    const jsonMatch = msg.match(/\{.*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      const extracted = parsed.responseStatus?.message || parsed.message || parsed.error || parsed.errorMessage;
+      if (extracted) {
+        // Replace the matched JSON segment with the clean message
+        msg = msg.replace(jsonMatch[0], extracted);
+      }
+    }
+  } catch (e) {
+    // ignore parsing failure
+  }
+
+  // Remove HTTP error code details and separators from prefix/message
+  msg = msg
+    .replace(/HTTP\s+\d+\s+[\w\s]+-\s*/gi, '') // E.g. "HTTP 500 Internal Server Error - "
+    .replace(/HTTP\s+\d+\s*-\s*/gi, '')       // E.g. "HTTP 500 - "
+    .trim();
+
+  return msg;
+};

@@ -1,0 +1,284 @@
+{
+    "srInspectionGeneralInfo": {
+        "date": "01/01/2024",
+        "shift": "A"
+    },
+    "shortRailColumns": [
+        {"title": "S.No.", "dataIndex": "serialNumber", "key": "serialNumber", "align": "center" },
+        {"title": "Inspected Tonnage", "dataIndex": "inspectedTonnage", "key": "inspectedTonnage", "align": "center"},
+        {"title": "Accepted Tonnage", "dataIndex": "acceptedTonnage", "key": "acceptedTonnage", "align": "center"},
+        {"title": "Rejected Tonnage", "dataIndex": "rejectedTonnage", "key": "rejectedTonnage", "align": "center"}
+    ],
+    "shortRailData": [
+        {
+            "key": "1",
+            "serialNumber": "1",
+            "inspectedTonnage": "",
+            "acceptedTonnage": "",
+            "rejectedTonnage": ""
+        },
+        {
+            "key": "2",
+            "serialNumber": "2",
+            "inspectedTonnage": "",
+            "acceptedTonnage": "",
+            "rejectedTonnage": ""
+        },
+        {
+            "key": "3",
+            "serialNumber": "3",
+            "inspectedTonnage": "",
+            "acceptedTonnage": "",
+            "rejectedTonnage": ""
+        },
+        {
+            "key": "4",
+            "serialNumber": "Total",
+            "inspectedTonnage": "",
+            "acceptedTonnage": "",
+            "rejectedTonnage": ""
+        }
+    ],
+    "railSectionList": [
+        {
+          "key": "60E1",
+          "value": "60E1"
+        },
+        {
+          "key": "IRS52",
+          "value": "IRS52"
+        },
+        {
+          "key": "UIC60",
+          "value": "UIC60"
+        },
+        {
+          "key": "60E1A1",
+          "value": "60E1A1"
+        },
+        {
+          "key": "136RE",
+          "value": "136RE"
+        }
+    ],
+    "railGradeList": [
+        {
+          "key": "R260",
+          "value": "R260"
+        },
+        {
+          "key": "R350HT",
+          "value": "R350HT"
+        },
+        {
+          "key": "1080HH",
+          "value": "1080HH"
+        },
+        {
+          "key": "880",
+          "value": "880"
+        },
+        {
+          "key": "880NC",
+          "value": "880NC"
+        }
+    ],
+    "defectList": [
+      {
+        "key": "NO_DEFECT",
+        "value": "No Defect"
+      },
+      {
+        "key": "HH",
+        "value": "HH"
+      },
+      {
+        "key": "LH",
+        "value": "LH"
+      },
+      {
+        "key": "OHT",
+        "value": "OHT"
+      },
+      {
+        "key": "UHT",
+        "value": "UHT"
+      },
+      {
+        "key": "NF",
+        "value": "NF"
+      },
+      {
+        "key": "WF",
+        "value": "WF"
+      },
+      {
+        "key": "TF(+)",
+        "value": "TF(+)"
+      },
+      {
+        "key": "TF(-)",
+        "value": "TF(-)"
+      },
+      {
+        "key": "HF(+)",
+        "value": "HF(+)"
+      },
+      {
+        "key": "HF(-)",
+        "value": "HF(-)"
+      },
+      {
+        "key": "HS",
+        "value": "HS"
+      },
+      {
+        "key": "LS",
+        "value": "LS"
+      },
+      {
+        "key": "TNW",
+        "value": "TNW"
+      },
+      {
+        "key": "TKW",
+        "value": "TKW"
+      },
+      {
+        "key": "ASY(+)",
+        "value": "ASY(+)"
+      },
+      {
+        "key": "ASY(-)",
+        "value": "ASY(-)"
+      },
+      {
+        "key": "OL",
+        "value": "OL"
+      },
+      {
+        "key": "SL",
+        "value": "SL"
+      },
+      {
+        "key": "OS",
+        "value": "OS"
+      },
+      {
+        "key": "FBC",
+        "value": "FBC"
+      },
+      {
+        "key": "FBCx",
+        "value": "FBCx"
+      },
+      {
+        "key": "CP(+)",
+        "value": "CP(+)"
+      },
+      {
+        "key": "CP(-)",
+        "value": "CP(-)"
+      },
+      {
+        "key": "Other",
+        "value": "Other"
+      },
+      {
+        "key": "NMI",
+        "value": "NMI"
+      },
+      {
+        "key": "MDF",
+        "value": "MDF"
+      },
+      {
+        "key": "MDM",
+        "value": "MDM"
+      },
+      {
+        "key": "LAP",
+        "value": "LAP"
+      },
+      {
+        "key": "GM",
+        "value": "GM"
+      },
+      {
+        "key": "BR",
+        "value": "BR"
+      },
+      {
+        "key": "Crack",
+        "value": "Crack"
+      },
+      {
+        "key": "BNT",
+        "value": "BNT"
+      },
+      {
+        "key": "CE",
+        "value": "CE"
+      },
+      {
+        "key": "KK",
+        "value": "KK"
+      },
+      {
+        "key": "TW",
+        "value": "TW"
+      },
+      {
+        "key": "C-R/C",
+        "value": "C-R/C"
+      },
+      {
+        "key": "WY",
+        "value": "WY"
+      },
+      {
+        "key": "NS",
+        "value": "NS"
+      },
+      {
+        "key": "BE",
+        "value": "BE"
+      },
+      {
+        "key": "US",
+        "value": "US"
+      },
+      {
+        "key": "DS",
+        "value": "DS"
+      },
+      {
+        "key": "NHN",
+        "value": "NHN"
+      },
+      {
+        "key": "RM",
+        "value": "RM"
+      },
+      {
+        "key": "UT",
+        "value": "UT"
+      },
+      {
+        "key": "HNP",
+        "value": "HNP"
+      },
+      {
+        "key": "BM",
+        "value": "BM"
+      },
+      {
+        "key": "SCB",
+        "value": "SCB"
+      },
+      {
+        "key": "WS",
+        "value": "WS"
+      }
+    ]
+}

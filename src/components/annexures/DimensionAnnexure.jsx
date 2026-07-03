@@ -50,10 +50,10 @@ const DimensionAnnexure = ({ data, selectedCall }) => {
       source: reportInfo.source,
       certNo: heat.tcNumber || reportInfo.certNo,
       heatNo: heat.heatNo,
-      coilCode: reportInfo.colorCode,
+      coilCode: heat.coilCode || reportInfo.colorCode || '',
       quantity: reportInfo.quantity,
       samples: samples,
-      accepted: heat.status || 'PENDING',
+      accepted: (heat.status === 'OK' ? 'Accepted' : (heat.status === 'NOT OK' ? 'Not Accepted' : heat.status || 'PENDING')),
       sign: ''
     };
   });

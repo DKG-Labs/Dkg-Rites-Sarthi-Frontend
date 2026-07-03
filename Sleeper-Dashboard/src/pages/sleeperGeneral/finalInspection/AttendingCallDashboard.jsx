@@ -313,13 +313,13 @@ const AttendingCallDashboard = () => {
                                                                 </>
                                                             )}
 
-                                                            {/* INITIATED -> OPEN PO DETAILS (Action: PO_VERIFICATION) */}
+                                                            {/* INITIATED -> RESUME */}
                                                             {(call.jobStatus === 'INITIATED' || call.jobStatus === 'initiated') && (
                                                                 <button 
                                                                     className="btn-start" 
-                                                                    onClick={() => handleWorkflowAction(call, 'PO_VERIFICATION')}
+                                                                    onClick={() => handleInitiate(call)}
                                                                 >
-                                                                    OPEN PO DETAILS
+                                                                    RESUME
                                                                 </button>
                                                             )}
 

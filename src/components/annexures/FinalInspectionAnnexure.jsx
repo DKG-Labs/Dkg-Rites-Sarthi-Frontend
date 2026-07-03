@@ -23,8 +23,8 @@ const FinalInspectionAnnexure = ({ data = [], selectedCall }) => {
     { sNo: 9, parameter: 'Height 3', mkIII: '21.2', mkV: '21.2', samplesPassed: '', samplesFailed: '' },
     { sNo: 10, parameter: 'Gap', mkIII: '4.9', mkV: '4.9', samplesPassed: '', samplesFailed: '' },
     { sNo: 11, parameter: 'Straight length', mkIII: '75', mkV: '82', samplesPassed: '', samplesFailed: '' },
-    { sNo: 12, parameter: 'Pressing size', mkIII: '35 ± 2*\n12 (-1/-2)*', mkV: '35 ± 2*\n12 (-1/-2)*', samplesPassed: '', samplesFailed: '' },
-    { sNo: 13, parameter: 'Diameter', mkIII: '20.64 (+0.2/-0.17)*', mkV: '23(-0.23/-0.19)*\n20.64 (+0.2/-0.15)*', samplesPassed: '', samplesFailed: '' }
+    { sNo: 12, parameter: 'Pressing size', mkIII: '35 ± 2*\n12 (+1/-2)*', mkV: '35 ± 2*\n12 (+1/-2)*', samplesPassed: '', samplesFailed: '' },
+    { sNo: 13, parameter: 'Diameter', mkIII: '20.64 (+0.2/-0.17)*', mkV: '23(+0.23/-0.19)*\n20.64 (+0.2/-0.15)*', samplesPassed: '', samplesFailed: '' }
   ];
 
   return (

@@ -1,0 +1,221 @@
+{
+    "qctGeneralInfo": {
+        "date": "01/01/2024",
+        "shift": "A"
+    },
+    "millDropdownList": [
+        {
+            "key": "URM",
+            "value": "URM"
+        },
+        {
+            "key": "RSM",
+            "value": "RSM"
+        }
+    ],
+    "railSectionList": [
+        {
+            "key": "60E1",
+            "value": "60E1"
+        },
+        {
+            "key": "IRS52",
+            "value": "IRS52"
+        },
+        {
+            "key": "UIC 60",
+            "value": "UIC 60"
+        },
+        {
+            "key": "60E1A1",
+            "value": "60E1A1"
+        },
+        {
+            "key": "136RE",
+            "value": "136RE"
+        }
+    ],
+    "railGradeList": [
+        {
+          "key": "R260",
+          "value": "R260"
+        },
+        {
+          "key": "R350HT",
+          "value": "R350HT"
+        },
+        {
+          "key": "1080HH",
+          "value": "1080HH"
+        },
+        {
+          "key": "880",
+          "value": "880"
+        },
+        {
+            "key": "880NC",
+            "value": "880NC"
+          }
+    ],
+    "qctList": [
+        {
+            "key": "Fatigue",
+            "value": "Fatigue"
+        },
+        {
+            "key": "Fracture Toughness",
+            "value": "Fracture Toughness"
+        },
+        {
+            "key": "Residual Stress",
+            "value": "Residual Stress"
+        },
+        {
+            "key": "FCGR",
+            "value": "FCGR"
+        },
+        {
+            "key": "Centerline RSH",
+            "value": "Centerline RSH"
+        }
+    ],
+    "qctSecList": [
+        {
+            "key": "Fatigue",
+            "value": "Fatigue"
+        },
+        {
+            "key": "Fracture Toughness",
+            "value": "Fracture Toughness"
+        },
+        {
+            "key": "Residual Stress",
+            "value": "Residual Stress"
+        },
+        {
+            "key": "FCGR",
+            "value": "FCGR"
+        }
+    ],
+    "sampleDeclarationColumns": [
+        {"title": "S.No.", "dataIndex": "serialNumber", "key": "serialNumber", "fixed": "left"},
+        {"title": "QCT", "dataIndex": "qct", "key": "qct", "fixed": "left"},
+        {"title": "Mill", "dataIndex": "mill", "key": "mill"},
+        {"title": "Rail Grade", "dataIndex": "railGrade", "key": "railGrade"},
+        {"title": "Rail Section", "dataIndex": "railSection", "key": "railSection"},
+        {"title": "Sample Date", "dataIndex": "sampleDate", "key": "sampleDate"},
+        {"title": "No. of Samples", "dataIndex": "numberSamples", "key": "numberSamples"}
+    ],
+    "sampleDeclarationData": [
+        { 
+            "key": "1", 
+            "serialNumber": "1", 
+            "qct": "Fatigue", 
+            "mill": "RSM", 
+            "railGrade": "880", 
+            "railSection": "IRS52",
+            "sampleDate": "13/09/2024",
+            "numberSamples": "9"
+        },
+        { 
+            "key": "2", 
+            "serialNumber": "2", 
+            "qct": "Fatigue", 
+            "mill": "RSM", 
+            "railGrade": "880", 
+            "railSection": "IRS52",
+            "sampleDate": "13/09/2024",
+            "numberSamples": "9"
+        },
+        { 
+            "key": "3", 
+            "serialNumber": "3", 
+            "qct": "Fatigue", 
+            "mill": "RSM", 
+            "railGrade": "880", 
+            "railSection": "IRS52",
+            "sampleDate": "13/09/2024",
+            "numberSamples": "9"
+        },
+        { 
+            "key": "4", 
+            "serialNumber": "4", 
+            "qct": "Fatigue", 
+            "mill": "RSM", 
+            "railGrade": "880", 
+            "railSection": "IRS52",
+            "sampleDate": "13/09/2024",
+            "numberSamples": "9"
+        },
+        { 
+            "key": "5", 
+            "serialNumber": "5", 
+            "qct": "Fatigue", 
+            "mill": "RSM", 
+            "railGrade": "880", 
+            "railSection": "IRS52",
+            "sampleDate": "13/09/2024",
+            "numberSamples": "9"
+        },
+        { 
+            "key": "6", 
+            "serialNumber": "6", 
+            "qct": "Fatigue", 
+            "mill": "RSM", 
+            "railGrade": "880", 
+            "railSection": "IRS52",
+            "sampleDate": "13/09/2024",
+            "numberSamples": "9"
+        },
+        { 
+            "key": "7", 
+            "serialNumber": "7", 
+            "qct": "Fatigue", 
+            "mill": "RSM", 
+            "railGrade": "880", 
+            "railSection": "IRS52",
+            "sampleDate": "13/09/2024",
+            "numberSamples": "9"
+        },
+        { 
+            "key": "8", 
+            "serialNumber": "8", 
+            "qct": "Fatigue", 
+            "mill": "RSM", 
+            "railGrade": "880", 
+            "railSection": "IRS52",
+            "sampleDate": "13/09/2024",
+            "numberSamples": "9"
+        },
+        { 
+            "key": "9", 
+            "serialNumber": "9", 
+            "qct": "Fatigue", 
+            "mill": "RSM", 
+            "railGrade": "880", 
+            "railSection": "IRS52",
+            "sampleDate": "13/09/2024",
+            "numberSamples": "9"
+        },
+        { 
+            "key": "10", 
+            "serialNumber": "10", 
+            "qct": "Fatigue", 
+            "mill": "RSM", 
+            "railGrade": "880", 
+            "railSection": "IRS52",
+            "sampleDate": "13/09/2024",
+            "numberSamples": "9"
+        },
+        { 
+            "key": "11", 
+            "serialNumber": "11", 
+            "qct": "Fatigue", 
+            "mill": "RSM", 
+            "railGrade": "880", 
+            "railSection": "IRS52",
+            "sampleDate": "13/09/2024",
+            "numberSamples": "9"
+        }
+    ]
+}

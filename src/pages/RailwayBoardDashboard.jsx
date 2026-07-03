@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+
 import reportService from '../services/reportService';
 import useReportData from '../hooks/useReportData';
 import './RailwayBoardDashboard.css';
@@ -12,7 +12,7 @@ import DashboardGraph from '../components/railway-board/DashboardGraph';
 import ProfessionalCardSection from '../components/railway-board/ProfessionalCardSection';
 
 const RailwayBoardDashboard = () => {
-    const navigate = useNavigate();
+
     const roleName = localStorage.getItem('roleName') || '';
     const isRitesAdmin = roleName === 'Rites Admin' || roleName === 'Rites ADMin' || roleName.includes('Rites Admin') || roleName.includes('Rites ADMin');
 
@@ -69,6 +69,11 @@ const RailwayBoardDashboard = () => {
 
     // Save Filters
     React.useEffect(() => { localStorage.setItem('dash_selectedProduct', selectedProduct); }, [selectedProduct]);
+    React.useEffect(() => {
+        if (selectedProduct !== 'Sleeper' && activeMainCard === 'sleeper-anomaly') {
+            setActiveMainCard('summary');
+        }
+    }, [selectedProduct, activeMainCard]);
     React.useEffect(() => { localStorage.setItem('dash_selectedZone', selectedZone); }, [selectedZone]);
     React.useEffect(() => { localStorage.setItem('dash_selectedVendor', selectedVendor); }, [selectedVendor]);
     React.useEffect(() => { localStorage.setItem('dash_selectedRio', selectedRio); }, [selectedRio]);
@@ -283,10 +288,10 @@ const RailwayBoardDashboard = () => {
         if (poSearch) {
             const query = poSearch.toLowerCase();
             result = result.filter(po =>
-                (po.rly || '').toLowerCase().includes(query) ||
+                (po.railway || '').toLowerCase().includes(query) ||
                 (po.poNo || '').toLowerCase().includes(query) ||
                 (po.vendor || '').toLowerCase().includes(query) ||
-                (po.region || '').toLowerCase().includes(query)
+                (po.inspectionRegion || '').toLowerCase().includes(query)
             );
         }
 
@@ -361,14 +366,14 @@ const RailwayBoardDashboard = () => {
                     <thead>
                         <tr className="sortable-header">
                             <th style={{ width: '40px' }}></th>
-                            <th onClick={() => handlePoSort('rly')} style={{ cursor: 'pointer' }}>Rly {renderSortIcon('rly')}</th>
+                            <th onClick={() => handlePoSort('railway')} style={{ cursor: 'pointer' }}>Rly {renderSortIcon('railway')}</th>
                             <th onClick={() => handlePoSort('poNo')} style={{ cursor: 'pointer' }}>PO No. {renderSortIcon('poNo')}</th>
                             <th onClick={() => handlePoSort('poDate')} style={{ cursor: 'pointer' }}>PO Date {renderSortIcon('poDate')}</th>
                             <th onClick={() => handlePoSort('vendor')} style={{ cursor: 'pointer' }}>Vendor {renderSortIcon('vendor')}</th>
-                            <th onClick={() => handlePoSort('region')} style={{ cursor: 'pointer' }}>Region {renderSortIcon('region')}</th>
-                            <th className="text-right" onClick={() => handlePoSort('poQuantityNos')} style={{ cursor: 'pointer' }}>PO Qty {renderSortIcon('poQuantityNos')}</th>
-                            <th className="text-right" onClick={() => handlePoSort('acceptedQty')} style={{ cursor: 'pointer' }}>Acc Qty {renderSortIcon('acceptedQty')}</th>
-                            <th className="text-right" onClick={() => handlePoSort('balanceQty')} style={{ cursor: 'pointer' }}>Bal Qty {renderSortIcon('balanceQty')}</th>
+                            <th onClick={() => handlePoSort('inspectionRegion')} style={{ cursor: 'pointer' }}>Region {renderSortIcon('inspectionRegion')}</th>
+                            <th className="text-right" onClick={() => handlePoSort('poQty')} style={{ cursor: 'pointer' }}>PO Qty {renderSortIcon('poQty')}</th>
+                            <th className="text-right" onClick={() => handlePoSort('finalQuantityAcceptedByRites')} style={{ cursor: 'pointer' }}>Acc Qty {renderSortIcon('finalQuantityAcceptedByRites')}</th>
+                            <th className="text-right" onClick={() => handlePoSort('balancePoQty')} style={{ cursor: 'pointer' }}>Bal Qty {renderSortIcon('balancePoQty')}</th>
                             <th className="text-right" onClick={() => handlePoSort('rawMaterialRejectionPercentage')} style={{ cursor: 'pointer' }}>RM % {renderSortIcon('rawMaterialRejectionPercentage')}</th>
                             <th className="text-right" onClick={() => handlePoSort('processInspectionRejectionPercentage')} style={{ cursor: 'pointer' }}>Proc % {renderSortIcon('processInspectionRejectionPercentage')}</th>
                             <th className="text-right" onClick={() => handlePoSort('finalInspectionRejectionPercentage')} style={{ cursor: 'pointer' }}>Final % {renderSortIcon('finalInspectionRejectionPercentage')}</th>
@@ -464,6 +469,11 @@ const RailwayBoardDashboard = () => {
                         <div className={`nav-item ${activeMainCard === 'feedback' ? 'active' : ''}`} onClick={() => handleSwitchTab('feedback')}>
                             <i className="fa-solid fa-comment-dots"></i> {!isSidebarCollapsed && <span>Feedback</span>}
                         </div>
+                        {isRitesAdmin && selectedProduct === 'Sleeper' && (
+                            <div className={`nav-item ${activeMainCard === 'sleeper-anomaly' ? 'active' : ''}`} onClick={() => handleSwitchTab('sleeper-anomaly')}>
+                                <i className="fa-solid fa-microchip"></i> {!isSidebarCollapsed && <span>AI Engine</span>}
+                            </div>
+                        )}
 
                     </div>
                 </nav>
@@ -480,46 +490,10 @@ const RailwayBoardDashboard = () => {
                             }}>Sleeper</button>
                             <button className={`sub-tab-btn ${selectedProduct === 'Rail Pad' ? 'active' : ''}`} onClick={() => setSelectedProduct('Rail Pad')}>Rail Pad</button>
                         </div>
-                        {isRitesAdmin && (
-                            <button
-                                onClick={() => navigate('/rites-admin')}
-                                style={{
-                                    background: 'rgba(16, 185, 129, 0.1)',
-                                    color: '#10b981',
-                                    border: '1px solid rgba(16, 185, 129, 0.3)',
-                                    padding: '6px 14px',
-                                    borderRadius: '20px',
-                                    fontSize: '12px',
-                                    fontWeight: '600',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px',
-                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                    boxShadow: '0 2px 8px rgba(16, 185, 129, 0.15)',
-                                    textTransform: 'uppercase',
-                                    letterSpacing: '0.5px'
-                                }}
-                                onMouseOver={(e) => {
-                                    e.currentTarget.style.background = '#10b981';
-                                    e.currentTarget.style.color = '#fff';
-                                    e.currentTarget.style.transform = 'translateY(-2px)';
-                                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.35)';
-                                }}
-                                onMouseOut={(e) => {
-                                    e.currentTarget.style.background = 'rgba(16, 185, 129, 0.1)';
-                                    e.currentTarget.style.color = '#10b981';
-                                    e.currentTarget.style.transform = 'none';
-                                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(16, 185, 129, 0.15)';
-                                }}
-                            >
-                                ← Back to Admin Hub
-                            </button>
-                        )}
                     </div>
 
                     {/* TOPBAR / FILTERS - Hidden on Dashboard (summary), Quality, Lifecycle, Feedback, Scada Monitor, SQC tabs, and ERC/Sleeper SWP Reports */}
-                    {activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'scada' && activeMainCard !== 'sqc' && !(activeMainCard === 'reports' && activeReport === 'swp' && (selectedProduct === 'ERC' || selectedProduct === 'Sleeper')) && (
+                    {activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'scada' && activeMainCard !== 'sqc' && activeMainCard !== 'sleeper-anomaly' && !(activeMainCard === 'reports' && activeReport === 'swp' && (selectedProduct === 'ERC' || selectedProduct === 'Sleeper')) && (
                         <div id="prof-topbar">
                             <label>From</label>
                             <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />

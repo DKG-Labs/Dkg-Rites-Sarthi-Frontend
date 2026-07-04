@@ -642,7 +642,7 @@ const ProfessionalCardSection = ({
                                             const pAcc = procData?.accepted || 0;
                                             const pRej = procData?.rejected || 0;
                                             const pInsp = pAcc + pRej;
-                                            const pRejPct = pInsp > 0 ? (pRej * 100) / pInsp : 0;
+                                            const pRejPct = s.processRejectionPercentage ?? (pInsp > 0 ? (pRej * 100) / pInsp : 0);
 
                                             return (
                                                 <div className="g4">

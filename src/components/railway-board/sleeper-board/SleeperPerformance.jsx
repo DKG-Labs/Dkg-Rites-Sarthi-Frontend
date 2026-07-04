@@ -55,7 +55,7 @@ const SleeperPerformance = ({ fromDate, toDate }) => {
                     const plant = row.plantName || row.companyName || "Unassigned Plant";
                     const stage = row.stageOfInspection || "Process";
                     
-                    const key = `${company}_${plant}_${ieKey}_${stage}_${shiftGroup}`;
+                    const key = `${company}_${plant}_${ieKey}_${stage}`;
                     
                     if (!groupedMap[key]) {
                         groupedMap[key] = {
@@ -160,17 +160,17 @@ const SleeperPerformance = ({ fromDate, toDate }) => {
                 const numA = Number(valA);
                 const numB = Number(valB);
                 if (!isNaN(numA) && !isNaN(numB) && valA !== '' && valB !== '') {
-                    valA = numA;
-                    valB = numB;
+                    // Numeric sort
+                    if (numA < numB) return sortConfig.direction === 'asc' ? -1 : 1;
+                    if (numA > numB) return sortConfig.direction === 'asc' ? 1 : -1;
+                    return 0;
                 } else {
-                    // Otherwise compare as strings (case-insensitive)
-                    valA = String(valA).toLowerCase();
-                    valB = String(valB).toLowerCase();
+                    // Alphabetical string sort
+                    const strA = String(valA).trim();
+                    const strB = String(valB).trim();
+                    const compare = strA.localeCompare(strB, undefined, { numeric: true, sensitivity: 'base' });
+                    return sortConfig.direction === 'asc' ? compare : -compare;
                 }
-
-                if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
-                if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
-                return 0;
             });
         }
 
@@ -297,25 +297,25 @@ const SleeperPerformance = ({ fromDate, toDate }) => {
                         <tr>
                             <th style={{ width: '60px', textAlign: 'center' }}>S.NO.</th>
                             <th style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center' }} onClick={() => handleSort('companyName')}>
-                                COMPANY NAME {sortConfig.key === 'companyName' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                                COMPANY NAME {sortConfig.key === 'companyName' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}
                             </th>
                             <th style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center' }} onClick={() => handleSort('plantName')}>
-                                PSC SLEEPER PLANT {sortConfig.key === 'plantName' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                                PSC SLEEPER PLANT {sortConfig.key === 'plantName' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}
                             </th>
                             <th style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center' }} onClick={() => handleSort('rio')}>
-                                RITES RIO {sortConfig.key === 'rio' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                                RITES RIO {sortConfig.key === 'rio' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}
                             </th>
                             <th style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', textAlign: 'center' }} onClick={() => handleSort('ieName')}>
-                                IE NAME {sortConfig.key === 'ieName' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                                IE NAME {sortConfig.key === 'ieName' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}
                             </th>
                             <th style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center' }} onClick={() => handleSort('stage')}>
-                                STAGE OF INSPECTION {sortConfig.key === 'stage' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                                STAGE OF INSPECTION {sortConfig.key === 'stage' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}
                             </th>
                             <th style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center' }} onClick={() => handleSort('shiftsWorked')}>
-                                NO. OF SHIFTS WORKED {sortConfig.key === 'shiftsWorked' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                                NO. OF SHIFTS WORKED {sortConfig.key === 'shiftsWorked' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}
                             </th>
                             <th style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center' }} onClick={() => handleSort('rejectedQty')}>
-                                NO. OF SLEEPERS REJECTED {sortConfig.key === 'rejectedQty' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                                NO. OF SLEEPERS REJECTED {sortConfig.key === 'rejectedQty' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}
                             </th>
                         </tr>
                     </thead>

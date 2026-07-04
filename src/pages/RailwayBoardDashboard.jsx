@@ -11,6 +11,7 @@ import Pagination from '../components/Pagination';
 import DashboardGraph from '../components/railway-board/DashboardGraph';
 import ProfessionalCardSection from '../components/railway-board/ProfessionalCardSection';
 
+
 const RailwayBoardDashboard = () => {
 
     const roleName = localStorage.getItem('roleName') || '';
@@ -33,6 +34,8 @@ const RailwayBoardDashboard = () => {
     const [activeMainCard, setActiveMainCard] = useState('summary');
     const [reportSubmenuOpen, setReportSubmenuOpen] = useState(activeMainCard === 'reports');
     const [activeReport, setActiveReport] = useState('mpr');
+
+
 
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [poSearch, setPoSearch] = useState('');
@@ -490,6 +493,7 @@ const RailwayBoardDashboard = () => {
                             }}>Sleeper</button>
                             <button className={`sub-tab-btn ${selectedProduct === 'Rail Pad' ? 'active' : ''}`} onClick={() => setSelectedProduct('Rail Pad')}>Rail Pad</button>
                         </div>
+
                     </div>
 
                     {/* TOPBAR / FILTERS - Hidden on Dashboard (summary), Quality, Lifecycle, Feedback, Scada Monitor, SQC tabs, and ERC/Sleeper SWP Reports */}
@@ -527,8 +531,9 @@ const RailwayBoardDashboard = () => {
                     )}
 
                     {/* CONTENT AREA */}
-                    <div id="prof-content-area">
-                        <ProfessionalCardSection
+                    <div id="dashboard-capture-area">
+                        <div id="prof-content-area">
+                            <ProfessionalCardSection
                             poTable={poTable} poGraph={poGraph} kpiGrid={kpiGrid}
                             selectedProduct={selectedProduct} summaryData={summaryData}
                             inspectionCallStatusData={inspectionCallStatusData}
@@ -569,6 +574,7 @@ const RailwayBoardDashboard = () => {
                             setFromDate={setFromDate}
                             setToDate={setToDate}
                         />
+                        </div>
                     </div>
 
                 </div>

@@ -4,6 +4,7 @@ import StatusBadge from './StatusBadge';
 import Notification from './Notification';
 import { getProductTypeDisplayName, formatDate } from '../utils/helpers';
 import CallsFilterSection from './common/CallsFilterSection';
+import { getDetailedStatus } from '../utils/statusMapper';
 import { viewSignedCertificate } from '../services/certificateService';
 import { fetchSignedCallsForIC, getCurrentUserId } from '../services/workflowApiService';
 import AnnexureLoader from './annexures/AnnexureLoader';
@@ -125,7 +126,14 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
     { key: 'vendor_name', label: 'Vendor Name' },
     { key: 'product_type', label: 'Product Type', render: (val) => getProductTypeDisplayName(val) },
     { key: 'requested_date', label: 'Date', render: (val) => formatDate(val) },
-    { key: 'status', label: 'Status', render: (val) => <StatusBadge status={val} /> },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (_val, row) => {
+        const { mainStatus, combinedText } = getDetailedStatus(row.status);
+        return <StatusBadge status={mainStatus} text={combinedText} />;
+      }
+    },
   ];
 
   const handleViewAnnexures = (row) => {

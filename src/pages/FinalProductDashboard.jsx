@@ -32,7 +32,7 @@ const WITHHELD_REASONS = [
 const DASHBOARD_DRAFT_KEY = 'fp_dashboard_draft_';
 
 export default function FinalProductDashboard({ onBack, onNavigateToSubModule }) {
-  const { selectedCall, getFpCachedData, updateFpDashboardDataCache } = useInspection();
+  const { selectedCall, getFpCachedData, updateFpDashboardDataCache, capturedImages, setCapturedImages } = useInspection();
 
   // State for live data
   const [poData, setPoData] = useState(null);
@@ -44,24 +44,6 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
   const [pauseSuccessData, setPauseSuccessData] = useState(null); // for pause success modal
   const [pauseErrorData, setPauseErrorData] = useState(null);    // for pause failure modal
   const [showPauseConfirm, setShowPauseConfirm] = useState(false); // for pause confirmation modal
-  
-  // Captured Images state
-  const [capturedImages, setCapturedImages] = useState(() => {
-    try {
-      const callNo = selectedCall?.call_no;
-      if (!callNo) return [];
-      const saved = localStorage.getItem(`fpCapturedImages_${callNo}`);
-      return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
-  });
-
-  // Persist captured images to localStorage
-  useEffect(() => {
-    const callNo = selectedCall?.call_no;
-    if (callNo) {
-      localStorage.setItem(`fpCapturedImages_${callNo}`, JSON.stringify(capturedImages));
-    }
-  }, [capturedImages, selectedCall?.call_no]);
 
   // Calculate Rejected Counts (R1 + R2) per lot from all submodules
   useEffect(() => {
@@ -1029,10 +1011,8 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
             const summary = await getInspectionSummary(callNo);
             if (summary) {
               console.log('✅ Fetched inspection summary from backend:', summary);
-              
               const localPacked = localStorage.getItem(`fpPackedInHDPE_${callNo}`);
               const localCleaned = localStorage.getItem(`fpCleanedWithCoating_${callNo}`);
-              const localImages = localStorage.getItem(`fpCapturedImages_${callNo}`);
 
               if (localPacked === null && summary.packedInHdpe !== undefined) {
                 setPackedInHDPE(summary.packedInHdpe);
@@ -1042,9 +1022,9 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
                 setCleanedWithCoating(summary.cleanedWithCoating);
                 localStorage.setItem(`fpCleanedWithCoating_${callNo}`, String(summary.cleanedWithCoating));
               }
-              if ((!localImages || JSON.parse(localImages).length === 0) && summary.capturedImages && summary.capturedImages.length > 0) {
+
+              if ((!capturedImages || capturedImages.length === 0) && summary.capturedImages && summary.capturedImages.length > 0) {
                 setCapturedImages(summary.capturedImages);
-                localStorage.setItem(`fpCapturedImages_${callNo}`, JSON.stringify(summary.capturedImages));
               }
             }
           } catch (e) {
@@ -1056,6 +1036,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
         console.error('Error restoring form state from localStorage:', error);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCall?.call_no]);
 
   // Persist lot inspection data to localStorage whenever it changes
@@ -1430,6 +1411,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     } catch (error) {
       console.error('Error loading draft data:', error);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCall?.call_no]);
 
   /* -------------------- FINISH INSPECTION HANDLER -------------------- */

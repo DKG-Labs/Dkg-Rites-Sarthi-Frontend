@@ -68,7 +68,9 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     getRmCachedData,
     updateRmPoDataCache,
     updateRmCallDataCache,
-    updateRmHeatDataCache
+    updateRmHeatDataCache,
+    capturedImages,
+    setCapturedImages
   } = useInspection();
 
   // State for fetched data from backend
@@ -206,16 +208,6 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
   // Save Draft state
   const [isSavingDraft, setIsSavingDraft] = useState(false);
-
-  // Captured Images state
-  const [capturedImages, setCapturedImages] = useState(() => {
-    try {
-      const callNo = call?.call_no;
-      if (!callNo) return [];
-      const saved = localStorage.getItem(`${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}${getShiftSuffix()}`);
-      return saved ? (JSON.parse(saved).capturedImages || []) : [];
-    } catch { return []; }
-  });
 
   // Withheld modal state
   const [showWithheldModal, setShowWithheldModal] = useState(false);
@@ -821,17 +813,8 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
         // 8. Restore Captured Images
         if (pausedData.capturedImages && pausedData.capturedImages.length > 0) {
-          const mainKey = `${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}${getShiftSuffix()}`;
-          const existingRaw = localStorage.getItem(mainKey);
-          const existingData = existingRaw ? JSON.parse(existingRaw) : {};
-          if (!existingData.capturedImages || existingData.capturedImages.length === 0) {
-            existingData.capturedImages = pausedData.capturedImages;
-            localStorage.setItem(mainKey, JSON.stringify(existingData));
-            const storageKey = `${DASHBOARD_DRAFT_KEY}${callNo}${getShiftSuffix()}`;
-            localStorage.setItem(storageKey, JSON.stringify(existingData));
-            setCapturedImages(pausedData.capturedImages);
-            restoredAny = true;
-          }
+          setCapturedImages(pausedData.capturedImages);
+          restoredAny = true;
         }
 
         if (restoredAny) {
@@ -843,6 +826,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       }
     };
     restorePausedData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [call?.call_no, isVisualDataEmpty, isDimDataEmpty, isMaterialDataEmpty, isPackingDataEmpty, isCalibrationDataEmpty, consolidatedHeats]);
 
 
@@ -2913,6 +2897,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     } catch (error) {
       console.error('Error loading draft data:', error);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [call?.call_no, fetchedHeatData]);
 
   // Auto-save dashboard fields to localStorage whenever they change

@@ -295,6 +295,10 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
 
   const handleExport = async () => {
     if (!printAreaRef.current) return;
+    if (isEditing) {
+      setIsEditing(false);
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
     const sanitizedFilename = (dataToPass.certificateNo || "RawMaterialIC").replace(/[/\\?%*:|"<>]/g, '-');
     await exportToPdf(printAreaRef.current, `${sanitizedFilename}.pdf`);
   };
@@ -322,6 +326,12 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
 
       console.log("✅ Validation passed. Preparing to save edited data...");
       setNotification({ open: true, message: "Saving edited data...", severity: 'info' });
+      
+      if (isEditing) {
+          setIsEditing(false);
+          await new Promise(resolve => setTimeout(resolve, 300));
+      }
+
       // 2. Save Edited Data to DB
       const payloadToSave = {
           icNumber: dataToPass.certificateNo || call.icNo || call.call_no || "RawMaterial_IC",

@@ -57,8 +57,10 @@ const deepSearch = (obj, searchText) => {
       return normalizedDate.toLowerCase().includes(normalizedSearch);
     }
 
-    // Standard string search
-    return strValue.includes(searchText);
+    // Flexible string search ignoring spaces and hyphens
+    const normStr = strValue.replace(/[\s-]/g, '');
+    const normSearch = searchText.replace(/[\s-]/g, '');
+    return normStr.includes(normSearch);
   }
 
   // If it's an array, search each element
@@ -152,7 +154,9 @@ const DataTable = ({ columns, data, onRowClick, actions, selectable, selectedRow
         // Also search rendered column values (for status badges, formatted dates, etc.)
         return columns.some(column => {
           const renderedText = getRenderedText(row, column);
-          return renderedText.includes(searchText);
+          const normRendered = renderedText.replace(/[\s-]/g, '');
+          const normSearch = searchText.replace(/[\s-]/g, '');
+          return normRendered.includes(normSearch);
         });
       });
     }

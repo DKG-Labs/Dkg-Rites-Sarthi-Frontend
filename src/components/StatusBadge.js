@@ -7,7 +7,7 @@ import React from 'react';
  * 2. Styled: <StatusBadge label="Pending" color="#f59e0b" bgColor="rgba(...)" borderColor="rgba(...)" />
  * Fixed: Now properly renders status badges for Call Desk module
  */
-const StatusBadge = ({ status, label, color, bgColor, borderColor }) => {
+const StatusBadge = ({ status, label, color, bgColor, borderColor, text }) => {
   // If using styled props (Call Desk pattern)
   if (label && color && bgColor && borderColor) {
     return (
@@ -52,7 +52,7 @@ const StatusBadge = ({ status, label, color, bgColor, borderColor }) => {
   };
 
   const className = `status-badge ${getStatusClass(status)}`;
-  const displayText = formatStatusText(status);
+  const displayText = text || formatStatusText(status);
 
   return <span className={className}>{displayText}</span>;
 };

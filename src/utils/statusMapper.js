@@ -106,3 +106,42 @@ export const getStatusVariant = (apiStatus) => {
   return variantMap[apiStatus] || 'default';
 };
 
+/**
+ * Get detailed Main Status and Sub Status based on System Status (API Status)
+ * @param {string} systemStatus - Status from API response
+ * @returns {Object} { mainStatus: string, subStatus: string }
+ */
+export const getDetailedStatus = (systemStatus) => {
+  const statusLower = (systemStatus || '').toUpperCase();
+  
+  const mapping = {
+    'CREATED': { mainStatus: 'Pending', subStatus: 'Call Raised' },
+    'VERIFIED': { mainStatus: 'Pending', subStatus: 'Call Registered' },
+    'RETURNED': { mainStatus: 'Pending', subStatus: 'Returned to Vendor' },
+    'CALL_REGISTERED': { mainStatus: 'Pending', subStatus: 'Call Registered' },
+    'IE_SCHEDULED': { mainStatus: 'Pending', subStatus: 'Call Scheduled' },
+    'SCHEDULED': { mainStatus: 'Pending', subStatus: 'Call Scheduled' }, // Fallback for some frontend statuses
+    'INITIATE_INSPECTION': { mainStatus: 'Under Inspection', subStatus: 'Inspection Started' },
+    'VERIFY_PO_DETAILS': { mainStatus: 'Under Inspection', subStatus: 'Inspection Started' },
+    'PAUSE_INSPECTION_RESUME_NEXT_DAY': { mainStatus: 'Under Inspection', subStatus: 'Paused for Next Schedule' },
+    'INSPECTION_PAUSED': { mainStatus: 'Under Inspection', subStatus: 'Paused for Next Schedule' }, // Alias
+    'ENTER_SHIFT_DETAILS_AND_START_INSPECTION': { mainStatus: 'Under Inspection', subStatus: 'Under inspection' },
+    'INSPECTION_COMPLETE_CONFIRM': { mainStatus: 'Completed', subStatus: 'IC Issuance Pending' },
+    'GENERATE_IC': { mainStatus: 'Completed', subStatus: 'IC Issued' },
+    'DSC_SIGN_IC': { mainStatus: 'Completed', subStatus: 'E-Signed' },
+    'CANCELLED': { mainStatus: 'Completed', subStatus: 'cancelled' },
+    'WITHHELD': { mainStatus: 'Under Inspection', subStatus: 'withheld' }
+  };
+
+  const result = mapping[statusLower] || { mainStatus: statusLower || '-', subStatus: '-' };
+  
+  if (!result.subStatus || result.subStatus === '-' || result.subStatus.toLowerCase() === 'none') {
+    result.combinedText = result.mainStatus;
+  } else if (result.mainStatus.toLowerCase() === result.subStatus.toLowerCase()) {
+    result.combinedText = result.mainStatus;
+  } else {
+    result.combinedText = `${result.mainStatus} - ${result.subStatus}`;
+  }
+
+  return result;
+};

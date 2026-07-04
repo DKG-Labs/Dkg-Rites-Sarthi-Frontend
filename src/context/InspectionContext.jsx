@@ -121,6 +121,16 @@ export const InspectionProvider = ({ children }) => {
 
   const [processLotNumbers] = useState(['LOT-001', 'LOT-002', 'LOT-003']);
 
+  // Captured Images (shared across dashboards)
+  const [capturedImages, setCapturedImages] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('capturedImages');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
   // Landing page active tab
   const [landingActiveTab, setLandingActiveTab] = useState('pending');
 
@@ -168,6 +178,19 @@ export const InspectionProvider = ({ children }) => {
       sessionStorage.setItem('rmLadleValues', JSON.stringify(values));
     } else {
       sessionStorage.removeItem('rmLadleValues');
+    }
+  }, []);
+
+  const updateCapturedImages = useCallback((images) => {
+    setCapturedImages(images);
+    try {
+      if (images && images.length > 0) {
+        sessionStorage.setItem('capturedImages', JSON.stringify(images));
+      } else {
+        sessionStorage.removeItem('capturedImages');
+      }
+    } catch (e) {
+      console.warn('Could not save captured images to sessionStorage (likely quota exceeded).');
     }
   }, []);
 
@@ -469,6 +492,8 @@ export const InspectionProvider = ({ children }) => {
     sessionStorage.removeItem('processShift');
     sessionStorage.removeItem('processSelectedLines');
     sessionStorage.removeItem('processProductionLines');
+    sessionStorage.removeItem('capturedImages');
+    setCapturedImages([]);
 
     // Clear all caches
     clearRmCache();
@@ -498,6 +523,7 @@ export const InspectionProvider = ({ children }) => {
     processProductionLines,
     processLotNumbers,
     landingActiveTab,
+    capturedImages,
     setSelectedCall: updateSelectedCall,
     setSelectedCalls: updateSelectedCalls,
     setActiveInspectionType: updateActiveInspectionType,
@@ -510,6 +536,7 @@ export const InspectionProvider = ({ children }) => {
     setProcessSelectedLines: updateProcessSelectedLines,
     setProcessProductionLines: updateProcessProductionLines,
     setLandingActiveTab,
+    setCapturedImages: updateCapturedImages,
     clearInspectionData,
     // Cache management functions - Raw Material
     updateRmPoDataCache,

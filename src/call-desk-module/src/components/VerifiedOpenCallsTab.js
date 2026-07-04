@@ -9,6 +9,7 @@ import StatusBadge from '../../../components/StatusBadge';
 import CallsFilterSection from '../../../components/common/CallsFilterSection';
 import { CALL_STATUS_CONFIG } from '../utils/constants';
 import { formatDateTime } from '../utils/helpers';
+import { getDetailedStatus } from '../../../utils/statusMapper';
 
 const VerifiedOpenCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -126,16 +127,9 @@ const VerifiedOpenCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
     {
       key: 'status',
       label: 'Status',
-      render: (value) => {
-        const config = CALL_STATUS_CONFIG[value];
-        return config ? (
-          <StatusBadge
-            label={config.label}
-            color={config.color}
-            bgColor={config.bgColor}
-            borderColor={config.borderColor}
-          />
-        ) : value || '-';
+      render: (_value, row) => {
+        const { mainStatus, combinedText } = getDetailedStatus(row.originalStatus || row.status);
+        return <StatusBadge status={mainStatus} text={combinedText} />;
       }
     },
     {

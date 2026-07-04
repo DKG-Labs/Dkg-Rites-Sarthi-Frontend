@@ -22,6 +22,7 @@ import { scheduleInspection, rescheduleInspection, getScheduleByCallNo, validate
 import { clearWorkflowCache } from '../services/workflowService';
 import { checkTolerance } from '../utils/toleranceValidation';
 import ImageCaptureComponent from '../components/ImageCaptureComponent';
+import { useInspection } from '../context/InspectionContext';
 
 // Reason options for withheld/cancel call
 const WITHHELD_REASONS = [
@@ -1039,16 +1040,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
   // State for production lines section
   const [productionLinesExpanded, setProductionLinesExpanded] = useState(true);
 
-  // Captured Images state
-  const [capturedImages, setCapturedImages] = useState(() => {
-    try {
-      const callNoForScoping = call?.call_no;
-      if (!callNoForScoping) return [];
-      const storageKey = `${DASHBOARD_DRAFT_KEY}${callNoForScoping}_${shift}`;
-      const savedDraft = localStorage.getItem(storageKey);
-      return savedDraft ? (JSON.parse(savedDraft).capturedImages || []) : [];
-    } catch { return []; }
-  });
+  const { capturedImages, setCapturedImages } = useInspection();
 
   // State for editable production lines - persisted in sessionStorage - scoped to call number
   const [localProductionLines, setLocalProductionLines] = useState(() => {
@@ -2426,7 +2418,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         // Fetch paused inspection data from backend to restore images and draft info
         try {
           const pausedData = await getProcessInspectionByCallNo(callNo);
-          if (pausedData && pausedData.capturedImages && pausedData.capturedImages.length > 0) {
+          if (pausedData.capturedImages && pausedData.capturedImages.length > 0) {
             console.log('✅ [Process Dashboard] Restoring captured images from backend:', pausedData.capturedImages.length);
             const storageKey = `${DASHBOARD_DRAFT_KEY}${callNo}_${shift}`;
             const existingRaw = localStorage.getItem(storageKey);

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import SleeperFinalIc from "./SleeperFinalIc";
+import { apiService } from "../../../services/api";
 
 export default function SleeperFinalProductCertificate() {
   const printAreaRef = useRef();
@@ -22,46 +23,81 @@ export default function SleeperFinalProductCertificate() {
   const handleCloseNotification = () => setNotification({ ...notification, open: false });
 
   const [data, setData] = useState({
-      certificateNo: call?.certificateNo || call?.icNo || "C/SECR/C26060000/HKS",
+      certificateNo: call?.certificateNo || call?.icNo || "",
       certificateDate: new Date().toLocaleDateString('en-GB'),
-      bookNo: "051",
-      setNo: "014",
-      offeredInstNo: "1",
-      passedInstNo: "1",
-      purchasingAuthority: call?.purchasingAuthority || "M/s HILL BROW METALLICS & CONSTRUCTION PVT. LTD./RAIGARH",
-      poNo: call?.poNo || call?.po_no || "HILL-BROW/IRCON/25-26/39",
-      contractRef: "Upto Latest 4 Amendments\nSECR/HQ/Engg/TS/Stores/UV/WD Sleeper 24/02/2026\nUN/BC/220426-I 22/04/2026\nSECR/HQ/Engg/TS/PSC/UV/Pvt.Supply/Pt.III/ 13/04/2026\nMCR/HQ/Engg/TS/CSO/B-20201R 29/02/2026",
-      billPayingOfficer: "HILL BROW METALLICS & CONSTRUCTIONS PVT. LTD./RAIGARH (NOTE INSPECTION FEES TO BE BORNE BY SECR/BILASPUR)",
-      contractor: call?.vendorName || call?.vendorCode || call?.contractor || "M/S UNIVAN SLEEPERS PVT LTD BADHINA TOLA NEAR RPF BARRACK DONGARGARH 491445 RAJNANDGAON",
-      placeOfInspection: call?.placeOfInspection || "M/S UNIVAN SLEEPERS PVT LTD BADHINA TOLA NEAR RPF BARRACK DONGARGARH 491445 RAJNANDGAON",
-      consignee: call?.consignee || "HILL BROW METALLICS & CONSTRUCTION PVT. LTD./RAIGARH",
-      itemNo: "1",
-      descriptionOfStores: call?.description || "SL. NO. 1 - ORDINARY SLEEPER T-2496",
-      qtyOnOrder: call?.qtyOnOrder || "10000",
-      qtyOfferedPreviously: call?.qtyOfferedPreviously || "NIL",
-      qtyPassedPreviously: call?.qtyPassedPreviously || "NIL",
-      qtyNowOffered: call?.qtyNowOffered || call?.qty || "960",
-      qtyNowPassed: call?.qtyNowPassed || call?.accepted || "959",
-      qtyNowRejected: call?.qtyNowRejected || call?.rejected || "1",
-      qtyStillDue: call?.qtyStillDue || "9041",
-      quantityNowPassedText: "QUANTITY NOW PASSED NINE HUNDRED FIFTY NINE NUMBERS ONLY AND ONE NUMBER IS REJECTED DURING INSPECTION AS DETAILED IN ANNEXURE - I TO IC ATTACHED. CASTING BATCH NO. 2474, 2478, 2480, 2482, 2486, 2489, 2491, 2496, 2499, 2502, 2504, 2513, 2514, 2519, 2520, 2521, 2524, 2526, 2528, 2530, 2534, 2536, 2539, 2540, 2542, 2544.",
-      noOfItemsChecked: "ONE",
-      dateOfCall: "26/04/2026, 27/04/2026",
-      noOfVisits: "ONE",
-      datesOfInspection: "30/04/2026",
+      bookNo: "",
+      setNo: "",
+      offeredInstNo: "",
+      passedInstNo: "",
+      purchasingAuthority: call?.purchasingAuthority || "",
+      poNo: call?.poNo || call?.po_no || "",
+      contractRef: "",
+      billPayingOfficer: "",
+      contractor: call?.vendorName || call?.vendorCode || call?.contractor || "",
+      placeOfInspection: call?.placeOfInspection || "",
+      consignee: call?.consignee || "",
+      itemNo: "",
+      descriptionOfStores: call?.description || "",
+      qtyOnOrder: call?.qtyOnOrder || "",
+      qtyOfferedPreviously: call?.qtyOfferedPreviously || "",
+      qtyPassedPreviously: call?.qtyPassedPreviously || "",
+      qtyNowOffered: call?.qtyNowOffered || call?.qty || "",
+      qtyNowPassed: call?.qtyNowPassed || call?.accepted || "",
+      qtyNowRejected: call?.qtyNowRejected || call?.rejected || "",
+      qtyStillDue: call?.qtyStillDue || "",
+      quantityNowPassedText: "",
+      noOfItemsChecked: "",
+      dateOfCall: "",
+      noOfVisits: "",
+      datesOfInspection: "",
       trRecDate: "",
-      sealingPattern: "RITES STENCIL \"R T-L.S\" MARKED ON THE TOP SURFACE OF EACH PSC SLEEPER IN PRESENCE OF VENDOR..",
+      sealingPattern: "",
       facsimileText: "",
-      reasonsForRejection: "ONE NUMBER IS REJECTED DURING INSPECTION AS DETAILED IN ANNEXURE - I TO IC ATTACHED.",
+      reasonsForRejection: "",
       inspectingEngineer: ""
   });
 
   // Update data when call object is loaded
   useEffect(() => {
+      const fetchICData = async (requestId) => {
+          try {
+              const res = await apiService.getSleeperIc(requestId);
+              const icData = res.data || res; // depending on interceptor return
+              if (icData) {
+                  setData(prev => ({
+                      ...prev,
+                      certificateNo: icData.certificateNo || prev.certificateNo,
+                      certificateDate: icData.date || prev.certificateDate,
+                      purchasingAuthority: icData.purchasingAuthority || prev.purchasingAuthority,
+                      consignee: icData.consignee || prev.consignee,
+                      qtyNowOffered: icData.qtyNowOffered ? icData.qtyNowOffered.replace(/\D/g, '') : prev.qtyNowOffered, // Extract number from "Nos. - 2"
+                      qtyNowRejected: icData.qtyNowRejected ? icData.qtyNowRejected.replace(/\D/g, '') : prev.qtyNowRejected,
+                      qtyNowPassed: icData.qtyNowPassed ? icData.qtyNowPassed.replace(/\D/g, '') : prev.qtyNowPassed,
+                      qtyStillDue: icData.qtyStillDue ? icData.qtyStillDue.replace(/\D/g, '') : prev.qtyStillDue,
+                      contractor: icData.contractor || prev.contractor,
+                      noOfVisits: icData.noOfVisits ? icData.noOfVisits.toString() : prev.noOfVisits,
+                      dateOfCall: icData.dateOfCall || prev.dateOfCall,
+                      offeredInstNo: icData.offeredInstallmentNumber ? icData.offeredInstallmentNumber.toString() : prev.offeredInstNo,
+                      passedInstNo: icData.passedInstallmentNumber ? icData.passedInstallmentNumber.toString() : prev.passedInstNo,
+                      contractRef: icData.contractRefAndDate || prev.contractRef,
+                      billPayingOfficer: icData.billPayingOffice || prev.billPayingOfficer,
+                      descriptionOfStores: icData.descriptionOfStores || prev.descriptionOfStores,
+                      qtyPassedPreviously: icData.quantityPreviouslyPassed ? icData.quantityPreviouslyPassed.replace(/\D/g, '') : prev.qtyPassedPreviously,
+                      qtyOfferedPreviously: icData.cumulativeQtyOfferedPreviously ? icData.cumulativeQtyOfferedPreviously.replace(/\D/g, '') : prev.qtyOfferedPreviously,
+                      qtyOnOrder: icData.quantityOnOrder ? icData.quantityOnOrder.replace(/\D/g, '') : prev.qtyOnOrder,
+                      itemNo: icData.itemNo || prev.itemNo,
+                      placeOfInspection: icData.placeOfInspection || prev.placeOfInspection
+                  }));
+              }
+          } catch (e) {
+              console.error('Failed to fetch IC data:', e);
+          }
+      };
+
       if (call && Object.keys(call).length > 0) {
           setData(prev => ({
               ...prev,
-              certificateNo: call.certificateNo || call.icNo || (call.workflowTransitionId ? `C/SECR/C${call.workflowTransitionId}/HKS` : prev.certificateNo),
+              certificateNo: call.certificateNo || call.icNo || prev.certificateNo,
               certificateDate: prev.certificateDate,
               poNo: call.poNo || call.po_no || call.po || prev.poNo,
               contractor: call.vendorName || call.vendorCode || call.contractor || prev.contractor,
@@ -69,6 +105,11 @@ export default function SleeperFinalProductCertificate() {
               qtyNowPassed: call.qtyNowPassed || call.accepted || prev.qtyNowPassed,
               qtyNowRejected: call.qtyNowRejected || call.rejected || prev.qtyNowRejected,
           }));
+
+          const requestId = call.requestId || call.callNo; // SF-25050001
+          if (requestId) {
+              fetchICData(requestId);
+          }
       }
   }, [call]);
 

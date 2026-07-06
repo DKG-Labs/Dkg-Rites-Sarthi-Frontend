@@ -1,5 +1,5 @@
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import FormField from "../components/FormField";
 import { formatDate, formatPoNoWithSerial, getCleanErrorMessage } from "../utils/helpers";
 import { markAsWithheld } from '../services/callStatusService';
@@ -1103,6 +1103,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
 
   /* Finish inspection state */
   const [isFinishingInspection, setIsFinishingInspection] = useState(false);
+  const isProcessingFinishRef = useRef(false);
 
   /* Pause inspection state */
   const [isPausingInspection, setIsPausingInspection] = useState(false);
@@ -1438,7 +1439,10 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     );
     if (!confirmed) return;
 
+    if (isProcessingFinishRef.current) return;
+    
     setIsFinishingInspection(true);
+    isProcessingFinishRef.current = true;
 
     try {
       console.log('🚀 Starting finish inspection process for call:', callNo);
@@ -1610,9 +1614,10 @@ Workflow Status: ✅ Transitioned to COMPLETED
     } catch (error) {
       console.error('❌ Error finishing inspection:', error);
       const errorMsg = getCleanErrorMessage(error);
-      alert(`❌ Error: ${errorMsg}`);
+      alert(`❌ Failed to finish inspection: ${errorMsg}`);
     } finally {
       setIsFinishingInspection(false);
+      isProcessingFinishRef.current = false;
     }
   };
 

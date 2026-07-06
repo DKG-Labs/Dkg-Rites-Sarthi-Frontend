@@ -430,7 +430,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
             color="success" 
             size="small" 
             onClick={handleESign}
-            disabled={isESigning}
+            disabled={isESigning || isEditing}
             startIcon={isESigning ? <CircularProgress size={20} color="inherit" /> : null}
           >
             {isESigning ? "SIGNING..." : "✒ E SIGN"}
@@ -438,7 +438,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
           <button 
             onClick={handleExport} 
             className="btn btn-primary"
-            disabled={isESigning}
+            disabled={isESigning || isEditing}
           >
             Export PDF
           </button>

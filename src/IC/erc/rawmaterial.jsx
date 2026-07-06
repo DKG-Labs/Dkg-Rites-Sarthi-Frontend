@@ -435,7 +435,7 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
             color="success" 
             size="small" 
             onClick={handleESign} 
-            disabled={isESigning}
+            disabled={isESigning || isEditing}
             startIcon={isESigning ? <CircularProgress size={20} color="inherit" /> : null}
           >
             {isESigning ? "SIGNING..." : "✒ E SIGN"}
@@ -445,7 +445,7 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
             color="primary" 
             size="small" 
             onClick={handleExport} 
-            disabled={isESigning}
+            disabled={isESigning || isEditing}
           >
             Export PDF
           </Button>

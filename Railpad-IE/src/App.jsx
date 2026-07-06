@@ -84,6 +84,14 @@ const MODULES = [
   }
 ];
 
+const isRailpadRole = (role) => {
+  if (!role) return false;
+  const railpadRoles = ['Railpad IE', 'Rail Process IE', 'Rail Main IE'];
+  return railpadRoles.some(r =>
+    role === r || (typeof role === 'string' && role.includes(r))
+  );
+};
+
 const App = () => {
   const [activeItem, setActiveItem] = useState(() => {
     return localStorage.getItem('railpad_ie_active_item') || 'PortalHome';
@@ -176,6 +184,13 @@ const App = () => {
   }, [activeItem, selectedModule, activeCard, selectedCallForInitiation]);
 
   if (!isAuthenticated()) {
+    window.location.href = '/';
+    return null;
+  }
+
+  // Prevent ERC (or non-Railpad) users from bypassing into Railpad by checking role
+  if (loggedInUser && !isRailpadRole(loggedInUser.roleName)) {
+    // We can just redirect them to the main portal root
     window.location.href = '/';
     return null;
   }

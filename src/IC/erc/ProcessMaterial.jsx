@@ -303,7 +303,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
             color="success" 
             size="small" 
             onClick={handleSaveIC} 
-            disabled={isESigning}
+            disabled={isESigning || isEditing}
             startIcon={isESigning ? <CircularProgress size={20} color="inherit" /> : null}
           >
             {isESigning ? "SAVING..." : "💾 SAVE IC"}
@@ -313,7 +313,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
             color="primary" 
             size="small" 
             onClick={handleExport} 
-            disabled={isESigning}
+            disabled={isESigning || isEditing}
           >
             Export PDF
           </Button>

@@ -14,7 +14,18 @@ import MonthlyReport from './pages/ProcessIE/MonthlyReport';
 import DashboardTabs from './components/Navigation/DashboardTabs';
 import LoginPage from './pages/LoginPage/LoginPage';
 import { ROUTES } from './routes';
-import { isAuthenticated } from './services/authService';
+import { isAuthenticated, getStoredUser } from './services/authService';
+
+const isSleeperRole = (role) => {
+  if (!role) return false;
+  // If it's a Rail-related role, it belongs to Railpad, not Sleeper
+  if (typeof role === 'string' && role.includes('Rail')) return false;
+
+  const sleeperRoles = ['Sleeper Process IE', 'Main IE'];
+  return sleeperRoles.some(r =>
+    role === r || (typeof role === 'string' && role.includes(r))
+  );
+};
 
 const ProtectedRoute = ({ children }) => {
   if (!isAuthenticated()) {
@@ -22,6 +33,14 @@ const ProtectedRoute = ({ children }) => {
     window.location.href = '/';
     return null;
   }
+  
+  const loggedInUser = getStoredUser();
+  if (loggedInUser && !isSleeperRole(loggedInUser.roleName)) {
+    // Prevent ERC/Railpad users from bypassing into Sleeper by checking role
+    window.location.href = '/';
+    return null;
+  }
+  
   return children;
 };
 

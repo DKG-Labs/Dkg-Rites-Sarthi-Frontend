@@ -409,7 +409,22 @@ const InspectionInitiationPage = ({ call, onProceed, onBack, onShiftChange, onSe
       await saveInspectionInitiation(initiationData);
       console.log('✅ Inspection initiation saved successfully');
 
-
+      // Trigger workflow transition for Initiate Inspection
+      try {
+        const workflowActionData = {
+          workflowTransitionId: workflowTransitionId,
+          requestId: call.call_no,
+          action: 'ENTER_SHIFT_DETAILS_AND_START_INSPECTION',
+          remarks: 'Inspection Initiated',
+          actionBy: userId,
+          pincode: currentUser?.pincode || '560001'
+        };
+        console.log('🔄 Triggering workflow API for Initiate Inspection...', workflowActionData);
+        await performTransitionAction(workflowActionData);
+        console.log('✅ Workflow transition for Initiate Inspection successful');
+      } catch (workflowError) {
+        console.error('❌ Workflow API error on Initiate Inspection:', workflowError);
+      }
       // Mark call as under inspection in local storage
       markAsUnderInspection(call.call_no, { shiftOfInspection, dateOfInspection });
 

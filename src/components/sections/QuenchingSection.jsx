@@ -54,6 +54,13 @@ const QuenchingSection = ({
       newData[idx][field] = fieldArray;
     } else {
       newData[idx][field] = value;
+      
+      // Default Quenching Hardness Rejection to 0 when Lot No is selected
+      if (field === 'lotNo' && value) {
+        if (newData[idx].quenchingHardnessRejected === '' || newData[idx].quenchingHardnessRejected === undefined || newData[idx].quenchingHardnessRejected === null) {
+          newData[idx].quenchingHardnessRejected = 0;
+        }
+      }
     }
     onDataChange(newData);
   };

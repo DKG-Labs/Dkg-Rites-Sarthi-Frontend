@@ -8,6 +8,7 @@ import { getDetailedStatus } from '../utils/statusMapper';
 import { viewSignedCertificate } from '../services/certificateService';
 import { fetchSignedCallsForIC, getCurrentUserId } from '../services/workflowApiService';
 import AnnexureLoader from './annexures/AnnexureLoader';
+import CorrectionSlipModal from './CorrectionSlipModal';
 
 const CompletedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
   const [showFilters, setShowFilters] = useState(false);
@@ -28,6 +29,7 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
 
   const [completedCalls, setCompletedCalls] = useState([]);
   const [isLoadingCalls, setIsLoadingCalls] = useState(true);
+  const [correctionSlipRow, setCorrectionSlipRow] = useState(null);
 
   const hasFetchedRef = useRef(false);
 
@@ -181,7 +183,7 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
   };
 
   const actions = (row) => (
-    <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
+    <div style={{ display: 'flex', gap: 'var(--space-8)', flexWrap: 'wrap' }}>
       <button className="btn btn-sm btn-primary" onClick={(e) => { e.stopPropagation(); handleViewIC(row); }}>
         View IC
       </button>
@@ -194,6 +196,14 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
         title="View Technical Annexures"
       >
         Annexures
+      </button>
+      <button
+        className="btn btn-sm"
+        style={{ background: '#f59e0b', color: '#fff', border: 'none' }}
+        onClick={(e) => { e.stopPropagation(); setCorrectionSlipRow(row); }}
+        title="Issue Correction Slip"
+      >
+        Correction Slip
       </button>
     </div>
   );
@@ -251,6 +261,14 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
           initialPageSize={10}
           hidePageSize={true}
           hideSearch={true}
+        />
+      )}
+
+      {/* Correction Slip Modal */}
+      {correctionSlipRow && (
+        <CorrectionSlipModal
+          row={correctionSlipRow}
+          onClose={() => setCorrectionSlipRow(null)}
         />
       )}
     </div>

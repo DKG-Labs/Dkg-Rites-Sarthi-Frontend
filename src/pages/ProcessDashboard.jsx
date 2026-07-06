@@ -2734,6 +2734,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
   // App-level notification state
   const [notification, setNotification] = useState({ type: '', message: '', autoClose: true });
   const [isSaving, setIsSaving] = useState(false);
+  const isProcessingFinishRef = useRef(false);
 
   // Save Draft state
   const [isSavingDraft, setIsSavingDraft] = useState(false);
@@ -5031,12 +5032,8 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
    * Groups by unique (callNumber + lotNumber) combinations and sends separate API calls for each
    */
   const handleInspectionCompleted = useCallback(async () => {
-    // Image validation (minimum 5, maximum 10)
-    if (!capturedImages || capturedImages.length < 5) {
-      showNotification('error', `At least 5 inspection images are required to complete the shift (Currently: ${capturedImages?.length || 0})`);
-      return;
-    }
-    if (capturedImages.length > 10) {
+    // Image validation (maximum 10 only)
+    if (capturedImages && capturedImages.length > 10) {
       showNotification('error', `Maximum of 10 inspection images allowed (Currently: ${capturedImages.length})`);
       return;
     }
@@ -5595,6 +5592,8 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
    * Handle finish selected calls from modal
    */
   const handleFinishSelectedCalls = useCallback(async () => {
+    if (isProcessingFinishRef.current) return;
+    
     if (selectedCallsToFinish.length === 0) {
       showNotification('error', 'Please select at least one call to finish');
       return;
@@ -5648,6 +5647,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     console.log('🔍 [Finish] ✅ Validation passed, proceeding with finish inspection...');
 
     setIsSaving(true);
+    isProcessingFinishRef.current = true;
 
     try {
       // Get logged in user
@@ -5844,6 +5844,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       showNotification('error', `Failed to finish inspection: ${error?.message || error}`);
     } finally {
       setIsSaving(false);
+      isProcessingFinishRef.current = false;
     }
   }, [selectedCallsToFinish, executeFinishInspection, localProductionLines, call, callInitiationDataCache, manufacturedQtyByLine, allCallOptions, validateAllLots, rejectedQty.totalRejected]);
 

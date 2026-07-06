@@ -205,6 +205,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
   // Finish Inspection state
   const [isSaving, setIsSaving] = useState(false);
+  const isProcessingFinishRef = useRef(false);
 
   // Save Draft state
   const [isSavingDraft, setIsSavingDraft] = useState(false);
@@ -841,19 +842,19 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
   /**
    * Calculate No. of ERC (Finished) based on product model
-   * MK-V:   Weight / 0.00114 (weight per clip in MT)
-   * ERC-J:  Weight * 1000 / 0.928 (weight per clip in MT)
-   * MK-III: Weight / 0.000092 (weight per clip in MT)
+   * MK-V:   (Weight * 1000) / 1.133
+   * ERC-J:  (Weight * 1000) / 0.928
+   * MK-III: (Weight * 1000) / 0.928426
    */
   const numberOfERC = useMemo(() => {
     const weightMT = parseFloat(totalQuantity) || 0;
     if (productModel === 'MK-V') {
-      return Math.floor(weightMT / 0.00114);
+      return Math.floor((weightMT * 1000) / 1.133);
     } else if (productModel === 'ERC-J') {
       return Math.floor((weightMT * 1000) / 0.928);
     } else {
       // MK-III
-      return Math.floor(weightMT / 0.000092);
+      return Math.floor((weightMT * 1000) / 0.928426);
     }
   }, [totalQuantity, productModel]);
 
@@ -1419,7 +1420,10 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       return;
     }
 
+    if (isProcessingFinishRef.current) return;
+    
     setIsSaving(true);
+    isProcessingFinishRef.current = true;
     try {
       const shiftOfInspection = sessionStorage.getItem('inspectionShift') || null;
 
@@ -1882,6 +1886,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       setShowResultModal(true);
     } finally {
       setIsSaving(false);
+      isProcessingFinishRef.current = false;
     }
   }, [call?.call_no, call?.id, call?.pincode, call?.workflowTransitionId, activeHeats, onBack, numberOfBundles, numberOfERC, sourceOfRawMaterial, poData, productModel, heatSubmoduleStatuses, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, calculateVisualRejectedWeight, consolidatedHeats, canFinishInspection, updateRmCallDataCache, updateRmHeatDataCache, updateRmPoDataCache, capturedImages]);
 

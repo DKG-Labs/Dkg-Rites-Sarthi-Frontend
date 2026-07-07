@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import SleeperFinalIc from "./SleeperFinalIc";
 import { apiService } from "../../../services/api";
+import { getStoredUser } from '../../../services/authService';
 
 export default function SleeperFinalProductCertificate() {
   const printAreaRef = useRef();
@@ -122,8 +123,40 @@ export default function SleeperFinalProductCertificate() {
   };
 
   const handleBack = () => {
+    sessionStorage.setItem('attendingCallActiveTab', 'issuance');
     const event = new CustomEvent('navigate', { detail: { target: 'AttendingCallDashboard' } });
     window.dispatchEvent(event);
+  };
+
+  const handleESign = async () => {
+      setIsESigning(true);
+      try {
+          const user = getStoredUser();
+          const payload = {
+              workflowTransitionId: call.id || call.workflowTransitionId || call.transitionId,
+              moduleId: call.moduleId || 0,
+              requestId: call.requestId || call.callNo,
+              action: 'IC_GENERATION',
+              remarks: 'Certificate e-Signed and Generated',
+              actionBy: Number(user?.userId || 0)
+          };
+          
+          await apiService.performTransitionAction(payload);
+          
+          setNotification({ open: true, message: 'Certificate Generated Successfully!', severity: 'success' });
+          
+          setTimeout(() => {
+              sessionStorage.setItem('attendingCallActiveTab', 'completed');
+              const event = new CustomEvent('navigate', { detail: { target: 'AttendingCallDashboard' } });
+              window.dispatchEvent(event);
+          }, 1500);
+          
+      } catch (e) {
+          console.error("Failed to sign certificate:", e);
+          setNotification({ open: true, message: 'Failed to generate certificate: ' + (e.message || ''), severity: 'warning' });
+      } finally {
+          setIsESigning(false);
+      }
   };
 
   return (
@@ -151,7 +184,7 @@ export default function SleeperFinalProductCertificate() {
           </button>
           <button 
             disabled={isESigning}
-            onClick={() => { setNotification({ open: true, message: 'Digital signature not yet configured for Sleeper IE', severity: 'warning' }) }}
+            onClick={handleESign}
             style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', background: '#2e7d32', color: 'white', cursor: 'pointer' }}
           >
             {isESigning ? "SIGNING..." : "✒ E SIGN"}

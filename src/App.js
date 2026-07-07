@@ -54,7 +54,6 @@ import { AdminDashboardWrapper } from './pages/wrappers/AdminDashboardWrapper';
 import { SmsDashboardWrapper } from './pages/wrappers/SmsWrapper';
 import AnnexurePage from './pages/AnnexurePage';
 import { useNavigate } from 'react-router-dom';
-import RitesAdminDashboard from './pages/RitesAdminDashboard';
 import ProfileDashboard from './pages/UserProfile/ProfileDashboard';
 /**
  * Role-based redirect component

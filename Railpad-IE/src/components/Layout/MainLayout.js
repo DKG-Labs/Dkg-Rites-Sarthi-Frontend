@@ -118,7 +118,7 @@ const MainLayout = ({ children, activeItem, onItemClick, onLogout, user, isShift
                             }} />
 
                             <button 
-                                onClick={() => { setIsProfileMenuOpen(false); window.location.href = 'http://localhost:3000/profile?tab=0'; }}
+                                onClick={() => { setIsProfileMenuOpen(false); window.location.href = '/profile?tab=0'; }}
                                 style={{
                                     display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', width: '100%',
                                     background: 'transparent', border: 'none', borderRadius: '12px', cursor: 'pointer',
@@ -140,7 +140,7 @@ const MainLayout = ({ children, activeItem, onItemClick, onLogout, user, isShift
                             </button>
 
                             <button 
-                                onClick={() => { setIsProfileMenuOpen(false); window.location.href = 'http://localhost:3000/profile?tab=1'; }}
+                                onClick={() => { setIsProfileMenuOpen(false); window.location.href = '/profile?tab=1'; }}
                                 style={{
                                     display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', width: '100%',
                                     background: 'transparent', border: 'none', borderRadius: '12px', cursor: 'pointer',
@@ -162,7 +162,7 @@ const MainLayout = ({ children, activeItem, onItemClick, onLogout, user, isShift
                             </button>
 
                             <button 
-                                onClick={() => { setIsProfileMenuOpen(false); window.location.href = 'http://localhost:3000/profile?tab=2'; }}
+                                onClick={() => { setIsProfileMenuOpen(false); window.location.href = '/profile?tab=2'; }}
                                 style={{
                                     display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', width: '100%',
                                     background: 'transparent', border: 'none', borderRadius: '12px', cursor: 'pointer',

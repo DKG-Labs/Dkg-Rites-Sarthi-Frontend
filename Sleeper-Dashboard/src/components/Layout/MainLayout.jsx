@@ -320,7 +320,7 @@ const MainLayout = ({ children, activeItem, onItemClick }) => {
 
                                     {/* View Profile */}
                                     <button
-                                        onClick={() => { setIsProfileMenuOpen(false); onItemClick('User Profile'); }}
+                                        onClick={() => { setIsProfileMenuOpen(false); window.location.href = '/profile?tab=0'; }}
                                         style={{
                                             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                                             padding: '10px 12px', width: '100%',
@@ -344,7 +344,7 @@ const MainLayout = ({ children, activeItem, onItemClick }) => {
 
                                     {/* Edit Profile */}
                                     <button
-                                        onClick={() => { setIsProfileMenuOpen(false); window.location.href = 'http://localhost:3000/profile?tab=1'; }}
+                                        onClick={() => { setIsProfileMenuOpen(false); window.location.href = '/profile?tab=1'; }}
                                         style={{
                                             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                                             padding: '10px 12px', width: '100%',
@@ -368,7 +368,7 @@ const MainLayout = ({ children, activeItem, onItemClick }) => {
 
                                     {/* Change Password */}
                                     <button
-                                        onClick={() => { setIsProfileMenuOpen(false); window.location.href = 'http://localhost:3000/profile?tab=2'; }}
+                                        onClick={() => { setIsProfileMenuOpen(false); window.location.href = '/profile?tab=2'; }}
                                         style={{
                                             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                                             padding: '10px 12px', width: '100%',

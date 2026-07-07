@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { loginUser, storeAuthData, isAuthenticated, getStoredUser } from '../services/authService';
+import { loginUser, storeAuthData, isAuthenticated, getStoredUser, resetPassword } from '../services/authService';
 import { ROUTES, ROLE_LANDING_ROUTE } from '../routes';
 import './LoginPage.css';
 
@@ -24,6 +24,12 @@ const LoginPage = () => {
   const [showRoleSelection, setShowRoleSelection] = useState(false);
   const [roleOptions, setRoleOptions] = useState([]);
   const [pendingUserData, setPendingUserData] = useState(null);
+
+  // Forgot password state
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [resetSuccess, setResetSuccess] = useState('');
 
   const heroRef = useRef(null);
 
@@ -140,9 +146,42 @@ const LoginPage = () => {
     handleRoleRedirection(finalUserData);
   };
 
+  const handleForgotPasswordSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setResetSuccess('');
+
+    if (!userId.trim()) {
+      setError('Please enter Username or Email');
+      return;
+    }
+    if (!newPassword.trim()) {
+      setError('Please enter New Password');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await resetPassword(userId, newPassword);
+      setResetSuccess('Password reset successfully. You can now login.');
+      setShowForgotPassword(false);
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      setError(err.message || 'Failed to reset password');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setResetSuccess('');
 
     if (!userId.trim()) {
       setError('Please enter User ID');
@@ -399,13 +438,92 @@ const LoginPage = () => {
                       ← Back to Login
                     </button>
                   </div>
-                ) : (
-                  <form className="dashboard-form" id="loginForm" onSubmit={handleSubmit}>
-                    {error && (
-                      <div className="login-error-toast">
-                        <span>⚠️ {error}</span>
+                ) : showForgotPassword ? (
+                  <form className="dashboard-form forgot-password-form" onSubmit={handleForgotPasswordSubmit}>
+                    <div className="form-header">
+                      <h2>Reset Password</h2>
+                      <p>Enter your details to change your password</p>
+                    </div>
+
+                    {error && <div className="error-banner">{error}</div>}
+
+                    <div className="form-group">
+                      <label htmlFor="userId">Username or Employee Code</label>
+                      <div className="input-field-shell">
+                        <input
+                          type="text"
+                          id="userId"
+                          placeholder="Enter username or employee code"
+                          value={userId}
+                          onChange={(e) => setUserId(e.target.value)}
+                          required
+                        />
                       </div>
-                    )}
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="newPassword">New Password</label>
+                      <div className="input-field-shell">
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          id="newPassword"
+                          placeholder="Enter new password"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          required
+                        />
+                        <button
+                          type="button"
+                          className="password-toggle-redesign"
+                          onClick={() => setShowPassword(!showPassword)}
+                        >
+                          {showPassword ? '🙈' : '👁️'}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="confirmPassword">Confirm Password</label>
+                      <div className="input-field-shell">
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          id="confirmPassword"
+                          placeholder="Confirm new password"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          required
+                        />
+                        <button
+                          type="button"
+                          className="password-toggle-redesign"
+                          onClick={() => setShowPassword(!showPassword)}
+                        >
+                          {showPassword ? '🙈' : '👁️'}
+                        </button>
+                      </div>
+                    </div>
+                    
+
+
+                    <button
+                      type="submit"
+                      className="submit-btn js-ripple"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? 'Resetting...' : 'Reset Password'}
+                    </button>
+                    
+                    <div className="dashboard-options" style={{ justifyContent: 'center', marginTop: '1rem' }}>
+                      <button type="button" className="forgot-link" onClick={() => { setShowForgotPassword(false); setError(''); setResetSuccess(''); }}>Back to Login</button>
+                    </div>
+                  </form>
+                ) : (
+                  <form className="dashboard-form" onSubmit={handleSubmit}>
+                    <div className="form-header" style={{ display: 'none' }}>
+                    </div>
+
+                    {error && <div className="error-banner">{error}</div>}
+                    {resetSuccess && <div className="error-banner" style={{ backgroundColor: '#e8f5e9', color: '#2e7d32', border: '1px solid #c8e6c9' }}>{resetSuccess}</div>}
 
                     <div className="form-group">
                       <label htmlFor="username">Username or Email</label>
@@ -461,7 +579,7 @@ const LoginPage = () => {
                         <input type="checkbox" id="rememberMe" name="rememberMe" />
                         <span>Remember me</span>
                       </label>
-                      <button type="button" className="forgot-link" onClick={(e) => e.preventDefault()}>Forgot password?</button>
+                      <button type="button" className="forgot-link" onClick={(e) => { e.preventDefault(); setShowForgotPassword(true); setError(''); setResetSuccess(''); }}>Forgot password?</button>
                     </div>
 
                     <button
@@ -471,8 +589,7 @@ const LoginPage = () => {
                     >
                       {isLoading ? 'Signing In...' : 'Sign In'}
                     </button>
-                    <p className="dashboard-footnote">Protected session with activity logging enabled</p>
-                  </form>
+                </form>
                 )}
               </aside>
             </div>

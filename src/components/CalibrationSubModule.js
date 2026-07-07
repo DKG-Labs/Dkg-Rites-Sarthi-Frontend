@@ -24,10 +24,10 @@ import CheckIcon from '@mui/icons-material/Check';
 import ClearIcon from '@mui/icons-material/Clear';
 import SaveIcon from '@mui/icons-material/Save';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { 
-  fetchVendorCalibrations, 
+import {
+  fetchVendorCalibrations,
   saveIeCalibrationInspection,
-  fetchIeCalibrationInspection 
+  fetchIeCalibrationInspection
 } from '../services/ieCalibrationService';
 
 const getShiftSuffix = () => {
@@ -73,7 +73,7 @@ const CalibrationSubModule = ({ vendorCode = '', vendorName = '', inspectionCall
   const [error, setError] = useState(null);
   const [expandedCategories, setExpandedCategories] = useState({});
   const resolvedVendorCode = vendorCode;
-  
+
   // Verification states
   const [verifications, setVerifications] = useState(() => {
     if (inspectionCallNo) {
@@ -271,7 +271,7 @@ const CalibrationSubModule = ({ vendorCode = '', vendorName = '', inspectionCall
     if (inspectionCallNo && calibrationData.length > 0 && Object.keys(verifications).length > 0) {
       const calKeyMain = `calibration_draft_data_${inspectionCallNo}`;
       const calKeyShift = `calibration_draft_data_${inspectionCallNo}${getShiftSuffix()}`;
-      
+
       const localStorageData = calibrationData.map(row => {
         const key = `${row.instrumentName}_${row.serialNumber}`;
         const ver = verifications[key] || { status: 'OK', remark: '' };
@@ -285,10 +285,10 @@ const CalibrationSubModule = ({ vendorCode = '', vendorName = '', inspectionCall
           calibrationStatus: ver.status === 'OK' ? 'Valid' : 'Expired'
         };
       });
-      
+
       localStorage.setItem(calKeyMain, JSON.stringify(localStorageData));
       localStorage.setItem(calKeyShift, JSON.stringify(localStorageData));
-      
+
       // Dispatch storage event to notify other windows/components
       window.dispatchEvent(new Event('storage'));
       console.log('🔧 CalibrationSubModule: Auto-saved to localStorage:', localStorageData);
@@ -350,19 +350,19 @@ const CalibrationSubModule = ({ vendorCode = '', vendorName = '', inspectionCall
         // Save to local storage for the dashboard to pick up!
         const calKeyMain = `calibration_draft_data_${inspectionCallNo}`;
         const calKeyShift = `calibration_draft_data_${inspectionCallNo}${getShiftSuffix()}`;
-        
+
         // Convert to format suitable for validateCalibrationHeat
         const localStorageData = detailsPayload.map(item => ({
           ...item,
           calibrationStatus: item.inspectionStatus === 'OK' ? 'Valid' : 'Expired'
         }));
-        
+
         localStorage.setItem(calKeyMain, JSON.stringify(localStorageData));
         localStorage.setItem(calKeyShift, JSON.stringify(localStorageData));
-        
+
         // Dispatch storage event to notify other windows/components
         window.dispatchEvent(new Event('storage'));
-        
+
         console.log('✅ IE Calibration: Saved to backend and local storage:', localStorageData);
       } else {
         throw new Error(saveRes.error || 'Failed to save verification');
@@ -478,11 +478,11 @@ const CalibrationSubModule = ({ vendorCode = '', vendorName = '', inspectionCall
 
   if (!vendorCode) {
     return (
-      <Paper elevation={0} sx={{ 
-        p: 6, 
-        textAlign: 'center', 
-        background: 'linear-gradient(to bottom, #f8fafc, #ffffff)', 
-        border: '1px dashed #cbd5e1', 
+      <Paper elevation={0} sx={{
+        p: 6,
+        textAlign: 'center',
+        background: 'linear-gradient(to bottom, #f8fafc, #ffffff)',
+        border: '1px dashed #cbd5e1',
         borderRadius: '16px',
         display: 'flex',
         flexDirection: 'column',
@@ -505,11 +505,11 @@ const CalibrationSubModule = ({ vendorCode = '', vendorName = '', inspectionCall
 
   if (error) {
     return (
-      <Paper elevation={0} sx={{ 
-        p: 6, 
-        textAlign: 'center', 
-        background: '#fef2f2', 
-        border: '1px dashed #fecaca', 
+      <Paper elevation={0} sx={{
+        p: 6,
+        textAlign: 'center',
+        background: '#fef2f2',
+        border: '1px dashed #fecaca',
         borderRadius: '16px',
         display: 'flex',
         flexDirection: 'column',
@@ -525,11 +525,11 @@ const CalibrationSubModule = ({ vendorCode = '', vendorName = '', inspectionCall
         </Typography>
         <Typography variant="body2" sx={{ color: '#b91c1c', maxWidth: '450px', mb: 3, lineHeight: 1.6 }}>
           Failed to load calibration data for vendor: <strong>{vendorName || resolvedVendorCode || vendorCode}</strong>.
-          <br/><br/>
+          <br /><br />
           <span style={{ opacity: 0.8, fontSize: '12px' }}>{error}</span>
         </Typography>
-        <Button 
-          variant="contained" 
+        <Button
+          variant="contained"
           startIcon={<RefreshIcon />}
           onClick={() => loadCalibrations(true)}
           sx={{
@@ -552,11 +552,11 @@ const CalibrationSubModule = ({ vendorCode = '', vendorName = '', inspectionCall
 
   if (calibrationData.length === 0) {
     return (
-      <Paper elevation={0} sx={{ 
-        p: 6, 
-        textAlign: 'center', 
-        background: 'linear-gradient(to bottom, #f8fafc, #ffffff)', 
-        border: '1px dashed #cbd5e1', 
+      <Paper elevation={0} sx={{
+        p: 6,
+        textAlign: 'center',
+        background: 'linear-gradient(to bottom, #f8fafc, #ffffff)',
+        border: '1px dashed #cbd5e1',
         borderRadius: '16px',
         display: 'flex',
         flexDirection: 'column',
@@ -564,14 +564,14 @@ const CalibrationSubModule = ({ vendorCode = '', vendorName = '', inspectionCall
         justifyContent: 'center',
         minHeight: '300px'
       }}>
-        <Box sx={{ 
-          width: '80px', 
-          height: '80px', 
-          borderRadius: '50%', 
-          background: '#f1f5f9', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
+        <Box sx={{
+          width: '80px',
+          height: '80px',
+          borderRadius: '50%',
+          background: '#f1f5f9',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           mb: 3,
           boxShadow: '0 4px 14px 0 rgba(0,0,0,0.05)',
           border: '1px solid #e2e8f0'
@@ -584,8 +584,8 @@ const CalibrationSubModule = ({ vendorCode = '', vendorName = '', inspectionCall
         <Typography variant="body2" sx={{ color: '#64748b', maxWidth: '450px', mb: 4, lineHeight: 1.6, fontSize: '13.5px' }}>
           Vendor <strong style={{ color: '#334155' }}>{vendorName || resolvedVendorCode || vendorCode}</strong> has not uploaded any instrument calibration data for this inspection call yet.
         </Typography>
-        <Button 
-          variant="outlined" 
+        <Button
+          variant="outlined"
           startIcon={<RefreshIcon />}
           onClick={() => loadCalibrations(true)}
           sx={{
@@ -613,10 +613,10 @@ const CalibrationSubModule = ({ vendorCode = '', vendorName = '', inspectionCall
   const allStats = getCategoryStats(calibrationData);
 
   return (
-    <Paper 
-      elevation={0} 
-      sx={{ 
-        p: 0, 
+    <Paper
+      elevation={0}
+      sx={{
+        p: 0,
         overflow: 'hidden',
         borderRadius: '12px',
         border: '1px solid #e2e8f0',
@@ -639,27 +639,27 @@ const CalibrationSubModule = ({ vendorCode = '', vendorName = '', inspectionCall
             <Typography variant="h6" sx={{ fontWeight: 700, color: '#1e293b', fontSize: '18px' }}>
               Vendor Calibration Records
             </Typography>
-            <IconButton 
-              size="small" 
-              onClick={() => loadCalibrations(true)} 
+            <IconButton
+              size="small"
+              onClick={() => loadCalibrations(true)}
               disabled={loading}
               title="Reload from Server"
               sx={{ color: '#64748b', '&:hover': { color: '#2563eb' } }}
             >
               <RefreshIcon sx={{ fontSize: '18px' }} />
             </IconButton>
-            <Chip 
-              label="Live Data" 
-              size="small" 
-              sx={{ 
-                height: 18, 
-                fontSize: '10px', 
-                fontWeight: 700, 
-                backgroundColor: '#e0f2fe', 
+            <Chip
+              label="Live Data"
+              size="small"
+              sx={{
+                height: 18,
+                fontSize: '10px',
+                fontWeight: 700,
+                backgroundColor: '#e0f2fe',
                 color: '#0369a1',
                 border: '1px solid #bae6fd',
                 px: 0.5
-              }} 
+              }}
             />
           </Box>
           <Typography variant="body2" sx={{ color: '#64748b', mt: 0.5, fontSize: '13px' }}>
@@ -688,40 +688,40 @@ const CalibrationSubModule = ({ vendorCode = '', vendorName = '', inspectionCall
           </Box>
 
           <Box sx={{ display: 'flex', gap: 1 }}>
-            <Chip 
-              label={`${allStats.valid} Valid`} 
-              size="small" 
-              sx={{ 
-                backgroundColor: '#dcfce7', 
-                color: '#166534', 
-                border: '1px solid #bbf7d0', 
+            <Chip
+              label={`${allStats.valid} Valid`}
+              size="small"
+              sx={{
+                backgroundColor: '#dcfce7',
+                color: '#166534',
+                border: '1px solid #bbf7d0',
                 fontWeight: 600,
                 fontSize: '12px'
-              }} 
+              }}
             />
             {allStats.expired > 0 && (
-              <Chip 
-                label={`${allStats.expired} Expired`} 
-                size="small" 
-                sx={{ 
-                  backgroundColor: '#fee2e2', 
-                  color: '#991b1b', 
-                  border: '1px solid #fecaca', 
+              <Chip
+                label={`${allStats.expired} Expired`}
+                size="small"
+                sx={{
+                  backgroundColor: '#fee2e2',
+                  color: '#991b1b',
+                  border: '1px solid #fecaca',
                   fontWeight: 600,
                   fontSize: '12px'
-                }} 
+                }}
               />
             )}
-            <Chip 
-              label={`${allStats.total} Total`} 
-              size="small" 
-              sx={{ 
-                backgroundColor: '#f1f5f9', 
-                color: '#475569', 
-                border: '1px solid #e2e8f0', 
+            <Chip
+              label={`${allStats.total} Total`}
+              size="small"
+              sx={{
+                backgroundColor: '#f1f5f9',
+                color: '#475569',
+                border: '1px solid #e2e8f0',
                 fontWeight: 600,
                 fontSize: '12px'
-              }} 
+              }}
             />
           </Box>
         </Box>
@@ -732,7 +732,7 @@ const CalibrationSubModule = ({ vendorCode = '', vendorName = '', inspectionCall
         {Object.entries(groupedData).map(([category, rows]) => {
           const stats = getCategoryStats(rows);
           const isExpanded = expandedCategories[category] !== false;
-          
+
           const getCategoryAccentColor = (catName) => {
             const lc = catName.toLowerCase();
             if (lc.includes('instrument')) return '#3b82f6';
@@ -740,13 +740,13 @@ const CalibrationSubModule = ({ vendorCode = '', vendorName = '', inspectionCall
             if (lc.includes('gauge')) return '#06b6d4';
             return '#64748b';
           };
-          
+
           const accentColor = getCategoryAccentColor(category);
 
           return (
-            <Box 
-              key={category} 
-              sx={{ 
+            <Box
+              key={category}
+              sx={{
                 borderRadius: '12px',
                 border: '1px solid #e2e8f0',
                 backgroundColor: '#ffffff',
@@ -776,16 +776,16 @@ const CalibrationSubModule = ({ vendorCode = '', vendorName = '', inspectionCall
                   <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#1e293b', fontSize: '15px' }}>
                     {category}
                   </Typography>
-                  <Chip 
-                    label={`${stats.total}`} 
-                    size="small" 
-                    sx={{ 
-                      height: 20, 
-                      fontSize: '11px', 
+                  <Chip
+                    label={`${stats.total}`}
+                    size="small"
+                    sx={{
+                      height: 20,
+                      fontSize: '11px',
                       fontWeight: 600,
-                      backgroundColor: '#e2e8f0', 
-                      color: '#475569' 
-                    }} 
+                      backgroundColor: '#e2e8f0',
+                      color: '#475569'
+                    }}
                   />
                   <Box sx={{ display: 'flex', gap: 1, ml: 1 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -865,9 +865,9 @@ const CalibrationSubModule = ({ vendorCode = '', vendorName = '', inspectionCall
                                 </Typography>
                               </Tooltip>
                               {row.certificateFilePath && (
-                                <Button 
-                                  size="small" 
-                                  variant="text" 
+                                <Button
+                                  size="small"
+                                  variant="text"
                                   sx={{ p: 0, minWidth: 'auto', mt: 0.5, fontSize: '11px', textTransform: 'none', color: '#0ea5e9' }}
                                   onClick={() => window.open(row.certificateFilePath, '_blank')}
                                 >
@@ -1008,39 +1008,39 @@ const CalibrationSubModule = ({ vendorCode = '', vendorName = '', inspectionCall
             Verification Progress: <strong>{Object.keys(verifications).length}</strong> / <strong>{calibrationData.length}</strong> checked
           </Typography>
           <Box sx={{ display: 'flex', gap: 1.5 }}>
-            <Chip 
-              label={`${Object.values(verifications).filter(v => v.status === 'OK').length} Valid`} 
-              size="small" 
-              sx={{ 
-                backgroundColor: '#dcfce7', 
-                color: '#166534', 
-                border: '1px solid #bbf7d0', 
-                fontWeight: 600, 
+            <Chip
+              label={`${Object.values(verifications).filter(v => v.status === 'OK').length} Valid`}
+              size="small"
+              sx={{
+                backgroundColor: '#dcfce7',
+                color: '#166534',
+                border: '1px solid #bbf7d0',
+                fontWeight: 600,
                 fontSize: '11px',
-              }} 
+              }}
             />
-            <Chip 
-              label={`${Object.values(verifications).filter(v => v.status === 'NOT OK').length} Invalid`} 
-              size="small" 
-              sx={{ 
-                backgroundColor: '#fee2e2', 
-                color: '#991b1b', 
-                border: '1px solid #fecaca', 
-                fontWeight: 600, 
+            <Chip
+              label={`${Object.values(verifications).filter(v => v.status === 'NOT OK').length} Invalid`}
+              size="small"
+              sx={{
+                backgroundColor: '#fee2e2',
+                color: '#991b1b',
+                border: '1px solid #fecaca',
+                fontWeight: 600,
                 fontSize: '11px',
-              }} 
+              }}
             />
           </Box>
         </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           {saveSuccess && (
-            <Alert 
-              severity="success" 
-              sx={{ 
-                py: 0, 
-                px: 1.5, 
-                fontSize: '13px', 
+            <Alert
+              severity="success"
+              sx={{
+                py: 0,
+                px: 1.5,
+                fontSize: '13px',
                 fontWeight: 600,
                 alignItems: 'center',
                 backgroundColor: '#ecfdf5',
@@ -1054,12 +1054,12 @@ const CalibrationSubModule = ({ vendorCode = '', vendorName = '', inspectionCall
             </Alert>
           )}
           {error && (
-            <Alert 
-              severity="error" 
-              sx={{ 
-                py: 0, 
-                px: 1.5, 
-                fontSize: '13px', 
+            <Alert
+              severity="error"
+              sx={{
+                py: 0,
+                px: 1.5,
+                fontSize: '13px',
                 fontWeight: 600,
                 alignItems: 'center',
                 borderRadius: '6px',

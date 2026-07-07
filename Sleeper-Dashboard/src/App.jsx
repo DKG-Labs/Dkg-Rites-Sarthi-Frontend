@@ -13,6 +13,7 @@ import LastShiftReport from './pages/ProcessIE/LastShiftReport';
 import MonthlyReport from './pages/ProcessIE/MonthlyReport';
 import DashboardTabs from './components/Navigation/DashboardTabs';
 import LoginPage from './pages/LoginPage/LoginPage';
+import UserProfilePage from './pages/UserProfile/UserProfilePage';
 import { ROUTES } from './routes';
 import { isAuthenticated, getStoredUser } from './services/authService';
 
@@ -84,6 +85,9 @@ const App = () => {
           case 'Sleeper Final IC':
             setMainView('Sleeper Final IC');
             break;
+          case 'User Profile':
+            setMainView('User Profile');
+            break;
           default:
             setMainView('Main Dashboard');
         }
@@ -109,6 +113,8 @@ const App = () => {
         return <div className="fade-in"><AttendingCallDashboard /></div>;
       case 'Sleeper Final IC':
         return <div className="fade-in"><SleeperFinalProductCertificate /></div>;
+      case 'User Profile':
+        return <UserProfilePage onBack={() => setMainView('Main Dashboard')} />;
       case 'Main Dashboard':
       default:
         return <MainDashboard />;

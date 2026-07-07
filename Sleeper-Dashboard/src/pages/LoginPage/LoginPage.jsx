@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { loginUser, storeAuthData, isAuthenticated, getStoredUser } from '../../services/authService';
+import { loginUser, storeAuthData, isAuthenticated, getStoredUser, resetPassword } from '../../services/authService';
 import { ROUTES } from '../../routes';
 import './LoginPage.css';
 
@@ -16,6 +16,13 @@ const LoginPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  
+  // Forgot password state
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [resetSuccess, setResetSuccess] = useState('');
+
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isInteracting, setIsInteracting] = useState(false);
   const [pointerRatio, setPointerRatio] = useState({ x: 0, y: 0 });
@@ -87,9 +94,42 @@ const LoginPage = () => {
     setPointerRatio({ x: 0, y: 0 });
   };
 
+  const handleForgotPasswordSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setResetSuccess('');
+
+    if (!userId.trim()) {
+      setError('Please enter Username or Email');
+      return;
+    }
+    if (!newPassword.trim()) {
+      setError('Please enter New Password');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await resetPassword(userId, newPassword);
+      setResetSuccess('Password reset successfully. You can now login.');
+      setShowForgotPassword(false);
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      setError(err.message || 'Failed to reset password');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setResetSuccess('');
 
     if (!userId.trim()) {
       setError('Please enter User ID');
@@ -210,12 +250,114 @@ const LoginPage = () => {
                   LOGIN
                 </div>
 
-                <form className="dashboard-form" id="loginForm" onSubmit={handleSubmit}>
-                  {error && (
-                    <div className="login-error-toast">
-                      <span>⚠️ {error}</span>
+                {showForgotPassword ? (
+                  <form className="dashboard-form" id="forgotPasswordForm" onSubmit={handleForgotPasswordSubmit}>
+                    <div className="form-header" style={{marginBottom: '20px'}}>
+                      <h2 style={{fontSize: '1.25rem', color: '#1a1a1a'}}>Reset Password</h2>
+                      <p style={{fontSize: '0.875rem', color: '#666'}}>Enter your details to change your password</p>
                     </div>
-                  )}
+
+                    {error && (
+                      <div className="login-error-toast">
+                        <span>⚠️ {error}</span>
+                      </div>
+                    )}
+                    {resetSuccess && (
+                      <div className="login-error-toast" style={{ backgroundColor: '#e8f5e9', color: '#2e7d32', border: '1px solid #c8e6c9' }}>
+                        <span>✓ {resetSuccess}</span>
+                      </div>
+                    )}
+
+                    <div className="form-group">
+                      <label htmlFor="username">Username or Employee Code</label>
+                      <div className="input-field-shell">
+                        <span className="input-icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                            <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.1 0-8 2.1-8 5v1h16v-1c0-2.9-3.9-5-8-5Z"></path>
+                          </svg>
+                        </span>
+                        <input
+                          type="text"
+                          id="username"
+                          name="username"
+                          placeholder="Enter your username or employee code"
+                          className={isFilled.userId ? 'is-filled' : ''}
+                          value={userId}
+                          onChange={(e) => handleInputChange('userId', e.target.value)}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="newPassword">New Password</label>
+                      <div className="input-field-shell">
+                        <span className="input-icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                            <path d="M17 9h-1V7a4 4 0 1 0-8 0v2H7a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2Zm-7-2a2 2 0 1 1 4 0v2h-4Zm2 10.75A1.75 1.75 0 1 1 13.75 16 1.75 1.75 0 0 1 12 17.75Z"></path>
+                          </svg>
+                        </span>
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          id="newPassword"
+                          placeholder="Enter new password"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="confirmPassword">Confirm Password</label>
+                      <div className="input-field-shell">
+                        <span className="input-icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                            <path d="M17 9h-1V7a4 4 0 1 0-8 0v2H7a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2Zm-7-2a2 2 0 1 1 4 0v2h-4Zm2 10.75A1.75 1.75 0 1 1 13.75 16 1.75 1.75 0 0 1 12 17.75Z"></path>
+                          </svg>
+                        </span>
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          id="confirmPassword"
+                          placeholder="Confirm new password"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="dashboard-options">
+                      <label className="remember-me" htmlFor="showPassword">
+                        <input type="checkbox" id="showPassword" checked={showPassword} onChange={() => setShowPassword(!showPassword)} />
+                        <span>Show Passwords</span>
+                      </label>
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="submit-btn js-ripple"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? 'Resetting...' : 'Reset Password'}
+                    </button>
+                    
+                    <div className="dashboard-options" style={{ justifyContent: 'center', marginTop: '1rem' }}>
+                      <button type="button" className="forgot-link" onClick={() => { setShowForgotPassword(false); setError(''); setResetSuccess(''); }}>Back to Login</button>
+                    </div>
+                  </form>
+                ) : (
+                  <form className="dashboard-form" id="loginForm" onSubmit={handleSubmit}>
+                    {error && (
+                      <div className="login-error-toast">
+                        <span>⚠️ {error}</span>
+                      </div>
+                    )}
+                    {resetSuccess && (
+                      <div className="login-error-toast" style={{ backgroundColor: '#e8f5e9', color: '#2e7d32', border: '1px solid #c8e6c9' }}>
+                        <span>✓ {resetSuccess}</span>
+                      </div>
+                    )}
 
                   <div className="form-group">
                     <label htmlFor="username">Username or Email</label>
@@ -271,7 +413,7 @@ const LoginPage = () => {
                       <input type="checkbox" id="rememberMe" name="rememberMe" />
                       <span>Remember me</span>
                     </label>
-                    <button type="button" className="forgot-link" onClick={(e) => e.preventDefault()}>Forgot password?</button>
+                    <button type="button" className="forgot-link" onClick={(e) => { e.preventDefault(); setShowForgotPassword(true); setError(''); setResetSuccess(''); }}>Forgot password?</button>
                   </div>
 
                   <button
@@ -281,8 +423,8 @@ const LoginPage = () => {
                   >
                     {isLoading ? 'Signing In...' : 'Sign In'}
                   </button>
-                  <p className="dashboard-footnote">Protected session with activity logging enabled</p>
                 </form>
+                )}
               </aside>
             </div>
           </div>

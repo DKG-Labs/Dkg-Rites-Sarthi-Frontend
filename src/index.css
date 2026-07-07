@@ -1253,7 +1253,9 @@ body {
   overflow-y: auto;
   overflow-x: hidden;
   transition: width var(--duration-normal) var(--ease-standard);
-  position: relative;
+  position: sticky;
+  top: 70px;
+  height: calc(100vh - 70px);
   flex-shrink: 0;
 }
 

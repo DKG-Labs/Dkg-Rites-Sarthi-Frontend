@@ -72,6 +72,9 @@ export const ROUTES = {
 
   // Annexures Route
   ANNEXURES: '/annexures',
+
+  // Profile Route
+  PROFILE: '/profile',
 };
 
 /**
@@ -165,6 +168,7 @@ export const ROLE_LANDING_ROUTE = {
   'ZONAL RAILWAY': ROUTES.RAILWAY_BOARD_DASHBOARD,
   'Zonal Railway': ROUTES.RAILWAY_BOARD_DASHBOARD,
   ADMIN: ROUTES.ADMIN_DASHBOARD,
+  Admin: ROUTES.ADMIN_DASHBOARD,
   'Main IE': ROUTES.LANDING,
   'Rites Admin': ROUTES.RAILWAY_BOARD_DASHBOARD,
   'Rites ADMin': ROUTES.RAILWAY_BOARD_DASHBOARD,

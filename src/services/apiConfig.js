@@ -76,6 +76,9 @@ export const API_ENDPOINTS = {
 
     // Vendor Calibration (used by IE module to fetch vendor instrument data)
     VENDOR_CALIBRATION: `${API_BASE_URL}/api/vendor/calibration`,
+
+    // User Profile
+    PROFILE: `${API_BASE_URL}/api/v1/profile`,
 };
 
 /**

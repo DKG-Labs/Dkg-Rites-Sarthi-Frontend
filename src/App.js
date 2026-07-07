@@ -54,7 +54,6 @@ import { AdminDashboardWrapper } from './pages/wrappers/AdminDashboardWrapper';
 import { SmsDashboardWrapper } from './pages/wrappers/SmsWrapper';
 import AnnexurePage from './pages/AnnexurePage';
 import { useNavigate } from 'react-router-dom';
-import RitesAdminDashboard from './pages/RitesAdminDashboard';
 
 /**
  * Role-based redirect component
@@ -236,7 +235,7 @@ const App = () => {
             <Route
               path={ROUTES.CM_DASHBOARD}
               element={
-                <ProtectedRoute allowedRoles={['CM', 'Control Manager', 'Controlling Manager']}>
+                <ProtectedRoute allowedRoles={['CM', 'Control Manager', 'Controlling Manager', 'Rites Admin', 'Rites ADMin']}>
                   <CMDashboardWrapper />
                 </ProtectedRoute>
               }
@@ -273,7 +272,7 @@ const App = () => {
               path={ROUTES.RITES_ADMIN_DASHBOARD}
               element={
                 <ProtectedRoute allowedRoles={['Rites Admin', 'Rites ADMin']}>
-                  <RitesAdminDashboard />
+                  <RailwayBoardDashboardWrapper />
                 </ProtectedRoute>
               }
             />
@@ -282,7 +281,7 @@ const App = () => {
               path="/rites admin"
               element={
                 <ProtectedRoute allowedRoles={['Rites Admin', 'Rites ADMin']}>
-                  <RitesAdminDashboard />
+                  <RailwayBoardDashboardWrapper />
                 </ProtectedRoute>
               }
             />

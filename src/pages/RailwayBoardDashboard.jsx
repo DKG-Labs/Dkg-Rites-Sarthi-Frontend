@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import CMDashboardPage from './cm/CMDashboardPage';
 
 import reportService from '../services/reportService';
 import useReportData from '../hooks/useReportData';
@@ -35,9 +36,18 @@ const RailwayBoardDashboard = () => {
     const [reportSubmenuOpen, setReportSubmenuOpen] = useState(activeMainCard === 'reports');
     const [activeReport, setActiveReport] = useState('mpr');
 
+    // CM Module state
+    const [isCmDropdownOpen, setIsCmDropdownOpen] = useState(false);
+    const [cmActiveTab, setCmActiveTab] = useState('Dashboard');
+    const [cmReportsMenuOpen, setCmReportsMenuOpen] = useState(false);
+    const [cmCallMenuOpen, setCmCallMenuOpen] = useState(false);
+    const [cmIeMenuOpen, setCmIeMenuOpen] = useState(false);
+    const [cmActiveCallFilter, setCmActiveCallFilter] = useState('all');
+
 
 
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [isRailwayNavOpen, setIsRailwayNavOpen] = useState(true);
     const [poSearch, setPoSearch] = useState('');
     const [poSort, setPoSort] = useState({ key: 'poNo', direction: 'asc' });
 
@@ -419,59 +429,139 @@ const RailwayBoardDashboard = () => {
                         </button>
                     </div>
                     <div style={{ padding: '0 0 20px', flex: 1, overflowY: 'auto' }}>
-                        <div className="nav-label">Navigation</div>
-                        <div className={`nav-item ${activeMainCard === 'summary' ? 'active' : ''}`} onClick={() => handleSwitchTab('summary')}>
-                            <i className="fa-solid fa-chart-pie"></i> {!isSidebarCollapsed && <span>Dashboard</span>}
+                        <div className={`nav-item ${['summary', 'quality', 'lifecycle', 'performance', 'reports', 'sqc', 'scada', 'feedback'].includes(activeMainCard) ? 'active' : ''}`} onClick={() => {
+                            setIsRailwayNavOpen(!isRailwayNavOpen);
+                            if (!isRailwayNavOpen) setIsCmDropdownOpen(false);
+                        }}>
+                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%'}}>
+                                <div><i className="fa-solid fa-train"></i> {!isSidebarCollapsed && <span>Railway Dashboard</span>}</div>
+                                {!isSidebarCollapsed && <i className={`fa-solid fa-chevron-${isRailwayNavOpen ? 'up' : 'down'}`} style={{fontSize: '12px'}}></i>}
+                            </div>
                         </div>
-                        <div className={`nav-item ${activeMainCard === 'quality' ? 'active' : ''}`} onClick={() => handleSwitchTab('quality')}>
-                            <i className="fa-solid fa-shield-halved"></i> {!isSidebarCollapsed && <span>Quality</span>}
-                        </div>
-                        <div className={`nav-item ${activeMainCard === 'lifecycle' ? 'active' : ''}`} onClick={() => handleSwitchTab('lifecycle')}>
-                            <i className="fa-solid fa-file-contract"></i> {!isSidebarCollapsed && <span>PO Lifecycle</span>}
-                        </div>
-                        <div className={`nav-item ${activeMainCard === 'performance' ? 'active' : ''}`} onClick={() => handleSwitchTab('performance')}>
-                            <i className="fa-solid fa-trophy"></i> {!isSidebarCollapsed && <span>Performance</span>}
-                        </div>
-                        <div className={`nav-item ${activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleSwitchTab('reports')}>
-                            <i className="fa-solid fa-file-lines"></i> {!isSidebarCollapsed && <span>Reports</span>}
-                        </div>
-                        {reportSubmenuOpen && !isSidebarCollapsed && (
+
+                        {isRailwayNavOpen && !isSidebarCollapsed && (
                             <div className="report-submenu open">
-                                <div className={`report-link ${activeReport === 'mpr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpr')}>{selectedProduct === 'ERC' || selectedProduct === 'Rail Pad' ? 'PO Wise Monthly Progress Report' : 'Monthly Progress Report'}</div>
-                                <div className={`report-link ${activeReport === 'mau' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mau')}>Monthly Analysis of Units</div>
-                                <div className={`report-link ${activeReport === 'lwcl' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('lwcl')}>Lot Wise Closed Loop</div>
-                                <div className={`report-link ${activeReport === 'swp' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('swp')}>Shift Wise Production Report</div>
-                                {selectedProduct === 'Rail Pad' && (
-                                    <div className={`report-link ${activeReport === 'qrp' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('qrp')}>Quality of Rubber Pad Report</div>
+                                <div className={`report-link ${activeMainCard === 'summary' ? 'active' : ''}`} onClick={() => handleSwitchTab('summary')} style={{ fontSize: '15px' }}>
+                                    <i className="fa-solid fa-chart-pie" style={{marginRight: '8px'}}></i>Dashboard
+                                </div>
+                                <div className={`report-link ${activeMainCard === 'quality' ? 'active' : ''}`} onClick={() => handleSwitchTab('quality')} style={{ fontSize: '15px' }}>
+                                    <i className="fa-solid fa-shield-halved" style={{marginRight: '8px'}}></i>Quality
+                                </div>
+                                <div className={`report-link ${activeMainCard === 'lifecycle' ? 'active' : ''}`} onClick={() => handleSwitchTab('lifecycle')} style={{ fontSize: '15px' }}>
+                                    <i className="fa-solid fa-file-contract" style={{marginRight: '8px'}}></i>PO Lifecycle
+                                </div>
+                                <div className={`report-link ${activeMainCard === 'performance' ? 'active' : ''}`} onClick={() => handleSwitchTab('performance')} style={{ fontSize: '15px' }}>
+                                    <i className="fa-solid fa-trophy" style={{marginRight: '8px'}}></i>Performance
+                                </div>
+                                <div className={`report-link ${activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleSwitchTab('reports')} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '15px' }}>
+                                    <div><i className="fa-solid fa-file-lines" style={{marginRight: '8px'}}></i>Reports</div>
+                                    <i className={`fa-solid fa-chevron-${reportSubmenuOpen ? 'up' : 'down'}`} style={{fontSize: '10px', opacity: 0.6}}></i>
+                                </div>
+                                
+                                {reportSubmenuOpen && (
+                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                        <div className={`report-link ${activeReport === 'mpr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpr')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>{selectedProduct === 'ERC' || selectedProduct === 'Rail Pad' ? 'PO Wise Monthly Progress Report' : 'Monthly Progress Report'}</div>
+                                        <div className={`report-link ${activeReport === 'mau' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mau')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>Monthly Analysis of Units</div>
+                                        <div className={`report-link ${activeReport === 'lwcl' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('lwcl')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>Lot Wise Closed Loop</div>
+                                        <div className={`report-link ${activeReport === 'swp' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('swp')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>Shift Wise Production Report</div>
+                                        {selectedProduct === 'Rail Pad' && (
+                                            <div className={`report-link ${activeReport === 'qrp' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('qrp')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>Quality of Rubber Pad Report</div>
+                                        )}
+                                        {(selectedProduct === 'ERC' || selectedProduct === 'Rail Pad') && (
+                                            <div className={`report-link ${activeReport === (selectedProduct === 'ERC' ? 'mpia' : 'vwpqr') && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink(selectedProduct === 'ERC' ? 'mpia' : 'vwpqr')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>Vendor Wise Process Quality Report</div>
+                                        )}
+                                        {selectedProduct === 'ERC' && (
+                                            <div className={`report-link ${activeReport === 'pwmr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('pwmr')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>PO Wise Quality Report</div>
+                                        )}
+                                        {selectedProduct === 'Sleeper' && (
+                                            <div className={`report-link ${activeReport === 'sqr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('sqr')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>Quality of PSC Sleepers Report</div>
+                                        )}
+                                        <div className={`report-link ${activeReport === 'ic_annexures' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('ic_annexures')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>Download IC & Annexures</div>
+                                    </div>
                                 )}
-                                {(selectedProduct === 'ERC' || selectedProduct === 'Rail Pad') && (
-                                    <div className={`report-link ${activeReport === (selectedProduct === 'ERC' ? 'mpia' : 'vwpqr') && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink(selectedProduct === 'ERC' ? 'mpia' : 'vwpqr')}>Vendor Wise Process Quality Report</div>
-                                )}
+                                
                                 {selectedProduct === 'ERC' && (
-                                    <div className={`report-link ${activeReport === 'pwmr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('pwmr')}>PO Wise Quality Report</div>
+                                    <div className={`report-link ${activeMainCard === 'sqc' ? 'active' : ''}`} onClick={() => handleSwitchTab('sqc')} style={{ fontSize: '15px' }}>
+                                        <i className="fa-solid fa-chart-line" style={{marginRight: '8px'}}></i>SQC Analysis
+                                    </div>
                                 )}
-                                {selectedProduct === 'Sleeper' && (
-                                    <div className={`report-link ${activeReport === 'sqr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('sqr')}>Quality of PSC Sleepers Report</div>
-                                )}
-                                <div className={`report-link ${activeReport === 'ic_annexures' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('ic_annexures')}>Download IC & Annexures</div>
+                                <div className={`report-link ${activeMainCard === 'scada' ? 'active' : ''}`} onClick={() => handleSwitchTab('scada')} style={{ fontSize: '15px' }}>
+                                    <i className="fa-solid fa-desktop" style={{marginRight: '8px'}}></i>Scada Monitor
+                                </div>
+                                <div className={`report-link ${activeMainCard === 'feedback' ? 'active' : ''}`} onClick={() => handleSwitchTab('feedback')} style={{ fontSize: '15px' }}>
+                                    <i className="fa-solid fa-comment-dots" style={{marginRight: '8px'}}></i>Feedback
+                                </div>
                             </div>
                         )}
-                        {/* 
-                        <div className={`nav-item ${activeMainCard === 'sqc' ? 'active' : ''}`} onClick={() => handleSwitchTab('sqc')}>
-                            <i className="fa-solid fa-chart-line"></i> {!isSidebarCollapsed && <span>SQC Analysis</span>}
-                        </div> 
-                        */}
-                        {selectedProduct === 'ERC' && (
-                            <div className={`nav-item ${activeMainCard === 'sqc' ? 'active' : ''}`} onClick={() => handleSwitchTab('sqc')}>
-                                <i className="fa-solid fa-chart-line"></i> {!isSidebarCollapsed && <span>SQC Analysis</span>}
-                            </div>
+                        {isRitesAdmin && (
+                            <>
+                                <div className={`nav-item ${activeMainCard === 'cm-module' ? 'active' : ''}`} onClick={() => {
+                                    setIsCmDropdownOpen(!isCmDropdownOpen);
+                                    if (!isCmDropdownOpen) setIsRailwayNavOpen(false);
+                                }}>
+                                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%'}}>
+                                        <div><i className="fa-solid fa-users-gear"></i> {!isSidebarCollapsed && <span>Controlling Manager</span>}</div>
+                                        {!isSidebarCollapsed && <i className={`fa-solid fa-chevron-${isCmDropdownOpen ? 'up' : 'down'}`} style={{fontSize: '12px'}}></i>}
+                                    </div>
+                                </div>
+                                {isCmDropdownOpen && !isSidebarCollapsed && (
+                                    <div className="report-submenu open">
+                                        {/* Dashboard */}
+                                        <div className={`report-link ${activeMainCard === 'cm-module' && cmActiveTab === 'Dashboard' ? 'active' : ''}`} onClick={() => { setActiveMainCard('cm-module'); setCmActiveTab('Dashboard'); setCmCallMenuOpen(false); setCmIeMenuOpen(false); setCmReportsMenuOpen(false); }} style={{ fontSize: '15px' }}><i className="fa-solid fa-chart-pie" style={{marginRight: '8px'}}></i>Dashboard</div>
+                                        
+                                        {/* Call Monitoring */}
+                                        <div className={`report-link ${activeMainCard === 'cm-module' && cmActiveTab === 'Call Monitoring' ? 'active' : ''}`} 
+                                            onClick={() => { setActiveMainCard('cm-module'); setCmActiveTab('Call Monitoring'); setCmActiveCallFilter('all'); setCmCallMenuOpen(!cmCallMenuOpen); setCmIeMenuOpen(false); setCmReportsMenuOpen(false); }}
+                                            style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '15px'}}>
+                                            <div><i className="fa-solid fa-phone" style={{marginRight: '8px'}}></i>Call Monitoring</div>
+                                            <i className={`fa-solid fa-chevron-${cmCallMenuOpen ? 'up' : 'down'}`} style={{fontSize: '10px', opacity: 0.6}}></i>
+                                        </div>
+                                        {cmCallMenuOpen && (
+                                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                <div className={`report-link ${activeMainCard === 'cm-module' && cmActiveTab === 'Call Monitoring' && cmActiveCallFilter === 'all' ? 'active' : ''}`} onClick={() => { setActiveMainCard('cm-module'); setCmActiveTab('Call Monitoring'); setCmActiveCallFilter('all'); }} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}><i className="fa-solid fa-phone" style={{marginRight: '6px'}}></i>All Calls</div>
+                                                <div className={`report-link ${activeMainCard === 'cm-module' && cmActiveTab === 'Call Monitoring' && cmActiveCallFilter === 'pending' ? 'active' : ''}`} onClick={() => { setActiveMainCard('cm-module'); setCmActiveTab('Call Monitoring'); setCmActiveCallFilter('pending'); }} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}><i className="fa-solid fa-hourglass-half" style={{marginRight: '6px'}}></i>Pending Calls</div>
+                                                <div className={`report-link ${activeMainCard === 'cm-module' && cmActiveTab === 'Call Monitoring' && cmActiveCallFilter === 'under_inspection' ? 'active' : ''}`} onClick={() => { setActiveMainCard('cm-module'); setCmActiveTab('Call Monitoring'); setCmActiveCallFilter('under_inspection'); }} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}><i className="fa-solid fa-sliders" style={{marginRight: '6px'}}></i>Under Inspection Calls</div>
+                                                <div className={`report-link ${activeMainCard === 'cm-module' && cmActiveTab === 'Call Monitoring' && cmActiveCallFilter === 'ic_pending' ? 'active' : ''}`} onClick={() => { setActiveMainCard('cm-module'); setCmActiveTab('Call Monitoring'); setCmActiveCallFilter('ic_pending'); }} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}><i className="fa-solid fa-file-invoice" style={{marginRight: '6px'}}></i>IC Issuance Pending</div>
+                                                <div className={`report-link ${activeMainCard === 'cm-module' && cmActiveTab === 'Call Monitoring' && cmActiveCallFilter === 'completed' ? 'active' : ''}`} onClick={() => { setActiveMainCard('cm-module'); setCmActiveTab('Call Monitoring'); setCmActiveCallFilter('completed'); }} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}><i className="fa-solid fa-circle-check" style={{marginRight: '6px'}}></i>Completed Calls</div>
+                                                <div className={`report-link ${activeMainCard === 'cm-module' && cmActiveTab === 'Call Monitoring' && cmActiveCallFilter === 'overdue' ? 'active' : ''}`} onClick={() => { setActiveMainCard('cm-module'); setCmActiveTab('Call Monitoring'); setCmActiveCallFilter('overdue'); }} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}><i className="fa-solid fa-triangle-exclamation" style={{marginRight: '6px'}}></i>Overdue Calls</div>
+                                            </div>
+                                        )}
+
+                                        {/* IE Monitoring */}
+                                        <div className={`report-link ${activeMainCard === 'cm-module' && ['IE wise Call Status', 'IE Performance Monitoring'].includes(cmActiveTab) ? 'active' : ''}`} 
+                                            onClick={() => { setActiveMainCard('cm-module'); setCmActiveTab('IE wise Call Status'); setCmIeMenuOpen(!cmIeMenuOpen); setCmCallMenuOpen(false); setCmReportsMenuOpen(false); }}
+                                            style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '15px'}}>
+                                            <div><i className="fa-solid fa-users-viewfinder" style={{marginRight: '8px'}}></i>IE Monitoring</div>
+                                            <i className={`fa-solid fa-chevron-${cmIeMenuOpen ? 'up' : 'down'}`} style={{fontSize: '10px', opacity: 0.6}}></i>
+                                        </div>
+                                        {cmIeMenuOpen && (
+                                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                <div className={`report-link ${activeMainCard === 'cm-module' && cmActiveTab === 'IE wise Call Status' ? 'active' : ''}`} onClick={() => { setActiveMainCard('cm-module'); setCmActiveTab('IE wise Call Status'); }} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}><i className="fa-solid fa-map-pin" style={{marginRight: '6px'}}></i>IE wise Call Status</div>
+                                                <div className={`report-link ${activeMainCard === 'cm-module' && cmActiveTab === 'IE Performance Monitoring' ? 'active' : ''}`} onClick={() => { setActiveMainCard('cm-module'); setCmActiveTab('IE Performance Monitoring'); }} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}><i className="fa-solid fa-trophy" style={{marginRight: '6px'}}></i>IE Performance Monitoring</div>
+                                            </div>
+                                        )}
+
+                                        <div className={`report-link ${activeMainCard === 'cm-module' && ['Mandays Calculation', 'Billing Sheet'].includes(cmActiveTab) ? 'active' : ''}`} 
+                                            onClick={() => { setActiveMainCard('cm-module'); setCmActiveTab('Mandays Calculation'); setCmReportsMenuOpen(!cmReportsMenuOpen); setCmCallMenuOpen(false); setCmIeMenuOpen(false); }}
+                                            style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '15px'}}>
+                                            <div><i className="fa-solid fa-download" style={{marginRight: '8px'}}></i>Reports</div>
+                                            <i className={`fa-solid fa-chevron-${cmReportsMenuOpen ? 'up' : 'down'}`} style={{fontSize: '10px', opacity: 0.6}}></i>
+                                        </div>
+                                        {cmReportsMenuOpen && (
+                                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                <div className={`report-link ${activeMainCard === 'cm-module' && cmActiveTab === 'Mandays Calculation' ? 'active' : ''}`} onClick={() => { setActiveMainCard('cm-module'); setCmActiveTab('Mandays Calculation'); }} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>
+                                                    <i className="fa-solid fa-calculator" style={{marginRight: '6px'}}></i>Process Inspection Mandays Calculation
+                                                </div>
+                                                <div className={`report-link ${activeMainCard === 'cm-module' && cmActiveTab === 'Billing Sheet' ? 'active' : ''}`} onClick={() => { setActiveMainCard('cm-module'); setCmActiveTab('Billing Sheet'); }} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>
+                                                    <i className="fa-solid fa-file-invoice-dollar" style={{marginRight: '6px'}}></i>Billing Sheet
+                                                </div>
+                                            </div>
+                                        )}
+                                        <div className={`report-link ${activeMainCard === 'cm-module' && cmActiveTab === 'Notification & Approval' ? 'active' : ''}`} onClick={() => { setActiveMainCard('cm-module'); setCmActiveTab('Notification & Approval'); setCmCallMenuOpen(false); setCmIeMenuOpen(false); setCmReportsMenuOpen(false); }} style={{ fontSize: '15px' }}><i className="fa-solid fa-key" style={{marginRight: '8px'}}></i>Notification & Approval</div>
+                                    </div>
+                                )}
+                            </>
                         )}
-                        <div className={`nav-item ${activeMainCard === 'scada' ? 'active' : ''}`} onClick={() => handleSwitchTab('scada')}>
-                            <i className="fa-solid fa-desktop"></i> {!isSidebarCollapsed && <span>Scada Monitor</span>}
-                        </div>
-                        <div className={`nav-item ${activeMainCard === 'feedback' ? 'active' : ''}`} onClick={() => handleSwitchTab('feedback')}>
-                            <i className="fa-solid fa-comment-dots"></i> {!isSidebarCollapsed && <span>Feedback</span>}
-                        </div>
                         {isRitesAdmin && selectedProduct === 'Sleeper' && (
                             <div className={`nav-item ${activeMainCard === 'sleeper-anomaly' ? 'active' : ''}`} onClick={() => handleSwitchTab('sleeper-anomaly')}>
                                 <i className="fa-solid fa-microchip"></i> {!isSidebarCollapsed && <span>AI Engine</span>}
@@ -484,6 +574,7 @@ const RailwayBoardDashboard = () => {
                 {/* MAIN */}
                 <div id="prof-main" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {/* GLOBAL PRODUCT SELECTION - Above everything */}
+                    {activeMainCard !== 'cm-module' && (
                     <div className="sub-tabs" style={{ padding: '0 24px', marginTop: '24px', marginBottom: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div style={{ display: 'flex', gap: '8px' }}>
                             <button className={`sub-tab-btn ${selectedProduct === 'ERC' ? 'active' : ''}`} onClick={() => setSelectedProduct('ERC')}>ERC</button>
@@ -495,9 +586,10 @@ const RailwayBoardDashboard = () => {
                         </div>
 
                     </div>
+                    )}
 
                     {/* TOPBAR / FILTERS - Hidden on Dashboard (summary), Quality, Lifecycle, Feedback, Scada Monitor, SQC tabs, and ERC/Sleeper SWP Reports */}
-                    {activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'scada' && activeMainCard !== 'sqc' && activeMainCard !== 'sleeper-anomaly' && !(activeMainCard === 'reports' && activeReport === 'swp' && (selectedProduct === 'ERC' || selectedProduct === 'Sleeper')) && (
+                    {activeMainCard !== 'cm-module' && activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'scada' && activeMainCard !== 'sqc' && activeMainCard !== 'sleeper-anomaly' && !(activeMainCard === 'reports' && activeReport === 'swp' && (selectedProduct === 'ERC' || selectedProduct === 'Sleeper')) && (
                         <div id="prof-topbar">
                             <label>From</label>
                             <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
@@ -533,6 +625,9 @@ const RailwayBoardDashboard = () => {
                     {/* CONTENT AREA */}
                     <div id="dashboard-capture-area">
                         <div id="prof-content-area">
+                            {activeMainCard === 'cm-module' ? (
+                                <CMDashboardPage isEmbedded={true} activeTabFromProps={cmActiveTab} activeCallFilterFromProps={cmActiveCallFilter} />
+                            ) : (
                             <ProfessionalCardSection
                             poTable={poTable} poGraph={poGraph} kpiGrid={kpiGrid}
                             selectedProduct={selectedProduct} summaryData={summaryData}
@@ -574,6 +669,7 @@ const RailwayBoardDashboard = () => {
                             setFromDate={setFromDate}
                             setToDate={setToDate}
                         />
+                            )}
                         </div>
                     </div>
 

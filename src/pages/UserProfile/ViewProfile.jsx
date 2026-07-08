@@ -1,5 +1,6 @@
 import React from 'react';
 import { getStoredUser } from '../../services/authService';
+import { API_BASE_URL } from '../../services/apiConfig';
 import { Grid, Typography, Box, Paper, Chip, Avatar } from '@mui/material';
 import PersonIcon from '@mui/icons-material/Person';
 import BusinessCenterIcon from '@mui/icons-material/BusinessCenter';
@@ -178,7 +179,11 @@ const ViewProfile = ({ profileData }) => {
                             {/* Avatar */}
                             <Box sx={{ position: 'relative', flexShrink: 0 }}>
                                 <Avatar
-                                    src={profileData.profilePhotoPath}
+                                    src={
+                                        profileData.profilePhotoPath?.startsWith('data:')
+                                        ? profileData.profilePhotoPath
+                                        : (profileData.profilePhotoPath ? `${API_BASE_URL}${profileData.profilePhotoPath.startsWith('/') ? '' : '/'}${profileData.profilePhotoPath}` : undefined)
+                                    }
                                     sx={{
                                         width: 76, height: 76,
                                         background: 'linear-gradient(135deg, #0f4c81 0%, #2563eb 100%)',

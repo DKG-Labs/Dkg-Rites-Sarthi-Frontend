@@ -1,16 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { getStoredUser } from '../../services/authService';
+import { API_BASE_URL as API_JS_BASE_URL } from '../../services/api';
 
 /* ─────────────────────────────────────────────────────────
    API
 ───────────────────────────────────────────────────────── */
-const API_BASE_URL = (() => {
-    const isLocal = typeof window !== 'undefined' &&
-        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-    return isLocal
-        ? 'http://localhost:8080/sarthi-backend'
-        : 'https://sarthibackendservice-bfe2eag3byfkbsa6.canadacentral-01.azurewebsites.net/sarthi-backend';
-})();
+const API_BASE_URL = API_JS_BASE_URL.replace(/\/api\/?$/, '');
 
 /* ─────────────────────────────────────────────────────────
    Helpers
@@ -242,8 +237,19 @@ const UserProfilePage = ({ onBack }) => {
                                         fontSize: '34px', fontWeight: 800,
                                         border: '3px solid #fff',
                                         boxShadow: '0 4px 20px rgba(37,99,235,0.28)',
+                                        overflow: 'hidden'
                                     }}>
-                                        {initials}
+                                        {profileData?.profilePhotoPath ? (
+                                            <img
+                                                src={profileData.profilePhotoPath.startsWith('data:') 
+                                                    ? profileData.profilePhotoPath 
+                                                    : `${API_BASE_URL}${profileData.profilePhotoPath.startsWith('/') ? '' : '/'}${profileData.profilePhotoPath}`}
+                                                alt="Profile"
+                                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                            />
+                                        ) : (
+                                            initials
+                                        )}
                                     </div>
                                     <div style={{
                                         position: 'absolute', bottom: 4, right: 4,

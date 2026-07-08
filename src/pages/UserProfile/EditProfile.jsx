@@ -1,12 +1,49 @@
 import React, { useState } from 'react';
 import { 
     Grid, Typography, TextField, Button, Box, CircularProgress, 
-    Divider, Paper, Avatar, IconButton 
+    Divider, Paper, Avatar, IconButton
 } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import PhotoCamera from '@mui/icons-material/PhotoCamera';
+import { API_BASE_URL } from '../../services/apiConfig';
 import { updateProfile } from '../../services/userProfileService';
+
+const CustomLabel = ({ text, required }) => (
+    <Typography sx={{ fontSize: '15px', fontWeight: 600, color: '#64748b', mb: 1, display: 'flex', gap: 0.5 }}>
+        {text} {required && <Typography component="span" sx={{ color: '#ef4444', fontWeight: 600 }}>*</Typography>}
+    </Typography>
+);
+
+const customInputStyles = {
+    width: '100%',
+    display: 'flex',
+    '& .MuiOutlinedInput-root': {
+        width: '100%',
+        borderRadius: '6px',
+        backgroundColor: '#fff',
+        '& fieldset': {
+            borderColor: '#e2e8f0',
+        },
+        '&:hover fieldset': {
+            borderColor: '#cbd5e1',
+        },
+        '&.Mui-focused fieldset': {
+            borderColor: '#0ea5e9',
+            borderWidth: '1px',
+        }
+    },
+    '& .MuiOutlinedInput-input': {
+        padding: '12px 14px',
+        fontSize: '14px',
+        color: '#334155',
+        width: '100%',
+        '&::placeholder': {
+            color: '#94a3b8',
+            opacity: 1
+        }
+    }
+};
 
 const EditProfile = ({ profileData, onProfileUpdated, onError }) => {
     const [formData, setFormData] = useState({
@@ -110,7 +147,11 @@ const EditProfile = ({ profileData, onProfileUpdated, onError }) => {
                         {/* Avatar */}
                         <Box sx={{ position: 'relative', flexShrink: 0 }}>
                             <Avatar
-                                src={formData.profilePhotoPath}
+                                src={
+                                    formData.profilePhotoPath?.startsWith('data:')
+                                    ? formData.profilePhotoPath
+                                    : (formData.profilePhotoPath ? `${API_BASE_URL}${formData.profilePhotoPath.startsWith('/') ? '' : '/'}${formData.profilePhotoPath}` : undefined)
+                                }
                                 alt={profileData.fullName}
                                 sx={{
                                     width: 90,
@@ -173,36 +214,41 @@ const EditProfile = ({ profileData, onProfileUpdated, onError }) => {
                             
                             {/* Mobile Number */}
                             <Grid item xs={12} md={6}>
+                                <CustomLabel text="Mobile Number" required />
                                 <TextField
                                     fullWidth
-                                    label="Mobile Number"
+                                    placeholder="10-digit mobile number"
                                     name="mobileNumber"
                                     value={formData.mobileNumber}
                                     onChange={handleChange}
                                     error={!!errors.mobileNumber}
                                     helperText={errors.mobileNumber}
                                     required
+                                    sx={customInputStyles}
                                 />
                             </Grid>
 
                             {/* Alternate Mobile */}
                             <Grid item xs={12} md={6}>
+                                <CustomLabel text="Alternate Mobile" />
                                 <TextField
                                     fullWidth
-                                    label="Alternate Mobile Number"
+                                    placeholder="Alternate mobile number"
                                     name="alternateMobileNumber"
                                     value={formData.alternateMobileNumber}
                                     onChange={handleChange}
                                     error={!!errors.alternateMobileNumber}
                                     helperText={errors.alternateMobileNumber}
+                                    sx={customInputStyles}
                                 />
                             </Grid>
 
                             {/* Email Address */}
                             <Grid item xs={12} md={6}>
+                                <CustomLabel text="Email Address" required />
                                 <TextField
                                     fullWidth
-                                    label="Email Address"
+                                    placeholder="official.email@rites.com"
                                     name="emailAddress"
                                     type="email"
                                     value={formData.emailAddress}
@@ -210,32 +256,58 @@ const EditProfile = ({ profileData, onProfileUpdated, onError }) => {
                                     error={!!errors.emailAddress}
                                     helperText={errors.emailAddress}
                                     required
+                                    sx={customInputStyles}
                                 />
                             </Grid>
 
                             {/* Designation */}
                             <Grid item xs={12} md={6}>
+                                <CustomLabel text="Designation" />
                                 <TextField
                                     fullWidth
-                                    label="Designation"
+                                    select
                                     name="designation"
                                     value={formData.designation}
                                     onChange={handleChange}
                                     error={!!errors.designation}
                                     helperText={errors.designation}
-                                    required
-                                />
+                                    sx={{ ...customInputStyles, width: '100%' }}
+                                    SelectProps={{ native: true }}
+                                >
+                                    <option value="" disabled style={{ color: '#94a3b8' }}>Select Designation</option>
+                                    <option value="Technical Assistant">Technical Assistant</option>
+                                    <option value="Senior Technical Assistant">Senior Technical Assistant</option>
+                                    <option value="Assistant Engineer">Assistant Engineer</option>
+                                    <option value="Engineer">Engineer</option>
+                                    <option value="Assistant Manager">Assistant Manager</option>
+                                    <option value="Manager">Manager</option>
+                                    <option value="Senior Manager">Senior Manager</option>
+                                    <option value="DGM">DGM</option>
+                                    <option value="JGM">JGM</option>
+                                    <option value="AGM">AGM</option>
+                                    <option value="GM">GM</option>
+                                    <option value="GGM">GGM</option>
+                                    <option value="ED">ED</option>
+                                </TextField>
                             </Grid>
 
                             {/* Notification Preferences */}
-                            <Grid item xs={12}>
+                            <Grid item xs={12} md={6}>
+                                <CustomLabel text="Notification Prefs" />
                                 <TextField
                                     fullWidth
-                                    label="Notification Preferences (e.g. Email, SMS)"
+                                    select
                                     name="notificationPreferences"
                                     value={formData.notificationPreferences}
                                     onChange={handleChange}
-                                />
+                                    sx={{ ...customInputStyles, width: '100%' }}
+                                    SelectProps={{ native: true }}
+                                >
+                                    <option value="" disabled style={{ color: '#94a3b8' }}>Select Notification Prefs</option>
+                                    <option value="Email Only">Email Only</option>
+                                    <option value="SMS Only">SMS Only</option>
+                                    <option value="Both Email & SMS">Both Email & SMS</option>
+                                </TextField>
                             </Grid>
 
                             {/* Submit Button */}

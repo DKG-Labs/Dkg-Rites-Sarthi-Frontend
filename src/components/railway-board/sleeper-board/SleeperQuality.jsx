@@ -65,13 +65,19 @@ const SleeperQuality = ({ qualityData }) => {
         });
 
         const categoryColors = {
+            'Visual Defects': '#10b981',
+            'Critical Dimensions': '#3b82f6',
+            'General Dimensional Defect': '#f59e0b',
+            'Demoulding Rejection': '#ef4444',
+            'Non Critical': '#8b5cf6',
+            'Cube Strength': '#06b6d4',
+            'MR Deficiency': '#ec4899',
+            // Fallbacks for older data formats
             'Visual (Demoulding)': '#10b981',
             'Dimension (Demoulding)': '#3b82f6',
             'Final (Visual)': '#f59e0b',
             'Final (Critical)': '#ef4444',
-            'Final (Non-Critical)': '#8b5cf6',
-            'Cube Strength': '#06b6d4',
-            'MR Deficiency': '#ec4899'
+            'Final (Non-Critical)': '#8b5cf6'
         };
 
         return Object.keys(categories).map(cat => ({

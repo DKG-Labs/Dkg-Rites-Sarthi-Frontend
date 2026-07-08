@@ -7,6 +7,34 @@ const poWiseCache = {};
  * Service for fetching Railway Board Inspection Reports
  */
 const reportService = {
+    getVendorPlants: async () => {
+        const response = await fetch(`${API_BASE_URL}/api/filters/vendor-plants`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getZonalRailways: async (poiCode) => {
+        const response = await fetch(`${API_BASE_URL}/api/filters/zonal-railways?poiCode=${poiCode}`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getIcIssuedCounts: async (params) => {
+        const { vendorPlantCode, zonalRailway, startDate, endDate } = params || {};
+        const url = new URL(`${API_ENDPOINTS.REPORTS}/icIssuedCounts`);
+        if (vendorPlantCode) url.searchParams.append('vendorPlantCode', vendorPlantCode);
+        if (zonalRailway) url.searchParams.append('zonalRailway', zonalRailway);
+        if (startDate) url.searchParams.append('startDate', startDate);
+        if (endDate) url.searchParams.append('endDate', endDate);
+
+        const response = await fetch(url.toString(), {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
     /**
      * Level 1: PO Wise List
      * Hits: /api/reports/1stLevelReportPoData
@@ -143,15 +171,38 @@ const reportService = {
         return handleResponse(response);
     },
 
-    getDashboardSummary: async () => {
-        const response = await fetch(`${API_ENDPOINTS.REPORTS}/dashboardSummary`, {
+    getDashboardSummary: async (params) => {
+        let url = `${API_ENDPOINTS.REPORTS}/dashboardSummary`;
+        
+        if (params) {
+            const queryParams = new URLSearchParams();
+            if (params.startDate) queryParams.append('startDate', params.startDate);
+            if (params.endDate) queryParams.append('endDate', params.endDate);
+            if (params.vendor && params.vendor !== 'all') queryParams.append('vendorPlantCode', params.vendor);
+            if (params.zone && params.zone !== 'all') queryParams.append('zonalRailway', params.zone);
+            if (queryParams.toString()) url += `?${queryParams.toString()}`;
+        }
+
+        const response = await fetch(url, {
             headers: getAuthHeaders(),
         });
         return handleResponse(response);
     },
 
-    getAvgProductionPerDay: async () => {
-        const response = await fetch(`${API_ENDPOINTS.REPORTS}/avgProductionPerDay`, {
+    getAvgProductionPerDay: async (vendorPlantCode, zonalRailway, startDate, endDate) => {
+        let url = `${API_ENDPOINTS.REPORTS}/avgProductionPerDay`;
+        const params = new URLSearchParams();
+        if (vendorPlantCode) params.append('vendorPlantCode', vendorPlantCode);
+        if (zonalRailway) params.append('zonalRailway', zonalRailway);
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+        
+        const qs = params.toString();
+        if (qs) {
+            url += `?${qs}`;
+        }
+        
+        const response = await fetch(url, {
             headers: getAuthHeaders(),
         });
         return handleResponse(response);
@@ -319,8 +370,17 @@ const reportService = {
         return handleResponse(response);
     },
 
-    getInspectionCallStatus: async () => {
-        const response = await fetch(`${API_ENDPOINTS.REPORTS}/inspectionCallStatus`, {
+    getInspectionCallStatus: async (params) => {
+        const { vendor, zone, startDate, endDate } = params || {};
+        let url = `${API_ENDPOINTS.REPORTS}/inspectionCallStatus`;
+        const queryParams = new URLSearchParams();
+        if (vendor && vendor !== 'all') queryParams.append('vendorPlantCode', vendor);
+        if (zone && zone !== 'all') queryParams.append('zonalRailway', zone);
+        if (startDate) queryParams.append('startDate', startDate);
+        if (endDate) queryParams.append('endDate', endDate);
+        if (queryParams.toString()) url += `?${queryParams.toString()}`;
+
+        const response = await fetch(url, {
             headers: getAuthHeaders(),
         });
         return handleResponse(response);
@@ -418,11 +478,13 @@ const reportService = {
     },
 
     getInspectionDetails: async (params) => {
-        const { startDate, endDate } = params || {};
+        const { startDate, endDate, vendor, zone } = params || {};
         let url = `${API_ENDPOINTS.REPORTS}/inspectionDetails`;
         const queryParams = new URLSearchParams();
         if (startDate) queryParams.append('startDate', startDate);
         if (endDate) queryParams.append('endDate', endDate);
+        if (vendor && vendor !== 'all') queryParams.append('vendorPlantCode', vendor);
+        if (zone && zone !== 'all') queryParams.append('zonalRailway', zone);
         if (queryParams.toString()) url += `?${queryParams.toString()}`;
 
         const response = await fetch(url, {
@@ -711,16 +773,21 @@ const reportService = {
         return handleResponse(response);
     },
 
-    getPoIssuedDetails: async (itemCatDescr) => {
+    getPoIssuedDetails: async (itemCatDescr, vendorPlantCode, zonalRailway, startDate, endDate) => {
         const url = new URL(`${API_ENDPOINTS.REPORTS}/poIssuedDetails`);
-        url.searchParams.append('itemCatDescr', itemCatDescr);
+        if (itemCatDescr) url.searchParams.append('itemCatDescr', itemCatDescr);
+        if (vendorPlantCode) url.searchParams.append('vendorPlantCode', vendorPlantCode);
+        if (zonalRailway) url.searchParams.append('zonalRailway', zonalRailway);
+        if (startDate) url.searchParams.append('startDate', startDate);
+        if (endDate) url.searchParams.append('endDate', endDate);
+        
         const response = await fetch(url.toString(), {
             headers: getAuthHeaders(),
         });
         return handleResponse(response);
     },
 
-    getInspectionCallStatusDetails: async (stage, status) => {
+    getInspectionCallStatusDetails: async (stage, status, filters) => {
         let url;
         if (stage === 'Railpad') {
             url = new URL(`${API_ENDPOINTS.REPORTS}/railPadInspectionCallStatusDetails`);
@@ -729,6 +796,13 @@ const reportService = {
             url = new URL(`${API_ENDPOINTS.REPORTS}/inspectionCallStatusDetails`);
             url.searchParams.append('stage', stage);
             url.searchParams.append('status', status);
+            if (filters) {
+                const { vendor, zone, startDate, endDate } = filters;
+                if (vendor && vendor !== 'all') url.searchParams.append('vendorPlantCode', vendor);
+                if (zone && zone !== 'all') url.searchParams.append('zonalRailway', zone);
+                if (startDate) url.searchParams.append('startDate', startDate);
+                if (endDate) url.searchParams.append('endDate', endDate);
+            }
         }
         try {
             const response = await fetch(url.toString(), {
@@ -977,6 +1051,30 @@ const reportService = {
         const response = await fetch(url.toString(), {
             headers: getAuthHeaders(),
         });
+        return handleResponse(response);
+    },
+
+    getErcDashboardTotalCalls: async () => {
+        const url = `${API_ENDPOINTS.REPORTS}/ercDashboardTotalCalls`;
+        const response = await fetch(url, { headers: getAuthHeaders() });
+        return handleResponse(response);
+    },
+
+    getErcDashboardOpenCalls: async () => {
+        const url = `${API_ENDPOINTS.REPORTS}/ercDashboardOpenCalls`;
+        const response = await fetch(url, { headers: getAuthHeaders() });
+        return handleResponse(response);
+    },
+
+    getErcDashboardUnderInspectionCalls: async () => {
+        const url = `${API_ENDPOINTS.REPORTS}/ercDashboardUnderInspectionCalls`;
+        const response = await fetch(url, { headers: getAuthHeaders() });
+        return handleResponse(response);
+    },
+
+    getErcDashboardPendingCalls: async () => {
+        const url = `${API_ENDPOINTS.REPORTS}/ercDashboardPendingCalls`;
+        const response = await fetch(url, { headers: getAuthHeaders() });
         return handleResponse(response);
     }
 };

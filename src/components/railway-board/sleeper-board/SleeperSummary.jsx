@@ -65,22 +65,22 @@ const SleeperSummary = ({ summaryData = {}, onPoIssuedClick }) => {
                     onClick={onPoIssuedClick}
                 >
                     <div className="kpi-lbl">PO Issued</div>
-                    <div className="kpi-val">{data.poIssued.toLocaleString()}</div>
+                    <div className="kpi-val">{data.poIssued}</div>
                     <div className="kpi-sub">Sum of all POs</div>
                 </div>
                 <div className="prof-card card-ocean" style={{ textAlign: 'center' }}>
                     <div className="kpi-lbl">PO Quantity</div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginTop: '4px' }}>
                         <div style={{ borderRight: '1px solid rgba(255,255,255,0.2)', paddingRight: '8px' }}>
-                            <div className="kpi-val" style={{ fontSize: '13px' }}>{data.poQuantity.nos.toLocaleString()}</div>
+                            <div className="kpi-val" style={{ fontSize: '13px' }}>{data.poQuantity.nos}</div>
                             <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Nos.</div>
                         </div>
                         <div style={{ borderRight: '1px solid rgba(255,255,255,0.2)', paddingX: '8px' }}>
-                            <div className="kpi-val" style={{ fontSize: '13px' }}>{data.poQuantity.set.toLocaleString()}</div>
+                            <div className="kpi-val" style={{ fontSize: '13px' }}>{data.poQuantity.set}</div>
                             <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Set</div>
                         </div>
                         <div style={{ paddingLeft: '8px' }}>
-                            <div className="kpi-val" style={{ fontSize: '13px' }}>{data.poQuantity.rmt.toLocaleString()}</div>
+                            <div className="kpi-val" style={{ fontSize: '13px' }}>{data.poQuantity.rmt}</div>
                             <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>RMT</div>
                         </div>
                     </div>
@@ -89,15 +89,15 @@ const SleeperSummary = ({ summaryData = {}, onPoIssuedClick }) => {
                     <div className="kpi-lbl">Final Inspection Quantity</div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginTop: '4px' }}>
                         <div style={{ borderRight: '1px solid rgba(255,255,255,0.2)', paddingRight: '8px' }}>
-                            <div className="kpi-val" style={{ fontSize: '13px' }}>{data.finalInspectionQty.nos.toLocaleString()}</div>
+                            <div className="kpi-val" style={{ fontSize: '13px' }}>{data.finalInspectionQty.nos}</div>
                             <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Nos.</div>
                         </div>
                         <div style={{ borderRight: '1px solid rgba(255,255,255,0.2)', paddingX: '8px' }}>
-                            <div className="kpi-val" style={{ fontSize: '13px' }}>{data.finalInspectionQty.set.toLocaleString()}</div>
+                            <div className="kpi-val" style={{ fontSize: '13px' }}>{data.finalInspectionQty.set}</div>
                             <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Set</div>
                         </div>
                         <div style={{ paddingLeft: '8px' }}>
-                            <div className="kpi-val" style={{ fontSize: '13px' }}>{data.finalInspectionQty.rmt.toLocaleString()}</div>
+                            <div className="kpi-val" style={{ fontSize: '13px' }}>{data.finalInspectionQty.rmt}</div>
                             <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>RMT</div>
                         </div>
                     </div>
@@ -108,12 +108,12 @@ const SleeperSummary = ({ summaryData = {}, onPoIssuedClick }) => {
             <div className="g3 mb">
                 <div className="prof-card card-mint" style={{ textAlign: 'center' }}>
                     <div className="kpi-lbl">Sleepers Rejected in Process</div>
-                    <div className="kpi-val">{data.sleepersRejectedInProcess.toLocaleString()}</div>
+                    <div className="kpi-val">{data.sleepersRejectedInProcess}</div>
                     <div className="kpi-sub">Rejected in demoulding</div>
                 </div>
                 <div className="prof-card card-ruby" style={{ textAlign: 'center' }}>
                     <div className="kpi-lbl">Sleepers Rejected in Final</div>
-                    <div className="kpi-val">{data.sleepersRejectedInFinal.toLocaleString()}</div>
+                    <div className="kpi-val">{data.sleepersRejectedInFinal}</div>
                     <div className="kpi-sub">Final Inspection + Water Cube + MR</div>
                 </div>
                 <div className="prof-card card-gold" style={{ textAlign: 'center' }}>
@@ -130,12 +130,12 @@ const SleeperSummary = ({ summaryData = {}, onPoIssuedClick }) => {
             <div className="g2 mb">
                 <div className="prof-card card-amber" style={{ textAlign: 'center' }}>
                     <div className="kpi-lbl">Final Inspection Call Status (Pending)</div>
-                    <div className="kpi-val">{pendingCalls.toLocaleString()}</div>
+                    <div className="kpi-val">{pendingCalls}</div>
                     <div className="kpi-sub">Calls awaiting inspection</div>
                 </div>
                 <div className="prof-card card-blue" style={{ textAlign: 'center' }}>
                     <div className="kpi-lbl">Final Inspection Call Status (Under Inspection)</div>
-                    <div className="kpi-val">{underInspectionCalls.toLocaleString()}</div>
+                    <div className="kpi-val">{underInspectionCalls}</div>
                     <div className="kpi-sub">Calls currently being inspected</div>
                 </div>
             </div>

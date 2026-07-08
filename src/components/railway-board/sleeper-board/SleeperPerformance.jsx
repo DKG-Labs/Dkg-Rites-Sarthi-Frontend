@@ -7,7 +7,7 @@ const SleeperPerformance = ({ fromDate, toDate }) => {
     const [performanceData, setPerformanceData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    
+
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedRio, setSelectedRio] = useState('All');
     const [selectedStage, setSelectedStage] = useState('All');
@@ -33,9 +33,9 @@ const SleeperPerformance = ({ fromDate, toDate }) => {
                     startDate: fromDate,
                     endDate: toDate
                 });
-                
+
                 const rawList = response.responseData || response || [];
-                
+
                 // Grouping logic
                 const groupedMap = {};
                 rawList.forEach(row => {
@@ -49,14 +49,14 @@ const SleeperPerformance = ({ fromDate, toDate }) => {
                     } else {
                         shiftGroup = shift;
                     }
-                    
+
                     const ieKey = formatIeName(row.ieName);
                     const company = row.companyName || "N/A";
                     const plant = row.plantName || row.companyName || "Unassigned Plant";
                     const stage = row.stageOfInspection || "Process";
-                    
+
                     const key = `${company}_${plant}_${ieKey}_${stage}`;
-                    
+
                     if (!groupedMap[key]) {
                         groupedMap[key] = {
                             companyName: company,
@@ -73,12 +73,12 @@ const SleeperPerformance = ({ fromDate, toDate }) => {
                     groupedMap[key].shiftsWorked += (row.shiftsWorked ?? 0);
                     groupedMap[key].rejectedQty += (row.rejectedSleepers ?? 0);
                 });
-                
+
                 const mappedData = Object.values(groupedMap).map((item, idx) => ({
                     id: idx + 1,
                     ...item
                 }));
-                
+
                 setPerformanceData(mappedData);
             } catch (err) {
                 console.error("Failed to fetch sleeper employee performance matrix:", err);
@@ -124,7 +124,7 @@ const SleeperPerformance = ({ fromDate, toDate }) => {
         // 1. Text Search Filter
         if (searchTerm) {
             const lowerSearch = searchTerm.trim().toLowerCase();
-            result = result.filter(d => 
+            result = result.filter(d =>
                 String(d.companyName || '').toLowerCase().includes(lowerSearch) ||
                 String(d.plantName || '').toLowerCase().includes(lowerSearch) ||
                 String(d.plantId || '').toLowerCase().includes(lowerSearch) ||
@@ -239,11 +239,11 @@ const SleeperPerformance = ({ fromDate, toDate }) => {
                         ];
                         downloadPdf(processedData, headers, 'Sleeper_Performance_Monitoring_Matrix', 'Performance Monitoring Matrix (Sleeper)');
                     }} />
-                    <input 
-                        type="text" 
-                        placeholder="Search Plant, IE..." 
-                        className="prof-search" 
-                        style={{ height: '36px', fontSize: '13px' }} 
+                    <input
+                        type="text"
+                        placeholder="Search Plant, IE..."
+                        className="prof-search"
+                        style={{ height: '36px', fontSize: '13px' }}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -254,8 +254,8 @@ const SleeperPerformance = ({ fromDate, toDate }) => {
             <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '20px', background: '#f8fafc', padding: '12px 20px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <label style={{ fontSize: '12px', fontWeight: '600', color: '#166534' }}>RITES RIO:</label>
-                    <select 
-                        value={selectedRio} 
+                    <select
+                        value={selectedRio}
                         onChange={(e) => setSelectedRio(e.target.value)}
                         style={{ padding: '6px 10px', border: '1px solid #bbf7d0', borderRadius: '4px', background: '#ecfdf5', color: '#166534', outline: 'none', cursor: 'pointer' }}
                     >
@@ -264,8 +264,8 @@ const SleeperPerformance = ({ fromDate, toDate }) => {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <label style={{ fontSize: '12px', fontWeight: '600', color: '#166534' }}>IE NAME:</label>
-                    <select 
-                        value={selectedIe} 
+                    <select
+                        value={selectedIe}
                         onChange={(e) => setSelectedIe(e.target.value)}
                         style={{ padding: '6px 10px', border: '1px solid #bbf7d0', borderRadius: '4px', background: '#ecfdf5', color: '#166534', outline: 'none', cursor: 'pointer' }}
                     >
@@ -274,15 +274,15 @@ const SleeperPerformance = ({ fromDate, toDate }) => {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <label style={{ fontSize: '12px', fontWeight: '600', color: '#166534' }}>STAGE:</label>
-                    <select 
-                        value={selectedStage} 
+                    <select
+                        value={selectedStage}
                         onChange={(e) => setSelectedStage(e.target.value)}
                         style={{ padding: '6px 10px', border: '1px solid #bbf7d0', borderRadius: '4px', background: '#ecfdf5', color: '#166534', outline: 'none', cursor: 'pointer' }}
                     >
                         {uniqueStages.map(stg => <option key={stg} value={stg}>{stg === 'All' ? 'All Stages' : stg}</option>)}
                     </select>
                 </div>
-                <button 
+                <button
                     onClick={() => { setSearchTerm(''); setSelectedRio('All'); setSelectedStage('All'); setSelectedIe('All'); setSortConfig({ key: null, direction: 'asc' }); }}
                     style={{ padding: '6px 14px', background: '#dcfce3', color: '#166534', border: '1px solid #bbf7d0', borderRadius: '4px', cursor: 'pointer', fontWeight: '600', fontSize: '12px', marginLeft: 'auto' }}
                 >

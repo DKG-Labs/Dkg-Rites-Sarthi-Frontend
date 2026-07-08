@@ -33,18 +33,18 @@ const RailPadSummary = ({ summaryData = {}, onPoIssuedClick, onInspectionCallCli
                     onClick={onPoIssuedClick}
                 >
                     <div className="kpi-lbl">Total PO Issued</div>
-                    <div className="kpi-val">{data.totalPoIssued.toLocaleString()}</div>
+                    <div className="kpi-val">{data.totalPoIssued}</div>
                     <div className="kpi-sub">All Vendors (IREPS)</div>
                 </div>
                 <div className="prof-card card-ocean" style={{ textAlign: 'center' }}>
                     <div className="kpi-lbl">Total PO Qty on Order</div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '4px' }}>
                         <div style={{ borderRight: '1px solid rgba(255,255,255,0.2)', paddingRight: '8px' }}>
-                            <div className="kpi-val" style={{ fontSize: '20px' }}>{data.totalPoQtyOnOrder.nos.toLocaleString()}</div>
+                            <div className="kpi-val" style={{ fontSize: '20px' }}>{data.totalPoQtyOnOrder.nos}</div>
                             <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Nos.</div>
                         </div>
                         <div style={{ paddingLeft: '8px' }}>
-                            <div className="kpi-val" style={{ fontSize: '20px' }}>{data.totalPoQtyOnOrder.set.toLocaleString()}</div>
+                            <div className="kpi-val" style={{ fontSize: '20px' }}>{data.totalPoQtyOnOrder.set}</div>
                             <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Set</div>
                         </div>
                     </div>
@@ -53,11 +53,11 @@ const RailPadSummary = ({ summaryData = {}, onPoIssuedClick, onInspectionCallCli
                     <div className="kpi-lbl">Final Accepted Quantity</div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '4px' }}>
                         <div style={{ borderRight: '1px solid rgba(255,255,255,0.2)', paddingRight: '8px' }}>
-                            <div className="kpi-val" style={{ fontSize: '20px' }}>{data.totalPoQtyAccepted.nos.toLocaleString()}</div>
+                            <div className="kpi-val" style={{ fontSize: '20px' }}>{data.totalPoQtyAccepted.nos}</div>
                             <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Nos.</div>
                         </div>
                         <div style={{ paddingLeft: '8px' }}>
-                            <div className="kpi-val" style={{ fontSize: '20px' }}>{data.totalPoQtyAccepted.set.toLocaleString()}</div>
+                            <div className="kpi-val" style={{ fontSize: '20px' }}>{data.totalPoQtyAccepted.set}</div>
                             <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Set</div>
                         </div>
                     </div>
@@ -96,7 +96,7 @@ const RailPadSummary = ({ summaryData = {}, onPoIssuedClick, onInspectionCallCli
                 </div>
                 <div className="prof-card card-spring-green" style={{ textAlign: 'center' }}>
                     <div className="kpi-lbl">Avg Production/Day</div>
-                    <div className="kpi-val">{data.avgProductionPerDay.toLocaleString()}</div>
+                    <div className="kpi-val">{data.avgProductionPerDay}</div>
                     <div className="kpi-sub">Across all units</div>
                 </div>
                 <div className="prof-card card-gold" style={{ textAlign: 'center' }}>
@@ -113,12 +113,12 @@ const RailPadSummary = ({ summaryData = {}, onPoIssuedClick, onInspectionCallCli
             <div className="g2">
                 <div className="prof-card card-mint" style={{ textAlign: 'center' }}>
                     <div className="kpi-lbl">Rejected in Process Inspection</div>
-                    <div className="kpi-val">{data.rejectedInProcess.toLocaleString()}</div>
+                    <div className="kpi-val">{data.rejectedInProcess}</div>
                     <div className="kpi-sub">Porosity, Blow holes, Dimensions, Flash</div>
                 </div>
                 <div className="prof-card card-ruby" style={{ textAlign: 'center' }}>
                     <div className="kpi-lbl">Rejected in Final Inspection</div>
-                    <div className="kpi-val">{data.rejectedInFinal.toLocaleString()}</div>
+                    <div className="kpi-val">{data.rejectedInFinal}</div>
                     <div className="kpi-sub">Weight, Dimensions, Physical, Chemical</div>
                 </div>
             </div>

@@ -25,6 +25,10 @@
     text-transform: uppercase !important;
 }
 
+.kpi-val {
+    font-family: 'Tahoma', sans-serif !important;
+}
+
 /* Global Animations */
 @keyframes fadeIn {
     from {

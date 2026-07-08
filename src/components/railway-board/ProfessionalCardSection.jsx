@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'; // Re-adding hooks
+import { Select } from 'antd';
 import { ExportButton, downloadExcel } from './SharedComponents';
 import reportService from '../../services/reportService';
 import Pagination from '../Pagination';
@@ -40,6 +41,8 @@ import PoIssuedModal from './PoIssuedModal';
 import InspectionCallStatusModal from './InspectionCallStatusModal';
 import SleeperAnomalyDiagnostics from './sleeper-anomaly/SleeperAnomalyDiagnostics';
 import DownloadIcAnnexures from './DownloadIcAnnexures';
+
+const { Option } = Select;
 
 const formatPoDate = (dateStr) => {
     if (!dateStr) return '';
@@ -161,6 +164,209 @@ const ProfessionalCardSection = ({
     const [isPoModalOpen, setIsPoModalOpen] = useState(false);
     const [poModalData, setPoModalData] = useState([]);
 
+    // Global Filters State
+    const [vendorPlants, setVendorPlants] = useState([]);
+    const [zonalRailways, setZonalRailways] = useState([]);
+    const [selectedVendorPlant, setSelectedVendorPlant] = useState('');
+    const [selectedZonalRailway, setSelectedZonalRailway] = useState('');
+    const [filterStartDate, setFilterStartDate] = useState('');
+    const [filterEndDate, setFilterEndDate] = useState('');
+    const [dateFilterType, setDateFilterType] = useState('current_fy');
+
+    // Helper to get Current Financial Year start and end dates
+    const getCurrentFY = () => {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = today.getMonth(); // 0 = Jan, 3 = Apr
+        const startYear = month >= 3 ? year : year - 1;
+        return {
+            start: `${startYear}-04-01`,
+            end: today.toISOString().split('T')[0]
+        };
+    };
+
+    // Auto-calculate dates when preset dropdown changes
+    useEffect(() => {
+        if (dateFilterType === 'custom') return; // Do nothing for custom
+        
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+        
+        if (dateFilterType === 'current_fy') {
+            const fy = getCurrentFY();
+            setFilterStartDate(fy.start);
+            setFilterEndDate(fy.end);
+        } else if (dateFilterType === 'last_1_month') {
+            const d = new Date();
+            d.setMonth(today.getMonth() - 1);
+            setFilterStartDate(d.toISOString().split('T')[0]);
+            setFilterEndDate(todayStr);
+        } else if (dateFilterType === 'last_3_months') {
+            const d = new Date();
+            d.setMonth(today.getMonth() - 3);
+            setFilterStartDate(d.toISOString().split('T')[0]);
+            setFilterEndDate(todayStr);
+        } else if (dateFilterType === 'last_6_months') {
+            const d = new Date();
+            d.setMonth(today.getMonth() - 6);
+            setFilterStartDate(d.toISOString().split('T')[0]);
+            setFilterEndDate(todayStr);
+        }
+    }, [dateFilterType]);
+
+    
+    // IC Issued State
+    const [icIssuedData, setIcIssuedData] = useState({ total: 0, rmCount: 0, processCount: 0, finalCount: 0 });
+    const [isIcIssuedModalOpen, setIsIcIssuedModalOpen] = useState(false);
+    const [localInspectionCallStatus, setLocalInspectionCallStatus] = useState([]);
+    const [localInspectionDetails, setLocalInspectionDetails] = useState([]);
+    const [localAvgProduction, setLocalAvgProduction] = useState(null);
+    const [localSummaryData, setLocalSummaryData] = useState(null);
+    const [totalCallsData, setTotalCallsData] = useState(null);
+
+    // Fetch Vendor Plants on mount
+    useEffect(() => {
+        const fetchVendorPlants = async () => {
+            try {
+                const response = await reportService.getVendorPlants();
+                const data = response.responseData || response.data || response;
+                if (Array.isArray(data)) {
+                    const filteredData = data.filter(vp => !vp.companyName?.toLowerCase().includes('dummy'));
+                    const sortedData = [...filteredData].sort((a, b) => 
+                        (a.companyName || '').localeCompare(b.companyName || '')
+                    );
+                    setVendorPlants(sortedData);
+                }
+            } catch (error) {
+                console.error("Error fetching vendor plants:", error);
+            }
+        };
+        fetchVendorPlants();
+    }, []);
+
+    // Fetch Zonal Railways when Vendor Plant changes
+    useEffect(() => {
+        const fetchZonalRailways = async () => {
+            setSelectedZonalRailway(''); // Reset Zonal Railway when Vendor Plant changes
+            if (!selectedVendorPlant) {
+                setZonalRailways([]);
+                return;
+            }
+            try {
+                const response = await reportService.getZonalRailways(selectedVendorPlant);
+                const data = response.responseData || response.data || response;
+                if (Array.isArray(data)) {
+                    const sortedData = [...data].sort((a, b) => 
+                        (a || '').localeCompare(b || '')
+                    );
+                    setZonalRailways(sortedData);
+                }
+            } catch (error) {
+                console.error("Error fetching zonal railways:", error);
+            }
+        };
+        fetchZonalRailways();
+    }, [selectedVendorPlant]);
+
+    // Fetch IC Issued Data
+    useEffect(() => {
+        const fetchIcIssued = async () => {
+            try {
+                const response = await reportService.getIcIssuedCounts({
+                    vendorPlantCode: selectedVendorPlant,
+                    zonalRailway: selectedZonalRailway,
+                    startDate: filterStartDate,
+                    endDate: filterEndDate
+                });
+                const data = response.responseData || response.data || response;
+                if (data) {
+                    setIcIssuedData(data);
+                }
+            } catch (error) {
+                console.error("Error fetching IC issued counts:", error);
+            }
+        };
+        fetchIcIssued();
+    }, [selectedVendorPlant, selectedZonalRailway, filterStartDate, filterEndDate]);
+
+    // Fetch Inspection Call Status
+    useEffect(() => {
+        const fetchInspectionCallStatus = async () => {
+            try {
+                const response = await reportService.getInspectionCallStatus({
+                    vendor: selectedVendorPlant,
+                    zone: selectedZonalRailway,
+                    startDate: filterStartDate,
+                    endDate: filterEndDate
+                });
+                const data = response.responseData || response.data || response;
+                if (data && Array.isArray(data)) {
+                    setLocalInspectionCallStatus(data);
+                }
+            } catch (error) {
+                console.error("Error fetching inspection call status:", error);
+            }
+        };
+        fetchInspectionCallStatus();
+    }, [selectedVendorPlant, selectedZonalRailway, filterStartDate, filterEndDate]);
+
+    // Fetch Inspection Details
+    useEffect(() => {
+        const fetchInspectionDetails = async () => {
+            try {
+                const response = await reportService.getInspectionDetails({
+                    vendor: selectedVendorPlant,
+                    zone: selectedZonalRailway,
+                    startDate: filterStartDate,
+                    endDate: filterEndDate
+                });
+                const data = response.responseData || response.data || response;
+                if (data && Array.isArray(data)) {
+                    setLocalInspectionDetails(data);
+                }
+                
+                const avgProdResponse = await reportService.getAvgProductionPerDay(
+                    selectedVendorPlant,
+                    selectedZonalRailway,
+                    filterStartDate,
+                    filterEndDate
+                );
+                const avgProdData = avgProdResponse.responseData ?? avgProdResponse.data ?? avgProdResponse;
+                setLocalAvgProduction(avgProdData);
+
+                const summaryResponse = await reportService.getDashboardSummary({
+                    vendor: selectedVendorPlant,
+                    zone: selectedZonalRailway,
+                    startDate: filterStartDate,
+                    endDate: filterEndDate
+                });
+                const sumData = summaryResponse.responseData ?? summaryResponse.data ?? summaryResponse;
+                if (sumData) {
+                    setLocalSummaryData(sumData);
+                }
+            } catch (error) {
+                console.error("Error fetching inspection details:", error);
+            }
+        };
+        fetchInspectionDetails();
+    }, [selectedVendorPlant, selectedZonalRailway, filterStartDate, filterEndDate]);
+
+    useEffect(() => {
+        const fetchTotalCalls = async () => {
+            try {
+                if (getSummaryKey(selectedProduct) !== 'erc') return;
+                const response = await reportService.getErcDashboardTotalCalls();
+                const data = response?.responseData || response?.data || response;
+                if (data) {
+                    setTotalCallsData(data);
+                }
+            } catch (error) {
+                console.error("Error fetching total calls:", error);
+            }
+        };
+        fetchTotalCalls();
+    }, [selectedProduct]);
+
     const handlePoIssuedClick = async () => {
         try {
             let itemCatDescr;
@@ -171,7 +377,13 @@ const ProfessionalCardSection = ({
             } else {
                 itemCatDescr = 'Elastic Rail Clips';
             }
-            const response = await reportService.getPoIssuedDetails(itemCatDescr);
+            const response = await reportService.getPoIssuedDetails(
+                itemCatDescr, 
+                selectedVendorPlant || null, 
+                selectedZonalRailway || null, 
+                filterStartDate || null, 
+                filterEndDate || null
+            );
             const data = response.responseData || response || [];
             setPoModalData(data);
             setIsPoModalOpen(true);
@@ -189,12 +401,33 @@ const ProfessionalCardSection = ({
         try {
             const title = `${stage} Stage - ${status}`;
             setIcModalTitle(title);
-            const response = await reportService.getInspectionCallStatusDetails(stage, status);
+            const response = await reportService.getInspectionCallStatusDetails(stage, status, {
+                vendor: selectedVendorPlant,
+                zone: selectedZonalRailway,
+                startDate: filterStartDate,
+                endDate: filterEndDate
+            });
             const data = response.responseData || response || [];
             setIcModalData(data);
             setIsIcModalOpen(true);
         } catch (error) {
             console.error("Error fetching active call details:", error);
+        }
+    };
+
+    const handleTotalCallsClick = async (type) => {
+        try {
+            setIcModalTitle(`Total Calls - ${type}`);
+            let response;
+            if (type === 'Open') response = await reportService.getErcDashboardOpenCalls();
+            else if (type === 'Under Inspection') response = await reportService.getErcDashboardUnderInspectionCalls();
+            else if (type === 'Pending') response = await reportService.getErcDashboardPendingCalls();
+            
+            const data = response?.responseData || response?.data || response || [];
+            setIcModalData(data);
+            setIsIcModalOpen(true);
+        } catch (error) {
+            console.error(`Error fetching ${type} calls:`, error);
         }
     };
 
@@ -522,28 +755,125 @@ const ProfessionalCardSection = ({
                             if (isRailPad) {
                                 return <RailPadSummary summaryData={summaryData} onPoIssuedClick={handlePoIssuedClick} onInspectionCallClick={handleInspectionCallClick} />;
                             }
-                            const s = summaryData || {};
+                            const s = localSummaryData || summaryData || {};
 
                             return (
                                 <div className="summary-tab-content">
-                                    <div className="g3 mb">
+                                    {/* Global Filters for ERC */}
+                                    {isErc && (
+                                        <div className="global-filters mb" style={{
+                                            display: 'flex', gap: '15px', background: '#f8fafc', 
+                                            padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0',
+                                            alignItems: 'center', flexWrap: 'wrap'
+                                        }}>
+                                            <div style={{ flex: '1', minWidth: '220px' }}>
+                                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>Vendor Plant</label>
+                                                <Select 
+                                                    showSearch
+                                                    allowClear
+                                                    placeholder="All Vendor Plants"
+                                                    value={selectedVendorPlant || undefined} 
+                                                    onChange={(val) => {
+                                                        setSelectedVendorPlant(val);
+                                                        setSelectedZonalRailway(null);
+                                                    }}
+                                                    style={{ width: '100%', height: '36px' }}
+                                                    popupMatchSelectWidth={false}
+                                                    dropdownStyle={{ maxWidth: '600px' }}
+                                                    optionFilterProp="children"
+                                                    filterOption={(input, option) =>
+                                                        (option?.title ?? '').toLowerCase().includes(input.toLowerCase())
+                                                    }
+                                                >
+                                                    {vendorPlants.map((vp, i) => (
+                                                        <Option 
+                                                            key={i} 
+                                                            value={vp.poiCode}
+                                                            title={`${vp.companyName} - ${vp.unitName} - ${vp.address}`}
+                                                        >
+                                                            {vp.companyName} - {vp.unitName}
+                                                        </Option>
+                                                    ))}
+                                                </Select>
+                                            </div>
+                                            <div style={{ flex: '1', minWidth: '170px' }}>
+                                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>Zonal Railway</label>
+                                                <Select 
+                                                    allowClear
+                                                    placeholder="All Zonal Railways"
+                                                    value={selectedZonalRailway || undefined} 
+                                                    onChange={(val) => setSelectedZonalRailway(val || '')}
+                                                    style={{ width: '100%', height: '36px' }}
+                                                    popupMatchSelectWidth={false}
+                                                    disabled={!selectedVendorPlant || zonalRailways.length === 0}
+                                                >
+                                                    {zonalRailways.map((zr, i) => (
+                                                        <Option key={i} value={zr}>{zr}</Option>
+                                                    ))}
+                                                </Select>
+                                            </div>
+                                            <div style={{ flex: '1', minWidth: '150px' }}>
+                                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>Date Range</label>
+                                                <Select 
+                                                    value={dateFilterType} 
+                                                    onChange={(val) => setDateFilterType(val || 'current_fy')}
+                                                    style={{ width: '100%', height: '36px' }}
+                                                    disabled={!selectedVendorPlant}
+                                                >
+                                                    <Option value="current_fy">Current Fin. Year</Option>
+                                                    <Option value="last_1_month">Last 1 Month</Option>
+                                                    <Option value="last_3_months">Last 3 Months</Option>
+                                                    <Option value="last_6_months">Last 6 Months</Option>
+                                                    <Option value="custom">Custom Range</Option>
+                                                </Select>
+                                            </div>
+                                            <div style={{ flex: '1', minWidth: '130px' }}>
+                                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>From Date</label>
+                                                <input 
+                                                    type="date" 
+                                                    value={filterStartDate || ''} 
+                                                    onChange={(e) => {
+                                                        setFilterStartDate(e.target.value);
+                                                        setDateFilterType('custom');
+                                                    }}
+                                                    style={{ width: '100%', height: '36px', padding: '0 11px', border: '1px solid #d9d9d9', borderRadius: '6px', fontSize: '14px', color: '#1e293b' }}
+                                                    disabled={!selectedVendorPlant}
+                                                />
+                                            </div>
+                                            <div style={{ flex: '1', minWidth: '130px' }}>
+                                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>To Date</label>
+                                                <input 
+                                                    type="date" 
+                                                    value={filterEndDate || ''} 
+                                                    onChange={(e) => {
+                                                        setFilterEndDate(e.target.value);
+                                                        setDateFilterType('custom');
+                                                    }}
+                                                    style={{ width: '100%', height: '36px', padding: '0 11px', border: '1px solid #d9d9d9', borderRadius: '6px', fontSize: '14px', color: '#1e293b' }}
+                                                    disabled={!selectedVendorPlant}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="g4 mb">
                                         <div className="prof-card card-dark-green"
                                             style={{ textAlign: 'center', cursor: 'pointer' }}
                                             onClick={handlePoIssuedClick}
                                         >
                                             <div className="kpi-lbl">PO Issued</div>
-                                            <div className="kpi-val">{(s.poIssued || 412).toLocaleString()}</div>
+                                            <div className="kpi-val">{(s.poIssued ?? 0)}</div>
                                             <div className="kpi-sub">Nos.</div>
                                         </div>
                                         <div className="prof-card card-ocean" style={{ textAlign: 'center' }}>
                                             <div className="kpi-lbl">PO Quantity</div>
                                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '4px' }}>
                                                 <div style={{ borderRight: '1px solid rgba(255,255,255,0.2)', paddingRight: '4px' }}>
-                                                    <div className="kpi-val" style={{ fontSize: '26px' }}>{(s.poQuantityNos || 0).toLocaleString()}</div>
+                                                    <div className="kpi-val" style={{ fontSize: '26px' }}>{(s.poQuantityNos || 0)}</div>
                                                     <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Nos.</div>
                                                 </div>
                                                 <div style={{ paddingLeft: '4px' }}>
-                                                    <div className="kpi-val" style={{ fontSize: '26px' }}>{(s.poQuantityMt || 0).toLocaleString()}</div>
+                                                    <div className="kpi-val" style={{ fontSize: '26px' }}>{(s.poQuantityMt || 0)}</div>
                                                     <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>MT</div>
                                                 </div>
                                             </div>
@@ -552,7 +882,7 @@ const ProfessionalCardSection = ({
                                             <div className="kpi-lbl">Final Inspection Qty</div>
                                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '4px' }}>
                                                 <div style={{ borderRight: '1px solid rgba(255,255,255,0.2)', paddingRight: '4px' }}>
-                                                    <div className="kpi-val" style={{ fontSize: '26px' }}>{(s.finalInspectionQuantity || 0).toLocaleString()}</div>
+                                                    <div className="kpi-val" style={{ fontSize: '26px' }}>{(s.finalInspectionQuantity || 0)}</div>
                                                     <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Nos.</div>
                                                 </div>
                                                 <div style={{ paddingLeft: '4px' }}>
@@ -561,6 +891,20 @@ const ProfessionalCardSection = ({
                                                 </div>
                                             </div>
                                         </div>
+                                        
+                                        {/* IC ISSUED Card */}
+                                        <div className="prof-card card-gold" 
+                                             style={{ textAlign: 'center', cursor: 'pointer', background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
+                                             onClick={() => setIsIcIssuedModalOpen(true)}
+                                             title="Click to view stage-wise breakdown"
+                                        >
+                                            <div className="kpi-lbl">IC Issued</div>
+                                            <div style={{ marginTop: '12px' }}>
+                                                <div className="kpi-val" style={{ fontSize: '32px' }}>{(icIssuedData.total || 0)}</div>
+                                                <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9, marginTop: '2px' }}>Total Calls</div>
+                                            </div>
+                                        </div>
+                                        
                                     </div>
 
                                     <div className="sec-title-flex" style={{ marginBottom: '12px', marginTop: '10px' }}>
@@ -568,7 +912,8 @@ const ProfessionalCardSection = ({
                                     </div>
                                     <div className="g3 mb">
                                         {['RM', 'Process', 'Final'].map((cat, idx) => {
-                                            const d = (inspectionCallStatusData?.length > 0 ? inspectionCallStatusData : staticInspectionCallsData).find(x => x.name === cat || x.category === cat);
+                                            const activeData = localInspectionCallStatus?.length > 0 ? localInspectionCallStatus : (inspectionCallStatusData?.length > 0 ? inspectionCallStatusData : staticInspectionCallsData);
+                                            const d = activeData.find(x => x.name === cat || x.category === cat);
                                             return (
                                                 <div className="prof-card" key={idx} style={{
                                                     padding: '15px',
@@ -588,7 +933,7 @@ const ProfessionalCardSection = ({
                                                             title="Click to view Under Inspection calls"
                                                         >
                                                             <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '700' }}>UNDER INSPECTION</div>
-                                                            <div style={{ fontSize: '28px', fontWeight: '800', color: '#f59e0b' }}>{d?.under?.toLocaleString() || '0'}</div>
+                                                            <div style={{ fontSize: '28px', fontWeight: '800', color: '#f59e0b' }}>{d?.under || '0'}</div>
                                                         </div>
                                                         <div
                                                             style={{ textAlign: 'right', cursor: 'pointer', padding: '6px', borderRadius: '8px', transition: 'all 0.2s' }}
@@ -598,7 +943,7 @@ const ProfessionalCardSection = ({
                                                             title="Click to view Pending calls"
                                                         >
                                                             <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '700' }}>PENDING</div>
-                                                            <div style={{ fontSize: '28px', fontWeight: '800', color: '#ef4444' }}>{d?.pending?.toLocaleString() || '0'}</div>
+                                                            <div style={{ fontSize: '28px', fontWeight: '800', color: '#ef4444' }}>{d?.pending || '0'}</div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -609,9 +954,30 @@ const ProfessionalCardSection = ({
                                     <div className="sec-title-flex" style={{ marginBottom: '12px' }}>
                                         <span style={{ fontSize: '14px', fontWeight: '700', color: '#166534' }}>Inspection Details</span>
                                     </div>
-                                    <div className="g3 mb">
+                                    <div className="g4 mb">
+                                        <div className="prof-card" style={{ padding: '15px', borderLeft: '4px solid #3b82f6', background: '#eff6ff' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                                <span style={{ fontSize: '14px', fontWeight: '800', color: '#475569', textTransform: 'uppercase' }}>Total Calls</span>
+                                                <span className="prof-badge" style={{ background: '#bfdbfe', color: '#1e3a8a', fontSize: '10px' }}>Nos.</span>
+                                            </div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', textAlign: 'center' }}>
+                                                <div onClick={() => handleTotalCallsClick('Open')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', background: 'rgba(255,255,255,0.7)', padding: '8px 4px', borderRadius: '6px', transition: 'all 0.2s', flex: 1 }} onMouseEnter={e => e.currentTarget.style.background = '#dbeafe'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.7)'} title="Click to view Open calls">
+                                                    <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '700', lineHeight: '1.2', marginBottom: '4px' }}>TOTAL<br/>OPEN</span>
+                                                    <span style={{ fontSize: '18px', fontWeight: '800', color: '#3b82f6' }}>{totalCallsData?.totalOpenCalls || 0}</span>
+                                                </div>
+                                                <div onClick={() => handleTotalCallsClick('Under Inspection')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', background: 'rgba(255,255,255,0.7)', padding: '8px 4px', borderRadius: '6px', transition: 'all 0.2s', flex: 1 }} onMouseEnter={e => e.currentTarget.style.background = '#dbeafe'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.7)'} title="Click to view Under Inspection calls">
+                                                    <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '700', lineHeight: '1.2', marginBottom: '4px' }}>UNDER<br/>INSPECTION</span>
+                                                    <span style={{ fontSize: '18px', fontWeight: '800', color: '#f59e0b' }}>{totalCallsData?.totalUnderInspectionCalls || 0}</span>
+                                                </div>
+                                                <div onClick={() => handleTotalCallsClick('Pending')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', background: 'rgba(255,255,255,0.7)', padding: '8px 4px', borderRadius: '6px', transition: 'all 0.2s', flex: 1 }} onMouseEnter={e => e.currentTarget.style.background = '#dbeafe'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.7)'} title="Click to view Pending calls">
+                                                    <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '700', lineHeight: '1.2', marginBottom: '4px' }}>PENDING<br/>CALLS</span>
+                                                    <span style={{ fontSize: '18px', fontWeight: '800', color: '#ef4444' }}>{totalCallsData?.totalPendingCalls || 0}</span>
+                                                </div>
+                                            </div>
+                                        </div>
                                         {['RM', 'Process', 'Final'].map((cat, idx) => {
-                                            const d = (inspectionDetailsData?.length > 0 ? inspectionDetailsData : staticInspectionDetailsData).find(x => x.name === cat);
+                                            const activeDetails = localInspectionDetails?.length > 0 ? localInspectionDetails : (inspectionDetailsData?.length > 0 ? inspectionDetailsData : staticInspectionDetailsData);
+                                            const d = activeDetails.find(x => x.name === cat);
                                             return (
                                                 <div className="prof-card" key={idx} style={{
                                                     padding: '15px',
@@ -625,11 +991,11 @@ const ProfessionalCardSection = ({
                                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                                                         <div>
                                                             <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>ACCEPTED (Nos.)</div>
-                                                            <div style={{ fontSize: '26px', fontWeight: '800', color: '#22c55e' }}>{d?.accepted?.toLocaleString() || '0'}</div>
+                                                            <div style={{ fontSize: '26px', fontWeight: '800', color: '#22c55e' }}>{d?.accepted || '0'}</div>
                                                         </div>
                                                         <div style={{ textAlign: 'right' }}>
                                                             <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>REJECTED (Nos.)</div>
-                                                            <div style={{ fontSize: '26px', fontWeight: '800', color: '#ef4444' }}>{d?.rejected?.toLocaleString() || '0'}</div>
+                                                            <div style={{ fontSize: '26px', fontWeight: '800', color: '#ef4444' }}>{d?.rejected || '0'}</div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -640,18 +1006,39 @@ const ProfessionalCardSection = ({
                                     <div className="prof-card">
                                         <div className="sec-title">Production & Rejection</div>
                                         {(() => {
-                                            const procData = (inspectionDetailsData?.length > 0 ? inspectionDetailsData : staticInspectionDetailsData).find(x => x.name === 'Process');
+                                            const activeDetails = localInspectionDetails?.length > 0 ? localInspectionDetails : (inspectionDetailsData?.length > 0 ? inspectionDetailsData : staticInspectionDetailsData);
+                                            
+                                            const procData = activeDetails.find(x => x.name === 'Process');
                                             const pAcc = procData?.accepted || 0;
                                             const pRej = procData?.rejected || 0;
                                             const pInsp = pAcc + pRej;
-                                            const pRejPct = s.processRejectionPercentage ?? (pInsp > 0 ? (pRej * 100) / pInsp : 0);
+                                            const pRejPct = pInsp > 0 ? (pRej * 100) / pInsp : (s.processRejectionPercentage ?? 0);
+                                            
+                                            const rmData = activeDetails.find(x => x.name === 'RM');
+                                            const rmAcc = rmData?.accepted || 0;
+                                            const rmRej = rmData?.rejected || 0;
+                                            const rmInsp = rmAcc + rmRej;
+                                            const rmRejPct = rmInsp > 0 ? (rmRej * 100) / rmInsp : (s.rmRejectionPercentage ?? 3.2);
+
+                                            const finalData = activeDetails.find(x => x.name === 'Final');
+                                            const fAcc = finalData?.accepted || 0;
+                                            const fRej = finalData?.rejected || 0;
+                                            const fInsp = fAcc + fRej;
+                                            const fRejPct = fInsp > 0 ? (fRej * 100) / fInsp : (s.finalRejectionPercentage ?? 1.8);
+                                            
+                                            const avgProd = localAvgProduction !== null ? localAvgProduction : (s.avgProductionPerDay ?? 947);
 
                                             return (
                                                 <div className="g4">
                                                     <div className="prof-card card-spring-green" style={{ textAlign: 'center' }}>
                                                         <div className="kpi-lbl">Avg Production/Day</div>
-                                                        <div className="kpi-val">{(Math.round(s.avgProductionPerDay ?? 947)).toLocaleString()}</div>
+                                                        <div className="kpi-val">{Math.round(avgProd)}</div>
                                                         <div className="kpi-sub">Nos.</div>
+                                                    </div>
+                                                    <div className="prof-card card-gold" style={{ textAlign: 'center' }}>
+                                                        <div className="kpi-lbl">RM Rejection</div>
+                                                        <div className="kpi-val">{formatDecimal(rmRejPct)}%</div>
+                                                        <div className="prof-prog"><div className="prof-prog-f" style={{ width: `${Math.min(100, rmRejPct * 10)}%`, background: '#eab308' }}></div></div>
                                                     </div>
                                                     <div className="prof-card card-lime" style={{ textAlign: 'center' }}>
                                                         <div className="kpi-lbl">Process Rejection</div>
@@ -660,13 +1047,8 @@ const ProfessionalCardSection = ({
                                                     </div>
                                                     <div className="prof-card card-ruby" style={{ textAlign: 'center' }}>
                                                         <div className="kpi-lbl">Final Rejection</div>
-                                                        <div className="kpi-val">{formatDecimal(s.finalRejectionPercentage ?? 1.8)}%</div>
-                                                        <div className="prof-prog"><div className="prof-prog-f" style={{ width: `${Math.min(100, (s.finalRejectionPercentage ?? 1.8) * 10)}%`, background: '#e11d48' }}></div></div>
-                                                    </div>
-                                                    <div className="prof-card card-gold" style={{ textAlign: 'center' }}>
-                                                        <div className="kpi-lbl">RM Rejection</div>
-                                                        <div className="kpi-val">{formatDecimal(s.rmRejectionPercentage ?? 3.2)}%</div>
-                                                        <div className="prof-prog"><div className="prof-prog-f" style={{ width: `${Math.min(100, (s.rmRejectionPercentage ?? 3.2) * 10)}%`, background: '#eab308' }}></div></div>
+                                                        <div className="kpi-val">{formatDecimal(fRejPct)}%</div>
+                                                        <div className="prof-prog"><div className="prof-prog-f" style={{ width: `${Math.min(100, fRejPct * 10)}%`, background: '#e11d48' }}></div></div>
                                                     </div>
                                                 </div>
                                             );
@@ -762,7 +1144,7 @@ const ProfessionalCardSection = ({
                                                                     (a, b) => (b.payload?.value || 0) - (a.payload?.value || 0)
                                                                 );
                                                                 return (
-                                                                    <div style={{ paddingLeft: '20px', lineHeight: '28px', fontSize: '13px' }}>
+                                                                    <div style={{ paddingLeft: '20px', lineHeight: '28px', fontSize: '14px', fontWeight: 'bold' }}>
                                                                         {sorted.map((entry, i) => (
                                                                             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                                                 <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: entry.color, flexShrink: 0 }} />
@@ -784,7 +1166,17 @@ const ProfessionalCardSection = ({
                                             <div className="sec-title">Pareto Analysis</div>
                                             <div className="chart-wrap" style={{ height: '380px' }}>
                                                 <ResponsiveContainer width="100%" height="100%">
-                                                    <ComposedChart data={paretoAnalysisData?.map(d => ({ ...d, count: d.count || d.value || 0 }))} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                                    <ComposedChart data={paretoAnalysisData?.length ? (() => {
+                                                        const total = paretoAnalysisData.reduce((sum, d) => sum + (d.count || d.value || 0), 0);
+                                                        return paretoAnalysisData.map(d => {
+                                                            const count = d.count || d.value || 0;
+                                                            return { 
+                                                                ...d, 
+                                                                count, 
+                                                                percentage: total > 0 ? Number(((count / total) * 100).toFixed(2)) : 0 
+                                                            };
+                                                        });
+                                                    })() : []} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                                         <XAxis
                                                             dataKey="name"
@@ -801,7 +1193,7 @@ const ProfessionalCardSection = ({
                                                                         transform="rotate(90)"
                                                                         textAnchor="start"
                                                                         fill="#475569"
-                                                                        style={{ fontSize: '10px', fontWeight: '500', fontFamily: 'sans-serif' }}
+                                                                        style={{ fontSize: '12px', fontWeight: 'bold', fontFamily: 'sans-serif' }}
                                                                     >
                                                                         {payload.value.length > 22
                                                                             ? payload.value.substring(0, 20) + '…'
@@ -810,14 +1202,14 @@ const ProfessionalCardSection = ({
                                                                 </g>
                                                             )}
                                                         />
-                                                        <YAxis yAxisId="left" axisLine={false} tickLine={false} style={{ fontSize: '9px' }} />
+                                                        <YAxis yAxisId="left" axisLine={false} tickLine={false} style={{ fontSize: '12px', fontWeight: 'bold' }} />
                                                         <YAxis
                                                             yAxisId="right"
                                                             orientation="right"
                                                             axisLine={false}
                                                             tickLine={false}
                                                             unit="%"
-                                                            style={{ fontSize: '9px' }}
+                                                            style={{ fontSize: '12px', fontWeight: 'bold' }}
                                                             domain={[0, 100]}
                                                         />
                                                         <Tooltip />
@@ -825,7 +1217,7 @@ const ProfessionalCardSection = ({
                                                         <Line
                                                             yAxisId="right"
                                                             type="monotone"
-                                                            dataKey="cumulative"
+                                                            dataKey="percentage"
                                                             stroke="#ef4444"
                                                             strokeWidth={2}
                                                             dot={{ r: 4, fill: '#ef4444', strokeWidth: 1, stroke: '#fff' }}
@@ -841,8 +1233,8 @@ const ProfessionalCardSection = ({
                                                 <ResponsiveContainer width="100%" height="100%">
                                                     <BarChart data={qualityRejectionData?.length ? qualityRejectionData : [{ name: 'Raw Material', value: 0.8 }, { name: 'Process', value: 1.6 }, { name: 'Final', value: 0.9 }]}>
                                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0fdf4" />
-                                                        <XAxis dataKey="name" axisLine={false} tickLine={false} style={{ fontSize: '10px' }} />
-                                                        <YAxis axisLine={false} tickLine={false} unit="%" style={{ fontSize: '10px' }} />
+                                                        <XAxis dataKey="name" axisLine={false} tickLine={false} style={{ fontSize: '12px', fontWeight: 'bold' }} />
+                                                        <YAxis axisLine={false} tickLine={false} unit="%" style={{ fontSize: '12px', fontWeight: 'bold' }} />
                                                         <Tooltip />
                                                         <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={40}>
                                                             {qualityRejectionData?.map((entry, index) => (
@@ -871,13 +1263,13 @@ const ProfessionalCardSection = ({
                                                             dataKey="name"
                                                             axisLine={false}
                                                             tickLine={false}
-                                                            style={{ fontSize: '9px', fontWeight: '500' }}
+                                                            style={{ fontSize: '12px', fontWeight: 'bold' }}
                                                             tickFormatter={(name) => name.length > 12 ? name.substring(0, 10) + '...' : name}
                                                         />
-                                                        <YAxis axisLine={false} tickLine={false} unit="%" style={{ fontSize: '9px' }} />
+                                                        <YAxis axisLine={false} tickLine={false} unit="%" style={{ fontSize: '12px', fontWeight: 'bold' }} />
                                                         <Tooltip formatter={(v) => `${v}%`} />
                                                         <Bar dataKey="value" fill="#166534" radius={[4, 4, 0, 0]} barSize={24}>
-                                                            <LabelList dataKey="value" position="top" formatter={(v) => `${formatDecimal(v)}%`} style={{ fontSize: '9px', fill: '#166534', fontWeight: 'bold' }} />
+                                                            <LabelList dataKey="value" position="top" formatter={(v) => `${formatDecimal(v)}%`} style={{ fontSize: '12px', fill: '#166534', fontWeight: 'bold' }} />
                                                         </Bar>
                                                     </BarChart>
                                                 </ResponsiveContainer>
@@ -893,8 +1285,8 @@ const ProfessionalCardSection = ({
                                                         { name: 'Aug', value: 1.1 }, { name: 'Sep', value: 0.9 }
                                                     ]}>
                                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0fdf4" />
-                                                        <XAxis dataKey="name" axisLine={false} tickLine={false} style={{ fontSize: '10px' }} />
-                                                        <YAxis axisLine={false} tickLine={false} style={{ fontSize: '10px' }} />
+                                                        <XAxis dataKey="name" axisLine={false} tickLine={false} style={{ fontSize: '12px', fontWeight: 'bold' }} />
+                                                        <YAxis axisLine={false} tickLine={false} style={{ fontSize: '12px', fontWeight: 'bold' }} />
                                                         <Tooltip />
                                                         <Area type="monotone" dataKey="value" stroke="#16a34a" fill="rgba(22,163,74,0.1)" strokeWidth={3} dot={{ r: 4, fill: '#16a34a' }} />
                                                     </AreaChart>
@@ -907,10 +1299,10 @@ const ProfessionalCardSection = ({
                                                 <ResponsiveContainer width="100%" height="100%">
                                                     <BarChart data={stageVsDefectTop3} margin={{ bottom: 5 }}>
                                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0fdf4" />
-                                                        <XAxis dataKey="name" axisLine={false} tickLine={false} style={{ fontSize: '10px' }} />
-                                                        <YAxis axisLine={false} tickLine={false} style={{ fontSize: '10px' }} />
+                                                        <XAxis dataKey="name" axisLine={false} tickLine={false} style={{ fontSize: '12px', fontWeight: 'bold' }} />
+                                                        <YAxis axisLine={false} tickLine={false} style={{ fontSize: '12px', fontWeight: 'bold' }} />
                                                         <Tooltip />
-                                                        <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
+                                                        <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 'bold', paddingTop: '10px' }} />
                                                         {top3DefectNames.map((name, i) => (
                                                             <Bar
                                                                 key={name}
@@ -950,13 +1342,13 @@ const ProfessionalCardSection = ({
                                                             type="category"
                                                             axisLine={false}
                                                             tickLine={false}
-                                                            style={{ fontSize: '9px', fontWeight: '600', fill: '#475569' }}
+                                                            style={{ fontSize: '12px', fontWeight: 'bold', fill: '#475569' }}
                                                             width={90}
                                                             tickFormatter={(name) => name.length > 15 ? name.substring(0, 12) + '...' : name}
                                                         />
                                                         <Tooltip formatter={(v) => `${v}%`} />
                                                         <Bar dataKey="value" fill="#10b981" barSize={16} radius={[0, 4, 4, 0]}>
-                                                            <LabelList dataKey="value" position="right" formatter={(v) => `${formatDecimal(v)}%`} style={{ fontSize: '10px', fontWeight: '700', fill: '#059669' }} />
+                                                            <LabelList dataKey="value" position="right" formatter={(v) => `${formatDecimal(v)}%`} style={{ fontSize: '12px', fontWeight: 'bold', fill: '#059669' }} />
                                                         </Bar>
                                                     </BarChart>
                                                 </ResponsiveContainer>
@@ -984,13 +1376,13 @@ const ProfessionalCardSection = ({
                                                             type="category"
                                                             axisLine={false}
                                                             tickLine={false}
-                                                            style={{ fontSize: '9px', fontWeight: '600', fill: '#475569' }}
+                                                            style={{ fontSize: '12px', fontWeight: 'bold', fill: '#475569' }}
                                                             width={90}
                                                             tickFormatter={(name) => name.length > 15 ? name.substring(0, 12) + '...' : name}
                                                         />
                                                         <Tooltip formatter={(v) => `${v}%`} />
                                                         <Bar dataKey="value" fill="#ef4444" barSize={16} radius={[0, 4, 4, 0]}>
-                                                            <LabelList dataKey="value" position="right" formatter={(v) => `${formatDecimal(v)}%`} style={{ fontSize: '10px', fontWeight: '700', fill: '#dc2626' }} />
+                                                            <LabelList dataKey="value" position="right" formatter={(v) => `${formatDecimal(v)}%`} style={{ fontSize: '12px', fontWeight: 'bold', fill: '#dc2626' }} />
                                                         </Bar>
                                                     </BarChart>
                                                 </ResponsiveContainer>
@@ -1080,9 +1472,9 @@ const ProfessionalCardSection = ({
                                                             <td><span className="prof-badge" style={{ background: '#f0fdf4', color: '#166534' }}>{record.rio}</span></td>
                                                             <td>👤 {record.username}</td>
                                                             <td><span className="prof-badge" style={{ background: '#f0f9ff', color: '#075985' }}>{record.stage}</span></td>
-                                                            <td className="text-right">{record.inspectedQty?.toLocaleString()}</td>
-                                                            <td className="text-right" style={{ color: '#16a34a' }}>{record.acceptedQty?.toLocaleString()}</td>
-                                                            <td className="text-right" style={{ color: '#dc2626' }}>{record.rejectedQty?.toLocaleString()}</td>
+                                                            <td className="text-right">{record.inspectedQty}</td>
+                                                            <td className="text-right" style={{ color: '#16a34a' }}>{record.acceptedQty}</td>
+                                                            <td className="text-right" style={{ color: '#dc2626' }}>{record.rejectedQty}</td>
                                                             <td className="text-right"><span className="prof-badge" style={{ background: '#fff7ed', color: '#9a3412' }}>{formatDecimal(record.rejectionPercentage)}%</span></td>
                                                         </tr>
                                                     ))}
@@ -1209,12 +1601,12 @@ const ProfessionalCardSection = ({
                                                                                     <td>{row.poNumber}</td>
                                                                                     <td>{formatPoDate(row.poDate)}</td>
                                                                                     <td>{row.manufacturer}</td>
-                                                                                    <td className="text-center">{row.poQty?.toLocaleString()}</td>
-                                                                                    <td className="text-center">{row.monthlyRm?.toLocaleString()}</td>
-                                                                                    <td className="text-center">{row.monthlyProcess?.toLocaleString()}</td>
-                                                                                    <td className="text-center">{row.monthlyFinal?.toLocaleString()}</td>
-                                                                                    <td className="text-center">{row.totalFinalInspected?.toLocaleString()}</td>
-                                                                                    <td className="text-center font-bold" style={{ color: '#16a34a' }}>{row.poBalance?.toLocaleString()}</td>
+                                                                                    <td className="text-center">{row.poQty}</td>
+                                                                                    <td className="text-center">{row.monthlyRm}</td>
+                                                                                    <td className="text-center">{row.monthlyProcess}</td>
+                                                                                    <td className="text-center">{row.monthlyFinal}</td>
+                                                                                    <td className="text-center">{row.totalFinalInspected}</td>
+                                                                                    <td className="text-center font-bold" style={{ color: '#16a34a' }}>{row.poBalance}</td>
                                                                                 </tr>
                                                                             ))}
                                                                         </tbody>
@@ -1274,9 +1666,9 @@ const ProfessionalCardSection = ({
                                                                                 <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
                                                                                     <td>{row.manufacturer}</td>
                                                                                     <td>{row.rio || '-'}</td>
-                                                                                    <td className="text-right">{row.manufactured?.toLocaleString()}</td>
-                                                                                    <td className="text-right">{row.inspected?.toLocaleString()}</td>
-                                                                                    <td className="text-right" style={{ color: '#dc2626' }}>{row.rejected?.toLocaleString()}</td>
+                                                                                    <td className="text-right">{row.manufactured}</td>
+                                                                                    <td className="text-right">{row.inspected}</td>
+                                                                                    <td className="text-right" style={{ color: '#dc2626' }}>{row.rejected}</td>
                                                                                     <td className="text-right">{formatDecimal(row.rmRejPercent)}%</td>
                                                                                     <td className="text-right text-red-600">{formatDecimal(row.processRejPercent)}%</td>
                                                                                     <td className="text-right">{formatDecimal(row.finalRejPercent)}%</td>
@@ -1472,9 +1864,9 @@ const ProfessionalCardSection = ({
                                                                                             >
                                                                                                 {row.manufacture}
                                                                                             </td>
-                                                                                            <td className="text-center">{row.totalInspected?.toLocaleString()}</td>
-                                                                                            <td className="text-center" style={{ color: '#16a34a' }}>{row.totalAccepted?.toLocaleString()}</td>
-                                                                                            <td className="text-center" style={{ color: '#dc2626' }}>{row.totalRejected?.toLocaleString()}</td>
+                                                                                            <td className="text-center">{row.totalInspected}</td>
+                                                                                            <td className="text-center" style={{ color: '#16a34a' }}>{row.totalAccepted}</td>
+                                                                                            <td className="text-center" style={{ color: '#dc2626' }}>{row.totalRejected}</td>
                                                                                             <td className="text-center">
                                                                                                 <span className="prof-badge" style={{ background: '#fff7ed', color: '#9a3412', fontWeight: 'bold' }}>
                                                                                                     {row.rejectionPercent?.toFixed(2)}%
@@ -1555,6 +1947,45 @@ const ProfessionalCardSection = ({
                 data={icModalData}
                 title={icModalTitle}
             />
+
+            {/* IC Issued Breakdown Modal */}
+            {isIcIssuedModalOpen && (
+                <div className="modal-overlay" onClick={() => setIsIcIssuedModalOpen(false)} style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
+                    backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', 
+                    justifyContent: 'center', zIndex: 1000
+                }}>
+                    <div className="modal-content fade-in" onClick={e => e.stopPropagation()} style={{
+                        background: 'white', padding: '24px', borderRadius: '16px', 
+                        width: '400px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)'
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                            <h3 style={{ margin: 0, color: '#1e293b', fontSize: '18px' }}>IC Issued Breakdown</h3>
+                            <button onClick={() => setIsIcIssuedModalOpen(false)} style={{
+                                background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#64748b'
+                            }}>&times;</button>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#f8fafc', borderRadius: '8px' }}>
+                                <span style={{ fontWeight: '600', color: '#475569' }}>Raw Material (ER)</span>
+                                <span style={{ fontWeight: '700', color: '#0f172a' }}>{icIssuedData.rmCount}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#f8fafc', borderRadius: '8px' }}>
+                                <span style={{ fontWeight: '600', color: '#475569' }}>Process (EP)</span>
+                                <span style={{ fontWeight: '700', color: '#0f172a' }}>{icIssuedData.processCount}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#f8fafc', borderRadius: '8px' }}>
+                                <span style={{ fontWeight: '600', color: '#475569' }}>Final (EF)</span>
+                                <span style={{ fontWeight: '700', color: '#0f172a' }}>{icIssuedData.finalCount}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#f1f5f9', borderRadius: '8px', marginTop: '8px', borderTop: '2px solid #e2e8f0' }}>
+                                <span style={{ fontWeight: '700', color: '#0f172a' }}>Total</span>
+                                <span style={{ fontWeight: '800', color: '#d97706', fontSize: '18px' }}>{icIssuedData.total}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -2062,8 +2493,8 @@ const MpiaReportPage = ({ manufacturer, data, showFooter = true }) => {
                                                     return month ? `${months[parseInt(month) - 1]} ${year}` : m.month;
                                                 })()}
                                             </td>
-                                            <td className="p-3 text-right font-medium text-slate-600">{m.inspected?.toLocaleString()}</td>
-                                            <td className="p-3 text-right font-bold text-red-600">{m.processRejected?.toLocaleString()}</td>
+                                            <td className="p-3 text-right font-medium text-slate-600">{m.inspected}</td>
+                                            <td className="p-3 text-right font-bold text-red-600">{m.processRejected}</td>
                                             <td className="p-3 text-right">
                                                 <span className="bg-red-50 text-red-700 px-2 py-0.5 rounded font-bold">
                                                     {m.processRejPercent?.toFixed(2)}%
@@ -2081,11 +2512,11 @@ const MpiaReportPage = ({ manufacturer, data, showFooter = true }) => {
                         <div className="mt-8 grid grid-cols-3 gap-4">
                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
                                 <p className="text-[9px] text-slate-400 font-bold mb-1">INSPECTED (Nos.)</p>
-                                <p className="text-sm font-black text-slate-800">{data.reduce((acc, m) => acc + (m.inspected || 0), 0).toLocaleString()}</p>
+                                <p className="text-sm font-black text-slate-800">{data.reduce((acc, m) => acc + (m.inspected || 0), 0)}</p>
                             </div>
                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
                                 <p className="text-[9px] text-slate-400 font-bold mb-1">REJECTED (Nos.)</p>
-                                <p className="text-sm font-black text-red-600">{data.reduce((acc, m) => acc + (m.processRejected || 0), 0).toLocaleString()}</p>
+                                <p className="text-sm font-black text-red-600">{data.reduce((acc, m) => acc + (m.processRejected || 0), 0)}</p>
                             </div>
                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
                                 <p className="text-[9px] text-slate-400 font-bold mb-1">AVG% REJ</p>

@@ -112,7 +112,7 @@
 }
 
 .pwmr-table th {
-    background: #f8fafc;
+    background-color: #f8fafc !important;
     color: #475569;
     font-weight: 700;
     padding: 12px 8px;

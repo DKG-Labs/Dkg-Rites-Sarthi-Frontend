@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './SleeperSummary.css';
+import ExcelJS from 'exceljs';
 
 const SCADA_MANUFACTURERS = [
     { label: 'Patil Rail Infrastructure Pvt. Ltd.', value: 'PRIL' }
@@ -372,22 +373,52 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
         });
     };
 
-    const downloadExcel = (data, columns, filename) => {
+    const downloadExcel = async (data, columns, filename) => {
         if (!data || data.length === 0) return;
-        const headers = columns.map(col => COLUMN_LABELS[col] || COLUMN_LABELS[col.toLowerCase()] || col).join(',');
-        const rows = data.map(row => 
-            columns.map(col => {
+        const displayTitle = filename.replace(/_/g, ' ');
+        
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Report');
+
+        const titleRow = worksheet.addRow([displayTitle]);
+        titleRow.font = { bold: true, size: 14 };
+        if (columns.length > 1) {
+            worksheet.mergeCells(1, 1, 1, columns.length);
+        }
+        
+        worksheet.addRow([]);
+        
+        const headerRow = worksheet.addRow(columns.map(col => COLUMN_LABELS[col] || COLUMN_LABELS[col.toLowerCase()] || col));
+        headerRow.font = { bold: true };
+        headerRow.eachCell(cell => {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
+            cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+        });
+
+        data.forEach(row => {
+            const rowData = columns.map(col => {
                 let val = row[col];
                 if (col.toLowerCase() === 'time') val = formatTimestamp(val);
-                return `"${String(val || '').replace(/"/g, '""')}"`;
-            }).join(',')
-        ).join('\n');
-        
-        const csvContent = "data:text/csv;charset=utf-8," + headers + "\n" + rows;
-        const encodedUri = encodeURI(csvContent);
+                return (val === null || val === undefined) ? '' : val;
+            });
+            worksheet.addRow(rowData);
+        });
+
+        worksheet.columns.forEach(column => {
+            let maxLength = 0;
+            column.eachCell({ includeEmpty: true }, cell => {
+                let columnLength = cell.value ? cell.value.toString().length : 10;
+                if (columnLength > maxLength) maxLength = columnLength;
+            });
+            column.width = maxLength < 10 ? 10 : maxLength + 2;
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `${filename}.csv`);
+        link.href = URL.createObjectURL(blob);
+        link.download = `${filename}.xlsx`;
+        link.style.display = 'none';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);

@@ -1,6 +1,7 @@
 import React from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import ExcelJS from 'exceljs';
 
 export const KPICard = ({ data, isActive, onClick }) => (
     <div
@@ -67,43 +68,68 @@ export const ExportPdfButton = ({ onClick, label = "Export PDF", disabled = fals
     </button>
 );
 
-export const downloadExcel = (data, headers, filename) => {
+export const downloadExcel = async (data, headers, filename, title) => {
     if (!data || data.length === 0) {
         alert("No data available to export.");
         return;
     }
 
-    const headerRow = headers.map(h => h.label).join(',');
+    const displayTitle = title || filename.replace(/_/g, ' ');
+    
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Report');
 
-    const dataRows = data.map(row => {
-        return headers.map(header => {
-            let cellValue = row[header.key];
+    // Add Title Row
+    const titleRow = worksheet.addRow([displayTitle]);
+    titleRow.font = { bold: true, size: 14 };
+    
+    // Merge the title cells across the headers length
+    if (headers.length > 1) {
+        worksheet.mergeCells(1, 1, 1, headers.length);
+    }
+    
+    // Add Empty Row
+    worksheet.addRow([]);
 
-            if (cellValue === null || cellValue === undefined) {
-                cellValue = '';
-            }
-
-            const stringValue = String(cellValue);
-
-            if (/^\d+$/.test(stringValue) && (stringValue.length > 10 || stringValue.startsWith('0'))) {
-                return `="${stringValue}"`;
-            }
-
-            const escaped = stringValue.replace(/"/g, '""');
-            return escaped.includes(',') || escaped.includes('\n') || escaped.includes('"')
-                ? `"${escaped}"`
-                : escaped;
-        }).join(',');
+    // Add Header Row
+    const headerRow = worksheet.addRow(headers.map(h => h.label));
+    headerRow.font = { bold: true };
+    headerRow.eachCell(cell => {
+        cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFE0E0E0' }
+        };
+        cell.border = {
+            top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}
+        };
     });
 
-    const csvContent = '\uFEFF' + [headerRow, ...dataRows].join('\n');
+    // Add Data Rows
+    data.forEach(row => {
+        const rowData = headers.map(header => {
+            let val = row[header.key];
+            return (val === null || val === undefined) ? '' : val;
+        });
+        worksheet.addRow(rowData);
+    });
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    // Auto-adjust column widths
+    worksheet.columns.forEach(column => {
+        let maxLength = 0;
+        column.eachCell({ includeEmpty: true }, cell => {
+            let columnLength = cell.value ? cell.value.toString().length : 10;
+            if (columnLength > maxLength) maxLength = columnLength;
+        });
+        column.width = maxLength < 10 ? 10 : maxLength + 2;
+    });
+
+    // Save
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-
-    link.setAttribute('href', url);
-    link.setAttribute('download', `${filename}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.href = URL.createObjectURL(blob);
+    link.download = `${filename}_${new Date().toISOString().split('T')[0]}.xlsx`;
     link.style.display = 'none';
 
     document.body.appendChild(link);

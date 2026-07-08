@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import ExcelJS from 'exceljs';
 import reportService from '../../services/reportService';
 import './PoWiseMonthlyReport.css';
 
@@ -125,7 +126,7 @@ const PoWiseMonthlyReport = ({ fromDate, toDate }) => {
     };
 
     // Export to Excel
-    const handleExportExcel = () => {
+    const handleExportExcel = async () => {
         if (!data || data.length === 0) return;
 
         const rows = [];
@@ -160,19 +161,52 @@ const PoWiseMonthlyReport = ({ fromDate, toDate }) => {
             });
         });
 
-        // Simple CSV export
+        // ExcelJS export
         if (rows.length === 0) return;
-        const headers = Object.keys(rows[0]);
-        const csv = [
-            headers.join(','),
-            ...rows.map(row => headers.map(h => `"${row[h]}"`).join(','))
-        ].join('\n');
+        
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Report');
 
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const displayTitle = 'PO Wise Monthly Progress Report';
+        const titleRow = worksheet.addRow([displayTitle]);
+        titleRow.font = { bold: true, size: 14 };
+
+        const headers = Object.keys(rows[0]);
+        if (headers.length > 1) {
+            worksheet.mergeCells(1, 1, 1, headers.length);
+        }
+
+        worksheet.addRow([]);
+
+        const headerRow = worksheet.addRow(headers);
+        headerRow.font = { bold: true };
+        headerRow.eachCell(cell => {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
+            cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+        });
+
+        rows.forEach(rowObj => {
+            worksheet.addRow(headers.map(h => rowObj[h]));
+        });
+
+        worksheet.columns.forEach(column => {
+            let maxLength = 0;
+            column.eachCell({ includeEmpty: true }, cell => {
+                let columnLength = cell.value ? cell.value.toString().length : 10;
+                if (columnLength > maxLength) maxLength = columnLength;
+            });
+            column.width = maxLength < 10 ? 10 : maxLength + 2;
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = `PO_Wise_Quality_Report_${new Date().toISOString().split('T')[0]}.csv`;
+        link.download = `PO_Wise_Quality_Report_${new Date().toISOString().split('T')[0]}.xlsx`;
+        link.style.display = 'none';
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
     };
 
     return (

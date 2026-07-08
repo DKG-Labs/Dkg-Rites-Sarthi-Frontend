@@ -429,72 +429,72 @@ const RailwayBoardDashboard = () => {
                         </button>
                     </div>
                     <div style={{ padding: '0 0 20px', flex: 1, overflowY: 'auto' }}>
-                        <div className={`nav-item ${['summary', 'quality', 'lifecycle', 'performance', 'reports', 'sqc', 'scada', 'feedback'].includes(activeMainCard) ? 'active' : ''}`} onClick={() => {
-                            setIsRailwayNavOpen(!isRailwayNavOpen);
-                            if (!isRailwayNavOpen) setIsCmDropdownOpen(false);
-                        }}>
-                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%'}}>
-                                <div><i className="fa-solid fa-train"></i> {!isSidebarCollapsed && <span>Railway Dashboard</span>}</div>
-                                {!isSidebarCollapsed && <i className={`fa-solid fa-chevron-${isRailwayNavOpen ? 'up' : 'down'}`} style={{fontSize: '12px'}}></i>}
-                            </div>
-                        </div>
-
-                        {isRailwayNavOpen && !isSidebarCollapsed && (
-                            <div className="report-submenu open">
-                                <div className={`report-link ${activeMainCard === 'summary' ? 'active' : ''}`} onClick={() => handleSwitchTab('summary')} style={{ fontSize: '15px' }}>
-                                    <i className="fa-solid fa-chart-pie" style={{marginRight: '8px'}}></i>Dashboard
-                                </div>
-                                <div className={`report-link ${activeMainCard === 'quality' ? 'active' : ''}`} onClick={() => handleSwitchTab('quality')} style={{ fontSize: '15px' }}>
-                                    <i className="fa-solid fa-shield-halved" style={{marginRight: '8px'}}></i>Quality
-                                </div>
-                                <div className={`report-link ${activeMainCard === 'lifecycle' ? 'active' : ''}`} onClick={() => handleSwitchTab('lifecycle')} style={{ fontSize: '15px' }}>
-                                    <i className="fa-solid fa-file-contract" style={{marginRight: '8px'}}></i>PO Lifecycle
-                                </div>
-                                <div className={`report-link ${activeMainCard === 'performance' ? 'active' : ''}`} onClick={() => handleSwitchTab('performance')} style={{ fontSize: '15px' }}>
-                                    <i className="fa-solid fa-trophy" style={{marginRight: '8px'}}></i>Performance
-                                </div>
-                                <div className={`report-link ${activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleSwitchTab('reports')} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '15px' }}>
-                                    <div><i className="fa-solid fa-file-lines" style={{marginRight: '8px'}}></i>Reports</div>
-                                    <i className={`fa-solid fa-chevron-${reportSubmenuOpen ? 'up' : 'down'}`} style={{fontSize: '10px', opacity: 0.6}}></i>
-                                </div>
-                                
-                                {reportSubmenuOpen && (
-                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                        <div className={`report-link ${activeReport === 'mpr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpr')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>{selectedProduct === 'ERC' || selectedProduct === 'Rail Pad' ? 'PO Wise Monthly Progress Report' : 'Monthly Progress Report'}</div>
-                                        <div className={`report-link ${activeReport === 'mau' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mau')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>Monthly Analysis of Units</div>
-                                        <div className={`report-link ${activeReport === 'lwcl' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('lwcl')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>Lot Wise Closed Loop</div>
-                                        <div className={`report-link ${activeReport === 'swp' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('swp')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>Shift Wise Production Report</div>
-                                        {selectedProduct === 'Rail Pad' && (
-                                            <div className={`report-link ${activeReport === 'qrp' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('qrp')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>Quality of Rubber Pad Report</div>
-                                        )}
-                                        {(selectedProduct === 'ERC' || selectedProduct === 'Rail Pad') && (
-                                            <div className={`report-link ${activeReport === (selectedProduct === 'ERC' ? 'mpia' : 'vwpqr') && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink(selectedProduct === 'ERC' ? 'mpia' : 'vwpqr')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>Vendor Wise Process Quality Report</div>
-                                        )}
-                                        {selectedProduct === 'ERC' && (
-                                            <div className={`report-link ${activeReport === 'pwmr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('pwmr')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>PO Wise Quality Report</div>
-                                        )}
-                                        {selectedProduct === 'Sleeper' && (
-                                            <div className={`report-link ${activeReport === 'sqr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('sqr')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>Quality of PSC Sleepers Report</div>
-                                        )}
-                                        <div className={`report-link ${activeReport === 'ic_annexures' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('ic_annexures')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>Download IC & Annexures</div>
-                                    </div>
-                                )}
-                                
-                                {selectedProduct === 'ERC' && (
-                                    <div className={`report-link ${activeMainCard === 'sqc' ? 'active' : ''}`} onClick={() => handleSwitchTab('sqc')} style={{ fontSize: '15px' }}>
-                                        <i className="fa-solid fa-chart-line" style={{marginRight: '8px'}}></i>SQC Analysis
-                                    </div>
-                                )}
-                                <div className={`report-link ${activeMainCard === 'scada' ? 'active' : ''}`} onClick={() => handleSwitchTab('scada')} style={{ fontSize: '15px' }}>
-                                    <i className="fa-solid fa-desktop" style={{marginRight: '8px'}}></i>Scada Monitor
-                                </div>
-                                <div className={`report-link ${activeMainCard === 'feedback' ? 'active' : ''}`} onClick={() => handleSwitchTab('feedback')} style={{ fontSize: '15px' }}>
-                                    <i className="fa-solid fa-comment-dots" style={{marginRight: '8px'}}></i>Feedback
-                                </div>
-                            </div>
-                        )}
-                        {isRitesAdmin && (
+                        {isRitesAdmin ? (
                             <>
+                                <div className={`nav-item ${['summary', 'quality', 'lifecycle', 'performance', 'reports', 'sqc', 'scada', 'feedback'].includes(activeMainCard) ? 'active' : ''}`} onClick={() => {
+                                    setIsRailwayNavOpen(!isRailwayNavOpen);
+                                    if (!isRailwayNavOpen) setIsCmDropdownOpen(false);
+                                }}>
+                                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%'}}>
+                                        <div><i className="fa-solid fa-train"></i> {!isSidebarCollapsed && <span>Railway Dashboard</span>}</div>
+                                        {!isSidebarCollapsed && <i className={`fa-solid fa-chevron-${isRailwayNavOpen ? 'up' : 'down'}`} style={{fontSize: '12px'}}></i>}
+                                    </div>
+                                </div>
+
+                                {isRailwayNavOpen && !isSidebarCollapsed && (
+                                    <div className="report-submenu open">
+                                        <div className={`report-link ${activeMainCard === 'summary' ? 'active' : ''}`} onClick={() => handleSwitchTab('summary')} style={{ fontSize: '15px' }}>
+                                            <i className="fa-solid fa-chart-pie" style={{marginRight: '8px'}}></i>Dashboard
+                                        </div>
+                                        <div className={`report-link ${activeMainCard === 'quality' ? 'active' : ''}`} onClick={() => handleSwitchTab('quality')} style={{ fontSize: '15px' }}>
+                                            <i className="fa-solid fa-shield-halved" style={{marginRight: '8px'}}></i>Quality
+                                        </div>
+                                        <div className={`report-link ${activeMainCard === 'lifecycle' ? 'active' : ''}`} onClick={() => handleSwitchTab('lifecycle')} style={{ fontSize: '15px' }}>
+                                            <i className="fa-solid fa-file-contract" style={{marginRight: '8px'}}></i>PO Lifecycle
+                                        </div>
+                                        <div className={`report-link ${activeMainCard === 'performance' ? 'active' : ''}`} onClick={() => handleSwitchTab('performance')} style={{ fontSize: '15px' }}>
+                                            <i className="fa-solid fa-trophy" style={{marginRight: '8px'}}></i>Performance
+                                        </div>
+                                        <div className={`report-link ${activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleSwitchTab('reports')} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '15px' }}>
+                                            <div><i className="fa-solid fa-file-lines" style={{marginRight: '8px'}}></i>Reports</div>
+                                            <i className={`fa-solid fa-chevron-${reportSubmenuOpen ? 'up' : 'down'}`} style={{fontSize: '10px', opacity: 0.6}}></i>
+                                        </div>
+                                        
+                                        {reportSubmenuOpen && (
+                                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                <div className={`report-link ${activeReport === 'mpr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpr')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>{selectedProduct === 'ERC' || selectedProduct === 'Rail Pad' ? 'PO Wise Monthly Progress Report' : 'Monthly Progress Report'}</div>
+                                                <div className={`report-link ${activeReport === 'mau' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mau')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>Monthly Analysis of Units</div>
+                                                <div className={`report-link ${activeReport === 'lwcl' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('lwcl')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>Lot Wise Closed Loop</div>
+                                                <div className={`report-link ${activeReport === 'swp' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('swp')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>Shift Wise Production Report</div>
+                                                {selectedProduct === 'Rail Pad' && (
+                                                    <div className={`report-link ${activeReport === 'qrp' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('qrp')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>Quality of Rubber Pad Report</div>
+                                                )}
+                                                {(selectedProduct === 'ERC' || selectedProduct === 'Rail Pad') && (
+                                                    <div className={`report-link ${activeReport === (selectedProduct === 'ERC' ? 'mpia' : 'vwpqr') && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink(selectedProduct === 'ERC' ? 'mpia' : 'vwpqr')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>Vendor Wise Process Quality Report</div>
+                                                )}
+                                                {selectedProduct === 'ERC' && (
+                                                    <div className={`report-link ${activeReport === 'pwmr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('pwmr')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>PO Wise Quality Report</div>
+                                                )}
+                                                {selectedProduct === 'Sleeper' && (
+                                                    <div className={`report-link ${activeReport === 'sqr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('sqr')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>Quality of PSC Sleepers Report</div>
+                                                )}
+                                                <div className={`report-link ${activeReport === 'ic_annexures' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('ic_annexures')} style={{ padding: '6px 8px', paddingLeft: '28px', fontSize: '14px' }}>Download IC & Annexures</div>
+                                            </div>
+                                        )}
+                                        
+                                        {selectedProduct === 'ERC' && (
+                                            <div className={`report-link ${activeMainCard === 'sqc' ? 'active' : ''}`} onClick={() => handleSwitchTab('sqc')} style={{ fontSize: '15px' }}>
+                                                <i className="fa-solid fa-chart-line" style={{marginRight: '8px'}}></i>SQC Analysis
+                                            </div>
+                                        )}
+                                        <div className={`report-link ${activeMainCard === 'scada' ? 'active' : ''}`} onClick={() => handleSwitchTab('scada')} style={{ fontSize: '15px' }}>
+                                            <i className="fa-solid fa-desktop" style={{marginRight: '8px'}}></i>Scada Monitor
+                                        </div>
+                                        <div className={`report-link ${activeMainCard === 'feedback' ? 'active' : ''}`} onClick={() => handleSwitchTab('feedback')} style={{ fontSize: '15px' }}>
+                                            <i className="fa-solid fa-comment-dots" style={{marginRight: '8px'}}></i>Feedback
+                                        </div>
+                                    </div>
+                                )}
                                 <div className={`nav-item ${activeMainCard === 'cm-module' ? 'active' : ''}`} onClick={() => {
                                     setIsCmDropdownOpen(!isCmDropdownOpen);
                                     if (!isCmDropdownOpen) setIsRailwayNavOpen(false);
@@ -561,13 +561,67 @@ const RailwayBoardDashboard = () => {
                                     </div>
                                 )}
                             </>
+                        ) : (
+                            <>
+                                <div className="nav-label">Navigation</div>
+                                <div className={`nav-item ${activeMainCard === 'summary' ? 'active' : ''}`} onClick={() => handleSwitchTab('summary')}>
+                                    <i className="fa-solid fa-chart-pie"></i> {!isSidebarCollapsed && <span>Dashboard</span>}
+                                </div>
+                                <div className={`nav-item ${activeMainCard === 'quality' ? 'active' : ''}`} onClick={() => handleSwitchTab('quality')}>
+                                    <i className="fa-solid fa-shield-halved"></i> {!isSidebarCollapsed && <span>Quality</span>}
+                                </div>
+                                <div className={`nav-item ${activeMainCard === 'lifecycle' ? 'active' : ''}`} onClick={() => handleSwitchTab('lifecycle')}>
+                                    <i className="fa-solid fa-file-contract"></i> {!isSidebarCollapsed && <span>PO Lifecycle</span>}
+                                </div>
+                                <div className={`nav-item ${activeMainCard === 'performance' ? 'active' : ''}`} onClick={() => handleSwitchTab('performance')}>
+                                    <i className="fa-solid fa-trophy"></i> {!isSidebarCollapsed && <span>Performance</span>}
+                                </div>
+                                <div className={`nav-item ${activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleSwitchTab('reports')}>
+                                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%'}}>
+                                        <div><i className="fa-solid fa-file-lines"></i> {!isSidebarCollapsed && <span>Reports</span>}</div>
+                                        {!isSidebarCollapsed && <i className={`fa-solid fa-chevron-${reportSubmenuOpen ? 'up' : 'down'}`} style={{fontSize: '12px'}}></i>}
+                                    </div>
+                                </div>
+                                {reportSubmenuOpen && !isSidebarCollapsed && (
+                                    <div className="report-submenu open">
+                                        <div className={`report-link ${activeReport === 'mpr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpr')}>{selectedProduct === 'ERC' || selectedProduct === 'Rail Pad' ? 'PO Wise Monthly Progress Report' : 'Monthly Progress Report'}</div>
+                                        <div className={`report-link ${activeReport === 'mau' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mau')}>Monthly Analysis of Units</div>
+                                        <div className={`report-link ${activeReport === 'lwcl' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('lwcl')}>Lot Wise Closed Loop</div>
+                                        <div className={`report-link ${activeReport === 'swp' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('swp')}>Shift Wise Production Report</div>
+                                        {selectedProduct === 'Rail Pad' && (
+                                            <div className={`report-link ${activeReport === 'qrp' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('qrp')}>Quality of Rubber Pad Report</div>
+                                        )}
+                                        {(selectedProduct === 'ERC' || selectedProduct === 'Rail Pad') && (
+                                            <div className={`report-link ${activeReport === (selectedProduct === 'ERC' ? 'mpia' : 'vwpqr') && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink(selectedProduct === 'ERC' ? 'mpia' : 'vwpqr')}>Vendor Wise Process Quality Report</div>
+                                        )}
+                                        {selectedProduct === 'ERC' && (
+                                            <div className={`report-link ${activeReport === 'pwmr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('pwmr')}>PO Wise Quality Report</div>
+                                        )}
+                                        {selectedProduct === 'Sleeper' && (
+                                            <div className={`report-link ${activeReport === 'sqr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('sqr')}>Quality of PSC Sleepers Report</div>
+                                        )}
+                                        <div className={`report-link ${activeReport === 'ic_annexures' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('ic_annexures')}>Download IC & Annexures</div>
+                                    </div>
+                                )}
+                                {selectedProduct === 'ERC' && (
+                                    <div className={`nav-item ${activeMainCard === 'sqc' ? 'active' : ''}`} onClick={() => handleSwitchTab('sqc')}>
+                                        <i className="fa-solid fa-chart-line"></i> {!isSidebarCollapsed && <span>SQC Analysis</span>}
+                                    </div>
+                                )}
+                                <div className={`nav-item ${activeMainCard === 'scada' ? 'active' : ''}`} onClick={() => handleSwitchTab('scada')}>
+                                    <i className="fa-solid fa-desktop"></i> {!isSidebarCollapsed && <span>Scada Monitor</span>}
+                                </div>
+                                <div className={`nav-item ${activeMainCard === 'feedback' ? 'active' : ''}`} onClick={() => handleSwitchTab('feedback')}>
+                                    <i className="fa-solid fa-comment-dots"></i> {!isSidebarCollapsed && <span>Feedback</span>}
+                                </div>
+                            </>
                         )}
-                        {isRitesAdmin && selectedProduct === 'Sleeper' && (
+
+                        {selectedProduct === 'Sleeper' && (
                             <div className={`nav-item ${activeMainCard === 'sleeper-anomaly' ? 'active' : ''}`} onClick={() => handleSwitchTab('sleeper-anomaly')}>
                                 <i className="fa-solid fa-microchip"></i> {!isSidebarCollapsed && <span>AI Engine</span>}
                             </div>
                         )}
-
                     </div>
                 </nav>
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import reportService from '../../../services/reportService';
 import { PieChart, Pie, Cell, Tooltip } from 'recharts';
+import ExcelJS from 'exceljs';
 import './SleeperSummary.css';
 
 // Reuse common components if possible, otherwise define them locally
@@ -344,22 +345,54 @@ const SleeperMauReport = ({ startDate, endDate, mauData: propMauData, loading: p
 
     // Mock Data for the Main Table
     // Excel Export Utility
-    const downloadExcel = (data, headers, filename) => {
+    const downloadExcel = async (data, headers, filename) => {
         if (!data || data.length === 0) return;
-        const headerRow = headers.map(h => h.label).join(',');
-        const dataRows = data.map(row => {
-            return headers.map(header => {
-                let val = row[header.key] ?? '';
-                const stringValue = String(val).replace(/"/g, '""');
-                return stringValue.includes(',') || stringValue.includes('\n') ? `"${stringValue}"` : stringValue;
-            }).join(',');
+        const displayTitle = filename.replace(/_/g, ' ');
+
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Report');
+
+        const titleRow = worksheet.addRow([displayTitle]);
+        titleRow.font = { bold: true, size: 14 };
+        if (headers.length > 1) {
+            worksheet.mergeCells(1, 1, 1, headers.length);
+        }
+
+        worksheet.addRow([]);
+        
+        const headerRow = worksheet.addRow(headers.map(h => h.label));
+        headerRow.font = { bold: true };
+        headerRow.eachCell(cell => {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
+            cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
         });
-        const csvContent = '\uFEFF' + [headerRow, ...dataRows].join('\n');
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
+
+        data.forEach(row => {
+            const rowData = headers.map(header => {
+                let val = row[header.key];
+                return (val === null || val === undefined) ? '' : val;
+            });
+            worksheet.addRow(rowData);
+        });
+
+        worksheet.columns.forEach(column => {
+            let maxLength = 0;
+            column.eachCell({ includeEmpty: true }, cell => {
+                let columnLength = cell.value ? cell.value.toString().length : 10;
+                if (columnLength > maxLength) maxLength = columnLength;
+            });
+            column.width = maxLength < 10 ? 10 : maxLength + 2;
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.download = `${filename}_${new Date().toISOString().split('T')[0]}.csv`;
+        link.download = `${filename}_${new Date().toISOString().split('T')[0]}.xlsx`;
+        link.style.display = 'none';
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
     };
 
     // Handle Batch PDF Printing

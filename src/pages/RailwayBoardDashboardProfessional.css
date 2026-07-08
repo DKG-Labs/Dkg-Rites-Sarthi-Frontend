@@ -594,19 +594,22 @@
 
 .prof-table {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
 }
 
 .prof-table th {
-    background: #1e3a8a;
+    background-color: #1e3a8a !important;
     color: #fff;
     padding: 6px 9px;
     font-weight: 600;
     font-size: 11px;
     text-align: left;
-    border: 1px solid #000000 !important;
-    box-shadow: 0 0 0 1px #000000 inset !important;
-    background-clip: padding-box !important;
+    border: 1px solid #000000;
+    /* Sticky header */
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 10 !important;
 }
 
 .prof-table th:first-child {

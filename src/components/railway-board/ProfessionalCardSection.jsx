@@ -7,6 +7,8 @@ import {
     Cell, PieChart, Pie, Legend, Line, ComposedChart, AreaChart, Area, LabelList
 } from 'recharts';
 import { formatDecimal } from '../../utils/helpers';
+import html2canvas from 'html2canvas';
+import PptxGenJS from 'pptxgenjs';
 import './ProfessionalCardSection.css';
 import './InspectionStackedCharts.css';
 import './PerformanceMatrixTheme.css';
@@ -1561,6 +1563,7 @@ export default ProfessionalCardSection;
 
 const Level4ReportTable = ({ data }) => {
     const wrapperRef = React.useRef(null);
+    const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'asc' });
 
     useEffect(() => {
         // Lock body/window scroll so ONLY the table container scrolls internally
@@ -1586,6 +1589,87 @@ const Level4ReportTable = ({ data }) => {
         };
     }, []);
 
+    const handleSort = (key) => {
+        let direction = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const renderSortIcon = (key) => {
+        if (sortConfig.key !== key) return <i className="fa-solid fa-sort sort-icon-idle ml-1 opacity-50" style={{fontSize: '10px'}}></i>;
+        return sortConfig.direction === 'asc' ? <i className="fa-solid fa-sort-up sort-icon-active ml-1" style={{fontSize: '10px'}}></i> : <i className="fa-solid fa-sort-down sort-icon-active ml-1" style={{fontSize: '10px'}}></i>;
+    };
+
+    const sortedData = React.useMemo(() => {
+        if (!data) return [];
+        let sortableItems = [...data];
+        sortableItems.sort((a, b) => {
+            let aVal, bVal;
+            const basicA = a.basicDetails || {};
+            const qtyA = a.processQty || {};
+            const sDefA = a.shearingDefects || {};
+            const tDefA = a.turningDefects || {};
+            const fDefA = a.forgingDefects || {};
+            const qDefA = a.quenchingDefects || {};
+            const tempDefA = a.temperingDefects || {};
+            const dDefA = a.dimensionalDefects || {};
+
+            const basicB = b.basicDetails || {};
+            const qtyB = b.processQty || {};
+            const sDefB = b.shearingDefects || {};
+            const tDefB = b.turningDefects || {};
+            const fDefB = b.forgingDefects || {};
+            const qDefB = b.quenchingDefects || {};
+            const tempDefB = b.temperingDefects || {};
+            const dDefB = b.dimensionalDefects || {};
+
+            switch (sortConfig.key) {
+                case 'date': aVal = basicA.date ? new Date(basicA.date).getTime() : 0; bVal = basicB.date ? new Date(basicB.date).getTime() : 0; break;
+                case 'shift': aVal = basicA.shift || ''; bVal = basicB.shift || ''; break;
+                case 'poSrNo': aVal = basicA.poSrNo || ''; bVal = basicB.poSrNo || ''; break;
+                case 'lotNumber': aVal = basicA.lotNumber || ''; bVal = basicB.lotNumber || ''; break;
+                case 'acceptedQty': aVal = basicA.totalAcceptedQty || 0; bVal = basicB.totalAcceptedQty || 0; break;
+                case 'rejectedQty': aVal = basicA.totalRejectionQty || 0; bVal = basicB.totalRejectionQty || 0; break;
+                case 'shearProd': aVal = qtyA.shearingProductionQty || 0; bVal = qtyB.shearingProductionQty || 0; break;
+                case 'shearRej': aVal = qtyA.shearingRejectionQty || 0; bVal = qtyB.shearingRejectionQty || 0; break;
+                case 'turnProd': aVal = qtyA.turningProductionQty || 0; bVal = qtyB.turningProductionQty || 0; break;
+                case 'turnRej': aVal = qtyA.turningRejectionQty || 0; bVal = qtyB.turningRejectionQty || 0; break;
+                case 'mpiProd': aVal = qtyA.mpiProductionQty || 0; bVal = qtyB.mpiProductionQty || 0; break;
+                case 'mpiRej': aVal = qtyA.mpiRejectionQty || 0; bVal = qtyB.mpiRejectionQty || 0; break;
+                case 'forgeProd': aVal = qtyA.forgingProductionQty || 0; bVal = qtyB.forgingProductionQty || 0; break;
+                case 'forgeRej': aVal = qtyA.forgingRejectionQty || 0; bVal = qtyB.forgingRejectionQty || 0; break;
+                case 'quenchProd': aVal = qtyA.quenchingProductionQty || 0; bVal = qtyB.quenchingProductionQty || 0; break;
+                case 'quenchRej': aVal = qtyA.quenchingRejectionQty || 0; bVal = qtyB.quenchingRejectionQty || 0; break;
+                case 'tempProd': aVal = qtyA.temperingProductionQty || 0; bVal = qtyB.temperingProductionQty || 0; break;
+                case 'tempRej': aVal = qtyA.temperingRejectionQty || 0; bVal = qtyB.temperingRejectionQty || 0; break;
+                case 'sDefLen': aVal = sDefA.lengthOfCutBar || 0; bVal = sDefB.lengthOfCutBar || 0; break;
+                case 'sDefOval': aVal = sDefA.ovalityImproperDiaAtEnd || 0; bVal = sDefB.ovalityImproperDiaAtEnd || 0; break;
+                case 'sDefSharp': aVal = sDefA.sharpEdges || 0; bVal = sDefB.sharpEdges || 0; break;
+                case 'sDefCrack': aVal = sDefA.crackedEdges || 0; bVal = sDefB.crackedEdges || 0; break;
+                case 'tDefPass': aVal = tDefA.parallelLength || 0; bVal = tDefB.parallelLength || 0; break;
+                case 'tDefFull': aVal = tDefA.fullTurningLength || 0; bVal = tDefB.fullTurningLength || 0; break;
+                case 'tDefDia': aVal = tDefA.turningDia || 0; bVal = tDefB.turningDia || 0; break;
+                case 'mpiDef': aVal = qtyA.mpiRejectionQty || 0; bVal = qtyB.mpiRejectionQty || 0; break;
+                case 'fDefTemp': aVal = fDefA.forgingTemperature || 0; bVal = fDefB.forgingTemperature || 0; break;
+                case 'fDefStab': aVal = fDefA.forgingStabilisationRejection || 0; bVal = fDefB.forgingStabilisationRejection || 0; break;
+                case 'fDefImp': aVal = fDefA.improperForging || 0; bVal = fDefB.improperForging || 0; break;
+                case 'fDefDef': aVal = fDefA.forgingMarksNotches || 0; bVal = fDefB.forgingMarksNotches || 0; break;
+                case 'qDefHard': aVal = qDefA.quenchingHardness || 0; bVal = qDefB.quenchingHardness || 0; break;
+                case 'tempDefTemp': aVal = tempDefA.temperingTemp || 0; bVal = tempDefB.temperingTemp || 0; break;
+                case 'tempDefDist': aVal = tempDefA.temperingDuration || 0; bVal = tempDefB.temperingDuration || 0; break;
+                case 'dDefBox': aVal = dDefA.boxGauge || 0; bVal = dDefB.boxGauge || 0; break;
+                case 'dDefBear': aVal = dDefA.flatBearingArea || 0; bVal = dDefB.flatBearingArea || 0; break;
+                default: return 0;
+            }
+            if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+        return sortableItems;
+    }, [data, sortConfig]);
+
     if (!data || data.length === 0) {
         return (
             <div className="p-8 text-center text-slate-400">
@@ -1596,7 +1680,6 @@ const Level4ReportTable = ({ data }) => {
 
     // Inline sticky styles — guaranteed to override any global CSS
     const stickyTop = { position: 'sticky', top: 0, zIndex: 52 };
-    const stickyBot = { position: 'sticky', top: '42px', zIndex: 51 };
     const greenBg = { background: '#d1fae5', color: '#065f46' };
     const emerBg = { background: '#a7f3d0', color: '#064e3b' };
     const redBg = { background: '#fee2e2', color: '#991b1b' };
@@ -1606,44 +1689,22 @@ const Level4ReportTable = ({ data }) => {
             <table className="report-data-table level-4-table">
                 <thead>
                     <tr style={{ height: '42px' }}>
-                        <th rowSpan="2" style={{ ...stickyTop, ...greenBg }} className="bg-green-header">DATE</th>
-                        <th rowSpan="2" style={{ ...stickyTop, ...greenBg }} className="bg-green-header">SHIFT</th>
-                        <th rowSpan="2" style={{ ...stickyTop, ...greenBg }} className="bg-green-header">PO_SR. NO.</th>
-                        <th rowSpan="2" style={{ ...stickyTop, ...greenBg }} className="bg-green-header">LOT NO.</th>
-                        <th rowSpan="2" style={{ ...stickyTop, ...emerBg }} className="bg-emerald-header">Accepted Qty (Nos.)</th>
-                        <th rowSpan="2" style={{ ...stickyTop, ...redBg }} className="bg-red-header">Rejected Qty (Nos.)</th>
-                        <th colSpan="2" className="stage-header shearing" style={stickyTop}>SHEARING</th>
-                        <th colSpan="2" className="stage-header turning" style={stickyTop}>TURNING</th>
-                        <th colSpan="2" className="stage-header mpi" style={stickyTop}>MPI</th>
-                        <th colSpan="2" className="stage-header forging" style={stickyTop}>FORGING</th>
-                        <th colSpan="2" className="stage-header quenching" style={stickyTop}>QUENCHING</th>
-                        <th colSpan="2" className="stage-header tempering" style={stickyTop}>TEMPERING</th>
-                        <th colSpan="4" className="defect-header shearing" style={stickyTop}>Shearing Defects</th>
-                        <th colSpan="3" className="defect-header turning" style={stickyTop}>Turning Defects</th>
-                        <th colSpan="1" className="defect-header mpi" style={stickyTop}>MPI</th>
-                        <th colSpan="4" className="defect-header forging" style={stickyTop}>Forging Defects</th>
-                        <th colSpan="1" className="defect-header quenching" style={stickyTop}>Quenching</th>
-                        <th colSpan="2" className="defect-header tempering" style={stickyTop}>TEMPERING DEFECTS</th>
-                        <th colSpan="2" className="defect-header dimensional" style={stickyTop}>Dimensional</th>
-                    </tr>
-                    <tr className="sub-header" style={{ height: '36px' }}>
-                        <th style={stickyBot}>Prod</th><th style={stickyBot}>Rej</th>
-                        <th style={stickyBot}>Prod</th><th style={stickyBot}>Rej</th>
-                        <th style={stickyBot}>Prod</th><th style={stickyBot}>Rej</th>
-                        <th style={stickyBot}>Prod</th><th style={stickyBot}>Rej</th>
-                        <th style={stickyBot}>Prod</th><th style={stickyBot}>Rej</th>
-                        <th style={stickyBot}>Prod</th><th style={stickyBot}>Rej</th>
-                        <th style={stickyBot}>Cut Len</th><th style={stickyBot}>Ovality</th><th style={stickyBot}>Sharp Edges</th><th style={stickyBot}>Cracks</th>
-                        <th style={stickyBot}>Pass Len</th><th style={stickyBot}>Full Turn</th><th style={stickyBot}>Turn Dia</th>
-                        <th style={stickyBot}>MPI Rej</th>
-                        <th style={stickyBot}>Forge Temp</th><th style={stickyBot}>Stabilise</th><th style={stickyBot}>Improper</th><th style={stickyBot}>Defect</th>
-                        <th style={stickyBot}>Hardness</th>
-                        <th style={stickyBot}>Temp.</th><th style={stickyBot}>Dist.</th>
-                        <th style={stickyBot}>Box Gauge</th><th style={stickyBot}>Bearing Area</th>
+                        <th style={{ ...stickyTop, ...greenBg, cursor: 'pointer' }} className="bg-green-header" onClick={() => handleSort('date')}>DATE {renderSortIcon('date')}</th>
+                        <th style={{ ...stickyTop, ...greenBg, cursor: 'pointer' }} className="bg-green-header" onClick={() => handleSort('shift')}>SHIFT {renderSortIcon('shift')}</th>
+                        <th style={{ ...stickyTop, ...greenBg, cursor: 'pointer' }} className="bg-green-header" onClick={() => handleSort('poSrNo')}>PO_SR. NO. {renderSortIcon('poSrNo')}</th>
+                        <th style={{ ...stickyTop, ...greenBg, cursor: 'pointer' }} className="bg-green-header" onClick={() => handleSort('lotNumber')}>LOT NO. {renderSortIcon('lotNumber')}</th>
+                        <th style={{ ...stickyTop, ...emerBg, cursor: 'pointer' }} className="bg-emerald-header" onClick={() => handleSort('acceptedQty')}>Accepted Qty (Nos.) {renderSortIcon('acceptedQty')}</th>
+                        <th style={{ ...stickyTop, ...redBg, cursor: 'pointer' }} className="bg-red-header" onClick={() => handleSort('rejectedQty')}>Rejected Qty (Nos.) {renderSortIcon('rejectedQty')}</th>
+                        <th style={{ ...stickyTop, cursor: 'pointer' }} onClick={() => handleSort('shearRej')}>Shearing (Rej) {renderSortIcon('shearRej')}</th>
+                        <th style={{ ...stickyTop, cursor: 'pointer' }} onClick={() => handleSort('turnRej')}>Turning Rej. {renderSortIcon('turnRej')}</th>
+                        <th style={{ ...stickyTop, cursor: 'pointer' }} onClick={() => handleSort('mpiRej')}>MPI Rejection {renderSortIcon('mpiRej')}</th>
+                        <th style={{ ...stickyTop, cursor: 'pointer' }} onClick={() => handleSort('forgeRej')}>Forging Rejection {renderSortIcon('forgeRej')}</th>
+                        <th style={{ ...stickyTop, cursor: 'pointer' }} onClick={() => handleSort('quenchRej')}>Quenching Rejection {renderSortIcon('quenchRej')}</th>
+                        <th style={{ ...stickyTop, cursor: 'pointer' }} onClick={() => handleSort('tempRej')}>Tempering Rejection {renderSortIcon('tempRej')}</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {data.map((row, idx) => {
+                    {sortedData.map((row, idx) => {
                         const basic = row.basicDetails || {};
                         const qty = row.processQty || {};
                         const sDef = row.shearingDefects || {};
@@ -1651,7 +1712,13 @@ const Level4ReportTable = ({ data }) => {
                         const fDef = row.forgingDefects || {};
                         const qDef = row.quenchingDefects || {};
                         const tempDef = row.temperingDefects || {};
-                        const dDef = row.dimensionalDefects || {};
+
+                        const shearingTitle = `Length of Cut Bar: ${sDef.lengthOfCutBar || 0}\nOvality/Improper Dia at end: ${sDef.ovalityImproperDiaAtEnd || 0}\nSharp Edges: ${sDef.sharpEdges || 0}\nCracks: ${sDef.crackedEdges || 0}`;
+                        const turningTitle = `Parallel Length: ${tDef.parallelLength || 0}\nFull Turning Length: ${tDef.fullTurningLength || 0}\nTurning Dia: ${tDef.turningDia || 0}`;
+                        const mpiTitle = `MPI Rejection: ${qty.mpiRejectionQty || 0}`;
+                        const forgingTitle = `Forging Temperature: ${fDef.forgingTemperature || 0}\nForging Stabilisation: ${fDef.forgingStabilisationRejection || 0}\nImproper Forging: ${fDef.improperForging || 0}\nForging Marks/Notches: ${fDef.forgingMarksNotches || 0}`;
+                        const quenchingTitle = `Quenching Hardness: ${qDef.quenchingHardness || 0}`;
+                        const temperingTitle = `Tempering Temp: ${tempDef.temperingTemp || 0}\nTempering Duration: ${tempDef.temperingDuration || 0}`;
 
                         return (
                             <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
@@ -1661,19 +1728,12 @@ const Level4ReportTable = ({ data }) => {
                                 <td className="text-center">{basic.lotNumber || '-'}</td>
                                 <td className="text-center text-emerald-600 bg-emerald-50/30 font-bold">{basic.totalAcceptedQty?.toLocaleString() || 0}</td>
                                 <td className="text-center text-red-600 bg-red-50/30 font-bold">{basic.totalRejectionQty?.toLocaleString() || 0}</td>
-                                <td className="text-center">{qty.shearingProductionQty || 0}</td><td className="text-center text-red-400">{qty.shearingRejectionQty || 0}</td>
-                                <td className="text-center">{qty.turningProductionQty || 0}</td><td className="text-center text-red-400">{qty.turningRejectionQty || 0}</td>
-                                <td className="text-center">{qty.mpiProductionQty || 0}</td><td className="text-center text-red-400">{qty.mpiRejectionQty || 0}</td>
-                                <td className="text-center">{qty.forgingProductionQty || 0}</td><td className="text-center text-red-400">{qty.forgingRejectionQty || 0}</td>
-                                <td className="text-center">{qty.quenchingProductionQty || 0}</td><td className="text-center text-red-400">{qty.quenchingRejectionQty || 0}</td>
-                                <td className="text-center">{qty.temperingProductionQty || 0}</td><td className="text-center text-red-400">{qty.temperingRejectionQty || 0}</td>
-                                <td className="text-center">{sDef.lengthOfCutBar || 0}</td><td className="text-center">{sDef.ovalityImproperDiaAtEnd || 0}</td><td className="text-center">{sDef.sharpEdges || 0}</td><td className="text-center">{sDef.crackedEdges || 0}</td>
-                                <td className="text-center">{tDef.parallelLength || 0}</td><td className="text-center">{tDef.fullTurningLength || 0}</td><td className="text-center">{tDef.turningDia || 0}</td>
-                                <td className="text-center">{qty.mpiRejectionQty || 0}</td>
-                                <td className="text-center">{fDef.forgingTemperature || 0}</td><td className="text-center">{fDef.forgingStabilisationRejection || 0}</td><td className="text-center">{fDef.improperForging || 0}</td><td className="text-center">{fDef.forgingMarksNotches || 0}</td>
-                                <td className="text-center">{qDef.quenchingHardness || 0}</td>
-                                <td className="text-center">{tempDef.temperingTemp || 0}</td><td className="text-center">{tempDef.temperingDuration || 0}</td>
-                                <td className="text-center">{dDef.boxGauge || 0}</td><td className="text-center">{dDef.flatBearingArea || 0}</td>
+                                <td className="text-center text-red-500 font-medium" title={shearingTitle} style={{cursor: 'help'}}>{qty.shearingRejectionQty || 0}</td>
+                                <td className="text-center text-red-500 font-medium" title={turningTitle} style={{cursor: 'help'}}>{qty.turningRejectionQty || 0}</td>
+                                <td className="text-center text-red-500 font-medium" title={mpiTitle} style={{cursor: 'help'}}>{qty.mpiRejectionQty || 0}</td>
+                                <td className="text-center text-red-500 font-medium" title={forgingTitle} style={{cursor: 'help'}}>{qty.forgingRejectionQty || 0}</td>
+                                <td className="text-center text-red-500 font-medium" title={quenchingTitle} style={{cursor: 'help'}}>{qty.quenchingRejectionQty || 0}</td>
+                                <td className="text-center text-red-500 font-medium" title={temperingTitle} style={{cursor: 'help'}}>{qty.temperingRejectionQty || 0}</td>
                             </tr>
                         );
                     })}
@@ -1766,6 +1826,7 @@ const Level4ReportTable = ({ data }) => {
 
 const MpiaDrillDown = ({ data = [], manufacturer, onBack, loading }) => {
     const [isPrinting, setIsPrinting] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
 
     if (loading) {
         return (
@@ -1784,6 +1845,49 @@ const MpiaDrillDown = ({ data = [], manufacturer, onBack, loading }) => {
         }, 1200);
     };
 
+    const handleDownloadImage = async () => {
+        const chartElement = document.getElementById('mpia-report-content');
+        if (!chartElement) return;
+        setIsExporting(true);
+        try {
+            const canvas = await html2canvas(chartElement, { scale: 2 });
+            const dataUrl = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.href = dataUrl;
+            link.download = `Vendor_Wise_Report_${manufacturer}.png`;
+            link.click();
+        } catch (e) {
+            console.error("Failed to generate image", e);
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    const handleDownloadPpt = async () => {
+        const chartElement = document.getElementById('mpia-report-content');
+        if (!chartElement) return;
+        setIsExporting(true);
+        try {
+            const canvas = await html2canvas(chartElement, { scale: 2 });
+            const dataUrl = canvas.toDataURL('image/png');
+            
+            const pptx = new PptxGenJS();
+            const slide = pptx.addSlide();
+            
+            slide.addText(`Vendor Wise Report: ${manufacturer}`, {
+                x: 0.5, y: 0.3, fontSize: 18, bold: true, color: "363636"
+            });
+            
+            slide.addImage({ data: dataUrl, x: 0.5, y: 0.8, w: 9, h: 4.5, sizing: { type: "contain", w: 9, h: 4.5 } });
+            
+            pptx.writeFile({ fileName: `Vendor_Wise_Report_${manufacturer}.pptx` });
+        } catch (e) {
+            console.error("Failed to generate PPT", e);
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
     return (
         <div className="bg-slate-50 p-6 min-h-screen">
             <div className="max-w-6xl mx-auto mb-6 flex justify-between items-center no-print">
@@ -1793,22 +1897,38 @@ const MpiaDrillDown = ({ data = [], manufacturer, onBack, loading }) => {
                 >
                     <span className="text-xl">←</span> Back to Summary
                 </button>
-                <button
-                    onClick={handlePrint}
-                    disabled={isPrinting}
-                    className="flex items-center gap-2 px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all font-bold shadow-lg no-print disabled:opacity-70"
-                >
-                    {isPrinting ? (
-                        <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white"></div>
-                            Preparing PDF...
-                        </>
-                    ) : (
-                        <>
-                            <span>PDF</span> Download Report
-                        </>
-                    )}
-                </button>
+                <div className="flex gap-3">
+                    <button
+                        onClick={handleDownloadImage}
+                        disabled={isExporting}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-bold shadow-sm no-print disabled:opacity-70"
+                    >
+                        {isExporting ? 'Exporting...' : <><span>📷</span> Image</>}
+                    </button>
+                    <button
+                        onClick={handleDownloadPpt}
+                        disabled={isExporting}
+                        className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-all font-bold shadow-sm no-print disabled:opacity-70"
+                    >
+                        {isExporting ? 'Exporting...' : <><span>📊</span> PPT</>}
+                    </button>
+                    <button
+                        onClick={handlePrint}
+                        disabled={isPrinting}
+                        className="flex items-center gap-2 px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all font-bold shadow-lg no-print disabled:opacity-70"
+                    >
+                        {isPrinting ? (
+                            <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white"></div>
+                                Preparing PDF...
+                            </>
+                        ) : (
+                            <>
+                                <span>PDF</span> Download Report
+                            </>
+                        )}
+                    </button>
+                </div>
             </div>
 
             <MpiaReportPage manufacturer={manufacturer} data={data} />
@@ -1851,6 +1971,7 @@ const MpiaReportPage = ({ manufacturer, data, showFooter = true }) => {
                 {`@page { size: landscape; margin: 0; }`}
             </style>
             <div
+                id="mpia-report-content"
                 className="bg-white px-6 pb-6 pt-2 shadow-none rounded-sm mx-auto print-container page-break full-report-page"
                 style={{
                     width: '280mm',

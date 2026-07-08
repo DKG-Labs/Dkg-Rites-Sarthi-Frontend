@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './SleeperSummary.css';
-import ExcelJS from 'exceljs';
+import ExcelJS from 'exceljs/dist/exceljs.min.js';
 
 const SCADA_MANUFACTURERS = [
     { label: 'Patil Rail Infrastructure Pvt. Ltd.', value: 'PRIL' }

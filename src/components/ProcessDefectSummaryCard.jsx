@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import ExcelJS from 'exceljs';
+import ExcelJS from 'exceljs/dist/exceljs.min.js';
 import { API_ENDPOINTS, getAuthHeaders, handleResponse } from '../services/apiConfig';
 import { formatDate } from '../utils/helpers';
 

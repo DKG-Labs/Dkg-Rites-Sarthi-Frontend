@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import reportService from '../../../services/reportService';
 import { PieChart, Pie, Cell, Tooltip } from 'recharts';
-import ExcelJS from 'exceljs';
+import ExcelJS from 'exceljs/dist/exceljs.min.js';
 import './SleeperSummary.css';
 
 // Reuse common components if possible, otherwise define them locally

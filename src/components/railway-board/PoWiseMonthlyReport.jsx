@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import ExcelJS from 'exceljs';
+import ExcelJS from 'exceljs/dist/exceljs.min.js';
 import reportService from '../../services/reportService';
 import './PoWiseMonthlyReport.css';
 

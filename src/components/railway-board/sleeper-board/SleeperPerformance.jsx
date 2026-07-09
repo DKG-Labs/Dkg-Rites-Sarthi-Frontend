@@ -148,6 +148,7 @@ const SleeperPerformance = ({ fromDate, toDate }) => {
 
         // 3. Sort logic
         if (sortConfig.key !== null) {
+
             result.sort((a, b) => {
                 let valA = a[sortConfig.key];
                 let valB = b[sortConfig.key];

@@ -28,25 +28,6 @@ if (typeof window !== 'undefined' && !window.__numberInputListenersInstalled) {
   window.__numberInputListenersInstalled = true;
 }
 
-// Cleanup routine for bloated localStorage keys (fixes QuotaExceededError on Vercel)
-try {
-  if (typeof window !== 'undefined' && window.localStorage) {
-    const keysToRemove = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('calibration_instruments_')) {
-        keysToRemove.push(key);
-      }
-    }
-    keysToRemove.forEach(key => localStorage.removeItem(key));
-    if (keysToRemove.length > 0) {
-      console.log(`🧹 Cleaned up ${keysToRemove.length} bloated calibration draft(s) from localStorage.`);
-    }
-  }
-} catch (e) {
-  console.warn('Failed to cleanup localStorage', e);
-}
-
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>

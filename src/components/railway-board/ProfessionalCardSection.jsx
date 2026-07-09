@@ -808,6 +808,7 @@ const ProfessionalCardSection = ({
                                 return <RailPadSummary summaryData={summaryData} onPoIssuedClick={handlePoIssuedClick} onInspectionCallClick={handleInspectionCallClick} />;
                             }
                             const s = localSummaryData || summaryData || {};
+                            const isPrimaryFilterApplied = filterMode === 'vendorwise' ? !!selectedVendorPlant : !!selectedZonalRailway;
 
                             return (
                                 <div className="summary-tab-content">
@@ -899,10 +900,11 @@ const ProfessionalCardSection = ({
                                             <div style={{ flex: '1', minWidth: '150px', order: 3 }}>
                                                 <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>Date Range</label>
                                                 <Select 
-                                                    value={dateFilterType} 
+                                                    value={isPrimaryFilterApplied ? dateFilterType : null} 
+                                                    placeholder="Select Date Range"
                                                     onChange={(val) => setDateFilterType(val || 'current_fy')}
                                                     style={{ width: '100%', height: '36px' }}
-                                                    disabled={filterMode === 'vendorwise' ? !selectedVendorPlant : !selectedZonalRailway}
+                                                    disabled={!isPrimaryFilterApplied}
                                                 >
                                                     <Option value="current_fy">Current Fin. Year</Option>
                                                     <Option value="last_1_month">Last 1 Month</Option>
@@ -915,16 +917,17 @@ const ProfessionalCardSection = ({
                                                 <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>From Date</label>
                                                 <input 
                                                     type="date" 
-                                                    value={filterStartDate || ''} 
+                                                    value={isPrimaryFilterApplied ? (filterStartDate || '') : ''} 
                                                     onChange={(e) => {
                                                         setFilterStartDate(e.target.value);
                                                         setDateFilterType('custom');
                                                     }}
-                                                    disabled={filterMode === 'vendorwise' ? !selectedVendorPlant : !selectedZonalRailway}
+                                                    disabled={!isPrimaryFilterApplied}
                                                     style={{ 
                                                         width: '100%', height: '36px', padding: '0 11px', 
                                                         border: '1px solid #d9d9d9', borderRadius: '6px',
-                                                        color: 'rgba(0, 0, 0, 0.88)', fontSize: '14px'
+                                                        backgroundColor: !isPrimaryFilterApplied ? '#f5f5f5' : '#fff',
+                                                        color: !isPrimaryFilterApplied ? '#bfbfbf' : 'rgba(0, 0, 0, 0.88)', fontSize: '14px'
                                                     }}
                                                 />
                                             </div>
@@ -932,16 +935,17 @@ const ProfessionalCardSection = ({
                                                 <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>To Date</label>
                                                 <input 
                                                     type="date" 
-                                                    value={filterEndDate || ''} 
+                                                    value={isPrimaryFilterApplied ? (filterEndDate || '') : ''} 
                                                     onChange={(e) => {
                                                         setFilterEndDate(e.target.value);
                                                         setDateFilterType('custom');
                                                     }}
-                                                    disabled={filterMode === 'vendorwise' ? !selectedVendorPlant : !selectedZonalRailway}
+                                                    disabled={!isPrimaryFilterApplied}
                                                     style={{ 
                                                         width: '100%', height: '36px', padding: '0 11px', 
                                                         border: '1px solid #d9d9d9', borderRadius: '6px',
-                                                        color: 'rgba(0, 0, 0, 0.88)', fontSize: '14px'
+                                                        backgroundColor: !isPrimaryFilterApplied ? '#f5f5f5' : '#fff',
+                                                        color: !isPrimaryFilterApplied ? '#bfbfbf' : 'rgba(0, 0, 0, 0.88)', fontSize: '14px'
                                                     }}
                                                 />
                                             </div>

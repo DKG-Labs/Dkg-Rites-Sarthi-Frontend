@@ -538,6 +538,12 @@
     margin-bottom: 12px;
 }
 
+.g5 {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+}
+
 .g4 {
     display: grid;
     grid-template-columns: repeat(4, 1fr);

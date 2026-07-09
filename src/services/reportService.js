@@ -21,6 +21,20 @@ const reportService = {
         return handleResponse(response);
     },
 
+    getAllZonalRailways: async () => {
+        const response = await fetch(`${API_BASE_URL}/api/filters/all-zonal-railways`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getVendorPlantsByZone: async (zone) => {
+        const response = await fetch(`${API_BASE_URL}/api/filters/vendor-plants-by-zone?zone=${zone}`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
     getIcIssuedCounts: async (params) => {
         const { vendorPlantCode, zonalRailway, startDate, endDate } = params || {};
         const url = new URL(`${API_ENDPOINTS.REPORTS}/icIssuedCounts`);
@@ -821,13 +835,15 @@ const reportService = {
      * @param {Object} params - { startDate, endDate }
      */
     getPoWiseReport: async (params) => {
-        const { startDate, endDate, forceRefresh } = params || {};
-        const cacheKey = `${startDate}_${endDate}`;
+        const { startDate, endDate, page = 0, size = 30, forceRefresh } = params || {};
+        const cacheKey = `poWise_${startDate}_${endDate}_${page}_${size}`;
         if (!forceRefresh && poWiseCache[cacheKey]) {
             return poWiseCache[cacheKey];
         }
 
-        const url = new URL(`${API_ENDPOINTS.REPORTS}/poWise`);
+        const url = new URL(`${API_ENDPOINTS.REPORTS}/newPoWise`);
+        url.searchParams.append('page', page);
+        url.searchParams.append('size', size);
         if (startDate) url.searchParams.append('startDate', startDate);
         if (endDate) url.searchParams.append('endDate', endDate);
 
@@ -1054,27 +1070,50 @@ const reportService = {
         return handleResponse(response);
     },
 
-    getErcDashboardTotalCalls: async () => {
-        const url = `${API_ENDPOINTS.REPORTS}/ercDashboardTotalCalls`;
+    getErcDashboardTotalCalls: async (params) => {
+        const { vendor, zone, startDate, endDate } = params || {};
+        let url = `${API_ENDPOINTS.REPORTS}/ercDashboardTotalCalls`;
+        const queryParams = new URLSearchParams();
+        if (vendor && vendor !== 'all') queryParams.append('vendorPlantCode', vendor);
+        if (zone && zone !== 'all') queryParams.append('zonalRailway', zone);
+        if (startDate) queryParams.append('startDate', startDate);
+        if (endDate) queryParams.append('endDate', endDate);
+        if (queryParams.toString()) url += `?${queryParams.toString()}`;
+
         const response = await fetch(url, { headers: getAuthHeaders() });
         return handleResponse(response);
     },
 
-    getErcDashboardOpenCalls: async () => {
-        const url = `${API_ENDPOINTS.REPORTS}/ercDashboardOpenCalls`;
-        const response = await fetch(url, { headers: getAuthHeaders() });
+    getErcDashboardOpenCalls: async (filters = {}) => {
+        const { vendor, zone, startDate, endDate } = filters;
+        const url = new URL(`${API_ENDPOINTS.REPORTS}/ercDashboardOpenCalls`);
+        if (vendor) url.searchParams.append('vendorPlantCode', vendor);
+        if (zone) url.searchParams.append('zonalRailway', zone);
+        if (startDate) url.searchParams.append('startDate', startDate);
+        if (endDate) url.searchParams.append('endDate', endDate);
+        const response = await fetch(url.toString(), { headers: getAuthHeaders() });
         return handleResponse(response);
     },
 
-    getErcDashboardUnderInspectionCalls: async () => {
-        const url = `${API_ENDPOINTS.REPORTS}/ercDashboardUnderInspectionCalls`;
-        const response = await fetch(url, { headers: getAuthHeaders() });
+    getErcDashboardUnderInspectionCalls: async (filters = {}) => {
+        const { vendor, zone, startDate, endDate } = filters;
+        const url = new URL(`${API_ENDPOINTS.REPORTS}/ercDashboardUnderInspectionCalls`);
+        if (vendor) url.searchParams.append('vendorPlantCode', vendor);
+        if (zone) url.searchParams.append('zonalRailway', zone);
+        if (startDate) url.searchParams.append('startDate', startDate);
+        if (endDate) url.searchParams.append('endDate', endDate);
+        const response = await fetch(url.toString(), { headers: getAuthHeaders() });
         return handleResponse(response);
     },
 
-    getErcDashboardPendingCalls: async () => {
-        const url = `${API_ENDPOINTS.REPORTS}/ercDashboardPendingCalls`;
-        const response = await fetch(url, { headers: getAuthHeaders() });
+    getErcDashboardPendingCalls: async (filters = {}) => {
+        const { vendor, zone, startDate, endDate } = filters;
+        const url = new URL(`${API_ENDPOINTS.REPORTS}/ercDashboardPendingCalls`);
+        if (vendor) url.searchParams.append('vendorPlantCode', vendor);
+        if (zone) url.searchParams.append('zonalRailway', zone);
+        if (startDate) url.searchParams.append('startDate', startDate);
+        if (endDate) url.searchParams.append('endDate', endDate);
+        const response = await fetch(url.toString(), { headers: getAuthHeaders() });
         return handleResponse(response);
     }
 };

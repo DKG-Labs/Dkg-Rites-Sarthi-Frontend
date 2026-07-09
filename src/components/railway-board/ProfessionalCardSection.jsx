@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'; // Re-adding hooks
-import { Select } from 'antd';
+import { Select, Skeleton } from 'antd';
 import { ExportButton, downloadExcel } from './SharedComponents';
 import reportService from '../../services/reportService';
 import Pagination from '../Pagination';
@@ -165,14 +165,11 @@ const ProfessionalCardSection = ({
     const [poModalData, setPoModalData] = useState([]);
 
     // Global Filters State
+    const [filterMode, setFilterMode] = useState('zonalwise'); // 'vendorwise' or 'zonalwise'
     const [vendorPlants, setVendorPlants] = useState([]);
     const [zonalRailways, setZonalRailways] = useState([]);
     const [selectedVendorPlant, setSelectedVendorPlant] = useState('');
     const [selectedZonalRailway, setSelectedZonalRailway] = useState('');
-    const [filterStartDate, setFilterStartDate] = useState('');
-    const [filterEndDate, setFilterEndDate] = useState('');
-    const [dateFilterType, setDateFilterType] = useState('current_fy');
-
     // Helper to get Current Financial Year start and end dates
     const getCurrentFY = () => {
         const today = new Date();
@@ -184,6 +181,11 @@ const ProfessionalCardSection = ({
             end: today.toISOString().split('T')[0]
         };
     };
+
+    const initialFY = getCurrentFY();
+    const [filterStartDate, setFilterStartDate] = useState(initialFY.start);
+    const [filterEndDate, setFilterEndDate] = useState(initialFY.end);
+    const [dateFilterType, setDateFilterType] = useState('current_fy');
 
     // Auto-calculate dates when preset dropdown changes
     useEffect(() => {
@@ -224,30 +226,47 @@ const ProfessionalCardSection = ({
     const [localSummaryData, setLocalSummaryData] = useState(null);
     const [totalCallsData, setTotalCallsData] = useState(null);
 
-    // Fetch Vendor Plants on mount
+    // Initial fetch based on filterMode
     useEffect(() => {
-        const fetchVendorPlants = async () => {
+        const fetchInitialOptions = async () => {
             try {
-                const response = await reportService.getVendorPlants();
-                const data = response.responseData || response.data || response;
-                if (Array.isArray(data)) {
-                    const filteredData = data.filter(vp => !vp.companyName?.toLowerCase().includes('dummy'));
-                    const sortedData = [...filteredData].sort((a, b) => 
-                        (a.companyName || '').localeCompare(b.companyName || '')
-                    );
-                    setVendorPlants(sortedData);
+                if (filterMode === 'vendorwise') {
+                    const response = await reportService.getVendorPlants();
+                    const data = response.responseData || response.data || response;
+                    if (Array.isArray(data)) {
+                        const filteredData = data.filter(vp => !vp.companyName?.toLowerCase().includes('dummy'));
+                        const sortedData = [...filteredData].sort((a, b) => 
+                            (a.companyName || '').localeCompare(b.companyName || '')
+                        );
+                        setVendorPlants(sortedData);
+                    }
+                } else {
+                    const response = await reportService.getAllZonalRailways();
+                    const data = response.responseData || response.data || response;
+                    if (Array.isArray(data)) {
+                        const sortedData = [...data].sort((a, b) => 
+                            (a || '').localeCompare(b || '')
+                        );
+                        setZonalRailways(sortedData);
+                    }
                 }
             } catch (error) {
-                console.error("Error fetching vendor plants:", error);
+                console.error("Error fetching initial options:", error);
             }
         };
-        fetchVendorPlants();
-    }, []);
+        
+        // Reset selections when mode changes
+        setSelectedVendorPlant('');
+        setSelectedZonalRailway('');
+        
+        fetchInitialOptions();
+    }, [filterMode]);
 
-    // Fetch Zonal Railways when Vendor Plant changes
+    // Dependent fetch: Zonal Railways based on selected Vendor Plant
     useEffect(() => {
+        if (filterMode !== 'vendorwise') return;
         const fetchZonalRailways = async () => {
-            setSelectedZonalRailway(''); // Reset Zonal Railway when Vendor Plant changes
+            setSelectedZonalRailway(''); // Reset dependent dropdown
             if (!selectedVendorPlant) {
                 setZonalRailways([]);
                 return;
@@ -266,96 +285,121 @@ const ProfessionalCardSection = ({
             }
         };
         fetchZonalRailways();
-    }, [selectedVendorPlant]);
+    }, [selectedVendorPlant, filterMode]);
 
-    // Fetch IC Issued Data
+    // Dependent fetch: Vendor Plants based on selected Zonal Railway
     useEffect(() => {
-        const fetchIcIssued = async () => {
+        if (filterMode !== 'zonalwise') return;
+        const fetchVendorPlants = async () => {
+            setSelectedVendorPlant(''); // Reset dependent dropdown
+            if (!selectedZonalRailway) {
+                setVendorPlants([]);
+                return;
+            }
             try {
-                const response = await reportService.getIcIssuedCounts({
+                const response = await reportService.getVendorPlantsByZone(selectedZonalRailway);
+                const data = response.responseData || response.data || response;
+                if (Array.isArray(data)) {
+                    const filteredData = data.filter(vp => !vp.companyName?.toLowerCase().includes('dummy'));
+                    const sortedData = [...filteredData].sort((a, b) => 
+                        (a.companyName || '').localeCompare(b.companyName || '')
+                    );
+                    setVendorPlants(sortedData);
+                }
+            } catch (error) {
+                console.error("Error fetching vendor plants by zone:", error);
+            }
+        };
+        fetchVendorPlants();
+    }, [selectedZonalRailway, filterMode]);
+
+    const [isDashboardLoading, setIsDashboardLoading] = useState(false);
+
+    // Fetch All Dashboard Data
+    useEffect(() => {
+        const fetchAllDashboardData = async () => {
+            setIsDashboardLoading(true);
+            try {
+                const minLoadingPromise = new Promise(resolve => setTimeout(resolve, 500));
+                
+                const isPrimaryFilterApplied = filterMode === 'vendorwise' ? !!selectedVendorPlant : !!selectedZonalRailway;
+                
+                const params = {
                     vendorPlantCode: selectedVendorPlant,
+                    vendor: selectedVendorPlant,
                     zonalRailway: selectedZonalRailway,
-                    startDate: filterStartDate,
-                    endDate: filterEndDate
-                });
-                const data = response.responseData || response.data || response;
-                if (data) {
-                    setIcIssuedData(data);
-                }
-            } catch (error) {
-                console.error("Error fetching IC issued counts:", error);
-            }
-        };
-        fetchIcIssued();
-    }, [selectedVendorPlant, selectedZonalRailway, filterStartDate, filterEndDate]);
-
-    // Fetch Inspection Call Status
-    useEffect(() => {
-        const fetchInspectionCallStatus = async () => {
-            try {
-                const response = await reportService.getInspectionCallStatus({
-                    vendor: selectedVendorPlant,
                     zone: selectedZonalRailway,
-                    startDate: filterStartDate,
-                    endDate: filterEndDate
-                });
-                const data = response.responseData || response.data || response;
-                if (data && Array.isArray(data)) {
-                    setLocalInspectionCallStatus(data);
-                }
-            } catch (error) {
-                console.error("Error fetching inspection call status:", error);
-            }
-        };
-        fetchInspectionCallStatus();
-    }, [selectedVendorPlant, selectedZonalRailway, filterStartDate, filterEndDate]);
+                    startDate: isPrimaryFilterApplied ? filterStartDate : '',
+                    endDate: isPrimaryFilterApplied ? filterEndDate : ''
+                };
 
-    // Fetch Inspection Details
-    useEffect(() => {
-        const fetchInspectionDetails = async () => {
-            try {
-                const response = await reportService.getInspectionDetails({
-                    vendor: selectedVendorPlant,
-                    zone: selectedZonalRailway,
-                    startDate: filterStartDate,
-                    endDate: filterEndDate
-                });
-                const data = response.responseData || response.data || response;
-                if (data && Array.isArray(data)) {
-                    setLocalInspectionDetails(data);
+                const [
+                    icIssuedRes,
+                    callStatusRes,
+                    detailsRes,
+                    avgProdRes,
+                    summaryRes
+                ] = await Promise.all([
+                    reportService.getIcIssuedCounts(params).catch(e => { console.error(e); return null; }),
+                    reportService.getInspectionCallStatus(params).catch(e => { console.error(e); return null; }),
+                    reportService.getInspectionDetails(params).catch(e => { console.error(e); return null; }),
+                    reportService.getAvgProductionPerDay(
+                        selectedVendorPlant,
+                        selectedZonalRailway,
+                        isPrimaryFilterApplied ? filterStartDate : '',
+                        isPrimaryFilterApplied ? filterEndDate : ''
+                    ).catch(e => { console.error(e); return null; }),
+                    reportService.getDashboardSummary({ vendor: selectedVendorPlant, zone: selectedZonalRailway }).catch(e => { console.error(e); return null; }),
+                    minLoadingPromise
+                ]);
+
+                if (icIssuedRes) {
+                    const data = icIssuedRes.responseData || icIssuedRes.data || icIssuedRes;
+                    if (data) setIcIssuedData(data);
                 }
                 
-                const avgProdResponse = await reportService.getAvgProductionPerDay(
-                    selectedVendorPlant,
-                    selectedZonalRailway,
-                    filterStartDate,
-                    filterEndDate
-                );
-                const avgProdData = avgProdResponse.responseData ?? avgProdResponse.data ?? avgProdResponse;
-                setLocalAvgProduction(avgProdData);
-
-                const summaryResponse = await reportService.getDashboardSummary({
-                    vendor: selectedVendorPlant,
-                    zone: selectedZonalRailway,
-                    startDate: filterStartDate,
-                    endDate: filterEndDate
-                });
-                const sumData = summaryResponse.responseData ?? summaryResponse.data ?? summaryResponse;
-                if (sumData) {
-                    setLocalSummaryData(sumData);
+                if (callStatusRes) {
+                    const data = callStatusRes.responseData || callStatusRes.data || callStatusRes;
+                    if (data && Array.isArray(data)) setLocalInspectionCallStatus(data);
                 }
+
+                if (detailsRes) {
+                    const data = detailsRes.responseData || detailsRes.data || detailsRes;
+                    if (data && Array.isArray(data)) setLocalInspectionDetails(data);
+                }
+
+                if (avgProdRes) {
+                    const data = avgProdRes.responseData ?? avgProdRes.data ?? avgProdRes;
+                    setLocalAvgProduction(data);
+                }
+
+                if (summaryRes) {
+                    const data = summaryRes.responseData ?? summaryRes.data ?? summaryRes;
+                    if (data) setLocalSummaryData(data);
+                }
+
             } catch (error) {
-                console.error("Error fetching inspection details:", error);
+                console.error("Error in dashboard Promise.all:", error);
+            } finally {
+                setIsDashboardLoading(false);
             }
         };
-        fetchInspectionDetails();
-    }, [selectedVendorPlant, selectedZonalRailway, filterStartDate, filterEndDate]);
+
+        fetchAllDashboardData();
+    }, [selectedVendorPlant, selectedZonalRailway, filterStartDate, filterEndDate, filterMode]);
 
     useEffect(() => {
         const fetchTotalCalls = async () => {
             try {
                 if (getSummaryKey(selectedProduct) !== 'erc') return;
-                const response = await reportService.getErcDashboardTotalCalls();
+                const isPrimaryFilterApplied = filterMode === 'vendorwise' ? !!selectedVendorPlant : !!selectedZonalRailway;
+                const params = {
+                    zone: selectedZonalRailway,
+                    vendor: selectedVendorPlant,
+                    startDate: isPrimaryFilterApplied ? filterStartDate : '',
+                    endDate: isPrimaryFilterApplied ? filterEndDate : ''
+                };
+                const response = await reportService.getErcDashboardTotalCalls(params);
                 const data = response?.responseData || response?.data || response;
                 if (data) {
                     setTotalCallsData(data);
@@ -365,7 +409,7 @@ const ProfessionalCardSection = ({
             }
         };
         fetchTotalCalls();
-    }, [selectedProduct]);
+    }, [selectedProduct, selectedZonalRailway, selectedVendorPlant, filterStartDate, filterEndDate, filterMode]);
 
     const handlePoIssuedClick = async () => {
         try {
@@ -381,8 +425,8 @@ const ProfessionalCardSection = ({
                 itemCatDescr, 
                 selectedVendorPlant || null, 
                 selectedZonalRailway || null, 
-                filterStartDate || null, 
-                filterEndDate || null
+                null, 
+                null
             );
             const data = response.responseData || response || [];
             setPoModalData(data);
@@ -401,11 +445,12 @@ const ProfessionalCardSection = ({
         try {
             const title = `${stage} Stage - ${status}`;
             setIcModalTitle(title);
+            const isPrimaryFilterApplied = filterMode === 'vendorwise' ? !!selectedVendorPlant : !!selectedZonalRailway;
             const response = await reportService.getInspectionCallStatusDetails(stage, status, {
                 vendor: selectedVendorPlant,
                 zone: selectedZonalRailway,
-                startDate: filterStartDate,
-                endDate: filterEndDate
+                startDate: isPrimaryFilterApplied ? filterStartDate : '',
+                endDate: isPrimaryFilterApplied ? filterEndDate : ''
             });
             const data = response.responseData || response || [];
             setIcModalData(data);
@@ -419,9 +464,16 @@ const ProfessionalCardSection = ({
         try {
             setIcModalTitle(`Total Calls - ${type}`);
             let response;
-            if (type === 'Open') response = await reportService.getErcDashboardOpenCalls();
-            else if (type === 'Under Inspection') response = await reportService.getErcDashboardUnderInspectionCalls();
-            else if (type === 'Pending') response = await reportService.getErcDashboardPendingCalls();
+            const isPrimaryFilterApplied = filterMode === 'vendorwise' ? !!selectedVendorPlant : !!selectedZonalRailway;
+            const filters = {
+                vendor: selectedVendorPlant,
+                zone: selectedZonalRailway,
+                startDate: isPrimaryFilterApplied ? filterStartDate : '',
+                endDate: isPrimaryFilterApplied ? filterEndDate : ''
+            };
+            if (type === 'Open') response = await reportService.getErcDashboardOpenCalls(filters);
+            else if (type === 'Under Inspection') response = await reportService.getErcDashboardUnderInspectionCalls(filters);
+            else if (type === 'Pending') response = await reportService.getErcDashboardPendingCalls(filters);
             
             const data = response?.responseData || response?.data || response || [];
             setIcModalData(data);
@@ -766,7 +818,35 @@ const ProfessionalCardSection = ({
                                             padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0',
                                             alignItems: 'center', flexWrap: 'wrap'
                                         }}>
-                                            <div style={{ flex: '1', minWidth: '220px' }}>
+                                            <div style={{ width: '100%', marginBottom: '10px' }}>
+                                                <div style={{ display: 'inline-flex', background: '#e2e8f0', padding: '4px', borderRadius: '8px' }}>
+                                                    <button 
+                                                        style={{ 
+                                                            padding: '6px 16px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
+                                                            background: filterMode === 'zonalwise' ? '#fff' : 'transparent',
+                                                            color: filterMode === 'zonalwise' ? '#0f172a' : '#64748b',
+                                                            boxShadow: filterMode === 'zonalwise' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                                                            marginRight: '4px'
+                                                        }}
+                                                        onClick={() => setFilterMode('zonalwise')}
+                                                    >
+                                                        Zonalwise
+                                                    </button>
+                                                    <button 
+                                                        style={{ 
+                                                            padding: '6px 16px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
+                                                            background: filterMode === 'vendorwise' ? '#fff' : 'transparent',
+                                                            color: filterMode === 'vendorwise' ? '#0f172a' : '#64748b',
+                                                            boxShadow: filterMode === 'vendorwise' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                                                        }}
+                                                        onClick={() => setFilterMode('vendorwise')}
+                                                    >
+                                                        Vendor wise
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div style={{ flex: '1', minWidth: '220px', order: filterMode === 'vendorwise' ? 1 : 2 }}>
                                                 <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>Vendor Plant</label>
                                                 <Select 
                                                     showSearch
@@ -774,8 +854,8 @@ const ProfessionalCardSection = ({
                                                     placeholder="All Vendor Plants"
                                                     value={selectedVendorPlant || undefined} 
                                                     onChange={(val) => {
-                                                        setSelectedVendorPlant(val);
-                                                        setSelectedZonalRailway(null);
+                                                        setSelectedVendorPlant(val || '');
+                                                        if (filterMode === 'vendorwise') setSelectedZonalRailway('');
                                                     }}
                                                     style={{ width: '100%', height: '36px' }}
                                                     popupMatchSelectWidth={false}
@@ -784,6 +864,7 @@ const ProfessionalCardSection = ({
                                                     filterOption={(input, option) =>
                                                         (option?.title ?? '').toLowerCase().includes(input.toLowerCase())
                                                     }
+                                                    disabled={filterMode === 'zonalwise' ? (!selectedZonalRailway || vendorPlants.length === 0) : false}
                                                 >
                                                     {vendorPlants.map((vp, i) => (
                                                         <Option 
@@ -796,29 +877,32 @@ const ProfessionalCardSection = ({
                                                     ))}
                                                 </Select>
                                             </div>
-                                            <div style={{ flex: '1', minWidth: '170px' }}>
+                                            <div style={{ flex: '1', minWidth: '170px', order: filterMode === 'zonalwise' ? 1 : 2 }}>
                                                 <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>Zonal Railway</label>
                                                 <Select 
                                                     allowClear
                                                     placeholder="All Zonal Railways"
                                                     value={selectedZonalRailway || undefined} 
-                                                    onChange={(val) => setSelectedZonalRailway(val || '')}
+                                                    onChange={(val) => {
+                                                        setSelectedZonalRailway(val || '');
+                                                        if (filterMode === 'zonalwise') setSelectedVendorPlant('');
+                                                    }}
                                                     style={{ width: '100%', height: '36px' }}
                                                     popupMatchSelectWidth={false}
-                                                    disabled={!selectedVendorPlant || zonalRailways.length === 0}
+                                                    disabled={filterMode === 'vendorwise' ? (!selectedVendorPlant || zonalRailways.length === 0) : false}
                                                 >
                                                     {zonalRailways.map((zr, i) => (
                                                         <Option key={i} value={zr}>{zr}</Option>
                                                     ))}
                                                 </Select>
                                             </div>
-                                            <div style={{ flex: '1', minWidth: '150px' }}>
+                                            <div style={{ flex: '1', minWidth: '150px', order: 3 }}>
                                                 <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>Date Range</label>
                                                 <Select 
                                                     value={dateFilterType} 
                                                     onChange={(val) => setDateFilterType(val || 'current_fy')}
                                                     style={{ width: '100%', height: '36px' }}
-                                                    disabled={!selectedVendorPlant}
+                                                    disabled={filterMode === 'vendorwise' ? !selectedVendorPlant : !selectedZonalRailway}
                                                 >
                                                     <Option value="current_fy">Current Fin. Year</Option>
                                                     <Option value="last_1_month">Last 1 Month</Option>
@@ -827,7 +911,7 @@ const ProfessionalCardSection = ({
                                                     <Option value="custom">Custom Range</Option>
                                                 </Select>
                                             </div>
-                                            <div style={{ flex: '1', minWidth: '130px' }}>
+                                            <div style={{ flex: '1', minWidth: '130px', order: 4 }}>
                                                 <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>From Date</label>
                                                 <input 
                                                     type="date" 
@@ -836,11 +920,15 @@ const ProfessionalCardSection = ({
                                                         setFilterStartDate(e.target.value);
                                                         setDateFilterType('custom');
                                                     }}
-                                                    style={{ width: '100%', height: '36px', padding: '0 11px', border: '1px solid #d9d9d9', borderRadius: '6px', fontSize: '14px', color: '#1e293b' }}
-                                                    disabled={!selectedVendorPlant}
+                                                    disabled={filterMode === 'vendorwise' ? !selectedVendorPlant : !selectedZonalRailway}
+                                                    style={{ 
+                                                        width: '100%', height: '36px', padding: '0 11px', 
+                                                        border: '1px solid #d9d9d9', borderRadius: '6px',
+                                                        color: 'rgba(0, 0, 0, 0.88)', fontSize: '14px'
+                                                    }}
                                                 />
                                             </div>
-                                            <div style={{ flex: '1', minWidth: '130px' }}>
+                                            <div style={{ flex: '1', minWidth: '130px', order: 5 }}>
                                                 <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>To Date</label>
                                                 <input 
                                                     type="date" 
@@ -849,14 +937,33 @@ const ProfessionalCardSection = ({
                                                         setFilterEndDate(e.target.value);
                                                         setDateFilterType('custom');
                                                     }}
-                                                    style={{ width: '100%', height: '36px', padding: '0 11px', border: '1px solid #d9d9d9', borderRadius: '6px', fontSize: '14px', color: '#1e293b' }}
-                                                    disabled={!selectedVendorPlant}
+                                                    disabled={filterMode === 'vendorwise' ? !selectedVendorPlant : !selectedZonalRailway}
+                                                    style={{ 
+                                                        width: '100%', height: '36px', padding: '0 11px', 
+                                                        border: '1px solid #d9d9d9', borderRadius: '6px',
+                                                        color: 'rgba(0, 0, 0, 0.88)', fontSize: '14px'
+                                                    }}
                                                 />
                                             </div>
                                         </div>
                                     )}
 
-                                    <div className="g4 mb">
+                                    {isDashboardLoading ? (
+                                        <div style={{ marginTop: '10px' }}>
+                                            <div className="g4 mb">
+                                                <div className="prof-card" style={{ padding: '24px' }}><Skeleton active paragraph={{ rows: 2 }} title={false} /></div>
+                                                <div className="prof-card" style={{ padding: '24px' }}><Skeleton active paragraph={{ rows: 2 }} title={false} /></div>
+                                                <div className="prof-card" style={{ padding: '24px' }}><Skeleton active paragraph={{ rows: 2 }} title={false} /></div>
+                                                <div className="prof-card" style={{ padding: '24px' }}><Skeleton active paragraph={{ rows: 2 }} title={false} /></div>
+                                            </div>
+                                            <div className="g4 mb">
+                                                <div className="prof-card" style={{ padding: '24px', gridColumn: 'span 2' }}><Skeleton active paragraph={{ rows: 4 }} title={false} /></div>
+                                                <div className="prof-card" style={{ padding: '24px', gridColumn: 'span 2' }}><Skeleton active paragraph={{ rows: 4 }} title={false} /></div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <>
+                                        <div className="g3 mb">
                                         <div className="prof-card card-dark-green"
                                             style={{ textAlign: 'center', cursor: 'pointer' }}
                                             onClick={handlePoIssuedClick}
@@ -892,26 +999,34 @@ const ProfessionalCardSection = ({
                                             </div>
                                         </div>
                                         
-                                        {/* IC ISSUED Card */}
-                                        <div className="prof-card card-gold" 
-                                             style={{ textAlign: 'center', cursor: 'pointer', background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
-                                             onClick={() => setIsIcIssuedModalOpen(true)}
-                                             title="Click to view stage-wise breakdown"
-                                        >
-                                            <div className="kpi-lbl">IC Issued</div>
-                                            <div style={{ marginTop: '12px' }}>
-                                                <div className="kpi-val" style={{ fontSize: '32px' }}>{(icIssuedData.total || 0)}</div>
-                                                <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9, marginTop: '2px' }}>Total Calls</div>
-                                            </div>
-                                        </div>
-                                        
                                     </div>
 
                                     <div className="sec-title-flex" style={{ marginBottom: '12px', marginTop: '10px' }}>
-                                        <span style={{ fontSize: '14px', fontWeight: '700', color: '#166534' }}>Inspection Calls Status</span>
+                                        <span style={{ fontSize: '14px', fontWeight: '700', color: '#166534' }}>Stagewise Inspection Call Status</span>
                                     </div>
-                                    <div className="g3 mb">
-                                        {['RM', 'Process', 'Final'].map((cat, idx) => {
+                                    <div className="g5 mb">
+                                        <div className="prof-card" style={{ padding: '15px', borderLeft: '4px solid #3b82f6', background: '#eff6ff' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                                <span style={{ fontSize: '14px', fontWeight: '800', color: '#475569', textTransform: 'uppercase' }}>Total Calls</span>
+                                                <span className="prof-badge" style={{ background: '#bfdbfe', color: '#1e3a8a', fontSize: '10px' }}>Nos.</span>
+                                            </div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', textAlign: 'center' }}>
+                                                <div onClick={() => handleTotalCallsClick('Open')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', background: 'rgba(255,255,255,0.7)', padding: '8px 4px', borderRadius: '6px', transition: 'all 0.2s', flex: 1 }} onMouseEnter={e => e.currentTarget.style.background = '#dbeafe'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.7)'} title="Click to view Open calls">
+                                                    <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '700', lineHeight: '1.2', marginBottom: '4px' }}>TOTAL<br/>OPEN</span>
+                                                    <span style={{ fontSize: '18px', fontWeight: '800', color: '#3b82f6' }}>{totalCallsData?.totalOpenCalls || 0}</span>
+                                                </div>
+                                                <div onClick={() => handleTotalCallsClick('Under Inspection')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', background: 'rgba(255,255,255,0.7)', padding: '8px 4px', borderRadius: '6px', transition: 'all 0.2s', flex: 1 }} onMouseEnter={e => e.currentTarget.style.background = '#dbeafe'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.7)'} title="Click to view Under Inspection calls">
+                                                    <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '700', lineHeight: '1.2', marginBottom: '4px' }}>UNDER<br/>INSPECTION</span>
+                                                    <span style={{ fontSize: '18px', fontWeight: '800', color: '#f59e0b' }}>{totalCallsData?.totalUnderInspectionCalls || 0}</span>
+                                                </div>
+                                                <div onClick={() => handleTotalCallsClick('Pending')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', background: 'rgba(255,255,255,0.7)', padding: '8px 4px', borderRadius: '6px', transition: 'all 0.2s', flex: 1 }} onMouseEnter={e => e.currentTarget.style.background = '#dbeafe'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.7)'} title="Click to view Pending calls">
+                                                    <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '700', lineHeight: '1.2', marginBottom: '4px' }}>PENDING<br/>CALLS</span>
+                                                    <span style={{ fontSize: '18px', fontWeight: '800', color: '#ef4444' }}>{totalCallsData?.totalPendingCalls || 0}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {[{ id: 'RM', label: 'Raw Material' }, { id: 'Process', label: 'Process' }, { id: 'Final', label: 'Final Product' }].map((catObj, idx) => {
+                                            const cat = catObj.id;
                                             const activeData = localInspectionCallStatus?.length > 0 ? localInspectionCallStatus : (inspectionCallStatusData?.length > 0 ? inspectionCallStatusData : staticInspectionCallsData);
                                             const d = activeData.find(x => x.name === cat || x.category === cat);
                                             return (
@@ -921,7 +1036,7 @@ const ProfessionalCardSection = ({
                                                     background: cat === 'RM' ? '#eff6ff' : cat === 'Process' ? '#fff7ed' : '#fef2f2'
                                                 }}>
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                                                        <span style={{ fontSize: '14px', fontWeight: '800', color: '#475569', textTransform: 'uppercase' }}>{cat} Stage</span>
+                                                        <span style={{ fontSize: '14px', fontWeight: '800', color: '#475569', textTransform: 'uppercase' }}>{catObj.label}</span>
                                                         <span className="prof-badge" style={{ background: '#f8fafc', color: '#64748b', fontSize: '10px' }}>CALLS</span>
                                                     </div>
                                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -949,33 +1064,26 @@ const ProfessionalCardSection = ({
                                                 </div>
                                             );
                                         })}
+                                        {/* IC ISSUED Card moved to the right */}
+                                        <div className="prof-card card-gold" 
+                                             style={{ textAlign: 'center', cursor: 'pointer', background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
+                                             onClick={() => setIsIcIssuedModalOpen(true)}
+                                             title="Click to view stage-wise breakdown"
+                                        >
+                                            <div className="kpi-lbl">IC Issued</div>
+                                            <div style={{ marginTop: '12px' }}>
+                                                <div className="kpi-val" style={{ fontSize: '32px' }}>{(icIssuedData.total || 0)}</div>
+                                                <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9, marginTop: '2px' }}>Total Calls</div>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <div className="sec-title-flex" style={{ marginBottom: '12px' }}>
                                         <span style={{ fontSize: '14px', fontWeight: '700', color: '#166534' }}>Inspection Details</span>
                                     </div>
-                                    <div className="g4 mb">
-                                        <div className="prof-card" style={{ padding: '15px', borderLeft: '4px solid #3b82f6', background: '#eff6ff' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                                                <span style={{ fontSize: '14px', fontWeight: '800', color: '#475569', textTransform: 'uppercase' }}>Total Calls</span>
-                                                <span className="prof-badge" style={{ background: '#bfdbfe', color: '#1e3a8a', fontSize: '10px' }}>Nos.</span>
-                                            </div>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', textAlign: 'center' }}>
-                                                <div onClick={() => handleTotalCallsClick('Open')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', background: 'rgba(255,255,255,0.7)', padding: '8px 4px', borderRadius: '6px', transition: 'all 0.2s', flex: 1 }} onMouseEnter={e => e.currentTarget.style.background = '#dbeafe'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.7)'} title="Click to view Open calls">
-                                                    <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '700', lineHeight: '1.2', marginBottom: '4px' }}>TOTAL<br/>OPEN</span>
-                                                    <span style={{ fontSize: '18px', fontWeight: '800', color: '#3b82f6' }}>{totalCallsData?.totalOpenCalls || 0}</span>
-                                                </div>
-                                                <div onClick={() => handleTotalCallsClick('Under Inspection')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', background: 'rgba(255,255,255,0.7)', padding: '8px 4px', borderRadius: '6px', transition: 'all 0.2s', flex: 1 }} onMouseEnter={e => e.currentTarget.style.background = '#dbeafe'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.7)'} title="Click to view Under Inspection calls">
-                                                    <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '700', lineHeight: '1.2', marginBottom: '4px' }}>UNDER<br/>INSPECTION</span>
-                                                    <span style={{ fontSize: '18px', fontWeight: '800', color: '#f59e0b' }}>{totalCallsData?.totalUnderInspectionCalls || 0}</span>
-                                                </div>
-                                                <div onClick={() => handleTotalCallsClick('Pending')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', background: 'rgba(255,255,255,0.7)', padding: '8px 4px', borderRadius: '6px', transition: 'all 0.2s', flex: 1 }} onMouseEnter={e => e.currentTarget.style.background = '#dbeafe'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.7)'} title="Click to view Pending calls">
-                                                    <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '700', lineHeight: '1.2', marginBottom: '4px' }}>PENDING<br/>CALLS</span>
-                                                    <span style={{ fontSize: '18px', fontWeight: '800', color: '#ef4444' }}>{totalCallsData?.totalPendingCalls || 0}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        {['RM', 'Process', 'Final'].map((cat, idx) => {
+                                    <div className="g3 mb">
+                                        {[{ id: 'RM', label: 'Raw Material' }, { id: 'Process', label: 'Process' }, { id: 'Final', label: 'Final Product' }].map((catObj, idx) => {
+                                            const cat = catObj.id;
                                             const activeDetails = localInspectionDetails?.length > 0 ? localInspectionDetails : (inspectionDetailsData?.length > 0 ? inspectionDetailsData : staticInspectionDetailsData);
                                             const d = activeDetails.find(x => x.name === cat);
                                             return (
@@ -985,7 +1093,7 @@ const ProfessionalCardSection = ({
                                                     background: cat === 'RM' ? '#f0fdfa' : cat === 'Process' ? '#f5f3ff' : '#fff1f2'
                                                 }}>
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                                                        <span style={{ fontSize: '14px', fontWeight: '800', color: '#475569', textTransform: 'uppercase' }}>{cat} Stage</span>
+                                                        <span style={{ fontSize: '14px', fontWeight: '800', color: '#475569', textTransform: 'uppercase' }}>{catObj.label}</span>
                                                         <span className="prof-badge" style={{ background: '#f8fafc', color: '#64748b', fontSize: '10px' }}>Nos.</span>
                                                     </div>
                                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -1054,6 +1162,8 @@ const ProfessionalCardSection = ({
                                             );
                                         })()}
                                     </div>
+                                    </>
+                                    )}
                                 </div>
                             );
 

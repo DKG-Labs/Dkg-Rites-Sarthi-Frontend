@@ -35,50 +35,6 @@ const QuenchingSection = ({
     };
   };
 
-  const updateData = (idx, field, value, sampleIndex = null) => {
-    const newData = [...data];
-    // handle noProduction specially: if set true, clear the hour
-    if (field === 'noProduction') {
-      newData[idx].noProduction = !!value;
-      if (value) {
-        clearHour(newData, idx);
-      }
-      onDataChange(newData);
-      return;
-    }
-
-    // normal updates
-    if (sampleIndex !== null && Array.isArray(newData[idx][field])) {
-      const fieldArray = [...newData[idx][field]];
-      fieldArray[sampleIndex] = value;
-      newData[idx][field] = fieldArray;
-    } else {
-      newData[idx][field] = value;
-      
-      // Default Quenching Hardness Rejection to 0 when Lot No is selected
-      if (field === 'lotNo' && value) {
-        if (newData[idx].quenchingHardnessRejected === '' || newData[idx].quenchingHardnessRejected === undefined || newData[idx].quenchingHardnessRejected === null) {
-          newData[idx].quenchingHardnessRejected = 0;
-        }
-      }
-    }
-    onDataChange(newData);
-  };
-
-  // Handle master "No Production" checkbox (toggle all 8 hours)
-  const handleMasterNoProduction = (checked) => {
-    const newData = [...data];
-    newData.forEach((row, idx) => {
-      row.noProduction = checked;
-      if (checked) {
-        clearHour(newData, idx);
-      }
-    });
-    onDataChange(newData);
-  };
-
-  // Check if all hours are marked as "No Production"
-  const allNoProduction = data.every(row => row.noProduction);
 
   // Helper to determine if rejection input should be enabled
   const isRejectionEnabled = (row, field) => {
@@ -135,6 +91,13 @@ const QuenchingSection = ({
       newData[idx][field] = fieldArray;
     } else {
       newData[idx][field] = value;
+      
+      // Default Quenching Hardness Rejection to 0 when Lot No is selected
+      if (field === 'lotNo' && value) {
+        if (newData[idx].quenchingHardnessRejected === '' || newData[idx].quenchingHardnessRejected === undefined || newData[idx].quenchingHardnessRejected === null) {
+          newData[idx].quenchingHardnessRejected = 0;
+        }
+      }
     }
 
     autoClearRejections(newData[idx]);

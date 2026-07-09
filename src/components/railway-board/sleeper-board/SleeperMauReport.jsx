@@ -317,7 +317,7 @@ const SleeperMauReport = ({ startDate, endDate, mauData: propMauData, loading: p
         let valB = b[key];
 
         // Handle numeric values
-        if (key === 'production' || key === 'acceptance' || key === 'processRejection' || key === 'finalRejection' || key === 'rejectionPercentage') {
+        if (key === 'production' || key === 'acceptance' || key === 'processRejection' || key === 'finalRejection' || key === 'rejectionPercentage' || key === 'noOfPos' || key === 'poQty') {
             valA = Number(valA) || 0;
             valB = Number(valB) || 0;
             return direction === 'asc' ? valA - valB : valB - valA;
@@ -436,10 +436,15 @@ const SleeperMauReport = ({ startDate, endDate, mauData: propMauData, loading: p
                             label="Download Summary"
                             variant="white"
                             onClick={() => downloadExcel(
-                                mauData,
+                                mauData.map(row => ({
+                                    ...row,
+                                    poQty: row.poQty !== undefined && row.poQty !== null ? `${row.poQty} ${row.uom || ''}`.trim() : '-'
+                                })),
                                 [
                                     { label: 'Plant Name', key: 'plantName' },
                                     { label: 'Inspected By', key: 'inspectedBy' },
+                                    { label: 'No. of PO', key: 'noOfPos' },
+                                    { label: 'PO Qty', key: 'poQty' },
                                     { label: 'Production', key: 'production' },
                                     { label: 'Acceptance', key: 'acceptance' },
                                     { label: 'Process Rejection', key: 'processRejection' },
@@ -483,6 +488,12 @@ const SleeperMauReport = ({ startDate, endDate, mauData: propMauData, loading: p
                                     <th onClick={() => handleSort('inspectedBy')} style={{ cursor: 'pointer' }}>
                                         INSPECTED BY
                                     </th>
+                                    <th onClick={() => handleSort('noOfPos')} style={{ cursor: 'pointer' }} className="text-right">
+                                        NO. OF PO
+                                    </th>
+                                    <th onClick={() => handleSort('poQty')} style={{ cursor: 'pointer' }} className="text-right">
+                                        PO QTY
+                                    </th>
                                     <th onClick={() => handleSort('production')} style={{ cursor: 'pointer' }} className="text-right">
                                         PRODUCTION (NOS.)
                                     </th>
@@ -507,6 +518,8 @@ const SleeperMauReport = ({ startDate, endDate, mauData: propMauData, loading: p
                                             <td>{idx + 1}</td>
                                             <td className="font-bold text-blue-700">{formatDisplayName(row.plantName)}</td>
                                             <td><span className="prof-badge" style={{ background: '#f0f9ff', color: '#075985' }}>{row.inspectedBy}</span></td>
+                                            <td className="text-right">{row.noOfPos !== undefined && row.noOfPos !== null ? row.noOfPos : '-'}</td>
+                                            <td className="text-right">{row.poQty !== undefined && row.poQty !== null ? `${row.poQty} ${row.uom || ''}`.trim() : '-'}</td>
                                             <td className="text-right">{(row.production || 0).toLocaleString()}</td>
                                             <td className="text-right text-emerald-600 font-bold">{(row.acceptance || 0).toLocaleString()}</td>
                                             <td className="text-right">{(row.processRejection || 0).toLocaleString()}</td>
@@ -518,7 +531,7 @@ const SleeperMauReport = ({ startDate, endDate, mauData: propMauData, loading: p
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="8" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>No data found for the selected dates.</td>
+                                        <td colSpan="10" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>No data found for the selected dates.</td>
                                     </tr>
                                 )}
                             </tbody>

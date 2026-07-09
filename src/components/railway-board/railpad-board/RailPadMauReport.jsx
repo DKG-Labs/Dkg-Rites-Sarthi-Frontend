@@ -45,6 +45,8 @@ const RailPadMauReport = ({ mauData = [], loading = false }) => {
         const exportColumns = [
             { label: 'Plant Name', key: 'plantName' },
             { label: 'RITES RIO', key: 'rio' },
+            { label: 'No. of PO', key: 'noOfPos' },
+            { label: 'PO Qty', key: 'poQty' },
             { label: 'Production', key: 'production' },
             { label: 'Acceptance', key: 'acceptance' },
             { label: 'Process Rejection', key: 'processRejection' },
@@ -53,7 +55,11 @@ const RailPadMauReport = ({ mauData = [], loading = false }) => {
             { label: 'Final Rej %', key: 'finalRejPct' },
             { label: 'Total Rej %', key: 'totalRejPct' }
         ];
-        downloadExcel(filteredData, exportColumns, 'Rail_Pad_MAU_Report');
+        const mappedData = filteredData.map(row => ({
+            ...row,
+            poQty: row.poQty !== undefined && row.poQty !== null ? `${row.poQty} ${row.uom || ''}`.trim() : '-'
+        }));
+        downloadExcel(mappedData, exportColumns, 'Rail_Pad_MAU_Report');
     };
 
     return (
@@ -79,6 +85,8 @@ const RailPadMauReport = ({ mauData = [], loading = false }) => {
                         <tr>
                             <th>Plant Name</th>
                             <th>RITES RIO</th>
+                            <th className="text-right">No. of PO</th>
+                            <th className="text-right">PO Qty</th>
                             <th className="text-right">Production</th>
                             <th className="text-right">Acceptance</th>
                             <th className="text-right">Process Rejection</th>
@@ -94,6 +102,8 @@ const RailPadMauReport = ({ mauData = [], loading = false }) => {
                                 <tr key={row.plantName || idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
                                     <td style={{ fontWeight: '600' }}>{row.plantName}</td>
                                     <td>{row.rio}</td>
+                                    <td className="text-right">{row.noOfPos !== undefined && row.noOfPos !== null ? row.noOfPos : '-'}</td>
+                                    <td className="text-right">{row.poQty !== undefined && row.poQty !== null ? `${row.poQty} ${row.uom || ''}`.trim() : '-'}</td>
                                     <td className="text-right">{(row.production || 0).toLocaleString()} Nos.</td>
                                     <td className="text-right font-bold" style={{ color: '#16a34a' }}>{(row.acceptance || 0).toLocaleString()} Nos.</td>
                                     <td className="text-right" style={{ color: '#f59e0b' }}>{(row.processRejection || 0).toLocaleString()} Nos.</td>
@@ -105,7 +115,7 @@ const RailPadMauReport = ({ mauData = [], loading = false }) => {
                             ))
                         ) : (
                             <tr>
-                                <td colSpan="9" className="text-center p-8 text-slate-400">
+                                <td colSpan="11" className="text-center p-8 text-slate-400">
                                     No monthly analysis records found.
                                 </td>
                             </tr>

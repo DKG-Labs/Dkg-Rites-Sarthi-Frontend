@@ -17,6 +17,7 @@ const RailwayBoardDashboard = () => {
 
     const roleName = localStorage.getItem('roleName') || '';
     const isRitesAdmin = roleName === 'Rites Admin' || roleName === 'Rites ADMin' || roleName.includes('Rites Admin') || roleName.includes('Rites ADMin');
+    const isRailwayBoard = roleName === 'RAILWAY_BOARD' || roleName === 'Railway Board' || roleName.includes('Railway Board');
 
     // State for Drill-down (Accordion Style) with Persistence
     const [expandedPo, setExpandedPo] = useState(() => JSON.parse(localStorage.getItem('dash_expandedPo')) || null);
@@ -587,7 +588,9 @@ const RailwayBoardDashboard = () => {
                                         <div className={`report-link ${activeReport === 'mpr' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mpr')}>{selectedProduct === 'ERC' || selectedProduct === 'Rail Pad' ? 'PO Wise Monthly Progress Report' : 'Monthly Progress Report'}</div>
                                         <div className={`report-link ${activeReport === 'mau' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('mau')}>Monthly Analysis of Units</div>
                                         <div className={`report-link ${activeReport === 'lwcl' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('lwcl')}>Lot Wise Closed Loop</div>
-                                        <div className={`report-link ${activeReport === 'swp' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('swp')}>Shift Wise Production Report</div>
+                                        {!isRailwayBoard && (
+                                            <div className={`report-link ${activeReport === 'swp' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('swp')}>Shift Wise Production Report</div>
+                                        )}
                                         {selectedProduct === 'Rail Pad' && (
                                             <div className={`report-link ${activeReport === 'qrp' && activeMainCard === 'reports' ? 'active' : ''}`} onClick={() => handleReportLink('qrp')}>Quality of Rubber Pad Report</div>
                                         )}

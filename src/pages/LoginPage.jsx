@@ -249,7 +249,7 @@ const LoginPage = () => {
           label: 'Sleeper Dashboard',
           description: 'Access Sleeper Process modules',
           icon: '🚄',
-          roleToStore: roles.find(r => r === 'Sleeper Process IE' || r === 'Main IE')
+          roleToStore: roles.includes('Main IE') ? 'Main IE' : 'Sleeper Process IE'
         });
         seenConsolidated.add('Sleeper Process IE');
         seenConsolidated.add('Main IE');
@@ -263,7 +263,7 @@ const LoginPage = () => {
           label: isProcessRole ? 'Railpad Process IE Dashboard' : 'Railpad Dashboard',
           description: isProcessRole ? 'Access Railpad Process IE platform' : 'Access Railpad IE modules',
           icon: '🛤️',
-          roleToStore: 'Railpad IE'
+          roleToStore: roles.includes('Rail Main IE') ? 'Rail Main IE' : (roles.includes('Railpad IE') ? 'Railpad IE' : 'Rail Process IE')
         });
         seenConsolidated.add('Railpad IE');
         seenConsolidated.add('Rail Process IE');

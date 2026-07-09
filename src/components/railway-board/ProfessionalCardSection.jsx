@@ -1740,10 +1740,15 @@ const ProfessionalCardSection = ({
                                                                     <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                                                                         <ExportButton
                                                                             onClick={() => downloadExcel(
-                                                                                displayMauData,
+                                                                                displayMauData.map(row => ({
+                                                                                    ...row,
+                                                                                    poQty: row.poQty !== undefined && row.poQty !== null ? `${row.poQty} ${row.uom || ''}`.trim() : '-'
+                                                                                })),
                                                                                 [
                                                                                     { label: 'Manufacturer', key: 'manufacturer' },
                                                                                     { label: 'RITES RIO', key: 'rio' },
+                                                                                    { label: 'No. of PO', key: 'noOfPos' },
+                                                                                    { label: 'PO Qty', key: 'poQty' },
                                                                                     { label: 'Manufactured', key: 'manufactured' },
                                                                                     { label: 'Inspected', key: 'inspected' },
                                                                                     { label: 'Rejected', key: 'rejected' },
@@ -1763,6 +1768,8 @@ const ProfessionalCardSection = ({
                                                                             <tr className="sortable-header">
                                                                                 <th onClick={() => handleMauSort('manufacturer')}>Manufacturer {renderSortIcon('manufacturer', mauSort)}</th>
                                                                                 <th onClick={() => handleMauSort('rio')}>RITES RIO {renderSortIcon('rio', mauSort)}</th>
+                                                                                <th className="text-right" onClick={() => handleMauSort('noOfPos')}>No. of PO {renderSortIcon('noOfPos', mauSort)}</th>
+                                                                                <th className="text-right" onClick={() => handleMauSort('poQty')}>PO Qty {renderSortIcon('poQty', mauSort)}</th>
                                                                                 <th className="text-right" onClick={() => handleMauSort('manufactured')}>Manufactured {renderSortIcon('manufactured', mauSort)}</th>
                                                                                 <th className="text-right" onClick={() => handleMauSort('inspected')}>Inspected {renderSortIcon('inspected', mauSort)}</th>
                                                                                 <th className="text-right" onClick={() => handleMauSort('rejected')}>Rejected {renderSortIcon('rejected', mauSort)}</th>
@@ -1776,6 +1783,8 @@ const ProfessionalCardSection = ({
                                                                                 <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
                                                                                     <td>{row.manufacturer}</td>
                                                                                     <td>{row.rio || '-'}</td>
+                                                                                    <td className="text-right">{row.noOfPos !== undefined && row.noOfPos !== null ? row.noOfPos : '-'}</td>
+                                                                                    <td className="text-right">{row.poQty !== undefined && row.poQty !== null ? `${row.poQty} ${row.uom || ''}`.trim() : '-'}</td>
                                                                                     <td className="text-right">{row.manufactured}</td>
                                                                                     <td className="text-right">{row.inspected}</td>
                                                                                     <td className="text-right" style={{ color: '#dc2626' }}>{row.rejected}</td>

@@ -7,6 +7,7 @@ import React, { useState, useMemo } from 'react';
 import DataTable from '../../../components/DataTable';
 import StatusBadge from '../../../components/StatusBadge';
 import CallsFilterSection from '../../../components/common/CallsFilterSection';
+import { getDetailedStatus } from '../../../utils/statusMapper';
 import { formatDateTime } from '../utils/helpers';
 
 const DisposedCallsTab = ({ calls = [], onViewHistory }) => {
@@ -78,7 +79,10 @@ const DisposedCallsTab = ({ calls = [], onViewHistory }) => {
       key: 'status',
       label: 'Status',
       sortable: true,
-      render: (value) => <StatusBadge status={value} />
+      render: (_value, row) => {
+        const { mainStatus, combinedText } = getDetailedStatus(row.originalStatus || row.status);
+        return <StatusBadge status={mainStatus} text={combinedText} />;
+      }
     },
     {
       key: 'disposalReason',

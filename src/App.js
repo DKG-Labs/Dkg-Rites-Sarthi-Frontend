@@ -54,8 +54,7 @@ import { AdminDashboardWrapper } from './pages/wrappers/AdminDashboardWrapper';
 import { SmsDashboardWrapper } from './pages/wrappers/SmsWrapper';
 import AnnexurePage from './pages/AnnexurePage';
 import { useNavigate } from 'react-router-dom';
-import RitesAdminDashboard from './pages/RitesAdminDashboard';
-
+import ProfileDashboard from './pages/UserProfile/ProfileDashboard';
 /**
  * Role-based redirect component
  */
@@ -188,6 +187,9 @@ const App = () => {
             {/* Landing Page - with role-based guard (Guard handles IE/Process IE only) */}
             <Route path={ROUTES.LANDING} element={<LandingPageGuard />} />
 
+            {/* Profile Route - Available to all authenticated users */}
+            <Route path={ROUTES.PROFILE} element={<ProfileDashboard />} />
+
             {/* IE & Process IE Restricted Routes */}
             <Route element={<ProtectedRoute allowedRoles={['IE', 'Process IE']} />}>
               {/* Inspection Initiation */}
@@ -236,7 +238,7 @@ const App = () => {
             <Route
               path={ROUTES.CM_DASHBOARD}
               element={
-                <ProtectedRoute allowedRoles={['CM', 'Control Manager', 'Controlling Manager']}>
+                <ProtectedRoute allowedRoles={['CM', 'Control Manager', 'Controlling Manager', 'Rites Admin', 'Rites ADMin']}>
                   <CMDashboardWrapper />
                 </ProtectedRoute>
               }
@@ -273,7 +275,7 @@ const App = () => {
               path={ROUTES.RITES_ADMIN_DASHBOARD}
               element={
                 <ProtectedRoute allowedRoles={['Rites Admin', 'Rites ADMin']}>
-                  <RitesAdminDashboard />
+                  <RailwayBoardDashboardWrapper />
                 </ProtectedRoute>
               }
             />
@@ -282,7 +284,7 @@ const App = () => {
               path="/rites admin"
               element={
                 <ProtectedRoute allowedRoles={['Rites Admin', 'Rites ADMin']}>
-                  <RitesAdminDashboard />
+                  <RailwayBoardDashboardWrapper />
                 </ProtectedRoute>
               }
             />
@@ -290,7 +292,7 @@ const App = () => {
             <Route
               path={ROUTES.ADMIN_DASHBOARD}
               element={
-                <ProtectedRoute allowedRoles={['ADMIN']}>
+                <ProtectedRoute allowedRoles={['ADMIN', 'Admin']}>
                   <AdminDashboardWrapper />
                 </ProtectedRoute>
               }

@@ -111,11 +111,17 @@
     font-size: 12px;
 }
 
+.pwmr-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 25;
+}
+
 .pwmr-table th {
-    background: #f8fafc;
+    background-color: #f8fafc !important;
     color: #475569;
     font-weight: 700;
-    padding: 12px 8px;
+    padding: 8px 8px; /* Reduced vertical padding */
     text-align: center;
     border-bottom: 2px solid #e2e8f0;
     border-right: 1px solid #e2e8f0;
@@ -124,19 +130,6 @@
     letter-spacing: 0.3px;
     white-space: normal;
     vertical-align: middle;
-    position: sticky;
-    top: 0;
-    z-index: 15;
-}
-
-.pwmr-table thead tr:nth-child(2) th {
-    top: 44px;
-    z-index: 14;
-}
-
-.pwmr-table thead tr:nth-child(3) th {
-    top: 80px;
-    z-index: 13;
 }
 
 .pwmr-table th.rejection-main-header {
@@ -161,7 +154,7 @@
 }
 
 .pwmr-table td {
-    padding: 12px 8px;
+    padding: 6px 8px; /* Reduced vertical padding */
     border-bottom: 1px solid #f1f5f9;
     border-right: 1px solid #f1f5f9;
     color: #334155;
@@ -235,6 +228,15 @@
 th.sticky-col {
     z-index: 20;
     background: #f8fafc !important;
+}
+
+/* Zone Grouping Backgrounds */
+td.sticky-col.zone-light {
+    background-color: #ffffff !important;
+}
+
+td.sticky-col.zone-dark {
+    background-color: #e2e8f0 !important;
 }
 
 .col-sno {

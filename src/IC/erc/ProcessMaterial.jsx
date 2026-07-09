@@ -184,6 +184,10 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
 
   const handleExport = async () => {
     if (!printAreaRef.current) return;
+    if (isEditing) {
+      setIsEditing(false);
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
     const sanitizedFilename = (dataToPass.certificateNo || "ProcessMaterialIC").replace(/[/\\?%*:|"<>]/g, '-');
     await exportToPdf(printAreaRef.current, `${sanitizedFilename}.pdf`);
   };
@@ -207,6 +211,12 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
       // }
 
       setNotification({ open: true, message: "Saving edited data...", severity: 'info' });
+      
+      if (isEditing) {
+          setIsEditing(false);
+          await new Promise(resolve => setTimeout(resolve, 300));
+      }
+
       // 2. Save Edited Data to DB
       await saveProcessIcEditData({
           icNumber: dataToPass.certificateNo || call.icNo || call.call_no || "ProcessMaterial_IC",
@@ -293,7 +303,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
             color="success" 
             size="small" 
             onClick={handleSaveIC} 
-            disabled={isESigning}
+            disabled={isESigning || isEditing}
             startIcon={isESigning ? <CircularProgress size={20} color="inherit" /> : null}
           >
             {isESigning ? "SAVING..." : "💾 SAVE IC"}
@@ -303,7 +313,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
             color="primary" 
             size="small" 
             onClick={handleExport} 
-            disabled={isESigning}
+            disabled={isESigning || isEditing}
           >
             Export PDF
           </Button>

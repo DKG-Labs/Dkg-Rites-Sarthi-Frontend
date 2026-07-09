@@ -1,5 +1,5 @@
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import FormField from "../components/FormField";
 import { formatDate, formatPoNoWithSerial, getCleanErrorMessage } from "../utils/helpers";
 import { markAsWithheld } from '../services/callStatusService';
@@ -32,7 +32,7 @@ const WITHHELD_REASONS = [
 const DASHBOARD_DRAFT_KEY = 'fp_dashboard_draft_';
 
 export default function FinalProductDashboard({ onBack, onNavigateToSubModule }) {
-  const { selectedCall, getFpCachedData, updateFpDashboardDataCache } = useInspection();
+  const { selectedCall, getFpCachedData, updateFpDashboardDataCache, capturedImages, setCapturedImages } = useInspection();
 
   // State for live data
   const [poData, setPoData] = useState(null);
@@ -44,24 +44,6 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
   const [pauseSuccessData, setPauseSuccessData] = useState(null); // for pause success modal
   const [pauseErrorData, setPauseErrorData] = useState(null);    // for pause failure modal
   const [showPauseConfirm, setShowPauseConfirm] = useState(false); // for pause confirmation modal
-  
-  // Captured Images state
-  const [capturedImages, setCapturedImages] = useState(() => {
-    try {
-      const callNo = selectedCall?.call_no;
-      if (!callNo) return [];
-      const saved = localStorage.getItem(`fpCapturedImages_${callNo}`);
-      return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
-  });
-
-  // Persist captured images to localStorage
-  useEffect(() => {
-    const callNo = selectedCall?.call_no;
-    if (callNo) {
-      localStorage.setItem(`fpCapturedImages_${callNo}`, JSON.stringify(capturedImages));
-    }
-  }, [capturedImages, selectedCall?.call_no]);
 
   // Calculate Rejected Counts (R1 + R2) per lot from all submodules
   useEffect(() => {
@@ -1027,10 +1009,8 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
             const summary = await getInspectionSummary(callNo);
             if (summary) {
               console.log('✅ Fetched inspection summary from backend:', summary);
-              
               const localPacked = localStorage.getItem(`fpPackedInHDPE_${callNo}`);
               const localCleaned = localStorage.getItem(`fpCleanedWithCoating_${callNo}`);
-              const localImages = localStorage.getItem(`fpCapturedImages_${callNo}`);
 
               if (localPacked === null && summary.packedInHdpe !== undefined) {
                 setPackedInHDPE(summary.packedInHdpe);
@@ -1040,9 +1020,9 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
                 setCleanedWithCoating(summary.cleanedWithCoating);
                 localStorage.setItem(`fpCleanedWithCoating_${callNo}`, String(summary.cleanedWithCoating));
               }
-              if ((!localImages || JSON.parse(localImages).length === 0) && summary.capturedImages && summary.capturedImages.length > 0) {
+
+              if ((!capturedImages || capturedImages.length === 0) && summary.capturedImages && summary.capturedImages.length > 0) {
                 setCapturedImages(summary.capturedImages);
-                localStorage.setItem(`fpCapturedImages_${callNo}`, JSON.stringify(summary.capturedImages));
               }
             }
           } catch (e) {
@@ -1054,6 +1034,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
         console.error('Error restoring form state from localStorage:', error);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCall?.call_no]);
 
   // Persist lot inspection data to localStorage whenever it changes
@@ -1120,6 +1101,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
 
   /* Finish inspection state */
   const [isFinishingInspection, setIsFinishingInspection] = useState(false);
+  const isProcessingFinishRef = useRef(false);
 
   /* Pause inspection state */
   const [isPausingInspection, setIsPausingInspection] = useState(false);
@@ -1371,26 +1353,10 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
       const results = await finishInspection(callNo);
       console.log('✅ Submodule data saved:', results);
 
-      // Step 3: Save to localStorage locally
-      const draftData = {
-        savedAt: new Date().toISOString(),
-        lotInspectionData: lotInspectionData,
-        packedInHDPE: packedInHDPE,
-        cleanedWithCoating: cleanedWithCoating,
-        capturedImages: capturedImages
-      };
-
-      const storageKey = `${DASHBOARD_DRAFT_KEY}${callNo}`;
-      localStorage.setItem(storageKey, JSON.stringify(draftData));
-
-      // Also persist individual form states for recovery on navigation
-      localStorage.setItem(`fpLotInspectionData_${callNo}`, JSON.stringify(lotInspectionData));
-      localStorage.setItem(`fpPackedInHDPE_${callNo}`, String(packedInHDPE));
-      localStorage.setItem(`fpCleanedWithCoating_${callNo}`, String(cleanedWithCoating));
-
-      console.log('✅ Draft and form states saved to localStorage');
+      // Step 3: LocalStorage draft persistence removed
+      // Data is now saved exclusively via backend APIs to prevent quota issues
       
-      let summaryMsg = `✅ Draft saved successfully both locally and to the backend at ${new Date().toLocaleTimeString()}!\n\n`;
+      let summaryMsg = `✅ Draft saved successfully to the backend at ${new Date().toLocaleTimeString()}!\n\n`;
       summaryMsg += `Saved submodules: ${results.success.length}\n`;
       if (results.failed.length > 0) {
         summaryMsg += `⚠️ Failed submodules: ${results.failed.length} (${results.failed.map(f => f.module).join(', ')})`;
@@ -1444,6 +1410,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     } catch (error) {
       console.error('Error loading draft data:', error);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCall?.call_no]);
 
   /* -------------------- FINISH INSPECTION HANDLER -------------------- */
@@ -1470,7 +1437,10 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     );
     if (!confirmed) return;
 
+    if (isProcessingFinishRef.current) return;
+    
     setIsFinishingInspection(true);
+    isProcessingFinishRef.current = true;
 
     try {
       console.log('🚀 Starting finish inspection process for call:', callNo);
@@ -1642,9 +1612,10 @@ Workflow Status: ✅ Transitioned to COMPLETED
     } catch (error) {
       console.error('❌ Error finishing inspection:', error);
       const errorMsg = getCleanErrorMessage(error);
-      alert(`❌ Error: ${errorMsg}`);
+      alert(`❌ Failed to finish inspection: ${errorMsg}`);
     } finally {
       setIsFinishingInspection(false);
+      isProcessingFinishRef.current = false;
     }
   };
 

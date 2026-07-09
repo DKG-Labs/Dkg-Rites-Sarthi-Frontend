@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import ExcelJS from 'exceljs/dist/exceljs.min.js';
 import reportService from '../../services/reportService';
+import Pagination from '../Pagination';
 import './PoWiseMonthlyReport.css';
 
 const PoWiseMonthlyReport = ({ fromDate, toDate }) => {
@@ -7,6 +9,13 @@ const PoWiseMonthlyReport = ({ fromDate, toDate }) => {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [page, setPage] = useState(0);
+    const [size, setSize] = useState(30);
+    const [paginationInfo, setPaginationInfo] = useState({ totalElements: 0, totalPages: 0 });
+
+    useEffect(() => {
+        setPage(0);
+    }, [fromDate, toDate]);
 
     // Fetch PO Wise data from API
     const fetchPoWiseData = useCallback(async (force = false) => {
@@ -16,17 +25,42 @@ const PoWiseMonthlyReport = ({ fromDate, toDate }) => {
             const response = await reportService.getPoWiseReport({
                 startDate: fromDate,
                 endDate: toDate,
+                page: page,
+                size: size,
                 forceRefresh: force === true,
             });
-            const apiData = response.responseData || response || [];
-            setData(Array.isArray(apiData) ? apiData : []);
+            const reportData = response;
+            if (Array.isArray(reportData)) {
+                setData(reportData);
+                setPaginationInfo({ totalElements: reportData.length, totalPages: 1 });
+            } else if (reportData?.responseData?.content && Array.isArray(reportData.responseData.content)) {
+                setData(reportData.responseData.content);
+                setPaginationInfo({ 
+                    totalElements: reportData.responseData.totalElements || 0, 
+                    totalPages: reportData.responseData.totalPages || 0 
+                });
+            } else if (reportData && Array.isArray(reportData.content)) {
+                setData(reportData.content);
+                setPaginationInfo({ 
+                    totalElements: reportData.totalElements || 0, 
+                    totalPages: reportData.totalPages || 0 
+                });
+            } else if (reportData?.responseData && Array.isArray(reportData.responseData)) {
+                setData(reportData.responseData);
+                setPaginationInfo({ totalElements: reportData.responseData.length, totalPages: 1 });
+            } else {
+                console.error("Invalid data format for PoWiseMonthlyReport", reportData);
+                setData([]);
+                setPaginationInfo({ totalElements: 0, totalPages: 0 });
+            }
         } catch (err) {
             console.error('Error fetching PO Wise Report:', err);
             setError('Failed to load PO Wise Report data.');
             setData([]);
+            setPaginationInfo({ totalElements: 0, totalPages: 0 });
         }
         setLoading(false);
-    }, [fromDate, toDate]);
+    }, [fromDate, toDate, page, size]);
 
     useEffect(() => {
         fetchPoWiseData(false);
@@ -41,7 +75,7 @@ const PoWiseMonthlyReport = ({ fromDate, toDate }) => {
             return (
                 (item.zonalRailway || '').toLowerCase().includes(q) ||
                 (item.vendor || '').toLowerCase().includes(q) ||
-                (item.poNo || '').toLowerCase().includes(q)
+                (item.poNumber || '').toLowerCase().includes(q)
             );
         });
 
@@ -60,12 +94,39 @@ const PoWiseMonthlyReport = ({ fromDate, toDate }) => {
         return Object.entries(groups).map(([zone, vendors]) => {
             sNo++;
             const subTotal = {
-                qtyInspected: vendors.reduce((sum, v) => sum + (v.qtyInspected || 0), 0),
-                qtyAccepted: vendors.reduce((sum, v) => sum + (v.qtyAccpeted || 0), 0),
-                totalRejected: vendors.reduce((sum, v) => sum + (v.totalRejected || 0), 0),
+                totalPoQuantity: vendors.reduce((sum, v) => sum + (v.poQty || 0), 0),
+                processInspectedQty: vendors.reduce((sum, v) => sum + (v.processInspectedQty || 0), 0),
+                processAcceptedQty: vendors.reduce((sum, v) => sum + (v.processAcceptedQty || 0), 0),
+                finalOfferedQty: vendors.reduce((sum, v) => sum + (v.offeredForFinalInspectionQty || 0), 0),
+                noOfIcIssued: vendors.reduce((sum, v) => sum + (v.noOfIcIssued || 0), 0),
+                icIssuedQty: vendors.reduce((sum, v) => sum + (v.finalAcceptedQty || 0), 0),
+                totalRejected: vendors.reduce((sum, v) => sum + (v.totalRejectedNos || v.totalRejections || 0), 0),
+                chemicalCompositionRej: vendors.reduce((sum, v) => sum + (v.chemicalCompositionRej || 0), 0),
+                diameterBarRej: vendors.reduce((sum, v) => sum + (v.diameterBarRej || 0), 0),
+                grainSizeRej: vendors.reduce((sum, v) => sum + (v.grainSizeRej || 0), 0),
+                inclusionRatingRej: vendors.reduce((sum, v) => sum + (v.inclusionRatingRej || 0), 0),
+                depthOfDecarbRej: vendors.reduce((sum, v) => sum + (v.depthOfDecarbRej || 0), 0),
+                hardnessRawRej: vendors.reduce((sum, v) => sum + (v.hardnessRawRej || 0), 0),
+                shearingRej: vendors.reduce((sum, v) => sum + (v.shearingRej || 0), 0),
+                mpiRej: vendors.reduce((sum, v) => sum + (v.mpiRej || 0), 0),
+                turningRej: vendors.reduce((sum, v) => sum + (v.turningRej || 0), 0),
+                forgingRej: vendors.reduce((sum, v) => sum + (v.forgingRej || 0), 0),
+                quenchingRej: vendors.reduce((sum, v) => sum + (v.quenchingRej || 0), 0),
+                temperingRej: vendors.reduce((sum, v) => sum + (v.temperingRej || 0), 0),
+                dimensionFinishedErcRej: vendors.reduce((sum, v) => sum + (v.dimensionFinishedErcRej || 0), 0),
+                hardnessProcessRej: vendors.reduce((sum, v) => sum + (v.hardnessProcessRej || 0), 0),
+                depthOfDecarburizationRej: vendors.reduce((sum, v) => sum + (v.depthOfDecarburizationRej || 0), 0),
+                dimensionToleranceRej: vendors.reduce((sum, v) => sum + (v.dimensionToleranceRej || 0), 0),
+                applicationAndDeflectionTestRej: vendors.reduce((sum, v) => sum + (v.applicationAndDeflectionTestRej || 0), 0),
+                toeLoadTestRej: vendors.reduce((sum, v) => sum + (v.toeLoadTestRej || 0), 0),
+                weightRej: vendors.reduce((sum, v) => sum + (v.weightRej || 0), 0),
+                visualTestRej: vendors.reduce((sum, v) => sum + (v.visualTestRej || 0), 0),
+                microStructureRej: vendors.reduce((sum, v) => sum + (v.microStructureRej || 0), 0),
+                freedomFromDefectsRej: vendors.reduce((sum, v) => sum + (v.freedomFromDefectsRej || 0), 0),
+                otherRejections: vendors.reduce((sum, v) => sum + (v.otherRejections || 0), 0),
             };
-            subTotal.percentage = subTotal.qtyInspected > 0
-                ? ((subTotal.totalRejected / subTotal.qtyInspected) * 100).toFixed(2) + '%'
+            subTotal.percentage = subTotal.processInspectedQty > 0
+                ? ((subTotal.totalRejected / subTotal.processInspectedQty) * 100).toFixed(2) + '%'
                 : '0.00%';
 
             return {
@@ -97,17 +158,71 @@ const PoWiseMonthlyReport = ({ fromDate, toDate }) => {
     // Compute grand total
     const grandTotal = React.useMemo(() => {
         const total = {
-            qtyInspected: 0,
-            qtyAccepted: 0,
+            totalPoQuantity: 0,
+            processInspectedQty: 0,
+            processAcceptedQty: 0,
+            finalOfferedQty: 0,
+            noOfIcIssued: 0,
+            icIssuedQty: 0,
             totalRejected: 0,
+            chemicalCompositionRej: 0,
+            diameterBarRej: 0,
+            grainSizeRej: 0,
+            inclusionRatingRej: 0,
+            depthOfDecarbRej: 0,
+            hardnessRawRej: 0,
+            shearingRej: 0,
+            mpiRej: 0,
+            turningRej: 0,
+            forgingRej: 0,
+            quenchingRej: 0,
+            temperingRej: 0,
+            dimensionFinishedErcRej: 0,
+            hardnessProcessRej: 0,
+            depthOfDecarburizationRej: 0,
+            dimensionToleranceRej: 0,
+            applicationAndDeflectionTestRej: 0,
+            toeLoadTestRej: 0,
+            weightRej: 0,
+            visualTestRej: 0,
+            microStructureRej: 0,
+            freedomFromDefectsRej: 0,
+            otherRejections: 0,
         };
         groupedData.forEach(zone => {
-            total.qtyInspected += zone.subTotal.qtyInspected;
-            total.qtyAccepted += zone.subTotal.qtyAccepted;
+            total.totalPoQuantity += zone.subTotal.totalPoQuantity;
+            total.processInspectedQty += zone.subTotal.processInspectedQty;
+            total.processAcceptedQty += zone.subTotal.processAcceptedQty;
+            total.finalOfferedQty += zone.subTotal.finalOfferedQty;
+            total.noOfIcIssued += zone.subTotal.noOfIcIssued;
+            total.icIssuedQty += zone.subTotal.icIssuedQty;
             total.totalRejected += zone.subTotal.totalRejected;
+            total.chemicalCompositionRej += zone.subTotal.chemicalCompositionRej;
+            total.diameterBarRej += zone.subTotal.diameterBarRej;
+            total.grainSizeRej += zone.subTotal.grainSizeRej;
+            total.inclusionRatingRej += zone.subTotal.inclusionRatingRej;
+            total.depthOfDecarbRej += zone.subTotal.depthOfDecarbRej;
+            total.hardnessRawRej += zone.subTotal.hardnessRawRej;
+            total.shearingRej += zone.subTotal.shearingRej;
+            total.mpiRej += zone.subTotal.mpiRej;
+            total.turningRej += zone.subTotal.turningRej;
+            total.forgingRej += zone.subTotal.forgingRej;
+            total.quenchingRej += zone.subTotal.quenchingRej;
+            total.temperingRej += zone.subTotal.temperingRej;
+            total.dimensionFinishedErcRej += zone.subTotal.dimensionFinishedErcRej;
+            total.hardnessProcessRej += zone.subTotal.hardnessProcessRej;
+            total.depthOfDecarburizationRej += zone.subTotal.depthOfDecarburizationRej;
+            total.dimensionToleranceRej += zone.subTotal.dimensionToleranceRej;
+            total.applicationAndDeflectionTestRej += zone.subTotal.applicationAndDeflectionTestRej;
+            total.toeLoadTestRej += zone.subTotal.toeLoadTestRej;
+            total.weightRej += zone.subTotal.weightRej;
+            total.visualTestRej += zone.subTotal.visualTestRej;
+            total.microStructureRej += zone.subTotal.microStructureRej;
+            total.freedomFromDefectsRej += zone.subTotal.freedomFromDefectsRej;
+            total.otherRejections += zone.subTotal.otherRejections;
         });
-        total.percentage = total.qtyInspected > 0
-            ? ((total.totalRejected / total.qtyInspected) * 100).toFixed(2) + '%'
+        total.percentage = total.processInspectedQty > 0
+            ? ((total.totalRejected / total.processInspectedQty) * 100).toFixed(2) + '%'
             : '0.00%';
         return total;
     }, [groupedData]);
@@ -125,7 +240,7 @@ const PoWiseMonthlyReport = ({ fromDate, toDate }) => {
     };
 
     // Export to Excel
-    const handleExportExcel = () => {
+    const handleExportExcel = async () => {
         if (!data || data.length === 0) return;
 
         const rows = [];
@@ -134,45 +249,91 @@ const PoWiseMonthlyReport = ({ fromDate, toDate }) => {
                 rows.push({
                     'Zonal Railway': zone.zonalRailway,
                     'Vendor': v.vendor || '',
-                    'Type of ERC': v.typeOfErc || '',
-                    'PO No.': v.poNo || '',
-                    'PO Date': formatPoDate(v.poDate),
-                    'Qty Inspected': v.qtyInspected || 0,
-                    'Qty Accepted': v.qtyAccpeted || 0,
-                    'Total Rejected': v.totalRejected || 0,
-                    'RM - VM Defect': v.rmVmDefect || 0,
-                    'RM - Dimensional': v.rmDimentionalDefect || 0,
-                    'RM - Inclusion': v.rmInclusionDefect || 0,
-                    'RM - Grain Size': v.rmGrainSizeDefect || 0,
-                    'RM - Decarb': v.rmDecarbDefect || 0,
-                    'Shearing Rej': v.processQty?.shearingRejectionQty || 0,
-                    'Turning Rej': v.processQty?.turningRejectionQty || 0,
-                    'MPI Rej': v.processQty?.mpiRejectionQty || 0,
-                    'Forging Rej': v.processQty?.forgingRejectionQty || 0,
-                    'Quenching Rej': v.processQty?.quenchingRejectionQty || 0,
-                    'Tempering Rej': v.processQty?.temperingRejectionQty || 0,
-                    'Final - Visual/Dim': v.finalVisualDimDefect || 0,
-                    'Final - Hardness': v.finalHardnessDefect || 0,
-                    'Final - Inclusion': v.finalInclusionDefect || 0,
-                    'Final - Deflection': v.finalDeflectionDefect || 0,
-                    'Final - Toe Load': v.finalToeLoadDefect || 0,
+                    'Type of ERCs': v.ercType || '',
+                    'P.O. No. & Date': `${v.poNumber || ''} Dt:${formatPoDate(v.poDate)}`,
+                    'Specification': v.specification || '',
+                    'Total P.O. Quantity': v.poQty || 0,
+                    'Qty Inspected (Process)': v.processInspectedQty || 0,
+                    'Qty Accepted (Process)': v.processAcceptedQty || 0,
+                    'Qty Offered (Final)': v.offeredForFinalInspectionQty || 0,
+                    'No. of IC Issued': v.noOfIcIssued || 0,
+                    'IC Issued Qty': v.finalAcceptedQty || 0,
+                    'Last Date of IC': formatPoDate(v.lastIcIssuedDate) || '',
+                    'Total Rejected': v.totalRejectedNos || v.totalRejections || 0,
+                    'Chemical composition': v.chemicalCompositionRej || 0,
+                    'Diameter of bar': v.diameterBarRej || 0,
+                    'Grain size': v.grainSizeRej || 0,
+                    'Inclusion rating': v.inclusionRatingRej || 0,
+                    'Depth of decarb.': v.depthOfDecarbRej || 0,
+                    'Hardness (RM)': v.hardnessRawRej || 0,
+                    'Shearing Rej': v.shearingRej || 0,
+                    'MPI Rej': v.mpiRej || 0,
+                    'Turning Rej': v.turningRej || 0,
+                    'Forging Rej': v.forgingRej || 0,
+                    'Quenching Rej': v.quenchingRej || 0,
+                    'Tempering Rej': v.temperingRej || 0,
+                    'Dimension (Finished ERC)': v.dimensionFinishedErcRej || 0,
+                    'Hardness (Process)': v.hardnessProcessRej || 0,
+                    'Final - Depth of Decarburization': v.depthOfDecarburizationRej || 0,
+                    'Final - Dimension tolerance': v.dimensionToleranceRej || 0,
+                    'Final - Application & Deflection test': v.applicationAndDeflectionTestRej || 0,
+                    'Final - Toe Load test': v.toeLoadTestRej || 0,
+                    'Final - Weight': v.weightRej || 0,
+                    'Final - Visual test': v.visualTestRej || 0,
+                    'Final - Micro Structure': v.microStructureRej || 0,
+                    'Final - Freedom from defects': v.freedomFromDefectsRej || 0,
+                    'Final - Other rejections': v.otherRejections || 0,
+                    'Remarks': v.remarks || '',
                 });
             });
         });
 
-        // Simple CSV export
+        // ExcelJS export
         if (rows.length === 0) return;
-        const headers = Object.keys(rows[0]);
-        const csv = [
-            headers.join(','),
-            ...rows.map(row => headers.map(h => `"${row[h]}"`).join(','))
-        ].join('\n');
+        
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Report');
 
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const displayTitle = 'PO Wise Monthly Progress Report';
+        const titleRow = worksheet.addRow([displayTitle]);
+        titleRow.font = { bold: true, size: 14 };
+
+        const headers = Object.keys(rows[0]);
+        if (headers.length > 1) {
+            worksheet.mergeCells(1, 1, 1, headers.length);
+        }
+
+        worksheet.addRow([]);
+
+        const headerRow = worksheet.addRow(headers);
+        headerRow.font = { bold: true };
+        headerRow.eachCell(cell => {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
+            cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+        });
+
+        rows.forEach(rowObj => {
+            worksheet.addRow(headers.map(h => rowObj[h]));
+        });
+
+        worksheet.columns.forEach(column => {
+            let maxLength = 0;
+            column.eachCell({ includeEmpty: true }, cell => {
+                let columnLength = cell.value ? cell.value.toString().length : 10;
+                if (columnLength > maxLength) maxLength = columnLength;
+            });
+            column.width = maxLength < 10 ? 10 : maxLength + 2;
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = `PO_Wise_Quality_Report_${new Date().toISOString().split('T')[0]}.csv`;
+        link.download = `PO_Wise_Quality_Report_${new Date().toISOString().split('T')[0]}.xlsx`;
+        link.style.display = 'none';
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
     };
 
     return (
@@ -220,39 +381,53 @@ const PoWiseMonthlyReport = ({ fromDate, toDate }) => {
                                 <th rowSpan="3" className="sticky-col col-sno">S.No.</th>
                                 <th rowSpan="3" className="sticky-col col-railway">Zonal Railway</th>
                                 <th rowSpan="3" className="sticky-col col-vendor">Vendor</th>
-                                <th rowSpan="3" className="col-type">Type of ERC</th>
+                                <th rowSpan="3" className="col-type">Type of ERCs<br/>(eg. ERC MK-V)</th>
                                 <th rowSpan="3">P.O. No. & Date</th>
-                                <th rowSpan="3">Quantity Inspected</th>
-                                <th rowSpan="3">Quantity Accepted</th>
-                                <th colSpan="17" className="rejection-main-header">No. of ERC rejected & reasons for rejection</th>
+                                <th rowSpan="3" style={{ minWidth: '180px' }}>Specification (T-31-2025- Sixth Revision/ T-31-2021) Mention the specification</th>
+                                <th rowSpan="3" style={{ minWidth: '130px' }}>Total P.O. Quantity for Process Inspection</th>
+                                <th rowSpan="3" style={{ minWidth: '130px' }}>Quantity Inspected in Process inspection</th>
+                                <th rowSpan="3" style={{ minWidth: '130px' }}>Quantity Accepted in Process inspection</th>
+                                <th rowSpan="3" style={{ minWidth: '130px' }}>Quantity offered for final inspection</th>
+                                <th rowSpan="3" style={{ minWidth: '110px' }}>No. of IC Issued for this PO</th>
+                                <th rowSpan="3" style={{ minWidth: '140px' }}>IC Issued Qty. (Accepted in Final inspection)</th>
+                                <th rowSpan="3" style={{ minWidth: '130px' }}>Last Date of IC Issued for final inspection</th>
+                                <th colSpan="24" className="rejection-main-header">No. of ERC rejected & reasons for rejection</th>
+                                <th rowSpan="3">Remarks, if any</th>
                                 <th rowSpan="3">%age rejection</th>
                             </tr>
                             <tr>
                                 <th rowSpan="2">Total Nos.</th>
-                                <th colSpan="5" className="rm-check-header">Raw Material Check</th>
-                                <th colSpan="6" className="process-header">Process</th>
-                                <th colSpan="5" className="acceptance-header">Final Acceptance</th>
+                                <th colSpan="6" className="rm-check-header">Raw material check</th>
+                                <th colSpan="8" className="process-header">Processs</th>
+                                <th colSpan="9" className="acceptance-header">Acceptance (Final)</th>
                             </tr>
                             <tr>
                                 {/* Raw Material Check */}
-                                <th>VM Defect</th>
-                                <th>Dimensional</th>
-                                <th>Inclusion</th>
-                                <th>Grain Size</th>
-                                <th>Decarb</th>
+                                <th>Chemical composition</th>
+                                <th>Diameter of bar</th>
+                                <th>Grain size</th>
+                                <th>Inclusion rating</th>
+                                <th>Depth of decarb.</th>
+                                <th>Hardness</th>
                                 {/* Process */}
                                 <th>Shearing</th>
-                                <th>Turning</th>
                                 <th>MPI</th>
+                                <th>Turning</th>
                                 <th>Forging</th>
                                 <th>Quenching</th>
                                 <th>Tempering</th>
-                                {/* Final Acceptance */}
-                                <th>Visual/Dim</th>
+                                <th>Dimension (finished ERC)</th>
                                 <th>Hardness</th>
-                                <th>Inclusion</th>
-                                <th>Deflection</th>
-                                <th>Toe Load</th>
+                                {/* Final Acceptance */}
+                                <th>Depth of Decarburization</th>
+                                <th>Dimension tolerance</th>
+                                <th>Application & Deflection test</th>
+                                <th>Toe Load test</th>
+                                <th>Weight</th>
+                                <th>Visual test</th>
+                                <th>Micro Structure</th>
+                                <th>Freedom from defects</th>
+                                <th>Other rejections</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -261,57 +436,102 @@ const PoWiseMonthlyReport = ({ fromDate, toDate }) => {
                                     {zone.vendors.map((vendor, vIdx) => (
                                         <tr key={`${zIdx}-${vIdx}`} className={vIdx % 2 === 0 ? 'row-even' : 'row-odd'}>
                                             {vIdx === 0 && (
-                                                <td rowSpan={zone.vendors.length + 1} className="text-center font-bold sticky-col col-sno">
+                                                <td rowSpan={zone.vendors.length + 1} className={`text-center font-bold sticky-col col-sno ${zone.sNo % 2 === 0 ? 'zone-dark' : 'zone-light'}`}>
                                                     {zone.sNo}
                                                 </td>
                                             )}
                                             {vIdx === 0 && (
-                                                <td rowSpan={zone.vendors.length + 1} className="text-center font-bold sticky-col col-railway">
+                                                <td rowSpan={zone.vendors.length + 1} className={`text-center font-bold sticky-col col-railway ${zone.sNo % 2 === 0 ? 'zone-dark' : 'zone-light'}`}>
                                                     {zone.zonalRailway}
                                                 </td>
                                             )}
                                             <td className="sticky-col col-vendor">{vendor.vendor}</td>
-                                            <td className="col-type">{vendor.typeOfErc}</td>
-                                            <td className="nowrap">{vendor.poNo}<br/><span className="po-date">Dt:{formatPoDate(vendor.poDate)}</span></td>
-                                            <td className="text-right">{(vendor.qtyInspected || 0).toLocaleString()}</td>
-                                            <td className="text-right">{(vendor.qtyAccpeted || 0).toLocaleString()}</td>
-                                            <td className="text-right font-bold text-red-600">{fmt(vendor.totalRejected)}</td>
+                                            <td className="col-type">{vendor.ercType}</td>
+                                            <td className="nowrap">{vendor.poNumber}<br/><span className="po-date">Dt:{formatPoDate(vendor.poDate)}</span></td>
+                                            <td className="text-center">{vendor.specification || ''}</td>
+                                            <td className="text-right">{(vendor.poQty || 0).toLocaleString()}</td>
+                                            <td className="text-right">{(vendor.processInspectedQty || 0).toLocaleString()}</td>
+                                            <td className="text-right">{(vendor.processAcceptedQty || 0).toLocaleString()}</td>
+                                            <td className="text-right">{(vendor.offeredForFinalInspectionQty || 0).toLocaleString()}</td>
+                                            <td className="text-right">{(vendor.noOfIcIssued || 0).toLocaleString()}</td>
+                                            <td className="text-right">{(vendor.finalAcceptedQty || 0).toLocaleString()}</td>
+                                            <td className="text-center">{formatPoDate(vendor.lastIcIssuedDate) || ''}</td>
+                                            <td className="text-right font-bold text-red-600">{fmt(vendor.totalRejectedNos ?? vendor.totalRejections)}</td>
                                             {/* Raw Material Check */}
-                                            <td className="text-right">{fmt(vendor.rmVmDefect)}</td>
-                                            <td className="text-right">{fmt(vendor.rmDimentionalDefect)}</td>
-                                            <td className="text-right">{fmt(vendor.rmInclusionDefect)}</td>
-                                            <td className="text-right">{fmt(vendor.rmGrainSizeDefect)}</td>
-                                            <td className="text-right">{fmt(vendor.rmDecarbDefect)}</td>
+                                            <td className="text-right">{fmt(vendor.chemicalCompositionRej)}</td>
+                                            <td className="text-right">{fmt(vendor.diameterBarRej)}</td>
+                                            <td className="text-right">{fmt(vendor.grainSizeRej)}</td>
+                                            <td className="text-right">{fmt(vendor.inclusionRatingRej)}</td>
+                                            <td className="text-right">{fmt(vendor.depthOfDecarbRej)}</td>
+                                            <td className="text-right">{fmt(vendor.hardnessRawRej)}</td>
                                             {/* Process Rejections */}
-                                            <td className="text-right">{fmt(vendor.processQty?.shearingRejectionQty)}</td>
-                                            <td className="text-right">{fmt(vendor.processQty?.turningRejectionQty)}</td>
-                                            <td className="text-right">{fmt(vendor.processQty?.mpiRejectionQty)}</td>
-                                            <td className="text-right">{fmt(vendor.processQty?.forgingRejectionQty)}</td>
-                                            <td className="text-right">{fmt(vendor.processQty?.quenchingRejectionQty)}</td>
-                                            <td className="text-right">{fmt(vendor.processQty?.temperingRejectionQty)}</td>
+                                            <td className="text-right">{fmt(vendor.shearingRej)}</td>
+                                            <td className="text-right">{fmt(vendor.mpiRej)}</td>
+                                            <td className="text-right">{fmt(vendor.turningRej)}</td>
+                                            <td className="text-right">{fmt(vendor.forgingRej)}</td>
+                                            <td className="text-right">{fmt(vendor.quenchingRej)}</td>
+                                            <td className="text-right">{fmt(vendor.temperingRej)}</td>
+                                            <td className="text-right">{fmt(vendor.dimensionFinishedErcRej)}</td>
+                                            <td className="text-right">{fmt(vendor.hardnessProcessRej)}</td>
                                             {/* Final Acceptance */}
-                                            <td className="text-right">{fmt(vendor.finalVisualDimDefect)}</td>
-                                            <td className="text-right">{fmt(vendor.finalHardnessDefect)}</td>
-                                            <td className="text-right">{fmt(vendor.finalInclusionDefect)}</td>
-                                            <td className="text-right">{fmt(vendor.finalDeflectionDefect)}</td>
-                                            <td className="text-right">{fmt(vendor.finalToeLoadDefect)}</td>
+                                            <td className="text-right">{fmt(vendor.depthOfDecarburizationRej)}</td>
+                                            <td className="text-right">{fmt(vendor.dimensionToleranceRej)}</td>
+                                            <td className="text-right">{fmt(vendor.applicationAndDeflectionTestRej)}</td>
+                                            <td className="text-right">{fmt(vendor.toeLoadTestRej)}</td>
+                                            <td className="text-right">{fmt(vendor.weightRej)}</td>
+                                            <td className="text-right">{fmt(vendor.visualTestRej)}</td>
+                                            <td className="text-right">{fmt(vendor.microStructureRej)}</td>
+                                            <td className="text-right">{fmt(vendor.freedomFromDefectsRej)}</td>
+                                            <td className="text-right">{fmt(vendor.otherRejections)}</td>
+                                            <td className="text-left">{vendor.remarks || ''}</td>
                                             {/* Rejection % */}
                                             <td className="text-right font-bold">
-                                                {vendor.agePercentage != null
-                                                    ? Number(vendor.agePercentage).toFixed(2) + '%'
-                                                    : vendor.qtyInspected > 0
-                                                        ? ((vendor.totalRejected / vendor.qtyInspected) * 100).toFixed(2) + '%'
+                                                {vendor.rejectionPercentage != null
+                                                    ? Number(vendor.rejectionPercentage).toFixed(2) + '%'
+                                                    : vendor.processInspectedQty > 0
+                                                        ? (((vendor.totalRejectedNos ?? vendor.totalRejections ?? 0) / vendor.processInspectedQty) * 100).toFixed(2) + '%'
                                                         : '0.00%'
                                                 }
                                             </td>
                                         </tr>
                                     ))}
                                     <tr className="subtotal-row">
-                                        <td colSpan="3" className="text-right font-bold">Sub Total</td>
-                                        <td className="text-right font-bold">{zone.subTotal.qtyInspected.toLocaleString()}</td>
-                                        <td className="text-right font-bold">{zone.subTotal.qtyAccepted.toLocaleString()}</td>
+                                        <td colSpan="4" className="text-right font-bold sticky-col" style={{ left: 150, zIndex: 10 }}>Sub Total</td>
+                                        <td className="text-right font-bold">{zone.subTotal.totalPoQuantity ? zone.subTotal.totalPoQuantity.toLocaleString() : ''}</td>
+                                        <td className="text-right font-bold">{zone.subTotal.processInspectedQty ? zone.subTotal.processInspectedQty.toLocaleString() : ''}</td>
+                                        <td className="text-right font-bold">{zone.subTotal.processAcceptedQty ? zone.subTotal.processAcceptedQty.toLocaleString() : ''}</td>
+                                        <td className="text-right font-bold">{zone.subTotal.finalOfferedQty ? zone.subTotal.finalOfferedQty.toLocaleString() : ''}</td>
+                                        <td className="text-right font-bold">{zone.subTotal.noOfIcIssued ? zone.subTotal.noOfIcIssued.toLocaleString() : ''}</td>
+                                        <td className="text-right font-bold">{zone.subTotal.icIssuedQty ? zone.subTotal.icIssuedQty.toLocaleString() : ''}</td>
+                                        <td></td>
                                         <td className="text-right font-bold text-red-600">{fmt(zone.subTotal.totalRejected)}</td>
-                                        <td colSpan="16"></td>
+                                        {/* RM */}
+                                        <td className="text-right font-bold">{fmt(zone.subTotal.chemicalCompositionRej)}</td>
+                                        <td className="text-right font-bold">{fmt(zone.subTotal.diameterBarRej)}</td>
+                                        <td className="text-right font-bold">{fmt(zone.subTotal.grainSizeRej)}</td>
+                                        <td className="text-right font-bold">{fmt(zone.subTotal.inclusionRatingRej)}</td>
+                                        <td className="text-right font-bold">{fmt(zone.subTotal.depthOfDecarbRej)}</td>
+                                        <td className="text-right font-bold">{fmt(zone.subTotal.hardnessRawRej)}</td>
+                                        {/* Process */}
+                                        <td className="text-right font-bold">{fmt(zone.subTotal.shearingRej)}</td>
+                                        <td className="text-right font-bold">{fmt(zone.subTotal.mpiRej)}</td>
+                                        <td className="text-right font-bold">{fmt(zone.subTotal.turningRej)}</td>
+                                        <td className="text-right font-bold">{fmt(zone.subTotal.forgingRej)}</td>
+                                        <td className="text-right font-bold">{fmt(zone.subTotal.quenchingRej)}</td>
+                                        <td className="text-right font-bold">{fmt(zone.subTotal.temperingRej)}</td>
+                                        <td className="text-right font-bold">{fmt(zone.subTotal.dimensionFinishedErcRej)}</td>
+                                        <td className="text-right font-bold">{fmt(zone.subTotal.hardnessProcessRej)}</td>
+                                        {/* Final */}
+                                        <td className="text-right font-bold">{fmt(zone.subTotal.depthOfDecarburizationRej)}</td>
+                                        <td className="text-right font-bold">{fmt(zone.subTotal.dimensionToleranceRej)}</td>
+                                        <td className="text-right font-bold">{fmt(zone.subTotal.applicationAndDeflectionTestRej)}</td>
+                                        <td className="text-right font-bold">{fmt(zone.subTotal.toeLoadTestRej)}</td>
+                                        <td className="text-right font-bold">{fmt(zone.subTotal.weightRej)}</td>
+                                        <td className="text-right font-bold">{fmt(zone.subTotal.visualTestRej)}</td>
+                                        <td className="text-right font-bold">{fmt(zone.subTotal.microStructureRej)}</td>
+                                        <td className="text-right font-bold">{fmt(zone.subTotal.freedomFromDefectsRej)}</td>
+                                        <td className="text-right font-bold">{fmt(zone.subTotal.otherRejections)}</td>
+                                        <td></td> {/* Remarks subtotal empty */}
                                         <td className="text-right font-bold">{zone.subTotal.percentage}</td>
                                     </tr>
                                 </React.Fragment>
@@ -319,18 +539,63 @@ const PoWiseMonthlyReport = ({ fromDate, toDate }) => {
                             {/* Grand Total */}
                             {groupedData.length > 0 && (
                                 <tr className="grand-total-row">
-                                    <td colSpan="3" className="text-center font-bold sticky-col" style={{ left: 0 }}>Grand Total</td>
-                                    <td colSpan="2" className="text-right font-bold"></td>
-                                    <td className="text-right font-bold">{grandTotal.qtyInspected.toLocaleString()}</td>
-                                    <td className="text-right font-bold">{grandTotal.qtyAccepted.toLocaleString()}</td>
+                                    <td colSpan="4" className="text-right font-bold sticky-col" style={{ left: 150, zIndex: 10 }}>Grand Total</td>
+                                    <td className="text-right font-bold">{grandTotal.totalPoQuantity.toLocaleString()}</td>
+                                    <td className="text-right font-bold">{grandTotal.processInspectedQty.toLocaleString()}</td>
+                                    <td className="text-right font-bold">{grandTotal.processAcceptedQty.toLocaleString()}</td>
+                                    <td className="text-right font-bold">{grandTotal.finalOfferedQty.toLocaleString()}</td>
+                                    <td className="text-right font-bold">{grandTotal.noOfIcIssued.toLocaleString()}</td>
+                                    <td className="text-right font-bold">{grandTotal.icIssuedQty.toLocaleString()}</td>
+                                    <td></td>
                                     <td className="text-right font-bold text-red-600">{fmt(grandTotal.totalRejected)}</td>
-                                    <td colSpan="16"></td>
+                                    {/* RM */}
+                                    <td className="text-right font-bold">{fmt(grandTotal.chemicalCompositionRej)}</td>
+                                    <td className="text-right font-bold">{fmt(grandTotal.diameterBarRej)}</td>
+                                    <td className="text-right font-bold">{fmt(grandTotal.grainSizeRej)}</td>
+                                    <td className="text-right font-bold">{fmt(grandTotal.inclusionRatingRej)}</td>
+                                    <td className="text-right font-bold">{fmt(grandTotal.depthOfDecarbRej)}</td>
+                                    <td className="text-right font-bold">{fmt(grandTotal.hardnessRawRej)}</td>
+                                    {/* Process */}
+                                    <td className="text-right font-bold">{fmt(grandTotal.shearingRej)}</td>
+                                    <td className="text-right font-bold">{fmt(grandTotal.mpiRej)}</td>
+                                    <td className="text-right font-bold">{fmt(grandTotal.turningRej)}</td>
+                                    <td className="text-right font-bold">{fmt(grandTotal.forgingRej)}</td>
+                                    <td className="text-right font-bold">{fmt(grandTotal.quenchingRej)}</td>
+                                    <td className="text-right font-bold">{fmt(grandTotal.temperingRej)}</td>
+                                    <td className="text-right font-bold">{fmt(grandTotal.dimensionFinishedErcRej)}</td>
+                                    <td className="text-right font-bold">{fmt(grandTotal.hardnessProcessRej)}</td>
+                                    {/* Final */}
+                                    <td className="text-right font-bold">{fmt(grandTotal.depthOfDecarburizationRej)}</td>
+                                    <td className="text-right font-bold">{fmt(grandTotal.dimensionToleranceRej)}</td>
+                                    <td className="text-right font-bold">{fmt(grandTotal.applicationAndDeflectionTestRej)}</td>
+                                    <td className="text-right font-bold">{fmt(grandTotal.toeLoadTestRej)}</td>
+                                    <td className="text-right font-bold">{fmt(grandTotal.weightRej)}</td>
+                                    <td className="text-right font-bold">{fmt(grandTotal.visualTestRej)}</td>
+                                    <td className="text-right font-bold">{fmt(grandTotal.microStructureRej)}</td>
+                                    <td className="text-right font-bold">{fmt(grandTotal.freedomFromDefectsRej)}</td>
+                                    <td className="text-right font-bold">{fmt(grandTotal.otherRejections)}</td>
+                                    <td></td> {/* Remarks */}
                                     <td className="text-right font-bold">{grandTotal.percentage}</td>
                                 </tr>
                             )}
                         </tbody>
                     </table>
                 </div>
+            )}
+            {groupedData.length > 0 && !loading && (
+                <Pagination
+                    currentPage={page}
+                    totalPages={paginationInfo.totalPages || 1}
+                    start={page * size + 1}
+                    end={Math.min((page + 1) * size, paginationInfo.totalElements)}
+                    totalCount={paginationInfo.totalElements}
+                    onPageChange={(newPage) => setPage(newPage)}
+                    rows={size}
+                    onRowsChange={(newSize) => {
+                        setSize(newSize);
+                        setPage(0);
+                    }}
+                />
             )}
         </div>
     );

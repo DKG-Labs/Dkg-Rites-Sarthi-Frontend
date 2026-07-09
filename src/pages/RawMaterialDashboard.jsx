@@ -68,7 +68,9 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     getRmCachedData,
     updateRmPoDataCache,
     updateRmCallDataCache,
-    updateRmHeatDataCache
+    updateRmHeatDataCache,
+    capturedImages,
+    setCapturedImages
   } = useInspection();
 
   // State for fetched data from backend
@@ -203,19 +205,10 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
   // Finish Inspection state
   const [isSaving, setIsSaving] = useState(false);
+  const isProcessingFinishRef = useRef(false);
 
   // Save Draft state
   const [isSavingDraft, setIsSavingDraft] = useState(false);
-
-  // Captured Images state
-  const [capturedImages, setCapturedImages] = useState(() => {
-    try {
-      const callNo = call?.call_no;
-      if (!callNo) return [];
-      const saved = localStorage.getItem(`${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}${getShiftSuffix()}`);
-      return saved ? (JSON.parse(saved).capturedImages || []) : [];
-    } catch { return []; }
-  });
 
   // Withheld modal state
   const [showWithheldModal, setShowWithheldModal] = useState(false);
@@ -821,17 +814,8 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
         // 8. Restore Captured Images
         if (pausedData.capturedImages && pausedData.capturedImages.length > 0) {
-          const mainKey = `${STORAGE_KEYS.MAIN_INSPECTION}_${callNo}${getShiftSuffix()}`;
-          const existingRaw = localStorage.getItem(mainKey);
-          const existingData = existingRaw ? JSON.parse(existingRaw) : {};
-          if (!existingData.capturedImages || existingData.capturedImages.length === 0) {
-            existingData.capturedImages = pausedData.capturedImages;
-            localStorage.setItem(mainKey, JSON.stringify(existingData));
-            const storageKey = `${DASHBOARD_DRAFT_KEY}${callNo}${getShiftSuffix()}`;
-            localStorage.setItem(storageKey, JSON.stringify(existingData));
-            setCapturedImages(pausedData.capturedImages);
-            restoredAny = true;
-          }
+          setCapturedImages(pausedData.capturedImages);
+          restoredAny = true;
         }
 
         if (restoredAny) {
@@ -843,6 +827,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       }
     };
     restorePausedData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [call?.call_no, isVisualDataEmpty, isDimDataEmpty, isMaterialDataEmpty, isPackingDataEmpty, isCalibrationDataEmpty, consolidatedHeats]);
 
 
@@ -857,19 +842,19 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
   /**
    * Calculate No. of ERC (Finished) based on product model
-   * MK-V:   Weight / 0.00114 (weight per clip in MT)
-   * ERC-J:  Weight * 1000 / 0.928 (weight per clip in MT)
-   * MK-III: Weight / 0.000092 (weight per clip in MT)
+   * MK-V:   (Weight * 1000) / 1.133
+   * ERC-J:  (Weight * 1000) / 0.928
+   * MK-III: (Weight * 1000) / 0.928426
    */
   const numberOfERC = useMemo(() => {
     const weightMT = parseFloat(totalQuantity) || 0;
     if (productModel === 'MK-V') {
-      return Math.floor(weightMT / 0.00114);
+      return Math.floor((weightMT * 1000) / 1.133);
     } else if (productModel === 'ERC-J') {
       return Math.floor((weightMT * 1000) / 0.928);
     } else {
       // MK-III
-      return Math.floor(weightMT / 0.000092);
+      return Math.floor((weightMT * 1000) / 0.928426);
     }
   }, [totalQuantity, productModel]);
 
@@ -1435,7 +1420,10 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       return;
     }
 
+    if (isProcessingFinishRef.current) return;
+    
     setIsSaving(true);
+    isProcessingFinishRef.current = true;
     try {
       const shiftOfInspection = sessionStorage.getItem('inspectionShift') || null;
 
@@ -1898,6 +1886,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       setShowResultModal(true);
     } finally {
       setIsSaving(false);
+      isProcessingFinishRef.current = false;
     }
   }, [call?.call_no, call?.id, call?.pincode, call?.workflowTransitionId, activeHeats, onBack, numberOfBundles, numberOfERC, sourceOfRawMaterial, poData, productModel, heatSubmoduleStatuses, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, calculateVisualRejectedWeight, consolidatedHeats, canFinishInspection, updateRmCallDataCache, updateRmHeatDataCache, updateRmPoDataCache, capturedImages]);
 
@@ -2844,29 +2833,8 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       await pauseRawMaterialInspection(pausePayload);
       console.log('✅ Inspection data saved to backend successfully');
 
-      // Step 3: Save to localStorage locally
-      const draftData = {
-        savedAt: new Date().toISOString(),
-        numberOfBundles: numberOfBundles,
-        sourceOfRawMaterial: sourceOfRawMaterial,
-        heatRemarks: heatRemarks,
-        heatSealingType: heatSealingType,
-        heatSteelStampNumber: heatSteelStampNumber,
-        heatHologramEntries: heatHologramEntries,
-        capturedImages: capturedImages,
-        heatColorCodes: fetchedHeatData.reduce((acc, heat) => {
-          if (heat.heatNo && heat.colorCode) {
-            acc[heat.heatNo] = heat.colorCode;
-          }
-          return acc;
-        }, {})
-      };
-
-      const storageKey = `${DASHBOARD_DRAFT_KEY}${inspectionCallNo}${getShiftSuffix()}`;
-      const mainKey = `${STORAGE_KEYS.MAIN_INSPECTION}_${inspectionCallNo}${getShiftSuffix()}`;
-
-      localStorage.setItem(storageKey, JSON.stringify(draftData));
-      localStorage.setItem(mainKey, JSON.stringify(draftData));
+      // Step 3: LocalStorage draft persistence removed
+      // Data is now saved exclusively via backend APIs to prevent quota issues
 
       // Show success modal
       setResultModalConfig({
@@ -2889,7 +2857,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     } finally {
       setIsSavingDraft(false);
     }
-  }, [call, activeHeats, consolidatedHeats, numberOfBundles, numberOfERC, productModel, poData, heatSubmoduleStatuses, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, fetchedHeatData, calculateVisualRejectedWeight, sourceOfRawMaterial, capturedImages]);
+  }, [call, activeHeats, consolidatedHeats, numberOfBundles, numberOfERC, productModel, poData, heatSubmoduleStatuses, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, calculateVisualRejectedWeight, sourceOfRawMaterial, capturedImages]);
 
   // Load draft data from localStorage on mount (after heat data is loaded)
   useEffect(() => {
@@ -2934,6 +2902,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     } catch (error) {
       console.error('Error loading draft data:', error);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [call?.call_no, fetchedHeatData]);
 
   // Auto-save dashboard fields to localStorage whenever they change

@@ -396,7 +396,9 @@ export const apiService = {
     getRMConsumptionByPlantAndMaterial: (plantId, material, page = 0, size = 5) =>
         api.get(`/rm-consumption/by-plant-material`, { params: { plantId, material, page, size } }),
 
-    /** Fetch all consumption records for the plant (large page, for ledger view) */
     getRMConsumptionByPlantAll: (plantId) =>
         api.get(`/rm-consumption/by-plant`, { params: { plantId, page: 0, size: 1000 } }),
+
+    // ================= Sleeper IC =================
+    getSleeperIc: (callNo) => api.get(`/sleeper-dashboard/sleeperIc/${callNo}`),
 };

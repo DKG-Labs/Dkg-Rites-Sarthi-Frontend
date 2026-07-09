@@ -116,6 +116,7 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
         extDpDate: item.extDpDate,
         dpDates: `${item.dpDate || '-'} / ${item.extDpDate || '-'}`,
         status: internalStatus,
+        originalStatus: item.status,
         rio: item.rio,
         submissionCount: item.workflowSequence || 1,
         returnReason: internalStatus === CALL_STATUS.RETURN_TO_VENDOR ? item.remarks : null
@@ -237,6 +238,7 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
         desiredInspectionDate: item.desiredInspectionDate || item.createdDate,
         placeOfInspection: item.placeOfInspection || item.poiCode || '-',
         status: internalStatus,
+        originalStatus: item.status,
         assignedIE: item.assignedToUserName || item.ieName || '-',
         rio: item.rio
       };
@@ -329,6 +331,7 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
         desiredInspectionDate: item.desiredInspectionDate || item.createdDate,
         placeOfInspection: item.placeOfInspection || item.poiCode || '-',
         status: internalStatus,
+        originalStatus: item.status,
         assignedIE: item.assignedToUserName || item.ieName || '-',
         rio: item.rio,
         disposalReason: item.remarks || '-'

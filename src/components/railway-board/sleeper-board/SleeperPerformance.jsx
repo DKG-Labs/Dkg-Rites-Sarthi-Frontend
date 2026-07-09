@@ -7,7 +7,7 @@ const SleeperPerformance = ({ fromDate, toDate }) => {
     const [performanceData, setPerformanceData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    
+
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedRio, setSelectedRio] = useState('All');
     const [selectedStage, setSelectedStage] = useState('All');
@@ -33,9 +33,9 @@ const SleeperPerformance = ({ fromDate, toDate }) => {
                     startDate: fromDate,
                     endDate: toDate
                 });
-                
+
                 const rawList = response.responseData || response || [];
-                
+
                 // Grouping logic
                 const groupedMap = {};
                 rawList.forEach(row => {
@@ -49,14 +49,14 @@ const SleeperPerformance = ({ fromDate, toDate }) => {
                     } else {
                         shiftGroup = shift;
                     }
-                    
+
                     const ieKey = formatIeName(row.ieName);
                     const company = row.companyName || "N/A";
                     const plant = row.plantName || row.companyName || "Unassigned Plant";
                     const stage = row.stageOfInspection || "Process";
-                    
-                    const key = `${company}_${plant}_${ieKey}_${stage}_${shiftGroup}`;
-                    
+
+                    const key = `${company}_${plant}_${ieKey}_${stage}`;
+
                     if (!groupedMap[key]) {
                         groupedMap[key] = {
                             companyName: company,
@@ -73,12 +73,12 @@ const SleeperPerformance = ({ fromDate, toDate }) => {
                     groupedMap[key].shiftsWorked += (row.shiftsWorked ?? 0);
                     groupedMap[key].rejectedQty += (row.rejectedSleepers ?? 0);
                 });
-                
+
                 const mappedData = Object.values(groupedMap).map((item, idx) => ({
                     id: idx + 1,
                     ...item
                 }));
-                
+
                 setPerformanceData(mappedData);
             } catch (err) {
                 console.error("Failed to fetch sleeper employee performance matrix:", err);
@@ -124,7 +124,7 @@ const SleeperPerformance = ({ fromDate, toDate }) => {
         // 1. Text Search Filter
         if (searchTerm) {
             const lowerSearch = searchTerm.trim().toLowerCase();
-            result = result.filter(d => 
+            result = result.filter(d =>
                 String(d.companyName || '').toLowerCase().includes(lowerSearch) ||
                 String(d.plantName || '').toLowerCase().includes(lowerSearch) ||
                 String(d.plantId || '').toLowerCase().includes(lowerSearch) ||
@@ -148,6 +148,7 @@ const SleeperPerformance = ({ fromDate, toDate }) => {
 
         // 3. Sort logic
         if (sortConfig.key !== null) {
+
             result.sort((a, b) => {
                 let valA = a[sortConfig.key];
                 let valB = b[sortConfig.key];
@@ -160,17 +161,17 @@ const SleeperPerformance = ({ fromDate, toDate }) => {
                 const numA = Number(valA);
                 const numB = Number(valB);
                 if (!isNaN(numA) && !isNaN(numB) && valA !== '' && valB !== '') {
-                    valA = numA;
-                    valB = numB;
+                    // Numeric sort
+                    if (numA < numB) return sortConfig.direction === 'asc' ? -1 : 1;
+                    if (numA > numB) return sortConfig.direction === 'asc' ? 1 : -1;
+                    return 0;
                 } else {
-                    // Otherwise compare as strings (case-insensitive)
-                    valA = String(valA).toLowerCase();
-                    valB = String(valB).toLowerCase();
+                    // Alphabetical string sort
+                    const strA = String(valA).trim();
+                    const strB = String(valB).trim();
+                    const compare = strA.localeCompare(strB, undefined, { numeric: true, sensitivity: 'base' });
+                    return sortConfig.direction === 'asc' ? compare : -compare;
                 }
-
-                if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
-                if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
-                return 0;
             });
         }
 
@@ -239,11 +240,11 @@ const SleeperPerformance = ({ fromDate, toDate }) => {
                         ];
                         downloadPdf(processedData, headers, 'Sleeper_Performance_Monitoring_Matrix', 'Performance Monitoring Matrix (Sleeper)');
                     }} />
-                    <input 
-                        type="text" 
-                        placeholder="Search Plant, IE..." 
-                        className="prof-search" 
-                        style={{ height: '36px', fontSize: '13px' }} 
+                    <input
+                        type="text"
+                        placeholder="Search Plant, IE..."
+                        className="prof-search"
+                        style={{ height: '36px', fontSize: '13px' }}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -254,8 +255,8 @@ const SleeperPerformance = ({ fromDate, toDate }) => {
             <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '20px', background: '#f8fafc', padding: '12px 20px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <label style={{ fontSize: '12px', fontWeight: '600', color: '#166534' }}>RITES RIO:</label>
-                    <select 
-                        value={selectedRio} 
+                    <select
+                        value={selectedRio}
                         onChange={(e) => setSelectedRio(e.target.value)}
                         style={{ padding: '6px 10px', border: '1px solid #bbf7d0', borderRadius: '4px', background: '#ecfdf5', color: '#166534', outline: 'none', cursor: 'pointer' }}
                     >
@@ -264,8 +265,8 @@ const SleeperPerformance = ({ fromDate, toDate }) => {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <label style={{ fontSize: '12px', fontWeight: '600', color: '#166534' }}>IE NAME:</label>
-                    <select 
-                        value={selectedIe} 
+                    <select
+                        value={selectedIe}
                         onChange={(e) => setSelectedIe(e.target.value)}
                         style={{ padding: '6px 10px', border: '1px solid #bbf7d0', borderRadius: '4px', background: '#ecfdf5', color: '#166534', outline: 'none', cursor: 'pointer' }}
                     >
@@ -274,15 +275,15 @@ const SleeperPerformance = ({ fromDate, toDate }) => {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <label style={{ fontSize: '12px', fontWeight: '600', color: '#166534' }}>STAGE:</label>
-                    <select 
-                        value={selectedStage} 
+                    <select
+                        value={selectedStage}
                         onChange={(e) => setSelectedStage(e.target.value)}
                         style={{ padding: '6px 10px', border: '1px solid #bbf7d0', borderRadius: '4px', background: '#ecfdf5', color: '#166534', outline: 'none', cursor: 'pointer' }}
                     >
                         {uniqueStages.map(stg => <option key={stg} value={stg}>{stg === 'All' ? 'All Stages' : stg}</option>)}
                     </select>
                 </div>
-                <button 
+                <button
                     onClick={() => { setSearchTerm(''); setSelectedRio('All'); setSelectedStage('All'); setSelectedIe('All'); setSortConfig({ key: null, direction: 'asc' }); }}
                     style={{ padding: '6px 14px', background: '#dcfce3', color: '#166534', border: '1px solid #bbf7d0', borderRadius: '4px', cursor: 'pointer', fontWeight: '600', fontSize: '12px', marginLeft: 'auto' }}
                 >
@@ -297,25 +298,25 @@ const SleeperPerformance = ({ fromDate, toDate }) => {
                         <tr>
                             <th style={{ width: '60px', textAlign: 'center' }}>S.NO.</th>
                             <th style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center' }} onClick={() => handleSort('companyName')}>
-                                COMPANY NAME {sortConfig.key === 'companyName' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                                COMPANY NAME {sortConfig.key === 'companyName' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}
                             </th>
                             <th style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center' }} onClick={() => handleSort('plantName')}>
-                                PSC SLEEPER PLANT {sortConfig.key === 'plantName' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                                PSC SLEEPER PLANT {sortConfig.key === 'plantName' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}
                             </th>
                             <th style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center' }} onClick={() => handleSort('rio')}>
-                                RITES RIO {sortConfig.key === 'rio' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                                RITES RIO {sortConfig.key === 'rio' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}
                             </th>
                             <th style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', textAlign: 'center' }} onClick={() => handleSort('ieName')}>
-                                IE NAME {sortConfig.key === 'ieName' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                                IE NAME {sortConfig.key === 'ieName' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}
                             </th>
                             <th style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center' }} onClick={() => handleSort('stage')}>
-                                STAGE OF INSPECTION {sortConfig.key === 'stage' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                                STAGE OF INSPECTION {sortConfig.key === 'stage' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}
                             </th>
                             <th style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center' }} onClick={() => handleSort('shiftsWorked')}>
-                                NO. OF SHIFTS WORKED {sortConfig.key === 'shiftsWorked' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                                NO. OF SHIFTS WORKED {sortConfig.key === 'shiftsWorked' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}
                             </th>
                             <th style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center' }} onClick={() => handleSort('rejectedQty')}>
-                                NO. OF SLEEPERS REJECTED {sortConfig.key === 'rejectedQty' ? (sortConfig.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                                NO. OF SLEEPERS REJECTED {sortConfig.key === 'rejectedQty' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}
                             </th>
                         </tr>
                     </thead>

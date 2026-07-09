@@ -302,6 +302,10 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
 
   const handleExport = async () => {
     if (!printAreaRef.current) return;
+    if (isEditing) {
+      setIsEditing(false);
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
     const certificateNo = data.certificateNo || "FinalProductIC";
     const sanitizedFilename = certificateNo.replace(/[/\\?%*:|"<>]/g, '-');
     await exportToPdf(printAreaRef.current, `${sanitizedFilename}.pdf`);
@@ -326,6 +330,12 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
       // }
 
       setNotification({ open: true, message: "Saving edited data...", severity: 'info' });
+      
+      if (isEditing) {
+          setIsEditing(false);
+          await new Promise(resolve => setTimeout(resolve, 300));
+      }
+
       // 2. Save Edited Data to DB
       await saveFinalIcEditData({
           icNumber: data.certificateNo || call.icNo || call.call_no || "FinalProduct_IC",
@@ -420,7 +430,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
             color="success" 
             size="small" 
             onClick={handleESign}
-            disabled={isESigning}
+            disabled={isESigning || isEditing}
             startIcon={isESigning ? <CircularProgress size={20} color="inherit" /> : null}
           >
             {isESigning ? "SIGNING..." : "✒ E SIGN"}
@@ -428,7 +438,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
           <button 
             onClick={handleExport} 
             className="btn btn-primary"
-            disabled={isESigning}
+            disabled={isESigning || isEditing}
           >
             Export PDF
           </button>

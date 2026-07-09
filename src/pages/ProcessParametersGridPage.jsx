@@ -113,13 +113,13 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
       if (currentLineInitiationData.lotDetailsList && currentLineInitiationData.lotDetailsList.length > 0) {
         console.log('📋 [Grid Lot Numbers] Using lotDetailsList from API:', currentLineInitiationData.lotDetailsList);
 
-        // Extract all lot numbers from lotDetailsList
-        const allLotNumbers = currentLineInitiationData.lotDetailsList.map(lot => lot.lotNumber);
+        // Extract all lot numbers from lotDetailsList and convert to string
+        const allLotNumbers = currentLineInitiationData.lotDetailsList.map(lot => String(lot.lotNumber));
         console.log('✅ [Grid Lot Numbers] Using all lot numbers from lotDetailsList:', allLotNumbers);
         return allLotNumbers;
       } else {
         // Fallback to main lot number if lotDetailsList is not available
-        const mainLotNumber = currentLineInitiationData.lotNumber || '';
+        const mainLotNumber = currentLineInitiationData.lotNumber ? String(currentLineInitiationData.lotNumber) : '';
         console.log('📋 [Grid Lot Numbers] Lot number from cached initiation data:', mainLotNumber);
 
         if (mainLotNumber) {
@@ -487,7 +487,7 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
     return oldData.map(row => ({
       hour: row.hour,
       noProduction: row.noProduction || false,
-      lotNo: row.lotNo || '',
+      lotNo: row.lotNo ? String(row.lotNo) : '',
       lengthCutBar: row.lengthCutBar || ['', '', ''],
       qualityDia: row.qualityDia || ['', '', ''], // New field
       sharpEdges: Array.isArray(row.sharpEdges) ?
@@ -511,7 +511,7 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
     return oldData.map(row => ({
       hour: row.hour,
       noProduction: row.noProduction || false,
-      lotNo: row.lotNo || '',
+      lotNo: row.lotNo ? String(row.lotNo) : '',
       // Convert old forgingTemperature (3 elements) to new structure (2 elements)
       forgingTemperature: Array.isArray(row.forgingTemperature) ?
         row.forgingTemperature.slice(0, 2) :
@@ -538,7 +538,7 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
     return oldData.map(row => ({
       hour: row.hour,
       noProduction: row.noProduction || false,
-      lotNo: row.lotNo || '',
+      lotNo: row.lotNo ? String(row.lotNo) : '',
       // Convert old quenchingTemperature (string) to new structure (2-element array)
       quenchingTemperature: typeof row.quenchingTemperature === 'string' ?
         [row.quenchingTemperature, ''] :
@@ -571,14 +571,14 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
     return oldData.map(row => ({
       hour: row.hour,
       noProduction: row.noProduction || false,
-      lotNo: row.lotNo || '',
-      // Convert old single values to 2-element arrays
-      temperingTemperature: typeof row.temperingTemperature === 'string' ?
-        [row.temperingTemperature, ''] :
+      lotNo: row.lotNo ? String(row.lotNo) : '',
+      // Convert old single values (string OR number from backend) to 2-element arrays
+      temperingTemperature: (typeof row.temperingTemperature === 'string' || typeof row.temperingTemperature === 'number') ?
+        [String(row.temperingTemperature), ''] :
         (Array.isArray(row.temperingTemperature) ? row.temperingTemperature : ['', '']),
       temperingTemperatureRejected: row.temperingTemperatureRejected ?? '',
-      temperingDuration: typeof row.temperingDuration === 'string' ?
-        [row.temperingDuration, ''] :
+      temperingDuration: (typeof row.temperingDuration === 'string' || typeof row.temperingDuration === 'number') ?
+        [String(row.temperingDuration), ''] :
         (Array.isArray(row.temperingDuration) ? row.temperingDuration : ['', '']),
       temperingDurationRejected: row.temperingDurationRejected ?? '',
       remarks: row.remarks || ''
@@ -592,7 +592,7 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
     return oldData.map(row => ({
       hour: row.hour,
       noProduction: row.noProduction || false,
-      lotNo: row.lotNo || '',
+      lotNo: row.lotNo ? String(row.lotNo) : '',
       // New fields with default values
       boxGauge: row.boxGauge || ['', ''],
       flatBearingArea: row.flatBearingArea || ['', ''],
@@ -620,7 +620,7 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
     return oldData.map(row => ({
       hour: row.hour,
       noProduction: row.noProduction || false,
-      lotNo: row.lotNo || '',
+      lotNo: row.lotNo ? String(row.lotNo) : '',
       // New fields with default values
       toeLoad: row.toeLoad || ['', ''],
       weight: row.weight || ['', ''],

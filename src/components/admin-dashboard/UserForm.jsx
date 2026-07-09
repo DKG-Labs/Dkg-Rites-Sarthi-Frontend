@@ -2,12 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { USER_ROLES, REGIONS, DESIGNATIONS, DISCIPLINES } from './utils/mockData';
 
 export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCancel }) => {
+    const [passwordError, setPasswordError] = useState('');
     const [formData, setFormData] = useState({
         userName: '',
         password: '',
         roleNames: [],
         email: '',
         mobileNumber: '',
+        alternateMobileNumber: '',
+        notificationPreferences: '',
         employeeCode: '',
         employmentType: 'REGULAR',
         fullName: '',
@@ -15,6 +18,8 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
         dateOfBirth: '',
         designation: '',
         discipline: '',
+        productType: '',
+        profilePhotoPath: '',
         rio: '',
         cm: '',
         zonalRly: '',
@@ -31,15 +36,24 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
                     derivedZonalRly = match[1];
                 }
             }
+            const sanitizedUser = {};
+            Object.keys(user).forEach(key => {
+                sanitizedUser[key] = (user[key] === null || user[key] === undefined) ? '' : user[key];
+            });
+
             setFormData(prev => ({
                 ...prev,
-                ...user,
+                ...sanitizedUser,
                 fullName: user.fullName || user.name || '',
-                employeeCode: user.employeeCode || user.rritesEmployeeCode || '',
+                employeeCode: user.employeeCode || user.ritesEmployeeCode || '',
                 mobileNumber: user.mobileNumber || user.mobileNo || '',
+                alternateMobileNumber: user.alternateMobileNumber || '',
+                notificationPreferences: user.notificationPreferences || '',
                 roleNames: Array.isArray(user.roleNames) ? user.roleNames : (user.roleName ? user.roleName.split(',') : []),
                 userId: user.userId || user.id || undefined,
                 rio: user.rio || '',
+                productType: user.productType || '',
+                profilePhotoPath: user.profilePhotoPath || '',
                 zonalRly: derivedZonalRly
             }));
         } else {
@@ -49,6 +63,8 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
                 roleNames: [],
                 email: '',
                 mobileNumber: '',
+                alternateMobileNumber: '',
+                notificationPreferences: '',
                 employeeCode: '',
                 employmentType: 'REGULAR',
                 fullName: '',
@@ -56,6 +72,8 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
                 dateOfBirth: '',
                 designation: '',
                 discipline: '',
+                productType: '',
+                profilePhotoPath: '',
                 rio: '',
                 cm: '',
                 zonalRly: '',
@@ -66,6 +84,12 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
 
     const handleChange = (e) => {
         const { name, value } = e.target;
+        
+        // Clear password error when user starts typing
+        if (name === 'password') {
+            setPasswordError('');
+        }
+        
         setFormData(prev => {
             const newState = { ...prev, [name]: value };
             // Automatically set userName to match employeeCode for login consistency
@@ -74,6 +98,17 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
             }
             return newState;
         });
+    };
+
+    const handleImageChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setFormData(prev => ({ ...prev, profilePhotoPath: reader.result }));
+            };
+            reader.readAsDataURL(file);
+        }
     };
 
     const handleRoleChange = (e) => {
@@ -86,7 +121,29 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setPasswordError('');
         
+        // Password validation (only required for new users or if password is provided)
+        if (!user || formData.password) {
+            const pwd = formData.password;
+            if (pwd.length < 8) {
+                setPasswordError('Password must be at least 8 characters long.');
+                return;
+            }
+            if (!/[A-Z]/.test(pwd)) {
+                setPasswordError('Password must contain at least one uppercase letter.');
+                return;
+            }
+            if (!/[0-9]/.test(pwd)) {
+                setPasswordError('Password must contain at least one number.');
+                return;
+            }
+            if (!/[!@#$%^&*(),.?":{}|<>]/.test(pwd)) {
+                setPasswordError('Password must contain at least one special character (!@#$%^&* etc).');
+                return;
+            }
+        }
+
         // Validation for duplicate user
         if (!user) {
             const existing = existingUsers.find(u => 
@@ -170,6 +227,21 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
                         </select>
                     </div>
 
+                    {user && (
+                        <div className="form-group">
+                            <label className="form-label">Password</label>
+                            <input
+                                type="text"
+                                name="password"
+                                className="form-control"
+                                placeholder="Leave blank to keep unchanged"
+                                value={formData.password}
+                                onChange={handleChange}
+                                required={false}
+                            />
+                        </div>
+                    )}
+
                     {isZonalRailway && (
                         <div className="form-group">
                             <label className="form-label">Organisation (Zonal Railway) <span className="required-star">*</span></label>
@@ -190,11 +262,36 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
                 </div>
             </div>
 
-            {/* 2. Personal Information Section */}
+            {/* 2. Basic Information Section */}
             <div className="form-section">
                 <div className="form-section-title">
-                    <span>📝</span> Personal & Security Details
+                    <span>📝</span> Basic Information
                 </div>
+                
+                {/* Profile Photo Upload */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
+                    <div style={{
+                        width: '76px', height: '76px', borderRadius: '50%',
+                        background: 'linear-gradient(135deg, #0f4c81 0%, #2563eb 100%)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '26px', fontWeight: 800, color: '#fff',
+                        border: '2px solid #e2e8f0', overflow: 'hidden'
+                    }}>
+                        {formData.profilePhotoPath ? (
+                            <img src={formData.profilePhotoPath} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                            formData.fullName ? formData.fullName.charAt(0).toUpperCase() : 'U'
+                        )}
+                    </div>
+                    <div>
+                        <label className="btn btn-secondary" style={{ cursor: 'pointer', padding: '6px 12px', fontSize: '13px' }}>
+                            Upload Photo
+                            <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageChange} />
+                        </label>
+                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>Recommended: Square image</div>
+                    </div>
+                </div>
+
                 <div className="form-grid">
                     <div className="form-group">
                         <label className="form-label">Full Name <span className="required-star">*</span></label>
@@ -208,57 +305,21 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
                             required
                         />
                     </div>
-                    {!isZonalRailway && (
+                    {(!isZonalRailway || (isZonalRailway && user)) && (
                         <div className="form-group">
-                            <label className="form-label">Short Name</label>
+                            <label className="form-label">Employee Code <span className="required-star">*</span></label>
                             <input
                                 type="text"
-                                name="shortName"
+                                name="employeeCode"
                                 className="form-control"
-                                placeholder="Abbreviation (e.g. RK)"
-                                value={formData.shortName}
+                                placeholder="e.g. 104937"
+                                value={formData.employeeCode}
                                 onChange={handleChange}
-                                maxLength="5"
+                                required={!isZonalRailway}
+                                disabled={isZonalRailway && user}
                             />
                         </div>
                     )}
-                    <div className="form-group">
-                        <label className="form-label">Email Address <span className="required-star">*</span></label>
-                        <input
-                            type="email"
-                            name="email"
-                            className="form-control"
-                            placeholder="official.email@rites.com"
-                            value={formData.email}
-                            onChange={handleChange}
-                            required
-                        />
-                    </div>
-                    {!user && (
-                        <div className="form-group">
-                            <label className="form-label">Set Password <span className="required-star">*</span></label>
-                            <input
-                                type="password"
-                                name="password"
-                                className="form-control"
-                                placeholder="Set initial login password"
-                                value={formData.password}
-                                onChange={handleChange}
-                                required={!user}
-                            />
-                        </div>
-                    )}
-                    <div className="form-group">
-                        <label className="form-label">Mobile Number</label>
-                        <input
-                            type="tel"
-                            name="mobileNumber"
-                            className="form-control"
-                            placeholder="10-digit mobile number"
-                            value={formData.mobileNumber}
-                            onChange={handleChange}
-                        />
-                    </div>
                     {!isZonalRailway && (
                         <div className="form-group">
                             <label className="form-label">Date of Birth</label>
@@ -271,72 +332,33 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
                             />
                         </div>
                     )}
-                </div>
-            </div>
-
-            {/* 3. Professional Information Section */}
-            <div className="form-section" style={{ borderBottom: 'none' }}>
-                <div className="form-section-title">
-                    <span>🏢</span> Professional Details
-                </div>
-                <div className="form-grid">
-                    {(!isZonalRailway || (isZonalRailway && user)) && (
-                        <div className="form-group">
-                            <label className="form-label">RITES Employee Code <span className="required-star">*</span></label>
+                    <div className="form-group">
+                        <label className="form-label">Designation</label>
+                        {isZonalRailway ? (
                             <input
                                 type="text"
-                                name="employeeCode"
+                                name="designation"
                                 className="form-control"
-                                placeholder="e.g. RITES1234"
-                                value={formData.employeeCode}
+                                placeholder="Designation (e.g. SSE DD HQ)"
+                                value={formData.designation}
                                 onChange={handleChange}
-                                required={!isZonalRailway}
-                                disabled={isZonalRailway && user}
                             />
-                        </div>
-                    )}
-                    {isZonalRailway ? (
+                        ) : (
+                            <select
+                                name="designation"
+                                className="form-control"
+                                value={formData.designation}
+                                onChange={handleChange}
+                            >
+                                <option value="">Select Designation</option>
+                                {DESIGNATIONS.map(designation => (
+                                    <option key={designation} value={designation}>{designation}</option>
+                                ))}
+                            </select>
+                        )}
+                    </div>
+                    {!isZonalRailway && (
                         <>
-                            <div className="form-group">
-                                <label className="form-label">Designation</label>
-                                <input
-                                    type="text"
-                                    name="designation"
-                                    className="form-control"
-                                    placeholder="Designation (e.g. SSE DD HQ)"
-                                    value={formData.designation}
-                                    onChange={handleChange}
-                                />
-                            </div>
-                        </>
-                    ) : (
-                        <>
-                            <div className="form-group">
-                                <label className="form-label">Employment Type</label>
-                                <select
-                                    name="employmentType"
-                                    className="form-control"
-                                    value={formData.employmentType}
-                                    onChange={handleChange}
-                                >
-                                    <option value="REGULAR">REGULAR</option>
-                                    <option value="CONTRACTUAL">CONTRACTUAL</option>
-                                </select>
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Designation</label>
-                                <select
-                                    name="designation"
-                                    className="form-control"
-                                    value={formData.designation}
-                                    onChange={handleChange}
-                                >
-                                    <option value="">Select Designation</option>
-                                    {DESIGNATIONS.map(designation => (
-                                        <option key={designation} value={designation}>{designation}</option>
-                                    ))}
-                                </select>
-                            </div>
                             <div className="form-group">
                                 <label className="form-label">Discipline</label>
                                 <select
@@ -352,6 +374,88 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
                                 </select>
                             </div>
                             <div className="form-group">
+                                <label className="form-label">Employment Type</label>
+                                <select
+                                    name="employmentType"
+                                    className="form-control"
+                                    value={formData.employmentType}
+                                    onChange={handleChange}
+                                >
+                                    <option value="REGULAR">REGULAR</option>
+                                    <option value="CONTRACTUAL">CONTRACTUAL</option>
+                                </select>
+                            </div>
+                        </>
+                    )}
+                </div>
+            </div>
+
+            {/* 3. Contact Information Section */}
+            <div className="form-section">
+                <div className="form-section-title">
+                    <span>📞</span> Contact Information
+                </div>
+                <div className="form-grid">
+                    <div className="form-group">
+                        <label className="form-label">Email Address <span className="required-star">*</span></label>
+                        <input
+                            type="email"
+                            name="email"
+                            className="form-control"
+                            placeholder="official.email@rites.com"
+                            value={formData.email}
+                            onChange={handleChange}
+                            required
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">Mobile Number</label>
+                        <input
+                            type="tel"
+                            name="mobileNumber"
+                            className="form-control"
+                            placeholder="10-digit mobile number"
+                            value={formData.mobileNumber}
+                            onChange={handleChange}
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">Alternate Mobile</label>
+                        <input
+                            type="tel"
+                            name="alternateMobileNumber"
+                            className="form-control"
+                            placeholder="10-digit mobile number"
+                            value={formData.alternateMobileNumber}
+                            onChange={handleChange}
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">Notification Prefs</label>
+                        <select
+                            name="notificationPreferences"
+                            className="form-control"
+                            value={formData.notificationPreferences}
+                            onChange={handleChange}
+                        >
+                            <option value="">Select Preferences</option>
+                            <option value="Email">Email Only</option>
+                            <option value="SMS">SMS Only</option>
+                            <option value="Email, SMS">Both Email & SMS</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            {/* 4. Organization Information Section */}
+            <div className="form-section">
+                <div className="form-section-title">
+                    <span>🏢</span> Organization Information
+                </div>
+                <div className="form-grid">
+                    {!isZonalRailway && (
+                        <>
+                            <div className="form-group">
                                 <label className="form-label">Region (RIO)</label>
                                 <select
                                     name="rio"
@@ -366,6 +470,41 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
                                 </select>
                             </div>
                         </>
+                    )}
+                </div>
+            </div>
+
+            {/* 5. Security & Status Section */}
+            <div className="form-section" style={{ borderBottom: 'none' }}>
+                <div className="form-section-title">
+                    <span>🔒</span> Security & Status
+                </div>
+                <div className="form-grid">
+                    {!user && (
+                        <div className="form-group">
+                            <label className="form-label">Set Password <span className="required-star">*</span></label>
+                            <input
+                                type="password"
+                                name="password"
+                                className={`form-control ${passwordError ? 'is-invalid' : ''}`}
+                                placeholder="Min 8 chars, 1 uppercase, 1 number, 1 special char"
+                                value={formData.password}
+                                onChange={handleChange}
+                                required={!user}
+                                minLength={8}
+                                style={passwordError ? { borderColor: '#ef4444' } : {}}
+                            />
+                            {passwordError && (
+                                <div style={{ fontSize: '12px', color: '#ef4444', marginTop: '6px', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <span style={{ fontSize: '14px' }}>⚠️</span> {passwordError}
+                                </div>
+                            )}
+                            {!passwordError && (
+                                <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
+                                    Requires at least 8 characters, an uppercase letter, a number, and a special character.
+                                </div>
+                            )}
+                        </div>
                     )}
                     <div className="form-group">
                         <label className="form-label">Status</label>

@@ -5,6 +5,7 @@ import AnnexureLoader from './annexures/AnnexureLoader';
 
 import Notification from './Notification';
 import { getProductTypeDisplayName, formatDate } from '../utils/helpers';
+import { getDetailedStatus } from '../utils/statusMapper';
 import CallsFilterSection from './common/CallsFilterSection';
 import { generateRawMaterialCertificate, generateProcessMaterialCertificate, generateFinalProductCertificate, generateFinalCertificate } from '../services/certificateService';
 import { fetchCompletedCallsForIC, getCurrentUserId } from '../services/workflowApiService';
@@ -161,8 +162,11 @@ const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage, isLoaded }) =
     { key: 'stage', label: 'Stage' },
     {
       key: 'status',
-      label: 'IC Status',
-      render: (_val, row) => <StatusBadge status={row.originalStatus === 'GENERATE_IC' ? 'GENERATE_IC' : (row.displayStatus || 'IC Pending')} />
+      label: 'Status',
+      render: (_val, row) => {
+        const { mainStatus, combinedText } = getDetailedStatus(row.status);
+        return <StatusBadge status={mainStatus} text={combinedText} />;
+      }
     },
   ];
 

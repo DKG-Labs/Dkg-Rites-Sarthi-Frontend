@@ -5,7 +5,14 @@ import { apiService } from '../../../services/api';
 import { getStoredUser } from '../../../services/authService';
 
 const AttendingCallDashboard = () => {
-    const [activeTab, setActiveTab] = useState('pending');
+    const [activeTab, setActiveTab] = useState(() => {
+        return sessionStorage.getItem('attendingCallActiveTab') || 'pending';
+    });
+
+    const handleTabChange = (tab) => {
+        setActiveTab(tab);
+        sessionStorage.setItem('attendingCallActiveTab', tab);
+    };
     const [selectedCall, setSelectedCall] = useState(null);
     const [isInspecting, setIsInspecting] = useState(false);
     const [showDetailsPopup, setShowDetailsPopup] = useState(false);
@@ -39,7 +46,7 @@ const AttendingCallDashboard = () => {
         } else if (activeTab === 'issuance') {
             fetchIssuanceCalls();
         } else if (activeTab === 'completed') {
-            setCompletedCalls([]); // Clear if needed, or remove tab
+            fetchCompletedCalls();
         }
     }, [activeTab]);
 
@@ -83,20 +90,19 @@ const AttendingCallDashboard = () => {
             const userId = user?.userId;
             const plantId = localStorage.getItem('plantId');
             
-            // Using the API specified by the user
             const response = await apiService.getAllPendingWorkflowTransitions('Main IE', userId, plantId);
             
             if (response && response.responseData) {
-                // Client-side filtering: prioritize plant filter if set
                 const filtered = response.responseData.filter(item => {
                     const matchesPlant = !plantId || item.plantId === plantId;
-                    return matchesPlant;
+                    const status = item.jobStatus || item.status;
+                    return matchesPlant && status !== 'IC_ISSUE' && status !== 'IC_GENERATION' && status !== 'GENERATED';
                 });
                 
                 setPendingCalls(filtered.map(item => ({
                     ...item,
                     id: item.workflowTransitionId,
-                    status: item.jobStatus || item.status || 'Pending', // Prioritize jobStatus for display
+                    status: item.jobStatus || item.status || 'Pending',
                     jobStatus: item.jobStatus,
                     checked: false
                 })));
@@ -111,17 +117,76 @@ const AttendingCallDashboard = () => {
     const fetchIssuanceCalls = async () => {
         setIsLoading(true);
         try {
-            const response = await apiService.getCompletedFinalCalls();
+            const user = getStoredUser();
+            const userId = user?.userId;
+            const plantId = localStorage.getItem('plantId');
+
+            const [completedRes, pendingRes] = await Promise.all([
+                apiService.getCompletedFinalCalls(),
+                apiService.getAllPendingWorkflowTransitions('Main IE', userId, plantId)
+            ]);
+            
+            let combined = [];
+            if (completedRes && completedRes.responseData) {
+                // Filter out stale completed calls if a newer pending transition exists for the same requestId
+                const activeCompleted = completedRes.responseData.filter(compItem => {
+                    const newerPending = pendingRes?.responseData?.find(
+                        pendItem => pendItem.requestId === compItem.requestId && pendItem.workflowTransitionId > compItem.workflowTransitionId
+                    );
+                    return !newerPending; // Keep only if there is no newer pending transition
+                });
+                combined = [...combined, ...activeCompleted];
+            }
+            
+            if (pendingRes && pendingRes.responseData) {
+                // Add the ones that are currently in IC_ISSUE state
+                const pendingIC = pendingRes.responseData.filter(item => {
+                    const matchesPlant = !plantId || item.plantId === plantId;
+                    const status = item.jobStatus || item.status;
+                    return matchesPlant && status === 'IC_ISSUE';
+                });
+                combined = [...combined, ...pendingIC];
+            }
+
+            setIssuanceCalls(combined.map(item => ({
+                ...item,
+                id: item.workflowTransitionId,
+                status: item.jobStatus || item.status || 'Completed',
+                checked: false
+            })));
+        } catch (error) {
+            console.error("Error fetching issuance calls:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const fetchCompletedCalls = async () => {
+        setIsLoading(true);
+        try {
+            const user = getStoredUser();
+            const userId = user?.userId;
+            const plantId = localStorage.getItem('plantId');
+
+            const response = await apiService.getAllPendingWorkflowTransitions('Main IE', userId, plantId);
+            
             if (response && response.responseData) {
-                setIssuanceCalls(response.responseData.map(item => ({
+                const filtered = response.responseData.filter(item => {
+                    const matchesPlant = !plantId || item.plantId === plantId;
+                    const status = item.jobStatus || item.status;
+                    return matchesPlant && (status === 'IC_GENERATION' || status === 'GENERATED');
+                });
+                
+                setCompletedCalls(filtered.map(item => ({
                     ...item,
                     id: item.workflowTransitionId,
                     status: item.jobStatus || item.status || 'Completed',
+                    jobStatus: item.jobStatus,
                     checked: false
                 })));
             }
         } catch (error) {
-            console.error("Error fetching issuance calls:", error);
+            console.error("Error fetching completed calls:", error);
         } finally {
             setIsLoading(false);
         }
@@ -151,25 +216,26 @@ const AttendingCallDashboard = () => {
 
     const handleIssueIC = async (call) => {
         try {
-            // "for now leave perform transaction action"
-            /*
             const user = getStoredUser();
-            if (call.jobStatus !== 'GENERATE_IC' && call.status !== 'GENERATE_IC') {
+            const currentStatus = call.jobStatus || call.status;
+            
+            if (currentStatus !== 'IC_ISSUE') {
                 const payload = {
                     workflowTransitionId: call.id || call.workflowTransitionId,
                     moduleId: call.moduleId || 0,
                     requestId: call.requestId,
-                    action: 'GENERATE_IC',
-                    remarks: 'System updated status to GENERATE_IC',
+                    action: 'IC_ISSUE',
+                    remarks: 'System updated status to IC_ISSUE',
                     actionBy: Number(user?.userId || 0)
                 };
                 try {
                     await apiService.performTransitionAction(payload);
                 } catch (e) {
-                    console.error('Failed to update status to GENERATE_IC:', e);
+                    console.error('Failed to update status to IC_ISSUE:', e);
+                    alert('Failed to issue IC: ' + (e.message || 'Unknown error'));
+                    return; // Prevent navigating if API fails
                 }
             }
-            */
 
             localStorage.setItem('selectedICCall', JSON.stringify(call));
             const event = new CustomEvent('navigate', { detail: { target: 'Sleeper Final IC' } });
@@ -199,21 +265,21 @@ const AttendingCallDashboard = () => {
                 <div className="dashboard-tabs">
                     <button 
                         className={`tab-btn ${activeTab === 'pending' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('pending')}
+                        onClick={() => handleTabChange('pending')}
                     >
                         List of Calls Pending
                         <span className="badge">{pendingCalls.length}</span>
                     </button>
                     <button 
                         className={`tab-btn ${activeTab === 'issuance' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('issuance')}
+                        onClick={() => handleTabChange('issuance')}
                     >
                         Issuance of IC
                         <span className="badge">{issuanceCalls.length}</span>
                     </button>
                     <button 
                         className={`tab-btn ${activeTab === 'completed' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('completed')}
+                        onClick={() => handleTabChange('completed')}
                     >
                         Completed Calls
                         <span className="badge">{completedCalls.length}</span>
@@ -416,7 +482,9 @@ const AttendingCallDashboard = () => {
                                                     </td>
                                                     <td>
                                                         <div className="table-actions-modern">
-                                                            <button className="btn-start" onClick={() => handleIssueIC(call)}>Issue IC</button>
+                                                            <button className="btn-start" onClick={() => handleIssueIC(call)}>
+                                                                {(call.jobStatus === 'IC_ISSUE' || call.status === 'IC_ISSUE') ? 'View IC' : 'Issue IC'}
+                                                            </button>
                                                             <button className="btn-reschedule" style={{ marginLeft: '8px' }}>Download Annexures</button>
                                                         </div>
                                                     </td>
@@ -530,7 +598,9 @@ const AttendingCallDashboard = () => {
                         <div className="modal-actions-horizontal">
                             {activeTab === 'issuance' ? (
                                 <>
-                                    <button className="issue-ic-btn">Issue IC</button>
+                                    <button className="issue-ic-btn" onClick={() => handleIssueIC(popupCall)}>
+                                        {(popupCall?.jobStatus === 'IC_ISSUE' || popupCall?.status === 'IC_ISSUE') ? 'View IC' : 'Issue IC'}
+                                    </button>
                                     <button className="download-btn">Download Annexures</button>
                                 </>
                             ) : (

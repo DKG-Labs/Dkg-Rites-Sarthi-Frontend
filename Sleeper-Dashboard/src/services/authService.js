@@ -55,6 +55,32 @@ export const storeAuthData = (authData) => {
   localStorage.setItem('activeMainView', 'Main Dashboard');
 };
 
+export const resetPassword = async (identifier, newPassword) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ identifier, newPassword }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.responseStatus?.message || 'Password reset failed');
+    }
+
+    if (data.responseStatus?.statusCode !== 0) {
+      throw new Error(data.responseStatus?.message || 'Password reset failed');
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+};
+
 /**
  * Get stored authentication token
  * @returns {string|null} JWT token or null if not logged in
@@ -76,6 +102,7 @@ export const getStoredUser = () => {
     userName: localStorage.getItem('userName'),
     roleName: localStorage.getItem('roleName'),
     vendorCode: localStorage.getItem('vendorCode'), // Allow components to easily read
+    employeeCode: localStorage.getItem('employeeCode'),
     token: token,
   };
 };

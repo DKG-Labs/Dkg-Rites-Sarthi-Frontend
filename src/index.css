@@ -1253,7 +1253,9 @@ body {
   overflow-y: auto;
   overflow-x: hidden;
   transition: width var(--duration-normal) var(--ease-standard);
-  position: relative;
+  position: sticky;
+  top: 70px;
+  height: calc(100vh - 70px);
   flex-shrink: 0;
 }
 
@@ -3657,4 +3659,69 @@ input[type="number"] {
     border: 1px solid #f1f5f9;
     justify-content: center;
   }
+}
+
+/* ===== STICKY TABLE HEADERS (Correct Implementation) ===== */
+
+/* Make table scroll wrappers scrollable so sticky can work */
+.table-responsive,
+.table-container,
+.report-table-wrapper,
+.pwmr-table-wrapper {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: calc(100vh - 240px);
+}
+
+/* Tables inside scroll containers must use border-collapse:separate for sticky to work */
+.table-responsive table,
+.table-container table,
+.report-table-wrapper table,
+.pwmr-table-wrapper table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+/* Sticky header cells - ONLY th gets sticky, not thead or tr */
+.table-responsive table thead th,
+.table-container table thead th,
+.report-table-wrapper table thead th,
+.pwmr-table-wrapper table thead th {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 10 !important;
+  background-color: inherit;
+}
+
+/* Wider scrollbar for table wrappers */
+.table-responsive::-webkit-scrollbar,
+.table-container::-webkit-scrollbar,
+.report-table-wrapper::-webkit-scrollbar,
+.pwmr-table-wrapper::-webkit-scrollbar {
+  height: 14px !important;
+  width: 8px;
+}
+
+.table-responsive::-webkit-scrollbar-track,
+.table-container::-webkit-scrollbar-track,
+.report-table-wrapper::-webkit-scrollbar-track,
+.pwmr-table-wrapper::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 8px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb,
+.table-container::-webkit-scrollbar-thumb,
+.report-table-wrapper::-webkit-scrollbar-thumb,
+.pwmr-table-wrapper::-webkit-scrollbar-thumb {
+  background: #94a3b8 !important;
+  border-radius: 8px !important;
+  border: 3px solid #f1f5f9 !important;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover,
+.table-container::-webkit-scrollbar-thumb:hover,
+.report-table-wrapper::-webkit-scrollbar-thumb:hover,
+.pwmr-table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #64748b !important;
 }

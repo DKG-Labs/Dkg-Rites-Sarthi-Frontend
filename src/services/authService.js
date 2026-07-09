@@ -125,6 +125,32 @@ export const loginUser = async (userId, password) => {
   }
 };
 
+export const resetPassword = async (identifier, newPassword) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ identifier, newPassword }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.responseStatus?.message || 'Password reset failed');
+    }
+
+    if (data.responseStatus?.statusCode !== 0) {
+      throw new Error(data.responseStatus?.message || 'Password reset failed');
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+};
+
 /**
  * Store authentication data in localStorage
  * @param {Object} authData - Authentication data from login response

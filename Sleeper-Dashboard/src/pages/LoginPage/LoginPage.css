@@ -660,3 +660,8 @@
   .login-redesign-wrapper .brand-mark { --brand-logo-slot: 70px; }
   .login-redesign-wrapper .form-group label { font-size: 0.8rem; }
 }
+.login-redesign-wrapper .submit-btn {
+  background: linear-gradient(90deg, #326487 0%, #d68735 60%, #a37c59 100%) !important;
+  width: 100% !important;
+  align-self: stretch !important;
+}

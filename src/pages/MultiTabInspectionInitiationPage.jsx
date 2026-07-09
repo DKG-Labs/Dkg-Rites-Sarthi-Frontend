@@ -312,6 +312,23 @@ const MultiTabInspectionInitiationPage = ({ calls, onProceed, onBack }) => {
           const result = await saveInspectionInitiation(initiationData);
           console.log('✅ Saved successfully:', call.call_no, result);
 
+          // Trigger workflow transition for Initiate Inspection
+          try {
+            const workflowActionData = {
+              workflowTransitionId: workflowTransitionId,
+              requestId: call.call_no,
+              action: 'ENTER_SHIFT_DETAILS_AND_START_INSPECTION',
+              remarks: 'Inspection Initiated',
+              actionBy: userId,
+              pincode: currentUser?.pincode || '560001'
+            };
+            console.log('🔄 Triggering workflow API for Initiate Inspection...', workflowActionData);
+            await performTransitionAction(workflowActionData);
+            console.log('✅ Workflow transition for Initiate Inspection successful');
+          } catch (workflowError) {
+            console.error(`❌ Workflow API error on Initiate Inspection for ${call.call_no}:`, workflowError);
+          }
+
           successfulCalls.push(call.call_no);
         } catch (callError) {
           console.error(`❌ Error processing call ${call.call_no}:`, callError);

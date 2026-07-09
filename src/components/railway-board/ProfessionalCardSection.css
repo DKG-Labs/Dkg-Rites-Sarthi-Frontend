@@ -25,6 +25,10 @@
     text-transform: uppercase !important;
 }
 
+.kpi-val {
+    font-family: 'Tahoma', sans-serif !important;
+}
+
 /* Global Animations */
 @keyframes fadeIn {
     from {
@@ -1063,13 +1067,16 @@ thead th:hover {
 }
 
 .perf-data-table-new th {
-    background: #d1fae5;
+    background-color: #d1fae5 !important;
     padding: 1rem 1.5rem;
     text-align: left;
     font-size: 0.75rem;
     font-weight: 700;
     color: #065f46;
     border-bottom: 2px solid #10b981;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 10 !important;
 }
 
 .perf-data-table-new tr.row-odd {
@@ -1305,7 +1312,7 @@ thead th:hover {
 }
 
 .report-data-table th {
-    background: #1e3a8a;
+    background-color: #1e3a8a !important;
     padding: 1.25rem 1rem;
     text-align: left;
     font-weight: 700;
@@ -1315,6 +1322,9 @@ thead th:hover {
     letter-spacing: 0.05em;
     border-bottom: 2px solid #e2e8f0;
     white-space: nowrap;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 10 !important;
 }
 
 .report-data-table td {
@@ -1747,7 +1757,7 @@ tr.row-even td {
 }
 
 .level-4-table thead tr:first-child th {
-    background: #1e3a8a;
+    background-color: #1e3a8a !important;
     color: #ffffff;
     font-weight: 800;
 }

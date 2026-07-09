@@ -4,9 +4,11 @@ import StatusBadge from './StatusBadge';
 import Notification from './Notification';
 import { getProductTypeDisplayName, formatDate } from '../utils/helpers';
 import CallsFilterSection from './common/CallsFilterSection';
+import { getDetailedStatus } from '../utils/statusMapper';
 import { viewSignedCertificate } from '../services/certificateService';
 import { fetchSignedCallsForIC, getCurrentUserId } from '../services/workflowApiService';
 import AnnexureLoader from './annexures/AnnexureLoader';
+import CorrectionSlipModal from './CorrectionSlipModal';
 
 const CompletedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
   const [showFilters, setShowFilters] = useState(false);
@@ -27,6 +29,7 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
 
   const [completedCalls, setCompletedCalls] = useState([]);
   const [isLoadingCalls, setIsLoadingCalls] = useState(true);
+  const [correctionSlipRow, setCorrectionSlipRow] = useState(null);
 
   const hasFetchedRef = useRef(false);
 
@@ -125,7 +128,14 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
     { key: 'vendor_name', label: 'Vendor Name' },
     { key: 'product_type', label: 'Product Type', render: (val) => getProductTypeDisplayName(val) },
     { key: 'requested_date', label: 'Date', render: (val) => formatDate(val) },
-    { key: 'status', label: 'Status', render: (val) => <StatusBadge status={val} /> },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (_val, row) => {
+        const { mainStatus, combinedText } = getDetailedStatus(row.status);
+        return <StatusBadge status={mainStatus} text={combinedText} />;
+      }
+    },
   ];
 
   const handleViewAnnexures = (row) => {
@@ -173,7 +183,7 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
   };
 
   const actions = (row) => (
-    <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
+    <div style={{ display: 'flex', gap: 'var(--space-8)', flexWrap: 'wrap' }}>
       <button className="btn btn-sm btn-primary" onClick={(e) => { e.stopPropagation(); handleViewIC(row); }}>
         View IC
       </button>
@@ -186,6 +196,14 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
         title="View Technical Annexures"
       >
         Annexures
+      </button>
+      <button
+        className="btn btn-sm"
+        style={{ background: '#f59e0b', color: '#fff', border: 'none' }}
+        onClick={(e) => { e.stopPropagation(); setCorrectionSlipRow(row); }}
+        title="Issue Correction Slip"
+      >
+        Correction Slip
       </button>
     </div>
   );
@@ -243,6 +261,14 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
           initialPageSize={10}
           hidePageSize={true}
           hideSearch={true}
+        />
+      )}
+
+      {/* Correction Slip Modal */}
+      {correctionSlipRow && (
+        <CorrectionSlipModal
+          row={correctionSlipRow}
+          onClose={() => setCorrectionSlipRow(null)}
         />
       )}
     </div>

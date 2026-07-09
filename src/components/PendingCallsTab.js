@@ -5,8 +5,8 @@ import Notification from './Notification';
 import { getProductTypeDisplayName, formatDate } from '../utils/helpers';
 import { createStageValidationHandler, stageReverseMapping } from '../utils/stageValidation';
 import { getAllSchedules } from '../services/scheduleService';
-import { getDisplayStatus, isCallPaused, isCallInitiated } from '../services/callStatusService';
-import { getDisplayStatus as getDisplayStatusFromMapper, getAvailableActions, shouldShowScheduleDate, API_STATUS } from '../utils/statusMapper';
+import { isCallPaused, isCallInitiated } from '../services/callStatusService';
+import { getAvailableActions, shouldShowScheduleDate, API_STATUS, getDetailedStatus } from '../utils/statusMapper';
 import AnnexureLoader from './annexures/AnnexureLoader';
 import PendingCallDetailsModal from './PendingCallDetailsModal';
 
@@ -295,8 +295,6 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
       key: 'status',
       label: 'Status',
       render: (_val, row) => {
-        // Check if this is a call from workflow API (has workflow status)
-        // Check for workflow statuses instead of product type to be more reliable
         const isFromWorkflowAPI = row.status === 'CALL_REGISTERED' ||
           row.status === 'IE_SCHEDULED' ||
           row.status === 'VERIFY_PO_DETAILS' ||
@@ -304,17 +302,12 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
           row.status === 'ENTER_SHIFT_DETAILS_AND_START_INSPECTION' ||
           row.status === 'PAUSE_INSPECTION_RESUME_NEXT_DAY';
 
-        let displayStatus;
-        if (isFromWorkflowAPI) {
-          // Apply status mapper for API calls (maps IE_SCHEDULED -> Scheduled, etc.)
-          const apiStatus = row.status || API_STATUS.CALL_REGISTERED;
-          displayStatus = getDisplayStatusFromMapper(apiStatus);
-        } else {
-          // For mock Process/Final calls, use callStatusService logic
-          displayStatus = getDisplayStatus(row.call_no, isScheduled(row.call_no));
+        let apiStatus = row.status || API_STATUS.CALL_REGISTERED;
+        if (!isFromWorkflowAPI && isScheduled(row.call_no)) {
+           apiStatus = 'SCHEDULED'; // mock data handling
         }
-
-        return <StatusBadge status={displayStatus} />;
+        const { mainStatus, combinedText } = getDetailedStatus(apiStatus);
+        return <StatusBadge status={mainStatus} text={combinedText} />;
       }
     },
   ];

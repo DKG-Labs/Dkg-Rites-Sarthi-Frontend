@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import ExcelJS from 'exceljs/dist/exceljs.min.js';
 import { API_ENDPOINTS, getAuthHeaders, handleResponse } from '../services/apiConfig';
 import { formatDate } from '../utils/helpers';
 
@@ -139,22 +140,51 @@ export default function ProcessDefectSummaryPage() {
         { label: 'Finishing Coating', getValue: (s) => s.finishingDefects?.ercCoating ?? 0 }
     ];
 
-    const downloadExcel = () => {
+    const downloadExcel = async () => {
         if (!data || data.length === 0) return;
-        const headers = exportColumns.map(col => col.label).join(',');
-        const rows = data.map((shift, idx) => 
-            exportColumns.map(col => {
-                const val = col.getValue(shift, idx);
-                return `"${String(val ?? '').replace(/"/g, '""')}"`;
-            }).join(',')
-        ).join('\n');
+        const displayTitle = `Process Defect Summary - Call No: ${submittedCallNo || ''}`;
         
-        const csvContent = "\uFEFF" + headers + "\n" + rows;
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Report');
+
+        const titleRow = worksheet.addRow([displayTitle]);
+        titleRow.font = { bold: true, size: 14 };
+        if (exportColumns.length > 1) {
+            worksheet.mergeCells(1, 1, 1, exportColumns.length);
+        }
+        
+        worksheet.addRow([]);
+        
+        const headerRow = worksheet.addRow(exportColumns.map(col => col.label));
+        headerRow.font = { bold: true };
+        headerRow.eachCell(cell => {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
+            cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+        });
+
+        data.forEach((shift, idx) => {
+            const rowData = exportColumns.map(col => {
+                const val = col.getValue(shift, idx);
+                return (val === null || val === undefined) ? '' : val;
+            });
+            worksheet.addRow(rowData);
+        });
+
+        worksheet.columns.forEach(column => {
+            let maxLength = 0;
+            column.eachCell({ includeEmpty: true }, cell => {
+                let columnLength = cell.value ? cell.value.toString().length : 10;
+                if (columnLength > maxLength) maxLength = columnLength;
+            });
+            column.width = maxLength < 10 ? 10 : maxLength + 2;
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute("download", `Process_Defect_Summary_${submittedCallNo}.csv`);
+        link.href = URL.createObjectURL(blob);
+        link.download = `Process_Defect_Summary_${submittedCallNo}.xlsx`;
+        link.style.display = 'none';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);

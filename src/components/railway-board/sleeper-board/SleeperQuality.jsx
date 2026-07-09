@@ -65,21 +65,19 @@ const SleeperQuality = ({ qualityData }) => {
         });
 
         const categoryColors = {
-            // Original names (local dev)
+            'Visual Defects': '#10b981',
+            'Critical Dimensions': '#3b82f6',
+            'General Dimensional Defect': '#f59e0b',
+            'Demoulding Rejection': '#ef4444',
+            'Non Critical': '#8b5cf6',
+            'Cube Strength': '#06b6d4',
+            'MR Deficiency': '#ec4899',
+            // Fallbacks for older data formats
             'Visual (Demoulding)': '#10b981',
             'Dimension (Demoulding)': '#3b82f6',
             'Final (Visual)': '#f59e0b',
             'Final (Critical)': '#ef4444',
-            'Final (Non-Critical)': '#8b5cf6',
-            'Cube Strength': '#06b6d4',
-            'MR Deficiency': '#ec4899',
-            // Server / production names
-            'Visual Defects': '#10b981',
-            'Critical Dimensions': '#ef4444',
-            'General Dimensional Defect': '#3b82f6',
-            'Non Critical': '#8b5cf6',
-            'Demoulding Rejection': '#f59e0b',
-            'Cube Strength Failure': '#06b6d4',
+            'Final (Non-Critical)': '#8b5cf6'
         };
 
         // Fallback palette — ensures colors even for unknown category names

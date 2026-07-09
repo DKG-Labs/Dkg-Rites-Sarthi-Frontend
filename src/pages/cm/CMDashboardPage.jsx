@@ -487,9 +487,16 @@ const MANDAY_UNITS = {
   'Precision Engineering Co': ['Unit-1 (Pune)', 'Unit-2 (Aurangabad)']
 };
 
-export const CMDashboardPage = () => {
+export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null, activeCallFilterFromProps = null, activeReportTabFromProps = null }) => {
   // Navigation tabs state matching SRS options exactly
   const [activeTab, setActiveTab] = useState('Dashboard');
+  
+  useEffect(() => {
+    if (isEmbedded && activeTabFromProps) {
+      setActiveTab(activeTabFromProps);
+    }
+  }, [isEmbedded, activeTabFromProps]);
+
   const [activeCallFilter, setActiveCallFilter] = useState(null); // Clicked KPI filter: all, pending, under_inspection, ic_pending, completed, overdue
   const [callMenuOpen, setCallMenuOpen] = useState(false); // Call Monitoring submenu toggle
   const [ieMenuOpen, setIeMenuOpen] = useState(false); // IE Monitoring submenu toggle
@@ -497,6 +504,18 @@ export const CMDashboardPage = () => {
   const [reportsMenuOpen, setReportsMenuOpen] = useState(false); // Reports submenu toggle
   const [activeReportTab, setActiveReportTab] = useState('PO Wise Monthly Progress Report'); // Active sub-report
   const [callPopupData, setCallPopupData] = useState(null); // Drill-down popup data for calls: { ieName, type, calls }
+
+  useEffect(() => {
+    if (isEmbedded && activeCallFilterFromProps) {
+      setActiveCallFilter(activeCallFilterFromProps);
+    }
+  }, [isEmbedded, activeCallFilterFromProps]);
+
+  useEffect(() => {
+    if (isEmbedded && activeReportTabFromProps) {
+      setActiveReportTab(activeReportTabFromProps);
+    }
+  }, [isEmbedded, activeReportTabFromProps]);
 
   // --- Process Inspection Manday Calculation States ---
   const [mandayProduct, setMandayProduct] = useState(''); // 'ERC', 'Sleeper', 'Rail Pad'
@@ -1013,12 +1032,8 @@ export const CMDashboardPage = () => {
       setCallsLoading(true);
       try {
         let data = [];
-        const isAllProducts = selectedProducts.length === 0;
-        const isIEMonitoring = activeTab === 'IE Performance Monitoring' || activeTab === 'IE wise Call Status';
-        const skipErcCallMonitoring = isIEMonitoring && selectedProducts.includes('ERC');
-
-        const fetchErc = !skipErcCallMonitoring && (isAllProducts || selectedProducts.includes('ERC') || selectedProducts.includes('Rail Pad'));
-        const fetchSleeper = isAllProducts || selectedProducts.includes('Sleeper');
+        const fetchErc = true;
+        const fetchSleeper = true;
 
         if (fetchErc) {
           try {
@@ -1054,7 +1069,7 @@ export const CMDashboardPage = () => {
           let mappedStatus = item.status || 'Pending';
           let mappedSubStatus = '';
 
-          let prodType = selectedProducts[0] || 'ERC';
+          let prodType = 'ERC';
           if (item.callNumber?.startsWith('ER') || item.callNumber?.startsWith('EP') || item.callNumber?.startsWith('EF')) prodType = 'ERC';
           else if (item.callNumber?.startsWith('SR') || item.callNumber?.startsWith('SP') || item.callNumber?.startsWith('SF')) prodType = 'Sleeper';
           else if (item.callNumber?.startsWith('RR') || item.callNumber?.startsWith('RP') || item.callNumber?.startsWith('RF')) prodType = 'Rail Pad';
@@ -1100,7 +1115,7 @@ export const CMDashboardPage = () => {
         }
 
         const mappedOverdue = overdueDataRaw.map((item, index) => {
-          let prodType = selectedProducts[0] || 'ERC';
+          let prodType = 'ERC';
           if (item.callNumber?.startsWith('ER') || item.callNumber?.startsWith('EP') || item.callNumber?.startsWith('EF')) prodType = 'ERC';
           else if (item.callNumber?.startsWith('SR') || item.callNumber?.startsWith('SP') || item.callNumber?.startsWith('SF')) prodType = 'Sleeper';
           else if (item.callNumber?.startsWith('RR') || item.callNumber?.startsWith('RP') || item.callNumber?.startsWith('RF')) prodType = 'Rail Pad';
@@ -1133,7 +1148,7 @@ export const CMDashboardPage = () => {
     };
 
     fetchCalls();
-  }, [startDate, endDate, selectedProducts, activeTab]);
+  }, [startDate, endDate]);
 
   // Expand/collapse global filters panel
   const [filtersExpanded, setFiltersExpanded] = useState(true);
@@ -1152,10 +1167,15 @@ export const CMDashboardPage = () => {
     // Ensure the logged-in CM is always an option in the dropdown, even if they have 0 calls
     const loggedInEmpCode = localStorage.getItem('employeeCode');
     const loggedInUserName = localStorage.getItem('userName');
-    if (loggedInEmpCode && loggedInUserName) {
-      cms.add(`${loggedInEmpCode} - ${loggedInUserName.toUpperCase()}`);
-    } else if (loggedInEmpCode) {
-      cms.add(`${loggedInEmpCode}`);
+    const roleName = localStorage.getItem('roleName') || '';
+    
+    // Only add the logged-in user if they are an actual CM (not an Admin)
+    if (!roleName.includes('Admin')) {
+      if (loggedInEmpCode && loggedInUserName) {
+        cms.add(`${loggedInEmpCode} - ${loggedInUserName.toUpperCase()}`);
+      } else if (loggedInEmpCode) {
+        cms.add(`${loggedInEmpCode}`);
+      }
     }
 
     allCalls.forEach(call => {
@@ -1192,6 +1212,7 @@ export const CMDashboardPage = () => {
 
       // Auto-select logged-in CM, or fall back to all CMs if no match is found
       const loggedInEmpCode = localStorage.getItem('employeeCode');
+      const roleName = localStorage.getItem('roleName') || '';
       const code = String(loggedInEmpCode || '').trim().toLowerCase();
       
       let match = null;
@@ -1199,7 +1220,8 @@ export const CMDashboardPage = () => {
         match = dynamicFilterOptions.cms.find(cm => String(cm).trim().toLowerCase().startsWith(code));
       }
 
-      if (match) {
+      // If user is an Admin, they should see all CMs by default
+      if (match && !roleName.includes('Admin')) {
         setSelectedCMs([match]);
       } else {
         setSelectedCMs(dynamicFilterOptions.cms);
@@ -1570,8 +1592,9 @@ export const CMDashboardPage = () => {
   const pendingApprovalsCount = approvals.filter(a => a.status === 'pending').length;
 
   return (
-    <div className={`cm-dashboard-container ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+    <div className={`cm-dashboard-container ${isSidebarCollapsed || isEmbedded ? 'sidebar-collapsed' : ''}`} style={isEmbedded ? {height: '100%', minHeight: '80vh', overflow: 'hidden'} : {}}>
       {/* Floating toggle tab — sticks to right edge of sidebar, below app header */}
+      {!isEmbedded && (
       <button
         onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         style={{
@@ -1596,8 +1619,10 @@ export const CMDashboardPage = () => {
       >
         <i className={`fa-solid ${isSidebarCollapsed ? 'fa-chevron-right' : 'fa-chevron-left'}`}></i>
       </button>
+      )}
 
       {/* Sidebar — no header, just nav */}
+      {!isEmbedded && (
       <aside className={`cm-sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
 
         <nav style={{ paddingBottom: '20px', paddingTop: '10px' }}>
@@ -1907,9 +1932,10 @@ export const CMDashboardPage = () => {
           </div>
         </nav>
       </aside>
+      )}
 
       {/* Main Panel Content Area */}
-      <main className="cm-main-panel">
+      <main className="cm-main-panel" style={isEmbedded ? { marginLeft: 0, width: '100%', padding: '10px' } : {}}>
 
         {/* Custom Notifications Toast */}
         {notification && (

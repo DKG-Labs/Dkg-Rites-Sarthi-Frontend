@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'; // Re-adding hooks
+import { Select, Skeleton } from 'antd';
 import { ExportButton, downloadExcel } from './SharedComponents';
 import reportService from '../../services/reportService';
 import Pagination from '../Pagination';
@@ -7,6 +8,8 @@ import {
     Cell, PieChart, Pie, Legend, Line, ComposedChart, AreaChart, Area, LabelList
 } from 'recharts';
 import { formatDecimal } from '../../utils/helpers';
+import html2canvas from 'html2canvas';
+import PptxGenJS from 'pptxgenjs';
 import './ProfessionalCardSection.css';
 import './InspectionStackedCharts.css';
 import './PerformanceMatrixTheme.css';
@@ -38,6 +41,8 @@ import PoIssuedModal from './PoIssuedModal';
 import InspectionCallStatusModal from './InspectionCallStatusModal';
 import SleeperAnomalyDiagnostics from './sleeper-anomaly/SleeperAnomalyDiagnostics';
 import DownloadIcAnnexures from './DownloadIcAnnexures';
+
+const { Option } = Select;
 
 const formatPoDate = (dateStr) => {
     if (!dateStr) return '';
@@ -159,6 +164,253 @@ const ProfessionalCardSection = ({
     const [isPoModalOpen, setIsPoModalOpen] = useState(false);
     const [poModalData, setPoModalData] = useState([]);
 
+    // Global Filters State
+    const [filterMode, setFilterMode] = useState('zonalwise'); // 'vendorwise' or 'zonalwise'
+    const [vendorPlants, setVendorPlants] = useState([]);
+    const [zonalRailways, setZonalRailways] = useState([]);
+    const [selectedVendorPlant, setSelectedVendorPlant] = useState('');
+    const [selectedZonalRailway, setSelectedZonalRailway] = useState('');
+    // Helper to get Current Financial Year start and end dates
+    const getCurrentFY = () => {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = today.getMonth(); // 0 = Jan, 3 = Apr
+        const startYear = month >= 3 ? year : year - 1;
+        return {
+            start: `${startYear}-04-01`,
+            end: today.toISOString().split('T')[0]
+        };
+    };
+
+    const initialFY = getCurrentFY();
+    const [filterStartDate, setFilterStartDate] = useState(initialFY.start);
+    const [filterEndDate, setFilterEndDate] = useState(initialFY.end);
+    const [dateFilterType, setDateFilterType] = useState('current_fy');
+
+    // Auto-calculate dates when preset dropdown changes
+    useEffect(() => {
+        if (dateFilterType === 'custom') return; // Do nothing for custom
+        
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+        
+        if (dateFilterType === 'current_fy') {
+            const fy = getCurrentFY();
+            setFilterStartDate(fy.start);
+            setFilterEndDate(fy.end);
+        } else if (dateFilterType === 'last_1_month') {
+            const d = new Date();
+            d.setMonth(today.getMonth() - 1);
+            setFilterStartDate(d.toISOString().split('T')[0]);
+            setFilterEndDate(todayStr);
+        } else if (dateFilterType === 'last_3_months') {
+            const d = new Date();
+            d.setMonth(today.getMonth() - 3);
+            setFilterStartDate(d.toISOString().split('T')[0]);
+            setFilterEndDate(todayStr);
+        } else if (dateFilterType === 'last_6_months') {
+            const d = new Date();
+            d.setMonth(today.getMonth() - 6);
+            setFilterStartDate(d.toISOString().split('T')[0]);
+            setFilterEndDate(todayStr);
+        }
+    }, [dateFilterType]);
+
+    
+    // IC Issued State
+    const [icIssuedData, setIcIssuedData] = useState({ total: 0, rmCount: 0, processCount: 0, finalCount: 0 });
+    const [isIcIssuedModalOpen, setIsIcIssuedModalOpen] = useState(false);
+    const [localInspectionCallStatus, setLocalInspectionCallStatus] = useState([]);
+    const [localInspectionDetails, setLocalInspectionDetails] = useState([]);
+    const [localAvgProduction, setLocalAvgProduction] = useState(null);
+    const [localSummaryData, setLocalSummaryData] = useState(null);
+    const [totalCallsData, setTotalCallsData] = useState(null);
+
+    // Initial fetch based on filterMode
+    useEffect(() => {
+        const fetchInitialOptions = async () => {
+            try {
+                if (filterMode === 'vendorwise') {
+                    const response = await reportService.getVendorPlants();
+                    const data = response.responseData || response.data || response;
+                    if (Array.isArray(data)) {
+                        const filteredData = data.filter(vp => !vp.companyName?.toLowerCase().includes('dummy'));
+                        const sortedData = [...filteredData].sort((a, b) => 
+                            (a.companyName || '').localeCompare(b.companyName || '')
+                        );
+                        setVendorPlants(sortedData);
+                    }
+                } else {
+                    const response = await reportService.getAllZonalRailways();
+                    const data = response.responseData || response.data || response;
+                    if (Array.isArray(data)) {
+                        const sortedData = [...data].sort((a, b) => 
+                            (a || '').localeCompare(b || '')
+                        );
+                        setZonalRailways(sortedData);
+                    }
+                }
+            } catch (error) {
+                console.error("Error fetching initial options:", error);
+            }
+        };
+        
+        // Reset selections when mode changes
+        setSelectedVendorPlant('');
+        setSelectedZonalRailway('');
+        
+        fetchInitialOptions();
+    }, [filterMode]);
+
+    // Dependent fetch: Zonal Railways based on selected Vendor Plant
+    useEffect(() => {
+        if (filterMode !== 'vendorwise') return;
+        const fetchZonalRailways = async () => {
+            setSelectedZonalRailway(''); // Reset dependent dropdown
+            if (!selectedVendorPlant) {
+                setZonalRailways([]);
+                return;
+            }
+            try {
+                const response = await reportService.getZonalRailways(selectedVendorPlant);
+                const data = response.responseData || response.data || response;
+                if (Array.isArray(data)) {
+                    const sortedData = [...data].sort((a, b) => 
+                        (a || '').localeCompare(b || '')
+                    );
+                    setZonalRailways(sortedData);
+                }
+            } catch (error) {
+                console.error("Error fetching zonal railways:", error);
+            }
+        };
+        fetchZonalRailways();
+    }, [selectedVendorPlant, filterMode]);
+
+    // Dependent fetch: Vendor Plants based on selected Zonal Railway
+    useEffect(() => {
+        if (filterMode !== 'zonalwise') return;
+        const fetchVendorPlants = async () => {
+            setSelectedVendorPlant(''); // Reset dependent dropdown
+            if (!selectedZonalRailway) {
+                setVendorPlants([]);
+                return;
+            }
+            try {
+                const response = await reportService.getVendorPlantsByZone(selectedZonalRailway);
+                const data = response.responseData || response.data || response;
+                if (Array.isArray(data)) {
+                    const filteredData = data.filter(vp => !vp.companyName?.toLowerCase().includes('dummy'));
+                    const sortedData = [...filteredData].sort((a, b) => 
+                        (a.companyName || '').localeCompare(b.companyName || '')
+                    );
+                    setVendorPlants(sortedData);
+                }
+            } catch (error) {
+                console.error("Error fetching vendor plants by zone:", error);
+            }
+        };
+        fetchVendorPlants();
+    }, [selectedZonalRailway, filterMode]);
+
+    const [isDashboardLoading, setIsDashboardLoading] = useState(false);
+
+    // Fetch All Dashboard Data
+    useEffect(() => {
+        const fetchAllDashboardData = async () => {
+            setIsDashboardLoading(true);
+            try {
+                const minLoadingPromise = new Promise(resolve => setTimeout(resolve, 500));
+                
+                const isPrimaryFilterApplied = filterMode === 'vendorwise' ? !!selectedVendorPlant : !!selectedZonalRailway;
+                
+                const params = {
+                    vendorPlantCode: selectedVendorPlant,
+                    vendor: selectedVendorPlant,
+                    zonalRailway: selectedZonalRailway,
+                    zone: selectedZonalRailway,
+                    startDate: isPrimaryFilterApplied ? filterStartDate : '',
+                    endDate: isPrimaryFilterApplied ? filterEndDate : ''
+                };
+
+                const [
+                    icIssuedRes,
+                    callStatusRes,
+                    detailsRes,
+                    avgProdRes,
+                    summaryRes
+                ] = await Promise.all([
+                    reportService.getIcIssuedCounts(params).catch(e => { console.error(e); return null; }),
+                    reportService.getInspectionCallStatus(params).catch(e => { console.error(e); return null; }),
+                    reportService.getInspectionDetails(params).catch(e => { console.error(e); return null; }),
+                    reportService.getAvgProductionPerDay(
+                        selectedVendorPlant,
+                        selectedZonalRailway,
+                        isPrimaryFilterApplied ? filterStartDate : '',
+                        isPrimaryFilterApplied ? filterEndDate : ''
+                    ).catch(e => { console.error(e); return null; }),
+                    reportService.getDashboardSummary({ vendor: selectedVendorPlant, zone: selectedZonalRailway }).catch(e => { console.error(e); return null; }),
+                    minLoadingPromise
+                ]);
+
+                if (icIssuedRes) {
+                    const data = icIssuedRes.responseData || icIssuedRes.data || icIssuedRes;
+                    if (data) setIcIssuedData(data);
+                }
+                
+                if (callStatusRes) {
+                    const data = callStatusRes.responseData || callStatusRes.data || callStatusRes;
+                    if (data && Array.isArray(data)) setLocalInspectionCallStatus(data);
+                }
+
+                if (detailsRes) {
+                    const data = detailsRes.responseData || detailsRes.data || detailsRes;
+                    if (data && Array.isArray(data)) setLocalInspectionDetails(data);
+                }
+
+                if (avgProdRes) {
+                    const data = avgProdRes.responseData ?? avgProdRes.data ?? avgProdRes;
+                    setLocalAvgProduction(data);
+                }
+
+                if (summaryRes) {
+                    const data = summaryRes.responseData ?? summaryRes.data ?? summaryRes;
+                    if (data) setLocalSummaryData(data);
+                }
+
+            } catch (error) {
+                console.error("Error in dashboard Promise.all:", error);
+            } finally {
+                setIsDashboardLoading(false);
+            }
+        };
+
+        fetchAllDashboardData();
+    }, [selectedVendorPlant, selectedZonalRailway, filterStartDate, filterEndDate, filterMode]);
+
+    useEffect(() => {
+        const fetchTotalCalls = async () => {
+            try {
+                if (getSummaryKey(selectedProduct) !== 'erc') return;
+                const isPrimaryFilterApplied = filterMode === 'vendorwise' ? !!selectedVendorPlant : !!selectedZonalRailway;
+                const params = {
+                    zone: selectedZonalRailway,
+                    vendor: selectedVendorPlant,
+                    startDate: isPrimaryFilterApplied ? filterStartDate : '',
+                    endDate: isPrimaryFilterApplied ? filterEndDate : ''
+                };
+                const response = await reportService.getErcDashboardTotalCalls(params);
+                const data = response?.responseData || response?.data || response;
+                if (data) {
+                    setTotalCallsData(data);
+                }
+            } catch (error) {
+                console.error("Error fetching total calls:", error);
+            }
+        };
+        fetchTotalCalls();
+    }, [selectedProduct, selectedZonalRailway, selectedVendorPlant, filterStartDate, filterEndDate, filterMode]);
+
     const handlePoIssuedClick = async () => {
         try {
             let itemCatDescr;
@@ -169,7 +421,13 @@ const ProfessionalCardSection = ({
             } else {
                 itemCatDescr = 'Elastic Rail Clips';
             }
-            const response = await reportService.getPoIssuedDetails(itemCatDescr);
+            const response = await reportService.getPoIssuedDetails(
+                itemCatDescr, 
+                selectedVendorPlant || null, 
+                selectedZonalRailway || null, 
+                null, 
+                null
+            );
             const data = response.responseData || response || [];
             setPoModalData(data);
             setIsPoModalOpen(true);
@@ -187,12 +445,41 @@ const ProfessionalCardSection = ({
         try {
             const title = `${stage} Stage - ${status}`;
             setIcModalTitle(title);
-            const response = await reportService.getInspectionCallStatusDetails(stage, status);
+            const isPrimaryFilterApplied = filterMode === 'vendorwise' ? !!selectedVendorPlant : !!selectedZonalRailway;
+            const response = await reportService.getInspectionCallStatusDetails(stage, status, {
+                vendor: selectedVendorPlant,
+                zone: selectedZonalRailway,
+                startDate: isPrimaryFilterApplied ? filterStartDate : '',
+                endDate: isPrimaryFilterApplied ? filterEndDate : ''
+            });
             const data = response.responseData || response || [];
             setIcModalData(data);
             setIsIcModalOpen(true);
         } catch (error) {
             console.error("Error fetching active call details:", error);
+        }
+    };
+
+    const handleTotalCallsClick = async (type) => {
+        try {
+            setIcModalTitle(`Total Calls - ${type}`);
+            let response;
+            const isPrimaryFilterApplied = filterMode === 'vendorwise' ? !!selectedVendorPlant : !!selectedZonalRailway;
+            const filters = {
+                vendor: selectedVendorPlant,
+                zone: selectedZonalRailway,
+                startDate: isPrimaryFilterApplied ? filterStartDate : '',
+                endDate: isPrimaryFilterApplied ? filterEndDate : ''
+            };
+            if (type === 'Open') response = await reportService.getErcDashboardOpenCalls(filters);
+            else if (type === 'Under Inspection') response = await reportService.getErcDashboardUnderInspectionCalls(filters);
+            else if (type === 'Pending') response = await reportService.getErcDashboardPendingCalls(filters);
+            
+            const data = response?.responseData || response?.data || response || [];
+            setIcModalData(data);
+            setIsIcModalOpen(true);
+        } catch (error) {
+            console.error(`Error fetching ${type} calls:`, error);
         }
     };
 
@@ -520,28 +807,184 @@ const ProfessionalCardSection = ({
                             if (isRailPad) {
                                 return <RailPadSummary summaryData={summaryData} onPoIssuedClick={handlePoIssuedClick} onInspectionCallClick={handleInspectionCallClick} />;
                             }
-                            const s = summaryData || {};
+                            const s = localSummaryData || summaryData || {};
+                            const isPrimaryFilterApplied = filterMode === 'vendorwise' ? !!selectedVendorPlant : !!selectedZonalRailway;
 
                             return (
                                 <div className="summary-tab-content">
-                                    <div className="g3 mb">
+                                    {/* Global Filters for ERC */}
+                                    {isErc && (
+                                        <div className="global-filters mb" style={{
+                                            display: 'flex', gap: '15px', background: '#f8fafc', 
+                                            padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0',
+                                            alignItems: 'center', flexWrap: 'wrap'
+                                        }}>
+                                            <div style={{ width: '100%', marginBottom: '10px' }}>
+                                                <div style={{ display: 'inline-flex', background: '#e2e8f0', padding: '4px', borderRadius: '8px' }}>
+                                                    <button 
+                                                        style={{ 
+                                                            padding: '6px 16px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
+                                                            background: filterMode === 'zonalwise' ? '#fff' : 'transparent',
+                                                            color: filterMode === 'zonalwise' ? '#0f172a' : '#64748b',
+                                                            boxShadow: filterMode === 'zonalwise' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                                                            marginRight: '4px'
+                                                        }}
+                                                        onClick={() => setFilterMode('zonalwise')}
+                                                    >
+                                                        Zonalwise
+                                                    </button>
+                                                    <button 
+                                                        style={{ 
+                                                            padding: '6px 16px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
+                                                            background: filterMode === 'vendorwise' ? '#fff' : 'transparent',
+                                                            color: filterMode === 'vendorwise' ? '#0f172a' : '#64748b',
+                                                            boxShadow: filterMode === 'vendorwise' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                                                        }}
+                                                        onClick={() => setFilterMode('vendorwise')}
+                                                    >
+                                                        Vendor wise
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div style={{ flex: '1', minWidth: '220px', order: filterMode === 'vendorwise' ? 1 : 2 }}>
+                                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>Vendor Plant</label>
+                                                <Select 
+                                                    showSearch
+                                                    allowClear
+                                                    placeholder="All Vendor Plants"
+                                                    value={selectedVendorPlant || undefined} 
+                                                    onChange={(val) => {
+                                                        setSelectedVendorPlant(val || '');
+                                                        if (filterMode === 'vendorwise') setSelectedZonalRailway('');
+                                                    }}
+                                                    style={{ width: '100%', height: '36px' }}
+                                                    popupMatchSelectWidth={false}
+                                                    dropdownStyle={{ maxWidth: '600px' }}
+                                                    optionFilterProp="children"
+                                                    filterOption={(input, option) =>
+                                                        (option?.title ?? '').toLowerCase().includes(input.toLowerCase())
+                                                    }
+                                                    disabled={filterMode === 'zonalwise' ? (!selectedZonalRailway || vendorPlants.length === 0) : false}
+                                                >
+                                                    {vendorPlants.map((vp, i) => (
+                                                        <Option 
+                                                            key={i} 
+                                                            value={vp.poiCode}
+                                                            title={`${vp.companyName} - ${vp.unitName} - ${vp.address}`}
+                                                        >
+                                                            {vp.companyName} - {vp.unitName}
+                                                        </Option>
+                                                    ))}
+                                                </Select>
+                                            </div>
+                                            <div style={{ flex: '1', minWidth: '170px', order: filterMode === 'zonalwise' ? 1 : 2 }}>
+                                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>Zonal Railway</label>
+                                                <Select 
+                                                    allowClear
+                                                    placeholder="All Zonal Railways"
+                                                    value={selectedZonalRailway || undefined} 
+                                                    onChange={(val) => {
+                                                        setSelectedZonalRailway(val || '');
+                                                        if (filterMode === 'zonalwise') setSelectedVendorPlant('');
+                                                    }}
+                                                    style={{ width: '100%', height: '36px' }}
+                                                    popupMatchSelectWidth={false}
+                                                    disabled={filterMode === 'vendorwise' ? (!selectedVendorPlant || zonalRailways.length === 0) : false}
+                                                >
+                                                    {zonalRailways.map((zr, i) => (
+                                                        <Option key={i} value={zr}>{zr}</Option>
+                                                    ))}
+                                                </Select>
+                                            </div>
+                                            <div style={{ flex: '1', minWidth: '150px', order: 3 }}>
+                                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>Date Range</label>
+                                                <Select 
+                                                    value={isPrimaryFilterApplied ? dateFilterType : null} 
+                                                    placeholder="Select Date Range"
+                                                    onChange={(val) => setDateFilterType(val || 'current_fy')}
+                                                    style={{ width: '100%', height: '36px' }}
+                                                    disabled={!isPrimaryFilterApplied}
+                                                >
+                                                    <Option value="current_fy">Current Fin. Year</Option>
+                                                    <Option value="last_1_month">Last 1 Month</Option>
+                                                    <Option value="last_3_months">Last 3 Months</Option>
+                                                    <Option value="last_6_months">Last 6 Months</Option>
+                                                    <Option value="custom">Custom Range</Option>
+                                                </Select>
+                                            </div>
+                                            <div style={{ flex: '1', minWidth: '130px', order: 4 }}>
+                                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>From Date</label>
+                                                <input 
+                                                    type="date" 
+                                                    value={isPrimaryFilterApplied ? (filterStartDate || '') : ''} 
+                                                    onChange={(e) => {
+                                                        setFilterStartDate(e.target.value);
+                                                        setDateFilterType('custom');
+                                                    }}
+                                                    disabled={!isPrimaryFilterApplied}
+                                                    style={{ 
+                                                        width: '100%', height: '36px', padding: '0 11px', 
+                                                        border: '1px solid #d9d9d9', borderRadius: '6px',
+                                                        backgroundColor: !isPrimaryFilterApplied ? '#f5f5f5' : '#fff',
+                                                        color: !isPrimaryFilterApplied ? '#bfbfbf' : 'rgba(0, 0, 0, 0.88)', fontSize: '14px'
+                                                    }}
+                                                />
+                                            </div>
+                                            <div style={{ flex: '1', minWidth: '130px', order: 5 }}>
+                                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>To Date</label>
+                                                <input 
+                                                    type="date" 
+                                                    value={isPrimaryFilterApplied ? (filterEndDate || '') : ''} 
+                                                    onChange={(e) => {
+                                                        setFilterEndDate(e.target.value);
+                                                        setDateFilterType('custom');
+                                                    }}
+                                                    disabled={!isPrimaryFilterApplied}
+                                                    style={{ 
+                                                        width: '100%', height: '36px', padding: '0 11px', 
+                                                        border: '1px solid #d9d9d9', borderRadius: '6px',
+                                                        backgroundColor: !isPrimaryFilterApplied ? '#f5f5f5' : '#fff',
+                                                        color: !isPrimaryFilterApplied ? '#bfbfbf' : 'rgba(0, 0, 0, 0.88)', fontSize: '14px'
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {isDashboardLoading ? (
+                                        <div style={{ marginTop: '10px' }}>
+                                            <div className="g4 mb">
+                                                <div className="prof-card" style={{ padding: '24px' }}><Skeleton active paragraph={{ rows: 2 }} title={false} /></div>
+                                                <div className="prof-card" style={{ padding: '24px' }}><Skeleton active paragraph={{ rows: 2 }} title={false} /></div>
+                                                <div className="prof-card" style={{ padding: '24px' }}><Skeleton active paragraph={{ rows: 2 }} title={false} /></div>
+                                                <div className="prof-card" style={{ padding: '24px' }}><Skeleton active paragraph={{ rows: 2 }} title={false} /></div>
+                                            </div>
+                                            <div className="g4 mb">
+                                                <div className="prof-card" style={{ padding: '24px', gridColumn: 'span 2' }}><Skeleton active paragraph={{ rows: 4 }} title={false} /></div>
+                                                <div className="prof-card" style={{ padding: '24px', gridColumn: 'span 2' }}><Skeleton active paragraph={{ rows: 4 }} title={false} /></div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <>
+                                        <div className="g3 mb">
                                         <div className="prof-card card-dark-green"
                                             style={{ textAlign: 'center', cursor: 'pointer' }}
                                             onClick={handlePoIssuedClick}
                                         >
                                             <div className="kpi-lbl">PO Issued</div>
-                                            <div className="kpi-val">{(s.poIssued || 412).toLocaleString()}</div>
+                                            <div className="kpi-val">{(s.poIssued ?? 0)}</div>
                                             <div className="kpi-sub">Nos.</div>
                                         </div>
                                         <div className="prof-card card-ocean" style={{ textAlign: 'center' }}>
                                             <div className="kpi-lbl">PO Quantity</div>
                                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '4px' }}>
                                                 <div style={{ borderRight: '1px solid rgba(255,255,255,0.2)', paddingRight: '4px' }}>
-                                                    <div className="kpi-val" style={{ fontSize: '26px' }}>{(s.poQuantityNos || 0).toLocaleString()}</div>
+                                                    <div className="kpi-val" style={{ fontSize: '26px' }}>{(s.poQuantityNos || 0)}</div>
                                                     <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Nos.</div>
                                                 </div>
                                                 <div style={{ paddingLeft: '4px' }}>
-                                                    <div className="kpi-val" style={{ fontSize: '26px' }}>{(s.poQuantityMt || 0).toLocaleString()}</div>
+                                                    <div className="kpi-val" style={{ fontSize: '26px' }}>{(s.poQuantityMt || 0)}</div>
                                                     <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>MT</div>
                                                 </div>
                                             </div>
@@ -550,7 +993,7 @@ const ProfessionalCardSection = ({
                                             <div className="kpi-lbl">Final Inspection Qty</div>
                                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '4px' }}>
                                                 <div style={{ borderRight: '1px solid rgba(255,255,255,0.2)', paddingRight: '4px' }}>
-                                                    <div className="kpi-val" style={{ fontSize: '26px' }}>{(s.finalInspectionQuantity || 0).toLocaleString()}</div>
+                                                    <div className="kpi-val" style={{ fontSize: '26px' }}>{(s.finalInspectionQuantity || 0)}</div>
                                                     <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Nos.</div>
                                                 </div>
                                                 <div style={{ paddingLeft: '4px' }}>
@@ -559,14 +1002,37 @@ const ProfessionalCardSection = ({
                                                 </div>
                                             </div>
                                         </div>
+                                        
                                     </div>
 
                                     <div className="sec-title-flex" style={{ marginBottom: '12px', marginTop: '10px' }}>
-                                        <span style={{ fontSize: '14px', fontWeight: '700', color: '#166534' }}>Inspection Calls Status</span>
+                                        <span style={{ fontSize: '14px', fontWeight: '700', color: '#166534' }}>Stagewise Inspection Call Status</span>
                                     </div>
-                                    <div className="g3 mb">
-                                        {['RM', 'Process', 'Final'].map((cat, idx) => {
-                                            const d = (inspectionCallStatusData?.length > 0 ? inspectionCallStatusData : staticInspectionCallsData).find(x => x.name === cat || x.category === cat);
+                                    <div className="g5 mb">
+                                        <div className="prof-card" style={{ padding: '15px', borderLeft: '4px solid #3b82f6', background: '#eff6ff' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                                <span style={{ fontSize: '14px', fontWeight: '800', color: '#475569', textTransform: 'uppercase' }}>Total Calls</span>
+                                                <span className="prof-badge" style={{ background: '#bfdbfe', color: '#1e3a8a', fontSize: '10px' }}>Nos.</span>
+                                            </div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', textAlign: 'center' }}>
+                                                <div onClick={() => handleTotalCallsClick('Open')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', background: 'rgba(255,255,255,0.7)', padding: '8px 4px', borderRadius: '6px', transition: 'all 0.2s', flex: 1 }} onMouseEnter={e => e.currentTarget.style.background = '#dbeafe'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.7)'} title="Click to view Open calls">
+                                                    <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '700', lineHeight: '1.2', marginBottom: '4px' }}>TOTAL<br/>OPEN</span>
+                                                    <span style={{ fontSize: '18px', fontWeight: '800', color: '#3b82f6' }}>{totalCallsData?.totalOpenCalls || 0}</span>
+                                                </div>
+                                                <div onClick={() => handleTotalCallsClick('Under Inspection')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', background: 'rgba(255,255,255,0.7)', padding: '8px 4px', borderRadius: '6px', transition: 'all 0.2s', flex: 1 }} onMouseEnter={e => e.currentTarget.style.background = '#dbeafe'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.7)'} title="Click to view Under Inspection calls">
+                                                    <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '700', lineHeight: '1.2', marginBottom: '4px' }}>UNDER<br/>INSPECTION</span>
+                                                    <span style={{ fontSize: '18px', fontWeight: '800', color: '#f59e0b' }}>{totalCallsData?.totalUnderInspectionCalls || 0}</span>
+                                                </div>
+                                                <div onClick={() => handleTotalCallsClick('Pending')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', background: 'rgba(255,255,255,0.7)', padding: '8px 4px', borderRadius: '6px', transition: 'all 0.2s', flex: 1 }} onMouseEnter={e => e.currentTarget.style.background = '#dbeafe'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.7)'} title="Click to view Pending calls">
+                                                    <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '700', lineHeight: '1.2', marginBottom: '4px' }}>PENDING<br/>CALLS</span>
+                                                    <span style={{ fontSize: '18px', fontWeight: '800', color: '#ef4444' }}>{totalCallsData?.totalPendingCalls || 0}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {[{ id: 'RM', label: 'Raw Material' }, { id: 'Process', label: 'Process' }, { id: 'Final', label: 'Final Product' }].map((catObj, idx) => {
+                                            const cat = catObj.id;
+                                            const activeData = localInspectionCallStatus?.length > 0 ? localInspectionCallStatus : (inspectionCallStatusData?.length > 0 ? inspectionCallStatusData : staticInspectionCallsData);
+                                            const d = activeData.find(x => x.name === cat || x.category === cat);
                                             return (
                                                 <div className="prof-card" key={idx} style={{
                                                     padding: '15px',
@@ -574,7 +1040,7 @@ const ProfessionalCardSection = ({
                                                     background: cat === 'RM' ? '#eff6ff' : cat === 'Process' ? '#fff7ed' : '#fef2f2'
                                                 }}>
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                                                        <span style={{ fontSize: '14px', fontWeight: '800', color: '#475569', textTransform: 'uppercase' }}>{cat} Stage</span>
+                                                        <span style={{ fontSize: '14px', fontWeight: '800', color: '#475569', textTransform: 'uppercase' }}>{catObj.label}</span>
                                                         <span className="prof-badge" style={{ background: '#f8fafc', color: '#64748b', fontSize: '10px' }}>CALLS</span>
                                                     </div>
                                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -586,7 +1052,7 @@ const ProfessionalCardSection = ({
                                                             title="Click to view Under Inspection calls"
                                                         >
                                                             <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '700' }}>UNDER INSPECTION</div>
-                                                            <div style={{ fontSize: '28px', fontWeight: '800', color: '#f59e0b' }}>{d?.under?.toLocaleString() || '0'}</div>
+                                                            <div style={{ fontSize: '28px', fontWeight: '800', color: '#f59e0b' }}>{d?.under || '0'}</div>
                                                         </div>
                                                         <div
                                                             style={{ textAlign: 'right', cursor: 'pointer', padding: '6px', borderRadius: '8px', transition: 'all 0.2s' }}
@@ -596,20 +1062,34 @@ const ProfessionalCardSection = ({
                                                             title="Click to view Pending calls"
                                                         >
                                                             <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '700' }}>PENDING</div>
-                                                            <div style={{ fontSize: '28px', fontWeight: '800', color: '#ef4444' }}>{d?.pending?.toLocaleString() || '0'}</div>
+                                                            <div style={{ fontSize: '28px', fontWeight: '800', color: '#ef4444' }}>{d?.pending || '0'}</div>
                                                         </div>
                                                     </div>
                                                 </div>
                                             );
                                         })}
+                                        {/* IC ISSUED Card moved to the right */}
+                                        <div className="prof-card card-gold" 
+                                             style={{ textAlign: 'center', cursor: 'pointer', background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
+                                             onClick={() => setIsIcIssuedModalOpen(true)}
+                                             title="Click to view stage-wise breakdown"
+                                        >
+                                            <div className="kpi-lbl">IC Issued</div>
+                                            <div style={{ marginTop: '12px' }}>
+                                                <div className="kpi-val" style={{ fontSize: '32px' }}>{(icIssuedData.total || 0)}</div>
+                                                <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9, marginTop: '2px' }}>Total Calls</div>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <div className="sec-title-flex" style={{ marginBottom: '12px' }}>
                                         <span style={{ fontSize: '14px', fontWeight: '700', color: '#166534' }}>Inspection Details</span>
                                     </div>
                                     <div className="g3 mb">
-                                        {['RM', 'Process', 'Final'].map((cat, idx) => {
-                                            const d = (inspectionDetailsData?.length > 0 ? inspectionDetailsData : staticInspectionDetailsData).find(x => x.name === cat);
+                                        {[{ id: 'RM', label: 'Raw Material' }, { id: 'Process', label: 'Process' }, { id: 'Final', label: 'Final Product' }].map((catObj, idx) => {
+                                            const cat = catObj.id;
+                                            const activeDetails = localInspectionDetails?.length > 0 ? localInspectionDetails : (inspectionDetailsData?.length > 0 ? inspectionDetailsData : staticInspectionDetailsData);
+                                            const d = activeDetails.find(x => x.name === cat);
                                             return (
                                                 <div className="prof-card" key={idx} style={{
                                                     padding: '15px',
@@ -617,17 +1097,17 @@ const ProfessionalCardSection = ({
                                                     background: cat === 'RM' ? '#f0fdfa' : cat === 'Process' ? '#f5f3ff' : '#fff1f2'
                                                 }}>
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                                                        <span style={{ fontSize: '14px', fontWeight: '800', color: '#475569', textTransform: 'uppercase' }}>{cat} Stage</span>
+                                                        <span style={{ fontSize: '14px', fontWeight: '800', color: '#475569', textTransform: 'uppercase' }}>{catObj.label}</span>
                                                         <span className="prof-badge" style={{ background: '#f8fafc', color: '#64748b', fontSize: '10px' }}>Nos.</span>
                                                     </div>
                                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                                                         <div>
                                                             <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>ACCEPTED (Nos.)</div>
-                                                            <div style={{ fontSize: '26px', fontWeight: '800', color: '#22c55e' }}>{d?.accepted?.toLocaleString() || '0'}</div>
+                                                            <div style={{ fontSize: '26px', fontWeight: '800', color: '#22c55e' }}>{d?.accepted || '0'}</div>
                                                         </div>
                                                         <div style={{ textAlign: 'right' }}>
                                                             <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>REJECTED (Nos.)</div>
-                                                            <div style={{ fontSize: '26px', fontWeight: '800', color: '#ef4444' }}>{d?.rejected?.toLocaleString() || '0'}</div>
+                                                            <div style={{ fontSize: '26px', fontWeight: '800', color: '#ef4444' }}>{d?.rejected || '0'}</div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -638,18 +1118,39 @@ const ProfessionalCardSection = ({
                                     <div className="prof-card">
                                         <div className="sec-title">Production & Rejection</div>
                                         {(() => {
-                                            const procData = (inspectionDetailsData?.length > 0 ? inspectionDetailsData : staticInspectionDetailsData).find(x => x.name === 'Process');
+                                            const activeDetails = localInspectionDetails?.length > 0 ? localInspectionDetails : (inspectionDetailsData?.length > 0 ? inspectionDetailsData : staticInspectionDetailsData);
+                                            
+                                            const procData = activeDetails.find(x => x.name === 'Process');
                                             const pAcc = procData?.accepted || 0;
                                             const pRej = procData?.rejected || 0;
                                             const pInsp = pAcc + pRej;
-                                            const pRejPct = pInsp > 0 ? (pRej * 100) / pInsp : 0;
+                                            const pRejPct = pInsp > 0 ? (pRej * 100) / pInsp : (s.processRejectionPercentage ?? 0);
+                                            
+                                            const rmData = activeDetails.find(x => x.name === 'RM');
+                                            const rmAcc = rmData?.accepted || 0;
+                                            const rmRej = rmData?.rejected || 0;
+                                            const rmInsp = rmAcc + rmRej;
+                                            const rmRejPct = rmInsp > 0 ? (rmRej * 100) / rmInsp : (s.rmRejectionPercentage ?? 3.2);
+
+                                            const finalData = activeDetails.find(x => x.name === 'Final');
+                                            const fAcc = finalData?.accepted || 0;
+                                            const fRej = finalData?.rejected || 0;
+                                            const fInsp = fAcc + fRej;
+                                            const fRejPct = fInsp > 0 ? (fRej * 100) / fInsp : (s.finalRejectionPercentage ?? 1.8);
+                                            
+                                            const avgProd = localAvgProduction !== null ? localAvgProduction : (s.avgProductionPerDay ?? 947);
 
                                             return (
                                                 <div className="g4">
                                                     <div className="prof-card card-spring-green" style={{ textAlign: 'center' }}>
                                                         <div className="kpi-lbl">Avg Production/Day</div>
-                                                        <div className="kpi-val">{(Math.round(s.avgProductionPerDay ?? 947)).toLocaleString()}</div>
+                                                        <div className="kpi-val">{Math.round(avgProd)}</div>
                                                         <div className="kpi-sub">Nos.</div>
+                                                    </div>
+                                                    <div className="prof-card card-gold" style={{ textAlign: 'center' }}>
+                                                        <div className="kpi-lbl">RM Rejection</div>
+                                                        <div className="kpi-val">{formatDecimal(rmRejPct)}%</div>
+                                                        <div className="prof-prog"><div className="prof-prog-f" style={{ width: `${Math.min(100, rmRejPct * 10)}%`, background: '#eab308' }}></div></div>
                                                     </div>
                                                     <div className="prof-card card-lime" style={{ textAlign: 'center' }}>
                                                         <div className="kpi-lbl">Process Rejection</div>
@@ -658,18 +1159,15 @@ const ProfessionalCardSection = ({
                                                     </div>
                                                     <div className="prof-card card-ruby" style={{ textAlign: 'center' }}>
                                                         <div className="kpi-lbl">Final Rejection</div>
-                                                        <div className="kpi-val">{formatDecimal(s.finalRejectionPercentage ?? 1.8)}%</div>
-                                                        <div className="prof-prog"><div className="prof-prog-f" style={{ width: `${Math.min(100, (s.finalRejectionPercentage ?? 1.8) * 10)}%`, background: '#e11d48' }}></div></div>
-                                                    </div>
-                                                    <div className="prof-card card-gold" style={{ textAlign: 'center' }}>
-                                                        <div className="kpi-lbl">RM Rejection</div>
-                                                        <div className="kpi-val">{formatDecimal(s.rmRejectionPercentage ?? 3.2)}%</div>
-                                                        <div className="prof-prog"><div className="prof-prog-f" style={{ width: `${Math.min(100, (s.rmRejectionPercentage ?? 3.2) * 10)}%`, background: '#eab308' }}></div></div>
+                                                        <div className="kpi-val">{formatDecimal(fRejPct)}%</div>
+                                                        <div className="prof-prog"><div className="prof-prog-f" style={{ width: `${Math.min(100, fRejPct * 10)}%`, background: '#e11d48' }}></div></div>
                                                     </div>
                                                 </div>
                                             );
                                         })()}
                                     </div>
+                                    </>
+                                    )}
                                 </div>
                             );
 
@@ -760,7 +1258,7 @@ const ProfessionalCardSection = ({
                                                                     (a, b) => (b.payload?.value || 0) - (a.payload?.value || 0)
                                                                 );
                                                                 return (
-                                                                    <div style={{ paddingLeft: '20px', lineHeight: '28px', fontSize: '13px' }}>
+                                                                    <div style={{ paddingLeft: '20px', lineHeight: '28px', fontSize: '14px', fontWeight: 'bold' }}>
                                                                         {sorted.map((entry, i) => (
                                                                             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                                                 <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: entry.color, flexShrink: 0 }} />
@@ -782,7 +1280,17 @@ const ProfessionalCardSection = ({
                                             <div className="sec-title">Pareto Analysis</div>
                                             <div className="chart-wrap" style={{ height: '380px' }}>
                                                 <ResponsiveContainer width="100%" height="100%">
-                                                    <ComposedChart data={paretoAnalysisData?.map(d => ({ ...d, count: d.count || d.value || 0 }))} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                                    <ComposedChart data={paretoAnalysisData?.length ? (() => {
+                                                        const total = paretoAnalysisData.reduce((sum, d) => sum + (d.count || d.value || 0), 0);
+                                                        return paretoAnalysisData.map(d => {
+                                                            const count = d.count || d.value || 0;
+                                                            return { 
+                                                                ...d, 
+                                                                count, 
+                                                                percentage: total > 0 ? Number(((count / total) * 100).toFixed(2)) : 0 
+                                                            };
+                                                        });
+                                                    })() : []} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                                         <XAxis
                                                             dataKey="name"
@@ -799,7 +1307,7 @@ const ProfessionalCardSection = ({
                                                                         transform="rotate(90)"
                                                                         textAnchor="start"
                                                                         fill="#475569"
-                                                                        style={{ fontSize: '10px', fontWeight: '500', fontFamily: 'sans-serif' }}
+                                                                        style={{ fontSize: '12px', fontWeight: 'bold', fontFamily: 'sans-serif' }}
                                                                     >
                                                                         {payload.value.length > 22
                                                                             ? payload.value.substring(0, 20) + '…'
@@ -808,14 +1316,14 @@ const ProfessionalCardSection = ({
                                                                 </g>
                                                             )}
                                                         />
-                                                        <YAxis yAxisId="left" axisLine={false} tickLine={false} style={{ fontSize: '9px' }} />
+                                                        <YAxis yAxisId="left" axisLine={false} tickLine={false} style={{ fontSize: '12px', fontWeight: 'bold' }} />
                                                         <YAxis
                                                             yAxisId="right"
                                                             orientation="right"
                                                             axisLine={false}
                                                             tickLine={false}
                                                             unit="%"
-                                                            style={{ fontSize: '9px' }}
+                                                            style={{ fontSize: '12px', fontWeight: 'bold' }}
                                                             domain={[0, 100]}
                                                         />
                                                         <Tooltip />
@@ -823,7 +1331,7 @@ const ProfessionalCardSection = ({
                                                         <Line
                                                             yAxisId="right"
                                                             type="monotone"
-                                                            dataKey="cumulative"
+                                                            dataKey="percentage"
                                                             stroke="#ef4444"
                                                             strokeWidth={2}
                                                             dot={{ r: 4, fill: '#ef4444', strokeWidth: 1, stroke: '#fff' }}
@@ -839,8 +1347,8 @@ const ProfessionalCardSection = ({
                                                 <ResponsiveContainer width="100%" height="100%">
                                                     <BarChart data={qualityRejectionData?.length ? qualityRejectionData : [{ name: 'Raw Material', value: 0.8 }, { name: 'Process', value: 1.6 }, { name: 'Final', value: 0.9 }]}>
                                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0fdf4" />
-                                                        <XAxis dataKey="name" axisLine={false} tickLine={false} style={{ fontSize: '10px' }} />
-                                                        <YAxis axisLine={false} tickLine={false} unit="%" style={{ fontSize: '10px' }} />
+                                                        <XAxis dataKey="name" axisLine={false} tickLine={false} style={{ fontSize: '12px', fontWeight: 'bold' }} />
+                                                        <YAxis axisLine={false} tickLine={false} unit="%" style={{ fontSize: '12px', fontWeight: 'bold' }} />
                                                         <Tooltip />
                                                         <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={40}>
                                                             {qualityRejectionData?.map((entry, index) => (
@@ -869,13 +1377,13 @@ const ProfessionalCardSection = ({
                                                             dataKey="name"
                                                             axisLine={false}
                                                             tickLine={false}
-                                                            style={{ fontSize: '9px', fontWeight: '500' }}
+                                                            style={{ fontSize: '12px', fontWeight: 'bold' }}
                                                             tickFormatter={(name) => name.length > 12 ? name.substring(0, 10) + '...' : name}
                                                         />
-                                                        <YAxis axisLine={false} tickLine={false} unit="%" style={{ fontSize: '9px' }} />
+                                                        <YAxis axisLine={false} tickLine={false} unit="%" style={{ fontSize: '12px', fontWeight: 'bold' }} />
                                                         <Tooltip formatter={(v) => `${v}%`} />
                                                         <Bar dataKey="value" fill="#166534" radius={[4, 4, 0, 0]} barSize={24}>
-                                                            <LabelList dataKey="value" position="top" formatter={(v) => `${formatDecimal(v)}%`} style={{ fontSize: '9px', fill: '#166534', fontWeight: 'bold' }} />
+                                                            <LabelList dataKey="value" position="top" formatter={(v) => `${formatDecimal(v)}%`} style={{ fontSize: '12px', fill: '#166534', fontWeight: 'bold' }} />
                                                         </Bar>
                                                     </BarChart>
                                                 </ResponsiveContainer>
@@ -891,8 +1399,8 @@ const ProfessionalCardSection = ({
                                                         { name: 'Aug', value: 1.1 }, { name: 'Sep', value: 0.9 }
                                                     ]}>
                                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0fdf4" />
-                                                        <XAxis dataKey="name" axisLine={false} tickLine={false} style={{ fontSize: '10px' }} />
-                                                        <YAxis axisLine={false} tickLine={false} style={{ fontSize: '10px' }} />
+                                                        <XAxis dataKey="name" axisLine={false} tickLine={false} style={{ fontSize: '12px', fontWeight: 'bold' }} />
+                                                        <YAxis axisLine={false} tickLine={false} style={{ fontSize: '12px', fontWeight: 'bold' }} />
                                                         <Tooltip />
                                                         <Area type="monotone" dataKey="value" stroke="#16a34a" fill="rgba(22,163,74,0.1)" strokeWidth={3} dot={{ r: 4, fill: '#16a34a' }} />
                                                     </AreaChart>
@@ -905,10 +1413,10 @@ const ProfessionalCardSection = ({
                                                 <ResponsiveContainer width="100%" height="100%">
                                                     <BarChart data={stageVsDefectTop3} margin={{ bottom: 5 }}>
                                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0fdf4" />
-                                                        <XAxis dataKey="name" axisLine={false} tickLine={false} style={{ fontSize: '10px' }} />
-                                                        <YAxis axisLine={false} tickLine={false} style={{ fontSize: '10px' }} />
+                                                        <XAxis dataKey="name" axisLine={false} tickLine={false} style={{ fontSize: '12px', fontWeight: 'bold' }} />
+                                                        <YAxis axisLine={false} tickLine={false} style={{ fontSize: '12px', fontWeight: 'bold' }} />
                                                         <Tooltip />
-                                                        <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
+                                                        <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 'bold', paddingTop: '10px' }} />
                                                         {top3DefectNames.map((name, i) => (
                                                             <Bar
                                                                 key={name}
@@ -948,13 +1456,13 @@ const ProfessionalCardSection = ({
                                                             type="category"
                                                             axisLine={false}
                                                             tickLine={false}
-                                                            style={{ fontSize: '9px', fontWeight: '600', fill: '#475569' }}
+                                                            style={{ fontSize: '12px', fontWeight: 'bold', fill: '#475569' }}
                                                             width={90}
                                                             tickFormatter={(name) => name.length > 15 ? name.substring(0, 12) + '...' : name}
                                                         />
                                                         <Tooltip formatter={(v) => `${v}%`} />
                                                         <Bar dataKey="value" fill="#10b981" barSize={16} radius={[0, 4, 4, 0]}>
-                                                            <LabelList dataKey="value" position="right" formatter={(v) => `${formatDecimal(v)}%`} style={{ fontSize: '10px', fontWeight: '700', fill: '#059669' }} />
+                                                            <LabelList dataKey="value" position="right" formatter={(v) => `${formatDecimal(v)}%`} style={{ fontSize: '12px', fontWeight: 'bold', fill: '#059669' }} />
                                                         </Bar>
                                                     </BarChart>
                                                 </ResponsiveContainer>
@@ -982,13 +1490,13 @@ const ProfessionalCardSection = ({
                                                             type="category"
                                                             axisLine={false}
                                                             tickLine={false}
-                                                            style={{ fontSize: '9px', fontWeight: '600', fill: '#475569' }}
+                                                            style={{ fontSize: '12px', fontWeight: 'bold', fill: '#475569' }}
                                                             width={90}
                                                             tickFormatter={(name) => name.length > 15 ? name.substring(0, 12) + '...' : name}
                                                         />
                                                         <Tooltip formatter={(v) => `${v}%`} />
                                                         <Bar dataKey="value" fill="#ef4444" barSize={16} radius={[0, 4, 4, 0]}>
-                                                            <LabelList dataKey="value" position="right" formatter={(v) => `${formatDecimal(v)}%`} style={{ fontSize: '10px', fontWeight: '700', fill: '#dc2626' }} />
+                                                            <LabelList dataKey="value" position="right" formatter={(v) => `${formatDecimal(v)}%`} style={{ fontSize: '12px', fontWeight: 'bold', fill: '#dc2626' }} />
                                                         </Bar>
                                                     </BarChart>
                                                 </ResponsiveContainer>
@@ -1078,9 +1586,9 @@ const ProfessionalCardSection = ({
                                                             <td><span className="prof-badge" style={{ background: '#f0fdf4', color: '#166534' }}>{record.rio}</span></td>
                                                             <td>👤 {record.username}</td>
                                                             <td><span className="prof-badge" style={{ background: '#f0f9ff', color: '#075985' }}>{record.stage}</span></td>
-                                                            <td className="text-right">{record.inspectedQty?.toLocaleString()}</td>
-                                                            <td className="text-right" style={{ color: '#16a34a' }}>{record.acceptedQty?.toLocaleString()}</td>
-                                                            <td className="text-right" style={{ color: '#dc2626' }}>{record.rejectedQty?.toLocaleString()}</td>
+                                                            <td className="text-right">{record.inspectedQty}</td>
+                                                            <td className="text-right" style={{ color: '#16a34a' }}>{record.acceptedQty}</td>
+                                                            <td className="text-right" style={{ color: '#dc2626' }}>{record.rejectedQty}</td>
                                                             <td className="text-right"><span className="prof-badge" style={{ background: '#fff7ed', color: '#9a3412' }}>{formatDecimal(record.rejectionPercentage)}%</span></td>
                                                         </tr>
                                                     ))}
@@ -1207,12 +1715,12 @@ const ProfessionalCardSection = ({
                                                                                     <td>{row.poNumber}</td>
                                                                                     <td>{formatPoDate(row.poDate)}</td>
                                                                                     <td>{row.manufacturer}</td>
-                                                                                    <td className="text-center">{row.poQty?.toLocaleString()}</td>
-                                                                                    <td className="text-center">{row.monthlyRm?.toLocaleString()}</td>
-                                                                                    <td className="text-center">{row.monthlyProcess?.toLocaleString()}</td>
-                                                                                    <td className="text-center">{row.monthlyFinal?.toLocaleString()}</td>
-                                                                                    <td className="text-center">{row.totalFinalInspected?.toLocaleString()}</td>
-                                                                                    <td className="text-center font-bold" style={{ color: '#16a34a' }}>{row.poBalance?.toLocaleString()}</td>
+                                                                                    <td className="text-center">{row.poQty}</td>
+                                                                                    <td className="text-center">{row.monthlyRm}</td>
+                                                                                    <td className="text-center">{row.monthlyProcess}</td>
+                                                                                    <td className="text-center">{row.monthlyFinal}</td>
+                                                                                    <td className="text-center">{row.totalFinalInspected}</td>
+                                                                                    <td className="text-center font-bold" style={{ color: '#16a34a' }}>{row.poBalance}</td>
                                                                                 </tr>
                                                                             ))}
                                                                         </tbody>
@@ -1236,10 +1744,15 @@ const ProfessionalCardSection = ({
                                                                     <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                                                                         <ExportButton
                                                                             onClick={() => downloadExcel(
-                                                                                displayMauData,
+                                                                                displayMauData.map(row => ({
+                                                                                    ...row,
+                                                                                    poQty: row.poQty !== undefined && row.poQty !== null ? `${row.poQty} ${row.uom || ''}`.trim() : '-'
+                                                                                })),
                                                                                 [
                                                                                     { label: 'Manufacturer', key: 'manufacturer' },
                                                                                     { label: 'RITES RIO', key: 'rio' },
+                                                                                    { label: 'No. of PO', key: 'noOfPos' },
+                                                                                    { label: 'PO Qty', key: 'poQty' },
                                                                                     { label: 'Manufactured', key: 'manufactured' },
                                                                                     { label: 'Inspected', key: 'inspected' },
                                                                                     { label: 'Rejected', key: 'rejected' },
@@ -1259,6 +1772,8 @@ const ProfessionalCardSection = ({
                                                                             <tr className="sortable-header">
                                                                                 <th onClick={() => handleMauSort('manufacturer')}>Manufacturer {renderSortIcon('manufacturer', mauSort)}</th>
                                                                                 <th onClick={() => handleMauSort('rio')}>RITES RIO {renderSortIcon('rio', mauSort)}</th>
+                                                                                <th className="text-right" onClick={() => handleMauSort('noOfPos')}>No. of PO {renderSortIcon('noOfPos', mauSort)}</th>
+                                                                                <th className="text-right" onClick={() => handleMauSort('poQty')}>PO Qty {renderSortIcon('poQty', mauSort)}</th>
                                                                                 <th className="text-right" onClick={() => handleMauSort('manufactured')}>Manufactured {renderSortIcon('manufactured', mauSort)}</th>
                                                                                 <th className="text-right" onClick={() => handleMauSort('inspected')}>Inspected {renderSortIcon('inspected', mauSort)}</th>
                                                                                 <th className="text-right" onClick={() => handleMauSort('rejected')}>Rejected {renderSortIcon('rejected', mauSort)}</th>
@@ -1272,9 +1787,11 @@ const ProfessionalCardSection = ({
                                                                                 <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
                                                                                     <td>{row.manufacturer}</td>
                                                                                     <td>{row.rio || '-'}</td>
-                                                                                    <td className="text-right">{row.manufactured?.toLocaleString()}</td>
-                                                                                    <td className="text-right">{row.inspected?.toLocaleString()}</td>
-                                                                                    <td className="text-right" style={{ color: '#dc2626' }}>{row.rejected?.toLocaleString()}</td>
+                                                                                    <td className="text-right">{row.noOfPos !== undefined && row.noOfPos !== null ? row.noOfPos : '-'}</td>
+                                                                                    <td className="text-right">{row.poQty !== undefined && row.poQty !== null ? `${row.poQty} ${row.uom || ''}`.trim() : '-'}</td>
+                                                                                    <td className="text-right">{row.manufactured}</td>
+                                                                                    <td className="text-right">{row.inspected}</td>
+                                                                                    <td className="text-right" style={{ color: '#dc2626' }}>{row.rejected}</td>
                                                                                     <td className="text-right">{formatDecimal(row.rmRejPercent)}%</td>
                                                                                     <td className="text-right text-red-600">{formatDecimal(row.processRejPercent)}%</td>
                                                                                     <td className="text-right">{formatDecimal(row.finalRejPercent)}%</td>
@@ -1470,9 +1987,9 @@ const ProfessionalCardSection = ({
                                                                                             >
                                                                                                 {row.manufacture}
                                                                                             </td>
-                                                                                            <td className="text-center">{row.totalInspected?.toLocaleString()}</td>
-                                                                                            <td className="text-center" style={{ color: '#16a34a' }}>{row.totalAccepted?.toLocaleString()}</td>
-                                                                                            <td className="text-center" style={{ color: '#dc2626' }}>{row.totalRejected?.toLocaleString()}</td>
+                                                                                            <td className="text-center">{row.totalInspected}</td>
+                                                                                            <td className="text-center" style={{ color: '#16a34a' }}>{row.totalAccepted}</td>
+                                                                                            <td className="text-center" style={{ color: '#dc2626' }}>{row.totalRejected}</td>
                                                                                             <td className="text-center">
                                                                                                 <span className="prof-badge" style={{ background: '#fff7ed', color: '#9a3412', fontWeight: 'bold' }}>
                                                                                                     {row.rejectionPercent?.toFixed(2)}%
@@ -1553,6 +2070,45 @@ const ProfessionalCardSection = ({
                 data={icModalData}
                 title={icModalTitle}
             />
+
+            {/* IC Issued Breakdown Modal */}
+            {isIcIssuedModalOpen && (
+                <div className="modal-overlay" onClick={() => setIsIcIssuedModalOpen(false)} style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
+                    backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', 
+                    justifyContent: 'center', zIndex: 1000
+                }}>
+                    <div className="modal-content fade-in" onClick={e => e.stopPropagation()} style={{
+                        background: 'white', padding: '24px', borderRadius: '16px', 
+                        width: '400px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)'
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                            <h3 style={{ margin: 0, color: '#1e293b', fontSize: '18px' }}>IC Issued Breakdown</h3>
+                            <button onClick={() => setIsIcIssuedModalOpen(false)} style={{
+                                background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#64748b'
+                            }}>&times;</button>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#f8fafc', borderRadius: '8px' }}>
+                                <span style={{ fontWeight: '600', color: '#475569' }}>Raw Material (ER)</span>
+                                <span style={{ fontWeight: '700', color: '#0f172a' }}>{icIssuedData.rmCount}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#f8fafc', borderRadius: '8px' }}>
+                                <span style={{ fontWeight: '600', color: '#475569' }}>Process (EP)</span>
+                                <span style={{ fontWeight: '700', color: '#0f172a' }}>{icIssuedData.processCount}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#f8fafc', borderRadius: '8px' }}>
+                                <span style={{ fontWeight: '600', color: '#475569' }}>Final (EF)</span>
+                                <span style={{ fontWeight: '700', color: '#0f172a' }}>{icIssuedData.finalCount}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#f1f5f9', borderRadius: '8px', marginTop: '8px', borderTop: '2px solid #e2e8f0' }}>
+                                <span style={{ fontWeight: '700', color: '#0f172a' }}>Total</span>
+                                <span style={{ fontWeight: '800', color: '#d97706', fontSize: '18px' }}>{icIssuedData.total}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -1561,6 +2117,7 @@ export default ProfessionalCardSection;
 
 const Level4ReportTable = ({ data }) => {
     const wrapperRef = React.useRef(null);
+    const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'asc' });
 
     useEffect(() => {
         // Lock body/window scroll so ONLY the table container scrolls internally
@@ -1586,6 +2143,87 @@ const Level4ReportTable = ({ data }) => {
         };
     }, []);
 
+    const handleSort = (key) => {
+        let direction = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const renderSortIcon = (key) => {
+        if (sortConfig.key !== key) return <i className="fa-solid fa-sort sort-icon-idle ml-1 opacity-50" style={{fontSize: '10px'}}></i>;
+        return sortConfig.direction === 'asc' ? <i className="fa-solid fa-sort-up sort-icon-active ml-1" style={{fontSize: '10px'}}></i> : <i className="fa-solid fa-sort-down sort-icon-active ml-1" style={{fontSize: '10px'}}></i>;
+    };
+
+    const sortedData = React.useMemo(() => {
+        if (!data) return [];
+        let sortableItems = [...data];
+        sortableItems.sort((a, b) => {
+            let aVal, bVal;
+            const basicA = a.basicDetails || {};
+            const qtyA = a.processQty || {};
+            const sDefA = a.shearingDefects || {};
+            const tDefA = a.turningDefects || {};
+            const fDefA = a.forgingDefects || {};
+            const qDefA = a.quenchingDefects || {};
+            const tempDefA = a.temperingDefects || {};
+            const dDefA = a.dimensionalDefects || {};
+
+            const basicB = b.basicDetails || {};
+            const qtyB = b.processQty || {};
+            const sDefB = b.shearingDefects || {};
+            const tDefB = b.turningDefects || {};
+            const fDefB = b.forgingDefects || {};
+            const qDefB = b.quenchingDefects || {};
+            const tempDefB = b.temperingDefects || {};
+            const dDefB = b.dimensionalDefects || {};
+
+            switch (sortConfig.key) {
+                case 'date': aVal = basicA.date ? new Date(basicA.date).getTime() : 0; bVal = basicB.date ? new Date(basicB.date).getTime() : 0; break;
+                case 'shift': aVal = basicA.shift || ''; bVal = basicB.shift || ''; break;
+                case 'poSrNo': aVal = basicA.poSrNo || ''; bVal = basicB.poSrNo || ''; break;
+                case 'lotNumber': aVal = basicA.lotNumber || ''; bVal = basicB.lotNumber || ''; break;
+                case 'acceptedQty': aVal = basicA.totalAcceptedQty || 0; bVal = basicB.totalAcceptedQty || 0; break;
+                case 'rejectedQty': aVal = basicA.totalRejectionQty || 0; bVal = basicB.totalRejectionQty || 0; break;
+                case 'shearProd': aVal = qtyA.shearingProductionQty || 0; bVal = qtyB.shearingProductionQty || 0; break;
+                case 'shearRej': aVal = qtyA.shearingRejectionQty || 0; bVal = qtyB.shearingRejectionQty || 0; break;
+                case 'turnProd': aVal = qtyA.turningProductionQty || 0; bVal = qtyB.turningProductionQty || 0; break;
+                case 'turnRej': aVal = qtyA.turningRejectionQty || 0; bVal = qtyB.turningRejectionQty || 0; break;
+                case 'mpiProd': aVal = qtyA.mpiProductionQty || 0; bVal = qtyB.mpiProductionQty || 0; break;
+                case 'mpiRej': aVal = qtyA.mpiRejectionQty || 0; bVal = qtyB.mpiRejectionQty || 0; break;
+                case 'forgeProd': aVal = qtyA.forgingProductionQty || 0; bVal = qtyB.forgingProductionQty || 0; break;
+                case 'forgeRej': aVal = qtyA.forgingRejectionQty || 0; bVal = qtyB.forgingRejectionQty || 0; break;
+                case 'quenchProd': aVal = qtyA.quenchingProductionQty || 0; bVal = qtyB.quenchingProductionQty || 0; break;
+                case 'quenchRej': aVal = qtyA.quenchingRejectionQty || 0; bVal = qtyB.quenchingRejectionQty || 0; break;
+                case 'tempProd': aVal = qtyA.temperingProductionQty || 0; bVal = qtyB.temperingProductionQty || 0; break;
+                case 'tempRej': aVal = qtyA.temperingRejectionQty || 0; bVal = qtyB.temperingRejectionQty || 0; break;
+                case 'sDefLen': aVal = sDefA.lengthOfCutBar || 0; bVal = sDefB.lengthOfCutBar || 0; break;
+                case 'sDefOval': aVal = sDefA.ovalityImproperDiaAtEnd || 0; bVal = sDefB.ovalityImproperDiaAtEnd || 0; break;
+                case 'sDefSharp': aVal = sDefA.sharpEdges || 0; bVal = sDefB.sharpEdges || 0; break;
+                case 'sDefCrack': aVal = sDefA.crackedEdges || 0; bVal = sDefB.crackedEdges || 0; break;
+                case 'tDefPass': aVal = tDefA.parallelLength || 0; bVal = tDefB.parallelLength || 0; break;
+                case 'tDefFull': aVal = tDefA.fullTurningLength || 0; bVal = tDefB.fullTurningLength || 0; break;
+                case 'tDefDia': aVal = tDefA.turningDia || 0; bVal = tDefB.turningDia || 0; break;
+                case 'mpiDef': aVal = qtyA.mpiRejectionQty || 0; bVal = qtyB.mpiRejectionQty || 0; break;
+                case 'fDefTemp': aVal = fDefA.forgingTemperature || 0; bVal = fDefB.forgingTemperature || 0; break;
+                case 'fDefStab': aVal = fDefA.forgingStabilisationRejection || 0; bVal = fDefB.forgingStabilisationRejection || 0; break;
+                case 'fDefImp': aVal = fDefA.improperForging || 0; bVal = fDefB.improperForging || 0; break;
+                case 'fDefDef': aVal = fDefA.forgingMarksNotches || 0; bVal = fDefB.forgingMarksNotches || 0; break;
+                case 'qDefHard': aVal = qDefA.quenchingHardness || 0; bVal = qDefB.quenchingHardness || 0; break;
+                case 'tempDefTemp': aVal = tempDefA.temperingTemp || 0; bVal = tempDefB.temperingTemp || 0; break;
+                case 'tempDefDist': aVal = tempDefA.temperingDuration || 0; bVal = tempDefB.temperingDuration || 0; break;
+                case 'dDefBox': aVal = dDefA.boxGauge || 0; bVal = dDefB.boxGauge || 0; break;
+                case 'dDefBear': aVal = dDefA.flatBearingArea || 0; bVal = dDefB.flatBearingArea || 0; break;
+                default: return 0;
+            }
+            if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+        return sortableItems;
+    }, [data, sortConfig]);
+
     if (!data || data.length === 0) {
         return (
             <div className="p-8 text-center text-slate-400">
@@ -1596,7 +2234,6 @@ const Level4ReportTable = ({ data }) => {
 
     // Inline sticky styles — guaranteed to override any global CSS
     const stickyTop = { position: 'sticky', top: 0, zIndex: 52 };
-    const stickyBot = { position: 'sticky', top: '42px', zIndex: 51 };
     const greenBg = { background: '#d1fae5', color: '#065f46' };
     const emerBg = { background: '#a7f3d0', color: '#064e3b' };
     const redBg = { background: '#fee2e2', color: '#991b1b' };
@@ -1606,44 +2243,22 @@ const Level4ReportTable = ({ data }) => {
             <table className="report-data-table level-4-table">
                 <thead>
                     <tr style={{ height: '42px' }}>
-                        <th rowSpan="2" style={{ ...stickyTop, ...greenBg }} className="bg-green-header">DATE</th>
-                        <th rowSpan="2" style={{ ...stickyTop, ...greenBg }} className="bg-green-header">SHIFT</th>
-                        <th rowSpan="2" style={{ ...stickyTop, ...greenBg }} className="bg-green-header">PO_SR. NO.</th>
-                        <th rowSpan="2" style={{ ...stickyTop, ...greenBg }} className="bg-green-header">LOT NO.</th>
-                        <th rowSpan="2" style={{ ...stickyTop, ...emerBg }} className="bg-emerald-header">Accepted Qty (Nos.)</th>
-                        <th rowSpan="2" style={{ ...stickyTop, ...redBg }} className="bg-red-header">Rejected Qty (Nos.)</th>
-                        <th colSpan="2" className="stage-header shearing" style={stickyTop}>SHEARING</th>
-                        <th colSpan="2" className="stage-header turning" style={stickyTop}>TURNING</th>
-                        <th colSpan="2" className="stage-header mpi" style={stickyTop}>MPI</th>
-                        <th colSpan="2" className="stage-header forging" style={stickyTop}>FORGING</th>
-                        <th colSpan="2" className="stage-header quenching" style={stickyTop}>QUENCHING</th>
-                        <th colSpan="2" className="stage-header tempering" style={stickyTop}>TEMPERING</th>
-                        <th colSpan="4" className="defect-header shearing" style={stickyTop}>Shearing Defects</th>
-                        <th colSpan="3" className="defect-header turning" style={stickyTop}>Turning Defects</th>
-                        <th colSpan="1" className="defect-header mpi" style={stickyTop}>MPI</th>
-                        <th colSpan="4" className="defect-header forging" style={stickyTop}>Forging Defects</th>
-                        <th colSpan="1" className="defect-header quenching" style={stickyTop}>Quenching</th>
-                        <th colSpan="2" className="defect-header tempering" style={stickyTop}>TEMPERING DEFECTS</th>
-                        <th colSpan="2" className="defect-header dimensional" style={stickyTop}>Dimensional</th>
-                    </tr>
-                    <tr className="sub-header" style={{ height: '36px' }}>
-                        <th style={stickyBot}>Prod</th><th style={stickyBot}>Rej</th>
-                        <th style={stickyBot}>Prod</th><th style={stickyBot}>Rej</th>
-                        <th style={stickyBot}>Prod</th><th style={stickyBot}>Rej</th>
-                        <th style={stickyBot}>Prod</th><th style={stickyBot}>Rej</th>
-                        <th style={stickyBot}>Prod</th><th style={stickyBot}>Rej</th>
-                        <th style={stickyBot}>Prod</th><th style={stickyBot}>Rej</th>
-                        <th style={stickyBot}>Cut Len</th><th style={stickyBot}>Ovality</th><th style={stickyBot}>Sharp Edges</th><th style={stickyBot}>Cracks</th>
-                        <th style={stickyBot}>Pass Len</th><th style={stickyBot}>Full Turn</th><th style={stickyBot}>Turn Dia</th>
-                        <th style={stickyBot}>MPI Rej</th>
-                        <th style={stickyBot}>Forge Temp</th><th style={stickyBot}>Stabilise</th><th style={stickyBot}>Improper</th><th style={stickyBot}>Defect</th>
-                        <th style={stickyBot}>Hardness</th>
-                        <th style={stickyBot}>Temp.</th><th style={stickyBot}>Dist.</th>
-                        <th style={stickyBot}>Box Gauge</th><th style={stickyBot}>Bearing Area</th>
+                        <th style={{ ...stickyTop, ...greenBg, cursor: 'pointer' }} className="bg-green-header" onClick={() => handleSort('date')}>DATE {renderSortIcon('date')}</th>
+                        <th style={{ ...stickyTop, ...greenBg, cursor: 'pointer' }} className="bg-green-header" onClick={() => handleSort('shift')}>SHIFT {renderSortIcon('shift')}</th>
+                        <th style={{ ...stickyTop, ...greenBg, cursor: 'pointer' }} className="bg-green-header" onClick={() => handleSort('poSrNo')}>PO_SR. NO. {renderSortIcon('poSrNo')}</th>
+                        <th style={{ ...stickyTop, ...greenBg, cursor: 'pointer' }} className="bg-green-header" onClick={() => handleSort('lotNumber')}>LOT NO. {renderSortIcon('lotNumber')}</th>
+                        <th style={{ ...stickyTop, ...emerBg, cursor: 'pointer' }} className="bg-emerald-header" onClick={() => handleSort('acceptedQty')}>Accepted Qty (Nos.) {renderSortIcon('acceptedQty')}</th>
+                        <th style={{ ...stickyTop, ...redBg, cursor: 'pointer' }} className="bg-red-header" onClick={() => handleSort('rejectedQty')}>Rejected Qty (Nos.) {renderSortIcon('rejectedQty')}</th>
+                        <th style={{ ...stickyTop, cursor: 'pointer' }} onClick={() => handleSort('shearRej')}>Shearing (Rej) {renderSortIcon('shearRej')}</th>
+                        <th style={{ ...stickyTop, cursor: 'pointer' }} onClick={() => handleSort('turnRej')}>Turning Rej. {renderSortIcon('turnRej')}</th>
+                        <th style={{ ...stickyTop, cursor: 'pointer' }} onClick={() => handleSort('mpiRej')}>MPI Rejection {renderSortIcon('mpiRej')}</th>
+                        <th style={{ ...stickyTop, cursor: 'pointer' }} onClick={() => handleSort('forgeRej')}>Forging Rejection {renderSortIcon('forgeRej')}</th>
+                        <th style={{ ...stickyTop, cursor: 'pointer' }} onClick={() => handleSort('quenchRej')}>Quenching Rejection {renderSortIcon('quenchRej')}</th>
+                        <th style={{ ...stickyTop, cursor: 'pointer' }} onClick={() => handleSort('tempRej')}>Tempering Rejection {renderSortIcon('tempRej')}</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {data.map((row, idx) => {
+                    {sortedData.map((row, idx) => {
                         const basic = row.basicDetails || {};
                         const qty = row.processQty || {};
                         const sDef = row.shearingDefects || {};
@@ -1651,7 +2266,13 @@ const Level4ReportTable = ({ data }) => {
                         const fDef = row.forgingDefects || {};
                         const qDef = row.quenchingDefects || {};
                         const tempDef = row.temperingDefects || {};
-                        const dDef = row.dimensionalDefects || {};
+
+                        const shearingTitle = `Length of Cut Bar: ${sDef.lengthOfCutBar || 0}\nOvality/Improper Dia at end: ${sDef.ovalityImproperDiaAtEnd || 0}\nSharp Edges: ${sDef.sharpEdges || 0}\nCracks: ${sDef.crackedEdges || 0}`;
+                        const turningTitle = `Parallel Length: ${tDef.parallelLength || 0}\nFull Turning Length: ${tDef.fullTurningLength || 0}\nTurning Dia: ${tDef.turningDia || 0}`;
+                        const mpiTitle = `MPI Rejection: ${qty.mpiRejectionQty || 0}`;
+                        const forgingTitle = `Forging Temperature: ${fDef.forgingTemperature || 0}\nForging Stabilisation: ${fDef.forgingStabilisationRejection || 0}\nImproper Forging: ${fDef.improperForging || 0}\nForging Marks/Notches: ${fDef.forgingMarksNotches || 0}`;
+                        const quenchingTitle = `Quenching Hardness: ${qDef.quenchingHardness || 0}`;
+                        const temperingTitle = `Tempering Temp: ${tempDef.temperingTemp || 0}\nTempering Duration: ${tempDef.temperingDuration || 0}`;
 
                         return (
                             <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
@@ -1661,19 +2282,12 @@ const Level4ReportTable = ({ data }) => {
                                 <td className="text-center">{basic.lotNumber || '-'}</td>
                                 <td className="text-center text-emerald-600 bg-emerald-50/30 font-bold">{basic.totalAcceptedQty?.toLocaleString() || 0}</td>
                                 <td className="text-center text-red-600 bg-red-50/30 font-bold">{basic.totalRejectionQty?.toLocaleString() || 0}</td>
-                                <td className="text-center">{qty.shearingProductionQty || 0}</td><td className="text-center text-red-400">{qty.shearingRejectionQty || 0}</td>
-                                <td className="text-center">{qty.turningProductionQty || 0}</td><td className="text-center text-red-400">{qty.turningRejectionQty || 0}</td>
-                                <td className="text-center">{qty.mpiProductionQty || 0}</td><td className="text-center text-red-400">{qty.mpiRejectionQty || 0}</td>
-                                <td className="text-center">{qty.forgingProductionQty || 0}</td><td className="text-center text-red-400">{qty.forgingRejectionQty || 0}</td>
-                                <td className="text-center">{qty.quenchingProductionQty || 0}</td><td className="text-center text-red-400">{qty.quenchingRejectionQty || 0}</td>
-                                <td className="text-center">{qty.temperingProductionQty || 0}</td><td className="text-center text-red-400">{qty.temperingRejectionQty || 0}</td>
-                                <td className="text-center">{sDef.lengthOfCutBar || 0}</td><td className="text-center">{sDef.ovalityImproperDiaAtEnd || 0}</td><td className="text-center">{sDef.sharpEdges || 0}</td><td className="text-center">{sDef.crackedEdges || 0}</td>
-                                <td className="text-center">{tDef.parallelLength || 0}</td><td className="text-center">{tDef.fullTurningLength || 0}</td><td className="text-center">{tDef.turningDia || 0}</td>
-                                <td className="text-center">{qty.mpiRejectionQty || 0}</td>
-                                <td className="text-center">{fDef.forgingTemperature || 0}</td><td className="text-center">{fDef.forgingStabilisationRejection || 0}</td><td className="text-center">{fDef.improperForging || 0}</td><td className="text-center">{fDef.forgingMarksNotches || 0}</td>
-                                <td className="text-center">{qDef.quenchingHardness || 0}</td>
-                                <td className="text-center">{tempDef.temperingTemp || 0}</td><td className="text-center">{tempDef.temperingDuration || 0}</td>
-                                <td className="text-center">{dDef.boxGauge || 0}</td><td className="text-center">{dDef.flatBearingArea || 0}</td>
+                                <td className="text-center text-red-500 font-medium" title={shearingTitle} style={{cursor: 'help'}}>{qty.shearingRejectionQty || 0}</td>
+                                <td className="text-center text-red-500 font-medium" title={turningTitle} style={{cursor: 'help'}}>{qty.turningRejectionQty || 0}</td>
+                                <td className="text-center text-red-500 font-medium" title={mpiTitle} style={{cursor: 'help'}}>{qty.mpiRejectionQty || 0}</td>
+                                <td className="text-center text-red-500 font-medium" title={forgingTitle} style={{cursor: 'help'}}>{qty.forgingRejectionQty || 0}</td>
+                                <td className="text-center text-red-500 font-medium" title={quenchingTitle} style={{cursor: 'help'}}>{qty.quenchingRejectionQty || 0}</td>
+                                <td className="text-center text-red-500 font-medium" title={temperingTitle} style={{cursor: 'help'}}>{qty.temperingRejectionQty || 0}</td>
                             </tr>
                         );
                     })}
@@ -1766,6 +2380,7 @@ const Level4ReportTable = ({ data }) => {
 
 const MpiaDrillDown = ({ data = [], manufacturer, onBack, loading }) => {
     const [isPrinting, setIsPrinting] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
 
     if (loading) {
         return (
@@ -1784,6 +2399,49 @@ const MpiaDrillDown = ({ data = [], manufacturer, onBack, loading }) => {
         }, 1200);
     };
 
+    const handleDownloadImage = async () => {
+        const chartElement = document.getElementById('mpia-report-content');
+        if (!chartElement) return;
+        setIsExporting(true);
+        try {
+            const canvas = await html2canvas(chartElement, { scale: 2 });
+            const dataUrl = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.href = dataUrl;
+            link.download = `Vendor_Wise_Report_${manufacturer}.png`;
+            link.click();
+        } catch (e) {
+            console.error("Failed to generate image", e);
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    const handleDownloadPpt = async () => {
+        const chartElement = document.getElementById('mpia-report-content');
+        if (!chartElement) return;
+        setIsExporting(true);
+        try {
+            const canvas = await html2canvas(chartElement, { scale: 2 });
+            const dataUrl = canvas.toDataURL('image/png');
+            
+            const pptx = new PptxGenJS();
+            const slide = pptx.addSlide();
+            
+            slide.addText(`Vendor Wise Report: ${manufacturer}`, {
+                x: 0.5, y: 0.3, fontSize: 18, bold: true, color: "363636"
+            });
+            
+            slide.addImage({ data: dataUrl, x: 0.5, y: 0.8, w: 9, h: 4.5, sizing: { type: "contain", w: 9, h: 4.5 } });
+            
+            pptx.writeFile({ fileName: `Vendor_Wise_Report_${manufacturer}.pptx` });
+        } catch (e) {
+            console.error("Failed to generate PPT", e);
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
     return (
         <div className="bg-slate-50 p-6 min-h-screen">
             <div className="max-w-6xl mx-auto mb-6 flex justify-between items-center no-print">
@@ -1793,22 +2451,38 @@ const MpiaDrillDown = ({ data = [], manufacturer, onBack, loading }) => {
                 >
                     <span className="text-xl">←</span> Back to Summary
                 </button>
-                <button
-                    onClick={handlePrint}
-                    disabled={isPrinting}
-                    className="flex items-center gap-2 px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all font-bold shadow-lg no-print disabled:opacity-70"
-                >
-                    {isPrinting ? (
-                        <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white"></div>
-                            Preparing PDF...
-                        </>
-                    ) : (
-                        <>
-                            <span>PDF</span> Download Report
-                        </>
-                    )}
-                </button>
+                <div className="flex gap-3">
+                    <button
+                        onClick={handleDownloadImage}
+                        disabled={isExporting}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-bold shadow-sm no-print disabled:opacity-70"
+                    >
+                        {isExporting ? 'Exporting...' : <><span>📷</span> Image</>}
+                    </button>
+                    <button
+                        onClick={handleDownloadPpt}
+                        disabled={isExporting}
+                        className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-all font-bold shadow-sm no-print disabled:opacity-70"
+                    >
+                        {isExporting ? 'Exporting...' : <><span>📊</span> PPT</>}
+                    </button>
+                    <button
+                        onClick={handlePrint}
+                        disabled={isPrinting}
+                        className="flex items-center gap-2 px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all font-bold shadow-lg no-print disabled:opacity-70"
+                    >
+                        {isPrinting ? (
+                            <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white"></div>
+                                Preparing PDF...
+                            </>
+                        ) : (
+                            <>
+                                <span>PDF</span> Download Report
+                            </>
+                        )}
+                    </button>
+                </div>
             </div>
 
             <MpiaReportPage manufacturer={manufacturer} data={data} />
@@ -1851,6 +2525,7 @@ const MpiaReportPage = ({ manufacturer, data, showFooter = true }) => {
                 {`@page { size: landscape; margin: 0; }`}
             </style>
             <div
+                id="mpia-report-content"
                 className="bg-white px-6 pb-6 pt-2 shadow-none rounded-sm mx-auto print-container page-break full-report-page"
                 style={{
                     width: '280mm',
@@ -1941,8 +2616,8 @@ const MpiaReportPage = ({ manufacturer, data, showFooter = true }) => {
                                                     return month ? `${months[parseInt(month) - 1]} ${year}` : m.month;
                                                 })()}
                                             </td>
-                                            <td className="p-3 text-right font-medium text-slate-600">{m.inspected?.toLocaleString()}</td>
-                                            <td className="p-3 text-right font-bold text-red-600">{m.processRejected?.toLocaleString()}</td>
+                                            <td className="p-3 text-right font-medium text-slate-600">{m.inspected}</td>
+                                            <td className="p-3 text-right font-bold text-red-600">{m.processRejected}</td>
                                             <td className="p-3 text-right">
                                                 <span className="bg-red-50 text-red-700 px-2 py-0.5 rounded font-bold">
                                                     {m.processRejPercent?.toFixed(2)}%
@@ -1960,11 +2635,11 @@ const MpiaReportPage = ({ manufacturer, data, showFooter = true }) => {
                         <div className="mt-8 grid grid-cols-3 gap-4">
                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
                                 <p className="text-[9px] text-slate-400 font-bold mb-1">INSPECTED (Nos.)</p>
-                                <p className="text-sm font-black text-slate-800">{data.reduce((acc, m) => acc + (m.inspected || 0), 0).toLocaleString()}</p>
+                                <p className="text-sm font-black text-slate-800">{data.reduce((acc, m) => acc + (m.inspected || 0), 0)}</p>
                             </div>
                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
                                 <p className="text-[9px] text-slate-400 font-bold mb-1">REJECTED (Nos.)</p>
-                                <p className="text-sm font-black text-red-600">{data.reduce((acc, m) => acc + (m.processRejected || 0), 0).toLocaleString()}</p>
+                                <p className="text-sm font-black text-red-600">{data.reduce((acc, m) => acc + (m.processRejected || 0), 0)}</p>
                             </div>
                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
                                 <p className="text-[9px] text-slate-400 font-bold mb-1">AVG% REJ</p>

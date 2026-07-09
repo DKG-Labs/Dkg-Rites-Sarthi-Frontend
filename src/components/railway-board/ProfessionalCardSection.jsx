@@ -1838,6 +1838,30 @@ const ProfessionalCardSection = ({
                                                                                     quenchingRej: row.processQty?.quenchingRejectionQty || 0,
                                                                                     temperingProd: row.processQty?.temperingProductionQty || 0,
                                                                                     temperingRej: row.processQty?.temperingRejectionQty || 0,
+                                                                                    
+                                                                                    // Shearing Defects
+                                                                                    sDefLen: row.shearingDefects?.lengthOfCutBar || 0,
+                                                                                    sDefOval: row.shearingDefects?.ovalityImproperDiaAtEnd || 0,
+                                                                                    sDefSharp: row.shearingDefects?.sharpEdges || 0,
+                                                                                    sDefCrack: row.shearingDefects?.crackedEdges || 0,
+                                                                                    
+                                                                                    // Turning Defects
+                                                                                    tDefPara: row.turningDefects?.parallelLength || 0,
+                                                                                    tDefFull: row.turningDefects?.fullTurningLength || 0,
+                                                                                    tDefDia: row.turningDefects?.turningDia || 0,
+                                                                                    
+                                                                                    // Forging Defects
+                                                                                    fDefTemp: row.forgingDefects?.forgingTemperature || 0,
+                                                                                    fDefStab: row.forgingDefects?.forgingStabilisationRejection || 0,
+                                                                                    fDefImp: row.forgingDefects?.improperForging || 0,
+                                                                                    fDefMarks: row.forgingDefects?.forgingMarksNotches || 0,
+                                                                                    
+                                                                                    // Quenching Defects
+                                                                                    qDefHard: row.quenchingDefects?.quenchingHardness || 0,
+                                                                                    
+                                                                                    // Tempering Defects
+                                                                                    tempDefTemp: row.temperingDefects?.temperingTemp || 0,
+                                                                                    tempDefDur: row.temperingDefects?.temperingDuration || 0
                                                                                 }));
                                                                                 downloadExcel(
                                                                                     flattened,
@@ -1860,7 +1884,21 @@ const ProfessionalCardSection = ({
                                                                                         { label: 'QUENCHING PROD', key: 'quenchingProd' },
                                                                                         { label: 'QUENCHING REJ', key: 'quenchingRej' },
                                                                                         { label: 'TEMPERING PROD', key: 'temperingProd' },
-                                                                                        { label: 'TEMPERING REJ', key: 'temperingRej' }
+                                                                                        { label: 'TEMPERING REJ', key: 'temperingRej' },
+                                                                                        { label: 'SHEARING: Length of Cut Bar', key: 'sDefLen' },
+                                                                                        { label: 'SHEARING: Ovality/Improper Dia', key: 'sDefOval' },
+                                                                                        { label: 'SHEARING: Sharp Edges', key: 'sDefSharp' },
+                                                                                        { label: 'SHEARING: Cracks', key: 'sDefCrack' },
+                                                                                        { label: 'TURNING: Parallel Length', key: 'tDefPara' },
+                                                                                        { label: 'TURNING: Full Turning Length', key: 'tDefFull' },
+                                                                                        { label: 'TURNING: Turning Dia', key: 'tDefDia' },
+                                                                                        { label: 'FORGING: Forging Temperature', key: 'fDefTemp' },
+                                                                                        { label: 'FORGING: Forging Stabilisation', key: 'fDefStab' },
+                                                                                        { label: 'FORGING: Improper Forging', key: 'fDefImp' },
+                                                                                        { label: 'FORGING: Marks/Notches', key: 'fDefMarks' },
+                                                                                        { label: 'QUENCHING: Hardness', key: 'qDefHard' },
+                                                                                        { label: 'TEMPERING: Temp', key: 'tempDefTemp' },
+                                                                                        { label: 'TEMPERING: Duration', key: 'tempDefDur' }
                                                                                     ],
                                                                                     `Lot_Wise_Closed_Loop_${lwclCallNo}`
                                                                                 );

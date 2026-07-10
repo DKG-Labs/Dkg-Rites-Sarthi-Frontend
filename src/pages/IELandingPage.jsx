@@ -17,6 +17,7 @@ import { markAsScheduled, isCallInitiated, getCallStatusData } from '../services
 import { fetchCompletedCallsForIC, fetchSignedCallsForIC, getCurrentUserId } from '../services/workflowApiService';
 // import { fetchRawMaterialCallsByStatus } from '../services/rawMaterial/rawMaterialApiService';
 import ProcessDefectSummaryCard from '../components/ProcessDefectSummaryCard';
+import ProcessIeFeedbackModule from './ProcessIeFeedbackModule/ProcessIeFeedbackModule';
 import { useInspection } from '../context/InspectionContext';
 
 const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelectedCall, setContextSelectedCalls, setCurrentPage, initialTab = 'pending', setInspectionShift, setInspectionDate, setProcessShift }) => {
@@ -215,6 +216,7 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
     { id: 'certificates', label: 'Issuance of IC & Annexures', description: `${completedCount} ready for IC` },
     { id: 'completed', label: 'Calls Completed', description: `${signedCallsCount} completed` },
     ...(isProcessIE ? [{ id: 'defect-summary', label: 'Process Defect Summary', description: 'Call-wise defect data' }] : []),
+    ...(isProcessIE ? [{ id: 'feedback-discrepancy', label: 'Process Inspection Feedback module', description: 'Manage discrepancies' }] : []),
   ];
 
   // Handle schedule button click (first time scheduling)
@@ -958,6 +960,10 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
       {/* Process Defect Summary Tab - only for Process IE */}
       {activeTab === 'defect-summary' && isProcessIE && (
         <ProcessDefectSummaryCard />
+      )}
+
+      {activeTab === 'feedback-discrepancy' && isProcessIE && (
+        <ProcessIeFeedbackModule />
       )}
 
       {/* 2. Issuance of IC - Second */}

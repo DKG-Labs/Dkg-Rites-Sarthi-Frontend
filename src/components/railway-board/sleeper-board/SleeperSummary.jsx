@@ -46,9 +46,9 @@ const SleeperSummary = ({ summaryData = {}, onPoIssuedClick }) => {
             rmt: 0
         },
         finalInspectionQty: {
-            nos: 0,
-            set: 0,
-            rmt: 0
+            nos: summaryData.finalInspectionQuantity || 0,
+            set: summaryData.totalAcceptedSet || 0,
+            rmt: summaryData.totalAcceptedNos || 0
         },
         newSleepersInPipeline: summaryData.newSleepersInPipeline || 45000,
         sleepersRejectedInProcess: rejectedInProcess,

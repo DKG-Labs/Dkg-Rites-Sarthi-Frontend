@@ -1,23 +1,38 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 /**
  * Custom hook to handle fetching report data for different levels of the dashboard.
  * 
  * @param {Function} fetchFn - The API service function to call.
- * @param {any} dependency - The ID or parameter the fetch function depends on.
+ * @param {any} dependency - Pass undefined to completely disable this hook (API will NOT fire).
+ *                           Pass null or any value to enable fetching.
  * @returns {Object} { data, loading, error, refresh }
  */
 const useReportData = (fetchFn, dependency = null) => {
+    const isEnabled = dependency !== undefined;
+
     const [data, setData] = useState([]);
     const [pagination, setPagination] = useState({ totalElements: 0, totalPages: 0 });
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false); // start false; only true when actually fetching
     const [error, setError] = useState(null);
+    const activeRequestId = useRef(0);
 
     const fetchData = useCallback(async () => {
+        // Double guard: abort if dependency is undefined (tab not active)
+        if (dependency === undefined) return;
+
+        activeRequestId.current += 1;
+        const currentRequestId = activeRequestId.current;
+
         try {
             setLoading(true);
             setError(null);
             const response = await fetchFn(dependency);
+
+            if (currentRequestId !== activeRequestId.current) {
+                // A newer request has been made, ignore this stale response
+                return;
+            }
 
             if (response && (response.responseStatus?.statusCode === 0 || Array.isArray(response) || typeof response === 'object')) {
                 // Determine if the response is wrapped and extract data
@@ -41,19 +56,22 @@ const useReportData = (fetchFn, dependency = null) => {
                 setError(response?.responseStatus?.message || 'Failed to fetch data');
             }
         } catch (err) {
+            if (currentRequestId !== activeRequestId.current) return;
             console.error('API Error:', err);
             setError(err.message || 'An unexpected error occurred');
         } finally {
-            setLoading(false);
+            if (currentRequestId === activeRequestId.current) {
+                setLoading(false);
+            }
         }
     }, [fetchFn, dependency]);
 
     useEffect(() => {
-        // Only fetch if level 1 (no dep) or if dependency is provided
-        if (dependency !== undefined) {
+        // Only fetch when dependency is explicitly provided (not undefined)
+        if (isEnabled) {
             fetchData();
         }
-    }, [fetchData, dependency]);
+    }, [fetchData, isEnabled]);
 
     return { data, pagination, loading, error, refresh: fetchData };
 };

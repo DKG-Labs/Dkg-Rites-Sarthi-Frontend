@@ -56,17 +56,17 @@ const formatPoDate = (dateStr) => {
 
 // --- Static Data moved outside component to fix ESLint re-render warnings ---
 const staticInspectionCallsData = [
-    { name: 'Total', under: 90, pending: 12 },
-    { name: 'RM', under: 38, pending: 5 },
-    { name: 'Process', under: 30, pending: 4 },
-    { name: 'Final', under: 22, pending: 3 },
+    { name: 'Total', under: 0, pending: 0 },
+    { name: 'RM', under: 0, pending: 0 },
+    { name: 'Process', under: 0, pending: 0 },
+    { name: 'Final', under: 0, pending: 0 },
 ];
 
 const staticInspectionDetailsData = [
-    { name: 'Total', accepted: 8957, rejected: 406 },
-    { name: 'RM', accepted: 3200, rejected: 145 },
-    { name: 'Process', accepted: 3100, rejected: 160 },
-    { name: 'Final', accepted: 2657, rejected: 101 },
+    { name: 'Total', accepted: 0, rejected: 0 },
+    { name: 'RM', accepted: 0, rejected: 0 },
+    { name: 'Process', accepted: 0, rejected: 0 },
+    { name: 'Final', accepted: 0, rejected: 0 },
 ];
 
 const ProfessionalCardSection = ({
@@ -190,10 +190,10 @@ const ProfessionalCardSection = ({
     // Auto-calculate dates when preset dropdown changes
     useEffect(() => {
         if (dateFilterType === 'custom') return; // Do nothing for custom
-        
+
         const today = new Date();
         const todayStr = today.toISOString().split('T')[0];
-        
+
         if (dateFilterType === 'current_fy') {
             const fy = getCurrentFY();
             setFilterStartDate(fy.start);
@@ -216,7 +216,7 @@ const ProfessionalCardSection = ({
         }
     }, [dateFilterType]);
 
-    
+
     // IC Issued State
     const [icIssuedData, setIcIssuedData] = useState({ total: 0, rmCount: 0, processCount: 0, finalCount: 0 });
     const [isIcIssuedModalOpen, setIsIcIssuedModalOpen] = useState(false);
@@ -235,7 +235,7 @@ const ProfessionalCardSection = ({
                     const data = response.responseData || response.data || response;
                     if (Array.isArray(data)) {
                         const filteredData = data.filter(vp => !vp.companyName?.toLowerCase().includes('dummy'));
-                        const sortedData = [...filteredData].sort((a, b) => 
+                        const sortedData = [...filteredData].sort((a, b) =>
                             (a.companyName || '').localeCompare(b.companyName || '')
                         );
                         setVendorPlants(sortedData);
@@ -244,7 +244,7 @@ const ProfessionalCardSection = ({
                     const response = await reportService.getAllZonalRailways();
                     const data = response.responseData || response.data || response;
                     if (Array.isArray(data)) {
-                        const sortedData = [...data].sort((a, b) => 
+                        const sortedData = [...data].sort((a, b) =>
                             (a || '').localeCompare(b || '')
                         );
                         setZonalRailways(sortedData);
@@ -254,11 +254,11 @@ const ProfessionalCardSection = ({
                 console.error("Error fetching initial options:", error);
             }
         };
-        
+
         // Reset selections when mode changes
         setSelectedVendorPlant('');
         setSelectedZonalRailway('');
-        
+
         fetchInitialOptions();
     }, [filterMode]);
 
@@ -275,7 +275,7 @@ const ProfessionalCardSection = ({
                 const response = await reportService.getZonalRailways(selectedVendorPlant);
                 const data = response.responseData || response.data || response;
                 if (Array.isArray(data)) {
-                    const sortedData = [...data].sort((a, b) => 
+                    const sortedData = [...data].sort((a, b) =>
                         (a || '').localeCompare(b || '')
                     );
                     setZonalRailways(sortedData);
@@ -301,7 +301,7 @@ const ProfessionalCardSection = ({
                 const data = response.responseData || response.data || response;
                 if (Array.isArray(data)) {
                     const filteredData = data.filter(vp => !vp.companyName?.toLowerCase().includes('dummy'));
-                    const sortedData = [...filteredData].sort((a, b) => 
+                    const sortedData = [...filteredData].sort((a, b) =>
                         (a.companyName || '').localeCompare(b.companyName || '')
                     );
                     setVendorPlants(sortedData);
@@ -317,13 +317,15 @@ const ProfessionalCardSection = ({
 
     // Fetch All Dashboard Data
     useEffect(() => {
+        let isActive = true;
+
         const fetchAllDashboardData = async () => {
             setIsDashboardLoading(true);
             try {
-                const minLoadingPromise = new Promise(resolve => setTimeout(resolve, 500));
-                
                 const isPrimaryFilterApplied = filterMode === 'vendorwise' ? !!selectedVendorPlant : !!selectedZonalRailway;
-                
+
+                const minLoadingPromise = new Promise(resolve => setTimeout(resolve, 500));
+
                 const params = {
                     vendorPlantCode: selectedVendorPlant,
                     vendor: selectedVendorPlant,
@@ -353,11 +355,13 @@ const ProfessionalCardSection = ({
                     minLoadingPromise
                 ]);
 
+                if (!isActive) return;
+
                 if (icIssuedRes) {
                     const data = icIssuedRes.responseData || icIssuedRes.data || icIssuedRes;
                     if (data) setIcIssuedData(data);
                 }
-                
+
                 if (callStatusRes) {
                     const data = callStatusRes.responseData || callStatusRes.data || callStatusRes;
                     if (data && Array.isArray(data)) setLocalInspectionCallStatus(data);
@@ -379,20 +383,31 @@ const ProfessionalCardSection = ({
                 }
 
             } catch (error) {
+                if (!isActive) return;
                 console.error("Error in dashboard Promise.all:", error);
             } finally {
-                setIsDashboardLoading(false);
+                if (isActive) {
+                    setIsDashboardLoading(false);
+                }
             }
         };
 
         fetchAllDashboardData();
-    }, [selectedVendorPlant, selectedZonalRailway, filterStartDate, filterEndDate, filterMode]);
+
+        return () => {
+            isActive = false;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedVendorPlant, selectedZonalRailway, filterStartDate, filterEndDate]);
 
     useEffect(() => {
+        let isActive = true;
+
         const fetchTotalCalls = async () => {
             try {
                 if (getSummaryKey(selectedProduct) !== 'erc') return;
                 const isPrimaryFilterApplied = filterMode === 'vendorwise' ? !!selectedVendorPlant : !!selectedZonalRailway;
+                
                 const params = {
                     zone: selectedZonalRailway,
                     vendor: selectedVendorPlant,
@@ -400,16 +415,26 @@ const ProfessionalCardSection = ({
                     endDate: isPrimaryFilterApplied ? filterEndDate : ''
                 };
                 const response = await reportService.getErcDashboardTotalCalls(params);
+                
+                if (!isActive) return;
+
                 const data = response?.responseData || response?.data || response;
                 if (data) {
                     setTotalCallsData(data);
                 }
             } catch (error) {
+                if (!isActive) return;
                 console.error("Error fetching total calls:", error);
             }
         };
+
         fetchTotalCalls();
-    }, [selectedProduct, selectedZonalRailway, selectedVendorPlant, filterStartDate, filterEndDate, filterMode]);
+
+        return () => {
+            isActive = false;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedProduct, selectedZonalRailway, selectedVendorPlant, filterStartDate, filterEndDate]);
 
     const handlePoIssuedClick = async () => {
         try {
@@ -422,10 +447,10 @@ const ProfessionalCardSection = ({
                 itemCatDescr = 'Elastic Rail Clips';
             }
             const response = await reportService.getPoIssuedDetails(
-                itemCatDescr, 
-                selectedVendorPlant || null, 
-                selectedZonalRailway || null, 
-                null, 
+                itemCatDescr,
+                selectedVendorPlant || null,
+                selectedZonalRailway || null,
+                null,
                 null
             );
             const data = response.responseData || response || [];
@@ -474,7 +499,7 @@ const ProfessionalCardSection = ({
             if (type === 'Open') response = await reportService.getErcDashboardOpenCalls(filters);
             else if (type === 'Under Inspection') response = await reportService.getErcDashboardUnderInspectionCalls(filters);
             else if (type === 'Pending') response = await reportService.getErcDashboardPendingCalls(filters);
-            
+
             const data = response?.responseData || response?.data || response || [];
             setIcModalData(data);
             setIsIcModalOpen(true);
@@ -802,10 +827,10 @@ const ProfessionalCardSection = ({
                     switch (activeMainCard) {
                         case 'summary':
                             if (isSleeper) {
-                                return <SleeperSummary summaryData={summaryData} onPoIssuedClick={handlePoIssuedClick} />;
+                                return <SleeperSummary summaryData={localSummaryData || summaryData || {}} onPoIssuedClick={handlePoIssuedClick} />;
                             }
                             if (isRailPad) {
-                                return <RailPadSummary summaryData={summaryData} onPoIssuedClick={handlePoIssuedClick} onInspectionCallClick={handleInspectionCallClick} />;
+                                return <RailPadSummary summaryData={localSummaryData || summaryData || {}} onPoIssuedClick={handlePoIssuedClick} onInspectionCallClick={handleInspectionCallClick} />;
                             }
                             const s = localSummaryData || summaryData || {};
                             const isPrimaryFilterApplied = filterMode === 'vendorwise' ? !!selectedVendorPlant : !!selectedZonalRailway;
@@ -815,14 +840,14 @@ const ProfessionalCardSection = ({
                                     {/* Global Filters for ERC */}
                                     {isErc && (
                                         <div className="global-filters mb" style={{
-                                            display: 'flex', gap: '15px', background: '#f8fafc', 
+                                            display: 'flex', gap: '15px', background: '#f8fafc',
                                             padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0',
                                             alignItems: 'center', flexWrap: 'wrap'
                                         }}>
                                             <div style={{ width: '100%', marginBottom: '10px' }}>
                                                 <div style={{ display: 'inline-flex', background: '#e2e8f0', padding: '4px', borderRadius: '8px' }}>
-                                                    <button 
-                                                        style={{ 
+                                                    <button
+                                                        style={{
                                                             padding: '6px 16px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
                                                             background: filterMode === 'zonalwise' ? '#fff' : 'transparent',
                                                             color: filterMode === 'zonalwise' ? '#0f172a' : '#64748b',
@@ -833,8 +858,8 @@ const ProfessionalCardSection = ({
                                                     >
                                                         Zonalwise
                                                     </button>
-                                                    <button 
-                                                        style={{ 
+                                                    <button
+                                                        style={{
                                                             padding: '6px 16px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
                                                             background: filterMode === 'vendorwise' ? '#fff' : 'transparent',
                                                             color: filterMode === 'vendorwise' ? '#0f172a' : '#64748b',
@@ -849,11 +874,11 @@ const ProfessionalCardSection = ({
 
                                             <div style={{ flex: '1', minWidth: '220px', order: filterMode === 'vendorwise' ? 1 : 2 }}>
                                                 <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>Vendor Plant</label>
-                                                <Select 
+                                                <Select
                                                     showSearch
                                                     allowClear
                                                     placeholder="All Vendor Plants"
-                                                    value={selectedVendorPlant || undefined} 
+                                                    value={selectedVendorPlant || undefined}
                                                     onChange={(val) => {
                                                         setSelectedVendorPlant(val || '');
                                                         if (filterMode === 'vendorwise') setSelectedZonalRailway('');
@@ -868,8 +893,8 @@ const ProfessionalCardSection = ({
                                                     disabled={filterMode === 'zonalwise' ? (!selectedZonalRailway || vendorPlants.length === 0) : false}
                                                 >
                                                     {vendorPlants.map((vp, i) => (
-                                                        <Option 
-                                                            key={i} 
+                                                        <Option
+                                                            key={i}
                                                             value={vp.poiCode}
                                                             title={`${vp.companyName} - ${vp.unitName} - ${vp.address}`}
                                                         >
@@ -880,10 +905,10 @@ const ProfessionalCardSection = ({
                                             </div>
                                             <div style={{ flex: '1', minWidth: '170px', order: filterMode === 'zonalwise' ? 1 : 2 }}>
                                                 <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>Zonal Railway</label>
-                                                <Select 
+                                                <Select
                                                     allowClear
                                                     placeholder="All Zonal Railways"
-                                                    value={selectedZonalRailway || undefined} 
+                                                    value={selectedZonalRailway || undefined}
                                                     onChange={(val) => {
                                                         setSelectedZonalRailway(val || '');
                                                         if (filterMode === 'zonalwise') setSelectedVendorPlant('');
@@ -899,8 +924,8 @@ const ProfessionalCardSection = ({
                                             </div>
                                             <div style={{ flex: '1', minWidth: '150px', order: 3 }}>
                                                 <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>Date Range</label>
-                                                <Select 
-                                                    value={isPrimaryFilterApplied ? dateFilterType : null} 
+                                                <Select
+                                                    value={isPrimaryFilterApplied ? dateFilterType : null}
                                                     placeholder="Select Date Range"
                                                     onChange={(val) => setDateFilterType(val || 'current_fy')}
                                                     style={{ width: '100%', height: '36px' }}
@@ -915,16 +940,22 @@ const ProfessionalCardSection = ({
                                             </div>
                                             <div style={{ flex: '1', minWidth: '130px', order: 4 }}>
                                                 <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>From Date</label>
-                                                <input 
-                                                    type="date" 
-                                                    value={isPrimaryFilterApplied ? (filterStartDate || '') : ''} 
+                                                <input
+                                                    type="date"
+                                                    value={isPrimaryFilterApplied ? (filterStartDate || '') : ''}
+                                                    max={filterEndDate || undefined}
                                                     onChange={(e) => {
-                                                        setFilterStartDate(e.target.value);
+                                                        const newStart = e.target.value;
+                                                        setFilterStartDate(newStart);
                                                         setDateFilterType('custom');
+                                                        // If From > To, reset To date to match From
+                                                        if (filterEndDate && newStart > filterEndDate) {
+                                                            setFilterEndDate(newStart);
+                                                        }
                                                     }}
                                                     disabled={!isPrimaryFilterApplied}
-                                                    style={{ 
-                                                        width: '100%', height: '36px', padding: '0 11px', 
+                                                    style={{
+                                                        width: '100%', height: '36px', padding: '0 11px',
                                                         border: '1px solid #d9d9d9', borderRadius: '6px',
                                                         backgroundColor: !isPrimaryFilterApplied ? '#f5f5f5' : '#fff',
                                                         color: !isPrimaryFilterApplied ? '#bfbfbf' : 'rgba(0, 0, 0, 0.88)', fontSize: '14px'
@@ -933,16 +964,22 @@ const ProfessionalCardSection = ({
                                             </div>
                                             <div style={{ flex: '1', minWidth: '130px', order: 5 }}>
                                                 <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>To Date</label>
-                                                <input 
-                                                    type="date" 
-                                                    value={isPrimaryFilterApplied ? (filterEndDate || '') : ''} 
+                                                <input
+                                                    type="date"
+                                                    value={isPrimaryFilterApplied ? (filterEndDate || '') : ''}
+                                                    min={filterStartDate || undefined}
                                                     onChange={(e) => {
-                                                        setFilterEndDate(e.target.value);
+                                                        const newEnd = e.target.value;
+                                                        setFilterEndDate(newEnd);
                                                         setDateFilterType('custom');
+                                                        // If To < From, reset From date to match To
+                                                        if (filterStartDate && newEnd < filterStartDate) {
+                                                            setFilterStartDate(newEnd);
+                                                        }
                                                     }}
                                                     disabled={!isPrimaryFilterApplied}
-                                                    style={{ 
-                                                        width: '100%', height: '36px', padding: '0 11px', 
+                                                    style={{
+                                                        width: '100%', height: '36px', padding: '0 11px',
                                                         border: '1px solid #d9d9d9', borderRadius: '6px',
                                                         backgroundColor: !isPrimaryFilterApplied ? '#f5f5f5' : '#fff',
                                                         color: !isPrimaryFilterApplied ? '#bfbfbf' : 'rgba(0, 0, 0, 0.88)', fontSize: '14px'
@@ -967,206 +1004,206 @@ const ProfessionalCardSection = ({
                                         </div>
                                     ) : (
                                         <>
-                                        <div className="g3 mb">
-                                        <div className="prof-card card-dark-green"
-                                            style={{ textAlign: 'center', cursor: 'pointer' }}
-                                            onClick={handlePoIssuedClick}
-                                        >
-                                            <div className="kpi-lbl">PO Issued</div>
-                                            <div className="kpi-val">{(s.poIssued ?? 0)}</div>
-                                            <div className="kpi-sub">Nos.</div>
-                                        </div>
-                                        <div className="prof-card card-ocean" style={{ textAlign: 'center' }}>
-                                            <div className="kpi-lbl">PO Quantity</div>
-                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '4px' }}>
-                                                <div style={{ borderRight: '1px solid rgba(255,255,255,0.2)', paddingRight: '4px' }}>
-                                                    <div className="kpi-val" style={{ fontSize: '26px' }}>{(s.poQuantityNos || 0)}</div>
-                                                    <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Nos.</div>
+                                            <div className="g3 mb">
+                                                <div className="prof-card card-dark-green"
+                                                    style={{ textAlign: 'center', cursor: 'pointer' }}
+                                                    onClick={handlePoIssuedClick}
+                                                >
+                                                    <div className="kpi-lbl">PO Issued</div>
+                                                    <div className="kpi-val">{(s.poIssued ?? 0)}</div>
+                                                    <div className="kpi-sub">Nos.</div>
                                                 </div>
-                                                <div style={{ paddingLeft: '4px' }}>
-                                                    <div className="kpi-val" style={{ fontSize: '26px' }}>{(s.poQuantityMt || 0)}</div>
-                                                    <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>MT</div>
+                                                <div className="prof-card card-ocean" style={{ textAlign: 'center' }}>
+                                                    <div className="kpi-lbl">PO Quantity</div>
+                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '4px' }}>
+                                                        <div style={{ borderRight: '1px solid rgba(255,255,255,0.2)', paddingRight: '4px' }}>
+                                                            <div className="kpi-val" style={{ fontSize: '26px' }}>{(s.poQuantityNos || 0)}</div>
+                                                            <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Nos.</div>
+                                                        </div>
+                                                        <div style={{ paddingLeft: '4px' }}>
+                                                            <div className="kpi-val" style={{ fontSize: '26px' }}>{(s.poQuantityMt || 0)}</div>
+                                                            <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>MT</div>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </div>
-                                        <div className="prof-card card-indigo" style={{ textAlign: 'center' }}>
-                                            <div className="kpi-lbl">Final Inspection Qty</div>
-                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '4px' }}>
-                                                <div style={{ borderRight: '1px solid rgba(255,255,255,0.2)', paddingRight: '4px' }}>
-                                                    <div className="kpi-val" style={{ fontSize: '26px' }}>{(s.finalInspectionQuantity || 0)}</div>
-                                                    <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Nos.</div>
+                                                <div className="prof-card card-indigo" style={{ textAlign: 'center' }}>
+                                                    <div className="kpi-lbl">Final Inspection Qty</div>
+                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '4px' }}>
+                                                        <div style={{ borderRight: '1px solid rgba(255,255,255,0.2)', paddingRight: '4px' }}>
+                                                            <div className="kpi-val" style={{ fontSize: '26px' }}>{(s.finalInspectionQuantity || 0)}</div>
+                                                            <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>Nos.</div>
+                                                        </div>
+                                                        <div style={{ paddingLeft: '4px' }}>
+                                                            <div className="kpi-val" style={{ fontSize: '26px' }}>-</div>
+                                                            <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>MT</div>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <div style={{ paddingLeft: '4px' }}>
-                                                    <div className="kpi-val" style={{ fontSize: '26px' }}>-</div>
-                                                    <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9 }}>MT</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                    </div>
 
-                                    <div className="sec-title-flex" style={{ marginBottom: '12px', marginTop: '10px' }}>
-                                        <span style={{ fontSize: '14px', fontWeight: '700', color: '#166534' }}>Stagewise Inspection Call Status</span>
-                                    </div>
-                                    <div className="g5 mb">
-                                        <div className="prof-card" style={{ padding: '15px', borderLeft: '4px solid #3b82f6', background: '#eff6ff' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                                                <span style={{ fontSize: '14px', fontWeight: '800', color: '#475569', textTransform: 'uppercase' }}>Total Calls</span>
-                                                <span className="prof-badge" style={{ background: '#bfdbfe', color: '#1e3a8a', fontSize: '10px' }}>Nos.</span>
                                             </div>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', textAlign: 'center' }}>
-                                                <div onClick={() => handleTotalCallsClick('Open')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', background: 'rgba(255,255,255,0.7)', padding: '8px 4px', borderRadius: '6px', transition: 'all 0.2s', flex: 1 }} onMouseEnter={e => e.currentTarget.style.background = '#dbeafe'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.7)'} title="Click to view Open calls">
-                                                    <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '700', lineHeight: '1.2', marginBottom: '4px' }}>TOTAL<br/>OPEN</span>
-                                                    <span style={{ fontSize: '18px', fontWeight: '800', color: '#3b82f6' }}>{totalCallsData?.totalOpenCalls || 0}</span>
-                                                </div>
-                                                <div onClick={() => handleTotalCallsClick('Under Inspection')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', background: 'rgba(255,255,255,0.7)', padding: '8px 4px', borderRadius: '6px', transition: 'all 0.2s', flex: 1 }} onMouseEnter={e => e.currentTarget.style.background = '#dbeafe'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.7)'} title="Click to view Under Inspection calls">
-                                                    <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '700', lineHeight: '1.2', marginBottom: '4px' }}>UNDER<br/>INSPECTION</span>
-                                                    <span style={{ fontSize: '18px', fontWeight: '800', color: '#f59e0b' }}>{totalCallsData?.totalUnderInspectionCalls || 0}</span>
-                                                </div>
-                                                <div onClick={() => handleTotalCallsClick('Pending')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', background: 'rgba(255,255,255,0.7)', padding: '8px 4px', borderRadius: '6px', transition: 'all 0.2s', flex: 1 }} onMouseEnter={e => e.currentTarget.style.background = '#dbeafe'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.7)'} title="Click to view Pending calls">
-                                                    <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '700', lineHeight: '1.2', marginBottom: '4px' }}>PENDING<br/>CALLS</span>
-                                                    <span style={{ fontSize: '18px', fontWeight: '800', color: '#ef4444' }}>{totalCallsData?.totalPendingCalls || 0}</span>
-                                                </div>
+
+                                            <div className="sec-title-flex" style={{ marginBottom: '12px', marginTop: '10px' }}>
+                                                <span style={{ fontSize: '14px', fontWeight: '700', color: '#166534' }}>Stagewise Inspection Call Status</span>
                                             </div>
-                                        </div>
-                                        {[{ id: 'RM', label: 'Raw Material' }, { id: 'Process', label: 'Process' }, { id: 'Final', label: 'Final Product' }].map((catObj, idx) => {
-                                            const cat = catObj.id;
-                                            const activeData = localInspectionCallStatus?.length > 0 ? localInspectionCallStatus : (inspectionCallStatusData?.length > 0 ? inspectionCallStatusData : staticInspectionCallsData);
-                                            const d = activeData.find(x => x.name === cat || x.category === cat);
-                                            return (
-                                                <div className="prof-card" key={idx} style={{
-                                                    padding: '15px',
-                                                    borderLeft: cat === 'RM' ? '4px solid #3b82f6' : cat === 'Process' ? '4px solid #f59e0b' : '4px solid #ef4444',
-                                                    background: cat === 'RM' ? '#eff6ff' : cat === 'Process' ? '#fff7ed' : '#fef2f2'
-                                                }}>
+                                            <div className="g5 mb">
+                                                <div className="prof-card" style={{ padding: '15px', borderLeft: '4px solid #3b82f6', background: '#eff6ff' }}>
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                                                        <span style={{ fontSize: '14px', fontWeight: '800', color: '#475569', textTransform: 'uppercase' }}>{catObj.label}</span>
-                                                        <span className="prof-badge" style={{ background: '#f8fafc', color: '#64748b', fontSize: '10px' }}>CALLS</span>
+                                                        <span style={{ fontSize: '14px', fontWeight: '800', color: '#475569', textTransform: 'uppercase' }}>Total Calls</span>
+                                                        <span className="prof-badge" style={{ background: '#bfdbfe', color: '#1e3a8a', fontSize: '10px' }}>Nos.</span>
                                                     </div>
-                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                                                        <div
-                                                            style={{ cursor: 'pointer', padding: '6px', borderRadius: '8px', transition: 'all 0.2s' }}
-                                                            onClick={() => handleInspectionCallClick(cat, 'Under Inspection')}
-                                                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.12)'}
-                                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                                            title="Click to view Under Inspection calls"
-                                                        >
-                                                            <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '700' }}>UNDER INSPECTION</div>
-                                                            <div style={{ fontSize: '28px', fontWeight: '800', color: '#f59e0b' }}>{d?.under || '0'}</div>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', textAlign: 'center' }}>
+                                                        <div onClick={() => handleTotalCallsClick('Open')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', background: 'rgba(255,255,255,0.7)', padding: '8px 4px', borderRadius: '6px', transition: 'all 0.2s', flex: 1 }} onMouseEnter={e => e.currentTarget.style.background = '#dbeafe'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.7)'} title="Click to view Open calls">
+                                                            <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '700', lineHeight: '1.2', marginBottom: '4px' }}>TOTAL<br />OPEN</span>
+                                                            <span style={{ fontSize: '18px', fontWeight: '800', color: '#3b82f6' }}>{totalCallsData?.totalOpenCalls || 0}</span>
                                                         </div>
-                                                        <div
-                                                            style={{ textAlign: 'right', cursor: 'pointer', padding: '6px', borderRadius: '8px', transition: 'all 0.2s' }}
-                                                            onClick={() => handleInspectionCallClick(cat, 'Pending')}
-                                                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)'}
-                                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                                            title="Click to view Pending calls"
-                                                        >
-                                                            <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '700' }}>PENDING</div>
-                                                            <div style={{ fontSize: '28px', fontWeight: '800', color: '#ef4444' }}>{d?.pending || '0'}</div>
+                                                        <div onClick={() => handleTotalCallsClick('Under Inspection')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', background: 'rgba(255,255,255,0.7)', padding: '8px 4px', borderRadius: '6px', transition: 'all 0.2s', flex: 1 }} onMouseEnter={e => e.currentTarget.style.background = '#dbeafe'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.7)'} title="Click to view Under Inspection calls">
+                                                            <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '700', lineHeight: '1.2', marginBottom: '4px' }}>UNDER<br />INSPECTION</span>
+                                                            <span style={{ fontSize: '18px', fontWeight: '800', color: '#f59e0b' }}>{totalCallsData?.totalUnderInspectionCalls || 0}</span>
+                                                        </div>
+                                                        <div onClick={() => handleTotalCallsClick('Pending')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', background: 'rgba(255,255,255,0.7)', padding: '8px 4px', borderRadius: '6px', transition: 'all 0.2s', flex: 1 }} onMouseEnter={e => e.currentTarget.style.background = '#dbeafe'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.7)'} title="Click to view Pending calls">
+                                                            <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '700', lineHeight: '1.2', marginBottom: '4px' }}>PENDING<br />CALLS</span>
+                                                            <span style={{ fontSize: '18px', fontWeight: '800', color: '#ef4444' }}>{totalCallsData?.totalPendingCalls || 0}</span>
                                                         </div>
                                                     </div>
                                                 </div>
-                                            );
-                                        })}
-                                        {/* IC ISSUED Card moved to the right */}
-                                        <div className="prof-card card-gold" 
-                                             style={{ textAlign: 'center', cursor: 'pointer', background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
-                                             onClick={() => setIsIcIssuedModalOpen(true)}
-                                             title="Click to view stage-wise breakdown"
-                                        >
-                                            <div className="kpi-lbl">IC Issued</div>
-                                            <div style={{ marginTop: '12px' }}>
-                                                <div className="kpi-val" style={{ fontSize: '32px' }}>{(icIssuedData.total || 0)}</div>
-                                                <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9, marginTop: '2px' }}>Total Calls</div>
+                                                {[{ id: 'RM', label: 'Raw Material' }, { id: 'Process', label: 'Process' }, { id: 'Final', label: 'Final Product' }].map((catObj, idx) => {
+                                                    const cat = catObj.id;
+                                                    const activeData = localInspectionCallStatus?.length > 0 ? localInspectionCallStatus : (inspectionCallStatusData?.length > 0 ? inspectionCallStatusData : staticInspectionCallsData);
+                                                    const d = activeData.find(x => x.name === cat || x.category === cat);
+                                                    return (
+                                                        <div className="prof-card" key={idx} style={{
+                                                            padding: '15px',
+                                                            borderLeft: cat === 'RM' ? '4px solid #3b82f6' : cat === 'Process' ? '4px solid #f59e0b' : '4px solid #ef4444',
+                                                            background: cat === 'RM' ? '#eff6ff' : cat === 'Process' ? '#fff7ed' : '#fef2f2'
+                                                        }}>
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                                                <span style={{ fontSize: '14px', fontWeight: '800', color: '#475569', textTransform: 'uppercase' }}>{catObj.label}</span>
+                                                                <span className="prof-badge" style={{ background: '#f8fafc', color: '#64748b', fontSize: '10px' }}>CALLS</span>
+                                                            </div>
+                                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                                                <div
+                                                                    style={{ cursor: 'pointer', padding: '6px', borderRadius: '8px', transition: 'all 0.2s' }}
+                                                                    onClick={() => handleInspectionCallClick(cat, 'Under Inspection')}
+                                                                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.12)'}
+                                                                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                                                    title="Click to view Under Inspection calls"
+                                                                >
+                                                                    <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '700' }}>UNDER INSPECTION</div>
+                                                                    <div style={{ fontSize: '28px', fontWeight: '800', color: '#f59e0b' }}>{d?.under || '0'}</div>
+                                                                </div>
+                                                                <div
+                                                                    style={{ textAlign: 'right', cursor: 'pointer', padding: '6px', borderRadius: '8px', transition: 'all 0.2s' }}
+                                                                    onClick={() => handleInspectionCallClick(cat, 'Pending')}
+                                                                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)'}
+                                                                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                                                    title="Click to view Pending calls"
+                                                                >
+                                                                    <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '700' }}>PENDING</div>
+                                                                    <div style={{ fontSize: '28px', fontWeight: '800', color: '#ef4444' }}>{d?.pending || '0'}</div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                                {/* IC ISSUED Card moved to the right */}
+                                                <div className="prof-card card-gold"
+                                                    style={{ textAlign: 'center', cursor: 'pointer', background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
+                                                    onClick={() => setIsIcIssuedModalOpen(true)}
+                                                    title="Click to view stage-wise breakdown"
+                                                >
+                                                    <div className="kpi-lbl">IC Issued</div>
+                                                    <div style={{ marginTop: '12px' }}>
+                                                        <div className="kpi-val" style={{ fontSize: '32px' }}>{(icIssuedData.total || 0)}</div>
+                                                        <div className="kpi-sub" style={{ fontSize: '11px', opacity: 0.9, marginTop: '2px' }}>Total Calls</div>
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </div>
 
-                                    <div className="sec-title-flex" style={{ marginBottom: '12px' }}>
-                                        <span style={{ fontSize: '14px', fontWeight: '700', color: '#166534' }}>Inspection Details</span>
-                                    </div>
-                                    <div className="g3 mb">
-                                        {[{ id: 'RM', label: 'Raw Material' }, { id: 'Process', label: 'Process' }, { id: 'Final', label: 'Final Product' }].map((catObj, idx) => {
-                                            const cat = catObj.id;
-                                            const activeDetails = localInspectionDetails?.length > 0 ? localInspectionDetails : (inspectionDetailsData?.length > 0 ? inspectionDetailsData : staticInspectionDetailsData);
-                                            const d = activeDetails.find(x => x.name === cat);
-                                            return (
-                                                <div className="prof-card" key={idx} style={{
-                                                    padding: '15px',
-                                                    borderLeft: cat === 'RM' ? '4px solid #0d9488' : cat === 'Process' ? '4px solid #7c3aed' : '4px solid #db2777',
-                                                    background: cat === 'RM' ? '#f0fdfa' : cat === 'Process' ? '#f5f3ff' : '#fff1f2'
-                                                }}>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                                                        <span style={{ fontSize: '14px', fontWeight: '800', color: '#475569', textTransform: 'uppercase' }}>{catObj.label}</span>
-                                                        <span className="prof-badge" style={{ background: '#f8fafc', color: '#64748b', fontSize: '10px' }}>Nos.</span>
-                                                    </div>
-                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                                                        <div>
-                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>ACCEPTED (Nos.)</div>
-                                                            <div style={{ fontSize: '26px', fontWeight: '800', color: '#22c55e' }}>{d?.accepted || '0'}</div>
+                                            <div className="sec-title-flex" style={{ marginBottom: '12px' }}>
+                                                <span style={{ fontSize: '14px', fontWeight: '700', color: '#166534' }}>Inspection Details</span>
+                                            </div>
+                                            <div className="g3 mb">
+                                                {[{ id: 'RM', label: 'Raw Material' }, { id: 'Process', label: 'Process' }, { id: 'Final', label: 'Final Product' }].map((catObj, idx) => {
+                                                    const cat = catObj.id;
+                                                    const activeDetails = localInspectionDetails?.length > 0 ? localInspectionDetails : (inspectionDetailsData?.length > 0 ? inspectionDetailsData : staticInspectionDetailsData);
+                                                    const d = activeDetails.find(x => x.name === cat);
+                                                    return (
+                                                        <div className="prof-card" key={idx} style={{
+                                                            padding: '15px',
+                                                            borderLeft: cat === 'RM' ? '4px solid #0d9488' : cat === 'Process' ? '4px solid #7c3aed' : '4px solid #db2777',
+                                                            background: cat === 'RM' ? '#f0fdfa' : cat === 'Process' ? '#f5f3ff' : '#fff1f2'
+                                                        }}>
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                                                <span style={{ fontSize: '14px', fontWeight: '800', color: '#475569', textTransform: 'uppercase' }}>{catObj.label}</span>
+                                                                <span className="prof-badge" style={{ background: '#f8fafc', color: '#64748b', fontSize: '10px' }}>Nos.</span>
+                                                            </div>
+                                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                                                <div>
+                                                                    <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>ACCEPTED (Nos.)</div>
+                                                                    <div style={{ fontSize: '26px', fontWeight: '800', color: '#22c55e' }}>{d?.accepted || '0'}</div>
+                                                                </div>
+                                                                <div style={{ textAlign: 'right' }}>
+                                                                    <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>REJECTED (Nos.)</div>
+                                                                    <div style={{ fontSize: '26px', fontWeight: '800', color: '#ef4444' }}>{d?.rejected || '0'}</div>
+                                                                </div>
+                                                            </div>
                                                         </div>
-                                                        <div style={{ textAlign: 'right' }}>
-                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>REJECTED (Nos.)</div>
-                                                            <div style={{ fontSize: '26px', fontWeight: '800', color: '#ef4444' }}>{d?.rejected || '0'}</div>
+                                                    );
+                                                })}
+                                            </div>
+
+                                            <div className="prof-card">
+                                                <div className="sec-title">Production & Rejection</div>
+                                                {(() => {
+                                                    const activeDetails = localInspectionDetails?.length > 0 ? localInspectionDetails : (inspectionDetailsData?.length > 0 ? inspectionDetailsData : staticInspectionDetailsData);
+
+                                                    const procData = activeDetails.find(x => x.name === 'Process');
+                                                    const pAcc = procData?.accepted || 0;
+                                                    const pRej = procData?.rejected || 0;
+                                                    const pInsp = pAcc + pRej;
+                                                    const pRejPct = pInsp > 0 ? (pRej * 100) / pInsp : (s.processRejectionPercentage ?? 0);
+
+                                                    const rmData = activeDetails.find(x => x.name === 'RM');
+                                                    const rmAcc = rmData?.accepted || 0;
+                                                    const rmRej = rmData?.rejected || 0;
+                                                    const rmInsp = rmAcc + rmRej;
+                                                    const rmRejPct = rmInsp > 0 ? (rmRej * 100) / rmInsp : (s.rmRejectionPercentage ?? 0);
+
+                                                    const finalData = activeDetails.find(x => x.name === 'Final');
+                                                    const fAcc = finalData?.accepted || 0;
+                                                    const fRej = finalData?.rejected || 0;
+                                                    const fInsp = fAcc + fRej;
+                                                    const fRejPct = fInsp > 0 ? (fRej * 100) / fInsp : (s.finalRejectionPercentage ?? 0);
+
+                                                    const avgProd = localAvgProduction !== null ? localAvgProduction : (s.avgProductionPerDay ?? 0);
+
+                                                    return (
+                                                        <div className="g4">
+                                                            <div className="prof-card card-spring-green" style={{ textAlign: 'center' }}>
+                                                                <div className="kpi-lbl">Avg Production/Day</div>
+                                                                <div className="kpi-val">{Math.round(avgProd)}</div>
+                                                                <div className="kpi-sub">Nos.</div>
+                                                            </div>
+                                                            <div className="prof-card card-gold" style={{ textAlign: 'center' }}>
+                                                                <div className="kpi-lbl">RM Rejection</div>
+                                                                <div className="kpi-val">{formatDecimal(rmRejPct)}%</div>
+                                                                <div className="prof-prog"><div className="prof-prog-f" style={{ width: `${Math.min(100, rmRejPct * 10)}%`, background: '#eab308' }}></div></div>
+                                                            </div>
+                                                            <div className="prof-card card-lime" style={{ textAlign: 'center' }}>
+                                                                <div className="kpi-lbl">Process Rejection</div>
+                                                                <div className="kpi-val">{formatDecimal(pRejPct)}%</div>
+                                                                <div className="prof-prog"><div className="prof-prog-f" style={{ width: `${Math.min(100, pRejPct * 10)}%`, background: '#84cc16' }}></div></div>
+                                                            </div>
+                                                            <div className="prof-card card-ruby" style={{ textAlign: 'center' }}>
+                                                                <div className="kpi-lbl">Final Rejection</div>
+                                                                <div className="kpi-val">{formatDecimal(fRejPct)}%</div>
+                                                                <div className="prof-prog"><div className="prof-prog-f" style={{ width: `${Math.min(100, fRejPct * 10)}%`, background: '#e11d48' }}></div></div>
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-
-                                    <div className="prof-card">
-                                        <div className="sec-title">Production & Rejection</div>
-                                        {(() => {
-                                            const activeDetails = localInspectionDetails?.length > 0 ? localInspectionDetails : (inspectionDetailsData?.length > 0 ? inspectionDetailsData : staticInspectionDetailsData);
-                                            
-                                            const procData = activeDetails.find(x => x.name === 'Process');
-                                            const pAcc = procData?.accepted || 0;
-                                            const pRej = procData?.rejected || 0;
-                                            const pInsp = pAcc + pRej;
-                                            const pRejPct = pInsp > 0 ? (pRej * 100) / pInsp : (s.processRejectionPercentage ?? 0);
-                                            
-                                            const rmData = activeDetails.find(x => x.name === 'RM');
-                                            const rmAcc = rmData?.accepted || 0;
-                                            const rmRej = rmData?.rejected || 0;
-                                            const rmInsp = rmAcc + rmRej;
-                                            const rmRejPct = rmInsp > 0 ? (rmRej * 100) / rmInsp : (s.rmRejectionPercentage ?? 3.2);
-
-                                            const finalData = activeDetails.find(x => x.name === 'Final');
-                                            const fAcc = finalData?.accepted || 0;
-                                            const fRej = finalData?.rejected || 0;
-                                            const fInsp = fAcc + fRej;
-                                            const fRejPct = fInsp > 0 ? (fRej * 100) / fInsp : (s.finalRejectionPercentage ?? 1.8);
-                                            
-                                            const avgProd = localAvgProduction !== null ? localAvgProduction : (s.avgProductionPerDay ?? 947);
-
-                                            return (
-                                                <div className="g4">
-                                                    <div className="prof-card card-spring-green" style={{ textAlign: 'center' }}>
-                                                        <div className="kpi-lbl">Avg Production/Day</div>
-                                                        <div className="kpi-val">{Math.round(avgProd)}</div>
-                                                        <div className="kpi-sub">Nos.</div>
-                                                    </div>
-                                                    <div className="prof-card card-gold" style={{ textAlign: 'center' }}>
-                                                        <div className="kpi-lbl">RM Rejection</div>
-                                                        <div className="kpi-val">{formatDecimal(rmRejPct)}%</div>
-                                                        <div className="prof-prog"><div className="prof-prog-f" style={{ width: `${Math.min(100, rmRejPct * 10)}%`, background: '#eab308' }}></div></div>
-                                                    </div>
-                                                    <div className="prof-card card-lime" style={{ textAlign: 'center' }}>
-                                                        <div className="kpi-lbl">Process Rejection</div>
-                                                        <div className="kpi-val">{formatDecimal(pRejPct)}%</div>
-                                                        <div className="prof-prog"><div className="prof-prog-f" style={{ width: `${Math.min(100, pRejPct * 10)}%`, background: '#84cc16' }}></div></div>
-                                                    </div>
-                                                    <div className="prof-card card-ruby" style={{ textAlign: 'center' }}>
-                                                        <div className="kpi-lbl">Final Rejection</div>
-                                                        <div className="kpi-val">{formatDecimal(fRejPct)}%</div>
-                                                        <div className="prof-prog"><div className="prof-prog-f" style={{ width: `${Math.min(100, fRejPct * 10)}%`, background: '#e11d48' }}></div></div>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })()}
-                                    </div>
-                                    </>
+                                                    );
+                                                })()}
+                                            </div>
+                                        </>
                                     )}
                                 </div>
                             );
@@ -1284,10 +1321,10 @@ const ProfessionalCardSection = ({
                                                         const total = paretoAnalysisData.reduce((sum, d) => sum + (d.count || d.value || 0), 0);
                                                         return paretoAnalysisData.map(d => {
                                                             const count = d.count || d.value || 0;
-                                                            return { 
-                                                                ...d, 
-                                                                count, 
-                                                                percentage: total > 0 ? Number(((count / total) * 100).toFixed(2)) : 0 
+                                                            return {
+                                                                ...d,
+                                                                count,
+                                                                percentage: total > 0 ? Number(((count / total) * 100).toFixed(2)) : 0
                                                             };
                                                         });
                                                     })() : []} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
@@ -1838,27 +1875,27 @@ const ProfessionalCardSection = ({
                                                                                     quenchingRej: row.processQty?.quenchingRejectionQty || 0,
                                                                                     temperingProd: row.processQty?.temperingProductionQty || 0,
                                                                                     temperingRej: row.processQty?.temperingRejectionQty || 0,
-                                                                                    
+
                                                                                     // Shearing Defects
                                                                                     sDefLen: row.shearingDefects?.lengthOfCutBar || 0,
                                                                                     sDefOval: row.shearingDefects?.ovalityImproperDiaAtEnd || 0,
                                                                                     sDefSharp: row.shearingDefects?.sharpEdges || 0,
                                                                                     sDefCrack: row.shearingDefects?.crackedEdges || 0,
-                                                                                    
+
                                                                                     // Turning Defects
                                                                                     tDefPara: row.turningDefects?.parallelLength || 0,
                                                                                     tDefFull: row.turningDefects?.fullTurningLength || 0,
                                                                                     tDefDia: row.turningDefects?.turningDia || 0,
-                                                                                    
+
                                                                                     // Forging Defects
                                                                                     fDefTemp: row.forgingDefects?.forgingTemperature || 0,
                                                                                     fDefStab: row.forgingDefects?.forgingStabilisationRejection || 0,
                                                                                     fDefImp: row.forgingDefects?.improperForging || 0,
                                                                                     fDefMarks: row.forgingDefects?.forgingMarksNotches || 0,
-                                                                                    
+
                                                                                     // Quenching Defects
                                                                                     qDefHard: row.quenchingDefects?.quenchingHardness || 0,
-                                                                                    
+
                                                                                     // Tempering Defects
                                                                                     tempDefTemp: row.temperingDefects?.temperingTemp || 0,
                                                                                     tempDefDur: row.temperingDefects?.temperingDuration || 0
@@ -2109,40 +2146,36 @@ const ProfessionalCardSection = ({
                 title={icModalTitle}
             />
 
-            {/* IC Issued Breakdown Modal */}
+            {/* IC Issued Breakdown Modal -> Now showing Download IC Annexures */}
             {isIcIssuedModalOpen && (
                 <div className="modal-overlay" onClick={() => setIsIcIssuedModalOpen(false)} style={{
-                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
-                    backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', 
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center',
                     justifyContent: 'center', zIndex: 1000
                 }}>
                     <div className="modal-content fade-in" onClick={e => e.stopPropagation()} style={{
-                        background: 'white', padding: '24px', borderRadius: '16px', 
-                        width: '400px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)'
+                        background: '#f8fafc', borderRadius: '16px', overflow: 'hidden',
+                        width: '95vw', maxWidth: '1400px', height: '90vh', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
+                        display: 'flex', flexDirection: 'column'
                     }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                            <h3 style={{ margin: 0, color: '#1e293b', fontSize: '18px' }}>IC Issued Breakdown</h3>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #e2e8f0', background: 'white' }}>
+                            <h3 style={{ margin: 0, color: '#1e293b', fontSize: '20px', fontWeight: 'bold' }}>
+                                <i className="fa-solid fa-file-contract" style={{ marginRight: '8px', color: '#3b82f6' }}></i>
+                                Download IC & Annexures
+                            </h3>
                             <button onClick={() => setIsIcIssuedModalOpen(false)} style={{
-                                background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#64748b'
+                                background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#64748b', lineHeight: 1
                             }}>&times;</button>
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#f8fafc', borderRadius: '8px' }}>
-                                <span style={{ fontWeight: '600', color: '#475569' }}>Raw Material (ER)</span>
-                                <span style={{ fontWeight: '700', color: '#0f172a' }}>{icIssuedData.rmCount}</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#f8fafc', borderRadius: '8px' }}>
-                                <span style={{ fontWeight: '600', color: '#475569' }}>Process (EP)</span>
-                                <span style={{ fontWeight: '700', color: '#0f172a' }}>{icIssuedData.processCount}</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#f8fafc', borderRadius: '8px' }}>
-                                <span style={{ fontWeight: '600', color: '#475569' }}>Final (EF)</span>
-                                <span style={{ fontWeight: '700', color: '#0f172a' }}>{icIssuedData.finalCount}</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', background: '#f1f5f9', borderRadius: '8px', marginTop: '8px', borderTop: '2px solid #e2e8f0' }}>
-                                <span style={{ fontWeight: '700', color: '#0f172a' }}>Total</span>
-                                <span style={{ fontWeight: '800', color: '#d97706', fontSize: '18px' }}>{icIssuedData.total}</span>
-                            </div>
+                        <div style={{ flex: 1, overflow: 'auto', position: 'relative', padding: '20px' }}>
+                            <DownloadIcAnnexures 
+                                selectedProduct={selectedProduct} 
+                                fromDate={filterStartDate} 
+                                toDate={filterEndDate} 
+                                vendorPlantCode={selectedVendorPlant}
+                                zonalRailway={selectedZonalRailway}
+                                hideFilters={true} 
+                            />
                         </div>
                     </div>
                 </div>
@@ -2190,8 +2223,8 @@ const Level4ReportTable = ({ data }) => {
     };
 
     const renderSortIcon = (key) => {
-        if (sortConfig.key !== key) return <i className="fa-solid fa-sort sort-icon-idle ml-1 opacity-50" style={{fontSize: '10px'}}></i>;
-        return sortConfig.direction === 'asc' ? <i className="fa-solid fa-sort-up sort-icon-active ml-1" style={{fontSize: '10px'}}></i> : <i className="fa-solid fa-sort-down sort-icon-active ml-1" style={{fontSize: '10px'}}></i>;
+        if (sortConfig.key !== key) return <i className="fa-solid fa-sort sort-icon-idle ml-1 opacity-50" style={{ fontSize: '10px' }}></i>;
+        return sortConfig.direction === 'asc' ? <i className="fa-solid fa-sort-up sort-icon-active ml-1" style={{ fontSize: '10px' }}></i> : <i className="fa-solid fa-sort-down sort-icon-active ml-1" style={{ fontSize: '10px' }}></i>;
     };
 
     const sortedData = React.useMemo(() => {
@@ -2320,12 +2353,12 @@ const Level4ReportTable = ({ data }) => {
                                 <td className="text-center">{basic.lotNumber || '-'}</td>
                                 <td className="text-center text-emerald-600 bg-emerald-50/30 font-bold">{basic.totalAcceptedQty?.toLocaleString() || 0}</td>
                                 <td className="text-center text-red-600 bg-red-50/30 font-bold">{basic.totalRejectionQty?.toLocaleString() || 0}</td>
-                                <td className="text-center text-red-500 font-medium" title={shearingTitle} style={{cursor: 'help'}}>{qty.shearingRejectionQty || 0}</td>
-                                <td className="text-center text-red-500 font-medium" title={turningTitle} style={{cursor: 'help'}}>{qty.turningRejectionQty || 0}</td>
-                                <td className="text-center text-red-500 font-medium" title={mpiTitle} style={{cursor: 'help'}}>{qty.mpiRejectionQty || 0}</td>
-                                <td className="text-center text-red-500 font-medium" title={forgingTitle} style={{cursor: 'help'}}>{qty.forgingRejectionQty || 0}</td>
-                                <td className="text-center text-red-500 font-medium" title={quenchingTitle} style={{cursor: 'help'}}>{qty.quenchingRejectionQty || 0}</td>
-                                <td className="text-center text-red-500 font-medium" title={temperingTitle} style={{cursor: 'help'}}>{qty.temperingRejectionQty || 0}</td>
+                                <td className="text-center text-red-500 font-medium" title={shearingTitle} style={{ cursor: 'help' }}>{qty.shearingRejectionQty || 0}</td>
+                                <td className="text-center text-red-500 font-medium" title={turningTitle} style={{ cursor: 'help' }}>{qty.turningRejectionQty || 0}</td>
+                                <td className="text-center text-red-500 font-medium" title={mpiTitle} style={{ cursor: 'help' }}>{qty.mpiRejectionQty || 0}</td>
+                                <td className="text-center text-red-500 font-medium" title={forgingTitle} style={{ cursor: 'help' }}>{qty.forgingRejectionQty || 0}</td>
+                                <td className="text-center text-red-500 font-medium" title={quenchingTitle} style={{ cursor: 'help' }}>{qty.quenchingRejectionQty || 0}</td>
+                                <td className="text-center text-red-500 font-medium" title={temperingTitle} style={{ cursor: 'help' }}>{qty.temperingRejectionQty || 0}</td>
                             </tr>
                         );
                     })}
@@ -2462,16 +2495,16 @@ const MpiaDrillDown = ({ data = [], manufacturer, onBack, loading }) => {
         try {
             const canvas = await html2canvas(chartElement, { scale: 2 });
             const dataUrl = canvas.toDataURL('image/png');
-            
+
             const pptx = new PptxGenJS();
             const slide = pptx.addSlide();
-            
+
             slide.addText(`Vendor Wise Report: ${manufacturer}`, {
                 x: 0.5, y: 0.3, fontSize: 18, bold: true, color: "363636"
             });
-            
+
             slide.addImage({ data: dataUrl, x: 0.5, y: 0.8, w: 9, h: 4.5, sizing: { type: "contain", w: 9, h: 4.5 } });
-            
+
             pptx.writeFile({ fileName: `Vendor_Wise_Report_${manufacturer}.pptx` });
         } catch (e) {
             console.error("Failed to generate PPT", e);

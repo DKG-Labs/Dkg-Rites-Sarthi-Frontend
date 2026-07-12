@@ -32,7 +32,7 @@ const base64ToBlob = (base64, type = 'application/pdf') => {
     return new Blob([arr], { type });
 };
 
-const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDate = '', toDate: initialToDate = '' }) => {
+const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDate = '', toDate: initialToDate = '', hideFilters = false, vendorPlantCode = '', zonalRailway = '' }) => {
     // 1. Backend Data State
     const [records, setRecords] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -80,19 +80,26 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
 
     // Fetch IC Annexures data with caching support
     const fetchRecords = useCallback(async (forceRefresh = false) => {
-        if (forceRefresh) {
-            clearIcAnnexuresCache(selectedProduct);
-        } else {
-            const cache = getIcAnnexuresCachedData(selectedProduct);
-            if (cache.isCached) {
-                setRecords(cache.records);
-                return;
+        // Bypass cache completely if we are fetching with specific dashboard filters (hideFilters = true)
+        if (!hideFilters) {
+            if (forceRefresh) {
+                clearIcAnnexuresCache(selectedProduct);
+            } else {
+                const cache = getIcAnnexuresCachedData(selectedProduct);
+                if (cache.isCached) {
+                    setRecords(cache.records);
+                    return;
+                }
             }
         }
 
         setLoading(true);
         try {
-            const url = `${API_ENDPOINTS.REPORTS}/downloadIcAnnexures?product=${encodeURIComponent(selectedProduct)}`;
+            let url = `${API_ENDPOINTS.REPORTS}/downloadIcAnnexures?product=${encodeURIComponent(selectedProduct)}`;
+            if (vendorPlantCode) url += `&vendorPlantCode=${encodeURIComponent(vendorPlantCode)}`;
+            if (zonalRailway) url += `&zonalRailway=${encodeURIComponent(zonalRailway)}`;
+            if (initialFromDate) url += `&startDate=${encodeURIComponent(initialFromDate)}`;
+            if (initialToDate) url += `&endDate=${encodeURIComponent(initialToDate)}`;
             const response = await fetch(url, {
                 method: 'GET',
                 headers: getAuthHeaders()
@@ -100,7 +107,10 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
             const data = await handleResponse(response);
             if (data && data.responseData) {
                 setRecords(data.responseData);
-                updateIcAnnexuresCache(selectedProduct, data.responseData);
+                // Only update cache if it's the general generic fetch
+                if (!hideFilters) {
+                    updateIcAnnexuresCache(selectedProduct, data.responseData);
+                }
             } else {
                 setRecords([]);
             }
@@ -110,7 +120,7 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
         } finally {
             setLoading(false);
         }
-    }, [selectedProduct, getIcAnnexuresCachedData, updateIcAnnexuresCache, clearIcAnnexuresCache]);
+    }, [selectedProduct, getIcAnnexuresCachedData, updateIcAnnexuresCache, clearIcAnnexuresCache, hideFilters, vendorPlantCode, zonalRailway, initialFromDate, initialToDate]);
 
     // Initial load and selectedProduct changes
     useEffect(() => {
@@ -315,83 +325,84 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
 
     return (
         <div className="ic-annexures-container">
-            {/* Header Title */}
-            <div className="sec-title-flex" style={{ marginBottom: '15px' }}>
-                <span style={{ fontSize: '18px', fontWeight: '800', color: '#166534', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <i className="fa-solid fa-cloud-arrow-down" style={{ color: '#10b981' }}></i>
-                    Download IC & Annexures ({selectedProduct})
-                </span>
-            </div>
-
-
-
-            {/* Filters panel */}
-            <div className="ic-filters-card">
-                <div className="ic-filters-grid">
-                    {/* Stage Filter */}
-                    <div className="ic-filter-group">
-                        <label className="ic-filter-label">Stage of Inspection</label>
-                        <select 
-                            className="ic-filter-select" 
-                            value={stageFilter}
-                            onChange={(e) => setStageFilter(e.target.value)}
-                        >
-                            <option value="all">All Stages</option>
-                            <option value="RM">Raw Material (RM)</option>
-                            <option value="Process">Process</option>
-                            <option value="Final">Final Inspection</option>
-                        </select>
+            {!hideFilters && (
+                <>
+                    <div className="prof-card-header ic-header" style={{ marginBottom: '16px', background: 'linear-gradient(to right, #f8fafc, #f1f5f9)' }}>
+                        <span style={{ fontSize: '18px', fontWeight: '800', color: '#166534', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <i className="fa-solid fa-cloud-arrow-down" style={{ color: '#10b981' }}></i>
+                            Download IC & Annexures ({selectedProduct})
+                        </span>
                     </div>
 
-                    {/* From Date */}
-                    <div className="ic-filter-group">
-                        <label className="ic-filter-label">From Date</label>
-                        <input 
-                            type="date" 
-                            className="ic-filter-input"
-                            value={fromDate}
-                            onChange={(e) => setFromDate(e.target.value)}
-                        />
-                    </div>
+                    {/* Filters panel */}
+                    <div className="ic-filters-card">
+                        <div className="ic-filters-grid">
+                            {/* Stage Filter */}
+                            <div className="ic-filter-group">
+                                <label className="ic-filter-label">Stage of Inspection</label>
+                                <select 
+                                    className="ic-filter-select" 
+                                    value={stageFilter}
+                                    onChange={(e) => setStageFilter(e.target.value)}
+                                >
+                                    <option value="all">All Stages</option>
+                                    <option value="RM">Raw Material (RM)</option>
+                                    <option value="Process">Process</option>
+                                    <option value="Final">Final Inspection</option>
+                                </select>
+                            </div>
 
-                    {/* To Date */}
-                    <div className="ic-filter-group">
-                        <label className="ic-filter-label">To Date</label>
-                        <input 
-                            type="date" 
-                            className="ic-filter-input"
-                            value={toDate}
-                            onChange={(e) => setToDate(e.target.value)}
-                        />
-                    </div>
+                            {/* From Date */}
+                            <div className="ic-filter-group">
+                                <label className="ic-filter-label">From Date</label>
+                                <input 
+                                    type="date" 
+                                    className="ic-filter-input"
+                                    value={fromDate}
+                                    onChange={(e) => setFromDate(e.target.value)}
+                                />
+                            </div>
 
-                    {/* Global Search */}
-                    <div className="ic-filter-group" style={{ flexGrow: 2 }}>
-                        <label className="ic-filter-label">Global Search</label>
-                        <input 
-                            type="text" 
-                            className="ic-filter-input"
-                            placeholder="Search Vendor, PO, Call or IC Number..."
-                            value={globalSearch}
-                            onChange={(e) => setGlobalSearch(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === 'Enter') handleApplyFilters(); }}
-                        />
-                    </div>
+                            {/* To Date */}
+                            <div className="ic-filter-group">
+                                <label className="ic-filter-label">To Date</label>
+                                <input 
+                                    type="date" 
+                                    className="ic-filter-input"
+                                    value={toDate}
+                                    onChange={(e) => setToDate(e.target.value)}
+                                />
+                            </div>
 
-                    {/* Actions buttons */}
-                    <div className="ic-filter-actions">
-                        <button className="ic-btn-apply" onClick={handleApplyFilters}>
-                            <i className="fa-solid fa-filter"></i> Apply
-                        </button>
-                        <button className="ic-btn-reset" onClick={handleResetFilters}>
-                            <i className="fa-solid fa-arrows-rotate"></i> Reset
-                        </button>
-                        <button className="ic-btn-refresh" onClick={() => fetchRecords(true)}>
-                            <i className="fa-solid fa-arrows-rotate"></i> Refresh
-                        </button>
+                            {/* Global Search */}
+                            <div className="ic-filter-group" style={{ flexGrow: 2 }}>
+                                <label className="ic-filter-label">Global Search</label>
+                                <input 
+                                    type="text" 
+                                    className="ic-filter-input"
+                                    placeholder="Search Vendor, PO, Call or IC Number..."
+                                    value={globalSearch}
+                                    onChange={(e) => setGlobalSearch(e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') handleApplyFilters(); }}
+                                />
+                            </div>
+
+                            {/* Actions buttons */}
+                            <div className="ic-filter-actions">
+                                <button className="ic-btn-apply" onClick={handleApplyFilters}>
+                                    <i className="fa-solid fa-filter"></i> Apply
+                                </button>
+                                <button className="ic-btn-reset" onClick={handleResetFilters}>
+                                    <i className="fa-solid fa-arrows-rotate"></i> Reset
+                                </button>
+                                <button className="ic-btn-refresh" onClick={() => fetchRecords(true)}>
+                                    <i className="fa-solid fa-arrows-rotate"></i> Refresh
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
+                </>
+            )}
 
             {/* IC Listing Table */}
             <div className="table-responsive prof-card mb">

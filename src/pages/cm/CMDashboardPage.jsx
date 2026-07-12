@@ -622,7 +622,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
   const { data: qProcessPerformanceData } = useReportData(reportService.getProcessPerformance, activeTab === 'Charts' ? chartsFilters : undefined);
   const { data: qParetoAnalysisData } = useReportData(reportService.getParetoAnalysis, activeTab === 'Charts' ? chartsFilters : undefined);
   const { data: qMonthlyRejectionTrendData } = useReportData(reportService.getMonthlyRejectionTrend, activeTab === 'Charts' ? chartsTrendParams : undefined);
-  const { data: qInspectionDetailsData } = useReportData(reportService.getInspectionDetails, activeTab === 'Charts' ? chartsTrendParams : undefined);
+  const { data: qInspectionDetailsData } = useReportData(reportService.getInspectionDetails, activeTab === 'Charts' ? chartsFilters : undefined);
 
   // PO Lifecycle States & Data Fetching
   const [selectedLifecycleProduct, setSelectedLifecycleProduct] = useState('ERC');

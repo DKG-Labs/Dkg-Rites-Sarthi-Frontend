@@ -187,7 +187,7 @@ const reportService = {
 
     getDashboardSummary: async (params) => {
         let url = `${API_ENDPOINTS.REPORTS}/dashboardSummary`;
-        
+
         if (params) {
             const queryParams = new URLSearchParams();
             if (params.startDate) queryParams.append('startDate', params.startDate);
@@ -210,12 +210,12 @@ const reportService = {
         if (zonalRailway) params.append('zonalRailway', zonalRailway);
         if (startDate) params.append('startDate', startDate);
         if (endDate) params.append('endDate', endDate);
-        
+
         const qs = params.toString();
         if (qs) {
             url += `?${qs}`;
         }
-        
+
         const response = await fetch(url, {
             headers: getAuthHeaders(),
         });
@@ -403,7 +403,7 @@ const reportService = {
     getCmInspectionCalls: async (params) => {
         const { startDate, endDate } = params || {};
         const url = new URL(`${API_ENDPOINTS.REPORTS}/cm-inspection-calls`);
-        
+
         const formatDate = (dateStr) => {
             if (!dateStr || !dateStr.includes('-')) return dateStr;
             const [year, month, day] = dateStr.split('-');
@@ -422,7 +422,7 @@ const reportService = {
     getCmSleeperInspectionCalls: async (params) => {
         const { startDate, endDate } = params || {};
         const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/cm-inspection-calls`);
-        
+
         const formatDate = (dateStr) => {
             if (!dateStr || !dateStr.includes('-')) return dateStr;
             const [year, month, day] = dateStr.split('-');
@@ -441,7 +441,7 @@ const reportService = {
     getCmSleeperOverdueCalls: async (params) => {
         const { startDate, endDate } = params || {};
         const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/cm-sleeper-overduecalls`);
-        
+
         const formatDate = (dateStr) => {
             if (!dateStr || !dateStr.includes('-')) return dateStr;
             const [year, month, day] = dateStr.split('-');
@@ -460,7 +460,7 @@ const reportService = {
     getCmErcOverdueCalls: async (params) => {
         const { startDate, endDate } = params || {};
         const url = new URL(`${API_ENDPOINTS.REPORTS}/cm-erc-overduecalls`);
-        
+
         const formatDate = (dateStr) => {
             if (!dateStr || !dateStr.includes('-')) return dateStr;
             const [year, month, day] = dateStr.split('-');
@@ -655,7 +655,7 @@ const reportService = {
         const url = new URL(`${API_ENDPOINTS.SLEEPER_DASHBOARD}/LifeCycle/LotWise`);
         if (params.id) url.searchParams.append('id', params.id);
         if (params.batchId) url.searchParams.append('batchId', params.batchId);
-        
+
         const response = await fetch(url.toString(), {
             headers: getAuthHeaders(),
         });
@@ -669,7 +669,7 @@ const reportService = {
      */
     getSleeperMonthlyProgressReport: async (params) => {
         const { startDate, endDate } = params || {};
-        
+
         const formatDate = (dateStr) => {
             if (!dateStr || !dateStr.includes('-')) return dateStr;
             const [year, month, day] = dateStr.split('-');
@@ -693,7 +693,7 @@ const reportService = {
      */
     getSleeperQualityReport: async (params) => {
         const { startDate, endDate } = params || {};
-        
+
         const formatDate = (dateStr) => {
             if (!dateStr || !dateStr.includes('-')) return dateStr;
             const [year, month, day] = dateStr.split('-');
@@ -717,7 +717,7 @@ const reportService = {
      */
     getSleeperDefectDistribution: async (params) => {
         const { startDate, endDate } = params || {};
-        
+
         const formatDate = (dateStr) => {
             if (!dateStr || !dateStr.includes('-')) return dateStr;
             const [year, month, day] = dateStr.split('-');
@@ -741,7 +741,7 @@ const reportService = {
      */
     getSleeperParetoAnalysis: async (params) => {
         const { startDate, endDate } = params || {};
-        
+
         const formatDate = (dateStr) => {
             if (!dateStr || !dateStr.includes('-')) return dateStr;
             const [year, month, day] = dateStr.split('-');
@@ -794,7 +794,7 @@ const reportService = {
         if (zonalRailway) url.searchParams.append('zonalRailway', zonalRailway);
         if (startDate) url.searchParams.append('startDate', startDate);
         if (endDate) url.searchParams.append('endDate', endDate);
-        
+
         const response = await fetch(url.toString(), {
             headers: getAuthHeaders(),
         });
@@ -869,7 +869,7 @@ const reportService = {
         if (endDate) url.searchParams.append('endDate', endDate);
         if (vendor) url.searchParams.append('vendor', vendor);
         if (plant) url.searchParams.append('plant', plant);
-        
+
         const response = await fetch(url.toString(), {
             headers: getAuthHeaders(),
         });
@@ -881,7 +881,7 @@ const reportService = {
         const url = new URL(`${API_ENDPOINTS.REPORTS}/railPadVendorWiseQuality`);
         if (startDate) url.searchParams.append('startDate', startDate);
         if (endDate) url.searchParams.append('endDate', endDate);
-        
+
         const response = await fetch(url.toString(), {
             headers: getAuthHeaders(),
         });
@@ -972,7 +972,7 @@ const reportService = {
      */
     getSleeperEmployeePerformance: async (params) => {
         const { startDate, endDate } = params || {};
-        
+
         const formatDate = (dateStr) => {
             if (!dateStr || !dateStr.includes('-')) return dateStr;
             const [year, month, day] = dateStr.split('-');

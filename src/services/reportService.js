@@ -506,6 +506,13 @@ const reportService = {
         });
         return handleResponse(response);
     },
+    getProcessOverallRejection: async () => {
+        let url = `${API_ENDPOINTS.REPORTS}/processOverallRejection`;
+        const response = await fetch(url, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
     getMonthlyRejectionTrend: async (params) => {
         const { startDate, endDate, product } = params || {};
         let url = `${API_ENDPOINTS.REPORTS}/monthlyRejectionTrend`;

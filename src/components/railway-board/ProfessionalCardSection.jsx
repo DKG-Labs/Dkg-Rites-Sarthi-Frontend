@@ -159,6 +159,7 @@ const ProfessionalCardSection = ({
     const [drilldownManufacturer, setDrilldownManufacturer] = useState(null);
     const [drilldownData, setDrilldownData] = useState([]);
     const [isDrilldownLoading, setIsDrilldownLoading] = useState(false);
+    const [localProcessOverallRejection, setLocalProcessOverallRejection] = useState(null);
 
     // PO Issued Modal State
     const [isPoModalOpen, setIsPoModalOpen] = useState(false);
@@ -339,12 +340,14 @@ const ProfessionalCardSection = ({
                     icIssuedRes,
                     callStatusRes,
                     detailsRes,
+                    processOverallRes,
                     avgProdRes,
                     summaryRes
                 ] = await Promise.all([
                     reportService.getIcIssuedCounts(params).catch(e => { console.error(e); return null; }),
                     reportService.getInspectionCallStatus(params).catch(e => { console.error(e); return null; }),
                     reportService.getInspectionDetails(params).catch(e => { console.error(e); return null; }),
+                    reportService.getProcessOverallRejection().catch(e => { console.error(e); return null; }),
                     reportService.getAvgProductionPerDay(
                         selectedVendorPlant,
                         selectedZonalRailway,
@@ -370,6 +373,11 @@ const ProfessionalCardSection = ({
                 if (detailsRes) {
                     const data = detailsRes.responseData || detailsRes.data || detailsRes;
                     if (data && Array.isArray(data)) setLocalInspectionDetails(data);
+                }
+
+                if (processOverallRes) {
+                    const data = processOverallRes.responseData || processOverallRes.data || processOverallRes;
+                    if (data) setLocalProcessOverallRejection(data);
                 }
 
                 if (avgProdRes) {
@@ -1230,9 +1238,8 @@ const ProfessionalCardSection = ({
 
                                     {/* KPI Row exactly from Index 5, adjusted to hide Total Defects */}
                                     {(() => {
-                                        const procData = (inspectionDetailsData?.length > 0 ? inspectionDetailsData : staticInspectionDetailsData).find(x => x.name === 'Process');
-                                        const pAcc = procData?.accepted || 0;
-                                        const pRej = procData?.rejected || 0;
+                                        const pAcc = localProcessOverallRejection?.accepted || 0;
+                                        const pRej = localProcessOverallRejection?.rejected || 0;
                                         const pInsp = pAcc + pRej;
                                         const pRejPct = pInsp > 0 ? (pRej * 100) / pInsp : 0;
 

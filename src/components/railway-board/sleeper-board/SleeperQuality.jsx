@@ -6,7 +6,11 @@ import {
 } from 'recharts';
 import './SleeperSummary.css'; // Reusing some base styles
 
-const SleeperQuality = ({ qualityData }) => {
+let cachedSleeperQuality_Defect = null;
+let cachedSleeperQuality_Pareto = null;
+let lastRefreshTick_SleeperQuality = -1;
+
+const SleeperQuality = ({ qualityData, refreshTick }) => {
     const [fromDate, setFromDate] = useState(() => {
         const d = new Date();
         d.setMonth(d.getMonth() - 2);
@@ -20,11 +24,16 @@ const SleeperQuality = ({ qualityData }) => {
 
     useEffect(() => {
         const fetchDefectData = async () => {
+            if (cachedSleeperQuality_Defect && lastRefreshTick_SleeperQuality === refreshTick) {
+                setDefectData(cachedSleeperQuality_Defect);
+                return;
+            }
             setLoading(true);
             try {
                 const response = await reportService.getSleeperDefectDistribution({ startDate: fromDate, endDate: toDate });
                 if (response && response.responseData && response.responseData.defects) {
                     setDefectData(response.responseData.defects);
+                    cachedSleeperQuality_Defect = response.responseData.defects;
                 }
             } catch (error) {
                 console.error("Error fetching defect distribution:", error);
@@ -34,11 +43,16 @@ const SleeperQuality = ({ qualityData }) => {
         };
 
         const fetchParetoData = async () => {
+            if (cachedSleeperQuality_Pareto && lastRefreshTick_SleeperQuality === refreshTick) {
+                setParetoApiData(cachedSleeperQuality_Pareto);
+                return;
+            }
             setParetoLoading(true);
             try {
                 const response = await reportService.getSleeperParetoAnalysis({ startDate: fromDate, endDate: toDate });
                 if (response && response.responseData && response.responseData.defects) {
                     setParetoApiData(response.responseData.defects);
+                    cachedSleeperQuality_Pareto = response.responseData.defects;
                 }
             } catch (error) {
                 console.error("Error fetching pareto data:", error);
@@ -47,9 +61,14 @@ const SleeperQuality = ({ qualityData }) => {
             }
         };
 
+        // If refreshTick changed, ensure we update lastRefreshTick
+        if (lastRefreshTick_SleeperQuality !== refreshTick) {
+            lastRefreshTick_SleeperQuality = refreshTick;
+        }
+
         fetchDefectData();
         fetchParetoData();
-    }, [fromDate, toDate]);
+    }, [fromDate, toDate, refreshTick]);
 
     // Aggregate data by category for the Pie Chart
     const aggregatedData = React.useMemo(() => {

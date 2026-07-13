@@ -28,20 +28,12 @@ const toTitleCase = (str) => {
 };
 
 const RailPadQuality = ({ paretoData, rejectionTrendData }) => {
-    // Use API data if available, else fallback to mock
+    // Use API data if available
     const rawParetoData = (paretoData && paretoData.length > 0) ? paretoData.map(d => ({
         name: toTitleCase(d.name || d.defectName),
         count: d.count || d.value,
         cumulative: d.cumulative
-    })) : [
-        { name: 'Porosity', count: 120, cumulative: 22 },
-        { name: 'Blow Holes', count: 95, cumulative: 40 },
-        { name: 'Weight Failure', count: 85, cumulative: 56 },
-        { name: 'Improper Dimensions', count: 65, cumulative: 68 },
-        { name: 'Dimensional Failure', count: 60, cumulative: 79 },
-        { name: 'Uncut Flash', count: 45, cumulative: 87 },
-        { name: 'Tensile/Hardness', count: 40, cumulative: 100 }
-    ];
+    })) : [];
 
     const totalParetoData = rawParetoData.filter(d => 
         d.name && d.name.toLowerCase() !== 'others' && d.name.toLowerCase() !== 'nil'
@@ -52,14 +44,7 @@ const RailPadQuality = ({ paretoData, rejectionTrendData }) => {
         name: d.name || d.month || d.date || '?',
         process: d.process || d.value || d.rejectionRate || d.rejectionPercentage || 0,
         final: d.final || d.finalValue || 0
-    })) : [
-        { name: 'Jan', process: 2.1, final: 1.2 },
-        { name: 'Feb', process: 1.8, final: 1.5 },
-        { name: 'Mar', process: 2.4, final: 1.1 },
-        { name: 'Apr', process: 1.9, final: 1.4 },
-        { name: 'May', process: 1.5, final: 1.6 },
-        { name: 'Jun', process: 1.7, final: 1.3 }
-    ];
+    })) : [];
 
     return (
         <div className="railpad-quality-container fade-in">

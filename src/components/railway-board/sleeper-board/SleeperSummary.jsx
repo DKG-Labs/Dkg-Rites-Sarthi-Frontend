@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import './SleeperSummary.css';
 import reportService from '../../../services/reportService';
 
-const SleeperSummary = ({ summaryData = {}, onPoIssuedClick }) => {
+let cachedSleeperSummary = null;
+let lastRefreshTick_SleeperSummary = -1;
+
+const SleeperSummary = ({ summaryData = {}, onPoIssuedClick, refreshTick }) => {
     const [rejectedInProcess, setRejectedInProcess] = useState(0);
     const [rejectedInFinal, setRejectedInFinal] = useState(0);
     const [rejectionPercentage, setRejectionPercentage] = useState(0);
@@ -11,33 +14,59 @@ const SleeperSummary = ({ summaryData = {}, onPoIssuedClick }) => {
 
     useEffect(() => {
         const fetchCounts = async () => {
+            if (cachedSleeperSummary && lastRefreshTick_SleeperSummary === refreshTick) {
+                setRejectedInProcess(cachedSleeperSummary.rejectedInProcess);
+                setRejectedInFinal(cachedSleeperSummary.rejectedInFinal);
+                setRejectionPercentage(cachedSleeperSummary.rejectionPercentage);
+                setPendingCalls(cachedSleeperSummary.pendingCalls);
+                setUnderInspectionCalls(cachedSleeperSummary.underInspectionCalls);
+                return;
+            }
+
             try {
                 // Fetch Demoulding Rejection
                 const demouldingRes = await reportService.getDemouldingRejectedCount();
-                setRejectedInProcess(demouldingRes.responseData || demouldingRes || 0);
+                const rejProcess = demouldingRes.responseData || demouldingRes || 0;
+                setRejectedInProcess(rejProcess);
 
                 // Fetch Final Inspection Rejection
                 const finalRes = await reportService.getFinalRejectedCount();
-                setRejectedInFinal(finalRes.responseData || finalRes || 0);
+                const rejFinal = finalRes.responseData || finalRes || 0;
+                setRejectedInFinal(rejFinal);
 
                 // Fetch Rejection Percentage
                 const rejectionRes = await reportService.getRejectionPercentage();
                 const percentage = rejectionRes.responseData !== undefined ? rejectionRes.responseData : rejectionRes;
-                setRejectionPercentage(Number(percentage || 0));
+                const rejPct = Number(percentage || 0);
+                setRejectionPercentage(rejPct);
 
                 // Fetch Final Inspection Call Status Counts
                 const callStatusRes = await reportService.getFinalInspectionCallStatusCounts();
                 const callStatusData = callStatusRes.responseData || callStatusRes || {};
-                setPendingCalls(callStatusData.pending !== undefined ? callStatusData.pending : 0);
-                setUnderInspectionCalls(callStatusData.underInspection !== undefined ? callStatusData.underInspection : 0);
+                const pendCalls = callStatusData.pending !== undefined ? callStatusData.pending : 0;
+                const underInspCalls = callStatusData.underInspection !== undefined ? callStatusData.underInspection : 0;
+                
+                setPendingCalls(pendCalls);
+                setUnderInspectionCalls(underInspCalls);
+
+                // Store in cache
+                cachedSleeperSummary = {
+                    rejectedInProcess: rejProcess,
+                    rejectedInFinal: rejFinal,
+                    rejectionPercentage: rejPct,
+                    pendingCalls: pendCalls,
+                    underInspectionCalls: underInspCalls
+                };
+                lastRefreshTick_SleeperSummary = refreshTick;
+
             } catch (error) {
                 console.error("Error fetching sleeper rejection metrics:", error);
             }
         };
         fetchCounts();
-    }, []);
+    }, [refreshTick]);
 
-    // Mock data based on the provided requirements
+    // Data based on the provided requirements
     const data = {
         poIssued: summaryData.sleeperPoIssued || 0,
         poQuantity: {
@@ -48,9 +77,9 @@ const SleeperSummary = ({ summaryData = {}, onPoIssuedClick }) => {
         finalInspectionQty: {
             nos: summaryData.finalInspectionQuantity || 0,
             set: summaryData.totalAcceptedSet || 0,
-            rmt: summaryData.totalAcceptedNos || 0
+            rmt: 0
         },
-        newSleepersInPipeline: summaryData.newSleepersInPipeline || 45000,
+        newSleepersInPipeline: summaryData.newSleepersInPipeline || 0,
         sleepersRejectedInProcess: rejectedInProcess,
         sleepersRejectedInFinal: rejectedInFinal,
         rejectionPercentage: rejectionPercentage.toFixed(2)

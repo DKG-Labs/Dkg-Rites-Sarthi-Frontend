@@ -216,7 +216,7 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
     { id: 'certificates', label: 'Issuance of IC & Annexures', description: `${completedCount} ready for IC` },
     { id: 'completed', label: 'Calls Completed', description: `${signedCallsCount} completed` },
     ...(isProcessIE ? [{ id: 'defect-summary', label: 'Process Defect Summary', description: 'Call-wise defect data' }] : []),
-    ...(isProcessIE ? [{ id: 'feedback-discrepancy', label: 'Process Inspection Feedback module', description: 'Manage discrepancies' }] : []),
+    { id: 'feedback-discrepancy', label: 'Process Inspection Feedback module', description: 'Manage discrepancies' },
   ];
 
   // Handle schedule button click (first time scheduling)
@@ -962,7 +962,7 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
         <ProcessDefectSummaryCard />
       )}
 
-      {activeTab === 'feedback-discrepancy' && isProcessIE && (
+      {activeTab === 'feedback-discrepancy' && (
         <ProcessIeFeedbackModule />
       )}
 

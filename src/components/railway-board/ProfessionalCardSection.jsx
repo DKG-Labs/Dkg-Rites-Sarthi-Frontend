@@ -142,7 +142,8 @@ const ProfessionalCardSection = ({
     fromDate,
     toDate,
     setFromDate = () => { },
-    setToDate = () => { }
+    setToDate = () => { },
+    refreshTick = 0
 }) => {
     // Map selectedProduct to summary data keys
     const getSummaryKey = (prod) => {
@@ -164,6 +165,7 @@ const ProfessionalCardSection = ({
     // PO Issued Modal State
     const [isPoModalOpen, setIsPoModalOpen] = useState(false);
     const [poModalData, setPoModalData] = useState([]);
+    const [isPoModalLoading, setIsPoModalLoading] = useState(false);
 
     // Global Filters State
     const [filterMode, setFilterMode] = useState('zonalwise'); // 'vendorwise' or 'zonalwise'
@@ -333,7 +335,8 @@ const ProfessionalCardSection = ({
                     zonalRailway: selectedZonalRailway,
                     zone: selectedZonalRailway,
                     startDate: isPrimaryFilterApplied ? filterStartDate : '',
-                    endDate: isPrimaryFilterApplied ? filterEndDate : ''
+                    endDate: isPrimaryFilterApplied ? filterEndDate : '',
+                    _refresh: refreshTick
                 };
 
                 const [
@@ -406,7 +409,7 @@ const ProfessionalCardSection = ({
             isActive = false;
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedVendorPlant, selectedZonalRailway, filterStartDate, filterEndDate]);
+    }, [selectedVendorPlant, selectedZonalRailway, filterStartDate, filterEndDate, refreshTick]);
 
     useEffect(() => {
         let isActive = true;
@@ -420,7 +423,8 @@ const ProfessionalCardSection = ({
                     zone: selectedZonalRailway,
                     vendor: selectedVendorPlant,
                     startDate: isPrimaryFilterApplied ? filterStartDate : '',
-                    endDate: isPrimaryFilterApplied ? filterEndDate : ''
+                    endDate: isPrimaryFilterApplied ? filterEndDate : '',
+                    _refresh: refreshTick
                 };
                 const response = await reportService.getErcDashboardTotalCalls(params);
                 
@@ -442,10 +446,13 @@ const ProfessionalCardSection = ({
             isActive = false;
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedProduct, selectedZonalRailway, selectedVendorPlant, filterStartDate, filterEndDate]);
+    }, [selectedProduct, selectedZonalRailway, selectedVendorPlant, filterStartDate, filterEndDate, refreshTick]);
 
     const handlePoIssuedClick = async () => {
         try {
+            setPoModalData([]);
+            setIsPoModalLoading(true);
+            setIsPoModalOpen(true);
             let itemCatDescr;
             if (selectedProduct === 'Sleeper') {
                 itemCatDescr = 'PSC Mainline Sleeper';
@@ -463,21 +470,27 @@ const ProfessionalCardSection = ({
             );
             const data = response.responseData || response || [];
             setPoModalData(data);
-            setIsPoModalOpen(true);
         } catch (error) {
             console.error("Error fetching PO issued details:", error);
+        } finally {
+            setIsPoModalLoading(false);
         }
     };
 
     // Inspection Call Status Modal State
     const [isIcModalOpen, setIsIcModalOpen] = useState(false);
-    const [icModalData, setIcModalData] = useState([]);
     const [icModalTitle, setIcModalTitle] = useState('');
+    const [icModalData, setIcModalData] = useState([]);
+    const [isIcModalLoading, setIsIcModalLoading] = useState(false);
 
     const handleInspectionCallClick = async (stage, status) => {
+        if (!status) return;
         try {
             const title = `${stage} Stage - ${status}`;
             setIcModalTitle(title);
+            setIcModalData([]);
+            setIsIcModalLoading(true);
+            setIsIcModalOpen(true);
             const isPrimaryFilterApplied = filterMode === 'vendorwise' ? !!selectedVendorPlant : !!selectedZonalRailway;
             const response = await reportService.getInspectionCallStatusDetails(stage, status, {
                 vendor: selectedVendorPlant,
@@ -487,15 +500,19 @@ const ProfessionalCardSection = ({
             });
             const data = response.responseData || response || [];
             setIcModalData(data);
-            setIsIcModalOpen(true);
         } catch (error) {
             console.error("Error fetching active call details:", error);
+        } finally {
+            setIsIcModalLoading(false);
         }
     };
 
     const handleTotalCallsClick = async (type) => {
         try {
             setIcModalTitle(`Total Calls - ${type}`);
+            setIcModalData([]);
+            setIsIcModalLoading(true);
+            setIsIcModalOpen(true);
             let response;
             const isPrimaryFilterApplied = filterMode === 'vendorwise' ? !!selectedVendorPlant : !!selectedZonalRailway;
             const filters = {
@@ -510,9 +527,10 @@ const ProfessionalCardSection = ({
 
             const data = response?.responseData || response?.data || response || [];
             setIcModalData(data);
-            setIsIcModalOpen(true);
         } catch (error) {
             console.error(`Error fetching ${type} calls:`, error);
+        } finally {
+            setIsIcModalLoading(false);
         }
     };
 
@@ -594,7 +612,7 @@ const ProfessionalCardSection = ({
 
     // Filtered & Sorted MPR Data
     const displayMprData = React.useMemo(() => {
-        let result = [...(mprData || [])];
+        let result = [...(mprData || [])].filter(item => !(item.poNumber || '').toLowerCase().includes('dummy'));
         if (mprSearch) {
             const query = mprSearch.toLowerCase();
             result = result.filter(item =>
@@ -835,7 +853,7 @@ const ProfessionalCardSection = ({
                     switch (activeMainCard) {
                         case 'summary':
                             if (isSleeper) {
-                                return <SleeperSummary summaryData={localSummaryData || summaryData || {}} onPoIssuedClick={handlePoIssuedClick} />;
+                                return <SleeperSummary summaryData={localSummaryData || summaryData || {}} onPoIssuedClick={handlePoIssuedClick} refreshTick={refreshTick} />;
                             }
                             if (isRailPad) {
                                 return <RailPadSummary summaryData={localSummaryData || summaryData || {}} onPoIssuedClick={handlePoIssuedClick} onInspectionCallClick={handleInspectionCallClick} />;
@@ -1223,6 +1241,7 @@ const ProfessionalCardSection = ({
                                     toDate={toDate}
                                     setFromDate={setFromDate}
                                     setToDate={setToDate}
+                                    refreshTick={refreshTick}
                                 />;
                             }
                             if (isRailPad) {
@@ -1271,26 +1290,16 @@ const ProfessionalCardSection = ({
                                                 <ResponsiveContainer width="100%" height="100%">
                                                     <PieChart>
                                                         <Pie
-                                                            data={[...(stepWiseRejectionData?.length ? stepWiseRejectionData : [
-                                                                { name: 'Shearing', value: 12, color: '#3b82f6' },
-                                                                { name: 'Turning', value: 22, color: '#f59e0b' },
-                                                                { name: 'MPI', value: 10, color: '#8b5cf6' },
-                                                                { name: 'Forging', value: 18, color: '#ef4444' },
-                                                                { name: 'Quenching', value: 14, color: '#10b981' },
-                                                                { name: 'Tempering', value: 9, color: '#06b6d4' }
-                                                            ])].sort((a, b) => (b.value || 0) - (a.value || 0))}
+                                                            data={[...(stepWiseRejectionData || [])].sort((a, b) => (b.value || 0) - (a.value || 0))}
                                                             innerRadius={60}
                                                             outerRadius={90}
                                                             paddingAngle={3}
                                                             dataKey="value"
                                                         >
-                                                            {[...(stepWiseRejectionData?.length ? stepWiseRejectionData : [
-                                                                { color: '#3b82f6' }, { color: '#f59e0b' },
-                                                                { color: '#8b5cf6' }, { color: '#ef4444' },
-                                                                { color: '#10b981' }, { color: '#06b6d4' }
-                                                            ])].sort((a, b) => (b.value || 0) - (a.value || 0)).map((entry, i) => (
-                                                                <Cell key={`cell-${i}`} fill={entry.color} />
-                                                            ))}
+                                                            {[...(stepWiseRejectionData || [])].sort((a, b) => (b.value || 0) - (a.value || 0)).map((entry, i) => {
+                                                                const colors = ['#3b82f6', '#f59e0b', '#8b5cf6', '#ef4444', '#10b981', '#06b6d4', '#f43f5e', '#14b8a6', '#64748b', '#84cc16'];
+                                                                return <Cell key={`cell-${i}`} fill={entry.color || colors[i % colors.length]} />;
+                                                            })}
                                                         </Pie>
                                                         <Tooltip formatter={(v) => `${v}%`} />
                                                         <Legend
@@ -1325,13 +1334,19 @@ const ProfessionalCardSection = ({
                                             <div className="chart-wrap" style={{ height: '380px' }}>
                                                 <ResponsiveContainer width="100%" height="100%">
                                                     <ComposedChart data={paretoAnalysisData?.length ? (() => {
-                                                        const total = paretoAnalysisData.reduce((sum, d) => sum + (d.count || d.value || 0), 0);
+                                                        const pieTotal = (stepWiseRejectionData || []).reduce((sum, d) => sum + (d.value || 0), 0);
+                                                        const paretoTotal = paretoAnalysisData.reduce((sum, d) => sum + (d.count || d.value || 0), 0);
+                                                        const total = pieTotal > paretoTotal ? pieTotal : paretoTotal;
+                                                        
+                                                        let cumulative = 0;
                                                         return paretoAnalysisData.map(d => {
                                                             const count = d.count || d.value || 0;
+                                                            cumulative += count;
                                                             return {
                                                                 ...d,
                                                                 count,
-                                                                percentage: total > 0 ? Number(((count / total) * 100).toFixed(2)) : 0
+                                                                percentage: total > 0 ? Number(((count / total) * 100).toFixed(2)) : 0,
+                                                                cumulativePercentage: total > 0 ? Number(((cumulative / total) * 100).toFixed(2)) : 0
                                                             };
                                                         });
                                                     })() : []} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
@@ -1552,10 +1567,10 @@ const ProfessionalCardSection = ({
 
                         case 'lifecycle':
                             if (isSleeper) {
-                                return <SleeperLifecycle />;
+                                return <SleeperLifecycle refreshTick={refreshTick} />;
                             }
                             if (isRailPad) {
-                                return <RailPadLifecycle />;
+                                return <RailPadLifecycle refreshTick={refreshTick} />;
                             }
                             return (
 
@@ -1902,10 +1917,32 @@ const ProfessionalCardSection = ({
 
                                                                                     // Quenching Defects
                                                                                     qDefHard: row.quenchingDefects?.quenchingHardness || 0,
+                                                                                    qDefBox: row.quenchingDefects?.boxGaugeRejected || 0,
+                                                                                    qDefFlat: row.quenchingDefects?.flatBearingAreaRejected || 0,
+                                                                                    qDefFall: row.quenchingDefects?.fallingGaugeRejected || 0,
 
                                                                                     // Tempering Defects
                                                                                     tempDefTemp: row.temperingDefects?.temperingTemp || 0,
-                                                                                    tempDefDur: row.temperingDefects?.temperingDuration || 0
+                                                                                    tempDefDur: row.temperingDefects?.temperingDuration || 0,
+
+                                                                                    // Dimensional Defects (Final Check)
+                                                                                    dimDefBox: row.dimensionalDefects?.boxGauge || 0,
+                                                                                    dimDefFlat: row.dimensionalDefects?.flatBearingArea || 0,
+                                                                                    dimDefFall: row.dimensionalDefects?.fallingGauge || 0,
+
+                                                                                    // Visual Defects (Final Check)
+                                                                                    visDefSurf: row.visualDefects?.surfaceDefect || 0,
+                                                                                    visDefEmb: row.visualDefects?.embossingDefect || 0,
+                                                                                    visDefMark: row.visualDefects?.marking || 0,
+
+                                                                                    // Testing Defects
+                                                                                    testDefHard: row.testingDefects?.temperingHardness || 0,
+                                                                                    testDefToe: row.testingDefects?.toeLoad || 0,
+                                                                                    testDefWt: row.testingDefects?.weight || 0,
+
+                                                                                    // Finishing Defects
+                                                                                    finDefPaint: row.finishingDefects?.paintIdentification || 0,
+                                                                                    finDefCoat: row.finishingDefects?.ercCoating || 0
                                                                                 }));
                                                                                 downloadExcel(
                                                                                     flattened,
@@ -1941,8 +1978,22 @@ const ProfessionalCardSection = ({
                                                                                         { label: 'FORGING: Improper Forging', key: 'fDefImp' },
                                                                                         { label: 'FORGING: Marks/Notches', key: 'fDefMarks' },
                                                                                         { label: 'QUENCHING: Hardness', key: 'qDefHard' },
+                                                                                        { label: 'QUENCHING: Box Gauge', key: 'qDefBox' },
+                                                                                        { label: 'QUENCHING: Flat Bearing Area', key: 'qDefFlat' },
+                                                                                        { label: 'QUENCHING: Falling Gauge', key: 'qDefFall' },
                                                                                         { label: 'TEMPERING: Temp', key: 'tempDefTemp' },
-                                                                                        { label: 'TEMPERING: Duration', key: 'tempDefDur' }
+                                                                                        { label: 'TEMPERING: Duration', key: 'tempDefDur' },
+                                                                                        { label: 'DIMENSIONAL: Box Gauge', key: 'dimDefBox' },
+                                                                                        { label: 'DIMENSIONAL: Bearing Area', key: 'dimDefFlat' },
+                                                                                        { label: 'DIMENSIONAL: Falling', key: 'dimDefFall' },
+                                                                                        { label: 'VISUAL: Surface', key: 'visDefSurf' },
+                                                                                        { label: 'VISUAL: Embossing', key: 'visDefEmb' },
+                                                                                        { label: 'VISUAL: Marking', key: 'visDefMark' },
+                                                                                        { label: 'TESTING: Temp Hard', key: 'testDefHard' },
+                                                                                        { label: 'TESTING: Toe Load', key: 'testDefToe' },
+                                                                                        { label: 'TESTING: Weight', key: 'testDefWt' },
+                                                                                        { label: 'FINISHING: Paint ID', key: 'finDefPaint' },
+                                                                                        { label: 'FINISHING: Coating', key: 'finDefCoat' }
                                                                                     ],
                                                                                     `Lot_Wise_Closed_Loop_${lwclCallNo}`
                                                                                 );
@@ -1951,22 +2002,65 @@ const ProfessionalCardSection = ({
                                                                     )}
                                                                 </div>
                                                                 <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-                                                                    <select className="prof-select" style={{ maxWidth: '200px' }} value={lwclManufacturer} onChange={(e) => setLwclManufacturer(e.target.value)}>
-                                                                        <option value="">Select Manufacturer</option>
-                                                                        {lwclManufacturersList.map((m, i) => <option key={i} value={m}>{m}</option>)}
-                                                                    </select>
-                                                                    <select className="prof-select" style={{ maxWidth: '200px' }} value={lwclPoNo} onChange={(e) => setLwclPoNo(e.target.value)}>
-                                                                        <option value="">Select PO No.</option>
-                                                                        {lwclPoNumbersList.map((po, i) => <option key={i} value={po.poNo}>{po.displayPoNo}</option>)}
-                                                                    </select>
-                                                                    <select className="prof-select" style={{ maxWidth: '200px' }} value={lwclCallNo} onChange={(e) => setLwclCallNo(e.target.value)}>
-                                                                        <option value="">Select Call No.</option>
-                                                                        {lwclRequestIds.map(id => <option key={id} value={id}>{id}</option>)}
-                                                                    </select>
-                                                                    <select className="prof-select" style={{ maxWidth: '200px' }} value={lwclLotNo} onChange={(e) => setLwclLotNo(e.target.value)}>
-                                                                        <option value="">Select Lot No.</option>
-                                                                        {lwclLotNumbers.map(lot => <option key={lot} value={lot}>{lot}</option>)}
-                                                                    </select>
+                                                                    <Select
+                                                                        showSearch
+                                                                        allowClear
+                                                                        style={{ width: '240px' }}
+                                                                        placeholder="Select Manufacturer"
+                                                                        value={lwclManufacturer || undefined}
+                                                                        onChange={(val) => setLwclManufacturer(val || '')}
+                                                                        filterOption={(input, option) =>
+                                                                            (option?.value ?? '').toLowerCase().includes(input.toLowerCase())
+                                                                        }
+                                                                        popupMatchSelectWidth={false}
+                                                                    >
+                                                                        {lwclManufacturersList.map((m, i) => (
+                                                                            <Option key={i} value={m}>
+                                                                                <div style={{ whiteSpace: 'normal', wordWrap: 'break-word', maxWidth: '350px' }}>
+                                                                                    {m}
+                                                                                </div>
+                                                                            </Option>
+                                                                        ))}
+                                                                    </Select>
+                                                                    <Select
+                                                                        showSearch
+                                                                        allowClear
+                                                                        style={{ width: '200px' }}
+                                                                        placeholder="Select PO No."
+                                                                        value={lwclPoNo || undefined}
+                                                                        onChange={(val) => setLwclPoNo(val || '')}
+                                                                        filterOption={(input, option) =>
+                                                                            (option?.children ?? '').toString().toLowerCase().includes(input.toLowerCase())
+                                                                        }
+                                                                    >
+                                                                        {lwclPoNumbersList.map((po, i) => <Option key={i} value={po.poNo}>{po.displayPoNo}</Option>)}
+                                                                    </Select>
+                                                                    <Select
+                                                                        showSearch
+                                                                        allowClear
+                                                                        style={{ width: '200px' }}
+                                                                        placeholder="Select Call No."
+                                                                        value={lwclCallNo || undefined}
+                                                                        onChange={(val) => setLwclCallNo(val || '')}
+                                                                        filterOption={(input, option) =>
+                                                                            (option?.children ?? '').toString().toLowerCase().includes(input.toLowerCase())
+                                                                        }
+                                                                    >
+                                                                        {lwclRequestIds.map(id => <Option key={id} value={id}>{id}</Option>)}
+                                                                    </Select>
+                                                                    <Select
+                                                                        showSearch
+                                                                        allowClear
+                                                                        style={{ width: '200px' }}
+                                                                        placeholder="Select Lot No."
+                                                                        value={lwclLotNo || undefined}
+                                                                        onChange={(val) => setLwclLotNo(val || '')}
+                                                                        filterOption={(input, option) =>
+                                                                            (option?.children ?? '').toString().toLowerCase().includes(input.toLowerCase())
+                                                                        }
+                                                                    >
+                                                                        {lwclLotNumbers.map(lot => <Option key={lot} value={lot}>{lot}</Option>)}
+                                                                    </Select>
                                                                 </div>
                                                                 {level4Loading ? (
                                                                     <div className="p-12 text-center text-teal font-medium">Loading Process Defect Summary...</div>
@@ -2143,6 +2237,7 @@ const ProfessionalCardSection = ({
                 onClose={() => setIsPoModalOpen(false)}
                 data={poModalData}
                 title={selectedProduct}
+                isLoading={isPoModalLoading}
             />
 
             {/* Active Inspection Call Status Modal */}
@@ -2151,6 +2246,7 @@ const ProfessionalCardSection = ({
                 onClose={() => setIsIcModalOpen(false)}
                 data={icModalData}
                 title={icModalTitle}
+                isLoading={isIcModalLoading}
             />
 
             {/* IC Issued Breakdown Modal -> Now showing Download IC Annexures */}
@@ -2345,12 +2441,31 @@ const Level4ReportTable = ({ data }) => {
                         const qDef = row.quenchingDefects || {};
                         const tempDef = row.temperingDefects || {};
 
+                        const visDef = row.visualDefects || {};
+                        const testDef = row.testingDefects || {};
+                        const finDef = row.finishingDefects || {};
+                        const dimDef = row.dimensionalDefects || {};
+
                         const shearingTitle = `Length of Cut Bar: ${sDef.lengthOfCutBar || 0}\nOvality/Improper Dia at end: ${sDef.ovalityImproperDiaAtEnd || 0}\nSharp Edges: ${sDef.sharpEdges || 0}\nCracks: ${sDef.crackedEdges || 0}`;
                         const turningTitle = `Parallel Length: ${tDef.parallelLength || 0}\nFull Turning Length: ${tDef.fullTurningLength || 0}\nTurning Dia: ${tDef.turningDia || 0}`;
                         const mpiTitle = `MPI Rejection: ${qty.mpiRejectionQty || 0}`;
                         const forgingTitle = `Forging Temperature: ${fDef.forgingTemperature || 0}\nForging Stabilisation: ${fDef.forgingStabilisationRejection || 0}\nImproper Forging: ${fDef.improperForging || 0}\nForging Marks/Notches: ${fDef.forgingMarksNotches || 0}`;
-                        const quenchingTitle = `Quenching Hardness: ${qDef.quenchingHardness || 0}`;
-                        const temperingTitle = `Tempering Temp: ${tempDef.temperingTemp || 0}\nTempering Duration: ${tempDef.temperingDuration || 0}`;
+                        const quenchingTitle = `Quenching Hardness: ${qDef.quenchingHardness || 0}\nBox Gauge: ${qDef.boxGaugeRejected || 0}\nFlat Bearing Area: ${qDef.flatBearingAreaRejected || 0}\nFalling Gauge: ${qDef.fallingGaugeRejected || 0}`;
+                        const temperingTitle = [
+                            `Tempering Temp: ${tempDef.temperingTemp || 0}`,
+                            `Tempering Duration: ${tempDef.temperingDuration || 0}`,
+                            `Box Gauge (FC): ${dimDef.boxGauge || 0}`,
+                            `Flat Bearing (FC): ${dimDef.flatBearingArea || 0}`,
+                            `Falling Gauge (FC): ${dimDef.fallingGauge || 0}`,
+                            `Surface Defect: ${visDef.surfaceDefect || 0}`,
+                            `Embossing Defect: ${visDef.embossingDefect || 0}`,
+                            `Marking: ${visDef.marking || 0}`,
+                            `Tempering Hardness: ${testDef.temperingHardness || 0}`,
+                            `Toe Load: ${testDef.toeLoad || 0}`,
+                            `Weight: ${testDef.weight || 0}`,
+                            `Paint ID: ${finDef.paintIdentification || 0}`,
+                            `ERC Coating: ${finDef.ercCoating || 0}`
+                        ].join('\\n');
 
                         return (
                             <tr key={idx} className={idx % 2 === 0 ? 'row-odd' : 'row-even'}>
@@ -2383,6 +2498,7 @@ const Level4ReportTable = ({ data }) => {
                     border-collapse: separate !important;
                     border-spacing: 0 !important;
                     width: 100%;
+                    table-layout: fixed !important;
                 }
                 
                 .level-4-table thead th {
@@ -2390,11 +2506,15 @@ const Level4ReportTable = ({ data }) => {
                     top: 0 !important;
                     z-index: 50 !important;
                     box-shadow: inset 0 -1px 0 #e2e8f0, inset 0 1px 0 #e2e8f0;
-                    padding: 8px 8px !important;
+                    padding: 6px 4px !important;
                     font-size: 11px !important;
-                    white-space: nowrap !important;
+                    white-space: normal !important;
+                    word-wrap: break-word !important;
+                    line-height: 1.2 !important;
                     box-sizing: border-box !important;
                     vertical-align: middle !important;
+                    color: #000000 !important;
+                    font-weight: bold !important;
                 }
                 
                 .level-4-table thead th:not(.bg-green-header):not(.bg-emerald-header):not(.bg-red-header) {
@@ -2416,26 +2536,25 @@ const Level4ReportTable = ({ data }) => {
                     background: #ffffff !important;
                 }
 
-                .bg-green-header {
-                    background: #d1fae5 !important;
-                    color: #065f46 !important;
+                .level-4-table thead th.bg-green-header {
+                    background-color: #d1fae5 !important;
                 }
                 
-                .bg-emerald-header {
-                    background: #ecfdf5 !important;
-                    color: #047857 !important;
+                .level-4-table thead th.bg-emerald-header {
+                    background-color: #ecfdf5 !important;
                 }
                 
-                .bg-red-header {
-                    background: #fef2f2 !important;
-                    color: #b91c1c !important;
+                .level-4-table thead th.bg-red-header {
+                    background-color: #fef2f2 !important;
                 }
                 
                 .level-4-table td {
-                    padding: 10px 8px;
+                    padding: 6px 4px;
                     border-bottom: 1px solid #f1f5f9;
                     border-right: 1px solid #f1f5f9;
-                    font-size: 13px;
+                    font-size: 12px;
+                    white-space: normal !important;
+                    word-wrap: break-word !important;
                 }
                 
                 .level-4-table .text-center {

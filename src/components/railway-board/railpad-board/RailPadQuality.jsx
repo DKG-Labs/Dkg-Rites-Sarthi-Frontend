@@ -11,10 +11,10 @@ const CustomVerticalTick = ({ x, y, payload }) => {
                 x={0}
                 y={0}
                 dy={3.5}
-                transform="rotate(90)"
-                textAnchor="start"
-                fill="#475569"
-                style={{ fontSize: '10px', fontWeight: '500', fontFamily: 'sans-serif' }}
+                transform="rotate(-45)"
+                textAnchor="end"
+                fill="#1e293b"
+                style={{ fontSize: '11px', fontWeight: 'bold', fontFamily: 'sans-serif' }}
             >
                 {payload.value}
             </text>
@@ -80,7 +80,7 @@ const RailPadQuality = ({ paretoData, rejectionTrendData }) => {
                                     axisLine={false} 
                                     tickLine={false} 
                                     interval={0} 
-                                    height={160} 
+                                    height={100} 
                                     tick={<CustomVerticalTick />}
                                 />
                                 <YAxis yAxisId="left" axisLine={false} tickLine={false} style={{ fontSize: '11px' }} />

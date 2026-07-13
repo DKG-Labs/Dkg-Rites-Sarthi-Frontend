@@ -1254,7 +1254,7 @@ const ProfessionalCardSection = ({
                                                     <div style={{ fontSize: '16px', fontWeight: '800', marginTop: '8px', color: '#166534' }}>{paretoAnalysisData?.[0]?.name || 'Turning Length'}</div>
                                                 </div>
                                                 <div className="prof-card" style={{ textAlign: 'center', background: '#fffbeb', border: '1px solid #fef3c7' }}>
-                                                    <div className="kpi-lbl" style={{ color: '#92400e' }}>Worst Plant</div>
+                                                    <div className="kpi-lbl" style={{ color: '#92400e' }}>Plant with Max Rejection</div>
                                                     <div style={{ fontSize: '12px', fontWeight: '800', marginTop: '8px', color: '#78350f', lineHeight: '1.2' }}>
                                                         {processPerformanceData?.worstPerforming?.length > 0 ? processPerformanceData.worstPerforming[0]?.name : manufacturerRejectionData?.length > 0 ? [...manufacturerRejectionData].sort((a, b) => b.value - a.value)[0]?.name : 'Adinath Industries'}
                                                     </div>
@@ -1341,15 +1341,15 @@ const ProfessionalCardSection = ({
                                                             axisLine={false}
                                                             tickLine={false}
                                                             interval={0}
-                                                            height={160}
+                                                            height={100}
                                                             tick={({ x, y, payload }) => (
                                                                 <g transform={`translate(${x},${y + 10})`}>
                                                                     <text
                                                                         x={0}
                                                                         y={0}
                                                                         dy={3.5}
-                                                                        transform="rotate(90)"
-                                                                        textAnchor="start"
+                                                                        transform="rotate(-45)"
+                                                                        textAnchor="end"
                                                                         fill="#475569"
                                                                         style={{ fontSize: '12px', fontWeight: 'bold', fontFamily: 'sans-serif' }}
                                                                     >

@@ -283,11 +283,23 @@ const SleeperQuality = ({ qualityData }) => {
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                 <XAxis
                                     dataKey="name"
-                                    angle={-45}
-                                    textAnchor="end"
                                     interval={0}
                                     height={100}
-                                    tick={{ fontSize: 8, fontWeight: 500, fill: '#64748b', dy: 40 }}
+                                    tick={({ x, y, payload }) => (
+                                        <g transform={`translate(${x},${y + 10})`}>
+                                            <text
+                                                x={0}
+                                                y={0}
+                                                dy={0}
+                                                transform="rotate(-45)"
+                                                textAnchor="end"
+                                                fill="#1e293b"
+                                                style={{ fontSize: '11px', fontWeight: 'bold' }}
+                                            >
+                                                {payload.value}
+                                            </text>
+                                        </g>
+                                    )}
                                 />
                                 <YAxis
                                     yAxisId="left"

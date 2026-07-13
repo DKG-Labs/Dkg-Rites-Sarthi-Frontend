@@ -7,22 +7,25 @@ const SCADA_MANUFACTURERS = [
 ];
 
 const SCADA_UNITS = [
-    { label: 'Wadiyaram Unit', value: 'WDM-U1' },
-    { label: 'Thirumangalam', value: 'Thirumangalam' }
+    { label: 'Wadiyaram Unit', value: 'WDM' },
+    { label: 'Thirumangalam', value: 'TMQ' }
 ];
 
 const SCADA_LINES = [
-    { label: 'Line 1', value: 'L1' }
+    { label: 'Line 1', value: 'U1' },
+    { label: 'Line 2', value: 'U2' }
 ];
 
 const SCADA_STAGES = [
-    { label: 'VIBRATOR', value: 'VIBRATOR' },
-    { label: 'STEAM CUBE', value: 'STEAM CUBE' },
-    { label: 'CHAMBER', value: 'CHAMBER' },
-    { label: 'WATER CUBE', value: 'WATER CUBE' },
-    { label: 'TENSIONING', value: 'TENSIONING' },
     { label: 'BATCHING', value: 'BATCHING' },
-    { label: 'SBT', value: 'SBT' }
+    { label: 'CHAMBERS', value: 'CHAMBERS' },
+    { label: 'FLEXURAL BEAM', value: 'FLEXURALBEAM' },
+    { label: 'MORTAR CUBE', value: 'MORTARCUBE' },
+    { label: 'SBT', value: 'SBT' },
+    { label: 'STEAM CUBE', value: 'STEAMCUBE' },
+    { label: 'TENSIONING', value: 'TENSIONING' },
+    { label: 'VIBRATOR', value: 'VIBRATOR' },
+    { label: 'WATER CUBE', value: 'WATERCUBE' }
 ];
 
 const ExportButton = ({ onClick }) => (
@@ -94,7 +97,7 @@ const getCellToleranceStyle = (stage, colName, value, row) => {
         }
     }
     
-    if (stage === 'CHAMBER') {
+    if (stage === 'CHAMBERS') {
         // 1. Actual status for cycle status == constant - 55 to 60
         if (colLower === 'act_temp') {
             const cycleStatus = String(row.Cycle_Status || row.cycle_status || '').toLowerCase();
@@ -106,7 +109,7 @@ const getCellToleranceStyle = (stage, colName, value, row) => {
         }
     }
     
-    if (stage === 'STEAM CUBE') {
+    if (stage === 'STEAMCUBE') {
         // 1. Strength - greater than 50
         if (colLower === 'strength') {
             if (!isNaN(valFloat) && valFloat <= 50) {
@@ -115,7 +118,7 @@ const getCellToleranceStyle = (stage, colName, value, row) => {
         }
     }
     
-    if (stage === 'WATER CUBE') {
+    if (stage === 'WATERCUBE') {
         // 1. Strength - greater than 60
         if (colLower === 'strength') {
             if (!isNaN(valFloat) && valFloat <= 60) {
@@ -166,82 +169,23 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
             };
             
             try {
-                if (unit === 'Thirumangalam') {
-                    // Call API 2 times: 1 time for TMQ-U1, 1 time for TMQ-U2
-                    const params1 = new URLSearchParams({
-                        type: apiType,
-                        plant: manufacturer,
-                        plantUnit: 'TMQ-U1',
-                        line: line,
-                        machine: stage,
-                        page: currentPage.toString(),
-                        size: '30'
-                    });
-                    const params2 = new URLSearchParams({
-                        type: apiType,
-                        plant: manufacturer,
-                        plantUnit: 'TMQ-U2',
-                        line: line,
-                        machine: stage,
-                        page: currentPage.toString(),
-                        size: '30'
-                    });
-                    
-                    const url1 = `https://scada.ritesqasarthi.com/api/scada/scada-data?${params1.toString()}`;
-                    const url2 = `https://scada.ritesqasarthi.com/api/scada/scada-data?${params2.toString()}`;
-                    
-                    const [res1, res2] = await Promise.all([
-                        fetch(url1, fetchOptions),
-                        fetch(url2, fetchOptions)
-                    ]);
-                    
-                    let data1 = [];
-                    let data2 = [];
-                    
-                    if (res1.ok) {
-                        const json1 = await res1.json();
-                        data1 = Array.isArray(json1) ? json1 : (json1.content || []);
-                    }
-                    if (res2.ok) {
-                        const json2 = await res2.json();
-                        data2 = Array.isArray(json2) ? json2 : (json2.content || []);
-                    }
-                    
-                    const combined = [...data1, ...data2];
-                    
-                    // Sort by time descending
-                    combined.sort((a, b) => {
-                        const valA = a.time || a.Time;
-                        const valB = b.time || b.Time;
-                        if (!valA) return 1;
-                        if (!valB) return -1;
-                        const dateA = new Date(valA);
-                        const dateB = new Date(valB);
-                        return dateB.getTime() - dateA.getTime();
-                    });
-                    
-                    finalData = combined;
-                    currentHasMore = (data1.length === 30 || data2.length === 30);
-                    success = res1.ok || res2.ok;
-                } else {
-                    const params = new URLSearchParams({
-                        type: apiType,
-                        plant: manufacturer,
-                        plantUnit: unit,
-                        line: line,
-                        machine: stage,
-                        page: currentPage.toString(),
-                        size: '30'
-                    });
-                    const scadaUrl = `https://scada.ritesqasarthi.com/api/scada/scada-data?${params.toString()}`;
-                    const response = await fetch(scadaUrl, fetchOptions);
-                    
-                    if (response.ok) {
-                        const resData = await response.json();
-                        finalData = Array.isArray(resData) ? resData : (resData.content || []);
-                        currentHasMore = finalData.length === 30;
-                        success = true;
-                    }
+                const params = new URLSearchParams({
+                    type: apiType,
+                    plant: manufacturer,
+                    plantUnit: unit,
+                    line: line,
+                    machine: stage,
+                    page: currentPage.toString(),
+                    size: '30'
+                });
+                const scadaUrl = `https://scada.ritesqasarthi.com/api/scada/scada-data?${params.toString()}`;
+                const response = await fetch(scadaUrl, fetchOptions);
+                
+                if (response.ok) {
+                    const resData = await response.json();
+                    finalData = Array.isArray(resData) ? resData : (resData.content || []);
+                    currentHasMore = finalData.length === 30;
+                    success = true;
                 }
             } catch (err) {
                 // silent fail
@@ -279,17 +223,25 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
             order: ['time', 'Batch_No', 'Bench_No', 'Running_Bench', 'Vibrator1_RPM', 'Vibrator1_Time', 'Vibrator2_RPM', 'Vibrator2_Time', 'Vibrator3_RPM', 'Vibrator3_Time', 'Vibrator4_RPM', 'Vibrator4_Time', 'Vibrator5_RPM', 'Vibrator5_Time', 'Vibrator6_RPM', 'Vibrator6_Time', 'Vibrator7_RPM', 'Vibrator7_Time', 'Vibrator8_RPM', 'Vibrator8_Time'],
             labels: { 'time': 'Time', 'Batch_No': 'Batch No', 'Bench_No': 'Bench No', 'Running_Bench': 'Running Bench', 'Vibrator1_RPM': 'Vibrator 1 RPM', 'Vibrator1_Time': 'Vibrator 1 Time (minutes)', 'Vibrator2_RPM': 'Vibrator 2 RPM', 'Vibrator2_Time': 'Vibrator 2 Time (minutes)', 'Vibrator3_RPM': 'Vibrator 3 RPM', 'Vibrator3_Time': 'Vibrator 3 Time (minutes)', 'Vibrator4_RPM': 'Vibrator 4 RPM', 'Vibrator4_Time': 'Vibrator 4 Time (minutes)', 'Vibrator5_RPM': 'Vibrator 5 RPM', 'Vibrator5_Time': 'Vibrator 5 Time (minutes)', 'Vibrator6_RPM': 'Vibrator 6 RPM', 'Vibrator6_Time': 'Vibrator 6 Time (minutes)', 'Vibrator7_RPM': 'Vibrator 7 RPM', 'Vibrator7_Time': 'Vibrator 7 Time (minutes)', 'Vibrator8_RPM': 'Vibrator 8 RPM', 'Vibrator8_Time': 'Vibrator 8 Time (minutes)' }
         },
-        'STEAM CUBE': {
+        'STEAMCUBE': {
             order: ['time', 'Batch_No', 'Date_Of_Casting', 'LBC_Time', 'Cube_No', 'Type_of_Sleeper', 'Chamber_No', 'Age', 'Weight', 'Load(KN)', 'Strength'],
             labels: { 'time': 'Time', 'Batch_No': 'Batch No', 'Date_Of_Casting': 'Date of Casting', 'LBC_Time': 'LBC Time', 'Cube_No': 'Cube No', 'Type_of_Sleeper': 'Type of Sleeper', 'Chamber_No': 'Chamber No', 'Age': 'Age (Hrs.)', 'Weight': 'Weight (Kg)', 'Load(KN)': 'Load (KN)', 'Strength': 'Strength (N/mm2)' }
         },
-        'CHAMBER': {
+        'CHAMBERS': {
             order: ['time', 'Batch_No', 'Chamber_No', 'Set_Temp', 'Act_Temp', 'Start_Time', 'Cycle_Status'],
             labels: { 'time': 'Time', 'Batch_No': 'Batch No', 'Chamber_No': 'Chamber No', 'Set_Temp': 'Set Temp (°C)', 'Act_Temp': 'Act Temp (°C)', 'Start_Time': 'Start Time', 'Cycle_Status': 'Cycle Status' }
         },
-        'WATER CUBE': {
+        'WATERCUBE': {
             order: ['time', 'Batch_No', 'Date_Of_Casting', 'LBC_Time', 'Cube_No', 'Type_of_Sleeper', 'Age', 'Weight', 'Load(KN)', 'Strength'],
             labels: { 'time': 'Time', 'Batch_No': 'Batch No', 'Date_Of_Casting': 'Date of Casting', 'LBC_Time': 'LBC Time', 'Cube_No': 'Cube No', 'Type_of_Sleeper': 'Type of Sleeper', 'Age': 'Age (Hrs.)', 'Weight': 'Weight (Kg)', 'Load(KN)': 'Load (KN)', 'Strength': 'Strength (N/mm2)' }
+        },
+        'FLEXURALBEAM': {
+            order: ['time'],
+            labels: { 'time': 'Time' }
+        },
+        'MORTARCUBE': {
+            order: ['time'],
+            labels: { 'time': 'Time' }
         },
         'TENSIONING': {
             order: ['time', 'Batch_No', 'Bench_No', 'Wire_Length', 'Total_Cross_Section', 'Young_Modulus', '10%_LU', '10%_LL', '10%_RU', '10%_RL', '100%_LU', '100%_LL', '100%_RU', '100%_RL', 'Measured_Elongation', 'Pressed_Load', 'Total_Pressed_Load', 'Final_Load'],
@@ -354,7 +306,7 @@ const SleeperScadaMonitor = ({ selectedProduct }) => {
         });
     });
 
-    const effectiveRowsPerPage = unit === 'Thirumangalam' ? 60 : 30;
+    const effectiveRowsPerPage = 30;
     const totalPages = hasMore ? currentPage + 2 : currentPage + 1;
     const start = currentPage * effectiveRowsPerPage;
     const end = start + data.length;

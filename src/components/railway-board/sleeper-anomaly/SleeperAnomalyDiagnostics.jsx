@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import SleeperAnomalyDashboard from './SleeperAnomalyDashboard';
 import SleeperAnomalySimulator from './SleeperAnomalySimulator';
 import SleeperAnomalyExplorer from './SleeperAnomalyExplorer';
+// eslint-disable-next-line no-unused-vars
 import SleeperAnomalyUplink from './SleeperAnomalyUplink';
 import SleeperAnomalyDiagnosticDrawer from './SleeperAnomalyDiagnosticDrawer';
 import './SleeperAnomaly.css';
@@ -16,12 +17,13 @@ const SCADA_PLANTS = [
 ];
 
 const SCADA_UNITS = [
-    { label: 'Wadiyaram (WDM-U1)', value: 'WDM-U1' },
-    { label: 'Thirumangalam', value: 'Thirumangalam' }
+    { label: 'Wadiyaram (WDM)', value: 'WDM' },
+    { label: 'Thirumangalam (TMQ)', value: 'TMQ' }
 ];
 
 const SCADA_LINES = [
-    { label: 'Line 1 (L1)', value: 'L1' }
+    { label: 'Line 1 (U1)', value: 'U1' },
+    { label: 'Line 2 (U2)', value: 'U2' }
 ];
 
 const getFetchOptions = () => {
@@ -40,6 +42,7 @@ function SleeperAnomalyDiagnostics() {
     const [benches, setBenches] = useState([]);
     const [datasets, setDatasets] = useState([]);
     const [activeDataset, setActiveDataset] = useState('');
+    // eslint-disable-next-line no-unused-vars
     const [testConfig, setTestConfig] = useState(null);
 
     // Dashboard Logs
@@ -60,8 +63,8 @@ function SleeperAnomalyDiagnostics() {
 
     // Telemetry Ingestion State
     const [selectedPlant, setSelectedPlant] = useState('PRIL');
-    const [selectedUnit, setSelectedUnit] = useState('WDM-U1');
-    const [selectedLine, setSelectedLine] = useState('L1');
+    const [selectedUnit, setSelectedUnit] = useState('WDM');
+    const [selectedLine, setSelectedLine] = useState('U1');
     const [fromDate, setFromDate] = useState(() => {
         const today = new Date();
         const yesterday = new Date(today);
@@ -337,6 +340,7 @@ function SleeperAnomalyDiagnostics() {
     }, [simSpeed]);
 
     // Uplink Function
+    // eslint-disable-next-line no-unused-vars
     const runDefectUplinkPipeline = async () => {
         if (testRunning) return;
         setTestRunning(true);
@@ -485,9 +489,9 @@ function SleeperAnomalyDiagnostics() {
                 <button className={`local-tab-btn ${activeTab === 'explorer' ? 'active' : ''}`} onClick={() => setActiveTab('explorer')}>
                     <i className="fa-solid fa-magnifying-glass"></i> Defect Explorer
                 </button>
-                <button className={`local-tab-btn ${activeTab === 'uplink' ? 'active' : ''}`} onClick={() => setActiveTab('uplink')}>
+                {/* <button className={`local-tab-btn ${activeTab === 'uplink' ? 'active' : ''}`} onClick={() => setActiveTab('uplink')}>
                     <i className="fa-solid fa-file-arrow-up"></i> Test Uplink
-                </button>
+                </button> */}
             </div>
 
             {/* Content Panels */}
@@ -525,14 +529,14 @@ function SleeperAnomalyDiagnostics() {
                     />
                 )}
 
-                {activeTab === 'uplink' && (
+                {/* activeTab === 'uplink' && (
                     <SleeperAnomalyUplink
                         testConfig={testConfig}
                         testRunning={testRunning}
                         testResults={testResults}
                         onExecute={runDefectUplinkPipeline}
                     />
-                )}
+                ) */}
             </div>
 
             {/* Detail Slide Drawer */}

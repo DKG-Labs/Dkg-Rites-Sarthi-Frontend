@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ExportButton, downloadExcel } from './SharedComponents';
+import { ExportButton } from './SharedComponents';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import './PoIssuedModal.css'; // Reuses modal styles for consistency
@@ -14,7 +14,7 @@ const formatPoSrNo = (value) => {
     return value;
 };
 
-const InspectionCallStatusModal = ({ isOpen, onClose, data, title }) => {
+const InspectionCallStatusModal = ({ isOpen, onClose, data, title, isLoading }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedStage, setSelectedStage] = useState('all');
 
@@ -94,33 +94,36 @@ const InspectionCallStatusModal = ({ isOpen, onClose, data, title }) => {
                 <div className="modal-header">
                     <h2>{title} - Call Details</h2>
                     <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                        <button className="btn-export pdf" onClick={handlePdfExport} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+                        <button className="btn-export pdf" onClick={handlePdfExport} disabled={isLoading} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: isLoading ? 'not-allowed' : 'pointer', fontWeight: 'bold', opacity: isLoading ? 0.6 : 1 }}>
                             <i className="fa-solid fa-file-pdf"></i> PDF
                         </button>
                         <ExportButton 
-                            onClick={() => downloadExcel(exportData, exportColumns, `${title.replace(/\s+/g, '_')}_Calls`)} 
+                            data={exportData} 
+                            columns={exportColumns} 
+                            filename={`${title.replace(/\s+/g, '_')}_Calls.xlsx`}
+                            disabled={isLoading}
                         />
-                        <button className="close-btn" onClick={onClose} style={{ marginLeft: '10px' }}>&times;</button>
+                        <button className="btn-close" onClick={onClose}><i className="fa-solid fa-xmark"></i></button>
                     </div>
                 </div>
 
                 <div className="modal-filters">
-                    <div className="filter-group">
-                        <label>Search</label>
+                    <div className="search-box">
+                        <i className="fa-solid fa-magnifying-glass"></i>
                         <input
                             type="text"
-                            placeholder="Search Call No, Vendor, PO..."
+                            placeholder="Search calls, vendors, POs..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="modal-search-input"
+                            disabled={isLoading}
                         />
                     </div>
                     <div className="filter-group">
-                        <label>Stage Filter</label>
                         <select
                             value={selectedStage}
                             onChange={(e) => setSelectedStage(e.target.value)}
                             className="modal-select"
+                            disabled={isLoading}
                         >
                             <option value="all">All Stages</option>
                             <option value="RM Stage">RM Stage</option>
@@ -145,7 +148,21 @@ const InspectionCallStatusModal = ({ isOpen, onClose, data, title }) => {
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredData.length > 0 ? (
+                            {isLoading ? (
+                                // Render 5 skeleton rows
+                                [...Array(5)].map((_, i) => (
+                                    <tr key={i} className="skeleton-row">
+                                        <td><div className="skeleton-cell" style={{ width: '20px' }}></div></td>
+                                        <td><div className="skeleton-cell" style={{ width: '120px' }}></div></td>
+                                        <td><div className="skeleton-cell" style={{ width: '150px' }}></div></td>
+                                        <td><div className="skeleton-cell" style={{ width: '100px' }}></div></td>
+                                        <td><div className="skeleton-cell" style={{ width: '80px', borderRadius: '12px' }}></div></td>
+                                        <td><div className="skeleton-cell" style={{ width: '100px' }}></div></td>
+                                        <td><div className="skeleton-cell" style={{ width: '80px' }}></div></td>
+                                        <td><div className="skeleton-cell" style={{ width: '180px' }}></div></td>
+                                    </tr>
+                                ))
+                            ) : filteredData.length > 0 ? (
                                 filteredData.map((item, index) => (
                                     <tr key={index}>
                                         <td>{index + 1}</td>

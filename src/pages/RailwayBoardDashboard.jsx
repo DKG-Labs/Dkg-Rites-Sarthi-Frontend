@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import CMDashboardPage from './cm/CMDashboardPage';
 
 import reportService from '../services/reportService';
-import useReportData from '../hooks/useReportData';
+import useReportData, { clearGlobalReportCache } from '../hooks/useReportData';
 import './RailwayBoardDashboard.css';
 import './RailwayBoardDashboardProfessional.css'; // New professional styles
 
@@ -91,30 +91,44 @@ const RailwayBoardDashboard = () => {
     React.useEffect(() => { localStorage.setItem('dash_selectedVendor', selectedVendor); }, [selectedVendor]);
     React.useEffect(() => { localStorage.setItem('dash_selectedRio', selectedRio); }, [selectedRio]);
 
-    // Debounce dates to prevent rapid API calls when using up/down arrows
+    const [refreshTick, setRefreshTick] = useState(0);
+
+    const handleDataRefresh = () => {
+        clearGlobalReportCache();
+        setRefreshTick(prev => prev + 1);
+    };
+
+    // Debounce filters to avoid rapid API calls
     const [debouncedFromDate, setDebouncedFromDate] = useState(fromDate);
     const [debouncedToDate, setDebouncedToDate] = useState(toDate);
+    useEffect(() => {
+        const t = setTimeout(() => {
+            setDebouncedFromDate(fromDate);
+            setDebouncedToDate(toDate);
+        }, 300);
+        return () => clearTimeout(t);
+    }, [fromDate, toDate]);
 
-    React.useEffect(() => {
-        const handler = setTimeout(() => setDebouncedFromDate(fromDate), 800);
-        return () => clearTimeout(handler);
-    }, [fromDate]);
-
-    React.useEffect(() => {
-        const handler = setTimeout(() => setDebouncedToDate(toDate), 800);
-        return () => clearTimeout(handler);
-    }, [toDate]);
-
+    // Common Filters for Dashboards (now includes refreshTick to bust cache on demand)
     const dashboardFilters = React.useMemo(() => ({
-        startDate: debouncedFromDate, endDate: debouncedToDate, product: selectedProduct,
-        rio: selectedRio !== 'all' ? selectedRio : undefined,
-        zone: selectedZone !== 'all' ? selectedZone : undefined,
-        vendor: selectedVendor !== 'all' ? selectedVendor : undefined
-    }), [debouncedFromDate, debouncedToDate, selectedProduct, selectedRio, selectedZone, selectedVendor]);
+        product: selectedProduct,
+        zone: selectedZone === 'all' ? '' : selectedZone,
+        rio: selectedRio === 'all' ? '' : selectedRio,
+        startDate: debouncedFromDate,
+        endDate: debouncedToDate,
+        _refresh: refreshTick
+    }), [selectedProduct, selectedZone, selectedRio, debouncedFromDate, debouncedToDate, refreshTick]);
 
     const trendParams = React.useMemo(() => ({
-        startDate: debouncedFromDate, endDate: debouncedToDate, product: selectedProduct
-    }), [debouncedFromDate, debouncedToDate, selectedProduct]);
+        startDate: debouncedFromDate, endDate: debouncedToDate, product: selectedProduct, _refresh: refreshTick
+    }), [debouncedFromDate, debouncedToDate, selectedProduct, refreshTick]);
+    // Prefetch Level 1 PO Data on mount so it's ready in local storage immediately
+    useEffect(() => {
+        const cached = localStorage.getItem('cache_level1ReportPoData');
+        if (!cached) {
+            reportService.getLevel1Report({ _refresh: true }).catch(console.error);
+        }
+    }, []);
 
     // Data Fetching
     const { data: reportData = [] } = useReportData(reportService.getLevel1Report, activeMainCard === 'lifecycle' ? dashboardFilters : undefined);
@@ -653,7 +667,26 @@ const RailwayBoardDashboard = () => {
                                 }}>Sleeper</button>
                                 <button className={`sub-tab-btn ${selectedProduct === 'Rail Pad' ? 'active' : ''}`} onClick={() => setSelectedProduct('Rail Pad')}>Rail Pad</button>
                             </div>
-
+                            
+                            <button 
+                                onClick={handleDataRefresh} 
+                                style={{ 
+                                    padding: '6px 12px', 
+                                    backgroundColor: '#10b981', 
+                                    color: 'white', 
+                                    border: 'none', 
+                                    borderRadius: '6px', 
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    fontSize: '13px',
+                                    fontWeight: '500',
+                                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                                }}
+                            >
+                                <i className="fa-solid fa-arrows-rotate"></i> Refresh Data
+                            </button>
                         </div>
                     )}
 
@@ -704,6 +737,7 @@ const RailwayBoardDashboard = () => {
                                     selectedProduct={selectedProduct}
                                     activeMainCard={activeMainCard} setActiveMainCard={setActiveMainCard}
                                     qualityRejectionData={qualityRejectionData}
+                                    refreshTick={refreshTick}
                                     manufacturerRejectionData={manufacturerRejectionData}
                                     stepWiseRejectionData={stepWiseRejectionData}
                                     processPerformanceData={processPerformanceData}

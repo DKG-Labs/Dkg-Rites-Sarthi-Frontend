@@ -2,7 +2,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import './SleeperSummary.css';
 import { API_ENDPOINTS, getAuthHeaders, handleResponse } from '../../../services/apiConfig';
 
-const SleeperLifecycle = () => {
+let cachedSleeperLifecycle_PO = null;
+let lastRefreshTick_SleeperLifecycle = -1;
+
+const SleeperLifecycle = ({ refreshTick }) => {
     // State for expansions
     const [expandedPo, setExpandedPo] = useState(null);
     const [expandedSr, setExpandedSr] = useState(null);
@@ -29,7 +32,7 @@ const SleeperLifecycle = () => {
     };
 
     const filteredAndSortedPoData = useMemo(() => {
-        let result = [...poData];
+        let result = poData.filter(po => !(po.poNo || '').toLowerCase().includes('dummy'));
         
         // 1. Filter by search term
         if (searchTerm) {
@@ -84,20 +87,29 @@ const SleeperLifecycle = () => {
     };
 
     const loadLevel1Data = async (start, end) => {
+        if (cachedSleeperLifecycle_PO && lastRefreshTick_SleeperLifecycle === refreshTick) {
+            setPoData(cachedSleeperLifecycle_PO);
+            return;
+        }
+
         const formattedStart = formatDateForApi(start);
         const formattedEnd = formatDateForApi(end);
         const data = await fetchLevel1DataAPI(formattedStart, formattedEnd);
         if (data && data.length > 0) {
             setPoData(data);
+            cachedSleeperLifecycle_PO = data;
+            lastRefreshTick_SleeperLifecycle = refreshTick;
         } else {
             setPoData([]);
+            cachedSleeperLifecycle_PO = [];
+            lastRefreshTick_SleeperLifecycle = refreshTick;
         }
     };
 
     useEffect(() => {
         loadLevel1Data(startDate, endDate);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [startDate, endDate]);
+    }, [startDate, endDate, refreshTick]);
 
     const handleApply = () => {
         loadLevel1Data(startDate, endDate);

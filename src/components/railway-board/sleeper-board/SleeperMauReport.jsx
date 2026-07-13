@@ -343,7 +343,6 @@ const SleeperMauReport = ({ startDate, endDate, mauData: propMauData, loading: p
         (plant.inspectedBy || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    // Mock Data for the Main Table
     // Excel Export Utility
     const downloadExcel = async (data, headers, filename) => {
         if (!data || data.length === 0) return;

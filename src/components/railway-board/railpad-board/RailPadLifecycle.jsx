@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import reportService from '../../../services/reportService';
 import Pagination from '../../Pagination';
 
-const RailPadLifecycle = () => {
+let cachedRailpadLifecycle_PO = null;
+let lastRefreshTick_RailpadLifecycle = -1;
+
+const RailPadLifecycle = ({ refreshTick }) => {
     // State for expansions
     const [expandedPo, setExpandedPo] = useState(null);
     const [expandedSr, setExpandedSr] = useState(null);
@@ -21,15 +24,24 @@ const RailPadLifecycle = () => {
     // Fetch Level 1 data on mount
     useEffect(() => {
         const fetchLevel1 = async () => {
+            if (cachedRailpadLifecycle_PO && lastRefreshTick_RailpadLifecycle === refreshTick) {
+                setPoMasterData(cachedRailpadLifecycle_PO);
+                setLoading(false);
+                return;
+            }
+
             try {
                 setLoading(true);
                 const res = await reportService.getRailPadLevel1Report();
                 const data = res && res.responseStatus ? res.responseData : res;
                 if (Array.isArray(data)) {
                     setPoMasterData(data);
+                    cachedRailpadLifecycle_PO = data;
                 } else if (res && res.success && res.data) {
                     setPoMasterData(res.data);
+                    cachedRailpadLifecycle_PO = res.data;
                 }
+                lastRefreshTick_RailpadLifecycle = refreshTick;
             } catch (err) {
                 console.error("Error fetching Level 1 Rail Pad PO Life Cycle data:", err);
             } finally {
@@ -37,7 +49,7 @@ const RailPadLifecycle = () => {
             }
         };
         fetchLevel1();
-    }, []);
+    }, [refreshTick]);
 
     // Fetch Level 2 data on PO expansion
     const togglePo = async (poNo, id) => {
@@ -106,12 +118,14 @@ const RailPadLifecycle = () => {
         }
     };
 
-    const filteredPoMasterData = poMasterData.filter(po => 
-        (po.poNo && po.poNo.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (po.vendor && po.vendor.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (po.rly && po.rly.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (po.railPadType && po.railPadType.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
+    const filteredPoMasterData = poMasterData.filter(po => {
+        const isNotDummy = !(po.poNo || '').toLowerCase().includes('dummy');
+        const matchesSearch = (po.poNo && po.poNo.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            (po.vendor && po.vendor.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            (po.rly && po.rly.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            (po.railPadType && po.railPadType.toLowerCase().includes(searchQuery.toLowerCase()));
+        return isNotDummy && matchesSearch;
+    });
 
     // Reset page on search change
     useEffect(() => {

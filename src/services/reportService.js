@@ -53,11 +53,36 @@ const reportService = {
      * Level 1: PO Wise List
      * Hits: /api/reports/1stLevelReportPoData
      */
-    getLevel1Report: async () => {
+    getLevel1Report: async (params) => {
+        const forceRefresh = params && params._refresh > 0;
+        const CACHE_KEY = 'cache_level1ReportPoData';
+        
+        if (!forceRefresh) {
+            const cached = localStorage.getItem(CACHE_KEY);
+            if (cached) {
+                try {
+                    return JSON.parse(cached);
+                } catch (e) {
+                    console.error('Failed to parse cached level1 report data');
+                }
+            }
+        }
+
         const response = await fetch(`${API_ENDPOINTS.REPORTS}/1stLevelReportPoData`, {
             headers: getAuthHeaders(),
         });
-        return handleResponse(response);
+        
+        const result = await handleResponse(response);
+        
+        if (result) {
+            try {
+                localStorage.setItem(CACHE_KEY, JSON.stringify(result));
+            } catch (e) {
+                console.error('Failed to cache level1 report data (quota exceeded?)');
+            }
+        }
+        
+        return result;
     },
 
     /**

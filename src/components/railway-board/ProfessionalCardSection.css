@@ -1312,26 +1312,44 @@ thead th:hover {
 }
 
 .report-data-table th {
-    background-color: #1e3a8a !important;
-    padding: 1.25rem 1rem;
-    text-align: left;
-    font-weight: 700;
-    color: #ffffff;
+    background-color: #f1f5f9 !important;
+    padding: 0.5rem 0.5rem;
+    text-align: center;
+    font-weight: 700 !important;
+    color: #000000 !important;
     text-transform: uppercase;
     font-size: 0.6875rem;
     letter-spacing: 0.05em;
     border-bottom: 2px solid #e2e8f0;
-    white-space: nowrap;
+    white-space: normal;
+    word-wrap: break-word;
     position: sticky !important;
     top: 0 !important;
     z-index: 10 !important;
 }
 
+.report-data-table th.bg-green-header {
+    background-color: #d1fae5 !important;
+    color: #000000 !important;
+}
+
+.report-data-table th.bg-emerald-header {
+    background-color: #ecfdf5 !important;
+    color: #000000 !important;
+}
+
+.report-data-table th.bg-red-header {
+    background-color: #fef2f2 !important;
+    color: #000000 !important;
+}
+
 .report-data-table td {
-    padding: 1.125rem 1rem;
+    padding: 0.5rem 0.5rem;
     border-bottom: 1px solid #f1f5f9;
     color: #334155;
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
+    white-space: normal;
+    word-wrap: break-word;
 }
 
 tr.row-odd,
@@ -1738,7 +1756,8 @@ tr.row-even td {
 }
 
 .level-4-table {
-    min-width: 2800px;
+    width: 100%;
+    table-layout: fixed;
     border-collapse: separate;
     border-spacing: 0;
 }
@@ -1757,9 +1776,24 @@ tr.row-even td {
 }
 
 .level-4-table thead tr:first-child th {
-    background-color: #1e3a8a !important;
-    color: #ffffff;
+    background-color: #f8fafc !important;
+    color: #000000 !important;
     font-weight: 800;
+}
+
+.level-4-table thead tr:first-child th.bg-green-header {
+    background-color: #d1fae5 !important;
+    color: #000000 !important;
+}
+
+.level-4-table thead tr:first-child th.bg-emerald-header {
+    background-color: #ecfdf5 !important;
+    color: #000000 !important;
+}
+
+.level-4-table thead tr:first-child th.bg-red-header {
+    background-color: #fef2f2 !important;
+    color: #000000 !important;
 }
 
 .level-4-table thead .sub-header th {

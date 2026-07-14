@@ -3689,7 +3689,7 @@ input[type="number"] {
 .pwmr-table-wrapper table thead th {
   position: sticky !important;
   top: 0 !important;
-  z-index: 10 !important;
+  z-index: 50 !important;
   background-color: inherit;
 }
 

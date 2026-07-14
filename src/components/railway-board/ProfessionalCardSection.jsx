@@ -128,8 +128,10 @@ const ProfessionalCardSection = ({
     // NEW: Level 4 Report Props
     level4Data = [],
     level4Loading = false,
+    onZonesUpdate = () => { },
     activeReportFromParent = 'mpr',
     setSelectedProduct = () => { },
+    selectedZone = 'all',
     // New Manufacture Process Inspection Analysis Props from API
     mpiaData = [],
     mpiaLoading = false,
@@ -1333,23 +1335,12 @@ const ProfessionalCardSection = ({
                                             <div className="sec-title">Pareto Analysis</div>
                                             <div className="chart-wrap" style={{ height: '380px' }}>
                                                 <ResponsiveContainer width="100%" height="100%">
-                                                    <ComposedChart data={paretoAnalysisData?.length ? (() => {
-                                                        const pieTotal = (stepWiseRejectionData || []).reduce((sum, d) => sum + (d.value || 0), 0);
-                                                        const paretoTotal = paretoAnalysisData.reduce((sum, d) => sum + (d.count || d.value || 0), 0);
-                                                        const total = pieTotal > paretoTotal ? pieTotal : paretoTotal;
-                                                        
-                                                        let cumulative = 0;
-                                                        return paretoAnalysisData.map(d => {
-                                                            const count = d.count || d.value || 0;
-                                                            cumulative += count;
-                                                            return {
-                                                                ...d,
-                                                                count,
-                                                                percentage: total > 0 ? Number(((count / total) * 100).toFixed(2)) : 0,
-                                                                cumulativePercentage: total > 0 ? Number(((cumulative / total) * 100).toFixed(2)) : 0
-                                                            };
-                                                        });
-                                                    })() : []} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                                    <ComposedChart data={paretoAnalysisData?.length ? paretoAnalysisData.map(d => ({
+                                                        ...d,
+                                                        count: d.value || 0,
+                                                        percentage: d.percentage || 0,
+                                                        cumulativePercentage: d.cumulative || 0
+                                                    })) : []} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                                         <XAxis
                                                             dataKey="name"
@@ -2191,7 +2182,7 @@ const ProfessionalCardSection = ({
                                                     case 'swp':
                                                         return <ShiftWiseProductionReport />;
                                                     case 'pwmr':
-                                                        return <PoWiseMonthlyReport fromDate={fromDate} toDate={toDate} />;
+                                                        return <PoWiseMonthlyReport fromDate={fromDate} toDate={toDate} selectedZone={selectedZone} onZonesUpdate={onZonesUpdate} />;
                                                     case 'ic_annexures':
                                                         return <DownloadIcAnnexures selectedProduct="ERC" fromDate={fromDate} toDate={toDate} />;
                                                     default:

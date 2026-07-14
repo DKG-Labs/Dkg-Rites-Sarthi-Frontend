@@ -4,7 +4,7 @@ import reportService from '../../services/reportService';
 import Pagination from '../Pagination';
 import './PoWiseMonthlyReport.css';
 
-const PoWiseMonthlyReport = ({ fromDate, toDate }) => {
+const PoWiseMonthlyReport = ({ fromDate, toDate, selectedZone, onZonesUpdate }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -66,10 +66,32 @@ const PoWiseMonthlyReport = ({ fromDate, toDate }) => {
         fetchPoWiseData(false);
     }, [fetchPoWiseData]);
 
+    useEffect(() => {
+        if (onZonesUpdate && data && data.length > 0) {
+            const zones = new Set();
+            data.forEach(item => {
+                if (item.zonalRailway && item.zonalRailway.trim() !== '') {
+                    zones.add(item.zonalRailway.trim());
+                }
+            });
+            onZonesUpdate(Array.from(zones).sort());
+        } else if (onZonesUpdate && (!data || data.length === 0)) {
+            onZonesUpdate([]);
+        }
+    }, [data, onZonesUpdate]);
+
     // Group data by zonalRailway
     const groupedData = React.useMemo(() => {
-        // Filter by search query
+        // Filter by search query and zone
         const filtered = data.filter(item => {
+            // Zone Filter
+            if (selectedZone && selectedZone !== 'all') {
+                if ((item.zonalRailway || '').trim() !== selectedZone.trim()) {
+                    return false;
+                }
+            }
+
+            // Search Query Filter
             if (!searchQuery) return true;
             const q = searchQuery.toLowerCase();
             return (
@@ -136,7 +158,7 @@ const PoWiseMonthlyReport = ({ fromDate, toDate }) => {
                 subTotal,
             };
         });
-    }, [data, searchQuery]);
+    }, [data, searchQuery, selectedZone]);
 
     // Format PO Date
     const formatPoDate = (dateStr) => {

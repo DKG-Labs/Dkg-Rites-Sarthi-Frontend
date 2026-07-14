@@ -176,8 +176,20 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
         const recordsSource = records || [];
         
         let result = recordsSource.filter(record => {
-            // Stage match
-            const matchStage = activeFilters.stage === 'all' || record.stage.toLowerCase() === activeFilters.stage.toLowerCase();
+            // Stage match based on Call Number Prefix
+            let matchStage = true;
+            if (activeFilters.stage && activeFilters.stage !== 'all') {
+                const callNum = (record.callNumber || '').toUpperCase().trim();
+                if (activeFilters.stage === 'RAW MATERIAL') {
+                    matchStage = callNum.startsWith('ER');
+                } else if (activeFilters.stage === 'PROCESS') {
+                    matchStage = callNum.startsWith('EP');
+                } else if (activeFilters.stage === 'FINAL') {
+                    matchStage = callNum.startsWith('EF');
+                } else {
+                    matchStage = (record.stage && record.stage.trim().toLowerCase() === activeFilters.stage.trim().toLowerCase());
+                }
+            }
             
             // Date range match
             const recordDate = new Date(record.icIssuedDate);
@@ -195,11 +207,11 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
             const query = activeFilters.search.toLowerCase().trim();
             const combinedPo = formatPoNumber(record).toLowerCase();
             const matchSearch = !query || 
-                record.vendorName.toLowerCase().includes(query) ||
-                record.callNumber.toLowerCase().includes(query) ||
-                record.icNumber.toLowerCase().includes(query) ||
+                (record.vendorName || '').toLowerCase().includes(query) ||
+                (record.callNumber || '').toLowerCase().includes(query) ||
+                (record.icNumber || '').toLowerCase().includes(query) ||
                 combinedPo.includes(query) ||
-                record.poNumberOnly.includes(query);
+                (record.poNumberOnly || '').toLowerCase().includes(query);
 
             return matchStage && matchDate && matchSearch;
         });
@@ -343,12 +355,15 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
                                 <select 
                                     className="ic-filter-select" 
                                     value={stageFilter}
-                                    onChange={(e) => setStageFilter(e.target.value)}
+                                    onChange={(e) => {
+                                        setStageFilter(e.target.value);
+                                        setActiveFilters(prev => ({ ...prev, stage: e.target.value }));
+                                    }}
                                 >
                                     <option value="all">All Stages</option>
-                                    <option value="RM">Raw Material (RM)</option>
-                                    <option value="Process">Process</option>
-                                    <option value="Final">Final Inspection</option>
+                                    <option value="RAW MATERIAL">Raw Material (RM)</option>
+                                    <option value="PROCESS">Process</option>
+                                    <option value="FINAL">Final Inspection</option>
                                 </select>
                             </div>
 
@@ -394,9 +409,6 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
                                 </button>
                                 <button className="ic-btn-reset" onClick={handleResetFilters}>
                                     <i className="fa-solid fa-arrows-rotate"></i> Reset
-                                </button>
-                                <button className="ic-btn-refresh" onClick={() => fetchRecords(true)}>
-                                    <i className="fa-solid fa-arrows-rotate"></i> Refresh
                                 </button>
                             </div>
                         </div>

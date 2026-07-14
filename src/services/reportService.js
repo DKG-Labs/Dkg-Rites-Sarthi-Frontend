@@ -367,22 +367,43 @@ const reportService = {
         return handleResponse(response);
     },
 
-    getQualityRejection: async () => {
-        const response = await fetch(`${API_ENDPOINTS.REPORTS}/qualityRejection`, {
+    getQualityRejection: async (params) => {
+        const { startDate, endDate } = params || {};
+        let url = `${API_ENDPOINTS.REPORTS}/qualityRejection`;
+        const queryParams = new URLSearchParams();
+        if (startDate) queryParams.append('startDate', startDate);
+        if (endDate) queryParams.append('endDate', endDate);
+        if (queryParams.toString()) url += `?${queryParams.toString()}`;
+
+        const response = await fetch(url, {
             headers: getAuthHeaders(),
         });
         return handleResponse(response);
     },
 
-    getManufacturerRejection: async () => {
-        const response = await fetch(`${API_ENDPOINTS.REPORTS}/manufacturerRejection`, {
+    getManufacturerRejection: async (params) => {
+        const { startDate, endDate } = params || {};
+        let url = `${API_ENDPOINTS.REPORTS}/manufacturerRejection`;
+        const queryParams = new URLSearchParams();
+        if (startDate) queryParams.append('startDate', startDate);
+        if (endDate) queryParams.append('endDate', endDate);
+        if (queryParams.toString()) url += `?${queryParams.toString()}`;
+
+        const response = await fetch(url, {
             headers: getAuthHeaders(),
         });
         return handleResponse(response);
     },
 
-    getProcessPerformance: async () => {
-        const response = await fetch(`${API_ENDPOINTS.REPORTS}/processPerformance`, {
+    getProcessPerformance: async (params) => {
+        const { startDate, endDate } = params || {};
+        let url = `${API_ENDPOINTS.REPORTS}/processPerformance`;
+        const queryParams = new URLSearchParams();
+        if (startDate) queryParams.append('startDate', startDate);
+        if (endDate) queryParams.append('endDate', endDate);
+        if (queryParams.toString()) url += `?${queryParams.toString()}`;
+
+        const response = await fetch(url, {
             headers: getAuthHeaders(),
         });
         return handleResponse(response);
@@ -402,8 +423,15 @@ const reportService = {
         return handleResponse(response);
     },
 
-    getManufacturingStepWiseRejection: async () => {
-        const response = await fetch(`${API_ENDPOINTS.REPORTS}/manufacturingStepWiseRejection`, {
+    getManufacturingStepWiseRejection: async (params) => {
+        const { startDate, endDate } = params || {};
+        let url = `${API_ENDPOINTS.REPORTS}/manufacturingStepWiseRejection`;
+        const queryParams = new URLSearchParams();
+        if (startDate) queryParams.append('startDate', startDate);
+        if (endDate) queryParams.append('endDate', endDate);
+        if (queryParams.toString()) url += `?${queryParams.toString()}`;
+
+        const response = await fetch(url, {
             headers: getAuthHeaders(),
         });
         return handleResponse(response);

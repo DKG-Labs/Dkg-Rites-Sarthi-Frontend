@@ -289,20 +289,63 @@
     white-space: nowrap;
 }
 
-#prof-topbar input,
+#prof-topbar input[type="date"],
+#prof-topbar input[type="text"]:not(.ant-select-selection-search-input),
 #prof-topbar select {
-    border: 1px solid var(--border);
-    background: var(--g50);
+    border: 1px solid var(--border) !important;
+    background: var(--g50) !important;
     color: var(--text);
-    padding: 4px 8px;
-    border-radius: 6px;
+    border-radius: 6px !important;
     font-size: 12px;
     outline: none;
+    box-shadow: none !important;
+    height: 28px !important;
+    min-height: 28px !important;
+    padding: 0 8px;
 }
 
-#prof-topbar input:focus,
-#prof-topbar select:focus {
-    border-color: var(--g600);
+#prof-topbar .ant-select {
+    height: 28px !important;
+    min-height: 28px !important;
+}
+
+#prof-topbar .ant-select .ant-select-selector {
+    border: 1px solid var(--border) !important;
+    background: var(--g50) !important;
+    color: var(--text) !important;
+    border-radius: 6px !important;
+    font-size: 12px;
+    box-shadow: none !important;
+    height: 28px !important;
+    min-height: 28px !important;
+    padding: 0 8px !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+#prof-topbar .ant-select-selection-item {
+    line-height: 26px !important;
+    padding: 0 !important;
+    color: var(--text) !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+#prof-topbar input[type="date"] {
+    /* Padding is handled by the main selector */
+}
+
+#prof-topbar .ant-select-selection-search-input {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+#prof-topbar input[type="date"]:focus,
+#prof-topbar input[type="text"]:not(.ant-select-selection-search-input):focus,
+#prof-topbar select:focus,
+#prof-topbar .ant-select-focused .ant-select-selector {
+    border-color: var(--g600) !important;
 }
 
 .btn-apply {
@@ -615,7 +658,7 @@
     /* Sticky header */
     position: sticky !important;
     top: 0 !important;
-    z-index: 10 !important;
+    z-index: 50 !important;
 }
 
 .prof-table th:first-child {

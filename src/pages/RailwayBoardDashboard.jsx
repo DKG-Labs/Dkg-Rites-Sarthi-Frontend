@@ -52,10 +52,10 @@ const RailwayBoardDashboard = () => {
     const [poSearch, setPoSearch] = useState('');
     const [poSort, setPoSort] = useState({ key: 'poNo', direction: 'asc' });
 
-    // Initialize dates (Default: 3 months from today to today)
+    // Initialize dates (Default: 1 month from today to today)
     const [fromDate, setFromDate] = useState(() => {
         const d = new Date();
-        d.setMonth(d.getMonth() - 3);
+        d.setMonth(d.getMonth() - 1);
         return d.toISOString().split('T')[0];
     });
     const [toDate, setToDate] = useState(() => {
@@ -69,16 +69,19 @@ const RailwayBoardDashboard = () => {
     });
     const [selectedZone, setSelectedZone] = useState(() => {
         const val = localStorage.getItem('dash_selectedZone');
-        return (val === 'All' || !val) ? 'all' : val;
+        if (!val || val === 'All' || val === 'All Zones' || val === 'all' || val.includes(',')) return 'all';
+        return val;
+    });
+    const [selectedRio, setSelectedRio] = useState(() => {
+        const val = localStorage.getItem('dash_selectedRio');
+        if (!val || val.toLowerCase() === 'all' || val === 'All RIOs') return 'all';
+        return val;
     });
     const [selectedVendor] = useState(() => {
         const val = localStorage.getItem('dash_selectedVendor');
         return (val === 'All' || val === 'All Vendors' || !val) ? 'all' : val;
     });
-    const [selectedRio, setSelectedRio] = useState(() => {
-        const val = localStorage.getItem('dash_selectedRio');
-        return (val === 'All' || val === 'All RIOs' || !val) ? 'all' : val;
-    });
+
 
     // Save Filters
     React.useEffect(() => { localStorage.setItem('dash_selectedProduct', selectedProduct); }, [selectedProduct]);
@@ -88,8 +91,9 @@ const RailwayBoardDashboard = () => {
         }
     }, [selectedProduct, activeMainCard]);
     React.useEffect(() => { localStorage.setItem('dash_selectedZone', selectedZone); }, [selectedZone]);
-    React.useEffect(() => { localStorage.setItem('dash_selectedVendor', selectedVendor); }, [selectedVendor]);
     React.useEffect(() => { localStorage.setItem('dash_selectedRio', selectedRio); }, [selectedRio]);
+    React.useEffect(() => { localStorage.setItem('dash_selectedVendor', selectedVendor); }, [selectedVendor]);
+
 
     const [refreshTick, setRefreshTick] = useState(0);
 
@@ -112,12 +116,11 @@ const RailwayBoardDashboard = () => {
     // Common Filters for Dashboards (now includes refreshTick to bust cache on demand)
     const dashboardFilters = React.useMemo(() => ({
         product: selectedProduct,
-        zone: selectedZone === 'all' ? '' : selectedZone,
-        rio: selectedRio === 'all' ? '' : selectedRio,
+        zone: (!selectedZone || selectedZone === 'all') ? '' : selectedZone,
         startDate: debouncedFromDate,
         endDate: debouncedToDate,
         _refresh: refreshTick
-    }), [selectedProduct, selectedZone, selectedRio, debouncedFromDate, debouncedToDate, refreshTick]);
+    }), [selectedProduct, selectedZone, debouncedFromDate, debouncedToDate, refreshTick]);
 
     const trendParams = React.useMemo(() => ({
         startDate: debouncedFromDate, endDate: debouncedToDate, product: selectedProduct, _refresh: refreshTick
@@ -143,9 +146,10 @@ const RailwayBoardDashboard = () => {
     const [perfPage, setPerfPage] = useState(0);
     const [perfRowsPerPage, setPerfRowsPerPage] = useState(10);
 
-    const perfParams = React.useMemo(() => ({
-        page: 0, size: 10000, ...dashboardFilters
-    }), [dashboardFilters]);
+    const perfParams = React.useMemo(() => {
+        const { zone, ...restFilters } = dashboardFilters;
+        return { page: 0, size: 10000, ...restFilters };
+    }, [dashboardFilters]);
 
     // Performance Matrix — only fires when Performance tab is active (NOT on initial dashboard load)
     const { data: perfData, pagination: perfPagination, loading: perfLoading, error: perfError } = useReportData(
@@ -168,9 +172,10 @@ const RailwayBoardDashboard = () => {
 
     const [mauPage, setMauPage] = useState(0);
     const [mauRowsPerPage, setMauRowsPerPage] = useState(10);
-    const mauParams = React.useMemo(() => ({
-        page: 0, size: 10000, ...dashboardFilters
-    }), [dashboardFilters]);
+    const mauParams = React.useMemo(() => {
+        const { zone, ...restFilters } = dashboardFilters;
+        return { page: 0, size: 10000, ...restFilters }; // Do not send zone to API for MAU so we can extract all RIOs
+    }, [dashboardFilters]);
 
     const { data: mauData, pagination: mauPagination, loading: mauLoading } = useReportData(
         selectedProduct === 'Sleeper'
@@ -182,6 +187,7 @@ const RailwayBoardDashboard = () => {
     );
 
     const [mpiaPage, setMpiaPage] = useState(0);
+    const [pwmrZones, setPwmrZones] = useState([]);
     const [mpiaRowsPerPage, setMpiaRowsPerPage] = useState(10);
     const mpiaParams = React.useMemo(() => ({
         page: 0, size: 10000, ...dashboardFilters
@@ -318,13 +324,81 @@ const RailwayBoardDashboard = () => {
         setPage(0);
     }, [poSearch]);
 
+    const isZoneFiltered = selectedZone && selectedZone !== 'all';
+
+    // Extract unique zones dynamically based on active report's data
+    const uniqueZones = React.useMemo(() => {
+        let zones = new Set();
+        let dataset = [];
+
+        if (activeMainCard === 'lifecycle') {
+            dataset = reportData;
+        } else if (activeMainCard === 'reports') {
+            if (activeReport === 'mpr') dataset = mprData;
+            else if (activeReport === 'mpia' || activeReport === 'vwpqr') dataset = mpiaData;
+            else if (activeReport === 'lwcl') dataset = lwclData;
+            else if (activeReport === 'pwmr' && pwmrZones && pwmrZones.length > 0) {
+                zones = new Set(pwmrZones);
+            }
+        } else if (activeMainCard === 'performance') {
+            dataset = perfData;
+        }
+
+        if (dataset && Array.isArray(dataset)) {
+            dataset.forEach(po => {
+                const zoneVal = po.railway || po.rly || po.Rly || po.zonalRailway || po.zone || po.plantName;
+                if (zoneVal && typeof zoneVal === 'string' && zoneVal.trim() !== '') {
+                    zones.add(zoneVal.trim());
+                }
+            });
+        }
+
+        // Fallback if empty to ensure dropdown isn't blank
+        if (zones.size === 0 && reportData) {
+            let result = [...(reportData || [])];
+            result = getFilteredRecordsByProduct(result, selectedProduct);
+            result.forEach(po => {
+                if (po.railway && po.railway.trim() !== '') {
+                    zones.add(po.railway.trim());
+                }
+            });
+        }
+
+        let finalZones = Array.from(zones).sort();
+        if (selectedZone && selectedZone !== 'all' && !finalZones.includes(selectedZone)) {
+            finalZones.push(selectedZone);
+            finalZones.sort();
+        }
+        return finalZones;
+    }, [reportData, selectedProduct, activeMainCard, activeReport, mprData, mpiaData, lwclData, perfData, pwmrZones, selectedZone]);
+
+    // Extract unique RIOs dynamically based on rio column in mauData and perfData
+    const uniqueRios = React.useMemo(() => {
+        const rios = new Set();
+        if (mauData) {
+            mauData.forEach(row => {
+                if (row.rio && row.rio.trim() !== '' && row.rio.toLowerCase() !== 'string') {
+                    rios.add(row.rio.trim());
+                }
+            });
+        }
+        if (perfData) {
+            perfData.forEach(row => {
+                if (row.rio && row.rio.trim() !== '' && row.rio.toLowerCase() !== 'string') {
+                    rios.add(row.rio.trim());
+                }
+            });
+        }
+        return Array.from(rios).sort();
+    }, [mauData, perfData]);
+
     // Filtered & Sorted PO Data (Client-side)
     const displayPoData = React.useMemo(() => {
         let result = [...(reportData || [])];
-
-        // Filter by Item Category Description based on selected product
-        // Helper function defined at the bottom of this file
         result = getFilteredRecordsByProduct(result, selectedProduct);
+        if (isZoneFiltered) {
+            result = result.filter(po => po.railway === selectedZone);
+        }
 
         // Search filter
         if (poSearch) {
@@ -359,7 +433,7 @@ const RailwayBoardDashboard = () => {
             });
         }
         return result;
-    }, [reportData, poSearch, poSort, selectedProduct]);
+    }, [reportData, poSearch, poSort, selectedProduct, isZoneFiltered, selectedZone]);
 
     const count = displayPoData.length;
     const paginatedData = displayPoData.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
@@ -378,7 +452,7 @@ const RailwayBoardDashboard = () => {
 
     const handleSwitchTab = (tab) => {
         setActiveMainCard(tab);
-        if (tab === 'reports') setReportSubmenuOpen(true); else setReportSubmenuOpen(false);
+        if (tab === 'reports' || tab === 'performance') setReportSubmenuOpen(true); else setReportSubmenuOpen(false);
     };
 
     const handleReportLink = (reportType) => {
@@ -387,7 +461,6 @@ const RailwayBoardDashboard = () => {
         setReportSubmenuOpen(true);
     };
 
-    // Components to pass into ProfessionalCardSection
     const poTable = (
         <div className="content-card-integrated">
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '15px' }}>
@@ -446,6 +519,38 @@ const RailwayBoardDashboard = () => {
 
     const poGraph = <DashboardGraph liveData={reportData} />;
     const kpiGrid = null;
+
+    // Helper to filter data by single zone
+    const filterDataByZone = React.useCallback((data, keyFallback = ['rly', 'Rly', 'railway']) => {
+        if (!data || !isZoneFiltered) return data;
+        return data.filter(item => {
+            const zoneVal = keyFallback.map(k => item[k]).find(v => !!v);
+            return zoneVal === selectedZone;
+        });
+    }, [isZoneFiltered, selectedZone]);
+
+    const filteredMprData = React.useMemo(() => filterDataByZone(mprData), [mprData, filterDataByZone]);
+    
+    // MAU Data filtered by RIO instead of Zone
+    const filteredMauData = React.useMemo(() => {
+        if (!mauData) return [];
+        if (selectedRio && selectedRio.toLowerCase() !== 'all') {
+            return mauData.filter(item => item.rio === selectedRio);
+        }
+        return mauData;
+    }, [mauData, selectedRio]);
+
+    const filteredMpiaData = React.useMemo(() => filterDataByZone(mpiaData, ['rly', 'railway', 'plantName', 'zone']), [mpiaData, filterDataByZone]);
+    const filteredLwclData = React.useMemo(() => filterDataByZone(lwclData), [lwclData, filterDataByZone]);
+    
+    // Performance Data filtered by RIO instead of Zone
+    const filteredPerfData = React.useMemo(() => {
+        if (!perfData) return [];
+        if (selectedRio && selectedRio.toLowerCase() !== 'all') {
+            return perfData.filter(item => item.rio === selectedRio);
+        }
+        return perfData;
+    }, [perfData, selectedRio]);
 
     return (
         <div className={`prof-dashboard-wrapper ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
@@ -690,30 +795,47 @@ const RailwayBoardDashboard = () => {
                         </div>
                     )}
 
-                    {/* TOPBAR / FILTERS - Hidden on Dashboard (summary), Quality, Lifecycle, Feedback, Scada Monitor, SQC tabs, and ERC/Sleeper SWP Reports */}
-                    {activeMainCard !== 'cm-module' && activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'scada' && activeMainCard !== 'sqc' && activeMainCard !== 'sleeper-anomaly' && !(activeMainCard === 'reports' && activeReport === 'swp' && (selectedProduct === 'ERC' || selectedProduct === 'Sleeper')) && (
+                    {/* TOPBAR / FILTERS - Hidden on Dashboard (summary), Quality, Lifecycle, Feedback, Scada Monitor, SQC tabs, and ERC/Sleeper SWP Reports, and Lot Wise Closed Loop Reports, and IC Annexures */}
+                    {activeMainCard !== 'cm-module' && activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'scada' && activeMainCard !== 'sqc' && activeMainCard !== 'sleeper-anomaly' && !(activeMainCard === 'reports' && activeReport === 'swp' && (selectedProduct === 'ERC' || selectedProduct === 'Sleeper')) && !(activeMainCard === 'reports' && activeReport === 'lwcl') && !(activeMainCard === 'reports' && activeReport === 'ic_annexures') && (
                         <div id="prof-topbar">
                             <label>From</label>
                             <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
                             <label>To</label>
                             <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
 
-                            <label>Zone</label>
-                            <select value={selectedZone} onChange={(e) => setSelectedZone(e.target.value)}>
-                                <option value="all">All Zones</option>
-                                <option value="Northern Railway">Northern Railway</option>
-                                <option value="Western Railway">Western Railway</option>
-                            </select>
-
-                            <label>RIO</label>
-                            <select value={selectedRio} onChange={(e) => setSelectedRio(e.target.value)}>
-                                <option value="all">All RITES RIOs</option>
-                                <option value="CRIO">CRIO</option>
-                                <option value="NRIO">NRIO</option>
-                                <option value="ERIO">ERIO</option>
-                                <option value="WRIO">WRIO</option>
-                                <option value="SRIO">SRIO</option>
-                            </select>
+                            {!(activeMainCard === 'reports' && (activeReport === 'mpia' || activeReport === 'vwpqr')) && (
+                                (activeMainCard === 'reports' && activeReport === 'mau') || activeMainCard === 'performance' ? (
+                                    <>
+                                        <label>RIO</label>
+                                        <select 
+                                            className="prof-input"
+                                            value={selectedRio} 
+                                            onChange={(e) => setSelectedRio(e.target.value || 'all')}
+                                            style={{ width: '110px', marginLeft: '4px', marginRight: '16px' }}
+                                        >
+                                            <option value="all">All RIOs</option>
+                                            {uniqueRios.map(rio => (
+                                                <option key={rio} value={rio}>{rio}</option>
+                                            ))}
+                                        </select>
+                                    </>
+                                ) : (
+                                    <>
+                                        <label>Zone</label>
+                                        <select 
+                                            className="prof-input"
+                                            value={selectedZone} 
+                                            onChange={(e) => setSelectedZone(e.target.value || 'all')}
+                                            style={{ width: '110px', marginLeft: '4px', marginRight: '16px' }}
+                                        >
+                                            <option value="all">All Zones</option>
+                                            {uniqueZones.map(zone => (
+                                                <option key={zone} value={zone}>{zone}</option>
+                                            ))}
+                                        </select>
+                                    </>
+                                )
+                            )}
 
                             <button className="btn-apply"><i className="fa-solid fa-magnifying-glass" style={{ marginRight: '4px' }}></i>Apply</button>
                             <button className="btn-reset" onClick={() => {
@@ -735,6 +857,7 @@ const RailwayBoardDashboard = () => {
                                 <ProfessionalCardSection
                                     poTable={poTable} poGraph={poGraph} kpiGrid={kpiGrid}
                                     selectedProduct={selectedProduct}
+                                    selectedZone={selectedZone}
                                     activeMainCard={activeMainCard} setActiveMainCard={setActiveMainCard}
                                     qualityRejectionData={qualityRejectionData}
                                     refreshTick={refreshTick}
@@ -743,19 +866,19 @@ const RailwayBoardDashboard = () => {
                                     processPerformanceData={processPerformanceData}
                                     paretoAnalysisData={paretoAnalysisData}
                                     monthlyRejectionTrendData={monthlyRejectionTrendData}
-                                    perfData={perfData} perfLoading={perfLoading} perfError={perfError} perfPagination={perfPagination}
+                                    perfData={filteredPerfData} perfLoading={perfLoading} perfError={perfError} perfPagination={perfPagination}
                                     perfPage={perfPage} setPerfPage={setPerfPage}
                                     perfRowsPerPage={perfRowsPerPage} setPerfRowsPerPage={setPerfRowsPerPage}
-                                    mprData={mprData} mprLoading={mprLoading} mprPagination={mprPagination}
+                                    mprData={filteredMprData} mprLoading={mprLoading} mprPagination={mprPagination}
                                     mprPage={mprPage} setMprPage={setMprPage}
                                     mprRowsPerPage={mprRowsPerPage} setMprRowsPerPage={setMprRowsPerPage}
-                                    mauData={mauData} mauLoading={mauLoading} mauPagination={mauPagination}
+                                    mauData={filteredMauData} mauLoading={mauLoading} mauPagination={mauPagination}
                                     mauPage={mauPage} setMauPage={setMauPage}
                                     mauRowsPerPage={mauRowsPerPage} setMauRowsPerPage={setMauRowsPerPage}
-                                    mpiaData={mpiaData} mpiaLoading={mpiaLoading} mpiaPagination={mpiaPagination}
+                                    mpiaData={filteredMpiaData} mpiaLoading={mpiaLoading} mpiaPagination={mpiaPagination}
                                     mpiaPage={mpiaPage} setMpiaPage={setMpiaPage}
                                     mpiaRowsPerPage={mpiaRowsPerPage} setMpiaRowsPerPage={setMpiaRowsPerPage}
-                                    lwclData={lwclData} lwclLoading={lwclLoading}
+                                    lwclData={filteredLwclData} lwclLoading={lwclLoading}
                                     lwclCallNo={lwclCallNo} setLwclCallNo={setLwclCallNo}
                                     lwclLotNo={lwclLotNo} setLwclLotNo={setLwclLotNo}
                                     lwclRequestIds={lwclRequestIds} lwclLotNumbers={lwclLotNumbers}
@@ -764,6 +887,7 @@ const RailwayBoardDashboard = () => {
                                     lwclPoNo={lwclPoNo} setLwclPoNo={setLwclPoNo}
                                     lwclPoNumbersList={lwclPoNumbersList}
                                     level4Data={level4Data} level4Loading={level4Loading}
+                                    onZonesUpdate={setPwmrZones}
                                     activeReportFromParent={activeReport}
                                     onReportTabChange={handleReportLink}
                                     setSelectedProduct={setSelectedProduct}

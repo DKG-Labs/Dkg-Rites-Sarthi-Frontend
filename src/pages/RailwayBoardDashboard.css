@@ -631,10 +631,10 @@ tr.row-even td {
 }
 
 .data-table.nested-table th {
-    background: #d1fae5;
-    color: #065f46;
+    background: #1e3a8a !important;
+    color: #ffffff !important;
     font-size: 11px;
-    border-bottom: 2px solid #10b981;
+    border-bottom: 2px solid #172554;
     padding: 14px;
     font-weight: 700;
 }
@@ -665,9 +665,9 @@ tr.row-even td {
 }
 
 .nested-table-wrapper.level-3 .data-table.nested-table th {
-    background: #d1fae5;
-    color: #065f46;
-    border-bottom-color: #10b981;
+    background: #1e3a8a !important;
+    color: #ffffff !important;
+    border-bottom-color: #172554;
 }
 
 /* Level 4: Digital Production Register (Slate/Gray Theme) */
@@ -979,13 +979,13 @@ tr.row-even td {
     text-align: center;
 }
 
-/* Header Styling: Light Gray/Slate instead of Blue/Indigo */
+/* Header Styling: Navy Blue to match Level 1 */
 .level-4-table thead tr:first-child th {
-    background: #d1fae5 !important;
-    color: #065f46 !important;
+    background: #1e3a8a !important;
+    color: #ffffff !important;
     font-weight: 700 !important;
     text-transform: uppercase;
-    border-bottom: 2px solid #10b981 !important;
+    border-bottom: 2px solid #172554 !important;
 }
 
 .level-4-table tbody tr.row-odd {

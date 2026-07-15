@@ -42,7 +42,30 @@ const REJECTION_OPTIONS = {
     }
 };
 
-const SLEEPER_TYPES = ['Mainline', 'Turnout', 'Special'];
+const categoryOptions = ["Mainline", "Turnout"];
+const drawingOptions = {
+    "Mainline": [
+        "BG: RT-2496",
+        "WB: RT-8527",
+        "WB: RT-8746",
+        "BG: RT-7008",
+        "WB: RT-9007"
+    ],
+    "Turnout": [
+        "1 in 12 PnC: RT-4218",
+        "1 in 12 PnC: RT-9790",
+        "1 in 8.5 PnC: RT-4865",
+        "1 in 8.5 PnC: RT-9841",
+        "1 in 8.5 DS: RT-6068",
+        "1 in 16 curved: RT-5691",
+        "1 in 20 curved: RT-5858",
+        "1 in 8.5 SCC: RT-6092",
+        "1 in 12 SCC: RT-8109",
+        "1 in 8.5 DCS: RT-6492",
+        "1 in 8.5 DCS: RT-6493",
+        "1 in 8.5 DCS: RT-6494"
+    ]
+};
 
 // --- Helper Utilities ---
 const DateUtils = {
@@ -263,7 +286,8 @@ const MouldBenchCheck = ({ onBack, sharedState, initialModule, initialViewMode, 
         {
             id: Date.now(),
             benchGangNo: '',
-            sleeperType: 'Mainline',
+            sleeperCategory: 'Mainline',
+            sleeperType: 'BG: RT-2496',
             noOfMoulds: 4,
             benchStatus: 'OK',
             mouldStatus: 'OK',
@@ -432,11 +456,18 @@ const MouldBenchCheck = ({ onBack, sharedState, initialModule, initialViewMode, 
             const parsed = parseCombinedRemarks(editingEntry.combinedRemarks || editingEntry.remarks);
             setGeneralRemarks(parsed.userRemarks || '');
 
+            let initialCat = 'Mainline';
+            let typeToMatch = editingEntry.sleeperType || '';
+            if (drawingOptions.Turnout.includes(typeToMatch) || typeToMatch.includes('Turnout') || typeToMatch.includes('1 in')) {
+                initialCat = 'Turnout';
+            }
+
             setRows([
                 {
                     id: editingEntry.id,
                     benchGangNo: editingEntry.benchGangNo || editingEntry.assetNo || '',
-                    sleeperType: editingEntry.sleeperType || 'Mainline',
+                    sleeperCategory: initialCat,
+                    sleeperType: editingEntry.sleeperType || drawingOptions[initialCat][0],
                     noOfMoulds: parsed.noOfMoulds || 4,
                     benchStatus: editingEntry.benchOverall === 'OK' ? 'OK' : 'Not OK',
                     mouldStatus: editingEntry.mouldOverall === 'OK' ? 'OK' : 'Not OK',
@@ -455,7 +486,8 @@ const MouldBenchCheck = ({ onBack, sharedState, initialModule, initialViewMode, 
             {
                 id: Date.now() + Math.random(),
                 benchGangNo: '',
-                sleeperType: 'Mainline',
+                sleeperCategory: 'Mainline',
+                sleeperType: 'BG: RT-2496',
                 noOfMoulds: 4,
                 benchStatus: 'OK',
                 mouldStatus: 'OK',
@@ -477,6 +509,10 @@ const MouldBenchCheck = ({ onBack, sharedState, initialModule, initialViewMode, 
             if (r.id !== id) return r;
             const updated = { ...r, [field]: value };
             
+            if (field === 'sleeperCategory') {
+                updated.sleeperType = drawingOptions[value][0] || '';
+            }
+
             // Auto reset reason dropdown fields if status changes back to OK
             if (field === 'benchStatus' && value === 'OK') {
                 updated.benchFailureType = '';
@@ -507,7 +543,8 @@ const MouldBenchCheck = ({ onBack, sharedState, initialModule, initialViewMode, 
             {
                 id: Date.now(),
                 benchGangNo: '',
-                sleeperType: 'Mainline',
+                sleeperCategory: 'Mainline',
+                sleeperType: 'BG: RT-2496',
                 noOfMoulds: 4,
                 benchStatus: 'OK',
                 mouldStatus: 'OK',
@@ -752,9 +789,10 @@ const MouldBenchCheck = ({ onBack, sharedState, initialModule, initialViewMode, 
                                     <table className="multi-row-table">
                                         <thead>
                                             <tr>
-                                                <th style={{ width: '25%' }}>Bench / Gang Number</th>
-                                                <th style={{ width: '22%' }}>Sleeper Type</th>
-                                                <th style={{ width: '15%' }}>No. of Moulds</th>
+                                                <th style={{ width: '15%' }}>Bench / Gang Number</th>
+                                                <th style={{ width: '15%' }}>Sleeper Category</th>
+                                                <th style={{ width: '20%' }}>Drawing No.</th>
+                                                <th style={{ width: '10%' }}>No. of Moulds</th>
                                                 <th style={{ width: '16%' }}>Bench Status</th>
                                                 <th style={{ width: '16%' }}>Mould Status</th>
                                                 <th style={{ width: '6%', textAlign: 'center' }}></th>
@@ -774,10 +812,22 @@ const MouldBenchCheck = ({ onBack, sharedState, initialModule, initialViewMode, 
                                                     <td>
                                                         <select 
                                                             className="row-select"
+                                                            value={row.sleeperCategory}
+                                                            onChange={(e) => handleRowFieldChange(row.id, 'sleeperCategory', e.target.value)}
+                                                        >
+                                                            {categoryOptions.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                                                        </select>
+                                                    </td>
+                                                    <td>
+                                                        <select 
+                                                            className="row-select"
                                                             value={row.sleeperType}
                                                             onChange={(e) => handleRowFieldChange(row.id, 'sleeperType', e.target.value)}
                                                         >
-                                                            {SLEEPER_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                                                            <option value="">Select Drawing No.</option>
+                                                            {(drawingOptions[row.sleeperCategory] || []).map(opt => (
+                                                                <option key={opt} value={opt}>{opt}</option>
+                                                            ))}
                                                         </select>
                                                     </td>
                                                     <td>

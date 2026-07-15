@@ -864,12 +864,11 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                                                         disabled={!!item.dimReason}
                                                     >
                                                         <option value="">-- Select Visual Reason --</option>
-                                                        <option value="Surface Cracks">Surface Cracks</option>
-                                                        <option value="Corner Breakage">Corner Breakage</option>
-                                                        <option value="Rail Seat Damage">Rail Seat Damage</option>
-                                                        <option value="Insert Missing">Insert Missing</option>
-                                                        <option value="Improper Finish">Improper Finish</option>
-                                                        <option value="Blowholes">Blowholes</option>
+                                                        <option value="Surface Defect">Surface Defect</option>
+                                                        <option value="Honeycomb">Honeycomb</option>
+                                                        <option value="Dowel Missing / Tilt / Sink">Dowel Missing / Tilt / Sink</option>
+                                                        <option value="Insert Missing / Tilt / Sink">Insert Missing / Tilt / Sink</option>
+                                                        <option value="Crack">Crack</option>
                                                     </select>
                                                 </td>
                                             )}
@@ -884,10 +883,12 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                                                         disabled={!!item.visualReason}
                                                     >
                                                         <option value="">-- Select Dim. Reason --</option>
-                                                        <option value="Outer Gauge - Not ok">Outer Gauge - Not ok</option>
-                                                        <option value="Rail Seat Slanted">Rail Seat Slanted</option>
-                                                        <option value="Height Variation">Height Variation</option>
-                                                        <option value="Insert Alignment Error">Insert Alignment Error</option>
+                                                        <option value="Outer Gauge">Outer Gauge</option>
+                                                        <option value="Rail Seat">Rail Seat</option>
+                                                        <option value="Toe Gap">Toe Gap</option>
+                                                        <option value="Rail Seat Slope">Rail Seat Slope</option>
+                                                        <option value="Height Gauge">Height Gauge</option>
+                                                        <option value="Length of Sleeper">Length of Sleeper</option>
                                                     </select>
                                                 </td>
                                             )}

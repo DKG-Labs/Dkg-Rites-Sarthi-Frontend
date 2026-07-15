@@ -260,6 +260,8 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
           purchasingAuthority: data.purchasingAuthority,
           description: data.description,
           trRecDate: data.trRecDate,
+          noOfVisits: data.noOfVisits,
+          datesOfInspection: data.datesOfInspection,
           createdBy: getCurrentUserId()?.toString(),
           updatedBy: getCurrentUserId()?.toString()
       });
@@ -352,6 +354,8 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
           purchasingAuthority: data.purchasingAuthority,
           description: data.description,
           trRecDate: data.trRecDate,
+          noOfVisits: data.noOfVisits,
+          datesOfInspection: data.datesOfInspection,
           createdBy: getCurrentUserId()?.toString(),
           updatedBy: getCurrentUserId()?.toString()
       });

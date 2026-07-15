@@ -42,7 +42,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
     "bookNo", "setNo", "offeredInstNo", "passedInstNo", "maNumberAndDate",
     "consignee", "purchasingAuthority", "description", 
     "qtyOfferedPreviously", "qtyPassedPreviously", "qtyStillDue", "trRecDate",
-    "quantityNowPassedText"
+    "quantityNowPassedText", "noOfVisits", "datesOfInspection"
   ];
 
   // Sanitize certificate number for display

@@ -7,15 +7,20 @@ import React, { useState, useMemo } from 'react';
 import DataTable from '../../../components/DataTable';
 import StatusBadge from '../../../components/StatusBadge';
 import CallsFilterSection from '../../../components/common/CallsFilterSection';
+import RemapIEModal from './RemapIEModal';
 import { CALL_STATUS_CONFIG } from '../utils/constants';
 import { formatDateTime } from '../utils/helpers';
 import { getDetailedStatus } from '../../../utils/statusMapper';
 
-const VerifiedOpenCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
+const VerifiedOpenCallsTab = ({ callType, calls = [], kpis = {}, onViewHistory }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showIEModal, setShowIEModal] = useState(false);
   const [selectedIENames, setSelectedIENames] = useState('');
   const [selectedCallNo, setSelectedCallNo] = useState('');
+
+  // Remapping state
+  const [isRemapModalOpen, setIsRemapModalOpen] = useState(false);
+  const [selectedCallForRemap, setSelectedCallForRemap] = useState(null);
 
   // Filter state
   const [showFilters, setShowFilters] = useState(false);
@@ -192,6 +197,19 @@ const VerifiedOpenCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
           >
             📜 View History
           </button>
+          
+          {callType === 'ERC' && (
+             <button
+                className="btn btn-sm btn-primary"
+                style={{ marginLeft: '8px' }}
+                onClick={() => {
+                   setSelectedCallForRemap(row);
+                   setIsRemapModalOpen(true);
+                }}
+             >
+                🔄 Remapping
+             </button>
+          )}
         </div>
       )
     }
@@ -472,6 +490,24 @@ const VerifiedOpenCallsTab = ({ calls = [], kpis = {}, onViewHistory }) => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Remap IE Modal */}
+      {isRemapModalOpen && selectedCallForRemap && (
+        <RemapIEModal
+          callNo={selectedCallForRemap.callNumber}
+          stage={selectedCallForRemap.stage}
+          onClose={() => {
+            setIsRemapModalOpen(false);
+            setSelectedCallForRemap(null);
+          }}
+          onSuccess={() => {
+            setIsRemapModalOpen(false);
+            setSelectedCallForRemap(null);
+            // Wait 500ms then reload the window since there's no native fetch function passed down
+            setTimeout(() => window.location.reload(), 500);
+          }}
+        />
       )}
     </div>
   );

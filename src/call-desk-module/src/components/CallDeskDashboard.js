@@ -358,6 +358,7 @@ const CallDeskDashboard = () => {
 
       {activeTab === 'verified' && (
         <VerifiedOpenCallsTab
+          callType={callType}
           calls={verifiedCalls}
           kpis={dashboardKPIs?.verifiedOpen || {}}
           onViewHistory={handleViewHistory}

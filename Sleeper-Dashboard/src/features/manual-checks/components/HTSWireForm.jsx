@@ -3,6 +3,31 @@ import { apiService } from '../../../services/api';
 import '../../../components/common/Checkbox.css';
 import { useShift } from '../../../context/ShiftContext';
 
+const categoryOptions = ["Mainline", "Turnout"];
+const drawingOptions = {
+    "Mainline": [
+        "BG: RT-2496",
+        "WB: RT-8527",
+        "WB: RT-8746",
+        "BG: RT-7008",
+        "WB: RT-9007"
+    ],
+    "Turnout": [
+        "1 in 12 PnC: RT-4218",
+        "1 in 12 PnC: RT-9790",
+        "1 in 8.5 PnC: RT-4865",
+        "1 in 8.5 PnC: RT-9841",
+        "1 in 8.5 DS: RT-6068",
+        "1 in 16 curved: RT-5691",
+        "1 in 20 curved: RT-5858",
+        "1 in 8.5 SCC: RT-6092",
+        "1 in 12 SCC: RT-8109",
+        "1 in 8.5 DCS: RT-6492",
+        "1 in 8.5 DCS: RT-6493",
+        "1 in 8.5 DCS: RT-6494"
+    ]
+};
+
 const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initialData, activeContainer, sharedBatchNo, sharedBenchNo, onShiftFieldChange }) => {
     const { allWitnessedRecords, dutyUnit, vendorId: contextVendorId } = useShift();
     const [availableLocations, setAvailableLocations] = useState([]);
@@ -18,8 +43,9 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
         dateTime: getLocalISOString(),
         batch: '',
         gangNo: '',
-        sleeperType: 'RT-8746',
-        noOfWires: '16',
+        sleeperCategory: 'Mainline',
+        sleeperType: 'BG: RT-2496',
+        noOfWires: '18',
         wireDia: '',
         layLength: '',
         observedWeight: '',
@@ -49,12 +75,20 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
 
     useEffect(() => {
         if (initialData) {
+            let initialCat = 'Mainline';
+            let typeToMatch = initialData.sleeperType || '';
+            if (drawingOptions.Turnout.includes(typeToMatch) || typeToMatch.includes('Turnout') || typeToMatch.includes('1 in')) {
+                initialCat = 'Turnout';
+            }
+
             setFormData({
                 ...initialData,
                 location: initialData.lineShedNo || initialData.location || activeContainer?.name || 'N/A',
                 dateTime: formatForInput(initialData.placementDate || initialData.dateTime || initialData.inspectionDate || initialData.date || initialData.createdDate, initialData.placementTime || initialData.time),
                 batch: initialData.batch || initialData.batchNo || '',
                 gangNo: initialData.gangNo || initialData.benchNo || '',
+                sleeperCategory: initialCat,
+                sleeperType: initialData.sleeperType || drawingOptions[initialCat][0],
                 noOfWires: initialData.noOfWires || initialData.noOfWiresUsed || initialData.wiresUsed || '',
                 wireDia: initialData.wireDia || initialData.htsWireDiaMm || '',
                 layLength: initialData.layLength || initialData.layLengthMm || '',
@@ -172,6 +206,14 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
         setFormData(prev => {
             const newState = { ...prev, [field]: value };
             
+            if (field === 'sleeperCategory') {
+                newState.sleeperType = drawingOptions[value][0] || '';
+                // Auto fill number of wires when sleeper category (and therefore type) changes
+                if (SLEEPER_RULES[newState.sleeperType]) {
+                    newState.noOfWires = SLEEPER_RULES[newState.sleeperType].wires.toString();
+                }
+            }
+
             // Auto fill number of wires when sleeper type changes
             if (field === 'sleeperType' && SLEEPER_RULES[value]) {
                 newState.noOfWires = SLEEPER_RULES[value].wires.toString();
@@ -238,7 +280,8 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
             placementTime: formData.dateTime.split('T')[1],
             batchNo: String(formData.batch),
             benchNo: String(formData.gangNo),
-            sleeperType: formData.sleeperType || 'RT-1234',
+            sleeperCategory: formData.sleeperCategory,
+            sleeperType: formData.sleeperType || 'BG: RT-2496',
             noOfWiresUsed: wiresNum || 0,
             htsWireDiaMm: diaNum || 0,
             layLengthMm: layLenNum,
@@ -332,15 +375,31 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
                 </div>
 
                 <div className="form-field">
-                    <label htmlFor="sleeperType" style={{ fontSize: '11px', fontWeight: '700' }}>Sleeper Type <span className="required">*</span></label>
+                    <label htmlFor="sleeperCategory" style={{ fontSize: '11px', fontWeight: '700' }}>Sleeper Category <span className="required">*</span></label>
+                    <select
+                        id="sleeperCategory"
+                        className="form-input-standard"
+                        value={formData.sleeperCategory}
+                        onChange={e => handleChange('sleeperCategory', e.target.value)}
+                    >
+                        {categoryOptions.map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                    </select>
+                </div>
+
+                <div className="form-field">
+                    <label htmlFor="sleeperType" style={{ fontSize: '11px', fontWeight: '700' }}>Drawing No. <span className="required">*</span></label>
                     <select
                         id="sleeperType"
                         className="form-input-standard"
                         value={formData.sleeperType}
                         onChange={e => handleChange('sleeperType', e.target.value)}
                     >
-                        <option value="RT-8746">RT-8746</option>
-                        <option value="RT-2496">RT-2496</option>
+                        <option value="">Select Drawing No.</option>
+                        {(drawingOptions[formData.sleeperCategory] || []).map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                        ))}
                     </select>
                 </div>
 

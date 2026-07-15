@@ -327,13 +327,13 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
           </div>
           <div className="border-r border-black p-2">
             <span className="font-semibold">दौरों की संख्या / No. of visits: </span>
-            <EditableField isEditing={false} value={visitsNo} onChange={(val) => onChange("visitsNo", val)} className="" />
+            <EditableField isEditing={isEditing} value={visitsNo} onChange={(val) => onChange("visitsNo", val)} className="" />
           </div>
           <div className="p-2">
             <span className="font-semibold">
               निरीक्षण की तिथि / Date of inspection:{" "}
             </span>
-            <EditableField isEditing={false} value={inspectionDate} onChange={(val) => onChange("inspectionDate", val)} className="" />
+            <EditableField isEditing={isEditing} value={inspectionDate} onChange={(val) => onChange("inspectionDate", val)} className="" />
           </div>
         </div>
 

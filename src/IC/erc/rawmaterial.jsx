@@ -251,6 +251,8 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
           specNo: dataToPass.specNo,
           qapNo: dataToPass.qapNo,
           chpClause: dataToPass.chpClause,
+          visitsNo: dataToPass.visitsNo,
+          inspectionDate: dataToPass.inspectionDate,
           createdBy: getCurrentUserId()?.toString(),
           updatedBy: getCurrentUserId()?.toString()
       };
@@ -350,6 +352,8 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
           specNo: dataToPass.specNo,
           qapNo: dataToPass.qapNo,
           chpClause: dataToPass.chpClause,
+          visitsNo: dataToPass.visitsNo,
+          inspectionDate: dataToPass.inspectionDate,
           createdBy: getCurrentUserId()?.toString(),
           updatedBy: getCurrentUserId()?.toString()
       };

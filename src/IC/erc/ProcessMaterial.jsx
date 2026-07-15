@@ -141,6 +141,8 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
           purchasingAuthority: dataToPass.purchasingAuthority,
           description: dataToPass.description,
           qapNo: dataToPass.qapNo,
+          inspectionDate: dataToPass.inspectionDate,
+          manDays: dataToPass.manDays,
           createdBy: getCurrentUserId()?.toString(),
           updatedBy: getCurrentUserId()?.toString()
       });
@@ -232,6 +234,8 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
           purchasingAuthority: dataToPass.purchasingAuthority,
           description: dataToPass.description,
           qapNo: dataToPass.qapNo,
+          inspectionDate: dataToPass.inspectionDate,
+          manDays: dataToPass.manDays,
           createdBy: getCurrentUserId()?.toString(),
           updatedBy: getCurrentUserId()?.toString()
       });

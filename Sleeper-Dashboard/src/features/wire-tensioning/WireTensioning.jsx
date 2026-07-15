@@ -10,6 +10,30 @@ import { useShift } from '../../context/ShiftContext';
  * WireTensioning Feature
  * Handles integration of SCADA tensioning data and manual pressure logs.
  */
+const categoryOptions = ["Mainline", "Turnout"];
+const drawingOptions = {
+    "Mainline": [
+        "BG: RT-2496",
+        "WB: RT-8527",
+        "WB: RT-8746",
+        "BG: RT-7008",
+        "WB: RT-9007"
+    ],
+    "Turnout": [
+        "1 in 12 PnC: RT-4218",
+        "1 in 12 PnC: RT-9790",
+        "1 in 8.5 PnC: RT-4865",
+        "1 in 8.5 PnC: RT-9841",
+        "1 in 8.5 DS: RT-6068",
+        "1 in 16 curved: RT-5691",
+        "1 in 20 curved: RT-5858",
+        "1 in 8.5 SCC: RT-6092",
+        "1 in 12 SCC: RT-8109",
+        "1 in 8.5 DCS: RT-6492",
+        "1 in 8.5 DCS: RT-6493",
+        "1 in 8.5 DCS: RT-6494"
+    ]
+};
 const TensionSubCard = ({ id, title, color, statusDetail, isActive, onClick }) => {
     const label = id === 'stats' ? 'OVERVIEW' : id === 'witnessed' ? 'HISTORY' : 'SCADA';
     return (
@@ -93,7 +117,8 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
         forceElongation: '',
         totalLoad: '',
         finalLoad: '',
-        type: 'RT-8746',
+        category: 'Mainline',
+        type: 'BG: RT-2496',
         noOfWires: 18
     });
 
@@ -288,7 +313,13 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
 
     const handleFormChange = (e) => {
         const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+        setFormData(prev => {
+            const newState = { ...prev, [name]: value };
+            if (name === 'category') {
+                newState.type = drawingOptions[value][0] || '';
+            }
+            return newState;
+        });
     };
 
     const handleWitness = (record) => {
@@ -535,6 +566,12 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
                 }
             }
 
+            let initialCat = 'Mainline';
+            let typeToMatch = targetRecord.sleeperType || '';
+            if (drawingOptions.Turnout.includes(typeToMatch) || typeToMatch.includes('Turnout') || typeToMatch.includes('1 in')) {
+                initialCat = 'Turnout';
+            }
+
             setFormData({
                 time: targetRecord.time,
                 batchNo: targetRecord.batchNo,
@@ -546,12 +583,18 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
                 forceElongation: targetRecord.forceElongation || '',
                 totalLoad: targetRecord.totalLoad || '',
                 finalLoad: targetRecord.finalLoad,
-                type: targetRecord.sleeperType || 'RT-1234'
+                category: initialCat,
+                type: targetRecord.sleeperType || drawingOptions[initialCat][0]
             });
             setEditId(targetRecord.id);
             setEditParentId(targetRecord.parentId || null);
         } catch (error) {
             console.error('Fetch failed, using local data:', error);
+            let initialCat = 'Mainline';
+            let typeToMatch = record.type || record.sleeperType || '';
+            if (drawingOptions.Turnout.includes(typeToMatch) || typeToMatch.includes('Turnout') || typeToMatch.includes('1 in')) {
+                initialCat = 'Turnout';
+            }
             setFormData({
                 time: record.time,
                 batchNo: record.batchNo,
@@ -563,7 +606,8 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
                 forceElongation: record.forceElongation || '',
                 totalLoad: record.totalLoad || '',
                 finalLoad: record.finalLoad,
-                type: record.type || 'RT-1234'
+                category: initialCat,
+                type: record.type || record.sleeperType || drawingOptions[initialCat][0]
             });
             setEditId(record.id);
             setEditParentId(record.parentId || null);
@@ -704,15 +748,28 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
                                 />
                             </div>
                             <div className="form-field">
-                                <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748b' }}>Type of Sleeper</label>
+                                <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748b' }}>Sleeper Category</label>
+                                <select 
+                                    name="category"
+                                    value={formData.category}
+                                    onChange={handleFormChange}
+                                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                                >
+                                    {categoryOptions.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                                </select>
+                            </div>
+                            <div className="form-field">
+                                <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748b' }}>Drawing No.</label>
                                 <select 
                                     name="type"
                                     value={formData.type}
                                     onChange={handleFormChange}
                                     style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
                                 >
-                                    <option value="RT-8746">RT-8746</option>
-                                    <option value="RT-2496">RT-2496</option>
+                                    <option value="">Select Drawing No.</option>
+                                    {(drawingOptions[formData.category] || []).map(opt => (
+                                        <option key={opt} value={opt}>{opt}</option>
+                                    ))}
                                 </select>
                             </div>
                             <div className="form-field">

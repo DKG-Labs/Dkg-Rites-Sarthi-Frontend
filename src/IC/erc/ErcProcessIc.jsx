@@ -338,13 +338,13 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
             <span className="font-semibold text-[10px]">
               निरीक्षण की तिथि / Date of inspection:{" "}
             </span>
-            <EditableField isEditing={false} value={inspectionDate} onChange={(val) => onChange("inspectionDate", val)} className="inline-block" />
+            <EditableField isEditing={isEditing} value={inspectionDate} onChange={(val) => onChange("inspectionDate", val)} className="inline-block" />
           </div>
           <div className="p-1">
             <span className="font-semibold text-[10px]">
               कार्यरत मानव-दिनों की संख्या / Total Man-days:{" "}
             </span>
-            <EditableField isEditing={false} value={manDays} onChange={(val) => onChange("manDays", val)} className="inline-block" />
+            <EditableField isEditing={isEditing} value={manDays} onChange={(val) => onChange("manDays", val)} className="inline-block" />
           </div>
         </div>
 

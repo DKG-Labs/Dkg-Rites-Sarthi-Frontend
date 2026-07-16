@@ -75,7 +75,7 @@ const SleeperSummary = ({ summaryData = {}, onPoIssuedClick, refreshTick }) => {
             rmt: 0
         },
         finalInspectionQty: {
-            nos: summaryData.finalInspectionQuantity || 0,
+            nos: summaryData.totalAcceptedNos || 0,
             set: summaryData.totalAcceptedSet || 0,
             rmt: 0
         },

@@ -24,9 +24,19 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal 
   const [showResumeModal, setShowResumeModal] = useState(false);
   const [callToResume, setCallToResume] = useState(null);
   const [remarks, setRemarks] = useState('');
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  
   const user = getStoredUser();
 
   const activeTabRef = useRef(activeTab);
+
+  // Reset pagination when tab or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchTerm]);
 
   useEffect(() => {
     localStorage.setItem('railpad_attending_calls_tab', activeTab);
@@ -414,16 +424,27 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal 
               </tr>
             </thead>
             <tbody>
-              {calls.filter(call =>
-                (call.status !== 'CREATED' && call.jobStatus !== 'CREATED') &&
-                (call.accessibleUserIds?.includes(Number(user?.userId))) && (
-                  (call.requestId?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-                  (call.vendorCode?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-                  (call.vendorName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-                  (call.plantId?.toLowerCase() || '').includes(searchTerm.toLowerCase())
-                )
-              ).map((call, index) => (
-                <tr key={index} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+              {(() => {
+                const filteredCalls = calls
+                  .filter(call =>
+                    (call.status !== 'CREATED' && call.jobStatus !== 'CREATED') &&
+                    (call.accessibleUserIds?.includes(Number(user?.userId))) && (
+                      (call.requestId?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                      (call.vendorCode?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                      (call.vendorName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                      (call.plantId?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+                    )
+                  )
+                  .sort((a, b) => new Date(b.createdDate || 0) - new Date(a.createdDate || 0));
+
+                const totalPages = Math.ceil(filteredCalls.length / itemsPerPage);
+                const startIndex = (currentPage - 1) * itemsPerPage;
+                const paginatedCalls = filteredCalls.slice(startIndex, startIndex + itemsPerPage);
+
+                return (
+                  <>
+                    {paginatedCalls.map((call, index) => (
+                    <tr key={index} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                   <td style={{ padding: '12px 16px', fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>{call.requestId}</td>
                   <td style={{ padding: '12px 16px', fontSize: '13px', color: '#475569' }}>{call.vendorName || call.vendorCode}</td>
                   <td style={{ padding: '12px 16px', fontSize: '13px', color: '#475569' }}>{call.plantId}</td>
@@ -570,11 +591,71 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal 
                     </div>
                   </td>
                 </tr>
-              ))}
+                    ))}
+                  </>
+                );
+              })()}
             </tbody>
           </table>
         )}
       </div>
+
+      {/* Pagination Controls */}
+      {!loading && calls.length > 0 && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'white', border: '1px solid #e2e8f0', borderTop: 'none', borderRadius: '0 0 16px 16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '14px', color: '#64748b', whiteSpace: 'nowrap' }}>Rows per page:</span>
+            <select 
+              value={itemsPerPage} 
+              onChange={e => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+              style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', background: 'white', color: '#334155', outline: 'none', cursor: 'pointer' }}
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={30}>30</option>
+            </select>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            {(() => {
+                const filteredCalls = calls
+                  .filter(call =>
+                    (call.status !== 'CREATED' && call.jobStatus !== 'CREATED') &&
+                    (call.accessibleUserIds?.includes(Number(user?.userId))) && (
+                      (call.requestId?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                      (call.vendorCode?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                      (call.vendorName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                      (call.plantId?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+                    )
+                  );
+                const totalPages = Math.ceil(filteredCalls.length / itemsPerPage);
+                const startIndex = (currentPage - 1) * itemsPerPage;
+                return (
+                  <>
+                    <span style={{ fontSize: '14px', color: '#64748b' }}>
+                      Showing {filteredCalls.length === 0 ? 0 : startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredCalls.length)} of {filteredCalls.length}
+                    </span>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button 
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        style={{ padding: '4px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', background: currentPage === 1 ? '#f8fafc' : '#ffffff', color: currentPage === 1 ? '#94a3b8' : '#334155', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: '500' }}
+                      >
+                        Previous
+                      </button>
+                      <button 
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages || totalPages === 0}
+                        style={{ padding: '4px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', background: currentPage === totalPages || totalPages === 0 ? '#f8fafc' : '#ffffff', color: currentPage === totalPages || totalPages === 0 ? '#94a3b8' : '#334155', cursor: currentPage === totalPages || totalPages === 0 ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: '500' }}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </>
+                );
+            })()}
+          </div>
+        </div>
+      )}
 
       {/* Resume Modal */}
       {showResumeModal && (

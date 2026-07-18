@@ -558,6 +558,11 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
                                       Batch: {batch.batchNo}
                                     </span>
                                   </div>
+                                  {batch.drawingNo && (
+                                    <span className="batch-drawing" style={{ fontSize: '13px', fontWeight: '600', color: '#0ea5e9' }}>
+                                      Drawing No: {batch.drawingNo}
+                                    </span>
+                                  )}
                                   <span className="batch-qty" style={{ fontSize: '13px', fontWeight: '700', color: '#475569' }}>
                                     Qty: {batch.qtyManufactured}
                                   </span>
@@ -647,6 +652,9 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
                       <thead style={{ backgroundColor: '#f1f5f9', borderBottom: '1px solid #e2e8f0' }}>
                         <tr>
                           <th style={{ padding: '10px 16px', fontWeight: '600', color: '#475569' }}>Batch No</th>
+                          {displayRailPadType?.includes('NCRGRSP') && (
+                            <th style={{ padding: '10px 16px', fontWeight: '600', color: '#475569' }}>Drawing No</th>
+                          )}
                           <th style={{ padding: '10px 16px', fontWeight: '600', color: '#475569' }}>Rejected Qty</th>
                           <th style={{ padding: '10px 16px', fontWeight: '600', color: '#475569' }}>Reason</th>
                         </tr>
@@ -657,6 +665,9 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
                             return batch.rejections.map((rej, rIdx) => (
                               <tr key={`${batch.declarationBatchId}-${rIdx}`} style={{ borderBottom: (index === rejectedBatchesList.length - 1 && rIdx === batch.rejections.length - 1) ? 'none' : '1px solid #e2e8f0', backgroundColor: '#ffffff' }}>
                                 <td style={{ padding: '10px 16px', color: '#0f3a5e', fontWeight: '500' }}>{batch.batchNo}</td>
+                                {displayRailPadType?.includes('NCRGRSP') && (
+                                  <td style={{ padding: '10px 16px', color: '#0ea5e9', fontWeight: '600' }}>{rej.drawingNo || batch.drawingNo || 'N/A'}</td>
+                                )}
                                 <td style={{ padding: '10px 16px', color: '#dc2626', fontWeight: '600' }}>{rej.rejectedQty}</td>
                                 <td style={{ padding: '10px 16px', color: '#334155' }}>{rej.reason || 'N/A'}</td>
                               </tr>
@@ -665,6 +676,9 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
                             return (
                               <tr key={batch.declarationBatchId} style={{ borderBottom: index === rejectedBatchesList.length - 1 ? 'none' : '1px solid #e2e8f0', backgroundColor: '#ffffff' }}>
                                 <td style={{ padding: '10px 16px', color: '#0f3a5e', fontWeight: '500' }}>{batch.batchNo}</td>
+                                {displayRailPadType?.includes('NCRGRSP') && (
+                                  <td style={{ padding: '10px 16px', color: '#0ea5e9', fontWeight: '600' }}>{batch.drawingNo || 'N/A'}</td>
+                                )}
                                 <td style={{ padding: '10px 16px', color: '#dc2626', fontWeight: '600' }}>{selectedBatches[batch.declarationBatchId].qtyRejected}</td>
                                 <td style={{ padding: '10px 16px', color: '#334155' }}>{batch.verificationRejectedReason || 'N/A'}</td>
                               </tr>

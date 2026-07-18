@@ -292,12 +292,13 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
             quantityProduced: b.qtyProduced
           }))
         ),
-        rejections: rejectionData.rejections.map(r => ({
-          productType: r.productType,
-          batchNo: r.batchNo,
-          rejectedQty: Number(r.rejectedQty),
-          reason: r.reason
-        }))
+          rejections: rejectionData.rejections.map(r => ({
+            productType: r.productType,
+            batchNo: r.batchNo,
+            drawingNo: r.drawingNo || null,
+            rejectedQty: Number(r.rejectedQty),
+            reason: r.reason
+          }))
       };
 
       const verifyResponse = await fetch(`${getBaseUrl()}${API_ENDPOINTS.IE_PRODUCTION_VERIFICATION.SAVE}`, {

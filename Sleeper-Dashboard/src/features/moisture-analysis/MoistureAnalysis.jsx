@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import MoistureEntryForm from './components/MoistureEntryForm';
 import { apiService } from '../../services/api';
 import TrendChart from '../../components/common/TrendChart';
+import { useShift } from '../../context/ShiftContext';
 
 const formatDateForDisplay = (dateStr) => {
     if (!dateStr) return "-";
@@ -60,6 +61,7 @@ const extractTime = (dateTimeStr) => {
  * Displays moisture analysis statistics, trend chart, and recent entries.
  */
 const MoistureAnalysis = ({ onBack, onSave, initialView = 'list', records = [], setRecords, displayMode = 'modal', showForm, setShowForm }) => {
+    const { isActiveDuty } = useShift();
     const [view, setView] = useState(initialView);
     const [editRecord, setEditRecord] = useState(null);
     const formRef = React.useRef(null);
@@ -460,14 +462,14 @@ const MoistureAnalysis = ({ onBack, onSave, initialView = 'list', records = [], 
                                     <td style={{ color: '#f59e0b', fontWeight: '700' }}>{group.faFree !== '-' ? `${group.faFree}%` : '-'}</td>
                                     <td style={{ fontWeight: '700' }}>{group.totalFree} Kg</td>
                                     <td style={{ fontWeight: '700', color: '#0ea5e9' }}>{group.adjWater} Kg</td>
-                                    <td>
-                                        {isRecordEditable(group.timestamp) ? (
-                                            <div style={{ display: 'flex', gap: '4px' }}>
+                                    <td style={{ textAlign: 'right' }}>
+                                        {isActiveDuty && isRecordEditable(group.timestamp) ? (
+                                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                                                 <button className="btn-action" style={{ fontSize: '10px' }} onClick={() => handleEdit(group)}>Modify</button>
                                                 <button className="btn-action danger" style={{ fontSize: '10px', background: '#fee2e2', color: '#dc2626', border: '1px solid #fecaca' }} onClick={() => handleDelete(group)}>Delete</button>
                                             </div>
                                         ) : (
-                                            <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: '700' }}>LOCKED</span>
+                                            <span style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic' }}>Locked</span>
                                         )}
                                     </td>
                                 </tr>
@@ -488,12 +490,23 @@ const MoistureAnalysis = ({ onBack, onSave, initialView = 'list', records = [], 
         <div className="modal-overlay" onClick={onBack}>
             <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '100%', width: '100%', height: '100vh', borderRadius: '0', display: 'flex', flexDirection: 'column' }}>
                 <header className="modal-header">
-                    <div>
-                        <h2 style={{ fontSize: '1.25rem', margin: 0 }}>Moisture Analysis Dashboard</h2>
-                        <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b' }}>Precision Lab Verification</p>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <button className="close-btn" onClick={onBack}>×</button>
+                    <div className="module-header-content">
+                        <div style={{ flex: 1 }}>
+                            <h2 className="module-title" style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800' }}>Moisture Analysis</h2>
+                            <p className="module-subtitle" style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>Precision Water Content Monitoring</p>
+                        </div>
+                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                            {isActiveDuty && (
+                                <button className="add-btn-mini" style={{ background: '#0f172a', width: 'auto', padding: '0 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '700', borderRadius: '8px', border: 'none' }} onClick={() => {
+                                    setEditRecord(null);
+                                    if (setShowForm) setShowForm(true);
+                                    setView('form');
+                                }}>
+                                    <span>+</span> New Entry
+                                </button>
+                            )}
+                            <button className="close-btn" style={{ margin: 0 }} onClick={onBack}>✕</button>
+                        </div>
                     </div>
                 </header>
                 {content}

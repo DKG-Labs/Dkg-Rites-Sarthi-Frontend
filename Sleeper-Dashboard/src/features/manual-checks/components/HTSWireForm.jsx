@@ -157,7 +157,7 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
 
     // Auto Overall Status calculation
     useEffect(() => {
-        const rules = SLEEPER_RULES[formData.sleeperType] || { wires: 18, diaMin: 2.97, diaMax: 3.03 };
+        const rules = SLEEPER_RULES[formData.sleeperType] || { wires: '16/18/20/24', diaMin: 2.97, diaMax: 3.03 };
         
         const { noOfWires, wireDia, layLength, observedWeight, arrangement } = formData;
 
@@ -173,8 +173,10 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
         const diaNum = parseFloat(wireDia);
         const layLenNum = parseFloat(layLength);
 
+        const validWires = typeof rules.wires === 'string' ? rules.wires.split('/').map(Number) : [rules.wires];
+
         // Validation checks (only if value is present)
-        const isWiresOk = !noOfWires || wiresNum === rules.wires;
+        const isWiresOk = !noOfWires || validWires.includes(wiresNum);
         const isDiaOk = !wireDia || (!isNaN(diaNum) && diaNum >= rules.diaMin && diaNum <= rules.diaMax);
         const isLayLenOk = !layLength || (!isNaN(layLenNum) && layLenNum >= 72 && layLenNum <= 108);
         const isArrangementChecked = arrangement === 'OK';
@@ -248,7 +250,7 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
 
         setValidationErrors([]);
 
-        const rules = SLEEPER_RULES[formData.sleeperType] || { wires: 18, diaMin: 2.97, diaMax: 3.03, nominalWeight: 0.166 };
+        const rules = SLEEPER_RULES[formData.sleeperType] || { wires: '16/18/20/24', diaMin: 2.97, diaMax: 3.03, nominalWeight: 0.166 };
         const layLenNum = parseFloat(formData.layLength);
         const diaNum = parseFloat(formData.wireDia);
         const wiresNum = parseInt(formData.noOfWires);
@@ -256,8 +258,9 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
         // Hard validation — block save if any value is out of range
         const errors = [];
         const requiredWires = rules.wires;
+        const validWires = typeof requiredWires === 'string' ? requiredWires.split('/').map(Number) : [requiredWires];
 
-        if (wiresNum !== requiredWires) {
+        if (!validWires.includes(wiresNum)) {
             errors.push(`• No. of Wires: ${wiresNum} (Required: ${requiredWires})`);
         }
         if (diaNum < rules.diaMin || diaNum > rules.diaMax) {
@@ -308,7 +311,8 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
     };
 
     const fieldLabel = (formData.location || '').toLowerCase().includes('line') ? 'Gang' : 'Bench';
-    const currentRules = SLEEPER_RULES[formData.sleeperType] || { wires: '18/20/24', diaMin: 2.97, diaMax: 3.03, nominalWeight: 0.166 };
+    const currentRules = SLEEPER_RULES[formData.sleeperType] || { wires: '16/18/20/24', diaMin: 2.97, diaMax: 3.03, nominalWeight: 0.166 };
+    const validCurrentWires = typeof currentRules.wires === 'string' ? currentRules.wires.split('/').map(Number) : [currentRules.wires];
 
     return (
         <div className="form-container" style={{ padding: '20px' }}>
@@ -410,11 +414,11 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
                         type="number"
                         min="0"
                         placeholder="Integer"
-                        className={`form-input-standard ${formData.noOfWires && (parseInt(formData.noOfWires) !== currentRules.wires) ? 'form-input-error' : ''}`}
+                        className={`form-input-standard ${formData.noOfWires && (!validCurrentWires.includes(parseInt(formData.noOfWires))) ? 'form-input-error' : ''}`}
                         value={formData.noOfWires}
                         onChange={e => handleChange('noOfWires', e.target.value)}
                     />
-                    <div style={{ fontSize: '11px', marginTop: '4px', color: formData.noOfWires && (parseInt(formData.noOfWires) !== currentRules.wires) ? '#ef4444' : '#64748b' }}>
+                    <div style={{ fontSize: '11px', marginTop: '4px', color: formData.noOfWires && (!validCurrentWires.includes(parseInt(formData.noOfWires))) ? '#ef4444' : '#64748b' }}>
                         Required: {currentRules.wires} wires
                     </div>
                 </div>

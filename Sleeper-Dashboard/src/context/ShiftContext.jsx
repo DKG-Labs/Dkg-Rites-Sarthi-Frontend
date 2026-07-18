@@ -28,6 +28,66 @@ export const ShiftProvider = ({ children }) => {
     const [containers, setContainers] = useState([{ id: 1, type: 'Line', name: 'Line I' }]);
     const [activeContainerId, setActiveContainerId] = useState(() => parseInt(localStorage.getItem('activeContainerId')) || 1);
 
+    const [isActiveDuty, setIsActiveDuty] = useState(false);
+
+    useEffect(() => {
+        if (!dutyStarted || !dutyDate || !selectedShift) {
+            setIsActiveDuty(false);
+            return;
+        }
+
+        const checkStatus = () => {
+            const now = new Date();
+            const currentHour = now.getHours();
+            
+            // Format today's and yesterday's date in YYYY-MM-DD
+            const currentDateStr = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+            const yesterday = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
+            yesterday.setDate(yesterday.getDate() - 1);
+            const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+            let allowed = [];
+
+            // Shift A: 06:00 to 14:00 + 1 hr grace = 06:00 to 15:00
+            if (currentHour >= 6 && currentHour < 15) {
+                allowed.push({ date: currentDateStr, shift: 'A' });
+            }
+            // Shift B: 14:00 to 22:00 + 1 hr grace = 14:00 to 23:00
+            if (currentHour >= 14 && currentHour < 23) {
+                allowed.push({ date: currentDateStr, shift: 'B' });
+            }
+            // Shift C: 22:00 to 06:00 + 1 hr grace = 22:00 to 07:00
+            if (currentHour >= 22) {
+                allowed.push({ date: currentDateStr, shift: 'C' });
+            }
+            if (currentHour < 7) {
+                // After midnight, the C shift that is currently active started yesterday
+                allowed.push({ date: yesterdayStr, shift: 'C' });
+            }
+            // General Shift: 08:00 to 20:00 + 1 hr grace = 08:00 to 21:00
+            if (currentHour >= 8 && currentHour < 21) {
+                allowed.push({ date: currentDateStr, shift: 'General' });
+            }
+
+            // Normalize dutyDate (login date) to YYYY-MM-DD
+            let loginDateStr = dutyDate;
+            if (loginDateStr.includes('/')) {
+                const parts = loginDateStr.split('/');
+                if (parts.length === 3) {
+                    const y = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
+                    loginDateStr = `${y}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                }
+            }
+
+            const active = allowed.some(a => a.date === loginDateStr && a.shift === selectedShift);
+            setIsActiveDuty(active);
+        };
+
+        checkStatus();
+        const interval = setInterval(checkStatus, 60000); // Re-evaluate every minute
+        return () => clearInterval(interval);
+    }, [dutyStarted, dutyDate, selectedShift]);
+
     const endDuty = () => {
         setDutyStarted(false);
         setSelectedShift('');
@@ -196,6 +256,7 @@ export const ShiftProvider = ({ children }) => {
         const currentShift = selectedShift || localStorage.getItem('selectedShift');
         const currentPlantId = dutyUnit || localStorage.getItem('dutyUnit');
         const currentDutyDate = dutyDate || localStorage.getItem('dutyDate') || formatToIST(null, 'iso_date');
+        const currentLocation = dutyLocation || localStorage.getItem('dutyLocation') || '';
 
         const formattedDate = formatToIST(currentDutyDate, 'date');
 
@@ -204,7 +265,8 @@ export const ShiftProvider = ({ children }) => {
             vendorCode: currentVendorCode || ":41647",
             shift: currentShift || "A",
             createdBy: currentUserId || "134",
-            date: formattedDate
+            date: formattedDate,
+            location: currentLocation
         };
 
         try {
@@ -224,7 +286,7 @@ export const ShiftProvider = ({ children }) => {
         } catch (error) {
             console.error("Error fetching manual checks:", error);
         }
-    }, [userId, vendorCode, selectedShift, dutyUnit, dutyDate]);
+    }, [userId, vendorCode, selectedShift, dutyUnit, dutyDate, dutyLocation]);
 
     const fetchWireTension = useCallback(async () => {
         const currentUserId = userId || localStorage.getItem('userId');
@@ -483,7 +545,8 @@ export const ShiftProvider = ({ children }) => {
         fetchSteamCuring,
         fetchBenchMoulds,
         isLoading,
-        endDuty
+        endDuty,
+        isActiveDuty
     };
 
 

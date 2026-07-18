@@ -7,7 +7,7 @@ import { useShift } from '../../../context/ShiftContext';
  * Provides a form for manual batch result entry and displays a log of all witnessed records.
  */
 const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = false, onlyHistory = false, activeContainer, onDelete, small = false, globalConfig }) => {
-    const { dutyUnit } = useShift();
+    const { dutyUnit, isActiveDuty } = useShift();
     const defaultFormData = {
         date: globalConfig?.castingDate || new Date().toISOString().split('T')[0],
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
@@ -609,10 +609,14 @@ const ManualDataEntry = ({ batches, witnessedRecords, onSave, hideHistory = fals
                                                             </span>
                                                         </td>
                                                         <td style={{ textAlign: 'center', padding: '4px' }}>
-                                                            <div style={{ display: 'flex', gap: '2px', justifyContent: 'center' }}>
-                                                                <button onClick={() => handleEdit(record)} className="btn-action mini" style={{ background: '#3b82f6', color: '#fff', fontSize: '8px', padding: '2px 4px' }}>Edit</button>
-                                                                <button onClick={() => onDelete(record.id)} className="btn-action danger mini" style={{ background: '#ef4444', color: '#fff', fontSize: '8px', padding: '2px 4px' }}>Del</button>
-                                                            </div>
+                                                            {isActiveDuty ? (
+                                                                <div style={{ display: 'flex', gap: '2px', justifyContent: 'center' }}>
+                                                                    <button onClick={() => handleEdit(record)} className="btn-action mini" style={{ background: '#3b82f6', color: '#fff', fontSize: '8px', padding: '2px 4px' }}>Edit</button>
+                                                                    <button onClick={() => onDelete(record.id)} className="btn-action danger mini" style={{ background: '#ef4444', color: '#fff', fontSize: '8px', padding: '2px 4px' }}>Del</button>
+                                                                </div>
+                                                            ) : (
+                                                                <span style={{ fontSize: '8px', color: '#94a3b8', fontStyle: 'italic' }}>Locked</span>
+                                                            )}
                                                         </td>
                                                     </tr>
                                                 )

@@ -51,7 +51,7 @@ const CompactionConcrete = ({
     const { compactionRecords: entries = [], setAllCompactionRecords: setEntries } = sharedState;
     const { 
         vendorCode, dutyUnit, selectedShift, dutyDate, userId, vendorId,
-        containers = [], allBatchDeclarations = {}, fetchCompaction 
+        containers = [], allBatchDeclarations = {}, fetchCompaction, isActiveDuty 
     } = useShift();
     
     const [viewMode, setViewMode] = useState('witnessed'); 
@@ -449,22 +449,21 @@ const CompactionConcrete = ({
                                 </div>
                                 <div className="form-field">
                                     <label>Batch Number</label>
-                                    <select
+                                    <input
+                                        list="compaction-batch-options"
                                         value={manualForm.batchNo}
                                         onChange={e => setManualForm({ ...manualForm, batchNo: e.target.value })}
-                                        disabled={!manualForm.location || !manualForm.dateOfCasting}
-                                        style={{ 
-                                            padding: '8px', 
-                                            border: '1px solid #cbd5e1', 
+                                        placeholder={(!manualForm.location || !manualForm.dateOfCasting) ? 'Select Loc/Date or type batch' : 'Select or enter batch number'}
+                                        style={{
+                                            padding: '8px',
+                                            border: '1px solid #cbd5e1',
                                             borderRadius: '6px',
-                                            background: (!manualForm.location || !manualForm.dateOfCasting) ? '#f1f5f9' : '#fff'
+                                            width: '100%',
+                                            boxSizing: 'border-box',
+                                            background: '#fff'
                                         }}
-                                    >
-                                        <option value="">
-                                            {(!manualForm.location || !manualForm.dateOfCasting) 
-                                                ? '-- Select Loc/Date First --' 
-                                                : '-- Select Available Batch --'}
-                                        </option>
+                                    />
+                                    <datalist id="compaction-batch-options">
                                         {batchOptions
                                             .filter(b => b.batchNumber)
                                             .map(b => (
@@ -473,7 +472,7 @@ const CompactionConcrete = ({
                                                 </option>
                                             ))
                                         }
-                                    </select>
+                                    </datalist>
                                     {batchOptions.length === 0 && manualForm.location && manualForm.dateOfCasting && (
                                         <p style={{ margin: '4px 0 0 0', fontSize: '0.65rem', color: '#ef4444', fontWeight: '600' }}>
                                             No weighment declarations found for this date & location.
@@ -598,9 +597,13 @@ const CompactionConcrete = ({
                                                     <td>{e.location || '—'}</td>
                                                     <td>{e.batchNo}</td><td>{e.benchNo}</td><td>{e.minRpm}-{e.maxRpm}</td><td>{e.minDuration ? `${e.minDuration}-${e.maxDuration}s` : `${e.duration}s`}</td>
                                                     <td>
-                                                        <div className="btn-group">
-                                                            <button className="btn-action danger" onClick={() => handleDelete(e.id)}>Delete</button>
-                                                        </div>
+                                                        {isActiveDuty ? (
+                                                            <div className="btn-group">
+                                                                <button className="btn-action danger" onClick={() => handleDelete(e.id)}>Delete</button>
+                                                            </div>
+                                                        ) : (
+                                                            <span style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic' }}>Locked</span>
+                                                        )}
                                                     </td>
                                                 </tr>
                                             ))
@@ -688,10 +691,12 @@ const CompactionConcrete = ({
                     <div className="view-witnessed fade-in">
                         <div className="content-title-row">
                             <h3>Witnessed Compaction Logs</h3>
-                            <button className="toggle-btn" onClick={() => {
-                                setSessionRecords([]);
-                                setShowForm(true);
-                            }}>+ Add New Entry</button>
+                            {isActiveDuty && (
+                                <button className="toggle-btn" onClick={() => {
+                                    setSessionRecords([]);
+                                    setShowForm(true);
+                                }}>+ Add New Entry</button>
+                            )}
                         </div>
 
                         {(() => {
@@ -717,12 +722,16 @@ const CompactionConcrete = ({
                                                             <td>{e.date && e.date.includes('-') ? e.date.split('-').reverse().join('/') : (e.date || '—')}</td>
                                                             <td>{e.time}</td><td>{e.batchNo}</td><td><strong>{e.benchNo}</strong></td><td>{e.sleeperType || '—'}</td><td>{e.minRpm}-{e.maxRpm}</td><td>{e.duration}s</td>
                                                             <td>
-                                                                <button 
-                                                                    className="btn-action mini danger" 
-                                                                    onClick={() => handleDeleteLog(e.parentId)}
-                                                                >
-                                                                    Delete
-                                                                </button>
+                                                                {isActiveDuty ? (
+                                                                    <button 
+                                                                        className="btn-action mini danger" 
+                                                                        onClick={() => handleDeleteLog(e.parentId)}
+                                                                    >
+                                                                        Delete
+                                                                    </button>
+                                                                ) : (
+                                                                    <span style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic' }}>Locked</span>
+                                                                )}
                                                             </td>
                                                         </tr>
                                                     ))}
@@ -820,10 +829,12 @@ const CompactionConcrete = ({
                         <p className="header-subtitle">Performance Monitoring & Assurance</p>
                     </div>
                     <div className="header-actions">
-                        <button className="toggle-btn mini" onClick={() => {
-                            setSessionRecords([]);
-                            setShowForm(true);
-                        }}>+ Add New Entry</button>
+                        {isActiveDuty && (
+                            <button className="toggle-btn mini" onClick={() => {
+                                setSessionRecords([]);
+                                setShowForm(true);
+                            }}>+ Add New Entry</button>
+                        )}
                         <button className="close-btn" onClick={onBack}>✕</button>
                     </div>
                 </header>

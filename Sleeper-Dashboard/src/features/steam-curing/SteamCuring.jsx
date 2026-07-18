@@ -75,7 +75,7 @@ const InlineRow = ({ cols }) => (
 );
 
 const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: propSetSteamRecords, displayMode = 'modal', batches: propBatches = [], activeContainer }) => {
-    const { containers, allBatchDeclarations, dutyDate, vendorId, dutyUnit, fetchSteamCuring, vendorCode, selectedShift, userId } = useShift();
+    const { containers, allBatchDeclarations, dutyDate, vendorId, dutyUnit, fetchSteamCuring, vendorCode, selectedShift, userId, isActiveDuty } = useShift();
     const [viewMode, setViewMode] = useState('witnessed');
     const [availableLocations, setAvailableLocations] = useState([]);
     const [availableChambers, setAvailableChambers] = useState([]);
@@ -1028,8 +1028,14 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                                             </td>
                                             <td>
                                                 <div style={{ display: 'flex', gap: '8px' }}>
-                                                    {e.source === 'Manual' && <button className="btn-action" onClick={() => handleEdit(e)}>Edit</button>}
-                                                    <button className="btn-action" style={{ background: '#fee2e2', color: '#ef4444', border: 'none' }} onClick={() => handleDelete(e)}>Delete</button>
+                                                    {isActiveDuty ? (
+                                                        <>
+                                                            {e.source === 'Manual' && <button className="btn-action" onClick={() => handleEdit(e)}>Edit</button>}
+                                                            <button className="btn-action" style={{ background: '#fee2e2', color: '#ef4444', border: 'none' }} onClick={() => handleDelete(e)}>Delete</button>
+                                                        </>
+                                                    ) : (
+                                                        <span style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic', display: 'block', textAlign: 'center' }}>Locked</span>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>
@@ -1067,7 +1073,10 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                     <div className="fade-in">
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '12px' }}>
                             <h3 style={{ margin: 0 }}>Witnessed Curing Logs</h3>
-                            <button className="toggle-btn" onClick={() => setShowForm(true)}>+ Add New Entry</button>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                                <button className="toggle-btn outline" onClick={() => setViewMode('scada')}>View SCADA View</button>
+                                {isActiveDuty && <button className="toggle-btn" onClick={() => setShowForm(true)}>+ Add New Entry</button>}
+                            </div>
                         </div>
                         <div className="table-outer-wrapper" style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', overflowX: 'auto' }}>
                             <table className="ui-table" style={{ fontSize: '11px', minWidth: '800px' }}>
@@ -1093,10 +1102,14 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                                                 </span>
                                             </td>
                                             <td>
-                                                <div style={{ display: 'flex', gap: '8px' }}>
-                                                    {e.source === 'Manual' && <button className="btn-action" onClick={() => handleEdit(e)}>Edit</button>}
-                                                    {!e.isHeader && <button className="btn-action" style={{ background: '#fee2e2', color: '#ef4444', border: 'none' }} onClick={() => handleDelete(e)}>Delete</button>}
-                                                </div>
+                                                {isActiveDuty ? (
+                                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                                        {e.source === 'Manual' && <button className="btn-action" onClick={() => handleEdit(e)}>Edit</button>}
+                                                        {!e.isHeader && <button className="btn-action" style={{ background: '#fee2e2', color: '#ef4444', border: 'none' }} onClick={() => handleDelete(e)}>Delete</button>}
+                                                    </div>
+                                                ) : (
+                                                    <span style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic' }}>Locked</span>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}
@@ -1148,7 +1161,9 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                 <header className="modal-header" style={{ flexWrap: 'wrap', gap: '12px' }}>
                     <div><h2 style={{ margin: 0, fontSize: '1.25rem' }}>Steam Curing Console</h2><p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b' }}>Heat Treatment Cycle Assurance</p></div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                        <button className="toggle-btn" style={{ padding: '6px 16px', fontSize: '0.75rem' }} onClick={() => setShowForm(true)}>+ Add New Entry</button>
+                        {isActiveDuty && (
+                            <button className="toggle-btn" style={{ padding: '6px 16px', fontSize: '0.75rem' }} onClick={() => setShowForm(true)}>+ Add New Entry</button>
+                        )}
                         <button className="close-btn" onClick={onBack}>X</button>
                     </div>
                 </header>

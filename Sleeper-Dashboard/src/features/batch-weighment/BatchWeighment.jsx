@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiService } from '../../services/api';
 import { useBatchStats } from '../../hooks/useStats';
+import { useShift } from '../../context/ShiftContext';
 
 // Components
 import BatchStats from './components/BatchStats';
@@ -61,6 +62,8 @@ const BatchWeighment = ({
     loadShiftData
 }) => {
     const { batchDeclarations, setAllBatchDeclarations, sessionConfig, setSessionConfig, witnessedRecords, setAllWitnessedRecords } = sharedState;
+    const { isActiveDuty } = useShift();
+
     const [viewMode, setViewMode] = useState('witnessed');
     const [localShowForm, setLocalShowForm] = useState(false);
 
@@ -195,7 +198,9 @@ const BatchWeighment = ({
                         ))}
                     </div>
                     <div>
-                        <button className="toggle-btn" onClick={() => setShowForm(true)}>+ Add New Entry</button>
+                        {isActiveDuty && (
+                            <button className="toggle-btn" onClick={() => setShowForm(true)}>+ Add New Entry</button>
+                        )}
                     </div>
                 </div>
 

@@ -8,6 +8,8 @@ import DataTable from '../../../components/DataTable';
 import StatusBadge from '../../../components/StatusBadge';
 import CallsFilterSection from '../../../components/common/CallsFilterSection';
 import RemapIEModal from './RemapIEModal';
+import SleeperRemapIEModal from './SleeperRemapIEModal';
+import RailpadRemapIEModal from './RailpadRemapIEModal';
 import { CALL_STATUS_CONFIG } from '../utils/constants';
 import { formatDateTime } from '../utils/helpers';
 import { getDetailedStatus } from '../../../utils/statusMapper';
@@ -21,6 +23,14 @@ const VerifiedOpenCallsTab = ({ callType, calls = [], kpis = {}, onViewHistory }
   // Remapping state
   const [isRemapModalOpen, setIsRemapModalOpen] = useState(false);
   const [selectedCallForRemap, setSelectedCallForRemap] = useState(null);
+
+  // Remapping feature states for Sleeper
+  const [isSleeperRemapModalOpen, setIsSleeperRemapModalOpen] = useState(false);
+  const [selectedSleeperCallForRemap, setSelectedSleeperCallForRemap] = useState(null);
+
+  // Remapping feature states for Railpad
+  const [isRailpadRemapModalOpen, setIsRailpadRemapModalOpen] = useState(false);
+  const [selectedRailpadCallForRemap, setSelectedRailpadCallForRemap] = useState(null);
 
   // Filter state
   const [showFilters, setShowFilters] = useState(false);
@@ -205,6 +215,32 @@ const VerifiedOpenCallsTab = ({ callType, calls = [], kpis = {}, onViewHistory }
                 onClick={() => {
                    setSelectedCallForRemap(row);
                    setIsRemapModalOpen(true);
+                }}
+             >
+                🔄 Remapping
+             </button>
+          )}
+
+          {callType === 'SLEEPER' && (
+             <button
+                className="btn btn-sm btn-primary"
+                style={{ marginLeft: '8px' }}
+                onClick={() => {
+                   setSelectedSleeperCallForRemap(row);
+                   setIsSleeperRemapModalOpen(true);
+                }}
+             >
+                🔄 Remapping
+             </button>
+          )}
+
+          {callType === 'RAILPAD' && (
+             <button
+                className="btn btn-sm btn-primary"
+                style={{ marginLeft: '8px' }}
+                onClick={() => {
+                   setSelectedRailpadCallForRemap(row);
+                   setIsRailpadRemapModalOpen(true);
                 }}
              >
                 🔄 Remapping
@@ -492,7 +528,7 @@ const VerifiedOpenCallsTab = ({ callType, calls = [], kpis = {}, onViewHistory }
         </div>
       )}
 
-      {/* Remap IE Modal */}
+      {/* Remap IE Modal for ERC */}
       {isRemapModalOpen && selectedCallForRemap && (
         <RemapIEModal
           callNo={selectedCallForRemap.callNumber}
@@ -504,8 +540,39 @@ const VerifiedOpenCallsTab = ({ callType, calls = [], kpis = {}, onViewHistory }
           onSuccess={() => {
             setIsRemapModalOpen(false);
             setSelectedCallForRemap(null);
-            // Wait 500ms then reload the window since there's no native fetch function passed down
             setTimeout(() => window.location.reload(), 500);
+          }}
+        />
+      )}
+
+      {/* Remap IE Modal for Sleeper */}
+      {isSleeperRemapModalOpen && selectedSleeperCallForRemap && (
+        <SleeperRemapIEModal
+          callNo={selectedSleeperCallForRemap.callNumber}
+          plantId={selectedSleeperCallForRemap.plantId}
+          currentIeUserId={selectedSleeperCallForRemap.assignedToUser}
+          currentIeName={selectedSleeperCallForRemap.assignedIE || 'Assigned IE'}
+          currentIeEmployeeCode={selectedSleeperCallForRemap.assignedToUserEmployeeCode}
+          onClose={() => setIsSleeperRemapModalOpen(false)}
+          onSuccess={() => {
+            setIsSleeperRemapModalOpen(false);
+            window.location.reload();
+          }}
+        />
+      )}
+
+      {/* Railpad IE Remap Modal */}
+      {isRailpadRemapModalOpen && selectedRailpadCallForRemap && (
+        <RailpadRemapIEModal
+          callNo={selectedRailpadCallForRemap.callNumber}
+          plantId={selectedRailpadCallForRemap.plantId}
+          currentIeUserId={selectedRailpadCallForRemap.assignedToUser}
+          currentIeName={selectedRailpadCallForRemap.assignedIE || 'Assigned IE'}
+          currentIeEmployeeCode={selectedRailpadCallForRemap.assignedToUserEmployeeCode}
+          onClose={() => setIsRailpadRemapModalOpen(false)}
+          onSuccess={() => {
+            setIsRailpadRemapModalOpen(false);
+            window.location.reload();
           }}
         />
       )}

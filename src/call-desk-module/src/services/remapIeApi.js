@@ -80,3 +80,51 @@ export const submitRemapIe = async (payload) => {
     );
     return handleResponse(response);
 };
+
+/**
+ * Fetch available employees for Sleeper remapping.
+ */
+export const fetchSleeperRemapAvailableUsers = async () => {
+    const response = await fetch(`${API_BASE_URL}/api/sleeper-workflow/remap-available-users`, {
+        method: 'GET',
+        headers: getHeaders()
+    });
+    return handleResponse(response);
+};
+
+/**
+ * Submit the remapping for a Sleeper call.
+ * @param {Object} payload - { callNo, plantId, oldUserId, newUserId }
+ */
+export const submitSleeperRemap = async (payload) => {
+    const response = await fetch(`${API_BASE_URL}/api/sleeper-workflow/remap-submit`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(payload)
+    });
+    return handleResponse(response);
+};
+
+/**
+ * Fetch available employees for Railpad remapping.
+ */
+export const fetchRailpadRemapAvailableUsers = async () => {
+    const response = await fetch(`${API_BASE_URL}/api/railpad-workflow/remap-available-users`, {
+        method: 'GET',
+        headers: getHeaders()
+    });
+    return handleResponse(response);
+};
+
+/**
+ * Submit the remapping for a Railpad call.
+ * @param {Object} payload - { callNo, plantId, oldUserId, newUserId }
+ */
+export const submitRailpadRemap = async (payload) => {
+    const response = await fetch(`${API_BASE_URL}/api/railpad-workflow/remap-submit`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(payload)
+    });
+    return handleResponse(response);
+};

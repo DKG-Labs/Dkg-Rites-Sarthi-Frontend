@@ -156,16 +156,15 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
     const user = getStoredUser();
     
     const endpoint = callType === 'SLEEPER'
-      ? `${BASE_URL}/api/sleeper-workflow/allCompletedCalls`
+      ? `${BASE_URL}/api/sleeper-workflow/pendingVerifiedCalls`
       : callType === 'RAILPAD'
-      ? `${BASE_URL}/api/railpad-workflow/allCompletedCalls`
+      ? `${BASE_URL}/api/railpad-workflow/pendingVerifiedCalls`
       : `${BASE_URL}/allVerifiedWorkflowTransitions`;
 
     const response = await axios.get(
       endpoint,
       {
         params: {
-          rio: user?.rio || '',
         },
         headers: {
           ...getAuthHeaders(),
@@ -182,18 +181,34 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
     // Filter out completed, withdrawn, withheld, and cancelled calls
     const openCalls = data.filter(item => {
       const status = item.status ? item.status.toString().toUpperCase() : '';
-      return !(status.includes('COMPLETE') || 
+      const isStatusValid = !(status.includes('COMPLETE') || 
                status.includes('CONFIRM') || 
                status.includes('IC') ||
                status.includes('WITHDRAW') || 
                status.includes('WITHHELD') || 
                status.includes('CANCEL'));
+               
+      if (!isStatusValid) return false;
+
+      // Filter by RIO - match logged-in user's RIO with call's RIO
+      if (callType === 'RAILPAD' && (!item.rio || item.rio === null || item.rio === '')) {
+        return true;
+      }
+      
+      if (!item.rio || item.rio === null || item.rio === '') return false;
+      const itemRio = String(item.rio).trim();
+      const userRio = String(user?.rio || '').trim();
+      return itemRio === userRio;
     });
     
     return openCalls.map(item => {
       // Map backend status to internal CALL_STATUS
       let internalStatus = item.status;
-      const backendStatus = item.status ? item.status.toString().toUpperCase() : '';
+      const backendStatus = [
+        item.status || '', 
+        item.action || '', 
+        item.jobStatus || ''
+      ].join(' ').toUpperCase();
 
       if (backendStatus.includes('VERIFIED') || backendStatus.includes('REGISTERED') || backendStatus.includes('COMPLETED')) {
         internalStatus = 'verified_registered';
@@ -240,6 +255,9 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
         status: internalStatus,
         originalStatus: item.status,
         assignedIE: item.assignedToUserName || item.ieName || '-',
+        assignedToUser: item.assignedToUser,
+        assignedToUserEmployeeCode: item.assignedToUserEmployeeCode,
+        plantId: item.plantId,
         rio: item.rio
       };
     });

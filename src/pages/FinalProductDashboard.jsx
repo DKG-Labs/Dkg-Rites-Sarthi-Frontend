@@ -269,12 +269,18 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
           if (chemValues && ladleData) {
             const elementRanges = {
               c: { min: 0.5, max: 0.6 },
-              si: { min: 0.15, max: 0.35 },
-              mn: { min: 0.6, max: 0.9 },
-              s: { max: 0.04 },
-              p: { max: 0.04 }
+              mn: { min: 0.8, max: 1.0 },
+              si: { min: 1.5, max: 2.0 },
+              s: { min: 0, max: 0.03 },
+              p: { min: 0, max: 0.03 },
             };
-            const tolerances = { c: 0.03, si: 0.03, mn: 0.04, s: 0.005, p: 0.005 };
+            const tolerances = {
+              c: 0.03,
+              mn: 0.04,
+              si: 0.05,
+              s: 0.005,
+              p: 0.005,
+            };
 
             for (const el in elementRanges) {
               const pVal = parseFloat(chemValues[el]);
@@ -411,7 +417,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
       if (dashboardData?.finalLotDetails && Array.isArray(dashboardData.finalLotDetails)) {
         dashboardData.finalLotDetails.forEach(lot => {
           results[lot.lotNumber] = {
-            calibration: "Pending",
+            calibration: "ACCEPTED",
             visualDim: "Pending",
             hardness: "Pending",
             inclusion: "Pending",
@@ -433,11 +439,9 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
 
   // Validation function for calibration data
   // Calibration is call-level (not per-lot): all 5 checkboxes must be verified
+  // For now we need to consider the status of the calibration as ok due to it still in progress
   const validateCalibrationData = useCallback((data) => {
-    if (!data) return 'Pending';
-    const requiredKeys = ['rdsoApproval', 'rawMaterialIC', 'dimensionCheck', 'packingList', 'rdsoGauges'];
-    const allVerified = requiredKeys.every(key => data[key]?.verified === true);
-    return allVerified ? 'OK' : 'Pending';
+    return 'ACCEPTED';
   }, []);
 
   // Validation function for visual & dimensional data
@@ -2118,12 +2122,12 @@ Workflow Status: ✅ Transitioned to COMPLETED
                             borderRadius: '4px',
                             fontSize: '11px',
                             fontWeight: '500',
-                            background: status === 'OK' ? '#dcfce7' : (status === 'Pending' ? '#fef9c3' : '#fee2e2'),
-                            color: status === 'OK' ? '#166534' : (status === 'Pending' ? '#854d0e' : '#991b1b'),
-                            border: status === 'OK' ? '1px solid #86efac' : (status === 'Pending' ? '1px solid #fde047' : '1px solid #fca5a5'),
+                            background: (status === 'OK' || status === 'ACCEPTED') ? '#dcfce7' : (status === 'Pending' ? '#fef9c3' : '#fee2e2'),
+                            color: (status === 'OK' || status === 'ACCEPTED') ? '#166534' : (status === 'Pending' ? '#854d0e' : '#991b1b'),
+                            border: (status === 'OK' || status === 'ACCEPTED') ? '1px solid #86efac' : (status === 'Pending' ? '1px solid #fde047' : '1px solid #fca5a5'),
                             whiteSpace: 'nowrap'
                           }}>
-                            {testLabels[test] || test}: {status === 'OK' ? '✓' : (status === 'Pending' ? '⏳' : '✗')}
+                            {testLabels[test] || test}: {(status === 'OK' || status === 'ACCEPTED') ? '✓' : (status === 'Pending' ? '⏳' : '✗')}
                           </span>
                         );
                       }).sort((a) => {

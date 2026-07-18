@@ -31,18 +31,54 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
     const map = {};
     safeItems.forEach(item => {
       if (!item || !item.productType) return;
+      if (!map[item.productType]) {
+        map[item.productType] = [];
+      }
       const safeBatches = Array.isArray(item.batches) ? item.batches.filter(Boolean) : [];
-      map[item.productType] = safeBatches.map(b => {
-        if (!b) return null;
+      safeBatches.forEach(b => {
+        if (!b) return;
         const batchValue = b.batchNo || (b.compoundA && b.compoundB ? `${b.compoundA} + ${b.compoundB}` : '');
         let label = b.batchNo || '';
         if (b.compoundA && b.compoundB) {
           label = `Comp A: ${b.compoundA} | Comp B: ${b.compoundB}`;
         }
-        return { value: batchValue, label: label || batchValue };
-      }).filter(b => b && b.value);
+        if (batchValue && !map[item.productType].some(existing => existing.value === batchValue)) {
+          map[item.productType].push({ value: batchValue, label: label || batchValue });
+        }
+      });
     });
     return map;
+  }, [safeItems]);
+
+  const batchToDrawings = useMemo(() => {
+    const map = {};
+    safeItems.forEach(item => {
+      if (!item || !item.productType || !item.drawingNo) return;
+      const pt = item.productType;
+      if (!map[pt]) map[pt] = {};
+      
+      const safeBatches = Array.isArray(item.batches) ? item.batches.filter(Boolean) : [];
+      safeBatches.forEach(b => {
+        if (!b) return;
+        const batchValue = b.batchNo || (b.compoundA && b.compoundB ? `${b.compoundA} + ${b.compoundB}` : '');
+        if (batchValue) {
+          if (!map[pt][batchValue]) {
+            map[pt][batchValue] = new Set();
+          }
+          map[pt][batchValue].add(item.drawingNo);
+        }
+      });
+    });
+    
+    // Convert Sets to arrays
+    const finalMap = {};
+    Object.keys(map).forEach(pt => {
+      finalMap[pt] = {};
+      Object.keys(map[pt]).forEach(batch => {
+        finalMap[pt][batch] = Array.from(map[pt][batch]);
+      });
+    });
+    return finalMap;
   }, [safeItems]);
 
   const productTypes = Object.keys(availableBatches);
@@ -87,10 +123,36 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
   }
 
   // ─── Handlers ───
+  const getManufacturedQty = (productType, batchNo, drawingNo) => {
+    let total = 0;
+    safeItems.forEach(item => {
+      if (item && item.productType === productType && (!drawingNo || item.drawingNo === drawingNo)) {
+        const safeBatches = Array.isArray(item.batches) ? item.batches.filter(Boolean) : [];
+        safeBatches.forEach(b => {
+          if (!b) return;
+          const bNo = b.batchNo || (b.compoundA && b.compoundB ? `${b.compoundA} + ${b.compoundB}` : '');
+          if (bNo === batchNo) {
+            total += parseInt(b.qtyProduced) || 0;
+          }
+        });
+      }
+    });
+    return total;
+  };
+
+  const getOtherRejectedQtySum = (currentRejections, excludeId, productType, batchNo, drawingNo) => {
+    return currentRejections.reduce((sum, r) => {
+      if (r.id !== excludeId && r.productType === productType && r.batchNo === batchNo && r.drawingNo === drawingNo) {
+        return sum + (parseInt(r.rejectedQty) || 0);
+      }
+      return sum;
+    }, 0);
+  };
+
   const handleAddRejection = () => {
     setRejections(prev => [
       ...prev,
-      { id: Date.now(), productType: '', batchNo: '', rejectedQty: '', reason: 'NIL' }
+      { id: Date.now(), productType: '', batchNo: '', drawingNo: '', rejectedQty: '', reason: 'NIL' }
     ]);
   };
 
@@ -101,11 +163,13 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
 
       if (field === 'productType') {
         updated.batchNo = '';
+        updated.drawingNo = '';
         updated.reason = 'NIL';
         updated.rejectedQty = '';
       }
 
       if (field === 'batchNo') {
+        updated.drawingNo = '';
         if (value) {
           const currentQty = parseInt(updated.rejectedQty) || 0;
           const otherUsedReasons = prev
@@ -126,7 +190,8 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
       }
 
       if (field === 'rejectedQty') {
-        const qty = parseInt(value) || 0;
+        const qty = value === '' ? 0 : parseInt(value) || 0;
+        updated.rejectedQty = qty > 0 ? qty : '';
         if (qty === 0) {
           updated.reason = 'NIL';
         } else {
@@ -154,6 +219,19 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
             alert(`The reason "${value}" is already logged for this product and batch combination.`);
             return rej;
           }
+        }
+      }
+
+      // Validate rejected quantity against manufactured quantity
+      if (updated.productType && updated.batchNo) {
+        const manufacturedQty = getManufacturedQty(updated.productType, updated.batchNo, updated.drawingNo);
+        const otherRejectionsSum = getOtherRejectedQtySum(prev, id, updated.productType, updated.batchNo, updated.drawingNo);
+        const maxAllowed = Math.max(0, manufacturedQty - otherRejectionsSum);
+        
+        let currentQty = parseInt(updated.rejectedQty) || 0;
+        if (currentQty > maxAllowed) {
+          currentQty = maxAllowed;
+          updated.rejectedQty = currentQty > 0 ? currentQty : '';
         }
       }
 
@@ -363,9 +441,10 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
                 <tr>
                   <th>Product Type</th>
                   <th>Batch No.</th>
-                  <th>Rejected Qty</th>
-                  <th>Reason</th>
-                  <th></th>
+                  <th>Drawing No.</th>
+                  <th style={{ width: '120px' }}>Rejected Qty</th>
+                  <th style={{ width: '25%' }}>Reason</th>
+                  <th style={{ width: '50px' }}></th>
                 </tr>
               </thead>
               <tbody>
@@ -396,12 +475,32 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
                       </select>
                     </td>
                     <td>
+                      {rej.productType && rej.productType.includes('NCRGRSP') ? (
+                        <select
+                          value={rej.drawingNo || ''}
+                          onChange={(e) => handleUpdateRejection(rej.id, 'drawingNo', e.target.value)}
+                          disabled={isReadOnly || !rej.batchNo}
+                          style={{ border: (!rej.drawingNo && batchToDrawings[rej.productType]?.[rej.batchNo]?.length > 0) ? '1px solid #fda4af' : '1px solid #e2e8f0' }}
+                        >
+                          <option value="">-- Select Drawing --</option>
+                          {rej.productType && rej.batchNo && batchToDrawings[rej.productType]?.[rej.batchNo]
+                            ?.filter(d => d === rej.drawingNo || !rejections.some(r => r.id !== rej.id && r.productType === rej.productType && r.batchNo === rej.batchNo && r.drawingNo === d))
+                            .map(d => (
+                            <option key={d} value={d}>{d}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span style={{ color: '#94a3b8' }}>N/A</span>
+                      )}
+                    </td>
+                    <td>
                       <input
                         type="number"
                         value={rej.rejectedQty}
                         onChange={(e) => handleUpdateRejection(rej.id, 'rejectedQty', e.target.value)}
                         min="0"
                         disabled={isReadOnly}
+                        style={{ width: '100px' }}
                       />
                     </td>
                     <td>

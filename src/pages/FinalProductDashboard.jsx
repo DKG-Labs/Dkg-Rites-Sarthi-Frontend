@@ -1407,9 +1407,16 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
         if (draftData.lotInspectionData) setLotInspectionData(draftData.lotInspectionData);
         if (draftData.packedInHDPE !== undefined) setPackedInHDPE(draftData.packedInHDPE);
         if (draftData.cleanedWithCoating !== undefined) setCleanedWithCoating(draftData.cleanedWithCoating);
-        if (draftData.capturedImages && draftData.capturedImages.length > 0) {
-          setCapturedImages(draftData.capturedImages);
-        }
+        // Restore captured images from IndexedDB, fallback to draftData for legacy drafts
+        import('../utils/imageStorage').then(({ getImages }) => {
+          getImages(storageKey).then(images => {
+            if (images && images.length > 0) {
+              setCapturedImages(images);
+            } else if (draftData.capturedImages && draftData.capturedImages.length > 0) {
+              setCapturedImages(draftData.capturedImages);
+            }
+          }).catch(console.error);
+        });
 
         console.log('✅ Draft data loaded successfully');
       }

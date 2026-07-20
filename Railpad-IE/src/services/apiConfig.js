@@ -18,7 +18,8 @@ export const API_ENDPOINTS = {
     GET_PLANTS_BY_COMPANY: '/railpad-workflow/getPlantsByCompanyName',
     ALL_PENDING_TRANSITIONS: '/railpad-workflow/allPendingWorkflowTransition',
     PERFORM_TRANSITION: '/railpad-workflow/performTransitionAction',
-    ALL_COMPLETED_CALLS: '/railpad-workflow/allCompletedCalls'
+    ALL_COMPLETED_CALLS: '/railpad-workflow/allCompletedCalls',
+    MAPPED_PLANT_IDS: '/railpad-workflow/mapped-plant-ids'
   },
   PRODUCTION_DECLARATION: {
     GET_BY_ID: '/rail-production-declaration'

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { loginUser, storeAuthData, isAuthenticated, resetPassword } from '../services/authService';
+import { fetchMappedPlantIds } from '../services/workflowService';
 import './LoginPage.css';
 
 /**
@@ -142,6 +143,13 @@ const LoginPage = () => {
     try {
       const userData = await loginUser(userId, password, loginType);
       storeAuthData(userData);
+      
+      try {
+        await fetchMappedPlantIds(userData.userId, 'Main IE');
+      } catch (cacheErr) {
+        console.error('Failed to pre-cache mapped plant IDs', cacheErr);
+      }
+
       window.location.reload();
     } catch (err) {
       setError(err.message || 'Login failed. Please check your credentials.');

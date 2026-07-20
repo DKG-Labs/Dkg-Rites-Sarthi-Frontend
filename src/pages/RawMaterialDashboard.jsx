@@ -2882,7 +2882,16 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         if (draftData.heatSealingType) setHeatSealingType(draftData.heatSealingType);
         if (draftData.heatSteelStampNumber) setHeatSteelStampNumber(draftData.heatSteelStampNumber);
         if (draftData.heatHologramEntries) setHeatHologramEntries(draftData.heatHologramEntries);
-        if (draftData.capturedImages) setCapturedImages(draftData.capturedImages);
+        // Restore captured images from IndexedDB, fallback to draftData for legacy drafts
+        import('../utils/imageStorage').then(({ getImages }) => {
+          getImages(storageKey).then(images => {
+            if (images && images.length > 0) {
+              setCapturedImages(images);
+            } else if (draftData.capturedImages && draftData.capturedImages.length > 0) {
+              setCapturedImages(draftData.capturedImages);
+            }
+          }).catch(console.error);
+        });
 
         // Restore color codes to heat data
         if (draftData.heatColorCodes && Object.keys(draftData.heatColorCodes).length > 0) {
@@ -2921,7 +2930,6 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         heatSealingType,
         heatSteelStampNumber,
         heatHologramEntries,
-        capturedImages,
         // Keep color codes in sync if available
         heatColorCodes: fetchedHeatData.reduce((acc, heat) => {
           if (heat.heatNo && heat.colorCode) {
@@ -2937,6 +2945,17 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       const serializedData = JSON.stringify(draftData);
       localStorage.setItem(storageKey, serializedData);
       localStorage.setItem(mainKey, serializedData);
+
+      // Save images to IndexedDB
+      if (capturedImages && capturedImages.length > 0) {
+        import('../utils/imageStorage').then(({ saveImages }) => {
+          saveImages(storageKey, capturedImages).catch(console.error);
+        });
+      } else {
+        import('../utils/imageStorage').then(({ removeImages }) => {
+          removeImages(storageKey).catch(console.error);
+        });
+      }
     } catch (error) {
       console.error('Error in auto-save:', error);
     }

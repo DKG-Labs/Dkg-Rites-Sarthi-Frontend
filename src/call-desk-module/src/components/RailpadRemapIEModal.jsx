@@ -144,7 +144,7 @@ const RailpadRemapIEModal = ({ callNo, plantId, currentIeUserId, currentIeName, 
     <div style={styles.overlay} onClick={onClose}>
       <div style={styles.modal} onClick={e => e.stopPropagation()}>
         <div style={styles.header}>
-          <h2 style={styles.title}>🔄 Reassign Process IE (RailPad)</h2>
+          <h2 style={styles.title}>🔄 Reassign Main IE (RailPad)</h2>
           <button style={styles.closeBtn} onClick={onClose}>&times;</button>
         </div>
 
@@ -190,7 +190,7 @@ const RailpadRemapIEModal = ({ callNo, plantId, currentIeUserId, currentIeName, 
               <div>
                 <div style={styles.sectionLabel}>Reassignment</div>
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Select New Rail Process IE</label>
+                  <label style={styles.label}>Select New Railpad Main IE</label>
                   <select
                     style={styles.select}
                     value={selectedNewUserId}

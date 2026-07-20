@@ -122,14 +122,23 @@ export const InspectionProvider = ({ children }) => {
   const [processLotNumbers] = useState(['LOT-001', 'LOT-002', 'LOT-003']);
 
   // Captured Images (shared across dashboards)
-  const [capturedImages, setCapturedImages] = useState(() => {
-    try {
-      const saved = sessionStorage.getItem('capturedImages');
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      return [];
-    }
-  });
+  const [capturedImages, setCapturedImages] = useState([]);
+
+  // Load from IndexedDB on mount
+  useEffect(() => {
+    const loadImages = async () => {
+      try {
+        const { getImages } = await import('../utils/imageStorage');
+        const images = await getImages('capturedImages');
+        if (images && images.length > 0) {
+          setCapturedImages(images);
+        }
+      } catch (e) {
+        console.error('Failed to load images from IndexedDB', e);
+      }
+    };
+    loadImages();
+  }, []);
 
   // Landing page active tab
   const [landingActiveTab, setLandingActiveTab] = useState('pending');
@@ -181,16 +190,17 @@ export const InspectionProvider = ({ children }) => {
     }
   }, []);
 
-  const updateCapturedImages = useCallback((images) => {
+  const updateCapturedImages = useCallback(async (images) => {
     setCapturedImages(images);
     try {
+      const { saveImages, removeImages } = await import('../utils/imageStorage');
       if (images && images.length > 0) {
-        sessionStorage.setItem('capturedImages', JSON.stringify(images));
+        await saveImages('capturedImages', images);
       } else {
-        sessionStorage.removeItem('capturedImages');
+        await removeImages('capturedImages');
       }
     } catch (e) {
-      console.warn('Could not save captured images to sessionStorage (likely quota exceeded).');
+      console.warn('Could not save captured images to IndexedDB.', e);
     }
   }, []);
 

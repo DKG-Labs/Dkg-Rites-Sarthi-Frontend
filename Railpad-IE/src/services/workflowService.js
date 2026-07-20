@@ -15,6 +15,28 @@ export const fetchPendingWorkflowTransitions = async (roleName) => {
   }
 };
 
+export const fetchMappedPlantIds = async (userId, ieType = 'Main IE') => {
+  const cacheKey = `mappedPlantIds_${userId}_${ieType}`;
+  try {
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
+    const response = await fetch(`${getBaseUrl()}${API_ENDPOINTS.RAILPAD_WORKFLOW.MAPPED_PLANT_IDS}?userId=${userId}&ieType=${encodeURIComponent(ieType)}`);
+    const data = await response.json();
+    if (data.responseStatus?.statusCode === 0) {
+      const plantIds = data.responseData || [];
+      localStorage.setItem(cacheKey, JSON.stringify(plantIds));
+      return plantIds;
+    }
+    return [];
+  } catch (error) {
+    console.error('Error fetching mapped plant IDs:', error);
+    return [];
+  }
+};
+
 export const fetchCompletedCalls = async () => {
   try {
     const user = getStoredUser();

@@ -342,8 +342,12 @@ const CallDetailsModal = ({
                     sx={{ width: '100%', '& .MuiOutlinedInput-root': { backgroundColor: '#f9fafb', height: '44px' } }}
                   />
                 ) : (
-                  <div className="font-bold text-lg text-gray-800 p-2.5 bg-gray-50 rounded border border-gray-200 w-full h-11 flex items-center">
-                    {call.assignedIeName || 'System Assigned'}
+                  <div className={`font-bold text-lg p-2.5 rounded border w-full h-11 flex items-center ${
+                    call.callNumber?.startsWith('RP') && !call.assignedIeName 
+                      ? 'bg-red-50 border-red-200 text-red-600 text-sm' 
+                      : 'bg-gray-50 border-gray-200 text-gray-800'
+                  }`}>
+                    {call.assignedIeName || (call.callNumber?.startsWith('RP') ? 'No Railpad main IE has been mapped' : 'System Assigned')}
                   </div>
                 )}
               </div>
@@ -645,12 +649,31 @@ const CallDetailsModal = ({
             >
               ↩️ Return
             </button>
-            <button
-              className="btn bg-blue-600 text-white hover:bg-blue-700"
-              onClick={() => setShowVerifyModal(true)}
-            >
-              ✅ Verify
-            </button>
+            <div className="relative group">
+              <button
+                className={`btn ${
+                  call.callNumber?.startsWith('RP') && !call.assignedIeName && (!mappedIEs || mappedIEs.length === 0)
+                    ? 'bg-gray-400 text-white cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
+                onClick={() => {
+                  if (call.callNumber?.startsWith('RP') && !call.assignedIeName && (!mappedIEs || mappedIEs.length === 0)) {
+                    // Do nothing, button is disabled
+                    return;
+                  }
+                  setShowVerifyModal(true);
+                }}
+                disabled={call.callNumber?.startsWith('RP') && !call.assignedIeName && (!mappedIEs || mappedIEs.length === 0)}
+              >
+                ✅ Verify
+              </button>
+              
+              {call.callNumber?.startsWith('RP') && !call.assignedIeName && (!mappedIEs || mappedIEs.length === 0) && (
+                <div className="absolute bottom-full right-0 mb-2 w-64 p-2 bg-red-100 text-red-700 text-xs font-semibold rounded shadow-lg border border-red-200 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                  ⚠️ Verification is disabled because no Railpad Main IE has been mapped for this vendor's POI.
+                </div>
+              )}
+            </div>
 
             {/* Return Confirmation Modal */}
             {showReturnModal && (

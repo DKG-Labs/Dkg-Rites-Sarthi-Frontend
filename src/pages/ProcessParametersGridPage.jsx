@@ -101,38 +101,44 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
     return isMkIII;
   }, [productType]);
 
-  // Get lot numbers for active line - ONLY use cached initiation data (same source as Pre-Inspection)
+  // Get lot numbers for active line
   const availableLotNumbers = useMemo(() => {
     console.log('📋 [Grid Lot Numbers] Current line initiation data:', currentLineInitiationData);
     console.log('📋 [Grid Lot Numbers] Current production line:', currentProductionLine);
 
-    // ONLY use lot numbers from cached initiation data (same source as Pre-Inspection)
-    // This ensures the lot numbers in the grid match exactly what's shown in Pre-Inspection
+    let lots = [];
+
     if (currentLineInitiationData) {
       // Check if lotDetailsList is available (contains all lots for this inspection)
       if (currentLineInitiationData.lotDetailsList && currentLineInitiationData.lotDetailsList.length > 0) {
         console.log('📋 [Grid Lot Numbers] Using lotDetailsList from API:', currentLineInitiationData.lotDetailsList);
-
-        // Extract all lot numbers from lotDetailsList and convert to string
-        const allLotNumbers = currentLineInitiationData.lotDetailsList.map(lot => String(lot.lotNumber));
-        console.log('✅ [Grid Lot Numbers] Using all lot numbers from lotDetailsList:', allLotNumbers);
-        return allLotNumbers;
+        lots = currentLineInitiationData.lotDetailsList.map(lot => String(lot.lotNumber));
+        console.log('✅ [Grid Lot Numbers] Extracted from lotDetailsList:', lots);
       } else {
         // Fallback to main lot number if lotDetailsList is not available
         const mainLotNumber = currentLineInitiationData.lotNumber ? String(currentLineInitiationData.lotNumber) : '';
-        console.log('📋 [Grid Lot Numbers] Lot number from cached initiation data:', mainLotNumber);
-
         if (mainLotNumber) {
-          console.log('✅ [Grid Lot Numbers] Using main lot number:', [mainLotNumber]);
-          return [mainLotNumber];
+          console.log('✅ [Grid Lot Numbers] Extracted main lot number:', [mainLotNumber]);
+          lots = [mainLotNumber];
         }
       }
     }
 
-    // If no cached data, return empty array (no mock data)
-    console.log('⚠️ [Grid Lot Numbers] No cached initiation data available, returning empty array');
+    // Merge with lotNumbers prop (which contains the active lots from ProcessDashboard)
+    // This fixes the issue where lots are intermittently missing if the API cache hasn't finished loading
+    if (lotNumbers && lotNumbers.length > 0) {
+      const merged = [...new Set([...lots, ...lotNumbers])];
+      console.log('✅ [Grid Lot Numbers] Merged API lots with active lotNumbers prop:', merged);
+      return merged;
+    }
+
+    if (lots.length > 0) {
+      return lots;
+    }
+
+    console.log('⚠️ [Grid Lot Numbers] No cached initiation data and no active lots, returning empty array');
     return [];
-  }, [currentLineInitiationData, currentProductionLine]);
+  }, [currentLineInitiationData, currentProductionLine, lotNumbers]);
 
   const [shearingData, setShearingData] = useState(
     Array(8).fill(null).map((_, i) => ({

@@ -14,7 +14,7 @@ import './ManualChecks.css';
  * 3. Clean architecture
  */
 
-const SubCard = ({ id, title, color, count, isActive, onClick, onAdd, alert }) => {
+const SubCard = ({ id, title, color, count, isActive, onClick, onAdd, alert, showAdd = true }) => {
     const label = id === 'mouldPrep' ? 'IN-PROGRESS' : id === 'htsWire' ? 'LOGS' : 'RESULTS';
     const category = id === 'mouldPrep' ? 'PREP' : id === 'htsWire' ? 'PLACEMENT' : 'QUALITY';
 
@@ -50,13 +50,15 @@ const SubCard = ({ id, title, color, count, isActive, onClick, onAdd, alert }) =
             )}
             <div className="sub-card-header">
                 <span className="sub-card-mini-label" style={{ color: isActive ? color : '#64748b' }}>{label}</span>
-                <button
-                    onClick={(e) => { e.stopPropagation(); onAdd(id); }}
-                    className="add-btn-mini"
-                    style={{ background: color }}
-                >
-                    +
-                </button>
+                {showAdd && (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onAdd(id); }}
+                        className="add-btn-mini"
+                        style={{ background: color }}
+                    >
+                        +
+                    </button>
+                )}
             </div>
             <span className="sub-card-title">{title}</span>
             <div className="sub-card-footer">
@@ -142,7 +144,7 @@ const HTS_TABLE_MAPPING = [
 
 const ManualChecks = ({ onBack, activeContainer, initialSubModule, initialViewMode, sharedState, initialEditData, isInline = false }) => {
     const { entries, setEntries } = sharedState;
-    const { fetchManualChecks, sharedBatchNo, setSharedBatchNo, sharedBenchNo, setSharedBenchNo, vendorCode, dutyUnit, selectedShift, dutyDate, userId } = useShift();
+    const { fetchManualChecks, sharedBatchNo, setSharedBatchNo, sharedBenchNo, setSharedBenchNo, vendorCode, dutyUnit, selectedShift, dutyDate, userId, isActiveDuty } = useShift();
 
     const [viewMode, setViewMode] = useState(initialViewMode === 'form' ? 'form' : 'dashboard');
     const [activeModule, setActiveModule] = useState(initialSubModule || 'mouldPrep');
@@ -305,8 +307,17 @@ const ManualChecks = ({ onBack, activeContainer, initialSubModule, initialViewMo
             return parseDate(dateB, timeB) - parseDate(dateA, timeA);
         });
 
-        const lineRecords = records.filter(r => !(r.lineShedNo || r.location || '').toLowerCase().includes('shed'));
-        const shedRecords = records.filter(r => (r.lineShedNo || r.location || '').toLowerCase().includes('shed'));
+        const classifyRecord = (r) => {
+            const loc = (r.lineShedNo || r.location || '').trim().toLowerCase();
+            if (loc === '' || loc === 'n/a') {
+                // Fallback: assign to current active container type
+                return activeContainer?.type === 'Shed' ? 'shed' : 'line';
+            }
+            return loc.includes('shed') ? 'shed' : 'line';
+        };
+
+        const lineRecords = records.filter(r => classifyRecord(r) === 'line');
+        const shedRecords = records.filter(r => classifyRecord(r) === 'shed');
 
         const renderTable = (recordsSubset, title, groupColor, tableType) => {
             const tableFieldLabel = tableType === 'Line' ? 'Gang' : 'Bench';
@@ -457,6 +468,10 @@ const ManualChecks = ({ onBack, activeContainer, initialSubModule, initialViewMo
                                                 const recordDate = entry.createdDate || entry.date || entry.preparationDate || entry.placementDate || entry.inspectionDate || "";
                                                 const isToday = recordDate.includes(todayStr) || recordDate.includes(todayDMY);
                                                 
+                                                if (!isActiveDuty) {
+                                                    return <span style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic' }}>Locked (Passive Shift)</span>;
+                                                }
+                                                
                                                 if (isToday) {
                                                     return (
                                                         <div className="btn-group-center">
@@ -562,6 +577,7 @@ const ManualChecks = ({ onBack, activeContainer, initialSubModule, initialViewMo
                             onClick={() => { setActiveModule(mod.id); setViewMode('dashboard'); }}
                             onAdd={(id) => { setActiveModule(id); setEditingEntry(null); setViewMode('form'); }}
                             alert={showAlert}
+                            showAdd={isActiveDuty}
                         />
                     );
                 })}

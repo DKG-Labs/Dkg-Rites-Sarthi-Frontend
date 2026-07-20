@@ -516,7 +516,7 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
           {!isViewOnly && (
             <button
               onClick={handleESign}
-              disabled={isESigning}
+              disabled={isESigning || isEditing}
               style={{
                 padding: '8px 16px',
                 border: 'none',
@@ -550,7 +550,7 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
           {/* Export PDF Button */}
           <button
             onClick={handleExport}
-            disabled={isESigning}
+            disabled={isESigning || isEditing}
             style={{
               padding: '8px 16px',
               border: 'none',

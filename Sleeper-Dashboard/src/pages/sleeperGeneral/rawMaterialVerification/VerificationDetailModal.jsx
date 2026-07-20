@@ -477,7 +477,8 @@ const VerificationDetailModal = ({ row, moduleLabel, actionBy, onClose, onDone }
                                     flex: 1, padding: '10px', border: 'none', borderRadius: '8px',
                                     background: accentColors.REQUEST_BACK, color: '#fff',
                                     fontWeight: '700', fontSize: '13px', cursor: 'pointer',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                                    display: 'none', // Temporarily hidden
+                                    alignItems: 'center', justifyContent: 'center', gap: '6px',
                                 }}
                             >
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

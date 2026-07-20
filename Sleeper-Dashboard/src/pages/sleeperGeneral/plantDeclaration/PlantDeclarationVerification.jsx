@@ -364,7 +364,7 @@ const PlantDeclarationVerification = () => {
                                         {!isHistory && (row.status === 'CREATED' || row.status?.toUpperCase() === 'UNLOCKED') && (
                                             <>
                                                 <button onClick={() => handleAction(row, 'VERIFY')} disabled={submitting} className="pdv-verify-btn">Verify</button>
-                                                <button onClick={() => handleAction(row, 'REQUEST_BACK')} disabled={submitting} className="pdv-return-btn">Return</button>
+                                                <button style={{ display: 'none' }} onClick={() => handleAction(row, 'REQUEST_BACK')} disabled={submitting} className="pdv-return-btn">Return</button>
                                             </>
                                         )}
                                         <button onClick={() => setDetailModal(row)} className="pdv-view-mini">View</button>

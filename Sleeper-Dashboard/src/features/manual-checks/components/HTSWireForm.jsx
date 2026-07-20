@@ -157,7 +157,7 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
 
     // Auto Overall Status calculation
     useEffect(() => {
-        const rules = SLEEPER_RULES[formData.sleeperType] || { wires: '16/18/20/24', diaMin: 2.97, diaMax: 3.03 };
+        const rules = SLEEPER_RULES[formData.sleeperType] || { wires: '16/18/20/24/27', diaMin: 2.97, diaMax: 3.03 };
         
         const { noOfWires, wireDia, layLength, observedWeight, arrangement } = formData;
 
@@ -250,7 +250,7 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
 
         setValidationErrors([]);
 
-        const rules = SLEEPER_RULES[formData.sleeperType] || { wires: '16/18/20/24', diaMin: 2.97, diaMax: 3.03, nominalWeight: 0.166 };
+        const rules = SLEEPER_RULES[formData.sleeperType] || { wires: '16/18/20/24/27', diaMin: 2.97, diaMax: 3.03, nominalWeight: 0.166 };
         const layLenNum = parseFloat(formData.layLength);
         const diaNum = parseFloat(formData.wireDia);
         const wiresNum = parseInt(formData.noOfWires);
@@ -311,7 +311,7 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
     };
 
     const fieldLabel = (formData.location || '').toLowerCase().includes('line') ? 'Gang' : 'Bench';
-    const currentRules = SLEEPER_RULES[formData.sleeperType] || { wires: '16/18/20/24', diaMin: 2.97, diaMax: 3.03, nominalWeight: 0.166 };
+    const currentRules = SLEEPER_RULES[formData.sleeperType] || { wires: '16/18/20/24/27', diaMin: 2.97, diaMax: 3.03, nominalWeight: 0.166 };
     const validCurrentWires = typeof currentRules.wires === 'string' ? currentRules.wires.split('/').map(Number) : [currentRules.wires];
 
     return (

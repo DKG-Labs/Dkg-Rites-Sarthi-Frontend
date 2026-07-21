@@ -199,7 +199,7 @@ const ModulusOfRupture = () => {
     const columnsDeclared = [
         { key: 'samplingDate', label: 'Date of Sampling' },
         { key: 'concreteGrade', label: 'Concrete Grade' },
-        { key: 'location', label: 'Location' },
+        { key: 'location', label: 'Location', render: (_, row) => row.plantType && row.shedLine ? `${row.plantType} - ${row.shedLine}` : (row.shedLine || row.location || '-') },
         { key: 'sampleIdentificationNumber', label: 'Sample ID' },
         {
             key: 'actions',

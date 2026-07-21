@@ -851,7 +851,7 @@ const MRDetailsModal = ({ batch, onClose, onModify, onEnterTest, onDelete }) => 
         { label: 'Batch No', value: batch.batchNo },
         { label: 'Sleeper Type', value: batch.sleeperType },
         { label: 'Casting Date', value: batch.castingDate },
-        { label: 'Sleeper Info', value: batch.isTestRecord ? `${batch.benchNumber}${batch.sleeperNo}` : batch.declaredSamples?.map(s => `${s.bench}${s.no}`).join(', ') },
+        { label: 'Sleeper Info', value: batch.isTestRecord ? batch.sleeperNo : batch.declaredSamples?.map(s => s.no).join(', ') },
         { label: 'Log Created', value: `${createdTime.toLocaleDateString('en-GB')} ${createdTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` }
     ];
 

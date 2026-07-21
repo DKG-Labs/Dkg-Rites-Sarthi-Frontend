@@ -766,7 +766,7 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                                 borderRadius: '12px',
                                 border: '1px dashed #cbd5e1',
                             }}>
-                                {(availableSleepersByBench[bench] || ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']).map(seq => {
+                                {(availableSleepersByBench[bench] || ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']).map((seq, idx) => {
                                     // Check if this sleeper is currently marked as defective for this bench
                                     const isDefective = formData.defectiveSleeperDetails.some(d => String(d.benchNo) === String(bench) && (d.sequence === seq || d.sleeperNo === seq));
 
@@ -798,7 +798,7 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
 
                                     return (
                                         <div
-                                            key={seq}
+                                            key={`${seq}-${idx}`}
                                             onClick={handleClick}
                                             style={{
                                                 minWidth: '56px',

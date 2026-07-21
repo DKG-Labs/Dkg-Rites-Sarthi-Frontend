@@ -113,9 +113,9 @@ const WaterCubeTesting = () => {
                 return [];
             }
 
-            // Fetch active declarations first to filter out already declared batches
-            const activeData = await fetchActiveDeclarations();
-            const activeDeclarationIds = activeData.map(d => d.productionDeclarationId);
+            // Fetch ALL declarations (both active and completed) to filter them out of the pending list
+            const allSamples = await getWaterCubeSamples().catch(() => []);
+            const declaredBatchIds = allSamples.map(d => String(d.productionDeclarationId));
 
             // Fast API: only fetches declarations for this user at the DB level
             const data = await getProductionDeclarations();
@@ -131,7 +131,7 @@ const WaterCubeTesting = () => {
                         typesCount: d.totalSleeperTypes || 0,
                         raw: d
                     }))
-                    .filter(d => !activeDeclarationIds.includes(d.id)); // Filter out declared batches
+                    .filter(d => !declaredBatchIds.includes(String(d.id))); // Filter out all declared batches (both active and tested)
                 setPendingDeclarations(mappedData);
             } else {
                 setPendingDeclarations([]);
@@ -1037,24 +1037,25 @@ const SampleDeclarationModal = ({ batches, isModifying, onClose, onSave }) => {
                                     if (saving) return;
                                     const allCubes = [...form.sample1, ...form.sample2];
                                     
-                                    // 1. Check all filled
-                                    if (allCubes.some(c => !c.bench || !c.seq)) {
-                                        alert("Please select exactly 6 sleepers for testing.");
+                                    const selectedCubes = allCubes.filter(c => c.bench || c.seq);
+
+                                    if (selectedCubes.length === 0) {
+                                        alert("Please select at least one sleeper for testing.");
                                         return;
                                     }
                                     
                                     // 2. Validation: Must be from the list
-                                    const invalid = allCubes.filter(c => !allSleeperOptions.includes(`${c.bench}${c.seq}`));
+                                    const invalid = selectedCubes.filter(c => !allSleeperOptions.includes(`${c.bench}${c.seq}`));
                                     if (invalid.length > 0) {
                                         alert(`Invalid selection: ${invalid.map(c => `${c.bench}${c.seq}`).join(', ')} do not belong to this batch.`);
                                         return;
                                     }
 
                                     // 3. Check for duplicates
-                                    const combinations = allCubes.map(c => `${c.bench}${c.seq}`);
+                                    const combinations = selectedCubes.map(c => `${c.bench}${c.seq}`);
                                     const uniqueCombinations = new Set(combinations);
                                     if (uniqueCombinations.size !== combinations.length) {
-                                        alert("Duplicate sleepers selected. Each of the 6 cubes must be a unique sleeper.");
+                                        alert("Duplicate sleepers selected. Each cube must be a unique sleeper.");
                                         return;
                                     }
                                     
@@ -1062,10 +1063,10 @@ const SampleDeclarationModal = ({ batches, isModifying, onClose, onSave }) => {
                                     try {
                                         await onSave({
                                             batches: batches,
-                                            sample1Raw: form.sample1,
-                                            sample2Raw: form.sample2,
-                                            sample1: form.sample1.map(c => `${c.bench}${c.seq}`),
-                                            sample2: form.sample2.map(c => `${c.bench}${c.seq}`),
+                                            sample1Raw: form.sample1.filter(c => c.bench || c.seq),
+                                            sample2Raw: form.sample2.filter(c => c.bench || c.seq),
+                                            sample1: form.sample1.filter(c => c.bench || c.seq).map(c => `${c.bench}${c.seq}`),
+                                            sample2: form.sample2.filter(c => c.bench || c.seq).map(c => `${c.bench}${c.seq}`),
                                         });
                                     } catch (err) {
                                         setSaving(false);

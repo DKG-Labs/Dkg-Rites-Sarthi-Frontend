@@ -14,6 +14,7 @@ import { performTransitionAction } from "../../services/workflowService";
 import { getCurrentUserId } from "../../services/workflowApiService";
 import { getStoredUser } from "../../services/authService";
 import ErcRmIC from "./ErcRmIc";
+import reportService from "../../services/reportService";
 import { fetchPoDataForSections } from "../../services/poDataService";
 import { normalizeErcType } from "../../utils/ercUtils";
 
@@ -209,7 +210,22 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
               specNo: savedEdit.specNo || initialData.specNo,
               qapNo: savedEdit.qapNo || initialData.qapNo,
               chpClause: savedEdit.chpClause || initialData.chpClause,
+              trRecDate: savedEdit.trRecDate || initialData.trRecDate,
             };
+          }
+          
+          try {
+              const region = await reportService.getRegionByCallNo(icNumber);
+              if (region && region.responseData) {
+                  initialData.region = region.responseData;
+              }
+          } catch (e) {
+              console.error("Failed to fetch region dynamically:", e);
+              setNotification({ 
+                  open: true, 
+                  message: "Could not fetch region details. Defaulting to standard region.", 
+                  severity: "warning" 
+              });
           }
         }
         setEditableData(initialData);

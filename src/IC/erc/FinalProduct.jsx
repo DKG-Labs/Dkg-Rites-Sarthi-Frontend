@@ -15,6 +15,7 @@ import { uploadSignedCertificate, saveFinalIcEditData, getFinalIcEditData, saveF
 import { performTransitionAction } from "../../services/workflowService";
 import { getCurrentUserId } from "../../services/workflowApiService";
 import { getStoredUser } from "../../services/authService";
+import reportService from "../../services/reportService";
 
 const numberToWords = (num) => {
     if (num === 0) return "Zero";
@@ -226,6 +227,20 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
               description: savedEdit.description || initialData.description,
               trRecDate: savedEdit.trRecDate || initialData.trRecDate,
             };
+          }
+          
+          try {
+              const region = await reportService.getRegionByCallNo(icNumber);
+              if (region && region.responseData) {
+                  initialData.region = region.responseData;
+              }
+          } catch (e) {
+              console.error("Failed to fetch region dynamically:", e);
+              setNotification({ 
+                  open: true, 
+                  message: "Could not fetch region details. Defaulting to standard region.", 
+                  severity: "warning" 
+              });
           }
         }
         setData(initialData);

@@ -273,11 +273,7 @@ export default function FinalReportsPage({ onBack, onNavigateSubmodule }) {
           ></textarea>
         </div>
 
-        <div className="rep-actions">
-          <button className="rep-btn-outline">Export PDF</button>
-          <button className="rep-btn-outline" onClick={onBack}>Cancel</button>
-          <button className="rep-btn-primary">Generate IC</button>
-        </div>
+
       </div>
 
     </div>

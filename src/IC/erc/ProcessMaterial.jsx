@@ -15,6 +15,7 @@ import { uploadSignedCertificate, saveProcessIcEditData, getProcessIcEditData, s
 import { performTransitionAction } from "../../services/workflowService";
 import { getCurrentUserId } from "../../services/workflowApiService";
 import { getStoredUser } from "../../services/authService";
+import reportService from "../../services/reportService";
 
 export default function ProcessMaterialCertificate({ call = {}, onBack }) {
   const printAreaRef = useRef();
@@ -102,6 +103,20 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
               description: savedEdit.description || initialData.description,
               qapNo: savedEdit.qapNo || initialData.qapNo,
             };
+          }
+          
+          try {
+              const region = await reportService.getRegionByCallNo(icNumber);
+              if (region && region.responseData) {
+                  initialData.region = region.responseData;
+              }
+          } catch (e) {
+              console.error("Failed to fetch region dynamically:", e);
+              setNotification({ 
+                  open: true, 
+                  message: "Could not fetch region details. Defaulting to standard region.", 
+                  severity: "warning" 
+              });
           }
         }
         setEditableData(initialData);

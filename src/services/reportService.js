@@ -1175,6 +1175,12 @@ const reportService = {
         if (endDate) url.searchParams.append('endDate', endDate);
         const response = await fetch(url.toString(), { headers: getAuthHeaders() });
         return handleResponse(response);
+    },
+    getRegionByCallNo: async (callNo) => {
+        const response = await fetch(`${API_BASE_URL}/api/reports/region?callNo=${encodeURIComponent(callNo)}`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
     }
 };
 

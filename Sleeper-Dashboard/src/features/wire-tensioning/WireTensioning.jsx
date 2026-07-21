@@ -76,7 +76,7 @@ const TensionSubCard = ({ id, title, color, statusDetail, isActive, onClick }) =
 
 const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'modal', showForm: propsShowForm, setShowForm: propsSetShowForm, loadShiftData, activeContainer }) => {
     const { tensionRecords, setTensionRecords } = sharedState;
-    const { vendorCode, dutyUnit, selectedShift, dutyDate, userId, vendorId, allWitnessedRecords, activeContainerId } = useShift();
+    const { vendorCode, dutyUnit, selectedShift, dutyDate, userId, vendorId, allWitnessedRecords, activeContainerId, isActiveDuty } = useShift();
     const [viewMode, setViewMode] = useState('witnessed'); // Default to History/Logs
     const [localShowForm, setLocalShowForm] = useState(false);
 
@@ -123,6 +123,7 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
     });
 
     const isEditable = (record) => {
+        if (!isActiveDuty) return false;
         if (!record) return false;
         
         // Use entry.date (from parent batch) and entry.time (from record itself)
@@ -682,14 +683,16 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
                             </div>
                             <div className="form-field">
                                 <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748b' }}>Batch Number</label>
-                                <select 
+                                <input 
+                                    list="batch-options"
                                     value={selectedBatch} 
                                     onChange={(e) => setSelectedBatch(e.target.value)}
-                                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
-                                >
-                                    <option value="">-- Select --</option>
+                                    placeholder="Select or enter batch number"
+                                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+                                />
+                                <datalist id="batch-options">
                                     {availableBatches.map(b => <option key={b} value={b}>{b}</option>)}
-                                </select>
+                                </datalist>
                             </div>
                         </div>
                     </section>
@@ -1136,29 +1139,31 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
 
                 <div className="modal-body" style={{ flexGrow: 1, overflowY: 'auto', padding: '1.5rem', background: '#f8fafc' }}>
                     <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1.5rem' }}>
-                        <button
-                            className="toggle-btn"
-                            onClick={() => {
-                                setEditId(null);
-                                setShowForm(true);
-                            }}
-                            style={{ 
-                                fontSize: '0.75rem', 
-                                padding: '6px 14px', 
-                                background: '#0f172a', 
-                                color: '#fff', 
-                                border: 'none', 
-                                borderRadius: '8px', 
-                                fontWeight: '700', 
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                            }}
-                        >
-                            <span style={{ fontSize: '1.1rem', fontWeight: '400' }}>+</span> Add New Analysis
-                        </button>
+                        {isActiveDuty && (
+                            <button
+                                className="toggle-btn"
+                                onClick={() => {
+                                    setEditId(null);
+                                    setShowForm(true);
+                                }}
+                                style={{ 
+                                    fontSize: '0.75rem', 
+                                    padding: '6px 14px', 
+                                    background: '#0f172a', 
+                                    color: '#fff', 
+                                    border: 'none', 
+                                    borderRadius: '8px', 
+                                    fontWeight: '700', 
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                                }}
+                            >
+                                <span style={{ fontSize: '1.1rem', fontWeight: '400' }}>+</span> Add New Entry
+                            </button>
+                        )}
                     </div>
 
                     {renderCards()}

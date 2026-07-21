@@ -133,7 +133,7 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
           const lines = c.heatDetails.filter(h => ["ACCEPTED", "PARTIALLY_ACCEPTED"].includes(h.status)).map(h => {
               const val = parseFloat(h.weightAcceptedMt || 0);
               totalMt += val;
-              return `${h.heatNo} - ${val.toFixed(3)} MT`;
+              return `${h.heatNo}\u00A0\u2011\u00A0${val.toFixed(3)}MT`;
           });
           if (lines.length > 0) {
             let resultText = "";
@@ -151,9 +151,9 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
             }
             
             if (ercNos > 0) {
-              resultText = `${lines.join("\n")}\nTotal Qty -${totalMt.toFixed(3)} MT\nNO OF ERC =\n${ercNos} NOs\n(Approximate)`;
+              resultText = `${lines.join("\n")}\nTotal\u00A0Qty\u00A0\u2011\u00A0${totalMt.toFixed(3)}MT\nNO\u00A0OF\u00A0ERC\u00A0=\n${ercNos}\u00A0NOs\n(Approximate)`;
             } else {
-              resultText = `${lines.join("\n")}\nTotal Qty -${totalMt.toFixed(3)} MT`;
+              resultText = `${lines.join("\n")}\nTotal\u00A0Qty\u00A0\u2011\u00A0${totalMt.toFixed(3)}MT`;
             }
             return resultText;
           }
@@ -167,9 +167,9 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
           const lines = c.heatDetails.filter(h => ["REJECTED", "PARTIALLY_ACCEPTED"].includes(h.status)).map(h => {
               const val = parseFloat(h.weightRejectedMt || 0);
               totalMt += val;
-              return `${h.heatNo} - ${val.toFixed(3)} MT`;
+              return `${h.heatNo}\u00A0\u2011\u00A0${val.toFixed(3)}MT`;
           });
-          return lines.length > 0 ? `${lines.join("\n")}\nTotal Qty -${totalMt.toFixed(3)} MT` : "Nil";
+          return lines.length > 0 ? `${lines.join("\n")}\nTotal\u00A0Qty\u00A0\u2011\u00A0${totalMt.toFixed(3)}MT` : "Nil";
         }
         return c.qtyRejected || "Nil";
       })(),

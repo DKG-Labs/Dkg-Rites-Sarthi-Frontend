@@ -98,6 +98,8 @@ export const IEFieldsForm = ({
     getSleeperCompanies,
     getSleeperPlants,
     getSleeperMappedEmployees,
+    getRailpadCompanies,
+    getRailpadPlants,
     initialData
 }) => {
     const [productType, setProductType] = useState('ERC');
@@ -107,6 +109,7 @@ export const IEFieldsForm = ({
     const [ieUsers, setIeUsers] = useState([]); // List of IEs (role 'IE') for Process IE mapping
     const [companies, setCompanies] = useState([]);
     const [sleeperPlants, setSleeperPlants] = useState([]);
+    const [railpadPlants, setRailpadPlants] = useState([]);
     const [mappedEmployees, setMappedEmployees] = useState([]);
     const [loading, setLoading] = useState(false);
     const [validating, setValidating] = useState(false);
@@ -138,6 +141,17 @@ export const IEFieldsForm = ({
             plantId: '',
             plantName: '',
             selectedEmployees: [] // For company wise mapping
+        },
+        // Railpad specific
+        railpadMapping: {
+            employeeId: '',
+            employeeName: '',
+            employeeCode: '',
+            companyName: '',
+            vendorCode: '',
+            poiCode: '',
+            plantId: '',
+            plantName: ''
         }
     });
 
@@ -158,6 +172,12 @@ export const IEFieldsForm = ({
                 { name: 'Process IE', id: 14 }
             ];
         }
+        if (productType === 'RAILPAD') {
+            return [
+                { name: 'Railpad Main IE (main IE)', id: 'Rail Main IE' },
+                { name: 'Railpad Process IE (Process IE)', id: 'Rail Process IE' }
+            ];
+        }
         return [
             { name: 'IE', id: null },
             { name: 'Process IE', id: null },
@@ -169,25 +189,40 @@ export const IEFieldsForm = ({
         const fetchInitialData = async () => {
             setLoading(true);
             try {
+                const formatUsers = (usersList) => {
+                    return (usersList || []).map(u => ({
+                        ...u,
+                        displayName: `${u.fullName || u.userName} (${u.employeeCode || 'N/A'})`
+                    }));
+                };
+
                 if (productType === 'SLEEPER') {
                     const roleId = ROLES.find(r => r.name === selectedRole)?.id || 10;
                     const [roleUsers, sleeperCompanies] = await Promise.all([
                         getSleeperEmployeesByRole(roleId),
                         getSleeperCompanies()
                     ]);
-                    setUsers(roleUsers || []);
+                    setUsers(formatUsers(roleUsers));
                     setCompanies(sleeperCompanies || []);
+                } else if (productType === 'RAILPAD') {
+                    const roleId = ROLES.find(r => r.name === selectedRole)?.id;
+                    const [roleUsers, railpadCompanies] = await Promise.all([
+                        getUsersByRole(roleId),
+                        getRailpadCompanies()
+                    ]);
+                    setUsers(formatUsers(roleUsers));
+                    setCompanies(railpadCompanies || []);
                 } else {
                     const [roleUsers, companyList] = await Promise.all([
                         getUsersByRole(selectedRole),
                         getCompanies()
                     ]);
-                    setUsers(roleUsers || []);
+                    setUsers(formatUsers(roleUsers));
                     setCompanies(companyList || []);
 
                     if (selectedRole === 'Process IE') {
                         const ies = await getUsersByRole('Process IE');
-                        setIeUsers(ies || []);
+                        setIeUsers(formatUsers(ies));
                     }
                 }
             } catch (error) {
@@ -197,7 +232,7 @@ export const IEFieldsForm = ({
             }
         };
         fetchInitialData();
-    }, [selectedRole, productType, getUsersByRole, getCompanies, getSleeperEmployeesByRole, getSleeperCompanies, ROLES]);
+    }, [selectedRole, productType, getUsersByRole, getCompanies, getSleeperEmployeesByRole, getSleeperCompanies, getRailpadCompanies, ROLES]);
 
     // Pre-fill form when editing
     useEffect(() => {
@@ -375,6 +410,55 @@ export const IEFieldsForm = ({
         }
     };
 
+    const handleRailpadInputChange = async (name, value) => {
+        if (name === 'employee') {
+            setFormData(prev => ({
+                ...prev,
+                railpadMapping: {
+                    ...prev.railpadMapping,
+                    employeeId: value.userId,
+                    employeeCode: value.employeeCode
+                }
+            }));
+        } else if (name === 'company') {
+            setLoading(true);
+            try {
+                const plants = await getRailpadPlants(value.vendorCode);
+                setRailpadPlants(plants || []);
+                setFormData(prev => ({
+                    ...prev,
+                    railpadMapping: {
+                        ...prev.railpadMapping,
+                        companyName: value.companyName,
+                        vendorCode: value.vendorCode,
+                        poiCode: value.poiCode,
+                        plantId: '' // Reset plant on company change
+                    }
+                }));
+            } catch (error) {
+                console.error('Error fetching plants:', error);
+            } finally {
+                setLoading(false);
+            }
+        } else if (name === 'plantId') {
+            setFormData(prev => ({
+                ...prev,
+                railpadMapping: {
+                    ...prev.railpadMapping,
+                    plantId: value.plantId
+                }
+            }));
+        } else {
+            setFormData(prev => ({
+                ...prev,
+                railpadMapping: {
+                    ...prev.railpadMapping,
+                    [name]: value
+                }
+            }));
+        }
+    };
+
     // Mapping changes for IE Role
     const handleIEMappingChange = async (index, name, value) => {
         const newList = [...formData.iePinPoiList];
@@ -532,6 +616,20 @@ export const IEFieldsForm = ({
             };
             onSubmit(submissionData);
             return;
+        } else if (productType === 'RAILPAD') {
+            const { railpadMapping } = formData;
+            if (!railpadMapping.employeeId || !railpadMapping.poiCode || !railpadMapping.plantId) {
+                alert('Please fill all fields for Railpad mapping');
+                return;
+            }
+            const submissionData = {
+                productType,
+                role: selectedRole,
+                roleId: ROLES.find(r => r.name === selectedRole)?.id,
+                railpadMapping
+            };
+            onSubmit(submissionData);
+            return;
         }
 
         if (!formData.userId) {
@@ -644,6 +742,8 @@ export const IEFieldsForm = ({
                                     // Reset role when product type changes to ensure valid roles
                                     if (val === 'SLEEPER') {
                                         setSelectedRole('Main IE');
+                                    } else if (val === 'RAILPAD') {
+                                        setSelectedRole('Railpad Main IE (main IE)');
                                     } else {
                                         setSelectedRole('IE');
                                     }
@@ -701,7 +801,7 @@ export const IEFieldsForm = ({
                                             <SearchableSelect
                                                 options={users}
                                                 value={formData.sleeperMapping.employeeId}
-                                                displayKey="employeeCode"
+                                                displayKey="displayName"
                                                 valueKey="userId"
                                                 onChange={(val) => handleSleeperInputChange('employee', val)}
                                                 placeholder="Search Employee Code..."
@@ -801,6 +901,53 @@ export const IEFieldsForm = ({
                             )}
                         </div>
                     </div>
+                ) : productType === 'RAILPAD' ? (
+                    <div className="form-section">
+                        <h3 className="form-section-title">
+                            Railpad Mapping
+                        </h3>
+                        
+                        <div className="mapping-card">
+                            <div className="form-grid">
+                                <div className="form-group">
+                                    <label className="form-label">Select Employee (Code) <small className="required-star">*</small></label>
+                                    <SearchableSelect
+                                        options={users}
+                                        value={formData.railpadMapping.employeeId}
+                                        displayKey="displayName"
+                                        valueKey="userId"
+                                        onChange={(val) => handleRailpadInputChange('employee', val)}
+                                        placeholder="Search Employee Code..."
+                                    />
+                                </div>
+
+                                <div className="form-group mapping-full-row">
+                                    <label className="form-label">Company Name <small className="required-star">*</small></label>
+                                    <SearchableSelect
+                                        options={companies}
+                                        value={formData.railpadMapping.vendorCode}
+                                        displayKey="companyName"
+                                        valueKey="vendorCode"
+                                        onChange={(val) => handleRailpadInputChange('company', val)}
+                                        placeholder="Select Company"
+                                    />
+                                </div>
+
+                                <div className="form-group mapping-full-row">
+                                    <label className="form-label">Plant ID <small className="required-star">*</small></label>
+                                    <SearchableSelect
+                                        options={railpadPlants}
+                                        value={formData.railpadMapping.plantId}
+                                        displayKey="plantId"
+                                        valueKey="plantId"
+                                        onChange={(val) => handleRailpadInputChange('plantId', val)}
+                                        placeholder="Select Plant"
+                                        disabled={!formData.railpadMapping.vendorCode}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 ) : (
                     <>
                         {/* User Information (Profile) */}
@@ -812,7 +959,7 @@ export const IEFieldsForm = ({
                                     <SearchableSelect
                                         options={users}
                                         value={formData.userId}
-                                        displayKey="userName"
+                                        displayKey="displayName"
                                         valueKey="userId"
                                         onChange={(val) => {
                                             handleMainInputChange({ target: { name: 'userId', value: val.userId } });
@@ -930,7 +1077,7 @@ export const IEFieldsForm = ({
                                             <SearchableSelect
                                                 options={ieUsers}
                                                 value={item.ieUserId}
-                                                displayKey="userName"
+                                                displayKey="displayName"
                                                 valueKey="userId"
                                                 onChange={(val) => handleProcessMappingChange(index, 'ieUser', val)}
                                                 placeholder="Select IE"

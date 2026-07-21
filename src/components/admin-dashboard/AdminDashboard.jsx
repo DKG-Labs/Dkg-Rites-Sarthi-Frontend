@@ -179,10 +179,20 @@ export const AdminDashboard = () => {
                         poiCode: sleeperMapping.poiCode,
                         plantId: sleeperMapping.plantId,
                         ieType: role,
-                        employeeCodes: sleeperMapping.selectedEmployees.map(emp => emp.employeeCode)
+                        employeeCodes: sleeperMapping.selectedEmployees
                     };
                     await saveCompanyWiseSleeperMappingApi(payload);
                 }
+            } else if (productType === 'RAILPAD') {
+                // Railpad specific mapping submission
+                const { railpadMapping } = formData;
+                const payload = {
+                    poiCode: railpadMapping.poiCode,
+                    plantId: railpadMapping.plantId,
+                    ieUserId: railpadMapping.employeeId,
+                    ieType: formData.roleId === 'Rail Main IE' ? 'MAIN_IE' : 'PROCESS_IE'
+                };
+                await saveRailpadMappingApi(payload);
             } else {
                 // Original IE/ERC mapping logic
                 if (!userId) {
@@ -291,6 +301,7 @@ export const AdminDashboard = () => {
                             <span>User Management</span>
                         </button>
                     </li>
+                    {/* Hidden Master Data and Calibration menus
                     <li className="nav-item">
                         <button
                             className={`nav-link ${activeModule === 'masters' ? 'active' : ''}`}
@@ -309,6 +320,7 @@ export const AdminDashboard = () => {
                             <span>Calibration</span>
                         </button>
                     </li>
+                    */}
                     <li className="nav-item">
                         <button
                             className={`nav-link ${activeModule === 'mapping' ? 'active' : ''}`}
@@ -443,6 +455,8 @@ export const AdminDashboard = () => {
                         getSleeperCompanies={getSleeperCompaniesApi}
                         getSleeperPlants={getSleeperPlantsApi}
                         getSleeperMappedEmployees={getSleeperMappedEmployeesApi}
+                        getRailpadCompanies={getRailpadCompaniesApi}
+                        getRailpadPlants={getRailpadPlantsApi}
                     />
                 )}
             </Modal>
@@ -935,6 +949,71 @@ const saveCompanyWiseSleeperMappingApi = async (payload) => {
         throw error;
     }
 };
+
+/**
+ * API to fetch Railpad Companies (Manufacturers)
+ */
+const getRailpadCompaniesApi = async () => {
+    try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${API_BASE_URL}/api/reports/railpad/closed-loop/manufacturers`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        const data = await response.json();
+        if (data.responseStatus?.statusCode !== 0) throw new Error(data.responseStatus?.message || 'API Error');
+        return data.responseData;
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * API to fetch Railpad Plants
+ */
+const getRailpadPlantsApi = async (vendorCode) => {
+    try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${API_BASE_URL}/api/reports/railpad/closed-loop/plants?vendorCode=${encodeURIComponent(vendorCode)}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        const data = await response.json();
+        if (data.responseStatus?.statusCode !== 0) throw new Error(data.responseStatus?.message || 'API Error');
+        return data.responseData;
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * API to save Railpad mapping
+ */
+const saveRailpadMappingApi = async (payload) => {
+    try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${API_BASE_URL}/api/railpadMapping`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (data.responseStatus?.statusCode !== 0) throw new Error(data.responseStatus?.message || 'API Error');
+        return data.responseData;
+    } catch (error) {
+        throw error;
+    }
+};
+
 
 /**
  * API to delete IE mapping

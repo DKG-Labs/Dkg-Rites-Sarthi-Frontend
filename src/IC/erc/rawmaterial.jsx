@@ -123,9 +123,9 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
       specNo: c.specNo || "",
       qapNo: c.qapNo || "",
       inspectionType: c.inspectionType || "",
-      inspectionDetails: c.inspectionDetails || c.contractChpReq || "Visual, Dimensional, Mechanical & Chemical",
+      inspectionDetails: (c.inspectionDetails || c.contractChpReq || "Visual, Dimensional, Mechanical, Chemical & Metallurgical").replace(/Visual[\s,]*Dimensional[\s,]*Mechanical\s*&\s*Chemical/gi, "Visual, Dimensional, Mechanical, Chemical & Metallurgical"),
       chpClause: c.chpClause || "",
-      contractChpReq: c.contractChpReq || "Visual, Dimensional, Mechanical & Chemical",
+      contractChpReq: (c.contractChpReq || "Visual, Dimensional, Mechanical, Chemical & Metallurgical").replace(/Visual[\s,]*Dimensional[\s,]*Mechanical\s*&\s*Chemical/gi, "Visual, Dimensional, Mechanical, Chemical & Metallurgical"),
       result: c.result || "",
       clearedQty: (() => {
         if (c.heatDetails && Array.isArray(c.heatDetails) && c.heatDetails.length > 0) {
@@ -133,7 +133,7 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
           const lines = c.heatDetails.filter(h => ["ACCEPTED", "PARTIALLY_ACCEPTED"].includes(h.status)).map(h => {
               const val = parseFloat(h.weightAcceptedMt || 0);
               totalMt += val;
-              return `Heat no -${h.heatNo}- Qty ${val.toFixed(3)} MT`;
+              return `${h.heatNo} - ${val.toFixed(3)} MT`;
           });
           if (lines.length > 0) {
             let resultText = "";
@@ -151,9 +151,9 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
             }
             
             if (ercNos > 0) {
-              resultText = `${lines.join(",\n")}\nTotal Qty -${totalMt.toFixed(3)} MT\nNO OF ERC = ${ercNos} NOs (Approximate)`;
+              resultText = `${lines.join("\n")}\nTotal Qty -${totalMt.toFixed(3)} MT\nNO OF ERC =\n${ercNos} NOs\n(Approximate)`;
             } else {
-              resultText = `${lines.join(",\n")}\nTotal Qty -${totalMt.toFixed(3)} MT`;
+              resultText = `${lines.join("\n")}\nTotal Qty -${totalMt.toFixed(3)} MT`;
             }
             return resultText;
           }
@@ -167,9 +167,9 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
           const lines = c.heatDetails.filter(h => ["REJECTED", "PARTIALLY_ACCEPTED"].includes(h.status)).map(h => {
               const val = parseFloat(h.weightRejectedMt || 0);
               totalMt += val;
-              return `Heat no -${h.heatNo}- Qty ${val.toFixed(3)} MT`;
+              return `${h.heatNo} - ${val.toFixed(3)} MT`;
           });
-          return lines.length > 0 ? `${lines.join(",\n")},\nTotal Qty -${totalMt.toFixed(3)} MT` : "Nil";
+          return lines.length > 0 ? `${lines.join("\n")}\nTotal Qty -${totalMt.toFixed(3)} MT` : "Nil";
         }
         return c.qtyRejected || "Nil";
       })(),

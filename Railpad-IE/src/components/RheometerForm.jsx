@@ -83,11 +83,11 @@ const RheometerForm = ({ onSubmit, onCancel, editData, isViewOnly }) => {
           <div className="form-group">
             <label>Batch Number</label>
             <input
-              type="number"
+              type="text"
               required
-              placeholder="e.g. 101"
+              placeholder="e.g. 101A"
               value={formData.batchNo}
-              onChange={e => setFormData({ ...formData, batchNo: e.target.value })}
+              onChange={e => setFormData({ ...formData, batchNo: e.target.value.replace(/-/g, '') })}
             />
           </div>
 

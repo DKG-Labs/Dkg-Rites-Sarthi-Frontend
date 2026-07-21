@@ -72,6 +72,10 @@ const RawMaterialForm = ({ onSubmit, onCancel, editData, isViewOnly }) => {
     }
   }, [formData]);
 
+  const totalBatchWeightVal = parseFloat(formData.totalWeight) || 0;
+  const currentTotalMaterialsWeight = Array.isArray(formData.materials) ? formData.materials.reduce((sum, item) => sum + (parseFloat(item.weight) || 0), 0) : 0;
+  const isWeightExceeded = totalBatchWeightVal > 0 && currentTotalMaterialsWeight > totalBatchWeightVal;
+
   const getRawMaterialsOptions = (contract) => {
     const base = ['Natural Rubber', 'RSS1', 'RSS2', 'RSS3', 'SBR', 'PBR', 'Carbon Black'];
     if (contract === 'IRS T-55-2023') {
@@ -141,6 +145,14 @@ const RawMaterialForm = ({ onSubmit, onCancel, editData, isViewOnly }) => {
 
     if (formData.contract === 'IRS T-55-2025' && parseFloat(rubberPercentage) < 50) {
       setError('Validation Error: % of Rubber must be at least 50% for IRS T-55-2025 specification.');
+      return;
+    }
+
+    const totalMaterialWeight = formData.materials.reduce((sum, item) => sum + (parseFloat(item.weight) || 0), 0);
+    const totalBatchWeight = parseFloat(formData.totalWeight) || 0;
+
+    if (totalMaterialWeight > totalBatchWeight) {
+      setError(`Validation Error: Total ingredients weight (${totalMaterialWeight.toFixed(2)} Kg) cannot exceed Total Batch Weight (${totalBatchWeight.toFixed(2)} Kg).`);
       return;
     }
 
@@ -236,6 +248,12 @@ const RawMaterialForm = ({ onSubmit, onCancel, editData, isViewOnly }) => {
           </div>
         )}
 
+        {isWeightExceeded && (
+          <div style={{ color: '#dc2626', fontSize: '0.85rem', marginBottom: '12px', fontWeight: 'bold', padding: '10px', background: '#fff5f5', border: '1px solid #feb2b2', borderRadius: '8px' }}>
+            ⚠️ Total ingredients weight ({currentTotalMaterialsWeight.toFixed(2)} Kg) cannot exceed Total Batch Weight ({totalBatchWeightVal.toFixed(2)} Kg).
+          </div>
+        )}
+
         <fieldset disabled={isViewOnly} style={{ border: 'none', padding: 0, margin: 0, width: '100%' }}>
           {/* Type of Rail Pad Dropdown at top of form */}
           <div className="form-group" style={{ marginBottom: '1.25rem' }}>
@@ -255,11 +273,11 @@ const RawMaterialForm = ({ onSubmit, onCancel, editData, isViewOnly }) => {
             <div className="form-group">
               <label>Batch No. <span className="required">*</span></label>
               <input
-                type="number"
+                type="text"
                 required
-                placeholder="e.g. 101"
+                placeholder="e.g. 101A"
                 value={formData.batchNo}
-                onChange={e => setFormData({ ...formData, batchNo: e.target.value })}
+                onChange={e => setFormData({ ...formData, batchNo: e.target.value.replace(/-/g, '') })}
               />
             </div>
             <div className="form-group">
@@ -343,7 +361,7 @@ const RawMaterialForm = ({ onSubmit, onCancel, editData, isViewOnly }) => {
                     </select>
                   </div>
                   <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label>Weight (Kg)</label>
+                    <label style={isWeightExceeded ? { color: '#dc2626' } : {}}>Weight (Kg)</label>
                     <input
                       type="number"
                       step="0.01"
@@ -351,7 +369,13 @@ const RawMaterialForm = ({ onSubmit, onCancel, editData, isViewOnly }) => {
                       placeholder="0.00"
                       value={mat.weight || ''}
                       onChange={e => handleMaterialChange(index, 'weight', e.target.value)}
+                      style={isWeightExceeded ? { borderColor: '#dc2626', color: '#dc2626', backgroundColor: '#fef2f2' } : {}}
                     />
+                    {isWeightExceeded && (
+                      <div style={{ color: '#dc2626', fontSize: '11px', marginTop: '4px', fontWeight: 'bold' }}>
+                        Exceeds total weight limit!
+                      </div>
+                    )}
                   </div>
                   {!isViewOnly && (
                     <button type="button" className="btn-remove" onClick={() => removeMaterial(index)}>×</button>
@@ -385,7 +409,12 @@ const RawMaterialForm = ({ onSubmit, onCancel, editData, isViewOnly }) => {
           {isViewOnly ? 'Close' : 'Cancel'}
         </button>
         {!isViewOnly && (
-          <button type="submit" className="btn-submit" disabled={formData.acceptedMaterials !== 'Yes'}>
+          <button 
+            type="submit" 
+            className="btn-submit" 
+            disabled={formData.acceptedMaterials !== 'Yes' || isWeightExceeded}
+            style={isWeightExceeded ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
+          >
             {editData ? 'Save Changes' : 'Submit Entry'}
           </button>
         )}

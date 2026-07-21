@@ -278,7 +278,7 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
 
         {/* CHP table */}
         <div className="border-x border-b border-black">
-          <div className="grid grid-cols-[1.2fr_1fr_1.2fr_0.8fr_1fr_0.8fr] border-b border-black bg-gray-100 font-semibold text-center text-[9px] leading-tight">
+          <div className="grid grid-cols-[minmax(0,1.0fr)_minmax(0,0.9fr)_minmax(0,1.0fr)_minmax(0,1.0fr)_minmax(0,1.3fr)_minmax(0,0.8fr)] border-b border-black bg-gray-100 font-semibold text-center text-[9px] leading-tight">
             <div className="border-r border-black p-1">
               सी.एच.पी. क्लॉज सं.<br />CHP CL. NO. OF QAP
             </div>
@@ -303,7 +303,7 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
             </div>
           </div>
 
-          <div className="grid grid-cols-[1.2fr_1fr_1.2fr_0.8fr_1fr_0.8fr] text-left border-b border-black">
+          <div className="grid grid-cols-[minmax(0,1.0fr)_minmax(0,0.9fr)_minmax(0,1.0fr)_minmax(0,1.0fr)_minmax(0,1.3fr)_minmax(0,0.8fr)] text-left border-b border-black">
             <EditableField isEditing={isEditing} type="textarea" value={chpClause} onChange={(val) => onChange("chpClause", val)} className="border-r border-black py-1 px-2 break-words dynamic-text" />
             <EditableField isEditing={false} type="textarea" value={contractChpReq} onChange={(val) => onChange("contractChpReq", val)} className="border-r border-black py-1 px-2 break-words dynamic-text" />
             <EditableField isEditing={false} type="textarea" value={inspectionDetails} onChange={(val) => onChange("inspectionDetails", val)} className="border-r border-black py-1 px-2 break-words dynamic-text" />

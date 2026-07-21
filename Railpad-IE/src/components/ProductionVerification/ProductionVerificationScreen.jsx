@@ -336,6 +336,7 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
         </div>
         {!isReadOnly && (
           <div className="pv-header-actions">
+            {/* 
             <button
               className="pv-return-btn"
               disabled={isSubmitting}
@@ -346,13 +347,7 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
             >
               Return to Vendor
             </button>
-            <button
-              className="pv-submit-btn"
-              onClick={handleFinalSubmit}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Processing...' : (declaration.forceEdit ? 'Update Verification' : 'Finalize & Accept')}
-            </button>
+            */}
           </div>
         )}
       </div>
@@ -484,8 +479,7 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
                         >
                           <option value="">-- Select Drawing --</option>
                           {rej.productType && rej.batchNo && batchToDrawings[rej.productType]?.[rej.batchNo]
-                            ?.filter(d => d === rej.drawingNo || !rejections.some(r => r.id !== rej.id && r.productType === rej.productType && r.batchNo === rej.batchNo && r.drawingNo === d))
-                            .map(d => (
+                            ?.map(d => (
                             <option key={d} value={d}>{d}</option>
                           ))}
                         </select>
@@ -542,6 +536,19 @@ const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn,
           </div>
         </div>
       </div>
+
+      {!isReadOnly && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
+          <button
+            className="pv-submit-btn"
+            onClick={handleFinalSubmit}
+            disabled={isSubmitting}
+            style={{ padding: '12px 24px', fontSize: '16px', minWidth: '200px' }}
+          >
+            {isSubmitting ? 'Processing...' : (declaration.forceEdit ? 'Update Verification' : 'Finalize & Accept')}
+          </button>
+        </div>
+      )}
     </div>
   );
 };

@@ -117,6 +117,9 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
         dpDates: `${item.dpDate || '-'} / ${item.extDpDate || '-'}`,
         status: internalStatus,
         originalStatus: item.status,
+        assignedIE: item.assignedToUserName || item.ieName || '-',
+        assignedToUser: item.assignedToUser,
+        assignedToUserEmployeeCode: item.assignedToUserEmployeeCode,
         rio: item.rio,
         submissionCount: item.workflowSequence || 1,
         returnReason: internalStatus === CALL_STATUS.RETURN_TO_VENDOR ? item.remarks : null

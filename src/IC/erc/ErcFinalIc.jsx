@@ -139,7 +139,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
           <div className="w-full grid grid-cols-[1fr_auto_1fr] items-end mt-1 px-4">
             <div className="empty-col"></div>
             <div className="text-center font-bold text-[13px] uppercase">
-              RITES LTD, NORTHERN REGION, DELHI
+              {data?.region || "RITES LIMITED, NORTHERN REGION, DELHI"}
             </div>
             <div className="text-right leading-tight">
               <div className="text-[9.5px] font-bold">निरंतरता पत्रक शामिल</div>

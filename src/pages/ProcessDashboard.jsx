@@ -1488,6 +1488,57 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     return combined;
   }, [availableCalls, currentCallOption, additionalInitiatedCalls]);
 
+  // NEW: Automatically fetch full initiation data for any pre-filled lines (like on page load)
+  useEffect(() => {
+    if (!localProductionLines || localProductionLines.length === 0) return;
+
+    localProductionLines.forEach((line, index) => {
+      const callNo = line.icNumber;
+      if (callNo && !callInitiationDataCache[callNo] && !hasFetchedRef.current) {
+        hasFetchedRef.current = true; // Prevents multiple rapid fires in strict mode
+        
+        console.log(`📤 [Auto-Fetch] Fetching full details for pre-filled call: ${callNo}`);
+        const enrichLineData = async () => {
+          try {
+            const data = await fetchProcessInitiationData(callNo);
+            let poSerialNo = '';
+            try {
+              poSerialNo = await getPoSerialNumberByCallId(callNo);
+            } catch (e) {}
+
+            const rmIcNumber = data.rmIcNumber || '';
+            const ercType = data.typeOfErc || '';
+            const poNumber = data.poNo || '';
+
+            setLocalProductionLines(prev => {
+              const updated = [...prev];
+              if (updated[index] && updated[index].icNumber === callNo) {
+                updated[index] = {
+                  ...updated[index],
+                  poNumber: poNumber || updated[index].poNumber,
+                  poSerialNo: poSerialNo || updated[index].poSerialNo,
+                  rlyShortName: data.rlyShortName || data.rlyCd || '',
+                  rawMaterialICs: rmIcNumber || updated[index].rawMaterialICs,
+                  productType: ercType || updated[index].productType
+                };
+              }
+              return updated;
+            });
+
+            setCallInitiationDataCache(prev => ({
+              ...prev,
+              [callNo]: data
+            }));
+          } catch (error) {
+            console.error(`❌ [Auto-Fetch] Error fetching call details for ${callNo}:`, error);
+          }
+        };
+
+        enrichLineData();
+      }
+    });
+  }, [localProductionLines, callInitiationDataCache]);
+
   // Auto-fill and Validate Production Lines based on available calls
   useEffect(() => {
     if (!allCallOptions || allCallOptions.length === 0) return;
@@ -2421,13 +2472,14 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           if (pausedData.capturedImages && pausedData.capturedImages.length > 0) {
             console.log('✅ [Process Dashboard] Restoring captured images from backend:', pausedData.capturedImages.length);
             const storageKey = `${DASHBOARD_DRAFT_KEY}${callNo}_${shift}`;
-            const existingRaw = localStorage.getItem(storageKey);
-            const existingData = existingRaw ? JSON.parse(existingRaw) : {};
-            if (!existingData.capturedImages || existingData.capturedImages.length === 0) {
-              existingData.capturedImages = pausedData.capturedImages;
-              localStorage.setItem(storageKey, JSON.stringify(existingData));
-              setCapturedImages(pausedData.capturedImages);
-            }
+            import('../utils/imageStorage').then(({ getImages, saveImages }) => {
+              getImages(storageKey).then(existingImages => {
+                if (!existingImages || existingImages.length === 0) {
+                  saveImages(storageKey, pausedData.capturedImages).catch(console.error);
+                  setCapturedImages(pausedData.capturedImages);
+                }
+              }).catch(console.error);
+            });
           }
         } catch (err) {
           console.log('⚠️ [Process Dashboard] No paused inspection data found in backend:', err.message);
@@ -2965,13 +3017,23 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         productionLines: localProductionLines,
         selectedLine: selectedLine,
         finalInspectionRemarks: finalInspectionRemarks,
-        productionLinesExpanded: productionLinesExpanded,
-        capturedImages: capturedImages
+        productionLinesExpanded: productionLinesExpanded
       };
 
       // Save to localStorage with inspection call number as key
       const storageKey = `${DASHBOARD_DRAFT_KEY}${inspectionCallNo}_${shift}`;
       localStorage.setItem(storageKey, JSON.stringify(draftData));
+
+      // Save images to IndexedDB
+      if (capturedImages && capturedImages.length > 0) {
+        import('../utils/imageStorage').then(({ saveImages }) => {
+          saveImages(storageKey, capturedImages).catch(console.error);
+        });
+      } else {
+        import('../utils/imageStorage').then(({ removeImages }) => {
+          removeImages(storageKey).catch(console.error);
+        });
+      }
 
       // Show success message
       setDraftSaveMessage({ type: 'success', text: `Draft saved successfully at ${new Date().toLocaleTimeString()} ` });
@@ -3030,10 +3092,16 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           setProductionLinesExpanded(draftData.productionLinesExpanded);
         }
 
-        // Restore captured images if present in draft
-        if (draftData.capturedImages) {
-          setCapturedImages(draftData.capturedImages);
-        }
+        // Restore captured images from IndexedDB, fallback to draftData for legacy drafts
+        import('../utils/imageStorage').then(({ getImages }) => {
+          getImages(storageKey).then(images => {
+            if (images && images.length > 0) {
+              setCapturedImages(images);
+            } else if (draftData.capturedImages && draftData.capturedImages.length > 0) {
+              setCapturedImages(draftData.capturedImages);
+            }
+          }).catch(console.error);
+        });
 
         console.log('Draft data restored from localStorage:', draftData.savedAt);
       }
@@ -4157,7 +4225,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     }
 
     // VALIDATION 2: Cascade Validation against Previous Stages' Accepted Quantities (Across All Shifts)
-    if (value !== '' && lotHistoricalTotals) {
+    if (value !== '') {
       // Helper function to calculate current shift's total accepted for a stage (Across All Lines for current IC/Lot)
       const getCurrentShiftStageAcceptedTotal = (stageField) => {
         const moduleMap = {
@@ -4169,31 +4237,23 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           'tempering': 'temperingData'
         };
         const moduleName = moduleMap[stageField];
-        const targetLineIc = currentProductionLine?.icNumber;
         let totalAccepted = 0;
 
-        localProductionLines.forEach((line, index) => {
-          const lineKey = `Line-${index + 1}`;
-          // Match by IC Number and Lot Number
-          if (line.icNumber === targetLineIc && selectedLotByLine[lineKey] === lotNo) {
-            const mfg = parseInt(manufacturedQtyByLine[lineKey]?.[lotNo]?.[stageField]) || 0;
-            const rej = getModuleTotalRejected(moduleName, lotNo, lineKey);
-            totalAccepted += Math.max(0, mfg - rej);
-          }
+        Object.keys(manufacturedQtyByLine).forEach(lineKey => {
+          const mfg = parseInt(manufacturedQtyByLine[lineKey]?.[lotNo]?.[stageField]) || 0;
+          const rej = getModuleTotalRejected(moduleName, lotNo, lineKey);
+          totalAccepted += Math.max(0, mfg - rej);
         });
+        
         return totalAccepted;
       };
 
       // Helper function to calculate current shift's total manufactured for a stage (Across Other Lines for current IC/Lot)
       const getCurrentShiftStageManufacturedTotal = (stageField, excludeCurrentLine = false) => {
-        const targetLineIc = currentProductionLine?.icNumber;
         let totalMfg = 0;
-        localProductionLines.forEach((line, index) => {
-          const lineKey = `Line-${index + 1}`;
+        Object.keys(manufacturedQtyByLine).forEach(lineKey => {
           if (excludeCurrentLine && lineKey === selectedLine) return;
-          if (line.icNumber === targetLineIc && selectedLotByLine[lineKey] === lotNo) {
-            totalMfg += parseInt(manufacturedQtyByLine[lineKey]?.[lotNo]?.[stageField]) || 0;
-          }
+          totalMfg += parseInt(manufacturedQtyByLine[lineKey]?.[lotNo]?.[stageField]) || 0;
         });
         return totalMfg;
       };
@@ -4228,6 +4288,20 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       let currentShiftProducedOthers = 0;
 
       // Map frontend fields to lotHistoricalTotals properties
+      
+      // Helper to fallback to legacy overall shift data if granular ProcessLineFinalResult data is missing
+      const legacyQty = previousShiftData[lotNo]?.manufacturedQty || 0;
+      
+      const getHistoricalAccepted = (field) => {
+        const val = lotHistoricalTotals?.[field] || 0;
+        return (val === 0 && legacyQty > 0) ? legacyQty : val;
+      };
+
+      const getHistoricalManufactured = (field) => {
+        const val = lotHistoricalTotals?.[field] || 0;
+        return (val === 0 && legacyQty > 0) ? legacyQty : val;
+      };
+
       switch (field) {
         case 'shearing':
           maxAllowedAllShifts = offeredQty; 
@@ -4237,40 +4311,40 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           break;
         case 'turning':
           // Formula: Shearing Production - Rejection in Shearing (Total Shearing Accepted)
-          maxAllowedAllShifts = (lotHistoricalTotals.totalShearingAccepted || 0) + getCurrentShiftStageAcceptedTotal('shearing');
+          maxAllowedAllShifts = getHistoricalAccepted('totalShearingAccepted') + getCurrentShiftStageAcceptedTotal('shearing');
           prevStageName = 'Shearing Accepted (Total)';
-          historicalProducedOthers = lotHistoricalTotals.totalTurningManufactured || 0;
+          historicalProducedOthers = getHistoricalManufactured('totalTurningManufactured');
           currentShiftProducedOthers = getCurrentShiftStageManufacturedTotal('turning', true);
           break;
         case 'mpiTesting':
           // Formula: Shearing Production - Rejection in Shearing (Total Shearing Accepted)
-          maxAllowedAllShifts = (lotHistoricalTotals.totalShearingAccepted || 0) + getCurrentShiftStageAcceptedTotal('shearing');
+          maxAllowedAllShifts = getHistoricalAccepted('totalShearingAccepted') + getCurrentShiftStageAcceptedTotal('shearing');
           prevStageName = 'Shearing Accepted (Total)';
-          historicalProducedOthers = lotHistoricalTotals.totalMpiManufactured || 0;
+          historicalProducedOthers = getHistoricalManufactured('totalMpiManufactured');
           currentShiftProducedOthers = getCurrentShiftStageManufacturedTotal('mpiTesting', true);
           break;
         case 'forging':
           // Formula: Production in Shearing - (rejection in Shearing + Rejection in Turning + Rejection in MPI)
           // Equivalent to: Shearing Accepted (Total) - Turning Rejected (Total) - MPI Rejected (Total)
-          const totalShearingAccepted = (lotHistoricalTotals.totalShearingAccepted || 0) + getCurrentShiftStageAcceptedTotal('shearing');
-          const totalTurningRejected = ((lotHistoricalTotals.totalTurningManufactured || 0) - (lotHistoricalTotals.totalTurningAccepted || 0)) + getCurrentShiftStageRejectedTotal('turning');
-          const totalMpiRejected = ((lotHistoricalTotals.totalMpiManufactured || 0) - (lotHistoricalTotals.totalMpiAccepted || 0)) + getCurrentShiftStageRejectedTotal('mpiTesting');
+          const totalShearingAccepted = getHistoricalAccepted('totalShearingAccepted') + getCurrentShiftStageAcceptedTotal('shearing');
+          const totalTurningRejected = (getHistoricalManufactured('totalTurningManufactured') - getHistoricalAccepted('totalTurningAccepted')) + getCurrentShiftStageRejectedTotal('turning');
+          const totalMpiRejected = (getHistoricalManufactured('totalMpiManufactured') - getHistoricalAccepted('totalMpiAccepted')) + getCurrentShiftStageRejectedTotal('mpiTesting');
           
           maxAllowedAllShifts = totalShearingAccepted - (totalTurningRejected + totalMpiRejected);
           prevStageName = 'Cumulative Accepted from Previous Stages';
-          historicalProducedOthers = lotHistoricalTotals.totalForgingManufactured || 0;
+          historicalProducedOthers = getHistoricalManufactured('totalForgingManufactured');
           currentShiftProducedOthers = getCurrentShiftStageManufacturedTotal('forging', true);
           break;
         case 'quenching':
-          maxAllowedAllShifts = (lotHistoricalTotals.totalForgingAccepted || 0) + getCurrentShiftStageAcceptedTotal('forging');
+          maxAllowedAllShifts = getHistoricalAccepted('totalForgingAccepted') + getCurrentShiftStageAcceptedTotal('forging');
           prevStageName = 'Forging Accepted (Total)';
-          historicalProducedOthers = lotHistoricalTotals.totalQuenchingManufactured || 0;
+          historicalProducedOthers = getHistoricalManufactured('totalQuenchingManufactured');
           currentShiftProducedOthers = getCurrentShiftStageManufacturedTotal('quenching', true);
           break;
         case 'tempering':
-          maxAllowedAllShifts = (lotHistoricalTotals.totalQuenchingAccepted || 0) + getCurrentShiftStageAcceptedTotal('quenching');
+          maxAllowedAllShifts = getHistoricalAccepted('totalQuenchingAccepted') + getCurrentShiftStageAcceptedTotal('quenching');
           prevStageName = 'Quenching Accepted (Total)';
-          historicalProducedOthers = lotHistoricalTotals.totalTemperingManufactured || 0;
+          historicalProducedOthers = getHistoricalManufactured('totalTemperingManufactured');
           currentShiftProducedOthers = getCurrentShiftStageManufacturedTotal('tempering', true);
           break;
         default:

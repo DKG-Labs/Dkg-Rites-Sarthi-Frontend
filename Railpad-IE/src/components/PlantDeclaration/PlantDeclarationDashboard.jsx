@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fetchPendingWorkflowTransitions, fetchCompletedCalls, performTransitionAction } from '../../services/workflowService';
+import { fetchPendingWorkflowTransitions, fetchCompletedCalls, performTransitionAction, fetchMappedPlantIds } from '../../services/workflowService';
 import {
   plantSetupService,
   rawMaterialService,
@@ -14,6 +14,11 @@ const PlantDeclarationDashboard = () => {
   const [completedList, setCompletedList] = useState([]);
   const [statusTab, setStatusTab] = useState('PENDING'); // 'PENDING' or 'COMPLETED'
   const [loading, setLoading] = useState(true);
+  const [mappedPlantIdsState, setMappedPlantIdsState] = useState(null);
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Selected state
   const [selectedModuleId, setSelectedModuleId] = useState(1);
@@ -73,8 +78,8 @@ const PlantDeclarationDashboard = () => {
   ];
 
   useEffect(() => {
-    loadPendingList();
-  }, []);
+    loadData();
+  }, [statusTab]);
 
   const formatDateTime = (dateVal) => {
     if (!dateVal) return '—';
@@ -99,66 +104,41 @@ const PlantDeclarationDashboard = () => {
     }
   };
 
-  const loadPendingList = async () => {
+  const loadData = async () => {
     setLoading(true);
     try {
-      // Role is "Rail Process IE" as per workflow rules
-      const [pendingData, completedData] = await Promise.all([
-        fetchPendingWorkflowTransitions('Rail Process IE'),
-        fetchCompletedCalls()
-      ]);
+      // Fetch mapped plant IDs only once
+      let currentMappedIds = mappedPlantIdsState;
+      if (currentMappedIds === null) {
+        currentMappedIds = user?.userId ? await fetchMappedPlantIds(user.userId, 'Main IE') : [];
+        setMappedPlantIdsState(currentMappedIds);
+      }
 
-      const mapList = async (list) => {
-        return await Promise.all((list || []).map(async (tx) => {
-          let productName = '—';
-          let rdsoApprovalLetterNo = '—';
-          try {
-            if (tx.moduleId === 1) {
-              const detail = await plantSetupService.getById(tx.requestId);
-              if (detail && detail.units && detail.units.length > 0) {
-                const firstUnit = detail.units[0];
-                if (firstUnit.products && firstUnit.products.length > 0) {
-                  productName = firstUnit.products[0].productName || '—';
-                  rdsoApprovalLetterNo = firstUnit.products[0].approvalNo || '—';
-                }
-              }
-            } else if (tx.moduleId === 2) {
-              const detail = await rawMaterialService.getById(tx.requestId);
-              productName = detail.materialName || '—';
-              rdsoApprovalLetterNo = detail.docRefNo || '—';
-            } else if (tx.moduleId === 4) {
-              const detail = await productRecipeService.getById(tx.requestId);
-              productName = detail.padType || '—';
-              rdsoApprovalLetterNo = detail.recipeIdentification || '—';
-            } else if (tx.moduleId === 5) {
-              const detail = await approvedAshSGService.getById(tx.requestId);
-              productName = detail.padType || '—';
-              rdsoApprovalLetterNo = detail.approvalRefNo || '—';
-            } else if (tx.moduleId === 6) {
-              const detail = await approvedQAPService.getById(tx.requestId);
-              if (detail && detail.productDetails && detail.productDetails.length > 0) {
-                productName = detail.productDetails[0].padType || '—';
-              }
-              rdsoApprovalLetterNo = detail.qapNo || '—';
-            }
-          } catch (err) {
-            console.error("Error fetching detail for tx mapping:", err);
-          }
+      const mapList = (list) => {
+        return (list || []).map((tx) => {
           let declarationDate = tx.createdDate || tx.createdAt || tx.actionDate || null;
           return {
             ...tx,
-            productName,
-            rdsoApprovalLetterNo,
+            productName: '—',
+            rdsoApprovalLetterNo: '—',
             declarationDate
           };
-        }));
+        });
       };
 
-      const mappedPending = await mapList(pendingData);
-      const mappedCompleted = await mapList(completedData);
+      const filterByMappedPlants = (list) => {
+        if (!currentMappedIds || currentMappedIds.length === 0) return [];
+        return (list || []).filter(tx => currentMappedIds.includes(tx.plantId));
+      };
 
-      setPendingList(mappedPending);
-      setCompletedList(mappedCompleted);
+      // Fetch only the data required for the active tab
+      if (statusTab === 'PENDING') {
+        const pendingData = await fetchPendingWorkflowTransitions('Rail Process IE');
+        setPendingList(mapList(filterByMappedPlants(pendingData)));
+      } else {
+        const completedData = await fetchCompletedCalls();
+        setCompletedList(mapList(filterByMappedPlants(completedData)));
+      }
     } catch (err) {
       console.error('Error fetching transitions:', err);
     } finally {
@@ -248,7 +228,7 @@ const PlantDeclarationDashboard = () => {
         setSelectedTx(null);
         setDetailData(null);
         // Reload list and refresh the transaction count badges
-        await loadPendingList();
+        await loadData();
       } else {
         showNotification(result.responseStatus?.message || 'Failed to complete workflow transition.', 'error');
       }
@@ -268,6 +248,18 @@ const PlantDeclarationDashboard = () => {
   const selectedModuleObj = modules.find(m => m.id === selectedModuleId);
   const activeList = statusTab === 'PENDING' ? pendingList : completedList;
   const moduleTransactions = activeList.filter(tx => tx.moduleId === selectedModuleId);
+
+  // Pagination Logic
+  const totalItems = moduleTransactions.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+  const paginatedTransactions = moduleTransactions.slice(startIndex, endIndex);
+
+  // Reset page when tab or module changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusTab, selectedModuleId]);
 
   return (
     <div style={{ padding: '24px', fontFamily: '"Outfit", sans-serif', color: '#1e293b', background: '#f8fafc', minHeight: '85vh' }}>
@@ -877,8 +869,8 @@ const PlantDeclarationDashboard = () => {
                       </td>
                     </tr>
                   ))
-                ) : moduleTransactions.length > 0 ? (
-                  moduleTransactions.map((tx) => (
+                ) : paginatedTransactions.length > 0 ? (
+                  paginatedTransactions.map((tx) => (
                     <tr key={tx.workflowTransitionId} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.2s' }}>
                       <td style={{ padding: '16px 24px' }}>
                         <div style={{ fontWeight: '700', color: '#1e293b' }}>{tx.vendorName || 'Vendor Manufacturer'}</div>
@@ -946,6 +938,49 @@ const PlantDeclarationDashboard = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination Controls */}
+          {moduleTransactions.length > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid #e2e8f0', background: '#f8fafc', borderBottomLeftRadius: '16px', borderBottomRightRadius: '16px' }}>
+              <div style={{ fontSize: '13px', color: '#64748b' }}>
+                Showing {startIndex + 1} to {Math.min(endIndex, moduleTransactions.length)} of {moduleTransactions.length} entries
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '13px', color: '#64748b' }}>Rows per page:</span>
+                  <select
+                    value={itemsPerPage}
+                    onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                    style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', cursor: 'pointer', background: '#fff' }}
+                  >
+                    <option value={10}>10</option>
+                    <option value={15}>15</option>
+                    <option value={20}>20</option>
+                    <option value={30}>30</option>
+                  </select>
+                </div>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  <button
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', background: currentPage === 1 ? '#f1f5f9' : '#fff', color: currentPage === 1 ? '#94a3b8' : '#334155', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', fontSize: '13px', transition: 'all 0.2s' }}
+                  >
+                    Prev
+                  </button>
+                  <div style={{ padding: '6px 12px', background: selectedModuleObj?.color || '#21808d', color: '#fff', borderRadius: '6px', fontSize: '13px', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '32px' }}>
+                    {currentPage}
+                  </div>
+                  <button
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', background: currentPage === totalPages ? '#f1f5f9' : '#fff', color: currentPage === totalPages ? '#94a3b8' : '#334155', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', fontSize: '13px', transition: 'all 0.2s' }}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

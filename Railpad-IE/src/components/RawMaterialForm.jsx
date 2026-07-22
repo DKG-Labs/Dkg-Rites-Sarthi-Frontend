@@ -303,8 +303,10 @@ const RawMaterialForm = ({ onSubmit, onCancel, editData, isViewOnly }) => {
               <input
                 type="number"
                 step="0.01"
+                min="0"
                 required
                 placeholder="0.00"
+                onWheel={(e) => e.target.blur()}
                 value={formData.totalWeight}
                 onChange={e => setFormData({ ...formData, totalWeight: e.target.value })}
               />
@@ -365,8 +367,10 @@ const RawMaterialForm = ({ onSubmit, onCancel, editData, isViewOnly }) => {
                     <input
                       type="number"
                       step="0.01"
+                      min="0"
                       required
                       placeholder="0.00"
+                      onWheel={(e) => e.target.blur()}
                       value={mat.weight || ''}
                       onChange={e => handleMaterialChange(index, 'weight', e.target.value)}
                       style={isWeightExceeded ? { borderColor: '#dc2626', color: '#dc2626', backgroundColor: '#fef2f2' } : {}}

@@ -68,7 +68,7 @@ const PortalHome = ({ user, onModuleSelect, isShiftActive, defaultShowPlantDecla
 
         <div style={{ 
           display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 400px))', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
           gap: '20px'
         }}>
           {/* RailPad IE Module Card */}

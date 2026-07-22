@@ -4292,14 +4292,23 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       // Helper to fallback to legacy overall shift data if granular ProcessLineFinalResult data is missing
       const legacyQty = previousShiftData[lotNo]?.manufacturedQty || 0;
       
+      const hasStageWiseHistory = lotHistoricalTotals && (
+        (lotHistoricalTotals.totalShearingManufactured > 0) ||
+        (lotHistoricalTotals.totalTurningManufactured > 0) ||
+        (lotHistoricalTotals.totalMpiManufactured > 0) ||
+        (lotHistoricalTotals.totalForgingManufactured > 0) ||
+        (lotHistoricalTotals.totalQuenchingManufactured > 0) ||
+        (lotHistoricalTotals.totalTemperingManufactured > 0)
+      );
+
       const getHistoricalAccepted = (field) => {
         const val = lotHistoricalTotals?.[field] || 0;
-        return (val === 0 && legacyQty > 0) ? legacyQty : val;
+        return (val === 0 && !hasStageWiseHistory && legacyQty > 0) ? legacyQty : val;
       };
 
       const getHistoricalManufactured = (field) => {
         const val = lotHistoricalTotals?.[field] || 0;
-        return (val === 0 && legacyQty > 0) ? legacyQty : val;
+        return (val === 0 && !hasStageWiseHistory && legacyQty > 0) ? legacyQty : val;
       };
 
       switch (field) {

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 
 const SheetingForm = ({ onSubmit, onCancel, editData, isViewOnly }) => {
   const [isFormLoading, setIsFormLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [notification, setNotification] = useState({ type: '', message: '' });
   const [formData, setFormData] = useState({
     batchNo: '',
     sheeting: 'Ensured',
@@ -21,15 +23,35 @@ const SheetingForm = ({ onSubmit, onCancel, editData, isViewOnly }) => {
     }
   }, [editData]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (isViewOnly) return;
+    
+    if (!formData.batchNo.trim()) {
+      setNotification({ type: 'error', message: 'Batch Number is required.' });
+      return;
+    }
+
+    setIsSubmitting(true);
+    setNotification({ type: '', message: '' });
+    
     const status = formData.sheeting === 'Ensured' ? 'OK' : 'Not OK';
-    onSubmit({
-      ...formData,
-      status,
-      timestamp: formData.timestamp || new Date().toLocaleString()
-    });
+    
+    try {
+      await onSubmit({
+        ...formData,
+        status,
+        timestamp: formData.timestamp || new Date().toLocaleString()
+      });
+      // form is closed by parent on success
+    } catch (error) {
+      setNotification({ 
+        type: 'error', 
+        message: error.message || 'Failed to save entry. Please try again.' 
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (isFormLoading) {
@@ -72,7 +94,24 @@ const SheetingForm = ({ onSubmit, onCancel, editData, isViewOnly }) => {
       </div>
 
       <div className="form-modal-body">
-        <fieldset disabled={isViewOnly} style={{ border: 'none', padding: 0, margin: 0, width: '100%' }}>
+        {notification.message && (
+          <div style={{
+            padding: '12px',
+            marginBottom: '16px',
+            borderRadius: '6px',
+            backgroundColor: notification.type === 'error' ? '#fef2f2' : '#ecfdf5',
+            color: notification.type === 'error' ? '#dc2626' : '#059669',
+            border: `1px solid ${notification.type === 'error' ? '#f87171' : '#34d399'}`,
+            fontSize: '14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            {notification.type === 'error' ? '⚠️' : '✅'} {notification.message}
+          </div>
+        )}
+
+        <fieldset disabled={isViewOnly || isSubmitting} style={{ border: 'none', padding: 0, margin: 0, width: '100%' }}>
           <div className="form-group">
             <label>Batch Number</label>
             <input
@@ -115,12 +154,12 @@ const SheetingForm = ({ onSubmit, onCancel, editData, isViewOnly }) => {
       </div>
 
       <div className="form-footer">
-        <button type="button" className="btn-secondary" onClick={onCancel}>
+        <button type="button" className="btn-secondary" onClick={onCancel} disabled={isSubmitting}>
           {isViewOnly ? 'Close' : 'Cancel'}
         </button>
         {!isViewOnly && (
-          <button type="submit" className="btn-submit">
-            {editData ? 'Save Changes' : 'Submit Entry'}
+          <button type="submit" className="btn-submit" disabled={isSubmitting}>
+            {isSubmitting ? 'Saving...' : (editData ? 'Save Changes' : 'Submit Entry')}
           </button>
         )}
       </div>

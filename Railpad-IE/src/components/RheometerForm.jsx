@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
-const RheometerForm = ({ onSubmit, onCancel, editData, isViewOnly }) => {
+const RheometerForm = ({ onSubmit, onCancel, editData, isViewOnly, isSubmitting }) => {
   const [isFormLoading, setIsFormLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [notification, setNotification] = useState({ type: '', message: '' });
   const [formData, setFormData] = useState({
     batchNo: '',
@@ -33,7 +32,6 @@ const RheometerForm = ({ onSubmit, onCancel, editData, isViewOnly }) => {
       return;
     }
 
-    setIsSubmitting(true);
     setNotification({ type: '', message: '' });
 
     const status = formData.ensured === 'Ensured' ? 'OK' : 'Not OK';
@@ -50,8 +48,6 @@ const RheometerForm = ({ onSubmit, onCancel, editData, isViewOnly }) => {
         type: 'error', 
         message: error.message || 'Failed to save entry. Please try again.' 
       });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 

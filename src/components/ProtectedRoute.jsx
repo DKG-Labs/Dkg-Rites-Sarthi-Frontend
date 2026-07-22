@@ -18,11 +18,20 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 
   // 2. Check Authorization (Roles)
   if (allowedRoles && Array.isArray(allowedRoles) && allowedRoles.length > 0) {
-    if (!allowedRoles.includes(user?.roleName)) {
+    const userRoles = typeof user?.roleName === 'string' ? user?.roleName.split(',').map(r => r.trim()) : [user?.roleName];
+    const hasAccess = userRoles.some(role => allowedRoles.includes(role));
+
+    if (!hasAccess) {
       console.warn(`🛑 Unauthorized access attempt. User ${user?.userName} (Role: ${user?.roleName}) tried to access ${location.pathname}`);
       
       // Redirect unauthorized user back to their designated home/dashboard
-      const fallbackTarget = ROLE_LANDING_ROUTE[user?.roleName] || ROUTES.LANDING;
+      let fallbackTarget = ROUTES.LANDING;
+      for (const role of userRoles) {
+        if (ROLE_LANDING_ROUTE[role]) {
+          fallbackTarget = ROLE_LANDING_ROUTE[role];
+          break;
+        }
+      }
       return <Navigate to={fallbackTarget} replace />;
     }
   }

@@ -1169,8 +1169,8 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
     const loggedInUserName = localStorage.getItem('userName');
     const roleName = localStorage.getItem('roleName') || '';
     
-    // Only add the logged-in user if they are an actual CM (not an Admin)
-    if (!roleName.includes('Admin')) {
+    // Only add the logged-in user if they are an actual CM (not an Admin or SBU Head)
+    if (!roleName.includes('Admin') && !roleName.includes('SBU Head')) {
       if (loggedInEmpCode && loggedInUserName) {
         cms.add(`${loggedInEmpCode} - ${loggedInUserName.toUpperCase()}`);
       } else if (loggedInEmpCode) {
@@ -1220,11 +1220,11 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
         match = dynamicFilterOptions.cms.find(cm => String(cm).trim().toLowerCase().startsWith(code));
       }
 
-      // If user is an Admin, they should see all CMs by default
-      if (match && !roleName.includes('Admin')) {
+      // If user is an Admin or SBU Head, they should see all CMs by default
+      if (match && !roleName.includes('Admin') && !roleName.includes('SBU Head')) {
         setSelectedCMs([match]);
       } else {
-        setSelectedCMs(dynamicFilterOptions.cms);
+        setSelectedCMs([]); // Empty means "All"
       }
 
       setHasAutoSelected(true);
@@ -1310,12 +1310,12 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         const matchesQuery =
-          call.callNumber.toLowerCase().includes(query) ||
-          call.poNumber.toLowerCase().includes(query) ||
-          call.vendorName.toLowerCase().includes(query) ||
-          (call.ieName && call.ieName.toLowerCase().includes(query)) ||
-          (call.cmName && call.cmName.toLowerCase().includes(query)) ||
-          call.ritesRio.toLowerCase().includes(query);
+          (call.callNumber || '').toLowerCase().includes(query) ||
+          (call.poNumber || '').toLowerCase().includes(query) ||
+          (call.vendorName || '').toLowerCase().includes(query) ||
+          (call.ieName || '').toLowerCase().includes(query) ||
+          (call.cmName || '').toLowerCase().includes(query) ||
+          (call.ritesRio || '').toLowerCase().includes(query);
 
         if (!matchesQuery) return false;
       }
@@ -1524,6 +1524,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
     setSelectedStages(dynamicFilterOptions.stages);
 
     const loggedInEmpCode = localStorage.getItem('employeeCode');
+    const roleName = localStorage.getItem('roleName') || '';
     const code = String(loggedInEmpCode || '').trim().toLowerCase();
     
     let match = null;
@@ -1531,10 +1532,10 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
       match = dynamicFilterOptions.cms.find(cm => String(cm).trim().toLowerCase().startsWith(code));
     }
 
-    if (match) {
+    if (match && !roleName.includes('Admin') && !roleName.includes('SBU Head')) {
       setSelectedCMs([match]);
     } else {
-      setSelectedCMs(dynamicFilterOptions.cms);
+      setSelectedCMs([]); // Empty means "All"
     }
 
     setSearchQuery('');
@@ -2287,7 +2288,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
 
                     {openDropdown === 'ie' && (() => {
                       const filteredIEs = dynamicFilterOptions.ies.filter(ie =>
-                        ie.toLowerCase().includes(ieSearchQuery.toLowerCase())
+                        (ie || '').toLowerCase().includes(ieSearchQuery.toLowerCase())
                       );
                       const areAllFilteredSelected = filteredIEs.length > 0 && filteredIEs.every(ie => selectedIEs.includes(ie));
 
@@ -2531,7 +2532,7 @@ export const CMDashboardPage = ({ isEmbedded = false, activeTabFromProps = null,
 
                     {openDropdown === 'vendor' && (() => {
                       const filteredVendors = dynamicFilterOptions.vendors.filter(v =>
-                        v.toLowerCase().includes(vendorSearchQuery.toLowerCase())
+                        (v || '').toLowerCase().includes(vendorSearchQuery.toLowerCase())
                       );
                       const areAllFilteredSelected = filteredVendors.length > 0 && filteredVendors.every(v => selectedVendors.includes(v));
 

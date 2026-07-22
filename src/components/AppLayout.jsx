@@ -133,9 +133,9 @@ const AppLayout = () => {
             />
           </div>
           {/* <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
-            {currentUser?.roleName === 'CM' ? 'Controlling Manager Dashboard' :
-             currentUser?.roleName === 'CALL_DESK' ? 'Call Desk Dashboard' :
-             currentUser?.roleName === 'Finance' ? 'Finance Dashboard' :
+            {currentUser?.roleName?.includes('CM') || currentUser?.roleName?.includes('Control Manager') || currentUser?.roleName?.includes('SBU Head') ? 'Controlling Manager Dashboard' :
+             currentUser?.roleName?.includes('CALL_DESK') ? 'Call Desk Dashboard' :
+             currentUser?.roleName?.includes('Finance') ? 'Finance Dashboard' :
              'Inspection Engineer Dashboard'}
           </div> */}
 
@@ -385,8 +385,12 @@ const AppLayout = () => {
                   </>
                 ) : (
                   <>
-                    {/* Landing Page - Only show for IE users (not CM, CALL_DESK, or Finance) */}
-                {currentUser?.roleName !== 'CM' && currentUser?.roleName !== 'CALL_DESK' && currentUser?.roleName !== 'Finance' && (
+                {/* Landing Page - Only show for IE users */}
+                {(() => {
+                  const roles = typeof currentUser?.roleName === 'string' ? currentUser.roleName.split(',').map(r => r.trim()) : [currentUser?.roleName];
+                  const isIE = !roles.some(r => ['CM', 'Control Manager', 'Controlling Manager', 'CALL_DESK', 'Finance', 'SBU Head'].includes(r));
+                  return isIE;
+                })() && (
                   <li
                     className={`sidebar-item ${isActivePage(ROUTES.LANDING) ? 'active' : ''}`}
                     onClick={handleNavigateToLanding}
@@ -396,8 +400,12 @@ const AppLayout = () => {
                     <span className="sidebar-text">Landing Page</span>
                   </li>
                 )}
-                {/* Inspection modules - Only show for IE users (not CM, CALL_DESK, or Finance) */}
-                {currentUser?.roleName !== 'CM' && currentUser?.roleName !== 'CALL_DESK' && currentUser?.roleName !== 'Finance' && (activeInspectionType === 'raw-material' || activeInspectionType === null) && (
+                {/* Raw Material Inspection */}
+                {(() => {
+                  const roles = typeof currentUser?.roleName === 'string' ? currentUser.roleName.split(',').map(r => r.trim()) : [currentUser?.roleName];
+                  const isIE = !roles.some(r => ['CM', 'Control Manager', 'Controlling Manager', 'CALL_DESK', 'Finance', 'SBU Head'].includes(r));
+                  return isIE && (activeInspectionType === 'raw-material' || activeInspectionType === null);
+                })() && (
                   <li
                     className={`sidebar-item ${isActivePage(ROUTES.RAW_MATERIAL) ? 'active' : ''}`}
                     onClick={handleNavigateToRawMaterial}
@@ -408,7 +416,12 @@ const AppLayout = () => {
                     <span className="sidebar-text">Raw Material Inspection</span>
                   </li>
                 )}
-                {currentUser?.roleName !== 'CM' && currentUser?.roleName !== 'CALL_DESK' && currentUser?.roleName !== 'Finance' && (activeInspectionType === 'process' || activeInspectionType === null) && (
+                {/* Process Inspection */}
+                {(() => {
+                  const roles = typeof currentUser?.roleName === 'string' ? currentUser.roleName.split(',').map(r => r.trim()) : [currentUser?.roleName];
+                  const isIE = !roles.some(r => ['CM', 'Control Manager', 'Controlling Manager', 'CALL_DESK', 'Finance', 'SBU Head'].includes(r));
+                  return isIE && (activeInspectionType === 'process' || activeInspectionType === null);
+                })() && (
                   <li
                     className={`sidebar-item ${isActivePage(ROUTES.PROCESS) ? 'active' : ''}`}
                     onClick={handleNavigateToProcess}
@@ -419,7 +432,12 @@ const AppLayout = () => {
                     <span className="sidebar-text">Process Inspection</span>
                   </li>
                 )}
-                {currentUser?.roleName !== 'CM' && currentUser?.roleName !== 'CALL_DESK' && currentUser?.roleName !== 'Finance' && (activeInspectionType === 'final-product' || activeInspectionType === null) && (
+                {/* Final Product Inspection */}
+                {(() => {
+                  const roles = typeof currentUser?.roleName === 'string' ? currentUser.roleName.split(',').map(r => r.trim()) : [currentUser?.roleName];
+                  const isIE = !roles.some(r => ['CM', 'Control Manager', 'Controlling Manager', 'CALL_DESK', 'Finance', 'SBU Head'].includes(r));
+                  return isIE && (activeInspectionType === 'final-product' || activeInspectionType === null);
+                })() && (
                   <li
                     className={`sidebar-item ${isActivePage(ROUTES.FINAL_PRODUCT) ? 'active' : ''}`}
                     onClick={handleNavigateToFinalProduct}
@@ -431,8 +449,11 @@ const AppLayout = () => {
                   </li>
                 )}
 
-                {/* CM Dashboard - Only show for CM role */}
-                {(currentUser?.roleName === 'CM' || currentUser?.roleName === 'Control Manager' || currentUser?.roleName === 'Controlling Manager') && (
+                {/* CM Dashboard - Only show for CM and SBU Head roles */}
+                {(() => {
+                  const roles = typeof currentUser?.roleName === 'string' ? currentUser.roleName.split(',').map(r => r.trim()) : [currentUser?.roleName];
+                  return roles.some(r => ['CM', 'Control Manager', 'Controlling Manager', 'SBU Head'].includes(r));
+                })() && (
                   <li
                     className={`sidebar-item ${isActivePage(ROUTES.CM_DASHBOARD) ? 'active' : ''}`}
                     onClick={handleNavigateToCMDashboard}
@@ -443,7 +464,10 @@ const AppLayout = () => {
                   </li>
                 )}
                 {/* Call Desk - Only show for CALL_DESK role */}
-                {currentUser?.roleName === 'CALL_DESK' && (
+                {(() => {
+                  const roles = typeof currentUser?.roleName === 'string' ? currentUser.roleName.split(',').map(r => r.trim()) : [currentUser?.roleName];
+                  return roles.includes('CALL_DESK');
+                })() && (
                   <li
                     className={`sidebar-item ${isActivePage(ROUTES.CALL_DESK) ? 'active' : ''}`}
                     onClick={handleNavigateToCallDesk}
@@ -454,7 +478,10 @@ const AppLayout = () => {
                   </li>
                 )}
                 {/* Finance Dashboard - Only show for Finance role */}
-                {currentUser?.roleName === 'Finance' && (
+                {(() => {
+                  const roles = typeof currentUser?.roleName === 'string' ? currentUser.roleName.split(',').map(r => r.trim()) : [currentUser?.roleName];
+                  return roles.includes('Finance');
+                })() && (
                   <li
                     className={`sidebar-item ${isActivePage(ROUTES.FINANCE) ? 'active' : ''}`}
                     onClick={handleNavigateToFinance}

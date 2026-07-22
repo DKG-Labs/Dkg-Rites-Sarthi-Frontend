@@ -3,6 +3,8 @@ import RawMaterialForm from './components/RawMaterialForm';
 import { rawMaterialWeighmentService } from './services/rawMaterialWeighmentService';
 import { mixingKneaderMillService } from './services/mixingKneaderMillService';
 import { hydraulicPressService } from './services/hydraulicPressService';
+import { sheetingService } from './services/sheetingService';
+import { rheometerService } from './services/rheometerService';
 import MixingForm from './components/MixingForm';
 import SheetingForm from './components/SheetingForm';
 import RheometerForm from './components/RheometerForm';
@@ -477,6 +479,67 @@ const App = () => {
       } catch (error) {
         console.error('Error saving hydraulic press record:', error);
         alert('Error saving hydraulic press record: ' + error.message);
+      }
+    } else if (currentActiveCard === 'sheeting') {
+      try {
+        const payload = {
+          plantId: currentShift.unit,
+          vendorCode: currentShift.company,
+          batchNo: String(newData.batchNo),
+          sheeting: newData.sheeting,
+          remarks: newData.remarks,
+          status: newData.status,
+          timestamp: newData.timestamp
+        };
+
+        if (editIndex > -1) {
+          const entryId = entries['sheeting'][editIndex].id;
+          const updated = await sheetingService.updateSheeting(entryId, payload);
+          const newEntries = [...entries['sheeting']];
+          newEntries[editIndex] = updated;
+          setEntries(prev => ({ ...prev, 'sheeting': newEntries }));
+        } else {
+          const created = await sheetingService.createSheeting(payload);
+          setEntries(prev => ({
+            ...prev,
+            'sheeting': [created, ...prev['sheeting']]
+          }));
+        }
+        closeForm();
+      } catch (error) {
+        console.error('Error saving sheeting record:', error);
+        throw error;
+      }
+    } else if (currentActiveCard === 'rheometer') {
+      try {
+        const payload = {
+          plantId: currentShift.unit,
+          vendorCode: currentShift.company,
+          batchNo: String(newData.batchNo),
+          vulcanTime: parseFloat(newData.vulcanTime),
+          vulcanTemp: parseFloat(newData.vulcanTemp),
+          ensured: newData.ensured,
+          status: newData.status,
+          timestamp: newData.timestamp
+        };
+
+        if (editIndex > -1) {
+          const entryId = entries['rheometer'][editIndex].id;
+          const updated = await rheometerService.updateRheometer(entryId, payload);
+          const newEntries = [...entries['rheometer']];
+          newEntries[editIndex] = updated;
+          setEntries(prev => ({ ...prev, 'rheometer': newEntries }));
+        } else {
+          const created = await rheometerService.createRheometer(payload);
+          setEntries(prev => ({
+            ...prev,
+            'rheometer': [created, ...prev['rheometer']]
+          }));
+        }
+        closeForm();
+      } catch (error) {
+        console.error('Error saving rheometer test record:', error);
+        throw error;
       }
     } else {
       if (editIndex > -1) {

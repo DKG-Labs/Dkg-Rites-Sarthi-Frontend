@@ -15,6 +15,7 @@ import { resetSessionControl } from '../utils/inspectionSessionControl';
 import { performInspectionCleanup } from '../utils/inspectionCleanup';
 import { buildLineMapping, validateLineNumber } from '../utils/lineMapping';
 import { transformLineDataForBackend } from '../utils/payloadTransformers';
+import AnnexureLoader from '../components/annexures/AnnexureLoader';
 import AddNewCallModal from '../components/AddNewCallModal';
 import ResumeCallModal from '../components/ResumeCallModal';
 import Modal from '../components/Modal';
@@ -4292,14 +4293,23 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       // Helper to fallback to legacy overall shift data if granular ProcessLineFinalResult data is missing
       const legacyQty = previousShiftData[lotNo]?.manufacturedQty || 0;
       
+      const hasStageWiseHistory = lotHistoricalTotals && (
+        (lotHistoricalTotals.totalShearingManufactured > 0) ||
+        (lotHistoricalTotals.totalTurningManufactured > 0) ||
+        (lotHistoricalTotals.totalMpiManufactured > 0) ||
+        (lotHistoricalTotals.totalForgingManufactured > 0) ||
+        (lotHistoricalTotals.totalQuenchingManufactured > 0) ||
+        (lotHistoricalTotals.totalTemperingManufactured > 0)
+      );
+
       const getHistoricalAccepted = (field) => {
         const val = lotHistoricalTotals?.[field] || 0;
-        return (val === 0 && legacyQty > 0) ? legacyQty : val;
+        return (val === 0 && !hasStageWiseHistory && legacyQty > 0) ? legacyQty : val;
       };
 
       const getHistoricalManufactured = (field) => {
         const val = lotHistoricalTotals?.[field] || 0;
-        return (val === 0 && legacyQty > 0) ? legacyQty : val;
+        return (val === 0 && !hasStageWiseHistory && legacyQty > 0) ? legacyQty : val;
       };
 
       switch (field) {
@@ -5792,9 +5802,16 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           const offeredQty = lotDetail.offeredQty || 0;
 
           // Get current shift manufactured quantity from manufacturedQtyByLine state
-          const currentShearingManufacturedQty = (manufacturedQtyByLine[lineNo]?.[lotNo]?.shearing)
-            ? parseInt(manufacturedQtyByLine[lineNo][lotNo].shearing)
-            : 0;
+          const currentLotData = manufacturedQtyByLine[lineNo]?.[lotNo] || {};
+          const currentShiftManufacturedQty = Math.max(
+            parseInt(currentLotData.shearing || 0) || 0,
+            parseInt(currentLotData.turning || 0) || 0,
+            parseInt(currentLotData.mpiTesting || 0) || 0,
+            parseInt(currentLotData.forging || 0) || 0,
+            parseInt(currentLotData.quenching || 0) || 0,
+            parseInt(currentLotData.tempering || 0) || 0,
+            parseInt(currentLotData.testingFinishing || 0) || 0
+          );
 
           // Get current shift rejected quantity using rejectedQty.totalRejected
           const currentTotalRejected = rejectedQty.totalRejected || 0;
@@ -5803,12 +5820,9 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           const previousShiftDataForLot = previousShiftDataByLot[lotNo] || { manufacturedQty: 0, rejectedQty: 0 };
 
           // Calculate cumulative quantities
-          const cumulativeManufacturedQty = currentShearingManufacturedQty + previousShiftDataForLot.manufacturedQty;
+          const cumulativeManufacturedQty = currentShiftManufacturedQty + previousShiftDataForLot.manufacturedQty;
           const cumulativeRejectedQty = currentTotalRejected + previousShiftDataForLot.rejectedQty;
           const cumulativeAcceptedQty = Math.max(0, cumulativeManufacturedQty - cumulativeRejectedQty);
-
-          // Calculate current shift quantities
-          const currentShiftManufacturedQty = currentShearingManufacturedQty;
           const currentShiftRejectedQty = currentTotalRejected;
           const currentShiftAcceptedQty = Math.max(0, currentShiftManufacturedQty - currentShiftRejectedQty);
 
@@ -5994,6 +6008,13 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
 
   return (
     <div className="process-dashboard">
+      {isSaving && (
+        <AnnexureLoader 
+          title="Saving Process Data" 
+          subtitle="Please wait while we save your 8-hour inspection data securely..." 
+          fullScreen={true} 
+        />
+      )}
       <style>{staticDataStyles}</style>
       <Notification
         message={notification.message}
@@ -7212,7 +7233,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
 
       {/* Finish Call Selection Modal */}
       {showFinishCallSelectionModal && (
-        <div className="modal-overlay" onClick={handleCancelFinishModal}>
+        <div className="modal-overlay" onClick={isSaving ? undefined : handleCancelFinishModal}>
           <div className="modal-container" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
             <div className="modal-header">
               <h3 className="modal-title">Select Calls to Finish</h3>

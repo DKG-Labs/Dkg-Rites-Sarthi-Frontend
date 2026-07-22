@@ -390,11 +390,11 @@ const HydraulicPressForm = ({ onSubmit, onCancel, editData, currentShift, isView
             <div className="form-group">
               <label>Batch No.</label>
               <input
-                type="number"
+                type="text"
                 required
-                placeholder="Enter numerical batch ID"
+                placeholder="e.g. 101A"
                 value={formData.batchNo}
-                onChange={e => setFormData({ ...formData, batchNo: e.target.value })}
+                onChange={e => setFormData({ ...formData, batchNo: e.target.value.replace(/-/g, '') })}
               />
             </div>
             <div className="form-group">

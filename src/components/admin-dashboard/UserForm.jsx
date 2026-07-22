@@ -305,6 +305,18 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
                             required
                         />
                     </div>
+                    <div className="form-group">
+                        <label className="form-label">Short Name <span className="required-star">*</span></label>
+                        <input
+                            type="text"
+                            name="shortName"
+                            className="form-control"
+                            placeholder="e.g. JD"
+                            value={formData.shortName || ''}
+                            onChange={handleChange}
+                            required
+                        />
+                    </div>
                     {(!isZonalRailway || (isZonalRailway && user)) && (
                         <div className="form-group">
                             <label className="form-label">Employee Code <span className="required-star">*</span></label>

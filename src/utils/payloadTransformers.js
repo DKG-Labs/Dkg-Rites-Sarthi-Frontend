@@ -57,6 +57,17 @@ export const transformLineDataForBackend = (frontendLineData, manualQuantities =
 
     const testingFinishingData = frontendLineData.testingFinishingData?.map(transformTestingFinishingRow) || [];
 
+    // Check if there is any data at all (either grid data or manual quantities)
+    const hasGridData = shearingData.length > 0 || turningData.length > 0 || mpiData.length > 0 || 
+                        forgingData.length > 0 || quenchingData.length > 0 || temperingData.length > 0 || 
+                        finalCheckData.length > 0 || testingFinishingData.length > 0;
+    
+    const hasManualData = Object.values(manualQuantities).some(val => val > 0);
+
+    if (!hasGridData && !hasManualData) {
+        return null;
+    }
+
     // Calculate Final Result Summary for Payload
     const shearingRejected = calculateGenericRejected(shearingData, ['lengthCutBarRejected', 'improperDiaRejected', 'sharpEdgesRejected', 'crackedEdgesRejected']);
 

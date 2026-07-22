@@ -16,7 +16,7 @@ const RAIL_PAD_TYPES = [
   '10.00mm NCRGRSP'
 ];
 
-const RawMaterialForm = ({ onSubmit, onCancel, editData, isViewOnly }) => {
+const RawMaterialForm = ({ onSubmit, onCancel, editData, isViewOnly, isSubmitting }) => {
   const [isFormLoading, setIsFormLoading] = useState(true);
   const [formData, setFormData] = useState({
     railPadType: '',
@@ -409,17 +409,17 @@ const RawMaterialForm = ({ onSubmit, onCancel, editData, isViewOnly }) => {
       </div>
 
       <div className="form-footer">
-        <button type="button" className="btn-secondary" onClick={onCancel}>
+        <button type="button" className="btn-secondary" onClick={onCancel} disabled={isSubmitting}>
           {isViewOnly ? 'Close' : 'Cancel'}
         </button>
         {!isViewOnly && (
           <button 
             type="submit" 
             className="btn-submit" 
-            disabled={formData.acceptedMaterials !== 'Yes' || isWeightExceeded}
-            style={isWeightExceeded ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
+            disabled={formData.acceptedMaterials !== 'Yes' || isWeightExceeded || isSubmitting}
+            style={(isWeightExceeded || isSubmitting) ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
           >
-            {editData ? 'Save Changes' : 'Submit Entry'}
+            {isSubmitting ? 'Saving...' : (editData ? 'Save Changes' : 'Submit Entry')}
           </button>
         )}
       </div>

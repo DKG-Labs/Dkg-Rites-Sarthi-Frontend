@@ -985,14 +985,14 @@ const reportService = {
     },
 
     getUnitsByCompany: async (companyName) => {
-        const response = await fetch(`${API_BASE_URL}/api/poiMapping/companies/${encodeURIComponent(companyName)}/units`, {
+        const response = await fetch(`${API_BASE_URL}/api/poiMapping/companies/units?companyName=${encodeURIComponent(companyName)}`, {
             headers: getAuthHeaders(),
         });
         return handleResponse(response);
     },
 
     getPoiByCompanyAndUnit: async (companyName, unitName) => {
-        const response = await fetch(`${API_BASE_URL}/api/poiMapping/companies/${encodeURIComponent(companyName)}/units/${encodeURIComponent(unitName)}`, {
+        const response = await fetch(`${API_BASE_URL}/api/poiMapping/companies/unit-details?companyName=${encodeURIComponent(companyName)}&unitName=${encodeURIComponent(unitName)}`, {
             headers: getAuthHeaders(),
         });
         return handleResponse(response);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const VisualInspectionForm = ({ onSubmit, onCancel, editData, currentShift, isViewOnly }) => {
+const VisualInspectionForm = ({ onSubmit, onCancel, editData, currentShift, isViewOnly, isSubmitting }) => {
   const [isFormLoading, setIsFormLoading] = useState(true);
   const [formData, setFormData] = useState({
     sampleQuantity: 3,
@@ -227,12 +227,12 @@ const VisualInspectionForm = ({ onSubmit, onCancel, editData, currentShift, isVi
       </div>
 
       <div className="form-footer">
-        <button type="button" className="btn-secondary" onClick={onCancel}>
+        <button type="button" className="btn-secondary" onClick={onCancel} disabled={isSubmitting}>
           {isViewOnly ? 'Close' : 'Cancel'}
         </button>
         {!isViewOnly && (
-          <button type="submit" className="btn-submit">
-            {editData ? 'Save Changes' : 'Submit Entry'}
+          <button type="submit" className="btn-submit" disabled={isSubmitting}>
+            {isSubmitting ? 'Saving...' : (editData ? 'Save Changes' : 'Submit Entry')}
           </button>
         )}
       </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import Notification from './Notification';
 
-const PreShiftVerificationForm = ({ type, onSubmit, onCancel, editData, currentShift, isViewOnly }) => {
+const PreShiftVerificationForm = ({ type, onSubmit, onCancel, editData, currentShift, isViewOnly, isSubmitting }) => {
   const [isFormLoading, setIsFormLoading] = useState(true);
   const [formData, setFormData] = useState({
     mouldNumber: '',
@@ -46,6 +47,24 @@ const PreShiftVerificationForm = ({ type, onSubmit, onCancel, editData, currentS
     e.preventDefault();
     if (isViewOnly) return;
     
+    // Validate required fields
+    if (!formData.mouldNumber || formData.mouldNumber.trim() === '') {
+      setError('Mould / Drawing Number is required.');
+      return;
+    }
+    if (!formData.timeOfCheck || formData.timeOfCheck.trim() === '') {
+      setError('Time of Check is required.');
+      return;
+    }
+    // Time regex validation HH:MM
+    const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    if (!timeRegex.test(formData.timeOfCheck)) {
+      setError('Please enter a valid time (HH:MM).');
+      return;
+    }
+
+    setError(''); // Clear error if validation passes
+
     onSubmit({
       ...formData,
       date: currentShift.date,
@@ -130,9 +149,11 @@ const PreShiftVerificationForm = ({ type, onSubmit, onCancel, editData, currentS
 
       <div className="form-modal-body">
         {error && (
-          <div className="validation-error">
-            <span>⚠️</span> {error}
-          </div>
+          <Notification 
+            message={error} 
+            type="error" 
+            onClose={() => setError('')} 
+          />
         )}
 
         {/* Auto-filled Section */}
@@ -247,8 +268,14 @@ const PreShiftVerificationForm = ({ type, onSubmit, onCancel, editData, currentS
       </div>
 
       <div className="form-footer">
-        <button type="button" className="btn-secondary" onClick={onCancel}>Cancel</button>
-        <button type="submit" className="btn-submit">{editData ? 'Save Changes' : 'Submit Entry'}</button>
+        <button type="button" className="btn-secondary" onClick={onCancel} disabled={isSubmitting}>
+          {isViewOnly ? 'Close' : 'Cancel'}
+        </button>
+        {!isViewOnly && (
+          <button type="submit" className="btn-submit" disabled={isSubmitting}>
+            {isSubmitting ? 'Saving...' : (editData ? 'Save Changes' : 'Submit Entry')}
+          </button>
+        )}
       </div>
     </form>
   );

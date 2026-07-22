@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { Select } from 'antd';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { USER_ROLES, REGIONS, DESIGNATIONS, DISCIPLINES } from './utils/mockData';
 
 export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCancel }) => {
     const [passwordError, setPasswordError] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [formData, setFormData] = useState({
         userName: '',
         password: '',
@@ -49,7 +53,9 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
                 mobileNumber: user.mobileNumber || user.mobileNo || '',
                 alternateMobileNumber: user.alternateMobileNumber || '',
                 notificationPreferences: user.notificationPreferences || '',
-                roleNames: Array.isArray(user.roleNames) ? user.roleNames : (user.roleName ? user.roleName.split(',') : []),
+                roleNames: Array.isArray(user.roleNames) 
+                    ? user.roleNames 
+                    : (user.roleName ? user.roleName.split(',').map(r => r.trim()).filter(Boolean) : []),
                 userId: user.userId || user.id || undefined,
                 rio: user.rio || '',
                 productType: user.productType || '',
@@ -111,13 +117,7 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
         }
     };
 
-    const handleRoleChange = (e) => {
-        const { value } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            roleNames: value ? [value] : []
-        }));
-    };
+
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -201,6 +201,15 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
 
     const isZonalRailway = formData.roleNames.includes('ZONAL RAILWAY');
 
+    const roleMapping = {
+        'Vendor': 'ERC Vendor',
+        'IE': 'ERC IE',
+        'Process IE': 'ERC Process IE',
+        'Main IE': 'Sleeper Main IE',
+        'Rail Main IE': 'Railpad Main IE',
+        'Rail Process IE': 'Railpad Process IE'
+    };
+
     return (
         <form onSubmit={handleSubmit} className="user-form-professional">
             {/* 1. Account Information Section */}
@@ -211,34 +220,70 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
                 <div className="form-grid">
                     <div className="form-group">
                         <label className="form-label">Role <span className="required-star">*</span></label>
-                        <select
-                            name="role"
-                            className="form-control"
-                            value={formData.roleNames[0] || ''}
-                            onChange={handleRoleChange}
-                            required
-                        >
-                            <option value="">Select User Role</option>
-                            {(roles && roles.length > 0 ? roles : USER_ROLES).map(role => {
-                                const rName = typeof role === 'object' ? role.roleName : role;
-                                const rId = typeof role === 'object' ? (role.roleId || role.roleName) : role;
-                                return <option key={rId} value={rName}>{rName}</option>;
-                            })}
-                        </select>
+                        <Select
+                            mode="multiple"
+                            maxTagCount="responsive"
+                            showSearch
+                            value={formData.roleNames || []}
+                            placeholder="Select User Roles"
+                            onChange={(values) => {
+                                setFormData(prev => ({
+                                    ...prev,
+                                    roleNames: values || []
+                                }));
+                            }}
+                            allowClear
+                            style={{ width: '100%', minHeight: '38px' }}
+                            optionFilterProp="children"
+                            filterOption={(input, option) =>
+                                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                            }
+                            options={(() => {
+                                const roleList = roles && roles.length > 0 ? roles : USER_ROLES;
+                                const sortedRoles = [...roleList].sort((a, b) => {
+                                    const rNameA = typeof a === 'object' ? a.roleName : a;
+                                    const rNameB = typeof b === 'object' ? b.roleName : b;
+                                    const dispA = roleMapping[rNameA] || rNameA;
+                                    const dispB = roleMapping[rNameB] || rNameB;
+                                    return dispA.localeCompare(dispB);
+                                });
+                                return sortedRoles.map(role => {
+                                    const rName = typeof role === 'object' ? role.roleName : role;
+                                    const displayRoleName = roleMapping[rName] || rName;
+                                    const rId = typeof role === 'object' ? (role.roleId || role.roleName) : role;
+                                    return { value: rName, label: displayRoleName, key: rId };
+                                });
+                            })()}
+                        />
                     </div>
 
                     {user && (
                         <div className="form-group">
                             <label className="form-label">Password</label>
-                            <input
-                                type="text"
-                                name="password"
-                                className="form-control"
-                                placeholder="Leave blank to keep unchanged"
-                                value={formData.password}
-                                onChange={handleChange}
-                                required={false}
-                            />
+                            <div style={{ position: 'relative' }}>
+                                <input
+                                    type={showPassword ? "text" : "password"}
+                                    name="password"
+                                    className="form-control"
+                                    placeholder="Leave blank to keep unchanged"
+                                    value={formData.password}
+                                    onChange={handleChange}
+                                    required={false}
+                                    style={{ paddingRight: '60px' }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    style={{
+                                        position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
+                                        background: 'none', border: 'none', color: '#64748b', cursor: 'pointer',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0'
+                                    }}
+                                    title={showPassword ? 'Hide password' : 'Show password'}
+                                >
+                                    {showPassword ? <VisibilityOff style={{ fontSize: '20px' }} /> : <Visibility style={{ fontSize: '20px' }} />}
+                                </button>
+                            </div>
                         </div>
                     )}
 
@@ -495,17 +540,31 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
                     {!user && (
                         <div className="form-group">
                             <label className="form-label">Set Password <span className="required-star">*</span></label>
-                            <input
-                                type="password"
-                                name="password"
-                                className={`form-control ${passwordError ? 'is-invalid' : ''}`}
-                                placeholder="Min 8 chars, 1 uppercase, 1 number, 1 special char"
-                                value={formData.password}
-                                onChange={handleChange}
-                                required={!user}
-                                minLength={8}
-                                style={passwordError ? { borderColor: '#ef4444' } : {}}
-                            />
+                            <div style={{ position: 'relative' }}>
+                                <input
+                                    type={showPassword ? "text" : "password"}
+                                    name="password"
+                                    className={`form-control ${passwordError ? 'is-invalid' : ''}`}
+                                    placeholder="Min 8 chars, 1 uppercase, 1 number, 1 special char"
+                                    value={formData.password}
+                                    onChange={handleChange}
+                                    required={!user}
+                                    minLength={8}
+                                    style={{ paddingRight: '60px', ...(passwordError ? { borderColor: '#ef4444' } : {}) }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    style={{
+                                        position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
+                                        background: 'none', border: 'none', color: '#64748b', cursor: 'pointer',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0'
+                                    }}
+                                    title={showPassword ? 'Hide password' : 'Show password'}
+                                >
+                                    {showPassword ? <VisibilityOff style={{ fontSize: '20px' }} /> : <Visibility style={{ fontSize: '20px' }} />}
+                                </button>
+                            </div>
                             {passwordError && (
                                 <div style={{ fontSize: '12px', color: '#ef4444', marginTop: '6px', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '4px' }}>
                                     <span style={{ fontSize: '14px' }}>⚠️</span> {passwordError}

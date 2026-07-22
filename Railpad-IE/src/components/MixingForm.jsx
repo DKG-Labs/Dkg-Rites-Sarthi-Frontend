@@ -4,7 +4,7 @@ import CustomSelect from './common/CustomSelect';
 
 const PAD_TYPES = ["6.00mm GRSP", "10.00mm GRSP", "6.20mm CGRSP", "10.00mm CGRSP", "6.00mm NCRGRSP", "10.00mm NCRGRSP"];
 
-const MixingForm = ({ onSubmit, onCancel, editData, plantId, isViewOnly }) => {
+const MixingForm = ({ onSubmit, onCancel, editData, plantId, isViewOnly, isSubmitting }) => {
   const [isFormLoading, setIsFormLoading] = useState(true);
   const [formData, setFormData] = useState({
     railPadType: '',
@@ -392,17 +392,17 @@ const MixingForm = ({ onSubmit, onCancel, editData, plantId, isViewOnly }) => {
       </div>
 
       <div className="form-footer">
-        <button type="button" className="btn-secondary" onClick={onCancel}>
+        <button type="button" className="btn-secondary" onClick={onCancel} disabled={isSubmitting}>
           {isViewOnly ? 'Close' : 'Cancel'}
         </button>
         {!isViewOnly && (
           <button 
             type="submit" 
             className="btn-submit" 
-            disabled={isSubmitDisabled}
-            style={{ opacity: isSubmitDisabled ? 0.6 : 1, cursor: isSubmitDisabled ? 'not-allowed' : 'pointer' }}
+            disabled={isSubmitDisabled || isSubmitting}
+            style={{ opacity: (isSubmitDisabled || isSubmitting) ? 0.6 : 1, cursor: (isSubmitDisabled || isSubmitting) ? 'not-allowed' : 'pointer' }}
           >
-            {editData ? 'Save Changes' : 'Submit Entry'}
+            {isSubmitting ? 'Saving...' : (editData ? 'Save Changes' : 'Submit Entry')}
           </button>
         )}
       </div>

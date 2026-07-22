@@ -5,6 +5,8 @@ import { mixingKneaderMillService } from './services/mixingKneaderMillService';
 import { hydraulicPressService } from './services/hydraulicPressService';
 import { sheetingService } from './services/sheetingService';
 import { rheometerService } from './services/rheometerService';
+import { mouldVerificationService } from './services/mouldVerificationService';
+import { visualInspectionService } from './services/visualInspectionService';
 import MixingForm from './components/MixingForm';
 import SheetingForm from './components/SheetingForm';
 import RheometerForm from './components/RheometerForm';
@@ -108,6 +110,7 @@ const App = () => {
   const [editItem, setEditItem] = useState(null);
   const [editIndex, setEditIndex] = useState(-1);
   const [isViewOnly, setIsViewOnly] = useState(false);
+  const [isSubmittingForm, setIsSubmittingForm] = useState(false);
   const [isShiftActive, setIsShiftActive] = useState(() => {
     return localStorage.getItem('railpad_ie_shift_active') === 'true';
   });
@@ -294,6 +297,123 @@ const App = () => {
         }
       }
     };
+    const fetchSheetingRecords = async () => {
+      if (isShiftActive && currentShift && currentShift.unit && currentShift.company) {
+        setIsLoading(true);
+        try {
+          const data = await sheetingService.getSheetingList(
+            currentShift.unit,
+            currentShift.company
+          );
+          const mappedData = data.map(item => ({
+            id: item.id,
+            batchNo: item.batchNo,
+            sheeting: item.sheeting,
+            remarks: item.remarks,
+            status: item.status,
+            timestamp: item.createdDate || item.timestamp || new Date().toISOString()
+          }));
+          setEntries(prev => ({
+            ...prev,
+            'sheeting': mappedData
+          }));
+        } catch (error) {
+          console.error('Error fetching sheeting records:', error);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+    const fetchRheometerRecords = async () => {
+      if (isShiftActive && currentShift && currentShift.unit && currentShift.company) {
+        setIsLoading(true);
+        try {
+          const data = await rheometerService.getRheometerList(
+            currentShift.unit,
+            currentShift.company
+          );
+          const mappedData = data.map(item => ({
+            id: item.id,
+            batchNo: item.batchNo,
+            vulcanTime: item.vulcanTime,
+            vulcanTemp: item.vulcanTemp,
+            ensured: item.ensured,
+            status: item.status,
+            timestamp: item.createdDate || item.timestamp || new Date().toISOString()
+          }));
+          setEntries(prev => ({
+            ...prev,
+            'rheometer': mappedData
+          }));
+        } catch (error) {
+          console.error('Error fetching rheometer records:', error);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    const fetchMouldVerificationRecords = async () => {
+      if (isShiftActive && currentShift && currentShift.unit && currentShift.company) {
+        setIsLoading(true);
+        try {
+          const data = await mouldVerificationService.getMouldVerificationsList(
+            currentShift.unit,
+            currentShift.company
+          );
+          const mappedData = data.map(item => ({
+            id: item.id,
+            mouldNumber: item.mouldNumber,
+            timeOfCheck: item.timeOfCheck,
+            dimensionalAccuracy: item.dimensionalAccuracy,
+            dimensionalRemarks: item.dimensionalRemarks,
+            freedomFromDefects: item.freedomFromDefects,
+            defectsRemarks: item.defectsRemarks,
+            visualRemarks: item.visualRemarks,
+            status: item.status,
+            timestamp: item.createdDate || item.timestamp || new Date().toISOString()
+          }));
+          setEntries(prev => ({
+            ...prev,
+            'mould-verification': mappedData
+          }));
+        } catch (error) {
+          console.error('Error fetching mould verification records:', error);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    const fetchVisualInspectionRecords = async () => {
+      if (isShiftActive && currentShift && currentShift.unit && currentShift.company) {
+        setIsLoading(true);
+        try {
+          const data = await visualInspectionService.getList(
+            currentShift.unit,
+            currentShift.company
+          );
+          const mappedData = data.map(item => ({
+            id: item.id,
+            sampleQuantity: item.sampleQuantity,
+            timeOfCheck: item.timeOfCheck,
+            clearCutSides: item.clearCutSides,
+            smoothSurface: item.smoothSurface,
+            defectRemarks: item.defectRemarks,
+            status: item.status,
+            timestamp: item.timestamp || new Date().toISOString()
+          }));
+          setEntries(prev => ({
+            ...prev,
+            'visual-inspection': mappedData
+          }));
+        } catch (error) {
+          console.error('Error fetching visual inspection records:', error);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
 
     if (activeCard === 'raw-material') {
       fetchRawMaterialWeighments();
@@ -301,11 +421,21 @@ const App = () => {
       fetchMixingRecords();
     } else if (activeCard === 'hydraulic-press') {
       fetchHydraulicPressRecords();
+    } else if (activeCard === 'sheeting') {
+      fetchSheetingRecords();
+    } else if (activeCard === 'rheometer') {
+      fetchRheometerRecords();
+    } else if (activeCard === 'mould-verification') {
+      fetchMouldVerificationRecords();
+    } else if (activeCard === 'visual-inspection') {
+      fetchVisualInspectionRecords();
     }
   }, [isShiftActive, currentShift, activeCard]);
 
   const handleAddEntry = async (newData) => {
-    const currentActiveCard = activeCard;
+    setIsSubmittingForm(true);
+    try {
+      const currentActiveCard = activeCard;
     if (currentActiveCard === 'raw-material') {
       try {
         const payload = {
@@ -541,6 +671,76 @@ const App = () => {
         console.error('Error saving rheometer test record:', error);
         throw error;
       }
+    } else if (currentActiveCard === 'mould-verification') {
+      try {
+        const payload = {
+          plantId: currentShift.unit,
+          vendorCode: currentShift.company,
+          shift: currentShift.shift,
+          castingDate: currentShift.date,
+          mouldNumber: String(newData.mouldNumber),
+          timeOfCheck: newData.timeOfCheck,
+          dimensionalAccuracy: newData.dimensionalAccuracy,
+          dimensionalRemarks: newData.dimensionalRemarks,
+          freedomFromDefects: newData.freedomFromDefects,
+          defectsRemarks: newData.defectsRemarks,
+          visualRemarks: newData.visualRemarks,
+          status: newData.status,
+          timestamp: newData.timestamp
+        };
+
+        if (editIndex > -1) {
+          const entryId = entries['mould-verification'][editIndex].id;
+          const updated = await mouldVerificationService.updateMouldVerification(entryId, payload);
+          const newEntries = [...entries['mould-verification']];
+          newEntries[editIndex] = updated;
+          setEntries(prev => ({ ...prev, 'mould-verification': newEntries }));
+        } else {
+          const created = await mouldVerificationService.createMouldVerification(payload);
+          setEntries(prev => ({
+            ...prev,
+            'mould-verification': [created, ...prev['mould-verification']]
+          }));
+        }
+        closeForm();
+      } catch (error) {
+        console.error('Error saving mould verification record:', error);
+        throw error;
+      }
+    } else if (currentActiveCard === 'visual-inspection') {
+      try {
+        const payload = {
+          plantId: currentShift.unit,
+          vendorCode: currentShift.company,
+          shift: currentShift.shift,
+          castingDate: currentShift.date,
+          sampleQuantity: parseInt(newData.sampleQuantity),
+          timeOfCheck: newData.timeOfCheck,
+          clearCutSides: newData.clearCutSides,
+          smoothSurface: newData.smoothSurface,
+          defectRemarks: newData.defectRemarks,
+          status: newData.status,
+          timestamp: newData.timestamp
+        };
+
+        if (editIndex > -1) {
+          const entryId = entries['visual-inspection'][editIndex].id;
+          const updated = await visualInspectionService.update(entryId, payload);
+          const newEntries = [...entries['visual-inspection']];
+          newEntries[editIndex] = updated;
+          setEntries(prev => ({ ...prev, 'visual-inspection': newEntries }));
+        } else {
+          const created = await visualInspectionService.create(payload);
+          setEntries(prev => ({
+            ...prev,
+            'visual-inspection': [created, ...prev['visual-inspection']]
+          }));
+        }
+        closeForm();
+      } catch (error) {
+        console.error('Error saving visual inspection record:', error);
+        throw error;
+      }
     } else {
       if (editIndex > -1) {
         const newEntries = [...entries[currentActiveCard]];
@@ -553,6 +753,9 @@ const App = () => {
         }));
       }
       closeForm();
+    }
+    } finally {
+      setIsSubmittingForm(false);
     }
   };
 
@@ -610,6 +813,28 @@ const App = () => {
             setEntries(prev => ({ ...prev, 'hydraulic-press': newEntries }));
           } catch (error) {
             console.error('Error deleting hydraulic press record:', error);
+            alert('Error deleting record: ' + error.message);
+          }
+        } else if (currentActiveCard === 'mould-verification') {
+          try {
+            if (item.id) {
+              await mouldVerificationService.deleteMouldVerification(item.id);
+            }
+            const newEntries = entries['mould-verification'].filter((_, idx) => idx !== index);
+            setEntries(prev => ({ ...prev, 'mould-verification': newEntries }));
+          } catch (error) {
+            console.error('Error deleting mould verification record:', error);
+            alert('Error deleting record: ' + error.message);
+          }
+        } else if (currentActiveCard === 'visual-inspection') {
+          try {
+            if (item.id) {
+              await visualInspectionService.delete(item.id);
+            }
+            const newEntries = entries['visual-inspection'].filter((_, idx) => idx !== index);
+            setEntries(prev => ({ ...prev, 'visual-inspection': newEntries }));
+          } catch (error) {
+            console.error('Error deleting visual inspection record:', error);
             alert('Error deleting record: ' + error.message);
           }
         } else {
@@ -1658,6 +1883,7 @@ const App = () => {
               onCancel={closeForm}
               editData={editItem}
               isViewOnly={isViewOnly}
+              isSubmitting={isSubmittingForm}
             />
           )}
           {activeCard === 'mixing' && (
@@ -1667,6 +1893,7 @@ const App = () => {
               editData={editItem}
               plantId={currentShift?.unit || selectedCallForInitiation?.plantId || "1"}
               isViewOnly={isViewOnly}
+              isSubmitting={isSubmittingForm}
             />
           )}
           {activeCard === 'sheeting' && (
@@ -1675,6 +1902,7 @@ const App = () => {
               onCancel={closeForm}
               editData={editItem}
               isViewOnly={isViewOnly}
+              isSubmitting={isSubmittingForm}
             />
           )}
           {activeCard === 'rheometer' && (
@@ -1683,6 +1911,7 @@ const App = () => {
               onCancel={closeForm}
               editData={editItem}
               isViewOnly={isViewOnly}
+              isSubmitting={isSubmittingForm}
             />
           )}
           {activeCard === 'mould-verification' && (
@@ -1693,6 +1922,7 @@ const App = () => {
               editData={editItem}
               currentShift={currentShift}
               isViewOnly={isViewOnly}
+              isSubmitting={isSubmittingForm}
             />
           )}
           {activeCard === 'hydraulic-press' && (
@@ -1702,6 +1932,7 @@ const App = () => {
               editData={editItem}
               currentShift={currentShift}
               isViewOnly={isViewOnly}
+              isSubmitting={isSubmittingForm}
             />
           )}
           {activeCard === 'visual-inspection' && (
@@ -1711,6 +1942,7 @@ const App = () => {
               editData={editItem}
               currentShift={currentShift}
               isViewOnly={isViewOnly}
+              isSubmitting={isSubmittingForm}
             />
           )}
         </div>

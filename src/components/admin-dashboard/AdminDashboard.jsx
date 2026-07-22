@@ -21,6 +21,7 @@ export const AdminDashboard = () => {
     const [selectedItem, setSelectedItem] = useState(null);
     const [roles, setRoles] = useState([]);
     const [users, setUsers] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
     const refreshData = () => setRefreshTrigger(prev => prev + 1);
@@ -32,26 +33,23 @@ export const AdminDashboard = () => {
 
 // Fetch roles for dropdown
     React.useEffect(() => {
-        const fetchRoles = async () => {
+        const fetchInitialData = async () => {
+            setIsLoading(true);
             try {
-                const roleList = await getRolesApi();
+                const [roleList, userList] = await Promise.all([
+                    getRolesApi().catch(err => { console.error(err); return []; }),
+                    getUsersApi().catch(err => { console.error(err); return []; })
+                ]);
                 setRoles(roleList || []);
-            } catch (error) {
-                console.error('Error fetching roles:', error);
-            }
-        };
-
-        const fetchUsers = async () => {
-            try {
-                const userList = await getUsersApi();
                 setUsers(userList || []);
             } catch (error) {
-                console.error('Error fetching users:', error);
+                console.error('Error fetching initial admin data:', error);
+            } finally {
+                setIsLoading(false);
             }
         };
 
-        fetchRoles();
-        fetchUsers();
+        fetchInitialData();
     }, [refreshTrigger]);
 
     // User Module Handlers
@@ -332,12 +330,13 @@ export const AdminDashboard = () => {
                     {activeModule === 'users' && (
                         <UserList
                             users={users}
+                            roles={roles}
                             onEdit={handleEditUser}
                             onDelete={handleDeleteUser}
                             onChangeRegion={handleChangeRegion}
                             onCreateNew={handleCreateUser}
                             refreshTrigger={refreshTrigger}
-                            loading={false}
+                            loading={isLoading}
                         />
                     )}
 
@@ -365,6 +364,7 @@ export const AdminDashboard = () => {
                             onDelete={handleDeleteMapping}
                             onCreateNew={handleCreateMapping}
                             refreshTrigger={refreshTrigger}
+                            loading={isLoading}
                         />
                     )}
                 </div>

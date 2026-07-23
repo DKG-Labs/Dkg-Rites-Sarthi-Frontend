@@ -1,5 +1,45 @@
 import React from "react";
 
+// Allowed fields from Excel specs
+const allowedFields = [
+  "bookNo", "setNo", "offeredInstNo", "passedInstNo", "maNumberAndDate",
+  "consignee", "purchasingAuthority", "description", 
+  "qtyOfferedPreviously", "qtyPassedPreviously", "qtyStillDue", "trRecDate",
+  "quantityNowPassedText", "noOfVisits", "datesOfInspection"
+];
+
+// Editable field component moved outside to prevent re-mounting
+const EditableField = ({ value, fieldName, placeholder = "", className = "", type = "text", disabled = false, isEditing, onFieldChange, isBusy }) => {
+  if (isEditing && allowedFields.includes(fieldName)) {
+    if (type === "textarea") {
+      return (
+        <textarea
+          value={value || ""}
+          onChange={(e) => onFieldChange(fieldName, e.target.value)}
+          placeholder={placeholder}
+          className={`w-full p-1 border border-blue-400 bg-blue-50 text-sm`}
+          rows={2}
+          disabled={disabled || isBusy}
+        />
+      );
+    }
+    return (
+      <input
+        type="text"
+        value={value || ""}
+        onChange={(e) => onFieldChange(fieldName, e.target.value)}
+        placeholder={placeholder}
+        className={`w-full p-0 border border-blue-400 bg-blue-50 text-sm`}
+        style={type === "inline" ? { display: "inline-block", width: "80px" } : {}}
+        disabled={disabled || isBusy}
+      />
+    );
+  }
+
+  return type === "inline" ? <span className={className}>{value}</span> : <div className={className}>{value}</div>;
+};
+
+
 const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChange = () => { }, onVerifyBookSet, bookSetValidation }) => {
 
   const {
@@ -37,50 +77,12 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
     setNo = "",
   } = data;
 
-  // Allowed fields from Excel specs
-  const allowedFields = [
-    "bookNo", "setNo", "offeredInstNo", "passedInstNo", "maNumberAndDate",
-    "consignee", "purchasingAuthority", "description", 
-    "qtyOfferedPreviously", "qtyPassedPreviously", "qtyStillDue", "trRecDate",
-    "quantityNowPassedText", "noOfVisits", "datesOfInspection"
-  ];
-
   // Sanitize certificate number for display
   const displayCertificateNo = (certificateNo || '')
     .replace(/[\uFEFF\u200B]/g, '')
     .replace(/[\r\n]+/g, ' ')
     .trim();
 
-  // Editable field component
-  const EditableField = ({ value, fieldName, placeholder = "", className = "", type = "text", disabled = false }) => {
-    if (isEditing && allowedFields.includes(fieldName)) {
-      if (type === "textarea") {
-        return (
-          <textarea
-            value={value || ""}
-            onChange={(e) => onFieldChange(fieldName, e.target.value)}
-            placeholder={placeholder}
-            className={`w-full p-1 border border-blue-400 bg-blue-50 text-sm`}
-            rows={2}
-            disabled={disabled || isBusy}
-          />
-        );
-      }
-      return (
-        <input
-          type="text"
-          value={value || ""}
-          onChange={(e) => onFieldChange(fieldName, e.target.value)}
-          placeholder={placeholder}
-          className={`w-full p-0 border border-blue-400 bg-blue-50 text-sm`}
-          style={type === "inline" ? { display: "inline-block", width: "80px" } : {}}
-          disabled={disabled || isBusy}
-        />
-      );
-    }
-
-    return type === "inline" ? <span className={className}>{value}</span> : <div className={className}>{value}</div>;
-  };
 
   return (
     <div className="a4-page text-black">
@@ -97,7 +99,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
                   <div className="h-[2px]" />
                 </div>
                 <div className="p-1 flex items-center justify-center min-h-[22px]">
-                  <EditableField value={bookNo} fieldName="bookNo" disabled={isBusy} className="text-center font-bold text-[12px]" />
+                  <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={bookNo} fieldName="bookNo" disabled={isBusy} className="text-center font-bold text-[12px]" />
                 </div>
               </div>
               <div className="flex flex-col">
@@ -107,7 +109,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
                   <div className="h-[2px]" />
                 </div>
                 <div className="p-1 flex items-center justify-center min-h-[22px]">
-                  <EditableField value={setNo} fieldName="setNo" disabled={isBusy} className="text-center font-bold text-[12px]" />
+                  <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={setNo} fieldName="setNo" disabled={isBusy} className="text-center font-bold text-[12px]" />
                 </div>
               </div>
             </div>
@@ -173,13 +175,13 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
                   <div>प्रस्तावित किस्त सं.</div>
                   <div>Offered Instt. No.</div>
                 </div>
-                <div className="text-[11px] pr-8"><EditableField value={offeredInstNo} fieldName="offeredInstNo" type="inline" /></div>
+                <div className="text-[11px] pr-8"><EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={offeredInstNo} fieldName="offeredInstNo" type="inline" /></div>
               </div>
               <div className="mt-1 pt-1 border-t border-dotted border-gray-400 flex justify-between items-center">
                 <div className="pb-1">
                   <div>किस्त स. पारित Passed Instt. No.</div>
                 </div>
-                <div className="text-[11px] pr-8 pb-1"><EditableField value={passedInstNo} fieldName="passedInstNo" type="inline" /></div>
+                <div className="text-[11px] pr-8 pb-1"><EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={passedInstNo} fieldName="passedInstNo" type="inline" /></div>
               </div>
             </div>
           </div>
@@ -190,12 +192,12 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
           <div className="border-r border-black p-2 flex flex-col items-start text-[10px]">
             <div className="h-1.5" />
             <div className="font-semibold text-[9px]">ठेकेदार / Contractor</div>
-            <EditableField value={contractor} fieldName="contractor" type="textarea" className="break-words dynamic-text text-black uppercase font-bold leading-tight" />
+            <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={contractor} fieldName="contractor" type="textarea" className="break-words dynamic-text text-black uppercase font-bold leading-tight" />
           </div>
           <div className="p-2 flex flex-col items-start text-[10px]">
             <div className="h-1.5" />
             <div className="font-semibold text-[9px]">निरीक्षण का स्थान / Place of Inspection</div>
-            <EditableField value={placeOfInspection} fieldName="placeOfInspection" type="textarea" className="break-words dynamic-text text-black uppercase font-bold leading-tight" />
+            <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={placeOfInspection} fieldName="placeOfInspection" type="textarea" className="break-words dynamic-text text-black uppercase font-bold leading-tight" />
           </div>
         </div>
 
@@ -204,15 +206,15 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
           <div className="border-r border-black p-2 flex flex-col items-start text-[10px]">
             <div className="h-1.5" />
             <div className="font-semibold text-[9px]">संविदा संदर्भ एवं Contract Reference</div>
-            <EditableField value={contractRef} fieldName="contractRef" type="textarea" className="dynamic-text text-black font-bold leading-tight" />
+            <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={contractRef} fieldName="contractRef" type="textarea" className="dynamic-text text-black font-bold leading-tight" />
             <div className="dynamic-text text-black italic font-bold leading-tight mt-1">
-              <EditableField value={maNumberAndDate} fieldName="maNumberAndDate" placeholder="MA Number & Date" />
+              <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={maNumberAndDate} fieldName="maNumberAndDate" placeholder="MA Number & Date" />
             </div>
           </div>
           <div className="p-2 flex flex-col items-start text-[10px]">
             <div className="h-1.5" />
             <div className="font-semibold text-[9px]">बिल अदायगी अधिकारी Bill Paying Officer</div>
-            <EditableField value={billPayingOfficer} fieldName="billPayingOfficer" type="textarea" className="break-words dynamic-text text-black font-bold leading-tight" />
+            <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={billPayingOfficer} fieldName="billPayingOfficer" type="textarea" className="break-words dynamic-text text-black font-bold leading-tight" />
           </div>
         </div>
 
@@ -220,11 +222,11 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
         <div className="grid grid-cols-2 border-x border-b border-black min-h-[35px]">
           <div className="border-r border-black p-2 flex flex-col items-start text-[10px]">
             <div className="font-semibold text-[9px] pt-1">प्रेषिती / Consignee</div>
-            <EditableField value={consignee} fieldName="consignee" type="textarea" className="break-words dynamic-text text-black font-bold uppercase leading-tight" />
+            <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={consignee} fieldName="consignee" type="textarea" className="break-words dynamic-text text-black font-bold uppercase leading-tight" />
           </div>
           <div className="p-2 flex flex-col items-start text-[10px]">
             <div className="font-semibold text-[9px] pt-1">क्रय प्राधिकारी / Purchasing Authority</div>
-            <EditableField value={purchasingAuthority} fieldName="purchasingAuthority" type="textarea" className="break-words dynamic-text text-black font-bold uppercase leading-tight" />
+            <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={purchasingAuthority} fieldName="purchasingAuthority" type="textarea" className="break-words dynamic-text text-black font-bold uppercase leading-tight" />
           </div>
         </div>
 
@@ -258,9 +260,9 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
 
           {/* Table Data Row */}
           <div className="grid grid-cols-[0.5fr_2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr] text-center text-[10px] items-stretch border-b border-black min-h-[100px]">
-            <EditableField value={itemNo} fieldName="itemNo" className="border-r border-black p-1 flex items-center justify-center font-bold" />
+            <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={itemNo} fieldName="itemNo" className="border-r border-black p-1 flex items-center justify-center font-bold" />
             <div className="border-r border-black p-2 text-left break-words flex flex-col justify-center font-bold">
-              <EditableField value={description} fieldName="description" type="textarea" className="uppercase" />
+              <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={description} fieldName="description" type="textarea" className="uppercase" />
             </div>
 
             {/* Units and Values for cols 3-9 */}
@@ -275,14 +277,14 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
             ].map((col, idx) => (
               <div key={idx} className={`${idx === 6 ? "" : "border-r"} border-black p-1 flex flex-col items-center justify-center`}>
                 <span className="mb-1 font-semibold text-[9px]"></span>
-                <EditableField value={col.val} fieldName={col.field} className="font-bold text-sm" />
+                <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={col.val} fieldName={col.field} className="font-bold text-sm" />
               </div>
             ))}
           </div>
 
           {/* Quantity in Words Row */}
           <div className="p-2 text-[10px] bg-white border-b border-black min-h-[40px]">
-            <EditableField
+            <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy}
               value={quantityNowPassedText}
               fieldName="quantityNowPassedText"
               type="textarea"
@@ -297,31 +299,31 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
           <div className="border-r border-black p-1 flex flex-col">
             <div className="font-bold leading-tight">जाँची गई इकाइयों की संख्या / No. of checked</div>
             <div className="mt-1">
-              <EditableField value={noOfItemsChecked} fieldName="noOfItemsChecked" className="text-black font-bold uppercase" />
+              <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={noOfItemsChecked} fieldName="noOfItemsChecked" className="text-black font-bold uppercase" />
             </div>
           </div>
           <div className="border-r border-black p-1 flex flex-col">
             <div className="font-bold leading-tight">बुलावे की तिथि / Date of call</div>
             <div className="mt-1">
-              <EditableField value={dateOfCall} fieldName="dateOfCall" className="text-black font-bold" />
+              <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={dateOfCall} fieldName="dateOfCall" className="text-black font-bold" />
             </div>
           </div>
           <div className="border-r border-black p-1 flex flex-col">
             <div className="font-bold leading-tight">दौरों की संख्या / No. of visits</div>
             <div className="mt-1">
-              <EditableField value={noOfVisits} fieldName="noOfVisits" className="text-black font-bold uppercase" />
+              <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={noOfVisits} fieldName="noOfVisits" className="text-black font-bold uppercase" />
             </div>
           </div>
           <div className="border-r border-black p-1 flex flex-col">
             <div className="font-bold leading-tight">निरीक्षण की तिथि / Date(s) of inspection</div>
             <div className="mt-1">
-              <EditableField value={datesOfInspection} fieldName="datesOfInspection" className="text-black font-bold leading-tight text-[9px]" />
+              <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={datesOfInspection} fieldName="datesOfInspection" className="text-black font-bold leading-tight text-[9px]" />
             </div>
           </div>
           <div className="p-1 flex flex-col">
             <div className="font-bold leading-tight">TR Rec. Dt.</div>
             <div className="mt-1 text-black font-bold italic">
-              <EditableField value={trRecDate} fieldName="trRecDate" placeholder="TR Date" />
+              <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={trRecDate} fieldName="trRecDate" placeholder="TR Date" />
             </div>
           </div>
         </div>
@@ -330,22 +332,22 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
         <div className="grid grid-cols-3 border-x border-b border-black text-[9px] min-h-[40px]">
           <div className="border-r border-black p-1 flex flex-col">
             <div className="font-bold leading-tight">Seal/Stamping Pattern</div>
-            <EditableField value={sealingPattern} fieldName="sealingPattern" type="textarea" className="text-black font-bold italic text-[9px] leading-tight flex-grow" />
+            <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={sealingPattern} fieldName="sealingPattern" type="textarea" className="text-black font-bold italic text-[9px] leading-tight flex-grow" />
           </div>
           <div className="border-r border-black p-1 flex flex-col">
             <div className="font-bold leading-tight">Facsimile of seal</div>
-            <EditableField value={facsimileText} fieldName="facsimileText" type="textarea" className="text-black italic leading-tight flex-grow" />
+            <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={facsimileText} fieldName="facsimileText" type="textarea" className="text-black italic leading-tight flex-grow" />
           </div>
           <div className="p-1 flex flex-col justify-between min-h-[60px]">
             <div className="font-bold leading-tight">Inspecting Engineer</div>
-            <EditableField value={inspectingEngineer} fieldName="inspectingEngineer" className="text-right font-bold uppercase" />
+            <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={inspectingEngineer} fieldName="inspectingEngineer" className="text-right font-bold uppercase" />
           </div>
         </div>
 
         {/* Reasons for Rejection row */}
         <div className="border-x border-b border-black p-1 text-[10px] min-h-[30px]">
           <div className="font-semibold">अस्वीकृति का कारण / Reasons for rejection:</div>
-          <EditableField value={reasonsForRejection} fieldName="reasonsForRejection" type="textarea" className="italic leading-tight" />
+          <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={reasonsForRejection} fieldName="reasonsForRejection" type="textarea" className="italic leading-tight" />
         </div>
 
         {/* Sub-Footer row */}

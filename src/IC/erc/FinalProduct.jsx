@@ -226,6 +226,8 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
               purchasingAuthority: savedEdit.purchasingAuthority || initialData.purchasingAuthority,
               description: savedEdit.description || initialData.description,
               trRecDate: savedEdit.trRecDate || initialData.trRecDate,
+              noOfVisits: savedEdit.noOfVisits || initialData.noOfVisits,
+              datesOfInspection: savedEdit.datesOfInspection || initialData.datesOfInspection,
             };
           }
           

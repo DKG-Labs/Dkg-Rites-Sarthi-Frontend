@@ -52,7 +52,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
     .trim();
 
   // Editable field component
-  const EditableField = ({ value, fieldName, placeholder = "", className = "", type = "text", disabled = false }) => {
+  const EditableField = ({ value, fieldName, placeholder = "", className = "", type = "text", disabled = false, maxLength }) => {
     if (isEditing && allowedFields.includes(fieldName)) {
       if (type === "textarea") {
         return (
@@ -75,6 +75,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
           className={`w-full p-0 border border-blue-400 bg-blue-50 text-sm`}
           style={type === "inline" ? { display: "inline-block", width: "80px" } : {}}
           disabled={disabled || isBusy}
+          maxLength={maxLength}
         />
       );
     }
@@ -97,7 +98,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
                   <div className="h-[2px]" />
                 </div>
                 <div className="p-1 flex items-center justify-center min-h-[22px]">
-                  <EditableField value={bookNo} fieldName="bookNo" disabled={isBusy} className="text-center font-bold text-[12px]" />
+                  <EditableField value={bookNo} fieldName="bookNo" disabled={isBusy} maxLength={4} className="text-center font-bold text-[12px]" />
                 </div>
               </div>
               <div className="flex flex-col">
@@ -107,7 +108,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
                   <div className="h-[2px]" />
                 </div>
                 <div className="p-1 flex items-center justify-center min-h-[22px]">
-                  <EditableField value={setNo} fieldName="setNo" disabled={isBusy} className="text-center font-bold text-[12px]" />
+                  <EditableField value={setNo} fieldName="setNo" disabled={isBusy} maxLength={3} className="text-center font-bold text-[12px]" />
                 </div>
               </div>
             </div>

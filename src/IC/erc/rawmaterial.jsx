@@ -211,6 +211,8 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
               qapNo: savedEdit.qapNo || initialData.qapNo,
               chpClause: savedEdit.chpClause || initialData.chpClause,
               trRecDate: savedEdit.trRecDate || initialData.trRecDate,
+              inspectionDate: savedEdit.inspectionDate || initialData.inspectionDate,
+              visitsNo: savedEdit.visitsNo || initialData.visitsNo,
             };
           }
           

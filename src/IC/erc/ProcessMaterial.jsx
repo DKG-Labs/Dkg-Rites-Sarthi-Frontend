@@ -68,7 +68,11 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
       qapNo: c.qapNo || "",
       inspectionType: c.inspectionType || "",
       chpClause: c.chpClause || "",
-      lots: c.lots || [],
+      lots: (c.lots || []).map(lot => ({
+        ...lot,
+        // Calculate acceptedQty on the frontend as requested (Total Processed / Offered - Rejected)
+        acceptedQty: Math.max(0, (lot.totalProcessed || lot.offeredQty || 0) - (lot.rejectedQty || 0))
+      })),
       reference: c.reference || "",
       callDate: c.callDate || c.dateOfCall || "",
       inspectionDate: c.inspectionDate || c.dateOfInspection || "",
@@ -102,6 +106,12 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
               purchasingAuthority: savedEdit.purchasingAuthority || initialData.purchasingAuthority,
               description: savedEdit.description || initialData.description,
               qapNo: savedEdit.qapNo || initialData.qapNo,
+              callDate: savedEdit.callDate || initialData.callDate,
+              inspectionDate: savedEdit.inspectionDate || initialData.inspectionDate,
+              manDays: savedEdit.manDays || initialData.manDays,
+              sealingPattern: savedEdit.sealingPattern || initialData.sealingPattern,
+              totalAccepted: savedEdit.totalAcceptedQty || initialData.totalAccepted,
+              totalRejected: savedEdit.totalRejectedQty || initialData.totalRejected,
             };
           }
           

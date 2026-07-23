@@ -1,6 +1,6 @@
 import React from "react";
 
-const EditableField = ({ isEditing, value, onChange, className = "", type = "text", disabled = false }) => {
+const EditableField = ({ isEditing, value, onChange, className = "", type = "text", disabled = false, maxLength }) => {
 
   if (!isEditing) {
     return type === "inline" ? <span className={className}>{value}</span> : <div className={className}>{value}</div>;
@@ -22,6 +22,7 @@ const EditableField = ({ isEditing, value, onChange, className = "", type = "tex
       value={value || ""}
       onChange={(e) => onChange(e.target.value)}
       disabled={disabled}
+      maxLength={maxLength}
       style={type === "inline" ? { display: "inline-block", width: "80px" } : {}}
     />
   );
@@ -95,7 +96,7 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
                   <div className="h-[2px]" />
                 </div>
                 <div className="p-1 flex items-center justify-center min-h-[22px]">
-                  <EditableField isEditing={isEditing} disabled={isBusy} value={bookNo} onChange={(val) => onChange("bookNo", val)} className="text-center font-bold text-[12px]" />
+                  <EditableField isEditing={isEditing} disabled={isBusy} value={bookNo} onChange={(val) => onChange("bookNo", val)} maxLength={4} className="text-center font-bold text-[12px]" />
                 </div>
               </div>
               <div className="flex flex-col">
@@ -105,7 +106,7 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
                   <div className="h-[2px]" />
                 </div>
                 <div className="p-1 flex items-center justify-center min-h-[22px]">
-                  <EditableField isEditing={isEditing} disabled={isBusy} value={setNo} onChange={(val) => onChange("setNo", val)} className="text-center font-bold text-[12px]" />
+                  <EditableField isEditing={isEditing} disabled={isBusy} value={setNo} onChange={(val) => onChange("setNo", val)} maxLength={3} className="text-center font-bold text-[12px]" />
                 </div>
               </div>
             </div>

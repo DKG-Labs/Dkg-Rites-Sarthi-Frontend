@@ -100,7 +100,16 @@ const RoleBasedRedirect = () => {
     return null;
   }
 
-  const target = ROLE_LANDING_ROUTE[roleName] || ROUTES.LOGIN;
+  let target = ROUTES.LOGIN;
+  const roles = typeof roleName === 'string' ? roleName.split(',').map(r => r.trim()) : [roleName];
+  
+  for (const r of roles) {
+    if (ROLE_LANDING_ROUTE[r]) {
+      target = ROLE_LANDING_ROUTE[r];
+      break;
+    }
+  }
+  
   return <Navigate to={target} replace />;
 };
 
@@ -148,10 +157,18 @@ const LandingPageGuard = () => {
     return null;
   }
 
-  // Allow IE and Process IE users to access landing page
   const ieRoles = ['IE', 'Process IE'];
-  if (!ieRoles.includes(roleName)) {
-    const target = ROLE_LANDING_ROUTE[roleName] || ROUTES.LOGIN;
+  const userRoles = typeof roleName === 'string' ? roleName.split(',').map(r => r.trim()) : [roleName];
+  
+  const isIe = userRoles.some(r => ieRoles.includes(r));
+  if (!isIe) {
+    let target = ROUTES.LOGIN;
+    for (const r of userRoles) {
+      if (ROLE_LANDING_ROUTE[r]) {
+        target = ROLE_LANDING_ROUTE[r];
+        break;
+      }
+    }
     return <Navigate to={target} replace />;
   }
 
@@ -238,7 +255,7 @@ const App = () => {
             <Route
               path={ROUTES.CM_DASHBOARD}
               element={
-                <ProtectedRoute allowedRoles={['CM', 'Control Manager', 'Controlling Manager', 'Rites Admin', 'Rites ADMin']}>
+                <ProtectedRoute allowedRoles={['CM', 'Control Manager', 'Controlling Manager', 'Rites Admin', 'Rites ADMin', 'SBU Head']}>
                   <CMDashboardWrapper />
                 </ProtectedRoute>
               }

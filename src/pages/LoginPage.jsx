@@ -203,18 +203,31 @@ const LoginPage = () => {
       const options = [];
       const seenConsolidated = new Set();
 
-      // Consolidate "CM", "Control Manager" into "Controlling Manager Dashboard"
+      // Consolidate "CM", "Control Manager", "Controlling Manager" into "Controlling Manager Dashboard"
       if (roles.some(r => r === 'CM' || r === 'Control Manager' || r === 'Controlling Manager')) {
+        const foundRole = roles.find(r => r === 'CM' || r === 'Control Manager' || r === 'Controlling Manager');
         options.push({
           id: 'cm_option',
           label: 'Controlling Manager Dashboard',
           description: 'Access Controlling Manager modules',
           icon: '📊',
-          roleToStore: roles.find(r => r === 'CM' || r === 'Control Manager' || r === 'Controlling Manager')
+          roleToStore: foundRole
         });
         seenConsolidated.add('CM');
         seenConsolidated.add('Control Manager');
         seenConsolidated.add('Controlling Manager');
+      }
+
+      // Handle "SBU Head" as a separate option
+      if (roles.includes('SBU Head')) {
+        options.push({
+          id: 'sbu_head_option',
+          label: 'SBU Head Dashboard',
+          description: 'Access SBU Head modules',
+          icon: '🏢',
+          roleToStore: 'SBU Head'
+        });
+        seenConsolidated.add('SBU Head');
       }
 
       // Consolidate "IE" and "Process IE" into one "IE Dashboard" option

@@ -73,7 +73,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
       callDate: c.callDate || c.dateOfCall || "",
       inspectionDate: c.inspectionDate || c.dateOfInspection || "",
       manDays: c.manDays || "",
-      sealingPattern: c.sealingPattern || "",
+      sealingPattern: c.sealingPattern || "NA",
       inspectingEngineer: c.inspectingEngineer || ""
     };
   };

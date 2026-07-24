@@ -130,7 +130,7 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
                 shift: d.shift,
                 line: d.productionLine,
                 status: t.status,
-                submittedAt: t.createdDate,
+                submittedAt: d.createdDate || t.createdDate,
                 workflowTransitionId: t.workflowTransitionId,
                 items: (d.products || []).map(p => ({
                   productType: p.productType,

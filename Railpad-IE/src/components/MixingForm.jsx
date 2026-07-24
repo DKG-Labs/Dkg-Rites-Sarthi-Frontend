@@ -166,17 +166,6 @@ const MixingForm = ({ onSubmit, onCancel, editData, plantId, isViewOnly, isSubmi
     const time = parseFloat(formData.mixingTime);
     const temp = parseFloat(formData.mixingTemp);
 
-    if (activeLimits) {
-      if (!isNaN(time) && activeLimits.maxMixingTime !== null && activeLimits.maxMixingTime !== undefined && time > activeLimits.maxMixingTime) {
-        alert(`Submission blocked: Mixing Time (${time} min) exceeds maximum QAP limit of ${activeLimits.maxMixingTime} min.`);
-        return;
-      }
-      if (!isNaN(temp) && activeLimits.maxMixingTemp !== null && activeLimits.maxMixingTemp !== undefined && temp > activeLimits.maxMixingTemp) {
-        alert(`Submission blocked: Mixing Temp (${temp} °C) exceeds maximum QAP limit of ${activeLimits.maxMixingTemp} °C.`);
-        return;
-      }
-    }
-
     const isValid = validateOnSubmit();
     const status = (isValid && formData.waterCirculation === 'Yes' && formData.dustCollector === 'Yes') ? 'OK' : 'Not OK';
 
@@ -213,13 +202,7 @@ const MixingForm = ({ onSubmit, onCancel, editData, plantId, isViewOnly, isSubmi
 
   const isFormValid = formData.railPadType && hasVerifiedQAP && Object.keys(errors).length === 0;
 
-  const timeVal = parseFloat(formData.mixingTime);
-  const tempVal = parseFloat(formData.mixingTemp);
-  const isTooHigh = activeLimits && (
-    (!isNaN(timeVal) && activeLimits.maxMixingTime !== null && activeLimits.maxMixingTime !== undefined && timeVal > activeLimits.maxMixingTime) ||
-    (!isNaN(tempVal) && activeLimits.maxMixingTemp !== null && activeLimits.maxMixingTemp !== undefined && tempVal > activeLimits.maxMixingTemp)
-  );
-  const isSubmitDisabled = !formData.railPadType || !hasVerifiedQAP || isTooHigh;
+  const isSubmitDisabled = !formData.railPadType || !hasVerifiedQAP;
 
   if (isFormLoading) {
     return (

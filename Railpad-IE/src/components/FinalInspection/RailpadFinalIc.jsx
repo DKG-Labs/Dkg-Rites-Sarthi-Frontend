@@ -1,6 +1,6 @@
 import React from "react";
 
-const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChange = () => { }, onVerifyBookSet, bookSetValidation }) => {
+const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOnly = false, onFieldChange = () => { }, onVerifyBookSet, bookSetValidation }) => {
 
   const {
     certificateNo = "",
@@ -50,7 +50,8 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldC
 
   // Helper component for editable fields
   const EditableField = ({ value, fieldName, placeholder = "", style = {}, type = "text", disabled = false, customRender = null }) => {
-    if (isEditing && allowedFields.includes(fieldName)) {
+    const canEdit = isEditing && (isViewOnly ? ["bookNo", "setNo"].includes(fieldName) : allowedFields.includes(fieldName));
+    if (canEdit) {
       if (type === "textarea") {
         return (
           <textarea

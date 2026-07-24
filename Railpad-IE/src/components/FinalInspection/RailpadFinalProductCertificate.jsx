@@ -494,23 +494,21 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
 
         <div style={{ display: 'flex', gap: '8px' }}>
           {/* Edit / Save Draft Toggle */}
-          {!isViewOnly && (
-            <button
-              onClick={isEditing ? handleSaveChanges : () => setIsEditing(true)}
-              disabled={isESigning}
-              style={{
-                padding: '8px 16px',
-                border: isEditing ? '1px solid #2563eb' : '1px solid #cbd5e1',
-                borderRadius: '6px',
-                background: isEditing ? '#2563eb' : 'white',
-                color: isEditing ? 'white' : '#334155',
-                fontWeight: '600',
-                cursor: 'pointer'
-              }}
-            >
-              {isEditing ? "💾 Save Changes" : "✎ Edit IC Details"}
-            </button>
-          )}
+          <button
+            onClick={isEditing ? handleSaveChanges : () => setIsEditing(true)}
+            disabled={isESigning}
+            style={{
+              padding: '8px 16px',
+              border: isEditing ? '1px solid #2563eb' : '1px solid #cbd5e1',
+              borderRadius: '6px',
+              background: isEditing ? '#2563eb' : 'white',
+              color: isEditing ? 'white' : '#334155',
+              fontWeight: '600',
+              cursor: 'pointer'
+            }}
+          >
+            {isEditing ? (isViewOnly ? "💾 Save Book/Set No" : "💾 Save Changes") : (isViewOnly ? "✎ Edit Book/Set No" : "✎ Edit IC Details")}
+          </button>
 
           {/* E-sign Button */}
           {!isViewOnly && (
@@ -584,6 +582,7 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
               data={data}
               isEditing={isEditing}
               isBusy={isESigning}
+              isViewOnly={isViewOnly}
               onFieldChange={handleFieldChange}
               onVerifyBookSet={handleVerifyBookSet}
               bookSetValidation={bookSetValidation}
@@ -593,6 +592,7 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
               data={data}
               isEditing={isEditing}
               isBusy={isESigning}
+              isViewOnly={isViewOnly}
               onFieldChange={handleFieldChange}
               onVerifyBookSet={handleVerifyBookSet}
               bookSetValidation={bookSetValidation}

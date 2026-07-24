@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { MOCK_PO_DATA } from '../data/mockData';
-import { formatDate, getProductTypeDisplayName, extractNumericPoNo } from '../utils/helpers';
+import { formatDate, getProductTypeDisplayName, extractNumericPoNo, getCallDateFromCallNo } from '../utils/helpers';
 import {
   saveSectionA,
   approveSectionA,
@@ -1076,7 +1076,7 @@ const InspectionInitiationFormContent = ({ call, formData, onFormDataChange, sho
               </div>
               <div className="form-group">
                 <label className="form-label">INSPECTION CALL DATE</label>
-                <input type="text" className="form-input" value={formatDate(call.call_date || call.requested_date)} disabled />
+                <input type="text" className="form-input" value={getCallDateFromCallNo(call.call_no || call.callNo, call.call_date || call.requested_date)} disabled />
               </div>
               <div className="form-group">
                 <label className="form-label">INSPECTION DESIRED DATE</label>

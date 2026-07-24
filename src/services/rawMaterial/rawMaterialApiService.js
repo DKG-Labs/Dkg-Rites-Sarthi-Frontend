@@ -13,6 +13,7 @@
 
 import { getAuthToken } from '../authService';
 import { API_ENDPOINTS } from '../apiConfig';
+import { getCallDateFromCallNo } from '../../utils/helpers';
 
 const API_BASE_URL = API_ENDPOINTS.RAW_MATERIAL;
 
@@ -248,7 +249,7 @@ export const transformToLandingPageFormat = (apiData) => {
         call_no: formatValue(apiData.icNumber),                         // icNumber -> call_no
         po_no: formatValue(apiData.poNo),
         vendor_name: formatValue(apiData.companyName),                  // companyName -> vendor_name
-        call_date: formatValue(apiData.createdAt),                      // createdAt -> call_date
+        call_date: getCallDateFromCallNo(apiData.icNumber || apiData.callNo || apiData.call_no, apiData.createdAt), // extracted from IC number nomenclature
         desired_inspection_date: formatValue(apiData.desiredInspectionDate),
         status: apiData.status === 'PENDING' ? 'Pending' : formatValue(apiData.status),
         product_type: apiData.typeOfCall === 'ERC-RAW MATERIAL' ? 'ERC-RAW MATERIAL' : 'Raw Material',

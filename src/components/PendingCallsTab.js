@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import DataTable from './DataTable';
 import StatusBadge from './StatusBadge';
 import Notification from './Notification';
-import { getProductTypeDisplayName, formatDate } from '../utils/helpers';
+import { getProductTypeDisplayName, formatDate, getCallDateFromCallNo } from '../utils/helpers';
 import { createStageValidationHandler, stageReverseMapping } from '../utils/stageValidation';
 import { getAllSchedules } from '../services/scheduleService';
 import { isCallPaused, isCallInitiated } from '../services/callStatusService';
@@ -266,7 +266,7 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
       }
     },
     { key: 'product_type', label: 'Product Type', render: (val) => getProductTypeDisplayName(val) },
-    { key: 'call_date', label: 'Call Date', render: (val) => formatDate(val) },
+    { key: 'call_date', label: 'Call Date', render: (val, row) => getCallDateFromCallNo(row?.call_no || row?.callNo, val) },
     { key: 'desired_inspection_date', label: 'Desired Inspection Date', render: (val) => formatDate(val) },
     {
       key: 'scheduled_date',

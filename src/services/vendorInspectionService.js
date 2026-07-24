@@ -6,6 +6,7 @@
  */
 
 import { API_ENDPOINTS, API_BASE_URL as API_ROOT } from './apiConfig';
+import { getCallDateFromCallNo } from '../utils/helpers';
 
 const API_BASE_URL = API_ENDPOINTS.INSPECTION_REQUESTS;
 
@@ -98,7 +99,7 @@ export const transformApiDataToCallFormat = (apiData) => {
         call_no: callNo,
         po_no: apiData.poNo,
         vendor_name: apiData.companyName,
-        call_date: apiData.createdAt ? apiData.createdAt.split('T')[0] : null,
+        call_date: getCallDateFromCallNo(apiData.icNumber || apiData.callNo || apiData.call_no, apiData.createdAt),
         desired_inspection_date: apiData.desiredInspectionDate,
         status: apiData.status === 'PENDING' ? 'Pending' : apiData.status,
         product_type: 'Raw Material',

@@ -1,6 +1,6 @@
 import React from "react";
 
-const RailpadProcessIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChange = () => { }, onVerifyBookSet, bookSetValidation }) => {
+const RailpadProcessIc = ({ data = {}, isEditing = false, isBusy = false, isViewOnly = false, onFieldChange = () => { }, onVerifyBookSet, bookSetValidation }) => {
 
   const {
     certificateNo = "",
@@ -47,7 +47,8 @@ const RailpadProcessIc = ({ data = {}, isEditing = false, isBusy = false, onFiel
   ];
 
   const EditableField = ({ value, fieldName, placeholder = "", style = {}, type = "text", disabled = false }) => {
-    if (isEditing && allowedFields.includes(fieldName)) {
+    const canEdit = isEditing && (isViewOnly ? ["bookNo", "setNo"].includes(fieldName) : allowedFields.includes(fieldName));
+    if (canEdit) {
       if (type === "textarea") {
         return (
           <textarea

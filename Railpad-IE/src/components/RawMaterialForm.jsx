@@ -143,11 +143,6 @@ const RawMaterialForm = ({ onSubmit, onCancel, editData, isViewOnly, isSubmittin
 
     const hasRubber = Array.isArray(formData.materials) && formData.materials.some(m => m && RUBBER_TYPES.includes(m.name));
 
-    if (formData.contract === 'IRS T-55-2025' && parseFloat(rubberPercentage) < 50) {
-      setError('Validation Error: % of Rubber must be at least 50% for IRS T-55-2025 specification.');
-      return;
-    }
-
     const totalMaterialWeight = formData.materials.reduce((sum, item) => sum + (parseFloat(item.weight) || 0), 0);
     const totalBatchWeight = parseFloat(formData.totalWeight) || 0;
 

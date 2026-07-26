@@ -71,7 +71,7 @@ export const loadFromLocalStorage = (submodule, inspectionCallNo, poNo, lineNo, 
           if (!matchesLine) continue;
         }
 
-        const matchesLot = lotNo ? k.endsWith(lotSuffix) : true;
+        const matchesLot = lotNo ? k.toLowerCase().endsWith(lotSuffix.toLowerCase()) : true;
 
         if (matchesLot) {
           const fallbackStored = localStorage.getItem(k);

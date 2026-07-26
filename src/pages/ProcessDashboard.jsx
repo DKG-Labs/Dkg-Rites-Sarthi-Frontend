@@ -5305,7 +5305,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         // Identify all lots processed on this line
         const lineKey = `Line-${currentLineNum}`;
         const simpleLineKey = String(currentLineNum);
-        const lineLotData = manufacturedQtyByLine[lineKey] || manufacturedQtyByLine[simpleLineKey] || {};
+        const lineLotData = manufacturedQtyByLine[lineKey] || manufacturedQtyByLine[simpleLineKey] || manufacturedQtyByLine[selectedLine] || {};
 
         // Extract lots from ALL available sources:
         // 1. Grid data for this line (scan all 8-hour grid rows across all submodules)
@@ -5343,7 +5343,14 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         const lotsToProcess = lotsSet.size > 0 ? Array.from(lotsSet) : ['Default'];
 
         for (const lotNo of lotsToProcess) {
-          const lotData = lineLotData[lotNo] || {};
+          const findLotData = (obj, target) => {
+            if (!obj) return {};
+            if (obj[target]) return obj[target];
+            if (obj[String(target).trim()]) return obj[String(target).trim()];
+            const matchKey = Object.keys(obj).find(k => k.trim().toLowerCase() === String(target).trim().toLowerCase());
+            return matchKey ? obj[matchKey] : {};
+          };
+          const lotData = findLotData(lineLotData, lotNo);
 
           // Filter grid data to only include rows for THIS specific lot (or single lot fallback)
           const filterByLot = (data) => {
@@ -5377,14 +5384,22 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
             remarks: ''
           };
 
+          const savedFinalResult = loadFromLocalStorage('lineFinalResult', lineCallNo, linePoNo, lotLineDto.lineNo, determinedShift, lotNo);
+
+          const parseQty = (val, fallbackVal) => {
+            if (val !== undefined && val !== null && val !== '' && !isNaN(parseInt(val))) return parseInt(val);
+            if (fallbackVal !== undefined && fallbackVal !== null && fallbackVal !== '' && !isNaN(parseInt(fallbackVal))) return parseInt(fallbackVal);
+            return 0;
+          };
+
           const manualQuantities = {
-            shearing: parseInt(lotData.shearing || 0) || 0,
-            turning: parseInt(lotData.turning || 0) || 0,
-            mpiTesting: parseInt(lotData.mpiTesting || 0) || 0,
-            forging: parseInt(lotData.forging || 0) || 0,
-            quenching: parseInt(lotData.quenching || 0) || 0,
-            tempering: parseInt(lotData.tempering || 0) || 0,
-            testingFinishing: parseInt(lotData.testingFinishing || 0) || 0
+            shearing: parseQty(lotData.shearing, savedFinalResult?.shearingManufactured),
+            turning: parseQty(lotData.turning, savedFinalResult?.turningManufactured),
+            mpiTesting: parseQty(lotData.mpiTesting, savedFinalResult?.mpiManufactured),
+            forging: parseQty(lotData.forging, savedFinalResult?.forgingManufactured),
+            quenching: parseQty(lotData.quenching, savedFinalResult?.quenchingManufactured),
+            tempering: parseQty(lotData.tempering, savedFinalResult?.temperingManufactured),
+            testingFinishing: parseQty(lotData.testingFinishing, savedFinalResult?.testingFinishingManufactured)
           };
 
           const targetLotDetail = lotDetails.find(l => l.lotNumber === lotNo) || lotDetails.find(l => l.lotNumber === lotNo.trim()) || lotDetails[0];
@@ -5762,7 +5777,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         // Identify all lots processed on this line
         const lineKey = `Line-${currentLineNum}`;
         const simpleLineKey = String(currentLineNum);
-        const lineLotData = manufacturedQtyByLine[lineKey] || manufacturedQtyByLine[simpleLineKey] || {};
+        const lineLotData = manufacturedQtyByLine[lineKey] || manufacturedQtyByLine[simpleLineKey] || manufacturedQtyByLine[selectedLine] || {};
 
         // Extract lots from ALL available sources:
         // 1. Grid data for this line (scan all 8-hour grid rows across all submodules)
@@ -5800,7 +5815,14 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         const lotsToProcess = lotsSet.size > 0 ? Array.from(lotsSet) : ['Default'];
 
         for (const lotNo of lotsToProcess) {
-          const lotData = lineLotData[lotNo] || {};
+          const findLotData = (obj, target) => {
+            if (!obj) return {};
+            if (obj[target]) return obj[target];
+            if (obj[String(target).trim()]) return obj[String(target).trim()];
+            const matchKey = Object.keys(obj).find(k => k.trim().toLowerCase() === String(target).trim().toLowerCase());
+            return matchKey ? obj[matchKey] : {};
+          };
+          const lotData = findLotData(lineLotData, lotNo);
 
           // Filter grid data to only include rows for THIS specific lot (or single lot fallback)
           const filterByLot = (data) => {
@@ -5834,14 +5856,22 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
             remarks: ''
           };
 
+          const savedFinalResult = loadFromLocalStorage('lineFinalResult', lineCallNo, linePoNo, lotLineDto.lineNo, determinedShift, lotNo);
+
+          const parseQty = (val, fallbackVal) => {
+            if (val !== undefined && val !== null && val !== '' && !isNaN(parseInt(val))) return parseInt(val);
+            if (fallbackVal !== undefined && fallbackVal !== null && fallbackVal !== '' && !isNaN(parseInt(fallbackVal))) return parseInt(fallbackVal);
+            return 0;
+          };
+
           const manualQuantities = {
-            shearing: parseInt(lotData.shearing || 0) || 0,
-            turning: parseInt(lotData.turning || 0) || 0,
-            mpiTesting: parseInt(lotData.mpiTesting || 0) || 0,
-            forging: parseInt(lotData.forging || 0) || 0,
-            quenching: parseInt(lotData.quenching || 0) || 0,
-            tempering: parseInt(lotData.tempering || 0) || 0,
-            testingFinishing: parseInt(lotData.testingFinishing || 0) || 0
+            shearing: parseQty(lotData.shearing, savedFinalResult?.shearingManufactured),
+            turning: parseQty(lotData.turning, savedFinalResult?.turningManufactured),
+            mpiTesting: parseQty(lotData.mpiTesting, savedFinalResult?.mpiManufactured),
+            forging: parseQty(lotData.forging, savedFinalResult?.forgingManufactured),
+            quenching: parseQty(lotData.quenching, savedFinalResult?.quenchingManufactured),
+            tempering: parseQty(lotData.tempering, savedFinalResult?.temperingManufactured),
+            testingFinishing: parseQty(lotData.testingFinishing, savedFinalResult?.testingFinishingManufactured)
           };
 
           const targetLotDetail = lotDetails.find(l => l.lotNumber === lotNo) || lotDetails.find(l => l.lotNumber === lotNo.trim()) || lotDetails[0];

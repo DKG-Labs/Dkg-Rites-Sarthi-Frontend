@@ -141,6 +141,7 @@ export const transformLineDataForBackend = (frontendLineData, manualQuantities =
         lotNo: metaData.lotNumbers || '',
         heatNo: metaData.heatNumbers || '',
         totalOfferedQty: metaData.totalOfferedQty || 0,
+        lineFinalResult,
         shearingData,
         turningData,
         mpiData,
@@ -148,8 +149,7 @@ export const transformLineDataForBackend = (frontendLineData, manualQuantities =
         quenchingData,
         temperingData,
         finalCheckData,
-        testingFinishingData,
-        lineFinalResult
+        testingFinishingData
     };
 };
 

@@ -6276,7 +6276,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       {/* Inspection Details (Static Data) - Based on selected line */}
       <div className="card" style={{ background: 'var(--color-gray-100)', marginBottom: 'var(--space-24)' }}>
         <div className="card-header">
-          <h3 className="card-title">Inspection Details - {selectedLine}</h3>
+          <h3 className="card-title">Inspection Details - Line-{lineDisplayMapping[selectedLine]?.displayNumber || selectedLine.replace('Line-', '')}</h3>
           {/* <p className="card-subtitle">Auto-fetched from PO/Sub PO information for selected line</p> */}
         </div>
         <div className="process-form-grid">
@@ -6315,7 +6315,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       {/* Pre-Inspection Data Entry - Fetched from backend based on selected call's rm_heat_tc_mapping */}
       <div className="card compact-card" style={{ marginBottom: 'var(--space-16)' }}>
         <div className="card-header" style={{ paddingBottom: '8px' }}>
-          <h3 className="card-title" style={{ marginBottom: '4px' }}>Pre-Inspection Data Entry - {selectedLine}</h3>
+          <h3 className="card-title" style={{ marginBottom: '4px' }}>Pre-Inspection Data Entry - Line-{lineDisplayMapping[selectedLine]?.displayNumber || selectedLine.replace('Line-', '')}</h3>
           {/* <span style={{ fontSize: '12px', color: '#0369a1', background: '#e0f2fe', padding: '2px 8px', borderRadius: '4px' }}>📥 Fetched from Backend (PO: {currentCallData?.po_no || 'N/A'})</span> */}
         </div>
 
@@ -6425,7 +6425,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       {/* Final Inspection Results – Main Module (Auto Populated) */}
       <div className="card" style={{ marginTop: 'var(--space-24)', border: '2px solid #0d9488' }}>
         <div className="card-header" style={{ backgroundColor: '#f0fdfa' }}>
-          <h3 className="card-title" style={{ color: '#0d9488' }}>📊 Stage-wise Results - {selectedLine}</h3>
+          <h3 className="card-title" style={{ color: '#0d9488' }}>📊 Stage-wise Results - Line-{lineDisplayMapping[selectedLine]?.displayNumber || selectedLine.replace('Line-', '')}</h3>
           {/* <p className="card-subtitle">Summary of all stage-wise inspection results (Line-wise / Lot-wise / PO-wise / Total)</p> */}
         </div>
 

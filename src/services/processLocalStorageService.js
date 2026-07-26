@@ -38,9 +38,52 @@ export const saveToLocalStorage = (submodule, inspectionCallNo, poNo, lineNo, da
  */
 export const loadFromLocalStorage = (submodule, inspectionCallNo, poNo, lineNo, shift = '', lotNo = null) => {
   try {
+    // 1. Try exact storage key match with passed shift
     const key = getStorageKey(submodule, inspectionCallNo, poNo, lineNo, shift, lotNo);
     const stored = localStorage.getItem(key);
-    return stored ? JSON.parse(stored) : null;
+    if (stored) {
+      return JSON.parse(stored);
+    }
+
+    // 2. Fallback search: Search across ALL shifts for matching call and line
+    if (lineNo || inspectionCallNo) {
+      const cleanLineNum = lineNo ? String(lineNo).replace(/Line/i, '').replace(/[-_]/g, '').trim() : '';
+      const normCallNo = inspectionCallNo ? String(inspectionCallNo).replace(/[-_]/g, '').toLowerCase() : '';
+      const lotSuffix = lotNo ? `_${lotNo}` : '';
+
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (!k) continue;
+
+        const isSubmoduleKey = k.includes(`_${submodule}_`) || k.includes(`_${submodule}Data_`) || k.startsWith(`${STORAGE_PREFIX}${submodule}`);
+        if (!isSubmoduleKey) continue;
+
+        if (normCallNo) {
+          const normKey = k.replace(/[-_]/g, '').toLowerCase();
+          if (!normKey.includes(normCallNo)) continue;
+        }
+
+        if (cleanLineNum) {
+          const normKeyForLine = k.toLowerCase();
+          const matchesLine = normKeyForLine.includes(`line-${cleanLineNum}`) ||
+                              normKeyForLine.includes(`line_${cleanLineNum}`) ||
+                              normKeyForLine.includes(`line${cleanLineNum}`);
+          if (!matchesLine) continue;
+        }
+
+        const matchesLot = lotNo ? k.endsWith(lotSuffix) : true;
+
+        if (matchesLot) {
+          const fallbackStored = localStorage.getItem(k);
+          if (fallbackStored) {
+            console.log(`🔍 [localStorage Fallback] Found shift-agnostic key: ${k}`);
+            return JSON.parse(fallbackStored);
+          }
+        }
+      }
+    }
+
+    return null;
   } catch (error) {
     console.error('Error loading from localStorage:', error);
     return null;
@@ -193,7 +236,17 @@ export const getAllProcessData = (inspectionCallNo, poNo, lineNo, shift = '') =>
 
   const allData = {};
   Object.entries(submoduleMapping).forEach(([storageKey, dtoKey]) => {
-    const data = loadFromLocalStorage(storageKey, inspectionCallNo, poNo, lineNo, shift);
+    let data = loadFromLocalStorage(storageKey, inspectionCallNo, poNo, lineNo, shift);
+    if (!data && gridSubmodules.includes(storageKey)) {
+      const alternativeLines = ['Line-1', 'Line-2', 'Line-3', 'Line-4', 'Line-5'].filter(l => l !== lineNo);
+      for (const altLine of alternativeLines) {
+        const altData = loadFromLocalStorage(storageKey, inspectionCallNo, poNo, altLine, shift);
+        if (altData && Array.isArray(altData) && altData.length > 0) {
+          data = altData;
+          break;
+        }
+      }
+    }
     if (data) {
       // `staticCheck` is saved as a single object per line in the UI; backend expects a list
       if (storageKey === 'staticCheck') {
@@ -320,7 +373,7 @@ export const saveGridDataForLine = (inspectionCallNo, poNo, lineNo, shift, gridD
  * Load all 8-hour grid data for a line
  */
 export const loadGridDataForLine = (inspectionCallNo, poNo, lineNo, shift) => {
-  return {
+  let result = {
     shearing: loadFromLocalStorage('shearing', inspectionCallNo, poNo, lineNo, shift),
     turning: loadFromLocalStorage('turning', inspectionCallNo, poNo, lineNo, shift),
     mpi: loadFromLocalStorage('mpi', inspectionCallNo, poNo, lineNo, shift),
@@ -330,5 +383,30 @@ export const loadGridDataForLine = (inspectionCallNo, poNo, lineNo, shift) => {
     finalCheck: loadFromLocalStorage('finalCheck', inspectionCallNo, poNo, lineNo, shift),
     testingFinishing: loadFromLocalStorage('testingFinishing', inspectionCallNo, poNo, lineNo, shift)
   };
+
+  const hasData = Object.values(result).some(subData => Array.isArray(subData) && subData.length > 0);
+
+  if (!hasData) {
+    const alternativeLines = ['Line-1', 'Line-2', 'Line-3', 'Line-4', 'Line-5'].filter(l => l !== lineNo);
+    for (const altLine of alternativeLines) {
+      const altResult = {
+        shearing: loadFromLocalStorage('shearing', inspectionCallNo, poNo, altLine, shift),
+        turning: loadFromLocalStorage('turning', inspectionCallNo, poNo, altLine, shift),
+        mpi: loadFromLocalStorage('mpi', inspectionCallNo, poNo, altLine, shift),
+        forging: loadFromLocalStorage('forging', inspectionCallNo, poNo, altLine, shift),
+        quenching: loadFromLocalStorage('quenching', inspectionCallNo, poNo, altLine, shift),
+        tempering: loadFromLocalStorage('tempering', inspectionCallNo, poNo, altLine, shift),
+        finalCheck: loadFromLocalStorage('finalCheck', inspectionCallNo, poNo, altLine, shift),
+        testingFinishing: loadFromLocalStorage('testingFinishing', inspectionCallNo, poNo, altLine, shift)
+      };
+      const altHasData = Object.values(altResult).some(subData => Array.isArray(subData) && subData.length > 0);
+      if (altHasData) {
+        console.log(`📋 [loadGridDataForLine] Recovered grid data from alternative line key ${altLine} for requested ${lineNo}`);
+        return altResult;
+      }
+    }
+  }
+
+  return result;
 };
 

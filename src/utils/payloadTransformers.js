@@ -57,13 +57,13 @@ export const transformLineDataForBackend = (frontendLineData, manualQuantities =
 
     const testingFinishingData = frontendLineData.testingFinishingData?.map(transformTestingFinishingRow) || [];
 
-    // Check if there is any grid data entered for this lot
+    const hasManualQty = Object.values(manualQuantities).some(v => (parseInt(v) || 0) > 0);
+    // Check if there is any grid data or manual quantity entered for this lot
     const hasGridData = shearingData.length > 0 || turningData.length > 0 || mpiData.length > 0 || 
                         forgingData.length > 0 || quenchingData.length > 0 || temperingData.length > 0 || 
-                        finalCheckData.length > 0 || testingFinishingData.length > 0;
+                        finalCheckData.length > 0 || testingFinishingData.length > 0 || hasManualQty;
     
-    // We only process and send this lot if the user actually entered 8-hour grid data for it.
-    // This prevents ghost manual quantities (cached from previous sessions) from being sent.
+    // We only process and send this lot if the user actually entered 8-hour grid data or manufactured quantities.
     if (!hasGridData) {
         return null;
     }

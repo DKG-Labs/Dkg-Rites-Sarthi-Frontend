@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { getAuthHeaders } from '../services/authService';
+import { getAuthHeaders, getStoredUser } from '../services/authService';
 import { API_BASE_URL } from '../services/apiConfig';
 import { generateCallLetterPDF } from '../call-desk-module/src/utils/generateCallLetterPDF';
 import { fetchCallLetterDetails } from '../call-desk-module/src/services/callLetterApi';
@@ -59,7 +59,12 @@ const PendingCallDetailsModal = ({
       
       // Fetch enriched details (PO Header, PO Item, type-specific fields)
       const details = await fetchCallLetterDetails(callNumber);
-      const enrichedCall = { ...pdfCallData, ...details };
+      const user = getStoredUser();
+      const enrichedCall = { 
+        ...pdfCallData, 
+        ...details,
+        rio: details.rio || pdfCallData.rio || user?.rio 
+      };
       
       generateCallLetterPDF(enrichedCall);
     } catch (err) {

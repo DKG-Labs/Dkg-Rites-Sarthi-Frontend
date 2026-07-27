@@ -238,10 +238,25 @@ export const fetchUserPendingCalls = async (forceRefresh = false) => {
  */
 export const performTransitionAction = async (actionData) => {
   try {
+    let payload = { ...actionData };
+
+    if (payload.requestId) {
+      try {
+        const latestTx = await fetchLatestWorkflowTransition(payload.requestId);
+        const latestId = latestTx?.workflowTransitionId || latestTx?.id;
+        if (latestId && latestId > (payload.workflowTransitionId || 0)) {
+          console.log(`[WorkflowService] Auto-syncing workflowTransitionId from ${payload.workflowTransitionId} to latest ID ${latestId} for request ${payload.requestId}`);
+          payload.workflowTransitionId = latestId;
+        }
+      } catch (e) {
+        console.warn('[WorkflowService] Auto-sync attempt failed:', e);
+      }
+    }
+
     const response = await fetch(`${API_BASE_URL}/performTransitionAction`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify(actionData),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {

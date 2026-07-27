@@ -5928,7 +5928,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       console.error('❌ [Finish] Error finishing inspection:', error);
       throw error; // Propagate error to caller
     }
-  }, [call, localProductionLines, manufacturingLines, onBack, resetProductionLinesState, callInitiationDataCache, manufacturedQtyByLine, selectedLotByLine, shift, capturedImages, showNotification]);
+  }, [call, localProductionLines, manufacturingLines, onBack, resetProductionLinesState, callInitiationDataCache, manufacturedQtyByLine, selectedLotByLine, shift, capturedImages, showNotification, selectedLine]);
 
   /**
    * Handle finish selected calls from modal

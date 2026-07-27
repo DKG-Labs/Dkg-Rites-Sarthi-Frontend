@@ -92,7 +92,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
         {/* Row 1 & 2: RE-CENTERED HEADER UNIT (Red-Marked Design) */}
         <div className="flex flex-col items-center pt-2 w-full">
           {/* Centered Box */}
-          <div className="flex flex-col items-center">
+          <div className="flex flex-col items-center pt-7">
             <div className="grid grid-cols-2 border-2 border-black w-[180px] bg-white">
               <div className="border-r-2 border-black flex flex-col">
                 <div className="border-b-2 border-black p-1 font-bold text-center text-[9px] leading-tight">
@@ -140,7 +140,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
           </div>
 
           {/* Height-Aware Branding Row (3-column grid for perfect centering) */}
-          <div className="w-full grid grid-cols-[1fr_auto_1fr] items-end mt-1 px-4">
+          <div className="w-full grid grid-cols-[1fr_auto_1fr] items-end mt-3 px-4">
             <div className="empty-col"></div>
             <div className="text-center font-bold text-[13px] uppercase">
               {data?.region || "RITES LIMITED, NORTHERN REGION, DELHI"}
@@ -153,7 +153,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
         </div>
 
         {/* Physical Spacer to prevent Row 3 overlap in PDF */}
-        <div className="h-2" />
+        <div className="h-4" />
 
         {/* Row 3: Certificate No, Date, Instances - STABILIZED */}
         <div className="flex justify-end">

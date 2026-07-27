@@ -285,7 +285,7 @@ const CallDeskDashboard = () => {
 
   // Error state - only show full page error if we have NO data at all
   const isDataEmpty = pendingCalls.length === 0 && verifiedCalls.length === 0 && !dashboardKPIs;
-  
+
   if (error && isDataEmpty) {
     return (
       <div className="dashboard-container">
@@ -310,23 +310,23 @@ const CallDeskDashboard = () => {
       {/* Page Title & Toggle */}
       <div className="dashboard-header-row">
         <h1 className="page-title">Call Desk Dashboard</h1>
-        
+
         <div className="call-type-switcher">
-          <button 
+          <button
             className={`switcher-btn ${callType === 'ERC' ? 'active' : ''}`}
             onClick={() => setCallType('ERC')}
           >
             <span className="switcher-icon">🔩</span>
             ERC Calls
           </button>
-          <button 
+          <button
             className={`switcher-btn ${callType === 'SLEEPER' ? 'active' : ''}`}
             onClick={() => setCallType('SLEEPER')}
           >
             <span className="switcher-icon">🛤️</span>
             Sleeper Calls
           </button>
-          <button 
+          <button
             className={`switcher-btn ${callType === 'RAILPAD' ? 'active' : ''}`}
             onClick={() => setCallType('RAILPAD')}
           >
@@ -337,10 +337,10 @@ const CallDeskDashboard = () => {
       </div>
 
       {/* Tabs */}
-      <Tabs 
-        tabs={tabs} 
-        activeTab={activeTab} 
-        onChange={setActiveTab} 
+      <Tabs
+        tabs={tabs}
+        activeTab={activeTab}
+        onChange={setActiveTab}
       />
 
       {/* Tab Content */}
@@ -631,14 +631,12 @@ const CallDeskDashboard = () => {
       {/* Application Notifications */}
       {notification && (
         <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-[3000] min-w-[320px] max-w-md animate-slideDown`}>
-          <div className={`flex items-center gap-3 p-4 rounded-xl shadow-2xl border ${
-            notification.type === 'success' 
-              ? 'bg-emerald-50 border-emerald-100 text-emerald-800' 
-              : 'bg-rose-50 border-rose-100 text-rose-800'
-          }`}>
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-              notification.type === 'success' ? 'bg-emerald-100' : 'bg-rose-100'
+          <div className={`flex items-center gap-3 p-4 rounded-xl shadow-2xl border ${notification.type === 'success'
+            ? 'bg-emerald-50 border-emerald-100 text-emerald-800'
+            : 'bg-rose-50 border-rose-100 text-rose-800'
             }`}>
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${notification.type === 'success' ? 'bg-emerald-100' : 'bg-rose-100'
+              }`}>
               {notification.type === 'success' ? '✅' : '❌'}
             </div>
             <div className="flex-1">
@@ -647,7 +645,7 @@ const CallDeskDashboard = () => {
               </p>
               <p className="text-xs opacity-90 leading-relaxed mt-0.5">{notification.message}</p>
             </div>
-            <button 
+            <button
               onClick={() => setNotification(null)}
               className="ml-2 text-gray-400 hover:text-gray-600 focus:outline-none"
             >

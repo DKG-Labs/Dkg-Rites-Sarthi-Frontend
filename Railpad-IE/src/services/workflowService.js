@@ -58,12 +58,32 @@ export const fetchCompletedCalls = async () => {
 
 export const performTransitionAction = async (actionData) => {
   try {
+    let payload = { ...actionData };
+
+    // Auto-resolve to latest active workflowTransitionId for this requestId if available
+    if (payload.requestId) {
+      try {
+        const histResp = await fetch(`${getBaseUrl()}/railpad-workflow/WorkflowTransitionHistory?requestId=${encodeURIComponent(payload.requestId)}`);
+        const histData = await histResp.json();
+        if (histData.responseStatus?.statusCode === 0 && Array.isArray(histData.responseData) && histData.responseData.length > 0) {
+          const latestTx = histData.responseData[histData.responseData.length - 1];
+          const latestId = latestTx.workflowTransitionId || latestTx.id;
+          if (latestId && latestId > (payload.workflowTransitionId || 0)) {
+            console.log(`[WorkflowService] Auto-syncing workflowTransitionId from ${payload.workflowTransitionId} to latest ID ${latestId} for request ${payload.requestId}`);
+            payload.workflowTransitionId = latestId;
+          }
+        }
+      } catch (e) {
+        console.warn('[WorkflowService] Failed to auto-sync workflow transition ID:', e);
+      }
+    }
+
     const response = await fetch(`${getBaseUrl()}${API_ENDPOINTS.RAILPAD_WORKFLOW.PERFORM_TRANSITION}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(actionData)
+      body: JSON.stringify(payload)
     });
     if (!response.ok) {
       let errorMsg = 'Failed to perform workflow transition';

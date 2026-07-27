@@ -394,8 +394,43 @@ const CorrectionSlipPDF = ({ icData = {}, corrections = [], callNo = '', icField
   };
 
 
+  const handleDirectDownload = async () => {
+    const element = printRef.current;
+    if (!element) return;
+
+    try {
+      setIsESigning(true);
+      setNotif({ msg: 'Saving correction slip and generating PDF...', type: 'info' });
+
+      try {
+        await saveCorrectionSlip(callNo, corrections, createdBy);
+      } catch (err) {
+        console.warn('Correction slip save warning:', err);
+      }
+
+      const fileName = `Correction_Slip_${callNo || 'Report'}.pdf`;
+      await generatePdfBase64(element, fileName);
+
+      setNotif({ msg: 'Correction slip issued & PDF downloaded successfully!', type: 'success' });
+    } catch (error) {
+      console.error('Download IC Error:', error);
+      setNotif({ msg: error.message || 'Failed to download PDF.', type: 'error' });
+    } finally {
+      setIsESigning(false);
+    }
+  };
+
   /* ── IC data ── */
   const certNo      = icData?.certificateNo   || '—';
+  const isProcessCall = Boolean(
+    certNo && certNo !== '—' && (
+      certNo.toUpperCase().includes('EP') ||
+      icData?.callType === 'PROCESS' ||
+      icData?.processCall ||
+      (icData?.productType && String(icData.productType).toLowerCase().includes('process'))
+    )
+  );
+
   // Use icEditDate (createdAt from IC Edit table), fallback to certificateDate
   const formatIcDate = (raw) => {
     if (!raw) return null;
@@ -427,9 +462,44 @@ const CorrectionSlipPDF = ({ icData = {}, corrections = [], callNo = '', icField
         {/* Buttons above PDF - full width */}
         <div style={{ display:'flex', justifyContent:'space-between', width:'100%', marginBottom:'10px' }}>
           <button onClick={onBack} disabled={isESigning} style={{ padding:'8px 18px', background:'#fff', color:'#374151', border:'1px solid #d1d5db', borderRadius:'6px', fontSize:'14px', fontWeight:500, cursor: isESigning ? 'not-allowed' : 'pointer', opacity: isESigning ? 0.6 : 1 }}>← Back to Edit</button>
-          <button onClick={handleESign} disabled={isESigning} style={{ padding:'8px 20px', background: isESigning ? '#6b7280' : '#2563eb', color:'#fff', border:'none', borderRadius:'6px', fontSize:'14px', fontWeight:500, cursor: isESigning ? 'not-allowed' : 'pointer', minWidth:'120px' }}>
-            {isESigning ? '⏳ Signing...' : '✒ E Sign'}
-          </button>
+          
+          {isProcessCall ? (
+            <button
+              onClick={handleDirectDownload}
+              disabled={isESigning}
+              style={{
+                padding: '8px 20px',
+                background: isESigning ? '#6b7280' : '#008000',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: 600,
+                cursor: isESigning ? 'not-allowed' : 'pointer',
+                minWidth: '120px'
+              }}
+            >
+              {isESigning ? '⏳ Generating PDF...' : 'Issue IC'}
+            </button>
+          ) : (
+            <button
+              onClick={handleESign}
+              disabled={isESigning}
+              style={{
+                padding: '8px 20px',
+                background: isESigning ? '#6b7280' : '#2563eb',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: 500,
+                cursor: isESigning ? 'not-allowed' : 'pointer',
+                minWidth: '120px'
+              }}
+            >
+              {isESigning ? '⏳ Signing...' : '✒ E Sign'}
+            </button>
+          )}
         </div>
 
         {/* Notification banner */}

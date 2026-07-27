@@ -231,10 +231,10 @@ export const apiService = {
         api.get(`/sleeper-workflow/allPendingWorkflowTransition?roleName=${roleName}${userId ? `&assignedTo=${userId}` : ''}${plantId ? `&plantId=${plantId}` : ''}`),
 
     getAllPendingWorkflowTransitionsModuleWise: (roleName = 'IE', moduleId, plantId, page = 0, size = 10) =>
-        api.get(`/sleeper-workflow/allPendingWorkflowTransitionModuelWise?roleName=${roleName}&moduleId=${moduleId}&plantId=${plantId}&page=${page}&size=${size}`),
+        api.get(`/sleeper-workflow/allPendingWorkflowTransitionModuelWise?roleName=${roleName}&moduleId=${moduleId}${plantId ? `&plantId=${plantId}` : ''}&page=${page}&size=${size}`),
 
     getAllCompletedWorkflowTransitionsModuleWise: (moduleId, plantId, page = 0, size = 10) =>
-        api.get(`/sleeper-workflow/allCompletedWorkflowTransitionModuleWise?moduleId=${moduleId}&plantId=${plantId}&page=${page}&size=${size}`),
+        api.get(`/sleeper-workflow/allCompletedWorkflowTransitionModuleWise?moduleId=${moduleId}${plantId ? `&plantId=${plantId}` : ''}&page=${page}&size=${size}`),
 
     /**
      * IE Action: Verify or Request Change on a workflow transition.

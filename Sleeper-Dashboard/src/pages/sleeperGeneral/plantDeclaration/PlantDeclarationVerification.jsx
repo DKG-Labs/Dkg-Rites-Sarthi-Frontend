@@ -83,9 +83,15 @@ const fetchRecordDetail = async (moduleId, requestId) => {
 const getStatusDisplay = (status) => {
     if (!status) return { label: '-', bg: '#f1f5f9', color: '#475569' };
     const s = status.toUpperCase();
-    if (s === 'CREATED') return { label: 'Verification Pending', bg: '#fff7ed', color: '#c2410c' }; // Orange/Yellow
-    if (s === 'COMPLETED') return { label: 'Verified and Locked', bg: '#ecfdf5', color: '#047857' }; // Green
-    if (s === 'REJECTED_CLOSED') return { label: 'Rejected', bg: '#fef2f2', color: '#991b1b' }; // Red
+    if (s === 'CREATED' || s === 'PENDING' || s === 'IN-PROGRESS' || s === 'RESUBMITTED') {
+        return { label: 'Verification Pending', bg: '#fff7ed', color: '#c2410c' }; // Orange/Yellow
+    }
+    if (s === 'COMPLETED' || s === 'VERIFIED') {
+        return { label: 'Verified and Locked', bg: '#ecfdf5', color: '#047857' }; // Green
+    }
+    if (s === 'REJECTED_CLOSED' || s === 'REJECTED') {
+        return { label: 'Rejected', bg: '#fef2f2', color: '#991b1b' }; // Red
+    }
     return { label: status, bg: '#f1f5f9', color: '#475569' };
 };
 

@@ -298,7 +298,7 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
                                 required
                             >
                                 <option value="">Select Zonal Railway</option>
-                                {['CR', 'ER', 'ECR', 'ECoR', 'NR', 'NCR', 'NER', 'NFR', 'NWR', 'SR', 'SCR', 'SER', 'SECR', 'SWR', 'WR', 'WCR'].map(rly => (
+                                {['CR', 'ER', 'ECR', 'ECoR', 'NR', 'NCR', 'NER', 'NFR', 'NWR', 'RDSO', 'SR', 'SCR', 'SER', 'SECR', 'SWR', 'WR', 'WCR'].map(rly => (
                                     <option key={rly} value={rly}>{rly}</option>
                                 ))}
                             </select>

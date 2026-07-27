@@ -3,7 +3,7 @@ import React from 'react';
 const VENDORS = ['Prakash Metallics', 'Kalimata', 'Royal'];
 const RITES_RIOS = ['CRIO', 'NRIO', 'ERIO', 'WRIO', 'SRIO'];
 const RAIL_ZONES = [
-    'CR', 'ER', 'ECR', 'ECoR', 'NR', 'NCR', 'NER', 'NFR', 'NWR',
+    'CR', 'ER', 'ECR', 'ECoR', 'NR', 'NCR', 'NER', 'NFR', 'NWR', 'RDSO',
     'SR', 'SCR', 'SER', 'SECR', 'SWR', 'WR', 'WCR', 'Metro', 'SCoR', 'KR'
 ];
 

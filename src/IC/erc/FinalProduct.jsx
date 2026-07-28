@@ -39,7 +39,7 @@ const generateQuantityRemarks = (c) => {
     const qtyRejected = Number(c.qtyNowRejected || 0);
     const words = numberToWords(qtyNowPassed).toLowerCase();
     
-    let text = `Quantity Now Passed ${words} Nos only.\n`;
+    let text = `Quantity Now Passed ${words} Nos only. Excluding of xxxxx Nos consumed in destructive testing.\n`;
     
     if (c.lotDetails && c.lotDetails.length > 0) {
         let markings = c.lotDetails.map(l => `${l.lotNo || ''}, H No - ${l.heatNo || ''}`).join(' & ');
@@ -57,13 +57,20 @@ const generateQuantityRemarks = (c) => {
         }
     }
 
-    if (c.rmIcNo && c.processIcNo) {
-        text += `\nRM Inspection and Process Inspection Accepted against Vide\nRM IC No-${c.rmIcNo} Date- ${c.rmIcDate}\n& Process IC No-${c.processIcNo} Date- ${c.processIcDate}\n`;
-    }
+    if (c.rmIcNo || c.processIcNo) {
+        let rmDateStr = c.rmIcDate ? ` Date- ${c.rmIcDate}` : "";
+        let processDateStr = c.processIcDate ? ` Date- ${c.processIcDate}` : "";
+        let rmText = c.rmIcNo ? `RM IC No-${c.rmIcNo}${rmDateStr}` : "";
+        let processText = c.processIcNo ? `Process IC No-${c.processIcNo}${processDateStr}` : "";
 
-    text += `\nThe material is found conforming to the specifications against Vide Lab Report No. [FILL_LAB_REPORT] dated [FILL_DATE].\n`;
-    
-    text += `\nExcluding of xxxxx Nos consumed in destructive testing\n`;
+        if (rmText && processText) {
+            text += `\nRM Inspection and Process Inspection Accepted against Vide\n${rmText}\n& ${processText}\n`;
+        } else if (rmText) {
+            text += `\nRM Inspection Accepted against Vide\n${rmText}\n`;
+        } else if (processText) {
+            text += `\nProcess Inspection Accepted against Vide\n${processText}\n`;
+        }
+    }
     
     if (qtyRejected > 0 && qtyNowPassed === 0) {
         text += `\nMaterial is Non-conforming as per Lab Report No. [FILL_LAB_REPORT]. In the chemical test, the observed value was [OBSERVED], which exceeds the specified limit.\n`;

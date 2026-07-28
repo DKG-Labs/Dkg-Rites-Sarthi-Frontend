@@ -194,7 +194,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
       reasonsForRejection: c.reasonsForRejection || "Not Applicable",
       inspectingEngineer: c.inspectingEngineer || "",
       lotDetails: c.lotDetails || [],
-      remarks: c.remarks || "",
+      remarks: c.ibsCaseNo && c.ibsCaseNo !== '-' ? `IBS Case No: ${c.ibsCaseNo}\n${c.remarks || ""}`.trim() : (c.remarks || ""),
       maNumberAndDate: c.maNumberAndDate || "",
     };
   };

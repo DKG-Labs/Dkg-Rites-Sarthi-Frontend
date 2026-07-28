@@ -173,7 +173,7 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
         }
         return c.qtyRejected || "Nil";
       })(),
-      remarks: c.remarks || "",
+      remarks: c.ibsCaseNo && c.ibsCaseNo !== '-' ? `(IBS Case No: ${c.ibsCaseNo}), ${c.remarks || ""}`.trim() : (c.remarks || ""),
       callDate: c.dateOfCall || "",
       visitsNo: c.noOfVisits || "",
       inspectionDate: c.dateOfInspection || "",

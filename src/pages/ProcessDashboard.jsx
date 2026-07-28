@@ -4439,15 +4439,15 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       lineNo: selectedLine,
       lotNumber,
       heatNumber,
-      // Total quantities
-      totalManufactured: totalManufactured > 0 ? totalManufactured : null,
-      totalAccepted: totalAcceptedCalc > 0 ? totalAcceptedCalc : null,
-      totalRejected: totalRejectedCalc > 0 ? totalRejectedCalc : null,
-      offeredQty: lotOfferedQty > 0 ? lotOfferedQty : null,
+      // Total quantities (strictly tied to Shearing stage)
+      totalManufactured: totalManufactured,
+      totalAccepted: totalManufactured > 0 ? totalAcceptedCalc : 0,
+      totalRejected: totalRejectedCalc > 0 ? totalRejectedCalc : 0,
+      offeredQty: lotOfferedQty > 0 ? lotOfferedQty : 0,
       // Stage-wise quantities
-      shearingManufactured: parseInt(manufacturedQty.shearing) || null,
-      shearingAccepted: acceptedQty.shearing || null,
-      shearingRejected: rejectedQty.shearing || null,
+      shearingManufactured: parseInt(manufacturedQty.shearing) || 0,
+      shearingAccepted: (parseInt(manufacturedQty.shearing) || 0) > 0 ? (acceptedQty.shearing || 0) : 0,
+      shearingRejected: rejectedQty.shearing || 0,
       turningManufactured: parseInt(manufacturedQty.turning) || null,
       turningAccepted: acceptedQty.turning || null,
       turningRejected: rejectedQty.turning || null,
@@ -4543,13 +4543,13 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         lineNo: selectedLine,
         lotNumber,
         heatNumber,
-        totalManufactured: totalManufactured > 0 ? totalManufactured : null,
-        totalAccepted: totalAcceptedCalc > 0 ? totalAcceptedCalc : null,
-        totalRejected: totalRejectedCalc > 0 ? totalRejectedCalc : null,
-        offeredQty: lotOfferedQty > 0 ? lotOfferedQty : null,
-        shearingManufactured: parseInt(mfg.shearing) || null,
-        shearingAccepted: (parseInt(mfg.shearing) || 0) - (shearingRejected || 0) || null,
-        shearingRejected: shearingRejected || null,
+        totalManufactured: totalManufactured,
+        totalAccepted: totalManufactured > 0 ? totalAcceptedCalc : 0,
+        totalRejected: totalRejectedCalc > 0 ? totalRejectedCalc : 0,
+        offeredQty: lotOfferedQty > 0 ? lotOfferedQty : 0,
+        shearingManufactured: parseInt(mfg.shearing) || 0,
+        shearingAccepted: (parseInt(mfg.shearing) || 0) > 0 ? (Math.max(0, (parseInt(mfg.shearing) || 0) - (shearingRejected || 0))) : 0,
+        shearingRejected: shearingRejected || 0,
         turningManufactured: parseInt(mfg.turning) || null,
         turningAccepted: (parseInt(mfg.turning) || 0) - (turningRejected || 0) || null,
         turningRejected: turningRejected || null,
@@ -5559,9 +5559,11 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
             if (matchDto) lotFinalResult = matchDto.lineFinalResult;
           }
 
-          const currentShiftManufacturedQty = lotFinalResult?.totalManufactured || 0;
+          const currentShiftManufacturedQty = (lotFinalResult?.shearingManufactured !== undefined && lotFinalResult?.shearingManufactured !== null)
+            ? (parseInt(lotFinalResult.shearingManufactured) || 0)
+            : (parseInt(lotFinalResult?.totalManufactured || 0) || 0);
           const currentShiftRejectedQty = lotFinalResult?.totalRejected || 0;
-          const currentShiftAcceptedQty = lotFinalResult?.totalAccepted || 0;
+          const currentShiftAcceptedQty = currentShiftManufacturedQty > 0 ? Math.max(0, currentShiftManufacturedQty - currentShiftRejectedQty) : 0;
 
 
           // Get previous shift data for THIS SPECIFIC LOT
@@ -6099,15 +6101,11 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           // Get current shift quantities from persisted lineFinalResult or manufacturedQtyByLine state
           const lotFinalResult = loadFromLocalStorage('lineFinalResult', callNo, poNo, lineNo, shift, lotNo);
           const currentLotData = manufacturedQtyByLine[lineNo]?.[lotNo] || {};
-          const currentShiftManufacturedQty = lotFinalResult?.totalManufactured || Math.max(
-            parseInt(currentLotData.shearing || 0) || 0,
-            parseInt(currentLotData.turning || 0) || 0,
-            parseInt(currentLotData.mpiTesting || 0) || 0,
-            parseInt(currentLotData.forging || 0) || 0,
-            parseInt(currentLotData.quenching || 0) || 0,
-            parseInt(currentLotData.tempering || 0) || 0,
-            parseInt(currentLotData.testingFinishing || 0) || 0
-          );
+          const currentShiftManufacturedQty = (lotFinalResult?.shearingManufactured !== undefined && lotFinalResult?.shearingManufactured !== null)
+            ? (parseInt(lotFinalResult.shearingManufactured) || 0)
+            : ((lotFinalResult?.totalManufactured !== undefined && lotFinalResult?.totalManufactured !== null)
+              ? (parseInt(lotFinalResult.totalManufactured) || 0)
+              : (parseInt(currentLotData.shearing || 0) || 0));
 
           // Get current shift rejected quantity
           const currentTotalRejected = lotFinalResult?.totalRejected || rejectedQty.totalRejected || 0;

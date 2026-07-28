@@ -1281,10 +1281,10 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
       // 1. Prepare cumulative results data
       const cumulativeData = {
         inspectionCallNo: callNo,
-        poNo: poData?.po_no || selectedCall?.po_no,
+        poNo: poData?.po_no || poData?.poNo || selectedCall?.po_no,
         poQty: poQty,
-        cummQtyOfferedPreviously: poData?.cummQtyOfferedPreviously || 0,
-        cummQtyPassedPreviously: cummPassed,
+        cummQtyOfferedPreviously: poData?.cummQtyOfferedPreviously ?? poData?.cumm_qty_offered_previously ?? 0,
+        cummQtyPassedPreviously: poData?.cummQtyPassedPreviously ?? poData?.cumm_qty_passed_previously ?? cummPassed ?? 0,
         qtyNowOffered: totalQtyOffered,
         qtyNowPassed: qtyNowPassed,
         qtyNowRejected: qtyRejected,

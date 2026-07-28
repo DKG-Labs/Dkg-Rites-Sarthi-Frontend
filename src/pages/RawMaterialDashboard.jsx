@@ -3093,6 +3093,16 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
               disabled
             />
           </div>
+          <div className="rm-form-group">
+            <label className="rm-form-label" style={{ fontWeight: '500', marginBottom: '8px', color: '#374151' }}>IBS Case Number</label>
+            <input
+              type="text"
+              className="rm-form-input"
+              style={{ backgroundColor: '#f8fafc', borderColor: '#e2e8f0', color: '#475569', borderRadius: '10px', fontWeight: 'bold' }}
+              value={poData.ibsCaseNo || 'N/A'}
+              disabled
+            />
+          </div>
         </div>
       </div>
 

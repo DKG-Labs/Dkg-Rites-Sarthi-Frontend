@@ -84,6 +84,8 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
   };
   const poSrNoStr = extractPoSrNo(contractRef);
 
+  const isFormLocked = isEditing && data?.icType === 'new' && !bookSetValidation?.isValid;
+
   return (
     <div className="a4-page">
       <div className="certificate-container flex flex-col flex-grow">
@@ -91,6 +93,31 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
         <div className="flex flex-col items-center pt-2 w-full">
           {/* Centered Box */}
           <div className="flex flex-col items-center pt-7">
+            
+            {/* Old / New IC Toggle */}
+            {isEditing && (
+              <div className="flex gap-4 mb-2 no-print text-[12px] font-bold">
+                <label className="flex items-center gap-1 cursor-pointer">
+                  <input 
+                    type="radio" 
+                    name="icTypeRm" 
+                    value="old" 
+                    checked={data?.icType !== 'new'} 
+                    onChange={() => onChange("icType", "old")} 
+                  /> Old IC
+                </label>
+                <label className="flex items-center gap-1 cursor-pointer">
+                  <input 
+                    type="radio" 
+                    name="icTypeRm" 
+                    value="new" 
+                    checked={data?.icType === 'new'} 
+                    onChange={() => onChange("icType", "new")} 
+                  /> New IC
+                </label>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 border-2 border-black w-[180px] bg-white">
               <div className="border-r-2 border-black flex flex-col">
                 <div className="border-b-2 border-black p-1 font-bold text-center text-[9px] leading-tight">
@@ -115,7 +142,7 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
             </div>
             
             {/* Verify Book & Set No Button (Hidden in PDF) */}
-            {isEditing && (
+            {isEditing && data?.icType === 'new' && (
               <div className="no-print mt-1 flex items-center gap-2">
                 <button 
                   onClick={onVerifyBookSet} 
@@ -154,6 +181,7 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
         <div className="h-4" />
 
         {/* Row 3: Certificate No, Date, Instances - STABILIZED */}
+        <fieldset disabled={isFormLocked} className={`border-0 p-0 m-0 min-w-0 w-full transition-opacity duration-300 ${isFormLocked ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
         <div className="flex justify-end">
           <div className="grid grid-cols-[1.8fr_1fr_2.7fr] border border-black text-[10px] items-stretch w-[75%]">
             {/* Col 1: Certificate No */}
@@ -372,6 +400,7 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
           </div>
           <div className="h-1" />
         </div>
+        </fieldset>
       </div>
     </div>
   );

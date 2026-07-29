@@ -1268,7 +1268,12 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
 
       // Prepare all data first (same as finish/pause inspection)
       const ercUsed = lotsWithSampling.reduce((sum, lot) => sum + (parseInt(lotInspectionData[lot.lotNo]?.ercUsedForTesting) || 0), 0);
-      const qtyRejected = lotsWithSampling.filter(lot => isLotRejected(lot.lotNo)).reduce((sum, lot) => sum + lot.lotSize, 0);
+      const qtyRejected = lotsWithSampling.reduce((sum, lot) => {
+        if (isLotRejected(lot.lotNo)) {
+          return sum + lot.lotSize;
+        }
+        return sum + (rejectedCountsPerLot[lot.lotNo] || 0);
+      }, 0);
       const qtyNowPassed = totalQtyOffered - ercUsed - qtyRejected;
       const poQty = poData?.poQty || 10000;
       const poSrQty = poData?.poSrQty || 0;
@@ -1389,6 +1394,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     poData,
     testResultsPerLot,
     isLotRejected,
+    rejectedCountsPerLot,
     capturedImages
   ]);
 
@@ -1461,7 +1467,12 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
 
       // Prepare all data first
       const ercUsed = lotsWithSampling.reduce((sum, lot) => sum + (parseInt(lotInspectionData[lot.lotNo]?.ercUsedForTesting) || 0), 0);
-      const qtyRejected = lotsWithSampling.filter(lot => isLotRejected(lot.lotNo)).reduce((sum, lot) => sum + lot.lotSize, 0);
+      const qtyRejected = lotsWithSampling.reduce((sum, lot) => {
+        if (isLotRejected(lot.lotNo)) {
+          return sum + lot.lotSize;
+        }
+        return sum + (rejectedCountsPerLot[lot.lotNo] || 0);
+      }, 0);
       const qtyNowPassed = totalQtyOffered - ercUsed - qtyRejected;
       const poQty = poData?.poQty || 10000;
       const poSrQty = poData?.poSrQty || 0;
@@ -1653,7 +1664,12 @@ Workflow Status: ✅ Transitioned to COMPLETED
 
       // Prepare all data first (same as finish inspection)
       const ercUsed = lotsWithSampling.reduce((sum, lot) => sum + (parseInt(lotInspectionData[lot.lotNo]?.ercUsedForTesting) || 0), 0);
-      const qtyRejected = lotsWithSampling.filter(lot => isLotRejected(lot.lotNo)).reduce((sum, lot) => sum + lot.lotSize, 0);
+      const qtyRejected = lotsWithSampling.reduce((sum, lot) => {
+        if (isLotRejected(lot.lotNo)) {
+          return sum + lot.lotSize;
+        }
+        return sum + (rejectedCountsPerLot[lot.lotNo] || 0);
+      }, 0);
       const qtyNowPassed = totalQtyOffered - ercUsed - qtyRejected;
       const poQty = poData?.poQty || 10000;
       const poSrQty = poData?.poSrQty || 0;

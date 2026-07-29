@@ -18,11 +18,16 @@ import { finalSecantStiffnessService } from '../../services/finalSecantStiffness
 import { finalNcrAdhesionService } from '../../services/finalNcrAdhesionService';
 import { finalNcrBreakingLoadService } from '../../services/finalNcrBreakingLoadService';
 import { finalNcrNylonCordService } from '../../services/finalNcrNylonCordService';
+import { finalResilienceTestService } from '../../services/finalResilienceTestService';
+import { finalOzoneTestService } from '../../services/finalOzoneTestService';
+import { finalPeriodicTgaService } from '../../services/finalPeriodicTgaService';
+import { finalPeriodicDurabilityService } from '../../services/finalPeriodicDurabilityService';
+import { finalPeriodicAbrasionService } from '../../services/finalPeriodicAbrasionService';
 import { performTransitionAction } from '../../services/workflowService';
 import { getStoredUser } from '../../services/authService';
 import Notification from '../Notification';
 import AnnexureLoader from '../annexures/AnnexureLoader';
-
+import PeriodicTestingTab from './PeriodicTestingTab';
 
 const HardnessCell = ({ value, onChange, min, max }) => {
   const [isEditing, setIsEditing] = React.useState(false);
@@ -145,6 +150,11 @@ const SECTION_CONFIG = {
   ncrAdhesion: { name: 'NCRGRSP Adhesion', primaryCount: 2, doubleCount: 4, startSample: 1 },
   ncrBreaking: { name: 'NCRGRSP Breaking Load', primaryCount: 5, doubleCount: 10, startSample: 1 },
   ncrCord: { name: 'NCRGRSP Nylon Cord', primaryCount: 3, doubleCount: 6, startSample: 1 },
+  resilience: { name: 'Resilience Test', primaryCount: 3, doubleCount: 6, startSample: 1 },
+  ozone: { name: 'Ozone Test', primaryCount: 1, doubleCount: 2, startSample: 1 },
+  tga: { name: 'Periodic - TGA', primaryCount: 5, doubleCount: 0, startSample: 1 },
+  durability: { name: 'Periodic - Durability', primaryCount: 5, doubleCount: 0, startSample: 1 },
+  abrasion: { name: 'Periodic - Abrasion', primaryCount: 5, doubleCount: 0, startSample: 1 }
 };
 
 const padHardness = (h, targetSize = 15) => {
@@ -205,7 +215,8 @@ const padPhysicalData = (pd) => {
       mPad2: pad(pd?.loadTest?.mPad2, 8, { left: '', right: '' }),
       mPad3: pad(pd?.loadTest?.mPad3, 8, { left: '', right: '' }),
       mPad4: pad(pd?.loadTest?.mPad4, 8, { left: '', right: '' })
-    }
+    },
+    resilience: pad(pd?.resilience, 3, { i1: '', i2: '', i3: '', i4: '', i5: '', i6: '' })
   };
 };
 
@@ -232,6 +243,43 @@ const padElecData = (ed) => {
     ash: {
       compoundA: pad(ed?.ash?.compoundA, 9, { crucible: '', sample: '', ash: '' }),
       compoundB: pad(ed?.ash?.compoundB, 9, { crucible: '', sample: '', ash: '' })
+    },
+    ozone: pad(ed?.ozone, 1, { initial: '40', stretched: '52', obs: '' })
+  };
+};
+
+const padPeriodicData = (prd) => {
+  const pad = (arr, size, fill = '') => {
+    const a = Array.isArray(arr) ? arr : [];
+    const padded = [];
+    for (let i = 0; i < size; i++) {
+      const val = a[i];
+      if (val === null || val === undefined) {
+        padded.push(typeof fill === 'object' ? JSON.parse(JSON.stringify(fill)) : fill);
+      } else {
+        padded.push(val);
+      }
+    }
+    return padded;
+  };
+  return {
+    tga: {
+      dateOfLastTest: prd?.tga?.dateOfLastTest || '',
+      qtyProduced: prd?.tga?.qtyProduced || '',
+      threshold: 30000,
+      samples: pad(prd?.tga?.samples, 5, { lotNo: '', sampleNo: '', weight: '', tempRange: '', polymer: '' })
+    },
+    durability: {
+      dateOfLastTest: prd?.durability?.dateOfLastTest || '',
+      qtyProduced: prd?.durability?.qtyProduced || '',
+      threshold: 1000000,
+      samples: pad(prd?.durability?.samples, 5, { lotNo: '', initialThick: '', finalThick: '', initialLoad: '', finalLoad: '' })
+    },
+    abrasion: {
+      dateOfLastTest: prd?.abrasion?.dateOfLastTest || '',
+      qtyProduced: prd?.abrasion?.qtyProduced || '',
+      threshold: 1000000,
+      samples: pad(prd?.abrasion?.samples, 5, { lotNo: '', sampleNo: '', initialMass: '', finalMass: '' })
     }
   };
 };
@@ -462,6 +510,9 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
   const [specType, setSpecType] = useState('CGRSP');
   const [specData, setSpecData] = useState(() => padSpecData(null));
 
+  // State for Periodic Tests
+  const [periodicData, setPeriodicData] = useState(() => padPeriodicData(null));
+
   // Refs and effect for double-sampling weight panel visibility
   // IMPORTANT: These must be declared here (before any early returns) to satisfy React Rules of Hooks.
   const lastInitializedLotRef = React.useRef(null);
@@ -528,6 +579,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       physicalData,
       elecData,
       specData,
+      periodicData,
       specType,
       reTestActive,
       reOfferActive,
@@ -545,7 +597,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     if (visualData.dv || visualData.dd || weightData.samples1.some(s => s !== '') || remarks || sealingType) {
       setIsDirty(true);
     }
-  }, [selectedLot, currentCallId, activeTab, visualData, weightData, physicalData, elecData, specData, specType, reTestActive, reOfferActive, remarks, sealingType, steelStampNumber, hologramEntries, loadedLot, dbDimensionalStatus, dbDimensionalNotOk]);
+  }, [selectedLot, currentCallId, activeTab, visualData, weightData, physicalData, elecData, specData, periodicData, specType, reTestActive, reOfferActive, remarks, sealingType, steelStampNumber, hologramEntries, loadedLot, dbDimensionalStatus, dbDimensionalNotOk]);
 
   // Drafts are auto-saved in real-time, so no browser reload warning is needed.
 
@@ -748,6 +800,11 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       let ncrBreakingDbData = null;
       let ncrCordDbData = null;
       let weightDbData = null;
+      let resilienceDbData = null;
+      let ozoneDbData = null;
+      let periodicTgaDbData = null;
+      let periodicDurabilityDbData = null;
+      let periodicAbrasionDbData = null;
 
       if (currentCallId && lotId) {
         const results = await Promise.allSettled([
@@ -768,7 +825,12 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           finalNcrAdhesionService.getByCallAndLot(currentCallId, lotId),
           finalNcrBreakingLoadService.getByCallAndLot(currentCallId, lotId),
           finalNcrNylonCordService.getByCallAndLot(currentCallId, lotId),
-          finalWeightTestService.getByCallAndLot(currentCallId, lotId)
+          finalWeightTestService.getByCallAndLot(currentCallId, lotId),
+          finalResilienceTestService.getByCallAndLot(currentCallId, lotId),
+          finalOzoneTestService.getByCallAndLot(currentCallId, lotId),
+          finalPeriodicTgaService.getByCallAndLot(currentCallId, lotId),
+          finalPeriodicDurabilityService.getByCallAndLot(currentCallId, lotId),
+          finalPeriodicAbrasionService.getByCallAndLot(currentCallId, lotId)
         ]);
 
         visualDbData = results[0].status === 'fulfilled' ? results[0].value : null;
@@ -789,6 +851,11 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         ncrBreakingDbData = results[15].status === 'fulfilled' ? results[15].value : null;
         ncrCordDbData = results[16].status === 'fulfilled' ? results[16].value : null;
         weightDbData = results[17].status === 'fulfilled' ? results[17].value : null;
+        resilienceDbData = results[18].status === 'fulfilled' ? results[18].value : null;
+        ozoneDbData = results[19].status === 'fulfilled' ? results[19].value : null;
+        periodicTgaDbData = results[20].status === 'fulfilled' ? results[20].value : null;
+        periodicDurabilityDbData = results[21].status === 'fulfilled' ? results[21].value : null;
+        periodicAbrasionDbData = results[22].status === 'fulfilled' ? results[22].value : null;
       }
 
       const currentLotResult = lotResults.find(r => r.lotNo === lotId);
@@ -1053,6 +1120,13 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           ]
         };
       }
+      if (resilienceDbData) {
+        basePhys.resilience = [
+          { i1: resilienceDbData.s1Impact1 || '', i2: resilienceDbData.s1Impact2 || '', i3: resilienceDbData.s1Impact3 || '', i4: resilienceDbData.s1Impact4 || '', i5: resilienceDbData.s1Impact5 || '', i6: resilienceDbData.s1Impact6 || '' },
+          { i1: resilienceDbData.s2Impact1 || '', i2: resilienceDbData.s2Impact2 || '', i3: resilienceDbData.s2Impact3 || '', i4: resilienceDbData.s2Impact4 || '', i5: resilienceDbData.s2Impact5 || '', i6: resilienceDbData.s2Impact6 || '' },
+          { i1: resilienceDbData.s3Impact1 || '', i2: resilienceDbData.s3Impact2 || '', i3: resilienceDbData.s3Impact3 || '', i4: resilienceDbData.s3Impact4 || '', i5: resilienceDbData.s3Impact5 || '', i6: resilienceDbData.s3Impact6 || '' }
+        ];
+      }
       setPhysicalData(basePhys);
       let baseElec = padElecData(null);
       if (electricalDbData) {
@@ -1110,6 +1184,11 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
             { crucible: ashDbData.m6BCrucible || '', sample: ashDbData.m6BSample || '', ash: ashDbData.m6BAsh || '' }
           ]
         };
+      }
+      if (ozoneDbData) {
+        baseElec.ozone = [
+          { initial: ozoneDbData.initialLength || '40', stretched: ozoneDbData.stretchedLength || '52', obs: ozoneDbData.observation || '' }
+        ];
       }
       setElecData(baseElec);
 
@@ -1182,6 +1261,42 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         ];
       }
       setSpecData(baseSpec);
+
+      let basePeriodic = padPeriodicData(null);
+      if (periodicTgaDbData) {
+        basePeriodic.tga.dateOfLastTest = periodicTgaDbData.dateOfLastTest || '';
+        basePeriodic.tga.qtyProduced = periodicTgaDbData.qtyProducedSinceLastTest !== null && periodicTgaDbData.qtyProducedSinceLastTest !== undefined ? String(periodicTgaDbData.qtyProducedSinceLastTest) : '';
+        basePeriodic.tga.samples = [
+          { lotNo: periodicTgaDbData.s1LotNo || '', sampleNo: periodicTgaDbData.s1SampleNo || '', weight: periodicTgaDbData.s1SampleWt || '', tempRange: periodicTgaDbData.s1TempRange || '', polymer: periodicTgaDbData.s1PolymerContent || '' },
+          { lotNo: periodicTgaDbData.s2LotNo || '', sampleNo: periodicTgaDbData.s2SampleNo || '', weight: periodicTgaDbData.s2SampleWt || '', tempRange: periodicTgaDbData.s2TempRange || '', polymer: periodicTgaDbData.s2PolymerContent || '' },
+          { lotNo: periodicTgaDbData.s3LotNo || '', sampleNo: periodicTgaDbData.s3SampleNo || '', weight: periodicTgaDbData.s3SampleWt || '', tempRange: periodicTgaDbData.s3TempRange || '', polymer: periodicTgaDbData.s3PolymerContent || '' },
+          { lotNo: periodicTgaDbData.s4LotNo || '', sampleNo: periodicTgaDbData.s4SampleNo || '', weight: periodicTgaDbData.s4SampleWt || '', tempRange: periodicTgaDbData.s4TempRange || '', polymer: periodicTgaDbData.s4PolymerContent || '' },
+          { lotNo: periodicTgaDbData.s5LotNo || '', sampleNo: periodicTgaDbData.s5SampleNo || '', weight: periodicTgaDbData.s5SampleWt || '', tempRange: periodicTgaDbData.s5TempRange || '', polymer: periodicTgaDbData.s5PolymerContent || '' }
+        ];
+      }
+      if (periodicDurabilityDbData) {
+        basePeriodic.durability.dateOfLastTest = periodicDurabilityDbData.dateOfLastTest || '';
+        basePeriodic.durability.qtyProduced = periodicDurabilityDbData.qtyProducedSinceLastTest !== null && periodicDurabilityDbData.qtyProducedSinceLastTest !== undefined ? String(periodicDurabilityDbData.qtyProducedSinceLastTest) : '';
+        basePeriodic.durability.samples = [
+          { lotNo: periodicDurabilityDbData.s1LotNo || '', initialThick: periodicDurabilityDbData.s1InitialThickness || '', finalThick: periodicDurabilityDbData.s1FinalThickness || '', initialLoad: periodicDurabilityDbData.s1InitialLoadComp || '', finalLoad: periodicDurabilityDbData.s1FinalLoadComp || '' },
+          { lotNo: periodicDurabilityDbData.s2LotNo || '', initialThick: periodicDurabilityDbData.s2InitialThickness || '', finalThick: periodicDurabilityDbData.s2FinalThickness || '', initialLoad: periodicDurabilityDbData.s2InitialLoadComp || '', finalLoad: periodicDurabilityDbData.s2FinalLoadComp || '' },
+          { lotNo: periodicDurabilityDbData.s3LotNo || '', initialThick: periodicDurabilityDbData.s3InitialThickness || '', finalThick: periodicDurabilityDbData.s3FinalThickness || '', initialLoad: periodicDurabilityDbData.s3InitialLoadComp || '', finalLoad: periodicDurabilityDbData.s3FinalLoadComp || '' },
+          { lotNo: periodicDurabilityDbData.s4LotNo || '', initialThick: periodicDurabilityDbData.s4InitialThickness || '', finalThick: periodicDurabilityDbData.s4FinalThickness || '', initialLoad: periodicDurabilityDbData.s4InitialLoadComp || '', finalLoad: periodicDurabilityDbData.s4FinalLoadComp || '' },
+          { lotNo: periodicDurabilityDbData.s5LotNo || '', initialThick: periodicDurabilityDbData.s5InitialThickness || '', finalThick: periodicDurabilityDbData.s5FinalThickness || '', initialLoad: periodicDurabilityDbData.s5InitialLoadComp || '', finalLoad: periodicDurabilityDbData.s5FinalLoadComp || '' }
+        ];
+      }
+      if (periodicAbrasionDbData) {
+        basePeriodic.abrasion.dateOfLastTest = periodicAbrasionDbData.dateOfLastTest || '';
+        basePeriodic.abrasion.qtyProduced = periodicAbrasionDbData.qtyProducedSinceLastTest !== null && periodicAbrasionDbData.qtyProducedSinceLastTest !== undefined ? String(periodicAbrasionDbData.qtyProducedSinceLastTest) : '';
+        basePeriodic.abrasion.samples = [
+          { lotNo: periodicAbrasionDbData.s1LotNo || '', sampleNo: periodicAbrasionDbData.s1SampleNo || '', initialMass: periodicAbrasionDbData.s1InitialMass || '', finalMass: periodicAbrasionDbData.s1FinalMass || '', relativeLoss: periodicAbrasionDbData.s1RelativeLoss || '' },
+          { lotNo: periodicAbrasionDbData.s2LotNo || '', sampleNo: periodicAbrasionDbData.s2SampleNo || '', initialMass: periodicAbrasionDbData.s2InitialMass || '', finalMass: periodicAbrasionDbData.s2FinalMass || '', relativeLoss: periodicAbrasionDbData.s2RelativeLoss || '' },
+          { lotNo: periodicAbrasionDbData.s3LotNo || '', sampleNo: periodicAbrasionDbData.s3SampleNo || '', initialMass: periodicAbrasionDbData.s3InitialMass || '', finalMass: periodicAbrasionDbData.s3FinalMass || '', relativeLoss: periodicAbrasionDbData.s3RelativeLoss || '' },
+          { lotNo: periodicAbrasionDbData.s4LotNo || '', sampleNo: periodicAbrasionDbData.s4SampleNo || '', initialMass: periodicAbrasionDbData.s4InitialMass || '', finalMass: periodicAbrasionDbData.s4FinalMass || '', relativeLoss: periodicAbrasionDbData.s4RelativeLoss || '' },
+          { lotNo: periodicAbrasionDbData.s5LotNo || '', sampleNo: periodicAbrasionDbData.s5SampleNo || '', initialMass: periodicAbrasionDbData.s5InitialMass || '', finalMass: periodicAbrasionDbData.s5FinalMass || '', relativeLoss: periodicAbrasionDbData.s5RelativeLoss || '' }
+        ];
+      }
+      setPeriodicData(basePeriodic);
       setRemarks(finalRemarks);
       setSealingType(finalSealingType);
       setSteelStampNumber(finalSteelStampNumber);
@@ -1330,11 +1445,18 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
         const localActiveSections = [
           'hardness', 'tensile', 'elongation', 'modulus', 'compression', 'tension', 'load',
-          'resistance', 'sg', 'ash', 'adhesion', 'secant'
+          'resistance', 'sg', 'ash', 'adhesion', 'secant', 'resilience', 'ozone'
         ];
         if (isNCRGRSP) {
           localActiveSections.push('ncrAdhesion', 'ncrBreaking', 'ncrCord');
         }
+
+        const isTgaMandatory = parseInt(periodicData?.tga?.qtyProduced || 0, 10) >= 30000;
+        const isDurabilityMandatory = parseInt(periodicData?.durability?.qtyProduced || 0, 10) >= 100000;
+        const isAbrasionMandatory = parseInt(periodicData?.abrasion?.qtyProduced || 0, 10) >= 100000;
+        if (isTgaMandatory) localActiveSections.push('tga');
+        if (isDurabilityMandatory) localActiveSections.push('durability');
+        if (isAbrasionMandatory) localActiveSections.push('abrasion');
 
         const localRawReports = {};
         localActiveSections.forEach(key => {
@@ -2173,6 +2295,182 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           );
         }
 
+        const resilienceReport = rawReports['resilience'];
+        const resilienceStatusStr = getSectionStatus('resilience');
+        const resiliencePayload = {
+          callNo: currentCallId,
+          lotNo: selectedLot,
+          plantId: call?.plantId || 'N/A',
+          vendorCode: call?.vendorCode || 'N/A',
+          shift: call?.shift || 'A',
+          railpadType: activeRailpadType,
+          offeredQty: offeredQty,
+          s1Impact1: physicalData.resilience[0]?.i1 || '',
+          s1Impact2: physicalData.resilience[0]?.i2 || '',
+          s1Impact3: physicalData.resilience[0]?.i3 || '',
+          s1Impact4: physicalData.resilience[0]?.i4 || '',
+          s1Impact5: physicalData.resilience[0]?.i5 || '',
+          s1Impact6: physicalData.resilience[0]?.i6 || '',
+          s2Impact1: physicalData.resilience[1]?.i1 || '',
+          s2Impact2: physicalData.resilience[1]?.i2 || '',
+          s2Impact3: physicalData.resilience[1]?.i3 || '',
+          s2Impact4: physicalData.resilience[1]?.i4 || '',
+          s2Impact5: physicalData.resilience[1]?.i5 || '',
+          s2Impact6: physicalData.resilience[1]?.i6 || '',
+          s3Impact1: physicalData.resilience[2]?.i1 || '',
+          s3Impact2: physicalData.resilience[2]?.i2 || '',
+          s3Impact3: physicalData.resilience[2]?.i3 || '',
+          s3Impact4: physicalData.resilience[2]?.i4 || '',
+          s3Impact5: physicalData.resilience[2]?.i5 || '',
+          s3Impact6: physicalData.resilience[2]?.i6 || '',
+          resilienceStatus: resilienceStatusStr,
+          notOkCount: resilienceReport ? (resilienceReport.primaryOutCount + resilienceReport.doubleOutCount) : 0,
+          remarks: remarks || ''
+        };
+
+        const ozoneReport = rawReports['ozone'];
+        const ozoneStatusStr = getSectionStatus('ozone');
+        const ozonePayload = {
+          callNo: currentCallId,
+          lotNo: selectedLot,
+          plantId: call?.plantId || 'N/A',
+          vendorCode: call?.vendorCode || 'N/A',
+          shift: call?.shift || 'A',
+          railpadType: activeRailpadType,
+          offeredQty: offeredQty,
+          initialLength: elecData.ozone[0]?.initial || '',
+          stretchedLength: elecData.ozone[0]?.stretched || '',
+          observation: elecData.ozone[0]?.obs || '',
+          ozoneStatus: ozoneStatusStr,
+          notOkCount: ozoneReport ? (ozoneReport.primaryOutCount + ozoneReport.doubleOutCount) : 0,
+          remarks: remarks || ''
+        };
+
+        const tgaPayload = {
+          callNo: currentCallId,
+          lotNo: selectedLot,
+          plantId: call?.plantId || 'N/A',
+          vendorCode: call?.vendorCode || 'N/A',
+          shift: call?.shift || 'A',
+          railpadType: activeRailpadType,
+          offeredQty: offeredQty,
+          dateOfLastTest: periodicData.tga.dateOfLastTest,
+          qtyProducedSinceLastTest: periodicData.tga.qtyProduced ? parseInt(periodicData.tga.qtyProduced, 10) : null,
+          s1LotNo: periodicData.tga.samples[0]?.lotNo || '',
+          s1SampleNo: periodicData.tga.samples[0]?.sampleNo || '',
+          s1SampleWt: periodicData.tga.samples[0]?.weight || '',
+          s1TempRange: periodicData.tga.samples[0]?.tempRange || '',
+          s1PolymerContent: periodicData.tga.samples[0]?.polymer || '',
+          s2LotNo: periodicData.tga.samples[1]?.lotNo || '',
+          s2SampleNo: periodicData.tga.samples[1]?.sampleNo || '',
+          s2SampleWt: periodicData.tga.samples[1]?.weight || '',
+          s2TempRange: periodicData.tga.samples[1]?.tempRange || '',
+          s2PolymerContent: periodicData.tga.samples[1]?.polymer || '',
+          s3LotNo: periodicData.tga.samples[2]?.lotNo || '',
+          s3SampleNo: periodicData.tga.samples[2]?.sampleNo || '',
+          s3SampleWt: periodicData.tga.samples[2]?.weight || '',
+          s3TempRange: periodicData.tga.samples[2]?.tempRange || '',
+          s3PolymerContent: periodicData.tga.samples[2]?.polymer || '',
+          s4LotNo: periodicData.tga.samples[3]?.lotNo || '',
+          s4SampleNo: periodicData.tga.samples[3]?.sampleNo || '',
+          s4SampleWt: periodicData.tga.samples[3]?.weight || '',
+          s4TempRange: periodicData.tga.samples[3]?.tempRange || '',
+          s4PolymerContent: periodicData.tga.samples[3]?.polymer || '',
+          s5LotNo: periodicData.tga.samples[4]?.lotNo || '',
+          s5SampleNo: periodicData.tga.samples[4]?.sampleNo || '',
+          s5SampleWt: periodicData.tga.samples[4]?.weight || '',
+          s5TempRange: periodicData.tga.samples[4]?.tempRange || '',
+          s5PolymerContent: periodicData.tga.samples[4]?.polymer || '',
+          tgaStatus: getSectionStatus('tga'),
+          remarks: remarks || ''
+        };
+
+        const durabilityPayload = {
+          callNo: currentCallId,
+          lotNo: selectedLot,
+          plantId: call?.plantId || 'N/A',
+          vendorCode: call?.vendorCode || 'N/A',
+          shift: call?.shift || 'A',
+          railpadType: activeRailpadType,
+          offeredQty: offeredQty,
+          dateOfLastTest: periodicData.durability.dateOfLastTest,
+          qtyProducedSinceLastTest: periodicData.durability.qtyProduced ? parseInt(periodicData.durability.qtyProduced, 10) : null,
+          s1LotNo: periodicData.durability.samples[0]?.lotNo || '',
+          s1InitialThickness: periodicData.durability.samples[0]?.initialThick || '',
+          s1FinalThickness: periodicData.durability.samples[0]?.finalThick || '',
+          s1InitialLoadComp: periodicData.durability.samples[0]?.initialLoad || '',
+          s1FinalLoadComp: periodicData.durability.samples[0]?.finalLoad || '',
+          s2LotNo: periodicData.durability.samples[1]?.lotNo || '',
+          s2InitialThickness: periodicData.durability.samples[1]?.initialThick || '',
+          s2FinalThickness: periodicData.durability.samples[1]?.finalThick || '',
+          s2InitialLoadComp: periodicData.durability.samples[1]?.initialLoad || '',
+          s2FinalLoadComp: periodicData.durability.samples[1]?.finalLoad || '',
+          s3LotNo: periodicData.durability.samples[2]?.lotNo || '',
+          s3InitialThickness: periodicData.durability.samples[2]?.initialThick || '',
+          s3FinalThickness: periodicData.durability.samples[2]?.finalThick || '',
+          s3InitialLoadComp: periodicData.durability.samples[2]?.initialLoad || '',
+          s3FinalLoadComp: periodicData.durability.samples[2]?.finalLoad || '',
+          s4LotNo: periodicData.durability.samples[3]?.lotNo || '',
+          s4InitialThickness: periodicData.durability.samples[3]?.initialThick || '',
+          s4FinalThickness: periodicData.durability.samples[3]?.finalThick || '',
+          s4InitialLoadComp: periodicData.durability.samples[3]?.initialLoad || '',
+          s4FinalLoadComp: periodicData.durability.samples[3]?.finalLoad || '',
+          s5LotNo: periodicData.durability.samples[4]?.lotNo || '',
+          s5InitialThickness: periodicData.durability.samples[4]?.initialThick || '',
+          s5FinalThickness: periodicData.durability.samples[4]?.finalThick || '',
+          s5InitialLoadComp: periodicData.durability.samples[4]?.initialLoad || '',
+          s5FinalLoadComp: periodicData.durability.samples[4]?.finalLoad || '',
+          durabilityStatus: getSectionStatus('durability'),
+          remarks: remarks || ''
+        };
+
+        const abrasionPayload = {
+          callNo: currentCallId,
+          lotNo: selectedLot,
+          plantId: call?.plantId || 'N/A',
+          vendorCode: call?.vendorCode || 'N/A',
+          shift: call?.shift || 'A',
+          railpadType: activeRailpadType,
+          offeredQty: offeredQty,
+          dateOfLastTest: periodicData.abrasion.dateOfLastTest,
+          qtyProducedSinceLastTest: periodicData.abrasion.qtyProduced ? parseInt(periodicData.abrasion.qtyProduced, 10) : null,
+          s1LotNo: periodicData.abrasion.samples[0]?.lotNo || '',
+          s1SampleNo: periodicData.abrasion.samples[0]?.sampleNo || '',
+          s1InitialMass: periodicData.abrasion.samples[0]?.initialMass || '',
+          s1FinalMass: periodicData.abrasion.samples[0]?.finalMass || '',
+          s1RelativeLoss: periodicData.abrasion.samples[0]?.relativeLoss || '',
+          s2LotNo: periodicData.abrasion.samples[1]?.lotNo || '',
+          s2SampleNo: periodicData.abrasion.samples[1]?.sampleNo || '',
+          s2InitialMass: periodicData.abrasion.samples[1]?.initialMass || '',
+          s2FinalMass: periodicData.abrasion.samples[1]?.finalMass || '',
+          s2RelativeLoss: periodicData.abrasion.samples[1]?.relativeLoss || '',
+          s3LotNo: periodicData.abrasion.samples[2]?.lotNo || '',
+          s3SampleNo: periodicData.abrasion.samples[2]?.sampleNo || '',
+          s3InitialMass: periodicData.abrasion.samples[2]?.initialMass || '',
+          s3FinalMass: periodicData.abrasion.samples[2]?.finalMass || '',
+          s3RelativeLoss: periodicData.abrasion.samples[2]?.relativeLoss || '',
+          s4LotNo: periodicData.abrasion.samples[3]?.lotNo || '',
+          s4SampleNo: periodicData.abrasion.samples[3]?.sampleNo || '',
+          s4InitialMass: periodicData.abrasion.samples[3]?.initialMass || '',
+          s4FinalMass: periodicData.abrasion.samples[3]?.finalMass || '',
+          s4RelativeLoss: periodicData.abrasion.samples[3]?.relativeLoss || '',
+          s5LotNo: periodicData.abrasion.samples[4]?.lotNo || '',
+          s5SampleNo: periodicData.abrasion.samples[4]?.sampleNo || '',
+          s5InitialMass: periodicData.abrasion.samples[4]?.initialMass || '',
+          s5FinalMass: periodicData.abrasion.samples[4]?.finalMass || '',
+          s5RelativeLoss: periodicData.abrasion.samples[4]?.relativeLoss || '',
+          abrasionStatus: getSectionStatus('abrasion'),
+          remarks: remarks || ''
+        };
+
+        savePromises.push(
+          finalResilienceTestService.save(resiliencePayload),
+          finalOzoneTestService.save(ozonePayload),
+          finalPeriodicTgaService.save(tgaPayload),
+          finalPeriodicDurabilityService.save(durabilityPayload),
+          finalPeriodicAbrasionService.save(abrasionPayload)
+        );
+
         await Promise.all(savePromises);
         setDbDimensionalStatus(dimensionalResult);
 
@@ -2327,11 +2625,18 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
         const localActiveSections = [
           'hardness', 'tensile', 'elongation', 'modulus', 'compression', 'tension', 'load',
-          'resistance', 'sg', 'ash', 'adhesion', 'secant'
+          'resistance', 'sg', 'ash', 'adhesion', 'secant', 'resilience', 'ozone'
         ];
         if (isNCRGRSP) {
           localActiveSections.push('ncrAdhesion', 'ncrBreaking', 'ncrCord');
         }
+
+        const isTgaMandatory = parseInt(periodicData?.tga?.qtyProduced || 0, 10) >= 30000;
+        const isDurabilityMandatory = parseInt(periodicData?.durability?.qtyProduced || 0, 10) >= 100000;
+        const isAbrasionMandatory = parseInt(periodicData?.abrasion?.qtyProduced || 0, 10) >= 100000;
+        if (isTgaMandatory) localActiveSections.push('tga');
+        if (isDurabilityMandatory) localActiveSections.push('durability');
+        if (isAbrasionMandatory) localActiveSections.push('abrasion');
 
         const localRawReports = {};
         localActiveSections.forEach(key => {
@@ -3652,7 +3957,11 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
             const waterB = parseFloat(rB.water);
             if (isNaN(airB) || isNaN(waterB) || airB === waterB) return { filled: false, out: false };
             const sgB = airB / (airB - waterB);
-            out = out || sgB > specs.b || Math.abs(sgA - sgB) > specs.variation;
+            if (isNCRGRSP) {
+              out = out || sgB > specs.b || Math.abs(sgA - sgB) > specs.variation;
+            } else {
+              out = out || sgB > specs.b;
+            }
           }
           return { filled: true, out };
         };
@@ -3692,7 +4001,11 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
             const aB = parseFloat(rB.ash);
             if (isNaN(cB) || isNaN(sB) || isNaN(aB) || sB === cB) return { filled: false, out: false };
             const ashB = ((aB - cB) / (sB - cB)) * 100;
-            out = out || ashB > specs.b || Math.abs(ashA - ashB) > specs.variation;
+            if (isNCRGRSP) {
+              out = out || ashB > specs.b || Math.abs(ashA - ashB) > specs.variation;
+            } else {
+              out = out || ashB > specs.b;
+            }
           }
           return { filled: true, out };
         };
@@ -3856,6 +4169,103 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         }
         break;
       }
+      
+      case 'resilience': {
+        const checkSample = (r) => {
+          if (!r || r.i1 === '' || r.i2 === '' || r.i3 === '' || r.i4 === '' || r.i5 === '' || r.i6 === '') return { filled: false, out: false };
+          const i4 = parseFloat(r.i4);
+          const i5 = parseFloat(r.i5);
+          const i6 = parseFloat(r.i6);
+          if (isNaN(i4) || isNaN(i5) || isNaN(i6)) return { filled: false, out: false };
+          const avg = (i4 + i5 + i6) / 3;
+          return { filled: true, out: avg < 30 };
+        };
+        for (let i = 0; i < 3; i++) {
+          const r = checkSample(physicalData.resilience[i]);
+          if (r.filled) {
+            primaryFilled++;
+            if (r.out) primaryOutCount++;
+          }
+        }
+        break;
+      }
+      
+      case 'ozone': {
+        const checkSample = (r) => {
+          if (!r || r.initial === '' || r.stretched === '' || r.obs === '') return { filled: false, out: false };
+          return { filled: true, out: r.obs === 'Cracks' };
+        };
+        const r = checkSample(elecData.ozone[0]);
+        if (r.filled) {
+          primaryFilled++;
+          if (r.out) primaryOutCount++;
+        }
+        break;
+      }
+      
+      case 'tga': {
+        if (!periodicData?.tga?.samples) break;
+        const checkSample = (val) => {
+          if (!val || val.weight === '' || val.tempRange === '' || val.polymer === '') return { filled: false, out: false };
+          const p = parseFloat(val.polymer);
+          if (isNaN(p)) return { filled: false, out: false };
+          return { filled: true, out: p <= 50.0 };
+        };
+        for (let i = 0; i < 5; i++) {
+          const r = checkSample(periodicData.tga.samples[i]);
+          if (r.filled) {
+            primaryFilled++;
+            if (r.out) primaryOutCount++;
+          }
+        }
+        break;
+      }
+      
+      case 'durability': {
+        if (!periodicData?.durability?.samples) break;
+        const maxThicknessReduction = (activeRailpadType || '').toLowerCase().includes('10mm') ? 1.0 : 0.6;
+        const checkSample = (val) => {
+          if (!val || val.initialThick === '' || val.finalThick === '' || val.initialLoad === '' || val.finalLoad === '') return { filled: false, out: false };
+          const it = parseFloat(val.initialThick);
+          const ft = parseFloat(val.finalThick);
+          const il = parseFloat(val.initialLoad);
+          const fl = parseFloat(val.finalLoad);
+          if (isNaN(it) || isNaN(ft) || isNaN(il) || isNaN(fl)) return { filled: false, out: false };
+          
+          const reduction = it - ft;
+          const changeLd = il === 0 ? 0 : Math.abs(((fl - il) / il) * 100);
+          
+          const out = reduction > maxThicknessReduction || changeLd > 10;
+          return { filled: true, out };
+        };
+        for (let i = 0; i < 5; i++) {
+          const r = checkSample(periodicData.durability.samples[i]);
+          if (r.filled) {
+            primaryFilled++;
+            if (r.out) primaryOutCount++;
+          }
+        }
+        break;
+      }
+      
+      case 'abrasion': {
+        if (!periodicData?.abrasion?.samples) break;
+        const checkSample = (val) => {
+          if (!val || val.initialMass === '' || val.finalMass === '' || !val.relativeLoss || val.relativeLoss === '') return { filled: false, out: false };
+          const rl = parseFloat(val.relativeLoss);
+          if (isNaN(rl)) return { filled: false, out: false };
+          const out = rl < 180 || rl > 220;
+          return { filled: true, out };
+        };
+        for (let i = 0; i < 5; i++) {
+          const r = checkSample(periodicData.abrasion.samples[i]);
+          if (r.filled) {
+            primaryFilled++;
+            if (r.out) primaryOutCount++;
+          }
+        }
+        break;
+      }
     }
 
     return {
@@ -3870,7 +4280,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
   const activeSections = [
     'hardness', 'tensile', 'elongation', 'modulus', 'compression', 'tension', 'load',
-    'resistance', 'sg', 'ash', 'adhesion', 'secant'
+    'resistance', 'sg', 'ash', 'adhesion', 'secant', 'resilience', 'ozone', 'tga', 'durability', 'abrasion'
   ];
   if (isNCRGRSP) {
     activeSections.push('ncrAdhesion', 'ncrBreaking', 'ncrCord');
@@ -4139,6 +4549,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     { id: 'electrical', label: 'Electrical & Chemical' },
     { id: 'specialized', label: 'Dynamic & Durability Test' },
     ...(isNCRGRSP ? [{ id: 'ncrgrsp', label: 'NCRGRSP Test' }] : []),
+    { id: 'periodic', label: 'Periodic Testing' },
     ...(showMarginalTab ? [{ id: 'marginal', label: 'Marginal Double-Sampling' }] : [])
   ];
 
@@ -4533,6 +4944,8 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                               style={{
                                 width: '100%',
                                 padding: '6px 10px',
+                                minHeight: '38px',
+                                lineHeight: '1.5',
                                 borderRadius: '6px',
                                 border: '1px solid #cbd5e1',
                                 fontSize: '13px',
@@ -4593,6 +5006,8 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                               style={{
                                 width: '100%',
                                 padding: '6px 10px',
+                                minHeight: '38px',
+                                lineHeight: '1.5',
                                 borderRadius: '6px',
                                 border: '1px solid #cbd5e1',
                                 fontSize: '13px',
@@ -5602,6 +6017,62 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                     </table>
                   </div>
 
+                  {/* Resilience by Vertical Rebound Test */}
+                  <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', overflow: 'hidden', marginTop: '12px' }}>
+                    <div style={{ background: '#f8fafc', padding: '12px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>Resilience by Vertical Rebound Test</h4>
+                      </div>
+                      <div style={{ display: 'flex', gap: '20px' }}>
+                        <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
+                          Status: <span style={{ color: physicalResults.resilience === 'PASS' ? '#059669' : physicalResults.resilience === 'FAIL' ? '#f59e0b' : '#64748b', fontWeight: '800' }}>{physicalResults.resilience || 'PENDING'}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ background: '#fcfcfc' }}>
+                          <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }}>Sample No.</th>
+                          <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }}>1st Impact</th>
+                          <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }}>2nd Impact</th>
+                          <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }}>3rd Impact</th>
+                          <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }}>4th Impact</th>
+                          <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }}>5th Impact</th>
+                          <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }}>6th Impact</th>
+                          <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }}>% Resilience</th>
+                          <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }}>Result</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[0, 1, 2].map((idx) => {
+                          const data = physicalData.resilience[idx] || { i1: '', i2: '', i3: '', i4: '', i5: '', i6: '' };
+                          const i4 = parseFloat(data.i4);
+                          const i5 = parseFloat(data.i5);
+                          const i6 = parseFloat(data.i6);
+                          const avg = (!isNaN(i4) && !isNaN(i5) && !isNaN(i6)) ? ((i4 + i5 + i6) / 3).toFixed(2) : '-';
+                          const pass = avg !== '-' && parseFloat(avg) >= 30;
+
+                          return (
+                            <tr key={idx}>
+                              <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', fontWeight: '800', background: '#f8fafc', border: '1px solid #f1f5f9' }}>{idx + 1}</td>
+                              {['i1', 'i2', 'i3', 'i4', 'i5', 'i6'].map((impactKey) => (
+                                <td key={impactKey} style={{ padding: '4px', border: '1px solid #f1f5f9' }}>
+                                  <input type="number" value={data[impactKey]} onChange={(e) => setPhysicalData(prev => {
+                                    const newRes = [...prev.resilience];
+                                    newRes[idx] = { ...newRes[idx], [impactKey]: e.target.value };
+                                    return { ...prev, resilience: newRes };
+                                  })} style={{ width: '100%', padding: '6px', border: '1px solid #e2e8f0', borderRadius: '4px', textAlign: 'center', fontSize: '12px', fontWeight: '700' }} />
+                                </td>
+                              ))}
+                              <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', fontWeight: '900', background: '#f8fafc', border: '1px solid #f1f5f9' }}>{avg}{avg !== '-' && '%'}</td>
+                              <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', fontWeight: '900', border: '1px solid #f1f5f9', color: pass ? '#059669' : '#ef4444' }}>{avg !== '-' ? (pass ? 'Pass' : 'Fail') : '-'}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
                   {/* Layer 3: Physical Decision */}
                   {physicalDecision !== 'PENDING VERIFICATION' && (
                     <section style={{
@@ -5708,7 +6179,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                             <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Sample</th>
                             <th colSpan="3" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>Compound A</th>
                             {isCGRSP && <th colSpan="3" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>Compound B</th>}
-                            {isCGRSP && <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Variation</th>}
+                            {isNCRGRSP && <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Variation</th>}
                           </tr>
                           <tr>
                             <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Wt. Air (g)</th>
@@ -5747,7 +6218,9 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                       <input type="number" value={rB.water} onChange={(e) => setElecData(prev => ({ ...prev, sg: { ...prev.sg, compoundB: prev.sg.compoundB.map((r, i) => i === idx ? { ...r, water: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
                                     </td>
                                     <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: sgB !== '-' && parseFloat(sgB) > currentSGSpecs.b ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{sgB}</td>
-                                    <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: variation !== '-' && Math.abs(parseFloat(variation)) > currentSGSpecs.variation ? '#ef4444' : '#64748b', background: '#f8fafc' }}>{variation}</td>
+                                    {isNCRGRSP && (
+                                      <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: variation !== '-' && Math.abs(parseFloat(variation)) > currentSGSpecs.variation ? '#ef4444' : '#64748b', background: '#f8fafc' }}>{variation}</td>
+                                    )}
                                   </>
                                 )}
                               </tr>
@@ -5778,7 +6251,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                             <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Sample</th>
                             <th colSpan="4" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>Product A</th>
                             {isCGRSP && <th colSpan="4" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>Product B</th>}
-                            {isCGRSP && <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Variation</th>}
+                            {isNCRGRSP && <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Variation</th>}
                           </tr>
                           <tr>
                             <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Crucible</th>
@@ -5829,12 +6302,60 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                       <input type="number" value={rB.ash} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundB: prev.ash.compoundB.map((r, i) => i === idx ? { ...r, ash: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
                                     </td>
                                     <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: ashB !== '-' && parseFloat(ashB) > currentAshSpecs.b ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{ashB}%</td>
-                                    <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: variation !== '-' && Math.abs(parseFloat(variation)) > currentAshSpecs.variation ? '#ef4444' : '#64748b', background: '#f8fafc' }}>{variation}</td>
+                                    {isNCRGRSP && (
+                                      <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: variation !== '-' && Math.abs(parseFloat(variation)) > currentAshSpecs.variation ? '#ef4444' : '#64748b', background: '#f8fafc' }}>{variation}</td>
+                                    )}
                                   </>
                                 )}
                               </tr>
                             );
                           })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Ozone Test */}
+                  <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', marginTop: '24px' }}>
+                    <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>Ozone Test</h3>
+                      </div>
+                      <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
+                        <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: elecResults.ozone === 'PASS' ? '#dcfce7' : elecResults.ozone === 'FAIL' ? '#fee2e2' : '#f1f5f9', color: elecResults.ozone === 'PASS' ? '#166534' : elecResults.ozone === 'FAIL' ? '#991b1b' : '#64748b' }}>{elecResults.ozone || 'PENDING'}</span>
+                      </div>
+                    </div>
+                    <div style={{ padding: '20px' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr>
+                            <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Sample</th>
+                            <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>10mm Wide Strip Initial Length (Bench Mark)</th>
+                            <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>After 30% Stretched Length</th>
+                            <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Observation</th>
+                            <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Remarks / Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '700', color: '#64748b' }}>S1</td>
+                            <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
+                              <input type="text" value={elecData.ozone[0]?.initial || '40mm'} readOnly style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px', background: '#f1f5f9', color: '#64748b' }} />
+                            </td>
+                            <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
+                              <input type="text" value={elecData.ozone[0]?.stretched || '52mm'} readOnly style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px', background: '#f1f5f9', color: '#64748b' }} />
+                            </td>
+                            <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
+                              <select value={elecData.ozone[0]?.obs || ''} onChange={(e) => setElecData(prev => ({ ...prev, ozone: [{ ...prev.ozone[0], obs: e.target.value }] }))} style={{ width: '100%', padding: '8px', minHeight: '38px', lineHeight: '1.5', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '13px' }}>
+                                <option value="">Select...</option>
+                                <option value="No Crack">No Crack</option>
+                                <option value="Cracks">Cracks</option>
+                              </select>
+                            </td>
+                            <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: elecData.ozone[0]?.obs === 'Cracks' ? '#ef4444' : elecData.ozone[0]?.obs === 'No Crack' ? '#059669' : '#64748b', background: '#f8fafc' }}>
+                              {elecData.ozone[0]?.obs === 'No Crack' ? 'Pass' : elecData.ozone[0]?.obs === 'Cracks' ? 'Fail' : '-'}
+                            </td>
+                          </tr>
                         </tbody>
                       </table>
                     </div>
@@ -5989,6 +6510,16 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                     </section>
                   )}
                 </div>
+              )}
+
+              {activeTab === 'periodic' && (
+                <PeriodicTestingTab
+                  periodicData={periodicData}
+                  setPeriodicData={setPeriodicData}
+                  activeRailpadType={activeRailpadType}
+                  getSectionStatus={getSectionStatus}
+                  markDirty={markDirty}
+                />
               )}
 
               {activeTab === 'ncrgrsp' && specData.ncrgrsp && (
@@ -6845,7 +7376,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                     <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Sample</th>
                                     <th colSpan="3" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>Compound A</th>
                                     {isCGRSP && <th colSpan="3" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>Compound B</th>}
-                                    {isCGRSP && <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Variation</th>}
+                                    {isNCRGRSP && <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Variation</th>}
                                   </tr>
                                   <tr>
                                     <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Wt. Air (g)</th>
@@ -6885,7 +7416,9 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                               <input type="number" value={rB.water || ''} onChange={(e) => setElecData(prev => ({ ...prev, sg: { ...prev.sg, compoundB: prev.sg.compoundB.map((r, i) => i === realIdx ? { ...r, water: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
                                             </td>
                                             <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: sgB !== '-' && parseFloat(sgB) > specs.b ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{sgB}</td>
-                                            <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: variation !== '-' && Math.abs(parseFloat(variation)) > specs.variation ? '#ef4444' : '#64748b', background: '#f8fafc' }}>{variation}</td>
+                                            {isNCRGRSP && (
+                                              <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: variation !== '-' && Math.abs(parseFloat(variation)) > specs.variation ? '#ef4444' : '#64748b', background: '#f8fafc' }}>{variation}</td>
+                                            )}
                                           </>
                                         )}
                                       </tr>
@@ -6923,7 +7456,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                     <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Sample</th>
                                     <th colSpan="4" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>Product A</th>
                                     {isCGRSP && <th colSpan="4" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>Product B</th>}
-                                    {isCGRSP && <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Variation</th>}
+                                    {isNCRGRSP && <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Variation</th>}
                                   </tr>
                                   <tr>
                                     <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Crucible</th>
@@ -6975,7 +7508,9 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                               <input type="number" value={rB.ash || ''} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundB: prev.ash.compoundB.map((r, i) => i === realIdx ? { ...r, ash: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
                                             </td>
                                             <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: ashB !== '-' && parseFloat(ashB) > specs.b ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{ashB}%</td>
-                                            <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: variation !== '-' && Math.abs(parseFloat(variation)) > specs.variation ? '#ef4444' : '#64748b', background: '#f8fafc' }}>{variation}</td>
+                                            {isNCRGRSP && (
+                                              <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: variation !== '-' && Math.abs(parseFloat(variation)) > specs.variation ? '#ef4444' : '#64748b', background: '#f8fafc' }}>{variation}</td>
+                                            )}
                                           </>
                                         )}
                                       </tr>

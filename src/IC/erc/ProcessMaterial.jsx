@@ -106,7 +106,6 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
               billPayingOfficer: savedEdit.billPayingOfficer || initialData.billPayingOfficer,
               purchasingAuthority: savedEdit.purchasingAuthority || initialData.purchasingAuthority,
               description: savedEdit.description || initialData.description,
-              qapNo: savedEdit.qapNo || initialData.qapNo,
             };
           }
           

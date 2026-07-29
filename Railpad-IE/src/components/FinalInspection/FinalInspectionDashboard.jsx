@@ -4396,7 +4396,8 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     modulus: getSectionStatus('modulus'),
     compression: getSectionStatus('compression'),
     tension: getSectionStatus('tension'),
-    load: getSectionStatus('load')
+    load: getSectionStatus('load'),
+    resilience: getSectionStatus('resilience')
   };
 
   const physicalFailedCount = Object.values(physicalResults).filter(r => r === 'FAIL').length;
@@ -4411,7 +4412,8 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
   const elecResults = {
     resistance: getSectionStatus('resistance'),
     sg: getSectionStatus('sg'),
-    ash: getSectionStatus('ash')
+    ash: getSectionStatus('ash'),
+    ozone: getSectionStatus('ozone')
   };
   const elecFailedCount = Object.values(elecResults).filter(r => r === 'FAIL').length;
   const elecPendingCount = Object.values(elecResults).filter(r => r === 'PENDING' || r === 'UNDER TESTING' || r === 'MARGINAL').length;
@@ -4442,6 +4444,17 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     cord: getSectionStatus('ncrCord')
   };
 
+  const periodicResults = {
+    tga: getSectionStatus('tga'),
+    durability: getSectionStatus('durability'),
+    abrasion: getSectionStatus('abrasion')
+  };
+
+  const periodicFailedCount = Object.values(periodicResults).filter(r => r === 'FAIL').length;
+  const periodicPendingCount = Object.values(periodicResults).filter(r => r === 'PENDING' || r === 'UNDER TESTING' || r === 'MARGINAL').length;
+  const periodicDecision = periodicPendingCount > 0 && periodicFailedCount === 0 ? 'PENDING VERIFICATION' : (periodicFailedCount === 0 ? 'LOT PASSED' : 'PERMANENT REJECT');
+
+
   const specFailedCount = Object.values(specResults).filter(r => r === 'FAIL').length;
   const specPendingCount = Object.values(specResults).filter(r => r === 'PENDING' || r === 'UNDER TESTING' || r === 'MARGINAL').length;
   const specDecision = specPendingCount > 0 && specFailedCount === 0 ? 'PENDING VERIFICATION' : (specFailedCount === 0 ? 'LOT PASSED' : 'PERMANENT REJECT');
@@ -4458,6 +4471,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
   const elecStatus = elecDecision === 'LOT PASSED' ? 'PASS' : elecDecision === 'PENDING VERIFICATION' ? 'PENDING' : elecDecision === 'RE-TEST REQUIRED' ? 'RE-TEST' : 'FAIL';
   const specStatus = specDecision === 'LOT PASSED' ? 'PASS' : specDecision === 'PENDING VERIFICATION' ? 'PENDING' : specDecision === 'RE-TEST REQUIRED' ? 'RE-TEST' : 'FAIL';
   const ncrStatus = ncrDecision === 'LOT PASSED' ? 'PASS' : ncrDecision === 'PENDING VERIFICATION' ? 'PENDING' : ncrDecision === 'RE-TEST REQUIRED' ? 'RE-TEST' : 'FAIL';
+  const periodicStatus = periodicDecision === 'LOT PASSED' ? 'PASS' : periodicDecision === 'PENDING VERIFICATION' ? 'PENDING' : periodicDecision === 'RE-TEST REQUIRED' ? 'RE-TEST' : 'FAIL';
 
   const isDimensionalReOffered = dimensionalStatus === 'RE-OFFERED' || dimensionalStatus === 'RE-OFFER';
   const isWeightPass = weightStatus === 'ACCEPTED';
@@ -4469,7 +4483,8 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     || physicalStatus === 'PENDING' || physicalStatus === 'RE-TEST'
     || elecStatus === 'PENDING' || elecStatus === 'RE-TEST'
     || specStatus === 'PENDING' || specStatus === 'RE-TEST'
-    || (isNCRGRSP && (ncrStatus === 'PENDING' || ncrStatus === 'RE-TEST'));
+    || (isNCRGRSP && (ncrStatus === 'PENDING' || ncrStatus === 'RE-TEST'))
+    || periodicStatus === 'PENDING' || periodicStatus === 'RE-TEST';
 
   const isAnyCoreFailed = visualStatus === 'FAIL'
     || dimensionalStatus === 'FAIL'
@@ -4477,7 +4492,8 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     || physicalStatus === 'FAIL'
     || elecStatus === 'FAIL'
     || specStatus === 'FAIL'
-    || (isNCRGRSP && ncrStatus === 'FAIL');
+    || (isNCRGRSP && ncrStatus === 'FAIL')
+    || periodicStatus === 'FAIL';
 
   let activeLotOverallStatus = 'PENDING';
   let acceptedQty = 0;
@@ -8028,6 +8044,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                     { key: 'physical', label: 'Physical & Ageing Properties', status: physicalStatus },
                     { key: 'electrical', label: 'Electrical & Chemical', status: elecStatus },
                     { key: 'specialized', label: 'Dynamic & Durability Test', status: specStatus },
+                    { key: 'periodic', label: 'Periodic Testing', status: periodicStatus },
                     ...(isNCRGRSP ? [{ key: 'ncrgrsp', label: 'NCRGRSP', status: ncrStatus }] : [])
                   ].map(({ key, label, status }) => {
                     const badge = getSubmoduleBadge(status);
@@ -8117,7 +8134,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                           }
                         ];
                       } else if (activeSubmoduleTab === 'physical') {
-                        const keys = ['hardness', 'tensile', 'elongation', 'modulus', 'compression', 'tension', 'load'];
+                        const keys = ['hardness', 'tensile', 'elongation', 'modulus', 'compression', 'tension', 'load', 'resilience'];
                         rows = keys.map(k => {
                           const rep = rawReports[k];
                           const name = SECTION_CONFIG[k]?.name || k;
@@ -8125,7 +8142,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                           return { name, size, status: getSectionStatus(k) };
                         });
                       } else if (activeSubmoduleTab === 'electrical') {
-                        const keys = ['resistance', 'sg', 'ash'];
+                        const keys = ['resistance', 'sg', 'ash', 'ozone'];
                         rows = keys.map(k => {
                           const rep = rawReports[k];
                           const name = SECTION_CONFIG[k]?.name || k;
@@ -8142,6 +8159,14 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                         });
                       } else if (activeSubmoduleTab === 'ncrgrsp') {
                         const keys = ['ncrAdhesion', 'ncrBreaking', 'ncrCord'];
+                        rows = keys.map(k => {
+                          const rep = rawReports[k];
+                          const name = SECTION_CONFIG[k]?.name || k;
+                          const size = (rep && (rep.doubleFilled > 0 || k === marginalSectionKey)) ? `${rep.primaryCount} + ${rep.doubleCount}` : (rep ? rep.primaryCount : 0);
+                          return { name, size, status: getSectionStatus(k) };
+                        });
+                      } else if (activeSubmoduleTab === 'periodic') {
+                        const keys = ['tga', 'durability', 'abrasion'];
                         rows = keys.map(k => {
                           const rep = rawReports[k];
                           const name = SECTION_CONFIG[k]?.name || k;

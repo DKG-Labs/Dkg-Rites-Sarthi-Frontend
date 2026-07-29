@@ -46,14 +46,29 @@ const CallDetailsModal = ({
   const [validationError, setValidationError] = useState('');
 
   const filteredIEs = React.useMemo(() => {
-    if (!call?.callNumber) return allIEs;
-    if (call.callNumber.startsWith('ER') || call.callNumber.startsWith('EF')) {
-      return allIEs.filter(ie => ie.roleName === 'IE');
+    if (!allIEs || allIEs.length === 0) return [];
+    if (call?.callNumber?.startsWith('ER') || call?.callNumber?.startsWith('EF')) {
+      return allIEs.filter(ie => {
+        const r = (ie.roleName || ie.role || '').trim().toLowerCase();
+        return r === 'ie' || r.includes('ie');
+      });
     }
-    if (call.callNumber.startsWith('EP')) {
-      return allIEs.filter(ie => ie.roleName === 'Process IE');
+    if (call?.callNumber?.startsWith('EP')) {
+      return allIEs.filter(ie => {
+        const r = (ie.roleName || ie.role || '').trim().toLowerCase();
+        return r === 'process ie' || r.includes('process ie');
+      });
     }
-    return allIEs;
+    if (call?.callNumber?.startsWith('RPF') || call?.callNumber?.startsWith('RPP') || call?.callNumber?.startsWith('RP')) {
+      return allIEs.filter(ie => {
+        const r = (ie.roleName || ie.role || '').trim().toLowerCase();
+        return r === 'rail main ie' || r.includes('rail main ie') || r === 'main ie';
+      });
+    }
+    return allIEs.filter(ie => {
+      const r = (ie.roleName || ie.role || '').trim().toLowerCase();
+      return r === 'rail main ie' || r.includes('rail main ie') || r === 'main ie';
+    });
   }, [call?.callNumber, allIEs]);
 
   const handleOpenRemapping = async () => {
@@ -133,27 +148,37 @@ const CallDetailsModal = ({
     try {
       if (call.callNumber.startsWith('ER') || call.callNumber.startsWith('EF')) {
         const storedData = JSON.parse(localStorage.getItem('remappingDataER') || localStorage.getItem('remappingData') || "[]");
-        if (!storedData || storedData.length === 0) {
-          notify("Mapping data not found. Please try again.", 'error');
-          return;
-        }
-        const payload = storedData.map(item => ({
+        const poiCode = remappingPoiCode || call.placeOfInspection || storedData[0]?.poiCode;
+        
+        let payload = [];
+        if (storedData && storedData.length > 0) {
+          payload = storedData.map(item => ({
             ...item,
-            employeeCode: selectedIEData.employeeCode
-        }));
-        const poiCode = remappingPoiCode || storedData[0]?.poiCode;
+            poiCode: poiCode,
+            employeeCode: selectedIEData.employeeCode,
+            product: 'ERC'
+          }));
+        } else {
+          payload = [{
+            poiCode: poiCode,
+            employeeCode: selectedIEData.employeeCode,
+            product: 'ERC',
+            pinCode: '000000',
+            ieType: 'PRIMARY'
+          }];
+        }
         
         await axios.put(`${API_BASE_URL}/api/auth/company/${poiCode}/updateIemapping`, payload, { headers: getAuthHeaders() });
-        notify('Remapping updated successfully', 'success');
+        notify('IE assigned/remapped successfully', 'success');
         fetchMappedIEs();
       } else if (call.callNumber.startsWith('EP')) {
-        const poiCode = remappingPoiCode;
+        const poiCode = remappingPoiCode || call.placeOfInspection;
         const userId = selectedIEData.id;
         const headers = { ...getAuthHeaders(), userId: userId };
-        const payload = [userId]; // Request DTO is an array containing the userId
+        const payload = [userId];
         
         await axios.put(`${API_BASE_URL}/api/auth/poi/${poiCode}/Update/processIe`, payload, { headers: headers });
-        notify('Remapping updated successfully', 'success');
+        notify('Process IE assigned/remapped successfully', 'success');
         fetchMappedIEs();
       }
       
@@ -327,6 +352,11 @@ const CallDetailsModal = ({
                   <Autocomplete
                     options={mappedIEs}
                     getOptionLabel={(option) => option}
+                    renderOption={(props, option, { index }) => (
+                      <li {...props} key={`mapped-ie-${index}-${option}`}>
+                        {option}
+                      </li>
+                    )}
                     value={selectedIE || null}
                     onChange={(event, newValue) => {
                       setSelectedIE(newValue || '');
@@ -342,12 +372,20 @@ const CallDetailsModal = ({
                     sx={{ width: '100%', '& .MuiOutlinedInput-root': { backgroundColor: '#f9fafb', height: '44px' } }}
                   />
                 ) : (
-                  <div className={`font-bold text-lg p-2.5 rounded border w-full h-11 flex items-center ${
-                    call.callNumber?.startsWith('RP') && !call.assignedIeName 
-                      ? 'bg-red-50 border-red-200 text-red-600 text-sm' 
+                  <div className={`font-bold text-sm p-2.5 rounded border w-full h-11 flex items-center ${
+                    !call.assignedIeName && (call.callNumber?.startsWith('RP') || call.callNumber?.startsWith('ER') || call.callNumber?.startsWith('EF') || call.callNumber?.startsWith('EP'))
+                      ? 'bg-amber-50 border-amber-200 text-amber-700' 
                       : 'bg-gray-50 border-gray-200 text-gray-800'
                   }`}>
-                    {call.assignedIeName || (call.callNumber?.startsWith('RP') ? 'No Railpad main IE has been mapped' : 'System Assigned')}
+                    {call.assignedIeName || (
+                      call.callNumber?.startsWith('RP') 
+                        ? 'No Railpad main IE has been mapped' 
+                        : (call.callNumber?.startsWith('ER') || call.callNumber?.startsWith('EF'))
+                        ? 'No IE has been mapped'
+                        : call.callNumber?.startsWith('EP')
+                        ? 'No Process IE has been mapped'
+                        : 'System Assigned'
+                    )}
                   </div>
                 )}
               </div>
@@ -386,6 +424,11 @@ const CallDetailsModal = ({
                       id="ie-select"
                       options={filteredIEs}
                       getOptionLabel={(option) => option.employeeCode ? `${option.name} (${option.employeeCode})` : option.name}
+                      renderOption={(props, option, { index }) => (
+                        <li {...props} key={option.id ? `remap-ie-${option.id}-${index}` : `remap-ie-${index}`}>
+                          {option.employeeCode ? `${option.name} (${option.employeeCode})` : option.name}
+                        </li>
+                      )}
                       value={filteredIEs.find(ie => String(ie.id) === String(selectedIE)) || null}
                       onChange={(event, newValue) => {
                         setSelectedIE(newValue ? String(newValue.id) : '');

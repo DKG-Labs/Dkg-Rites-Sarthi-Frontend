@@ -426,6 +426,23 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     return { a: 27, variation: 5 };
   };
 
+  const getSecantTolerance = (lotId) => {
+    const lot = lots.find(l => l.id === lotId) || { railpadType: '' };
+    const type = (lot.railpadType || activeRailpadType || '').toLowerCase();
+
+    if (type.includes('6.2') && type.includes('cgrsp')) return { min: 100, max: 240 };
+    if (type.includes('10mm') && type.includes('cgrsp')) return { min: 100, max: 170 };
+    if (type.includes('6mm') && type.includes('ncr')) return { min: 150, max: 250 };
+    if (type.includes('10mm') && type.includes('ncr')) return { min: 100, max: 170 };
+    if (type.includes('10mm') && type.includes('grsp')) return { min: 100, max: 170 };
+    if (type.includes('6mm') && type.includes('grsp')) return { min: 150, max: 250 };
+
+    if (type.includes('6.2')) return { min: 100, max: 240 };
+    if (type.includes('10mm')) return { min: 100, max: 170 };
+    if (type.includes('cgrsp')) return { min: 100, max: 240 };
+    return { min: 150, max: 250 };
+  };
+
   const currentHardnessSpecs = getHardnessTolerance(selectedLot);
   const currentTensileSpecs = getTensileTolerance(selectedLot);
   const currentElongationSpecs = getElongationTolerance(selectedLot);
@@ -433,6 +450,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
   const currentLoadSpecs = getLoadDeflectionTolerance(selectedLot);
   const currentSGSpecs = getSGTolerance(selectedLot);
   const currentAshSpecs = getAshTolerance(selectedLot);
+  const currentSecantSpecs = getSecantTolerance(selectedLot);
 
   // State for Physical Properties (Tab 2)
   const [physicalData, setPhysicalData] = useState(() => padPhysicalData(null));
@@ -558,13 +576,12 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         setLoading(true);
         let shouldKeepLoading = false;
         try {
-          const data = await fetchInspectionCallByCallNo(callId);
-          let savedLotResults = [];
-          try {
-            savedLotResults = await finalInspectionLotResultsService.getByCallNo(callId);
-          } catch (e) {
-            console.error("Error loading saved lot results:", e);
-          }
+          const [dataResult, savedLotResultsResult] = await Promise.allSettled([
+            fetchInspectionCallByCallNo(callId),
+            finalInspectionLotResultsService.getByCallNo(callId)
+          ]);
+          const data = dataResult.status === 'fulfilled' ? dataResult.value : null;
+          const savedLotResults = savedLotResultsResult.status === 'fulfilled' ? (savedLotResultsResult.value || []) : [];
           if (data && data.lots) {
             // Map backend lot data to frontend format if needed
             const formattedLots = data.lots.map(l => {
@@ -610,8 +627,10 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
             if (formattedLots.length > 0) {
               const savedLotId = localStorage.getItem(`railpad_selected_lot_${currentCallId}`);
               const lotExists = formattedLots.some(l => l.id === savedLotId);
-              setSelectedLot(lotExists ? savedLotId : formattedLots[0].id);
+              const targetLot = lotExists ? savedLotId : formattedLots[0].id;
+              setSelectedLot(targetLot);
               shouldKeepLoading = true;
+              loadLotData(targetLot);
             }
             // Notify parent about the full call details (for the header)
             if (onUpdateCall) {
@@ -709,578 +728,493 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       }
     }
 
-    // --- NON-DRAFT DB LOAD PATH ---
-    let visualDbData = null;
     try {
-      if (currentCallId && lotId) {
-        visualDbData = await finalVisualDimensionalInspectionService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading visual/dimensional data from backend:", e);
-    }
+      // --- NON-DRAFT DB LOAD PATH (OPTIMIZED PARALLEL FETCH) ---
+      let visualDbData = null;
+      let lotResults = [];
+      let hardnessDbData = null;
+      let tensileDbData = null;
+      let elongationDbData = null;
+      let modulusDbData = null;
+      let compressionDbData = null;
+      let tensionDbData = null;
+      let loadDbData = null;
+      let electricalDbData = null;
+      let sgDbData = null;
+      let ashDbData = null;
+      let adhesionDbData = null;
+      let secantDbData = null;
+      let ncrAdhesionDbData = null;
+      let ncrBreakingDbData = null;
+      let ncrCordDbData = null;
+      let weightDbData = null;
 
-    let lotResults = [];
-    try {
-      if (currentCallId) {
-        lotResults = await finalInspectionLotResultsService.getByCallNo(currentCallId);
-      }
-    } catch (e) {
-      console.error("Error loading lot results from backend in loadLotData:", e);
-    }
-    const currentLotResult = lotResults.find(r => r.lotNo === lotId);
-    let finalRemarks = '';
-    let finalSealingType = 'RITES_HOLOGRAM';
-    let finalSteelStampNumber = '';
-    let finalHologramEntries = [];
-    let finalSpecType = 'CGRSP';
-    let finalReTestActive = false;
-    let finalReOfferActive = false;
+      if (currentCallId && lotId) {
+        const results = await Promise.allSettled([
+          finalVisualDimensionalInspectionService.getByCallAndLot(currentCallId, lotId),
+          finalInspectionLotResultsService.getByCallNo(currentCallId),
+          finalHardnessTestService.getByCallAndLot(currentCallId, lotId),
+          finalTensileStrengthService.getByCallAndLot(currentCallId, lotId),
+          finalElongationService.getByCallAndLot(currentCallId, lotId),
+          finalModulusService.getByCallAndLot(currentCallId, lotId),
+          finalCompressionSetService.getByCallAndLot(currentCallId, lotId),
+          finalTensionSetService.getByCallAndLot(currentCallId, lotId),
+          finalLoadTestService.getByCallAndLot(currentCallId, lotId),
+          finalElectricalResistanceService.getByCallAndLot(currentCallId, lotId),
+          finalSpecificGravityService.getByCallAndLot(currentCallId, lotId),
+          finalAshContentService.getByCallAndLot(currentCallId, lotId),
+          finalAdhesionService.getByCallAndLot(currentCallId, lotId),
+          finalSecantStiffnessService.getByCallAndLot(currentCallId, lotId),
+          finalNcrAdhesionService.getByCallAndLot(currentCallId, lotId),
+          finalNcrBreakingLoadService.getByCallAndLot(currentCallId, lotId),
+          finalNcrNylonCordService.getByCallAndLot(currentCallId, lotId),
+          finalWeightTestService.getByCallAndLot(currentCallId, lotId)
+        ]);
 
-    if (currentLotResult) {
-      finalRemarks = currentLotResult.remarks || '';
-      finalSpecType = currentLotResult.railpadType || 'CGRSP';
-      const dbHologram = currentLotResult.hologram;
-      if (dbHologram) {
-        finalSealingType = 'RITES_HOLOGRAM';
-        finalHologramEntries = dbHologram.split(',').map((part, idx) => {
-          if (part.includes('-')) {
-            const rangeParts = part.split('-');
-            return {
-              id: Date.now() + idx,
-              type: 'range',
-              from: rangeParts[0] || '',
-              to: rangeParts[1] || ''
-            };
-          } else {
-            return {
-              id: Date.now() + idx,
-              type: 'single',
-              value: part || ''
-            };
-          }
-        });
-      } else {
-        finalSealingType = '';
+        visualDbData = results[0].status === 'fulfilled' ? results[0].value : null;
+        lotResults = results[1].status === 'fulfilled' ? (results[1].value || []) : [];
+        hardnessDbData = results[2].status === 'fulfilled' ? results[2].value : null;
+        tensileDbData = results[3].status === 'fulfilled' ? results[3].value : null;
+        elongationDbData = results[4].status === 'fulfilled' ? results[4].value : null;
+        modulusDbData = results[5].status === 'fulfilled' ? results[5].value : null;
+        compressionDbData = results[6].status === 'fulfilled' ? results[6].value : null;
+        tensionDbData = results[7].status === 'fulfilled' ? results[7].value : null;
+        loadDbData = results[8].status === 'fulfilled' ? results[8].value : null;
+        electricalDbData = results[9].status === 'fulfilled' ? results[9].value : null;
+        sgDbData = results[10].status === 'fulfilled' ? results[10].value : null;
+        ashDbData = results[11].status === 'fulfilled' ? results[11].value : null;
+        adhesionDbData = results[12].status === 'fulfilled' ? results[12].value : null;
+        secantDbData = results[13].status === 'fulfilled' ? results[13].value : null;
+        ncrAdhesionDbData = results[14].status === 'fulfilled' ? results[14].value : null;
+        ncrBreakingDbData = results[15].status === 'fulfilled' ? results[15].value : null;
+        ncrCordDbData = results[16].status === 'fulfilled' ? results[16].value : null;
+        weightDbData = results[17].status === 'fulfilled' ? results[17].value : null;
       }
-    }
 
-    let finalDbDimensionalStatus = visualDbData ? (visualDbData.dimensionalResult || null) : null;
-    setDbDimensionalStatus(finalDbDimensionalStatus);
-    // Track the original not-ok count from DB so we know if the user has changed it
-    let finalDbDimensionalNotOk = visualDbData && visualDbData.dimensionalNotOk !== null && visualDbData.dimensionalNotOk !== undefined
-      ? String(visualDbData.dimensionalNotOk)
-      : null;
-    setDbDimensionalNotOk(finalDbDimensionalNotOk);
+      const currentLotResult = lotResults.find(r => r.lotNo === lotId);
+      let finalRemarks = '';
+      let finalSealingType = 'RITES_HOLOGRAM';
+      let finalSteelStampNumber = '';
+      let finalHologramEntries = [];
+      let finalSpecType = 'CGRSP';
+      let finalReTestActive = false;
+      let finalReOfferActive = false;
 
-    let hardnessDbData = null;
-    let tensileDbData = null;
-    let elongationDbData = null;
-    let modulusDbData = null;
-    let compressionDbData = null;
-    let tensionDbData = null;
-    let loadDbData = null;
-    let electricalDbData = null;
-    let sgDbData = null;
-    let ashDbData = null;
-    let adhesionDbData = null;
-    let secantDbData = null;
-    let ncrAdhesionDbData = null;
-    let ncrBreakingDbData = null;
-    let ncrCordDbData = null;
-
-    try {
-      if (currentCallId && lotId) {
-        hardnessDbData = await finalHardnessTestService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading hardness data from backend:", e);
-    }
-    try {
-      if (currentCallId && lotId) {
-        tensileDbData = await finalTensileStrengthService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading tensile data from backend:", e);
-    }
-    try {
-      if (currentCallId && lotId) {
-        elongationDbData = await finalElongationService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading elongation data from backend:", e);
-    }
-    try {
-      if (currentCallId && lotId) {
-        modulusDbData = await finalModulusService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading modulus data from backend:", e);
-    }
-    try {
-      if (currentCallId && lotId) {
-        compressionDbData = await finalCompressionSetService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading compression data from backend:", e);
-    }
-    try {
-      if (currentCallId && lotId) {
-        tensionDbData = await finalTensionSetService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading tension data from backend:", e);
-    }
-    try {
-      if (currentCallId && lotId) {
-        loadDbData = await finalLoadTestService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading load test data from backend:", e);
-    }
-    try {
-      if (currentCallId && lotId) {
-        electricalDbData = await finalElectricalResistanceService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading electrical resistance data from backend:", e);
-    }
-    try {
-      if (currentCallId && lotId) {
-        sgDbData = await finalSpecificGravityService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading specific gravity data from backend:", e);
-    }
-    try {
-      if (currentCallId && lotId) {
-        ashDbData = await finalAshContentService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading ash content data from backend:", e);
-    }
-    try {
-      if (currentCallId && lotId) {
-        adhesionDbData = await finalAdhesionService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading adhesion data from backend:", e);
-    }
-    try {
-      if (currentCallId && lotId) {
-        secantDbData = await finalSecantStiffnessService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading secant data from backend:", e);
-    }
-    try {
-      if (currentCallId && lotId) {
-        ncrAdhesionDbData = await finalNcrAdhesionService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading NCR adhesion data from backend:", e);
-    }
-    try {
-      if (currentCallId && lotId) {
-        ncrBreakingDbData = await finalNcrBreakingLoadService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading NCR breaking data from backend:", e);
-    }
-    try {
-      if (currentCallId && lotId) {
-        ncrCordDbData = await finalNcrNylonCordService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading NCR nylon cord data from backend:", e);
-    }
-
-    // Reset form states (simulating new data load)
-
-    let weightDbData = null;
-    try {
-      if (currentCallId && lotId) {
-        weightDbData = await finalWeightTestService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading weight testing data from backend:", e);
-    }
-
-    let baseVisual;
-    if (visualDbData) {
-      baseVisual = {
-        visualN: visualDbData.visualSamples || 25,
-        dv: visualDbData.visualNotOk !== null && visualDbData.visualNotOk !== undefined ? String(visualDbData.visualNotOk) : '',
-        visualReason: visualDbData.visualReason || '',
-        dimN: visualDbData.dimensionalSamples || 25,
-        dd: visualDbData.dimensionalNotOk !== null && visualDbData.dimensionalNotOk !== undefined ? String(visualDbData.dimensionalNotOk) : '',
-        dimReason: visualDbData.dimensionalReason || ''
-      };
-    } else {
-      baseVisual = {
-        dv: '',
-        dd: '',
-        visualReason: '',
-        dimReason: '',
-        visualN: 25,
-        dimN: 25
-      };
-    }
-    setVisualData(baseVisual);
-
-    const lot = lots.find(l => l.id === lotId) || { size: 1500, drawingNo: 'RDSO/T-8528' };
-    const aql = getWeightAQL(lot.size);
-    const tolerance = WEIGHT_TOLERANCE[lot.drawingNo] || { max: 445 };
-
-    let baseWeight;
-    if (weightDbData) {
-      const s1 = Array(weightDbData.n1 || aql.n1).fill('');
-      const s2 = Array(weightDbData.n2 || aql.n2).fill('');
-      if (weightDbData.samples) {
-        weightDbData.samples.forEach(s => {
-          if (s.samplingNo === 1 && s.sampleNo >= 1 && s.sampleNo <= s1.length) {
-            s1[s.sampleNo - 1] = s.sampleValue !== null && s.sampleValue !== undefined ? String(s.sampleValue) : '';
-          } else if (s.samplingNo === 2 && s.sampleNo >= 1 && s.sampleNo <= s2.length) {
-            s2[s.sampleNo - 1] = s.sampleValue !== null && s.sampleValue !== undefined ? String(s.sampleValue) : '';
-          }
-        });
-      }
-      baseWeight = {
-        samples1: s1,
-        samples2: s2,
-        n1: weightDbData.n1 || aql.n1,
-        ac1: weightDbData.ac1 !== null && weightDbData.ac1 !== undefined ? weightDbData.ac1 : aql.ac1,
-        re1: weightDbData.re1 !== null && weightDbData.re1 !== undefined ? weightDbData.re1 : aql.re1,
-        n2: weightDbData.n2 || aql.n2,
-        ac2: weightDbData.ac2 !== null && weightDbData.ac2 !== undefined ? weightDbData.ac2 : aql.ac2,
-        re2: weightDbData.re2 !== null && weightDbData.re2 !== undefined ? weightDbData.re2 : aql.re2,
-        min: weightDbData.minWeight !== null && weightDbData.minWeight !== undefined ? weightDbData.minWeight : 0,
-        max: weightDbData.maxWeight !== null && weightDbData.maxWeight !== undefined ? weightDbData.maxWeight : tolerance.max,
-        isSecondActive: weightDbData.isSecondActive || false
-      };
-    } else {
-      baseWeight = {
-        samples1: Array(aql.n1).fill(''),
-        samples2: Array(aql.n2).fill(''),
-        n1: aql.n1,
-        ac1: aql.ac1,
-        re1: aql.re1,
-        n2: aql.n2,
-        ac2: aql.ac2,
-        re2: aql.re2,
-        min: 0,
-        max: tolerance.max,
-        isSecondActive: false
-      };
-    }
-    setWeightData(baseWeight);
-
-    let basePhys = padPhysicalData(null);
-    if (hardnessDbData) {
-      basePhys.hardness = {
-        compoundA: [
-          hardnessDbData.sampleA1 || '', hardnessDbData.sampleA2 || '', hardnessDbData.sampleA3 || '', hardnessDbData.sampleA4 || '', hardnessDbData.sampleA5 || '',
-          hardnessDbData.marginalA1 || '', hardnessDbData.marginalA2 || '', hardnessDbData.marginalA3 || '', hardnessDbData.marginalA4 || '', hardnessDbData.marginalA5 || '',
-          hardnessDbData.marginalA6 || '', hardnessDbData.marginalA7 || '', hardnessDbData.marginalA8 || '', hardnessDbData.marginalA9 || '', hardnessDbData.marginalA10 || ''
-        ],
-        compoundB: [
-          hardnessDbData.sampleB1 || '', hardnessDbData.sampleB2 || '', hardnessDbData.sampleB3 || '', hardnessDbData.sampleB4 || '', hardnessDbData.sampleB5 || '',
-          hardnessDbData.marginalB1 || '', hardnessDbData.marginalB2 || '', hardnessDbData.marginalB3 || '', hardnessDbData.marginalB4 || '', hardnessDbData.marginalB5 || '',
-          hardnessDbData.marginalB6 || '', hardnessDbData.marginalB7 || '', hardnessDbData.marginalB8 || '', hardnessDbData.marginalB9 || '', hardnessDbData.marginalB10 || ''
-        ]
-      };
-    }
-    if (tensileDbData) {
-      basePhys.tensile = {
-        before: [
-          tensileDbData.sampleBefore1 || '', tensileDbData.sampleBefore2 || '', tensileDbData.sampleBefore3 || '', tensileDbData.sampleBefore4 || '', tensileDbData.sampleBefore5 || '',
-          tensileDbData.marginalBefore1 || '', tensileDbData.marginalBefore2 || '', tensileDbData.marginalBefore3 || '', tensileDbData.marginalBefore4 || '', tensileDbData.marginalBefore5 || '',
-          tensileDbData.marginalBefore6 || '', tensileDbData.marginalBefore7 || '', tensileDbData.marginalBefore8 || '', tensileDbData.marginalBefore9 || '', tensileDbData.marginalBefore10 || ''
-        ],
-        after: [
-          tensileDbData.sampleAfter1 || '', tensileDbData.sampleAfter2 || '', tensileDbData.sampleAfter3 || '', tensileDbData.sampleAfter4 || '', tensileDbData.sampleAfter5 || '',
-          tensileDbData.marginalAfter1 || '', tensileDbData.marginalAfter2 || '', tensileDbData.marginalAfter3 || '', tensileDbData.marginalAfter4 || '', tensileDbData.marginalAfter5 || '',
-          tensileDbData.marginalAfter6 || '', tensileDbData.marginalAfter7 || '', tensileDbData.marginalAfter8 || '', tensileDbData.marginalAfter9 || '', tensileDbData.marginalAfter10 || ''
-        ]
-      };
-    }
-    if (elongationDbData) {
-      basePhys.elongation = {
-        before: [
-          elongationDbData.sampleBefore1 || '', elongationDbData.sampleBefore2 || '', elongationDbData.sampleBefore3 || '', elongationDbData.sampleBefore4 || '', elongationDbData.sampleBefore5 || '',
-          elongationDbData.marginalBefore1 || '', elongationDbData.marginalBefore2 || '', elongationDbData.marginalBefore3 || '', elongationDbData.marginalBefore4 || '', elongationDbData.marginalBefore5 || '',
-          elongationDbData.marginalBefore6 || '', elongationDbData.marginalBefore7 || '', elongationDbData.marginalBefore8 || '', elongationDbData.marginalBefore9 || '', elongationDbData.marginalBefore10 || ''
-        ],
-        after: [
-          elongationDbData.sampleAfter1 || '', elongationDbData.sampleAfter2 || '', elongationDbData.sampleAfter3 || '', elongationDbData.sampleAfter4 || '', elongationDbData.sampleAfter5 || '',
-          elongationDbData.marginalAfter1 || '', elongationDbData.marginalAfter2 || '', elongationDbData.marginalAfter3 || '', elongationDbData.marginalAfter4 || '', elongationDbData.marginalAfter5 || '',
-          elongationDbData.marginalAfter6 || '', elongationDbData.marginalAfter7 || '', elongationDbData.marginalAfter8 || '', elongationDbData.marginalAfter9 || '', elongationDbData.marginalAfter10 || ''
-        ]
-      };
-    }
-    if (modulusDbData) {
-      basePhys.modulus = {
-        before: [
-          modulusDbData.sampleBefore1 || '', modulusDbData.sampleBefore2 || '', modulusDbData.sampleBefore3 || '',
-          modulusDbData.marginalBefore1 || '', modulusDbData.marginalBefore2 || '', modulusDbData.marginalBefore3 || '',
-          modulusDbData.marginalBefore4 || '', modulusDbData.marginalBefore5 || '', modulusDbData.marginalBefore6 || ''
-        ],
-        after: [
-          modulusDbData.sampleAfter1 || '', modulusDbData.sampleAfter2 || '', modulusDbData.sampleAfter3 || '',
-          modulusDbData.marginalAfter1 || '', modulusDbData.marginalAfter2 || '', modulusDbData.marginalAfter3 || '',
-          modulusDbData.marginalAfter4 || '', modulusDbData.marginalAfter5 || '', modulusDbData.marginalAfter6 || ''
-        ]
-      };
-    }
-    if (compressionDbData) {
-      basePhys.compression = {
-        initial: [
-          compressionDbData.sampleInitial1 || '', compressionDbData.sampleInitial2 || '', compressionDbData.sampleInitial3 || '',
-          compressionDbData.marginalInitial1 || '', compressionDbData.marginalInitial2 || '', compressionDbData.marginalInitial3 || '',
-          compressionDbData.marginalInitial4 || '', compressionDbData.marginalInitial5 || '', compressionDbData.marginalInitial6 || ''
-        ],
-        final: [
-          compressionDbData.sampleFinal1 || '', compressionDbData.sampleFinal2 || '', compressionDbData.sampleFinal3 || '',
-          compressionDbData.marginalFinal1 || '', compressionDbData.marginalFinal2 || '', compressionDbData.marginalFinal3 || '',
-          compressionDbData.marginalFinal4 || '', compressionDbData.marginalFinal5 || '', compressionDbData.marginalFinal6 || ''
-        ]
-      };
-    }
-    if (tensionDbData) {
-      basePhys.tension = {
-        initial: [
-          tensionDbData.sampleInitial1 || '', tensionDbData.sampleInitial2 || '', tensionDbData.sampleInitial3 || '',
-          tensionDbData.marginalInitial1 || '', tensionDbData.marginalInitial2 || '', tensionDbData.marginalInitial3 || '',
-          tensionDbData.marginalInitial4 || '', tensionDbData.marginalInitial5 || '', tensionDbData.marginalInitial6 || ''
-        ],
-        final: [
-          tensionDbData.sampleFinal1 || '', tensionDbData.sampleFinal2 || '', tensionDbData.sampleFinal3 || '',
-          tensionDbData.marginalFinal1 || '', tensionDbData.marginalFinal2 || '', tensionDbData.marginalFinal3 || '',
-          tensionDbData.marginalFinal4 || '', tensionDbData.marginalFinal5 || '', tensionDbData.marginalFinal6 || ''
-        ]
-      };
-    }
-    if (loadDbData) {
-      basePhys.loadTest = {
-        pad1: [
-          { left: loadDbData.pad1L1 || '', right: loadDbData.pad1R1 || '' },
-          { left: loadDbData.pad1L2 || '', right: loadDbData.pad1R2 || '' },
-          { left: loadDbData.pad1L3 || '', right: loadDbData.pad1R3 || '' },
-          { left: loadDbData.pad1L4 || '', right: loadDbData.pad1R4 || '' },
-          { left: loadDbData.pad1L5 || '', right: loadDbData.pad1R5 || '' },
-          { left: loadDbData.pad1L6 || '', right: loadDbData.pad1R6 || '' },
-          { left: loadDbData.pad1L7 || '', right: loadDbData.pad1R7 || '' },
-          { left: loadDbData.pad1L8 || '', right: loadDbData.pad1R8 || '' }
-        ],
-        pad2: [
-          { left: loadDbData.pad2L1 || '', right: loadDbData.pad2R1 || '' },
-          { left: loadDbData.pad2L2 || '', right: loadDbData.pad2R2 || '' },
-          { left: loadDbData.pad2L3 || '', right: loadDbData.pad2R3 || '' },
-          { left: loadDbData.pad2L4 || '', right: loadDbData.pad2R4 || '' },
-          { left: loadDbData.pad2L5 || '', right: loadDbData.pad2R5 || '' },
-          { left: loadDbData.pad2L6 || '', right: loadDbData.pad2R6 || '' },
-          { left: loadDbData.pad2L7 || '', right: loadDbData.pad2R7 || '' },
-          { left: loadDbData.pad2L8 || '', right: loadDbData.pad2R8 || '' }
-        ],        mPad1: [
-          { left: loadDbData.mpad1L1 || '', right: loadDbData.mpad1R1 || '' },
-          { left: loadDbData.mpad1L2 || '', right: loadDbData.mpad1R2 || '' },
-          { left: loadDbData.mpad1L3 || '', right: loadDbData.mpad1R3 || '' },
-          { left: loadDbData.mpad1L4 || '', right: loadDbData.mpad1R4 || '' },
-          { left: loadDbData.mpad1L5 || '', right: loadDbData.mpad1R5 || '' },
-          { left: loadDbData.mpad1L6 || '', right: loadDbData.mpad1R6 || '' },
-          { left: loadDbData.mpad1L7 || '', right: loadDbData.mpad1R7 || '' },
-          { left: loadDbData.mpad1L8 || '', right: loadDbData.mpad1R8 || '' }
-        ],
-        mPad2: [
-          { left: loadDbData.mpad2L1 || '', right: loadDbData.mpad2R1 || '' },
-          { left: loadDbData.mpad2L2 || '', right: loadDbData.mpad2R2 || '' },
-          { left: loadDbData.mpad2L3 || '', right: loadDbData.mpad2R3 || '' },
-          { left: loadDbData.mpad2L4 || '', right: loadDbData.mpad2R4 || '' },
-          { left: loadDbData.mpad2L5 || '', right: loadDbData.mpad2R5 || '' },
-          { left: loadDbData.mpad2L6 || '', right: loadDbData.mpad2R6 || '' },
-          { left: loadDbData.mpad2L7 || '', right: loadDbData.mpad2R7 || '' },
-          { left: loadDbData.mpad2L8 || '', right: loadDbData.mpad2R8 || '' }
-        ],
-        mPad3: [
-          { left: loadDbData.mpad3L1 || '', right: loadDbData.mpad3R1 || '' },
-          { left: loadDbData.mpad3L2 || '', right: loadDbData.mpad3R2 || '' },
-          { left: loadDbData.mpad3L3 || '', right: loadDbData.mpad3R3 || '' },
-          { left: loadDbData.mpad3L4 || '', right: loadDbData.mpad3R4 || '' },
-          { left: loadDbData.mpad3L5 || '', right: loadDbData.mpad3R5 || '' },
-          { left: loadDbData.mpad3L6 || '', right: loadDbData.mpad3R6 || '' },
-          { left: loadDbData.mpad3L7 || '', right: loadDbData.mpad3R7 || '' },
-          { left: loadDbData.mpad3L8 || '', right: loadDbData.mpad3R8 || '' }
-        ],
-        mPad4: [
-          { left: loadDbData.mpad4L1 || '', right: loadDbData.mpad4R1 || '' },
-          { left: loadDbData.mpad4L2 || '', right: loadDbData.mpad4R2 || '' },
-          { left: loadDbData.mpad4L3 || '', right: loadDbData.mpad4R3 || '' },
-          { left: loadDbData.mpad4L4 || '', right: loadDbData.mpad4R4 || '' },
-          { left: loadDbData.mpad4L5 || '', right: loadDbData.mpad4R5 || '' },
-          { left: loadDbData.mpad4L6 || '', right: loadDbData.mpad4R6 || '' },
-          { left: loadDbData.mpad4L7 || '', right: loadDbData.mpad4R7 || '' },
-          { left: loadDbData.mpad4L8 || '', right: loadDbData.mpad4R8 || '' }
-        ]
-      };
-    }
-    setPhysicalData(basePhys);
-    let baseElec = padElecData(null);
-    if (electricalDbData) {
-      baseElec.resistance = [
-        { bF: electricalDbData.s1BeforeForward || '', bR: electricalDbData.s1BeforeReverse || '', aF: electricalDbData.s1AfterForward || '', aR: electricalDbData.s1AfterReverse || '' },
-        { bF: electricalDbData.s2BeforeForward || '', bR: electricalDbData.s2BeforeReverse || '', aF: electricalDbData.s2AfterForward || '', aR: electricalDbData.s2AfterReverse || '' },
-        { bF: electricalDbData.s3BeforeForward || '', bR: electricalDbData.s3BeforeReverse || '', aF: electricalDbData.s3AfterForward || '', aR: electricalDbData.s3AfterReverse || '' },
-        { bF: electricalDbData.s4BeforeForward || '', bR: electricalDbData.s4BeforeReverse || '', aF: electricalDbData.s4AfterForward || '', aR: electricalDbData.s4AfterReverse || '' },
-        { bF: electricalDbData.s5BeforeForward || '', bR: electricalDbData.s5BeforeReverse || '', aF: electricalDbData.s5AfterForward || '', aR: electricalDbData.s5AfterReverse || '' },
-        { bF: electricalDbData.s6BeforeForward || '', bR: electricalDbData.s6BeforeReverse || '', aF: electricalDbData.s6AfterForward || '', aR: electricalDbData.s6AfterReverse || '' }
-      ];
-    }
-    if (sgDbData) {
-      baseElec.sg = {
-        compoundA: [
-          { air: sgDbData.s1AAir || '', water: sgDbData.s1AWater || '' },
-          { air: sgDbData.s2AAir || '', water: sgDbData.s2AWater || '' },
-          { air: sgDbData.s3AAir || '', water: sgDbData.s3AWater || '' },
-          { air: sgDbData.s4AAir || '', water: sgDbData.s4AWater || '' },
-          { air: sgDbData.s5AAir || '', water: sgDbData.s5AWater || '' },
-          { air: sgDbData.s6AAir || '', water: sgDbData.s6AWater || '' }
-        ],
-        compoundB: [
-          { air: sgDbData.s1BAir || '', water: sgDbData.s1BWater || '' },
-          { air: sgDbData.s2BAir || '', water: sgDbData.s2BWater || '' },
-          { air: sgDbData.s3BAir || '', water: sgDbData.s3BWater || '' },
-          { air: sgDbData.s4BAir || '', water: sgDbData.s4BWater || '' },
-          { air: sgDbData.s5BAir || '', water: sgDbData.s5BWater || '' },
-          { air: sgDbData.s6BAir || '', water: sgDbData.s6BWater || '' }
-        ]
-      };
-    }
-    if (ashDbData) {
-      baseElec.ash = {
-        compoundA: [
-          { crucible: ashDbData.s1ACrucible || '', sample: ashDbData.s1ASample || '', ash: ashDbData.s1AAsh || '' },
-          { crucible: ashDbData.s2ACrucible || '', sample: ashDbData.s2ASample || '', ash: ashDbData.s2AAsh || '' },
-          { crucible: ashDbData.s3ACrucible || '', sample: ashDbData.s3ASample || '', ash: ashDbData.s3AAsh || '' },
-          { crucible: ashDbData.m1ACrucible || '', sample: ashDbData.m1ASample || '', ash: ashDbData.m1AAsh || '' },
-          { crucible: ashDbData.m2ACrucible || '', sample: ashDbData.m2ASample || '', ash: ashDbData.m2AAsh || '' },
-          { crucible: ashDbData.m3ACrucible || '', sample: ashDbData.m3ASample || '', ash: ashDbData.m3AAsh || '' },
-          { crucible: ashDbData.m4ACrucible || '', sample: ashDbData.m4ASample || '', ash: ashDbData.m4AAsh || '' },
-          { crucible: ashDbData.m5ACrucible || '', sample: ashDbData.m5ASample || '', ash: ashDbData.m5AAsh || '' },
-          { crucible: ashDbData.m6ACrucible || '', sample: ashDbData.m6ASample || '', ash: ashDbData.m6AAsh || '' }
-        ],
-        compoundB: [
-          { crucible: ashDbData.s1BCrucible || '', sample: ashDbData.s1BSample || '', ash: ashDbData.s1BAsh || '' },
-          { crucible: ashDbData.s2BCrucible || '', sample: ashDbData.s2BSample || '', ash: ashDbData.s2BAsh || '' },
-          { crucible: ashDbData.s3BCrucible || '', sample: ashDbData.s3BSample || '', ash: ashDbData.s3BAsh || '' },
-          { crucible: ashDbData.m1BCrucible || '', sample: ashDbData.m1BSample || '', ash: ashDbData.m1BAsh || '' },
-          { crucible: ashDbData.m2BCrucible || '', sample: ashDbData.m2BSample || '', ash: ashDbData.m2BAsh || '' },
-          { crucible: ashDbData.m3BCrucible || '', sample: ashDbData.m3BSample || '', ash: ashDbData.m3BAsh || '' },
-          { crucible: ashDbData.m4BCrucible || '', sample: ashDbData.m4BSample || '', ash: ashDbData.m4BAsh || '' },
-          { crucible: ashDbData.m5BCrucible || '', sample: ashDbData.m5BSample || '', ash: ashDbData.m5BAsh || '' },
-          { crucible: ashDbData.m6BCrucible || '', sample: ashDbData.m6BSample || '', ash: ashDbData.m6BAsh || '' }
-        ]
-      };
-    }
-    setElecData(baseElec);
-
-    let baseSpec = padSpecData(null);
-    if (adhesionDbData) {
-      baseSpec.adhesion = [
-        adhesionDbData.sample1 || '', adhesionDbData.sample2 || '',
-        adhesionDbData.marginal1 || '', adhesionDbData.marginal2 || '', adhesionDbData.marginal3 || '', adhesionDbData.marginal4 || ''
-      ];
-    }
-    if (secantDbData) {
-      baseSpec.secant = [
-        {
-          s20: { a: secantDbData.s1S20A || '', b: secantDbData.s1S20B || '', c: secantDbData.s1S20C || '', d: secantDbData.s1S20D || '' },
-          s90: { a: secantDbData.s1S90A || '', b: secantDbData.s1S90B || '', c: secantDbData.s1S90C || '', d: secantDbData.s1S90D || '' }
-        },
-        {
-          s20: { a: secantDbData.s2S20A || '', b: secantDbData.s2S20B || '', c: secantDbData.s2S20C || '', d: secantDbData.s2S20D || '' },
-          s90: { a: secantDbData.s2S90A || '', b: secantDbData.s2S90B || '', c: secantDbData.s2S90C || '', d: secantDbData.s2S90D || '' }
-        },
-        {
-          s20: { a: secantDbData.m1S20A || '', b: secantDbData.m1S20B || '', c: secantDbData.m1S20C || '', d: secantDbData.m1S20D || '' },
-          s90: { a: secantDbData.m1S90A || '', b: secantDbData.m1S90B || '', c: secantDbData.m1S90C || '', d: secantDbData.m1S90D || '' }
-        },
-        {
-          s20: { a: secantDbData.m2S20A || '', b: secantDbData.m2S20B || '', c: secantDbData.m2S20C || '', d: secantDbData.m2S20D || '' },
-          s90: { a: secantDbData.m2S90A || '', b: secantDbData.m2S90B || '', c: secantDbData.m2S90C || '', d: secantDbData.m2S90D || '' }
-        },
-        {
-          s20: { a: secantDbData.m3S20A || '', b: secantDbData.m3S20B || '', c: secantDbData.m3S20C || '', d: secantDbData.m3S20D || '' },
-          s90: { a: secantDbData.m3S90A || '', b: secantDbData.m3S90B || '', c: secantDbData.m3S90C || '', d: secantDbData.m3S90D || '' }
-        },
-        {
-          s20: { a: secantDbData.m4S20A || '', b: secantDbData.m4S20B || '', c: secantDbData.m4S20C || '', d: secantDbData.m4S20D || '' },
-          s90: { a: secantDbData.m4S90A || '', b: secantDbData.m4S90B || '', c: secantDbData.m4S90C || '', d: secantDbData.m4S90D || '' }
+      if (currentLotResult) {
+        finalRemarks = currentLotResult.remarks || '';
+        finalSpecType = currentLotResult.railpadType || 'CGRSP';
+        const dbHologram = currentLotResult.hologram;
+        if (dbHologram) {
+          finalSealingType = 'RITES_HOLOGRAM';
+          finalHologramEntries = dbHologram.split(',').map((part, idx) => {
+            if (part.includes('-')) {
+              const rangeParts = part.split('-');
+              return {
+                id: Date.now() + idx,
+                type: 'range',
+                from: rangeParts[0] || '',
+                to: rangeParts[1] || ''
+              };
+            } else {
+              return {
+                id: Date.now() + idx,
+                type: 'single',
+                value: part || ''
+              };
+            }
+          });
+        } else {
+          finalSealingType = '';
         }
-      ];
-    }
-    if (ncrAdhesionDbData) {
-      baseSpec.ncrgrsp = baseSpec.ncrgrsp || {};
-      baseSpec.ncrgrsp.adhesion = [
-        { peel: ncrAdhesionDbData.s1Peel || '', hpull: ncrAdhesionDbData.s1Hpull || '' },
-        { peel: ncrAdhesionDbData.s2Peel || '', hpull: ncrAdhesionDbData.s2Hpull || '' },
-        { peel: ncrAdhesionDbData.m1Peel || '', hpull: ncrAdhesionDbData.m1Hpull || '' },
-        { peel: ncrAdhesionDbData.m2Peel || '', hpull: ncrAdhesionDbData.m2Hpull || '' },
-        { peel: ncrAdhesionDbData.m3Peel || '', hpull: ncrAdhesionDbData.m3Hpull || '' },
-        { peel: ncrAdhesionDbData.m4Peel || '', hpull: ncrAdhesionDbData.m4Hpull || '' }
-      ];
-    }
-    if (ncrBreakingDbData) {
-      baseSpec.ncrgrsp = baseSpec.ncrgrsp || {};
-      baseSpec.ncrgrsp.breaking = [
-        ncrBreakingDbData.sample1 || '', ncrBreakingDbData.sample2 || '', ncrBreakingDbData.sample3 || '', ncrBreakingDbData.sample4 || '', ncrBreakingDbData.sample5 || '',
-        ncrBreakingDbData.marginal1 || '', ncrBreakingDbData.marginal2 || '', ncrBreakingDbData.marginal3 || '', ncrBreakingDbData.marginal4 || '', ncrBreakingDbData.marginal5 || '',
-        ncrBreakingDbData.marginal6 || '', ncrBreakingDbData.marginal7 || '', ncrBreakingDbData.marginal8 || '', ncrBreakingDbData.marginal9 || '', ncrBreakingDbData.marginal10 || ''
-      ];
-    }
-    if (ncrCordDbData) {
-      baseSpec.ncrgrsp = baseSpec.ncrgrsp || {};
-      baseSpec.ncrgrsp.nylonCord = [
-        { denier: ncrCordDbData.s1Denier || '', epi: ncrCordDbData.s1Epi || '', thickness: ncrCordDbData.s1Thickness || '', loadAtBreak: ncrCordDbData.s1LoadAtBreak || '', elongation: ncrCordDbData.s1Elongation || '', twists: ncrCordDbData.s1Twists || '' },
-        { denier: ncrCordDbData.s2Denier || '', epi: ncrCordDbData.s2Epi || '', thickness: ncrCordDbData.s2Thickness || '', loadAtBreak: ncrCordDbData.s2LoadAtBreak || '', elongation: ncrCordDbData.s2Elongation || '', twists: ncrCordDbData.s2Twists || '' },
-        { denier: ncrCordDbData.s3Denier || '', epi: ncrCordDbData.s3Epi || '', thickness: ncrCordDbData.s3Thickness || '', loadAtBreak: ncrCordDbData.s3LoadAtBreak || '', elongation: ncrCordDbData.s3Elongation || '', twists: ncrCordDbData.s3Twists || '' },
-        { denier: ncrCordDbData.m1Denier || '', epi: ncrCordDbData.m1Epi || '', thickness: ncrCordDbData.m1Thickness || '', loadAtBreak: ncrCordDbData.m1LoadAtBreak || '', elongation: ncrCordDbData.m1Elongation || '', twists: ncrCordDbData.m1Twists || '' },
-        { denier: ncrCordDbData.m2Denier || '', epi: ncrCordDbData.m2Epi || '', thickness: ncrCordDbData.m2Thickness || '', loadAtBreak: ncrCordDbData.m2LoadAtBreak || '', elongation: ncrCordDbData.m2Elongation || '', twists: ncrCordDbData.m2Twists || '' },
-        { denier: ncrCordDbData.m3Denier || '', epi: ncrCordDbData.m3Epi || '', thickness: ncrCordDbData.m3Thickness || '', loadAtBreak: ncrCordDbData.m3LoadAtBreak || '', elongation: ncrCordDbData.m3Elongation || '', twists: ncrCordDbData.m3Twists || '' },
-        { denier: ncrCordDbData.m4Denier || '', epi: ncrCordDbData.m4Epi || '', thickness: ncrCordDbData.m4Thickness || '', loadAtBreak: ncrCordDbData.m4LoadAtBreak || '', elongation: ncrCordDbData.m4Elongation || '', twists: ncrCordDbData.m4Twists || '' },
-        { denier: ncrCordDbData.m5Denier || '', epi: ncrCordDbData.m5Epi || '', thickness: ncrCordDbData.m5Thickness || '', loadAtBreak: ncrCordDbData.m5LoadAtBreak || '', elongation: ncrCordDbData.m5Elongation || '', twists: ncrCordDbData.m5Twists || '' },
-        { denier: ncrCordDbData.m6Denier || '', epi: ncrCordDbData.m6Epi || '', thickness: ncrCordDbData.m6Thickness || '', loadAtBreak: ncrCordDbData.m6LoadAtBreak || '', elongation: ncrCordDbData.m6Elongation || '', twists: ncrCordDbData.m6Twists || '' }
-      ];
-    }
-    setSpecData(baseSpec);
-    setRemarks(finalRemarks);
-    setSealingType(finalSealingType);
-    setSteelStampNumber(finalSteelStampNumber);
-    setHologramEntries(finalHologramEntries);
-    setSpecType(finalSpecType);
-    setReTestActive(finalReTestActive);
-    setReOfferActive(finalReOfferActive);
+      }
 
-    // Explicitly persist the freshly fetched database data as initial draft
-    const initialDraftData = {
-      activeTab: 'visual',
-      visualData: baseVisual,
-      weightData: baseWeight,
-      physicalData: basePhys,
-      elecData: baseElec,
-      specData: baseSpec,
-      specType: finalSpecType,
-      reTestActive: finalReTestActive,
-      reOfferActive: finalReOfferActive,
-      remarks: finalRemarks,
-      sealingType: finalSealingType,
-      steelStampNumber: finalSteelStampNumber,
-      hologramEntries: finalHologramEntries,
-      dbDimensionalStatus: finalDbDimensionalStatus
-    };
-    localStorage.setItem(draftKey, JSON.stringify(initialDraftData));
+      let finalDbDimensionalStatus = visualDbData ? (visualDbData.dimensionalResult || null) : null;
+      setDbDimensionalStatus(finalDbDimensionalStatus);
+      // Track the original not-ok count from DB so we know if the user has changed it
+      let finalDbDimensionalNotOk = visualDbData && visualDbData.dimensionalNotOk !== null && visualDbData.dimensionalNotOk !== undefined
+        ? String(visualDbData.dimensionalNotOk)
+        : null;
+      setDbDimensionalNotOk(finalDbDimensionalNotOk);
 
-    // Set the loaded lot ref so we know loading is complete!
-    setLoadedLot(lotId);
-    setLoading(false);
+      let baseVisual;
+      if (visualDbData) {
+        baseVisual = {
+          visualN: visualDbData.visualSamples || 25,
+          dv: visualDbData.visualNotOk !== null && visualDbData.visualNotOk !== undefined ? String(visualDbData.visualNotOk) : '',
+          visualReason: visualDbData.visualReason || '',
+          dimN: visualDbData.dimensionalSamples || 25,
+          dd: visualDbData.dimensionalNotOk !== null && visualDbData.dimensionalNotOk !== undefined ? String(visualDbData.dimensionalNotOk) : '',
+          dimReason: visualDbData.dimensionalReason || ''
+        };
+      } else {
+        baseVisual = {
+          dv: '',
+          dd: '',
+          visualReason: '',
+          dimReason: '',
+          visualN: 25,
+          dimN: 25
+        };
+      }
+      setVisualData(baseVisual);
+
+      const lot = lots.find(l => l.id === lotId) || { size: 1500, drawingNo: 'RDSO/T-8528' };
+      const aql = getWeightAQL(lot.size);
+      const tolerance = WEIGHT_TOLERANCE[lot.drawingNo] || { max: 445 };
+
+      let baseWeight;
+      if (weightDbData) {
+        const s1 = Array(weightDbData.n1 || aql.n1).fill('');
+        const s2 = Array(weightDbData.n2 || aql.n2).fill('');
+        if (weightDbData.samples) {
+          weightDbData.samples.forEach(s => {
+            if (s.samplingNo === 1 && s.sampleNo >= 1 && s.sampleNo <= s1.length) {
+              s1[s.sampleNo - 1] = s.sampleValue !== null && s.sampleValue !== undefined ? String(s.sampleValue) : '';
+            } else if (s.samplingNo === 2 && s.sampleNo >= 1 && s.sampleNo <= s2.length) {
+              s2[s.sampleNo - 1] = s.sampleValue !== null && s.sampleValue !== undefined ? String(s.sampleValue) : '';
+            }
+          });
+        }
+        baseWeight = {
+          samples1: s1,
+          samples2: s2,
+          n1: weightDbData.n1 || aql.n1,
+          ac1: weightDbData.ac1 !== null && weightDbData.ac1 !== undefined ? weightDbData.ac1 : aql.ac1,
+          re1: weightDbData.re1 !== null && weightDbData.re1 !== undefined ? weightDbData.re1 : aql.re1,
+          n2: weightDbData.n2 || aql.n2,
+          ac2: weightDbData.ac2 !== null && weightDbData.ac2 !== undefined ? weightDbData.ac2 : aql.ac2,
+          re2: weightDbData.re2 !== null && weightDbData.re2 !== undefined ? weightDbData.re2 : aql.re2,
+          min: weightDbData.minWeight !== null && weightDbData.minWeight !== undefined ? weightDbData.minWeight : 0,
+          max: weightDbData.maxWeight !== null && weightDbData.maxWeight !== undefined ? weightDbData.maxWeight : tolerance.max,
+          isSecondActive: weightDbData.isSecondActive || false
+        };
+      } else {
+        baseWeight = {
+          samples1: Array(aql.n1).fill(''),
+          samples2: Array(aql.n2).fill(''),
+          n1: aql.n1,
+          ac1: aql.ac1,
+          re1: aql.re1,
+          n2: aql.n2,
+          ac2: aql.ac2,
+          re2: aql.re2,
+          min: 0,
+          max: tolerance.max,
+          isSecondActive: false
+        };
+      }
+      setWeightData(baseWeight);
+
+      let basePhys = padPhysicalData(null);
+      if (hardnessDbData) {
+        basePhys.hardness = {
+          compoundA: [
+            hardnessDbData.sampleA1 || '', hardnessDbData.sampleA2 || '', hardnessDbData.sampleA3 || '', hardnessDbData.sampleA4 || '', hardnessDbData.sampleA5 || '',
+            hardnessDbData.marginalA1 || '', hardnessDbData.marginalA2 || '', hardnessDbData.marginalA3 || '', hardnessDbData.marginalA4 || '', hardnessDbData.marginalA5 || '',
+            hardnessDbData.marginalA6 || '', hardnessDbData.marginalA7 || '', hardnessDbData.marginalA8 || '', hardnessDbData.marginalA9 || '', hardnessDbData.marginalA10 || ''
+          ],
+          compoundB: [
+            hardnessDbData.sampleB1 || '', hardnessDbData.sampleB2 || '', hardnessDbData.sampleB3 || '', hardnessDbData.sampleB4 || '', hardnessDbData.sampleB5 || '',
+            hardnessDbData.marginalB1 || '', hardnessDbData.marginalB2 || '', hardnessDbData.marginalB3 || '', hardnessDbData.marginalB4 || '', hardnessDbData.marginalB5 || '',
+            hardnessDbData.marginalB6 || '', hardnessDbData.marginalB7 || '', hardnessDbData.marginalB8 || '', hardnessDbData.marginalB9 || '', hardnessDbData.marginalB10 || ''
+          ]
+        };
+      }
+      if (tensileDbData) {
+        basePhys.tensile = {
+          before: [
+            tensileDbData.sampleBefore1 || '', tensileDbData.sampleBefore2 || '', tensileDbData.sampleBefore3 || '', tensileDbData.sampleBefore4 || '', tensileDbData.sampleBefore5 || '',
+            tensileDbData.marginalBefore1 || '', tensileDbData.marginalBefore2 || '', tensileDbData.marginalBefore3 || '', tensileDbData.marginalBefore4 || '', tensileDbData.marginalBefore5 || '',
+            tensileDbData.marginalBefore6 || '', tensileDbData.marginalBefore7 || '', tensileDbData.marginalBefore8 || '', tensileDbData.marginalBefore9 || '', tensileDbData.marginalBefore10 || ''
+          ],
+          after: [
+            tensileDbData.sampleAfter1 || '', tensileDbData.sampleAfter2 || '', tensileDbData.sampleAfter3 || '', tensileDbData.sampleAfter4 || '', tensileDbData.sampleAfter5 || '',
+            tensileDbData.marginalAfter1 || '', tensileDbData.marginalAfter2 || '', tensileDbData.marginalAfter3 || '', tensileDbData.marginalAfter4 || '', tensileDbData.marginalAfter5 || '',
+            tensileDbData.marginalAfter6 || '', tensileDbData.marginalAfter7 || '', tensileDbData.marginalAfter8 || '', tensileDbData.marginalAfter9 || '', tensileDbData.marginalAfter10 || ''
+          ]
+        };
+      }
+      if (elongationDbData) {
+        basePhys.elongation = {
+          before: [
+            elongationDbData.sampleBefore1 || '', elongationDbData.sampleBefore2 || '', elongationDbData.sampleBefore3 || '', elongationDbData.sampleBefore4 || '', elongationDbData.sampleBefore5 || '',
+            elongationDbData.marginalBefore1 || '', elongationDbData.marginalBefore2 || '', elongationDbData.marginalBefore3 || '', elongationDbData.marginalBefore4 || '', elongationDbData.marginalBefore5 || '',
+            elongationDbData.marginalBefore6 || '', elongationDbData.marginalBefore7 || '', elongationDbData.marginalBefore8 || '', elongationDbData.marginalBefore9 || '', elongationDbData.marginalBefore10 || ''
+          ],
+          after: [
+            elongationDbData.sampleAfter1 || '', elongationDbData.sampleAfter2 || '', elongationDbData.sampleAfter3 || '', elongationDbData.sampleAfter4 || '', elongationDbData.sampleAfter5 || '',
+            elongationDbData.marginalAfter1 || '', elongationDbData.marginalAfter2 || '', elongationDbData.marginalAfter3 || '', elongationDbData.marginalAfter4 || '', elongationDbData.marginalAfter5 || '',
+            elongationDbData.marginalAfter6 || '', elongationDbData.marginalAfter7 || '', elongationDbData.marginalAfter8 || '', elongationDbData.marginalAfter9 || '', elongationDbData.marginalAfter10 || ''
+          ]
+        };
+      }
+      if (modulusDbData) {
+        basePhys.modulus = {
+          before: [
+            modulusDbData.sampleBefore1 || '', modulusDbData.sampleBefore2 || '', modulusDbData.sampleBefore3 || '',
+            modulusDbData.marginalBefore1 || '', modulusDbData.marginalBefore2 || '', modulusDbData.marginalBefore3 || '',
+            modulusDbData.marginalBefore4 || '', modulusDbData.marginalBefore5 || '', modulusDbData.marginalBefore6 || ''
+          ],
+          after: [
+            modulusDbData.sampleAfter1 || '', modulusDbData.sampleAfter2 || '', modulusDbData.sampleAfter3 || '',
+            modulusDbData.marginalAfter1 || '', modulusDbData.marginalAfter2 || '', modulusDbData.marginalAfter3 || '',
+            modulusDbData.marginalAfter4 || '', modulusDbData.marginalAfter5 || '', modulusDbData.marginalAfter6 || ''
+          ]
+        };
+      }
+      if (compressionDbData) {
+        basePhys.compression = {
+          initial: [
+            compressionDbData.sampleInitial1 || '', compressionDbData.sampleInitial2 || '', compressionDbData.sampleInitial3 || '',
+            compressionDbData.marginalInitial1 || '', compressionDbData.marginalInitial2 || '', compressionDbData.marginalInitial3 || '',
+            compressionDbData.marginalInitial4 || '', compressionDbData.marginalInitial5 || '', compressionDbData.marginalInitial6 || ''
+          ],
+          final: [
+            compressionDbData.sampleFinal1 || '', compressionDbData.sampleFinal2 || '', compressionDbData.sampleFinal3 || '',
+            compressionDbData.marginalFinal1 || '', compressionDbData.marginalFinal2 || '', compressionDbData.marginalFinal3 || '',
+            compressionDbData.marginalFinal4 || '', compressionDbData.marginalFinal5 || '', compressionDbData.marginalFinal6 || ''
+          ]
+        };
+      }
+      if (tensionDbData) {
+        basePhys.tension = {
+          initial: [
+            tensionDbData.sampleInitial1 || '', tensionDbData.sampleInitial2 || '', tensionDbData.sampleInitial3 || '',
+            tensionDbData.marginalInitial1 || '', tensionDbData.marginalInitial2 || '', tensionDbData.marginalInitial3 || '',
+            tensionDbData.marginalInitial4 || '', tensionDbData.marginalInitial5 || '', tensionDbData.marginalInitial6 || ''
+          ],
+          final: [
+            tensionDbData.sampleFinal1 || '', tensionDbData.sampleFinal2 || '', tensionDbData.sampleFinal3 || '',
+            tensionDbData.marginalFinal1 || '', tensionDbData.marginalFinal2 || '', tensionDbData.marginalFinal3 || '',
+            tensionDbData.marginalFinal4 || '', tensionDbData.marginalFinal5 || '', tensionDbData.marginalFinal6 || ''
+          ]
+        };
+      }
+      if (loadDbData) {
+        basePhys.loadTest = {
+          pad1: [
+            { left: loadDbData.pad1L1 || '', right: loadDbData.pad1R1 || '' },
+            { left: loadDbData.pad1L2 || '', right: loadDbData.pad1R2 || '' },
+            { left: loadDbData.pad1L3 || '', right: loadDbData.pad1R3 || '' },
+            { left: loadDbData.pad1L4 || '', right: loadDbData.pad1R4 || '' },
+            { left: loadDbData.pad1L5 || '', right: loadDbData.pad1R5 || '' },
+            { left: loadDbData.pad1L6 || '', right: loadDbData.pad1R6 || '' },
+            { left: loadDbData.pad1L7 || '', right: loadDbData.pad1R7 || '' },
+            { left: loadDbData.pad1L8 || '', right: loadDbData.pad1R8 || '' }
+          ],
+          pad2: [
+            { left: loadDbData.pad2L1 || '', right: loadDbData.pad2R1 || '' },
+            { left: loadDbData.pad2L2 || '', right: loadDbData.pad2R2 || '' },
+            { left: loadDbData.pad2L3 || '', right: loadDbData.pad2R3 || '' },
+            { left: loadDbData.pad2L4 || '', right: loadDbData.pad2R4 || '' },
+            { left: loadDbData.pad2L5 || '', right: loadDbData.pad2R5 || '' },
+            { left: loadDbData.pad2L6 || '', right: loadDbData.pad2R6 || '' },
+            { left: loadDbData.pad2L7 || '', right: loadDbData.pad2R7 || '' },
+            { left: loadDbData.pad2L8 || '', right: loadDbData.pad2R8 || '' }
+          ],        mPad1: [
+            { left: loadDbData.mpad1L1 || '', right: loadDbData.mpad1R1 || '' },
+            { left: loadDbData.mpad1L2 || '', right: loadDbData.mpad1R2 || '' },
+            { left: loadDbData.mpad1L3 || '', right: loadDbData.mpad1R3 || '' },
+            { left: loadDbData.mpad1L4 || '', right: loadDbData.mpad1R4 || '' },
+            { left: loadDbData.mpad1L5 || '', right: loadDbData.mpad1R5 || '' },
+            { left: loadDbData.mpad1L6 || '', right: loadDbData.mpad1R6 || '' },
+            { left: loadDbData.mpad1L7 || '', right: loadDbData.mpad1R7 || '' },
+            { left: loadDbData.mpad1L8 || '', right: loadDbData.mpad1R8 || '' }
+          ],
+          mPad2: [
+            { left: loadDbData.mpad2L1 || '', right: loadDbData.mpad2R1 || '' },
+            { left: loadDbData.mpad2L2 || '', right: loadDbData.mpad2R2 || '' },
+            { left: loadDbData.mpad2L3 || '', right: loadDbData.mpad2R3 || '' },
+            { left: loadDbData.mpad2L4 || '', right: loadDbData.mpad2R4 || '' },
+            { left: loadDbData.mpad2L5 || '', right: loadDbData.mpad2R5 || '' },
+            { left: loadDbData.mpad2L6 || '', right: loadDbData.mpad2R6 || '' },
+            { left: loadDbData.mpad2L7 || '', right: loadDbData.mpad2R7 || '' },
+            { left: loadDbData.mpad2L8 || '', right: loadDbData.mpad2R8 || '' }
+          ],
+          mPad3: [
+            { left: loadDbData.mpad3L1 || '', right: loadDbData.mpad3R1 || '' },
+            { left: loadDbData.mpad3L2 || '', right: loadDbData.mpad3R2 || '' },
+            { left: loadDbData.mpad3L3 || '', right: loadDbData.mpad3R3 || '' },
+            { left: loadDbData.mpad3L4 || '', right: loadDbData.mpad3R4 || '' },
+            { left: loadDbData.mpad3L5 || '', right: loadDbData.mpad3R5 || '' },
+            { left: loadDbData.mpad3L6 || '', right: loadDbData.mpad3R6 || '' },
+            { left: loadDbData.mpad3L7 || '', right: loadDbData.mpad3R7 || '' },
+            { left: loadDbData.mpad3L8 || '', right: loadDbData.mpad3R8 || '' }
+          ],
+          mPad4: [
+            { left: loadDbData.mpad4L1 || '', right: loadDbData.mpad4R1 || '' },
+            { left: loadDbData.mpad4L2 || '', right: loadDbData.mpad4R2 || '' },
+            { left: loadDbData.mpad4L3 || '', right: loadDbData.mpad4R3 || '' },
+            { left: loadDbData.mpad4L4 || '', right: loadDbData.mpad4R4 || '' },
+            { left: loadDbData.mpad4L5 || '', right: loadDbData.mpad4R5 || '' },
+            { left: loadDbData.mpad4L6 || '', right: loadDbData.mpad4R6 || '' },
+            { left: loadDbData.mpad4L7 || '', right: loadDbData.mpad4R7 || '' },
+            { left: loadDbData.mpad4L8 || '', right: loadDbData.mpad4R8 || '' }
+          ]
+        };
+      }
+      setPhysicalData(basePhys);
+      let baseElec = padElecData(null);
+      if (electricalDbData) {
+        baseElec.resistance = [
+          { bF: electricalDbData.s1BeforeForward || '', bR: electricalDbData.s1BeforeReverse || '', aF: electricalDbData.s1AfterForward || '', aR: electricalDbData.s1AfterReverse || '' },
+          { bF: electricalDbData.s2BeforeForward || '', bR: electricalDbData.s2BeforeReverse || '', aF: electricalDbData.s2AfterForward || '', aR: electricalDbData.s2AfterReverse || '' },
+          { bF: electricalDbData.s3BeforeForward || '', bR: electricalDbData.s3BeforeReverse || '', aF: electricalDbData.s3AfterForward || '', aR: electricalDbData.s3AfterReverse || '' },
+          { bF: electricalDbData.s4BeforeForward || '', bR: electricalDbData.s4BeforeReverse || '', aF: electricalDbData.s4AfterForward || '', aR: electricalDbData.s4AfterReverse || '' },
+          { bF: electricalDbData.s5BeforeForward || '', bR: electricalDbData.s5BeforeReverse || '', aF: electricalDbData.s5AfterForward || '', aR: electricalDbData.s5AfterReverse || '' },
+          { bF: electricalDbData.s6BeforeForward || '', bR: electricalDbData.s6BeforeReverse || '', aF: electricalDbData.s6AfterForward || '', aR: electricalDbData.s6AfterReverse || '' }
+        ];
+      }
+      if (sgDbData) {
+        baseElec.sg = {
+          compoundA: [
+            { air: sgDbData.s1AAir || '', water: sgDbData.s1AWater || '' },
+            { air: sgDbData.s2AAir || '', water: sgDbData.s2AWater || '' },
+            { air: sgDbData.s3AAir || '', water: sgDbData.s3AWater || '' },
+            { air: sgDbData.s4AAir || '', water: sgDbData.s4AWater || '' },
+            { air: sgDbData.s5AAir || '', water: sgDbData.s5AWater || '' },
+            { air: sgDbData.s6AAir || '', water: sgDbData.s6AWater || '' }
+          ],
+          compoundB: [
+            { air: sgDbData.s1BAir || '', water: sgDbData.s1BWater || '' },
+            { air: sgDbData.s2BAir || '', water: sgDbData.s2BWater || '' },
+            { air: sgDbData.s3BAir || '', water: sgDbData.s3BWater || '' },
+            { air: sgDbData.s4BAir || '', water: sgDbData.s4BWater || '' },
+            { air: sgDbData.s5BAir || '', water: sgDbData.s5BWater || '' },
+            { air: sgDbData.s6BAir || '', water: sgDbData.s6BWater || '' }
+          ]
+        };
+      }
+      if (ashDbData) {
+        baseElec.ash = {
+          compoundA: [
+            { crucible: ashDbData.s1ACrucible || '', sample: ashDbData.s1ASample || '', ash: ashDbData.s1AAsh || '' },
+            { crucible: ashDbData.s2ACrucible || '', sample: ashDbData.s2ASample || '', ash: ashDbData.s2AAsh || '' },
+            { crucible: ashDbData.s3ACrucible || '', sample: ashDbData.s3ASample || '', ash: ashDbData.s3AAsh || '' },
+            { crucible: ashDbData.m1ACrucible || '', sample: ashDbData.m1ASample || '', ash: ashDbData.m1AAsh || '' },
+            { crucible: ashDbData.m2ACrucible || '', sample: ashDbData.m2ASample || '', ash: ashDbData.m2AAsh || '' },
+            { crucible: ashDbData.m3ACrucible || '', sample: ashDbData.m3ASample || '', ash: ashDbData.m3AAsh || '' },
+            { crucible: ashDbData.m4ACrucible || '', sample: ashDbData.m4ASample || '', ash: ashDbData.m4AAsh || '' },
+            { crucible: ashDbData.m5ACrucible || '', sample: ashDbData.m5ASample || '', ash: ashDbData.m5AAsh || '' },
+            { crucible: ashDbData.m6ACrucible || '', sample: ashDbData.m6ASample || '', ash: ashDbData.m6AAsh || '' }
+          ],
+          compoundB: [
+            { crucible: ashDbData.s1BCrucible || '', sample: ashDbData.s1BSample || '', ash: ashDbData.s1BAsh || '' },
+            { crucible: ashDbData.s2BCrucible || '', sample: ashDbData.s2BSample || '', ash: ashDbData.s2BAsh || '' },
+            { crucible: ashDbData.s3BCrucible || '', sample: ashDbData.s3BSample || '', ash: ashDbData.s3BAsh || '' },
+            { crucible: ashDbData.m1BCrucible || '', sample: ashDbData.m1BSample || '', ash: ashDbData.m1BAsh || '' },
+            { crucible: ashDbData.m2BCrucible || '', sample: ashDbData.m2BSample || '', ash: ashDbData.m2BAsh || '' },
+            { crucible: ashDbData.m3BCrucible || '', sample: ashDbData.m3BSample || '', ash: ashDbData.m3BAsh || '' },
+            { crucible: ashDbData.m4BCrucible || '', sample: ashDbData.m4BSample || '', ash: ashDbData.m4BAsh || '' },
+            { crucible: ashDbData.m5BCrucible || '', sample: ashDbData.m5BSample || '', ash: ashDbData.m5BAsh || '' },
+            { crucible: ashDbData.m6BCrucible || '', sample: ashDbData.m6BSample || '', ash: ashDbData.m6BAsh || '' }
+          ]
+        };
+      }
+      setElecData(baseElec);
+
+      let baseSpec = padSpecData(null);
+      if (adhesionDbData) {
+        baseSpec.adhesion = [
+          adhesionDbData.sample1 || '', adhesionDbData.sample2 || '',
+          adhesionDbData.marginal1 || '', adhesionDbData.marginal2 || '', adhesionDbData.marginal3 || '', adhesionDbData.marginal4 || ''
+        ];
+      }
+      if (secantDbData) {
+        baseSpec.secant = [
+          {
+            s20: { a: secantDbData.s1S20A || '', b: secantDbData.s1S20B || '', c: secantDbData.s1S20C || '', d: secantDbData.s1S20D || '' },
+            s90: { a: secantDbData.s1S90A || '', b: secantDbData.s1S90B || '', c: secantDbData.s1S90C || '', d: secantDbData.s1S90D || '' }
+          },
+          {
+            s20: { a: secantDbData.s2S20A || '', b: secantDbData.s2S20B || '', c: secantDbData.s2S20C || '', d: secantDbData.s2S20D || '' },
+            s90: { a: secantDbData.s2S90A || '', b: secantDbData.s2S90B || '', c: secantDbData.s2S90C || '', d: secantDbData.s2S90D || '' }
+          },
+          {
+            s20: { a: secantDbData.m1S20A || '', b: secantDbData.m1S20B || '', c: secantDbData.m1S20C || '', d: secantDbData.m1S20D || '' },
+            s90: { a: secantDbData.m1S90A || '', b: secantDbData.m1S90B || '', c: secantDbData.m1S90C || '', d: secantDbData.m1S90D || '' }
+          },
+          {
+            s20: { a: secantDbData.m2S20A || '', b: secantDbData.m2S20B || '', c: secantDbData.m2S20C || '', d: secantDbData.m2S20D || '' },
+            s90: { a: secantDbData.m2S90A || '', b: secantDbData.m2S90B || '', c: secantDbData.m2S90C || '', d: secantDbData.m2S90D || '' }
+          },
+          {
+            s20: { a: secantDbData.m3S20A || '', b: secantDbData.m3S20B || '', c: secantDbData.m3S20C || '', d: secantDbData.m3S20D || '' },
+            s90: { a: secantDbData.m3S90A || '', b: secantDbData.m3S90B || '', c: secantDbData.m3S90C || '', d: secantDbData.m3S90D || '' }
+          },
+          {
+            s20: { a: secantDbData.m4S20A || '', b: secantDbData.m4S20B || '', c: secantDbData.m4S20C || '', d: secantDbData.m4S20D || '' },
+            s90: { a: secantDbData.m4S90A || '', b: secantDbData.m4S90B || '', c: secantDbData.m4S90C || '', d: secantDbData.m4S90D || '' }
+          }
+        ];
+      }
+      if (ncrAdhesionDbData) {
+        baseSpec.ncrgrsp = baseSpec.ncrgrsp || {};
+        baseSpec.ncrgrsp.adhesion = [
+          { peel: ncrAdhesionDbData.s1Peel || '', hpull: ncrAdhesionDbData.s1Hpull || '' },
+          { peel: ncrAdhesionDbData.s2Peel || '', hpull: ncrAdhesionDbData.s2Hpull || '' },
+          { peel: ncrAdhesionDbData.m1Peel || '', hpull: ncrAdhesionDbData.m1Hpull || '' },
+          { peel: ncrAdhesionDbData.m2Peel || '', hpull: ncrAdhesionDbData.m2Hpull || '' },
+          { peel: ncrAdhesionDbData.m3Peel || '', hpull: ncrAdhesionDbData.m3Hpull || '' },
+          { peel: ncrAdhesionDbData.m4Peel || '', hpull: ncrAdhesionDbData.m4Hpull || '' }
+        ];
+      }
+      if (ncrBreakingDbData) {
+        baseSpec.ncrgrsp = baseSpec.ncrgrsp || {};
+        baseSpec.ncrgrsp.breaking = [
+          ncrBreakingDbData.sample1 || '', ncrBreakingDbData.sample2 || '', ncrBreakingDbData.sample3 || '', ncrBreakingDbData.sample4 || '', ncrBreakingDbData.sample5 || '',
+          ncrBreakingDbData.marginal1 || '', ncrBreakingDbData.marginal2 || '', ncrBreakingDbData.marginal3 || '', ncrBreakingDbData.marginal4 || '', ncrBreakingDbData.marginal5 || '',
+          ncrBreakingDbData.marginal6 || '', ncrBreakingDbData.marginal7 || '', ncrBreakingDbData.marginal8 || '', ncrBreakingDbData.marginal9 || '', ncrBreakingDbData.marginal10 || ''
+        ];
+      }
+      if (ncrCordDbData) {
+        baseSpec.ncrgrsp = baseSpec.ncrgrsp || {};
+        baseSpec.ncrgrsp.nylonCord = [
+          { denier: ncrCordDbData.s1Denier || '', epi: ncrCordDbData.s1Epi || '', thickness: ncrCordDbData.s1Thickness || '', loadAtBreak: ncrCordDbData.s1LoadAtBreak || '', elongation: ncrCordDbData.s1Elongation || '', twists: ncrCordDbData.s1Twists || '' },
+          { denier: ncrCordDbData.s2Denier || '', epi: ncrCordDbData.s2Epi || '', thickness: ncrCordDbData.s2Thickness || '', loadAtBreak: ncrCordDbData.s2LoadAtBreak || '', elongation: ncrCordDbData.s2Elongation || '', twists: ncrCordDbData.s2Twists || '' },
+          { denier: ncrCordDbData.s3Denier || '', epi: ncrCordDbData.s3Epi || '', thickness: ncrCordDbData.s3Thickness || '', loadAtBreak: ncrCordDbData.s3LoadAtBreak || '', elongation: ncrCordDbData.s3Elongation || '', twists: ncrCordDbData.s3Twists || '' },
+          { denier: ncrCordDbData.m1Denier || '', epi: ncrCordDbData.m1Epi || '', thickness: ncrCordDbData.m1Thickness || '', loadAtBreak: ncrCordDbData.m1LoadAtBreak || '', elongation: ncrCordDbData.m1Elongation || '', twists: ncrCordDbData.m1Twists || '' },
+          { denier: ncrCordDbData.m2Denier || '', epi: ncrCordDbData.m2Epi || '', thickness: ncrCordDbData.m2Thickness || '', loadAtBreak: ncrCordDbData.m2LoadAtBreak || '', elongation: ncrCordDbData.m2Elongation || '', twists: ncrCordDbData.m2Twists || '' },
+          { denier: ncrCordDbData.m3Denier || '', epi: ncrCordDbData.m3Epi || '', thickness: ncrCordDbData.m3Thickness || '', loadAtBreak: ncrCordDbData.m3LoadAtBreak || '', elongation: ncrCordDbData.m3Elongation || '', twists: ncrCordDbData.m3Twists || '' },
+          { denier: ncrCordDbData.m4Denier || '', epi: ncrCordDbData.m4Epi || '', thickness: ncrCordDbData.m4Thickness || '', loadAtBreak: ncrCordDbData.m4LoadAtBreak || '', elongation: ncrCordDbData.m4Elongation || '', twists: ncrCordDbData.m4Twists || '' },
+          { denier: ncrCordDbData.m5Denier || '', epi: ncrCordDbData.m5Epi || '', thickness: ncrCordDbData.m5Thickness || '', loadAtBreak: ncrCordDbData.m5LoadAtBreak || '', elongation: ncrCordDbData.m5Elongation || '', twists: ncrCordDbData.m5Twists || '' },
+          { denier: ncrCordDbData.m6Denier || '', epi: ncrCordDbData.m6Epi || '', thickness: ncrCordDbData.m6Thickness || '', loadAtBreak: ncrCordDbData.m6LoadAtBreak || '', elongation: ncrCordDbData.m6Elongation || '', twists: ncrCordDbData.m6Twists || '' }
+        ];
+      }
+      setSpecData(baseSpec);
+      setRemarks(finalRemarks);
+      setSealingType(finalSealingType);
+      setSteelStampNumber(finalSteelStampNumber);
+      setHologramEntries(finalHologramEntries);
+      setSpecType(finalSpecType);
+      setReTestActive(finalReTestActive);
+      setReOfferActive(finalReOfferActive);
+
+      // Explicitly persist the freshly fetched database data as initial draft
+      const initialDraftData = {
+        activeTab: 'visual',
+        visualData: baseVisual,
+        weightData: baseWeight,
+        physicalData: basePhys,
+        elecData: baseElec,
+        specData: baseSpec,
+        specType: finalSpecType,
+        reTestActive: finalReTestActive,
+        reOfferActive: finalReOfferActive,
+        remarks: finalRemarks,
+        sealingType: finalSealingType,
+        steelStampNumber: finalSteelStampNumber,
+        hologramEntries: finalHologramEntries,
+        dbDimensionalStatus: finalDbDimensionalStatus
+      };
+      localStorage.setItem(draftKey, JSON.stringify(initialDraftData));
+    } catch (err) {
+      console.error("Error loading lot data:", err);
+    } finally {
+      // Set the loaded lot ref so we know loading is complete!
+      setLoadedLot(lotId);
+      setLoading(false);
+    }
   }
 
   const handleLotClick = (lotId) => {
@@ -3807,6 +3741,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
       case 'secant': {
         if (!specData?.secant || !Array.isArray(specData.secant)) break;
+        const specs = getSecantTolerance(selectedLot);
         const checkSample = (s) => {
           if (!s || !s.s20 || !s.s90) return { filled: false, out: false };
           const isS20Complete = Object.values(s.s20).every(v => v !== '');
@@ -3817,7 +3752,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           const diff = d2 - d1;
           if (Math.abs(diff) <= 0.0001) return { filled: false, out: false };
           const stiffness = 70 / diff;
-          const out = stiffness < 15 || stiffness > 25;
+          const out = stiffness < specs.min || stiffness > specs.max;
           return { filled: true, out };
         };
 
@@ -5976,7 +5911,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                     <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
                         <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>Secant Stiffness</h3>
-                        <div style={{ fontSize: '11px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>FOR: {activeRailpadType} | Standard: 15 - 25 kN/mm</div>
+                        <div style={{ fontSize: '11px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>FOR: {activeRailpadType} | Standard: {currentSecantSpecs.min} - {currentSecantSpecs.max} kN/mm</div>
                       </div>
                       <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: specResults.secant === 'PASS' ? '#dcfce7' : specResults.secant === 'FAIL' ? '#fef3c7' : '#fee2e2', color: specResults.secant === 'PASS' ? '#166534' : specResults.secant === 'FAIL' ? '#b45309' : '#991b1b' }}>{specResults.secant === 'FAIL' ? 'MARGINAL' : specResults.secant}</span>
                     </div>
@@ -6013,7 +5948,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                     </td>
                                   ))}
                                   <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: '#21808d', background: '#f8fafc' }}>{res.isS20Complete ? res.d1.toFixed(2) : '-'}</td>
-                                  <td rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: res.stiffness >= 15 && res.stiffness <= 25 ? '#166534' : '#ef4444', background: '#f1f5f9', fontSize: '18px' }}>
+                                  <td rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: res.stiffness >= currentSecantSpecs.min && res.stiffness <= currentSecantSpecs.max ? '#166534' : '#ef4444', background: '#f1f5f9', fontSize: '18px' }}>
                                     {res.stiffness > 0 ? res.stiffness : '-'}
                                   </td>
                                 </tr>
@@ -7114,7 +7049,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                             <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <div>
                                 <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>{config.name} (Double Sampling)</h3>
-                                <div style={{ fontSize: '11px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>Limit: 15 - 25 kN/mm</div>
+                                <div style={{ fontSize: '11px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>Limit: {currentSecantSpecs.min} - {currentSecantSpecs.max} kN/mm</div>
                               </div>
                               <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: status === 'PASS' ? '#dcfce7' : status === 'FAIL' ? '#fee2e2' : '#fff7ed', color: status === 'PASS' ? '#166534' : status === 'FAIL' ? '#991b1b' : '#c2410c', textTransform: 'uppercase' }}>{status}</span>
                             </div>
@@ -7153,7 +7088,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                             </td>
                                           ))}
                                           <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: '#21808d', background: '#f8fafc' }}>{res.isS20Complete ? res.d1.toFixed(2) : '-'}</td>
-                                          <td rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: res.stiffness >= 15 && res.stiffness <= 25 ? '#166534' : '#ef4444', background: '#f1f5f9', fontSize: '18px' }}>
+                                          <td rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: res.stiffness >= currentSecantSpecs.min && res.stiffness <= currentSecantSpecs.max ? '#166534' : '#ef4444', background: '#f1f5f9', fontSize: '18px' }}>
                                             {res.stiffness > 0 ? res.stiffness : '-'}
                                           </td>
                                         </tr>

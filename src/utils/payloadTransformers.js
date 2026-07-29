@@ -95,18 +95,10 @@ export const transformLineDataForBackend = (frontendLineData, manualQuantities =
     const totalRejected = shearingRejected + turningRejected + mpiRejected + forgingRejected +
         quenchingRejected + temperingRejected;
 
-    // Determine overall manufactured quantity for the lot as SUM across all stages
-    const stageMfgList = [
-        manualQuantities.shearing || 0,
-        manualQuantities.turning || 0,
-        manualQuantities.mpiTesting || 0,
-        manualQuantities.forging || 0,
-        manualQuantities.quenching || 0,
-        manualQuantities.tempering || 0,
-        manualQuantities.testingFinishing || 0
-    ];
-    const totalManufactured = stageMfgList.reduce((sum, val) => sum + (parseInt(val) || 0), 0);
-    const totalAccepted = Math.max(0, totalManufactured - totalRejected);
+    // Determine overall manufactured quantity for the lot (strictly tied to Shearing stage as per user requirement)
+    const shearingManufactured = parseInt(manualQuantities.shearing || 0) || 0;
+    const totalManufactured = shearingManufactured;
+    const totalAccepted = shearingManufactured > 0 ? Math.max(0, shearingManufactured - totalRejected) : 0;
 
     const lineFinalResult = {
         // Map metadata for IC/Lot resolution

@@ -9,7 +9,7 @@ const allowedFields = [
 ];
 
 // Editable field component moved outside to prevent re-mounting
-const EditableField = ({ value, fieldName, placeholder = "", className = "", type = "text", disabled = false, isEditing, onFieldChange, isBusy }) => {
+const EditableField = ({ value, fieldName, placeholder = "", className = "", type = "text", disabled = false, isEditing, onFieldChange, isBusy, maxLength }) => {
   if (isEditing && allowedFields.includes(fieldName)) {
     if (type === "textarea") {
       return (
@@ -20,6 +20,7 @@ const EditableField = ({ value, fieldName, placeholder = "", className = "", typ
           className={`w-full p-1 border border-blue-400 bg-blue-50 text-sm`}
           rows={2}
           disabled={disabled || isBusy}
+          maxLength={maxLength}
         />
       );
     }
@@ -32,6 +33,7 @@ const EditableField = ({ value, fieldName, placeholder = "", className = "", typ
         className={`w-full p-0 border border-blue-400 bg-blue-50 text-sm`}
         style={type === "inline" ? { display: "inline-block", width: "80px" } : {}}
         disabled={disabled || isBusy}
+        maxLength={maxLength}
       />
     );
   }
@@ -83,6 +85,11 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
     .replace(/[\r\n]+/g, ' ')
     .trim();
 
+  const isOldIcValid = data?.bookNo?.length === 4 && /^\d{3}$/.test(data?.setNo);
+  const isFormLocked = isEditing && (
+    (data?.icType === 'new' && !bookSetValidation?.isValid) ||
+    (data?.icType !== 'new' && !isOldIcValid)
+  );
 
   return (
     <div className="a4-page text-black">
@@ -91,6 +98,31 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
         <div className="flex flex-col items-center pt-2 w-full">
           {/* Centered Box */}
           <div className="flex flex-col items-center pt-7">
+            
+            {/* Old / New IC Toggle */}
+            {isEditing && (
+              <div className="flex gap-4 mb-2 no-print text-[12px] font-bold">
+                <label className="flex items-center gap-1 cursor-pointer">
+                  <input 
+                    type="radio" 
+                    name="icTypeFinal" 
+                    value="old" 
+                    checked={data?.icType !== 'new'} 
+                    onChange={() => onFieldChange("icType", "old")} 
+                  /> Old IC
+                </label>
+                <label className="flex items-center gap-1 cursor-pointer">
+                  <input 
+                    type="radio" 
+                    name="icTypeFinal" 
+                    value="new" 
+                    checked={data?.icType === 'new'} 
+                    onChange={() => onFieldChange("icType", "new")} 
+                  /> New IC
+                </label>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 border-2 border-black w-[180px] bg-white">
               <div className="border-r-2 border-black flex flex-col">
                 <div className="border-b-2 border-black p-1 font-bold text-center text-[9px] leading-tight">
@@ -99,7 +131,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
                   <div className="h-[2px]" />
                 </div>
                 <div className="p-1 flex items-center justify-center min-h-[22px]">
-                  <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={bookNo} fieldName="bookNo" disabled={isBusy} className="text-center font-bold text-[12px]" />
+                  <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={bookNo} fieldName="bookNo" disabled={isBusy} className="text-center font-bold text-[12px]" maxLength={4} />
                 </div>
               </div>
               <div className="flex flex-col">
@@ -109,13 +141,13 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
                   <div className="h-[2px]" />
                 </div>
                 <div className="p-1 flex items-center justify-center min-h-[22px]">
-                  <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={setNo} fieldName="setNo" disabled={isBusy} className="text-center font-bold text-[12px]" />
+                  <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={setNo} fieldName="setNo" disabled={isBusy} className="text-center font-bold text-[12px]" maxLength={3} />
                 </div>
               </div>
             </div>
             
             {/* Verify Book & Set No Button (Hidden in PDF) */}
-            {isEditing && (
+            {isEditing && data?.icType === 'new' && (
               <div className="no-print mt-1 flex items-center gap-2">
                 <button 
                   onClick={onVerifyBookSet} 
@@ -154,6 +186,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
         <div className="h-4" />
 
         {/* Row 3: Certificate No, Date, Instances - STABILIZED */}
+        <fieldset disabled={isFormLocked} className={`border-0 p-0 m-0 min-w-0 w-full transition-opacity duration-300 ${isFormLocked ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
         <div className="flex justify-end">
           <div className="grid grid-cols-[1.8fr_1fr_2.7fr] border border-black text-[10px] items-stretch w-[75%]">
             {/* Col 1: Certificate No */}
@@ -361,6 +394,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
           Manufacturer Office copy with case, RITES Bill Copy, Contractor, Purchaser (Railway), Consignee (Railway), Consignee (Manufacturer of finished product), RITES Office copy, RITES for final IC
           <div className="h-1" />
         </div>
+        </fieldset>
       </div>
     </div>
   );

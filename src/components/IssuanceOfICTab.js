@@ -156,6 +156,7 @@ const IssuanceOfICTab = ({ calls, setSelectedCall, setCurrentPage, isLoaded }) =
     // Commented out: IC Number column removed as requested
     // { key: 'icNo', label: 'IC Number' },
     { key: 'po_no', label: 'PO No.' },
+    { key: 'ibsCaseNo', label: 'IBS Case Number' },
     { key: 'vendor_name', label: 'Vendor Name' },
     { key: 'product_type', label: 'Product Type', render: (val) => getProductTypeDisplayName(val) },
     { key: 'requested_date', label: 'Inspection Date', render: (val) => formatDate(val) },

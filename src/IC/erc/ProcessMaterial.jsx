@@ -67,14 +67,16 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
       specNo: c.specNo || "",
       qapNo: c.qapNo || "",
       inspectionType: c.inspectionType || "",
-      chpClause: c.chpClause || "",
+      chpClause: (!c.chpClause || c.chpClause === "Clause No. of QAP") 
+        ? "process inspection as per PIO detailed under Annexure-A of Rly. Bd. Letter No. 2024/RS (G)/779/12 (E3482675) Dtd.06.01.2025" 
+        : c.chpClause,
       lots: c.lots || [],
-      reference: c.reference || "",
+      reference: c.reference ? c.reference.replace(/Mr\.?\s/gi, "") : "",
       callDate: c.callDate || c.dateOfCall || "",
       inspectionDate: c.inspectionDate || c.dateOfInspection || "",
       manDays: c.manDays || "",
       sealingPattern: c.sealingPattern || "NA",
-      inspectingEngineer: c.inspectingEngineer || ""
+      inspectingEngineer: c.inspectingEngineer ? c.inspectingEngineer.replace(/Mr\.?\s/gi, "") : ""
     };
   };
 
@@ -91,17 +93,19 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
           if (savedEdit) {
             initialData = {
               ...initialData,
-              bookNo: savedEdit.bookNo || initialData.bookNo,
-              setNo: savedEdit.setNo || initialData.setNo,
+              qapNo: savedEdit.qapNo || initialData.qapNo,
+              chpClause: savedEdit.chpClause || initialData.chpClause,
+              inspectionDate: savedEdit.inspectionDate || initialData.inspectionDate,
               offeredInstNo: savedEdit.offeredInstallmentNo || initialData.offeredInstNo,
               passedInstNo: savedEdit.passedInstallmentNo || initialData.passedInstNo,
               consigneeRailway: savedEdit.consignee || initialData.consigneeRailway,
               contractRef: savedEdit.contractRef || initialData.contractRef,
               maNumberAndDate: savedEdit.maNumberAndDate || initialData.maNumberAndDate,
+              bookNo: savedEdit.bookNo || initialData.bookNo,
+              setNo: savedEdit.setNo || initialData.setNo,
               billPayingOfficer: savedEdit.billPayingOfficer || initialData.billPayingOfficer,
               purchasingAuthority: savedEdit.purchasingAuthority || initialData.purchasingAuthority,
               description: savedEdit.description || initialData.description,
-              qapNo: savedEdit.qapNo || initialData.qapNo,
             };
           }
           
@@ -140,6 +144,15 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
     });
   };
   const handleSaveChanges = async () => {
+    if (dataToPass.bookNo.length !== 4) {
+      setNotification({ open: true, message: "Book No. must be exactly 4 characters long.", severity: 'warning' });
+      return;
+    }
+    if (!/^\d{3}$/.test(dataToPass.setNo)) {
+      setNotification({ open: true, message: "Set No. must be exactly 3 digits.", severity: 'warning' });
+      return;
+    }
+
     try {
       setNotification({ open: true, message: "Saving draft changes...", severity: 'info' });
       await saveProcessIcSaveChanges({
@@ -156,6 +169,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
           purchasingAuthority: dataToPass.purchasingAuthority,
           description: dataToPass.description,
           qapNo: dataToPass.qapNo,
+          chpClause: dataToPass.chpClause,
           inspectionDate: dataToPass.inspectionDate,
           manDays: dataToPass.manDays,
           createdBy: getCurrentUserId()?.toString(),
@@ -174,6 +188,15 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
   const handleVerifyBookSet = async () => {
     if (!dataToPass.bookNo || !dataToPass.setNo) {
       setNotification({ open: true, message: "Please fill in both Book No. and Set No. before verifying.", severity: 'warning' });
+      return;
+    }
+
+    if (dataToPass.bookNo.length !== 4) {
+      setNotification({ open: true, message: "Book No. must be exactly 4 characters long.", severity: 'warning' });
+      return;
+    }
+    if (!/^\d{3}$/.test(dataToPass.setNo)) {
+      setNotification({ open: true, message: "Set No. must be exactly 3 digits.", severity: 'warning' });
       return;
     }
     
@@ -220,7 +243,18 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
           return;
       }
       
-      if (!bookSetValidation.isValid) {
+      if (dataToPass.bookNo.length !== 4) {
+          setNotification({ open: true, message: "Book No. must be exactly 4 characters long.", severity: 'warning' });
+          setIsESigning(false);
+          return;
+      }
+      if (!/^\d{3}$/.test(dataToPass.setNo)) {
+          setNotification({ open: true, message: "Set No. must be exactly 3 digits.", severity: 'warning' });
+          setIsESigning(false);
+          return;
+      }
+      
+      if (dataToPass.icType === 'new' && !bookSetValidation.isValid) {
           console.warn("⚠️ Validation failed: Book No or Set No has not been verified.");
           setNotification({ open: true, message: "Please Verify the Book No. and Set No. before saving.", severity: 'warning' });
           setIsESigning(false);
@@ -249,6 +283,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
           purchasingAuthority: dataToPass.purchasingAuthority,
           description: dataToPass.description,
           qapNo: dataToPass.qapNo,
+          chpClause: dataToPass.chpClause,
           inspectionDate: dataToPass.inspectionDate,
           manDays: dataToPass.manDays,
           createdBy: getCurrentUserId()?.toString(),

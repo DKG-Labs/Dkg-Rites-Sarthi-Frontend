@@ -103,6 +103,7 @@ export const fetchCompletedCallsForIC = async (userId, forceRefresh = false) => 
           // Generate IC Number using nomenclature: RIO_Short/RequestId/IE_Short
           icNo: generateICNumber(call.rio, call.requestId),
           po_no: call.poNo,
+          ibsCaseNo: call.ibsCaseNo || '-',
           vendor_name: call.vendorName,
           product_type: call.productType,
           requested_date: call.createdDate,
@@ -182,6 +183,7 @@ export const fetchSignedCallsForIC = async (userId) => {
       call_no: call.requestId,
       icNo: generateICNumber(call.rio, call.requestId),
       po_no: call.poNo,
+      ibsCaseNo: call.ibsCaseNo || '-',
       vendor_name: call.vendorName,
       product_type: call.productType,
       requested_date: call.createdDate,

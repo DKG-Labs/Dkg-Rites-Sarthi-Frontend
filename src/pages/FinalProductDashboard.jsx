@@ -380,7 +380,8 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
           rlyShortName: dashboardData.poData.rlyShortName || '',
           place_of_inspection: dashboardData.poData.companyName
             ? `${dashboardData.poData.companyName}${dashboardData.poData.unitName ? ' (' + dashboardData.poData.unitName + ')' : ''}${dashboardData.poData.unitAddress ? ' - ' + dashboardData.poData.unitAddress : ''}`
-            : (dashboardData.poData.inspPlace || '')
+            : (dashboardData.poData.inspPlace || ''),
+          ibsCaseNo: dashboardData.poData.ibsCaseNo || ''
         };
         setPoData(mappedPoData);
         console.log('✅ PO Data mapped and set:', mappedPoData);
@@ -1858,6 +1859,10 @@ Workflow Status: ✅ Transitioned to COMPLETED
                   disabled
                   style={{ height: 'auto', minHeight: '38px', resize: 'none' }}
                 />
+              </div>
+              <div className="fp-form-group">
+                <label className="fp-form-label">IBS Case Number</label>
+                <input className="fp-input" value={poData?.ibsCaseNo || 'N/A'} disabled style={{ fontWeight: 'bold' }} />
               </div>
             </div>
           </div>

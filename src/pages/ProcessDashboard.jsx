@@ -6118,7 +6118,8 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     manufacturer: currentLineInitiationData.vendorName || lineManufacturer,
     place_of_inspection: currentLineInitiationData.companyName
       ? `${currentLineInitiationData.companyName}${currentLineInitiationData.unitName ? ' (' + currentLineInitiationData.unitName + ')' : ''}${currentLineInitiationData.unitAddress ? ' - ' + currentLineInitiationData.unitAddress : ''}`
-      : (currentLineInitiationData.placeOfInspection || '')
+      : (currentLineInitiationData.placeOfInspection || ''),
+    ibsCaseNo: currentLineInitiationData.ibsCaseNo || ''
   } : (fetchedPoData ? {
     po_no: fetchedPoData.rlyPoNo || formatPoNoWithSerial(fetchedPoData.po_no, fetchedPoData.po_serial_no || fetchedPoData.poSerialNo || currentProductionLine.poSerialNo, fetchedPoData.rlyShortName || fetchedPoData.rlyCd),
     sub_po_no: fetchedPoData.po_no || '',
@@ -6126,7 +6127,8 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     sub_po_date: fetchedPoData.po_date || '',
     contractor: fetchedPoData.contractor || fetchedPoData.vendor_name || '',
     manufacturer: fetchedPoData.contractor || fetchedPoData.vendor_name || fetchedPoData.manufacturer || '',
-    place_of_inspection: fetchedPoData.place_of_inspection || ''
+    place_of_inspection: fetchedPoData.place_of_inspection || '',
+    ibsCaseNo: fetchedPoData.ibsCaseNo || ''
   } : (currentCallData ? {
     po_no: currentCallData.rlyPoNo || formatPoNoWithSerial(currentCallData.po_no || currentCallData.poNo, currentCallData.po_serial_no || currentCallData.poSerialNo || currentProductionLine.poSerialNo, currentCallData.rlyShortName || currentCallData.rlyCd),
     sub_po_no: currentCallData.sub_po_no || currentProductionLine.rawMaterialICs || '',
@@ -6134,7 +6136,8 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     sub_po_date: currentCallData.sub_po_date || currentCallData.po_date || '',
     contractor: currentCallData.contractor || currentCallData.vendor_name || '',
     manufacturer: currentCallData.contractor || currentCallData.vendor_name || currentCallData.manufacturer || '',
-    place_of_inspection: currentCallData.place_of_inspection || ''
+    place_of_inspection: currentCallData.place_of_inspection || '',
+    ibsCaseNo: currentCallData.ibsCaseNo || ''
   } : {
     po_no: '',
     sub_po_no: '',
@@ -6142,7 +6145,8 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     sub_po_date: '',
     contractor: '',
     manufacturer: '',
-    place_of_inspection: ''
+    place_of_inspection: '',
+    ibsCaseNo: ''
   }));
 
   // removed unused hourly data and validators to satisfy lint rules
@@ -6469,6 +6473,10 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           <div className="process-form-group">
             <label className="process-form-label">Stage of Inspection</label>
             <input type="text" className="process-form-input" value="Process Material Inspection" disabled />
+          </div>
+          <div className="process-form-group">
+            <label className="process-form-label">IBS Case Number</label>
+            <input type="text" className="process-form-input" value={linePoData.ibsCaseNo || 'N/A'} disabled style={{ fontWeight: 'bold' }} />
           </div>
         </div>
       </div>

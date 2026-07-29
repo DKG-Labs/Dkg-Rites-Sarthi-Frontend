@@ -71,12 +71,12 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
         ? "process inspection as per PIO detailed under Annexure-A of Rly. Bd. Letter No. 2024/RS (G)/779/12 (E3482675) Dtd.06.01.2025" 
         : c.chpClause,
       lots: c.lots || [],
-      reference: c.reference || "",
+      reference: c.reference ? c.reference.replace(/Mr\.?\s/gi, "") : "",
       callDate: c.callDate || c.dateOfCall || "",
       inspectionDate: c.inspectionDate || c.dateOfInspection || "",
       manDays: c.manDays || "",
       sealingPattern: c.sealingPattern || "NA",
-      inspectingEngineer: c.inspectingEngineer || ""
+      inspectingEngineer: c.inspectingEngineer ? c.inspectingEngineer.replace(/Mr\.?\s/gi, "") : ""
     };
   };
 

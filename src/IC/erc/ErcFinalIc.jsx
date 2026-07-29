@@ -9,7 +9,7 @@ const allowedFields = [
 ];
 
 // Editable field component moved outside to prevent re-mounting
-const EditableField = ({ value, fieldName, placeholder = "", className = "", type = "text", disabled = false, isEditing, onFieldChange, isBusy }) => {
+const EditableField = ({ value, fieldName, placeholder = "", className = "", type = "text", disabled = false, isEditing, onFieldChange, isBusy, maxLength }) => {
   if (isEditing && allowedFields.includes(fieldName)) {
     if (type === "textarea") {
       return (
@@ -20,6 +20,7 @@ const EditableField = ({ value, fieldName, placeholder = "", className = "", typ
           className={`w-full p-1 border border-blue-400 bg-blue-50 text-sm`}
           rows={2}
           disabled={disabled || isBusy}
+          maxLength={maxLength}
         />
       );
     }
@@ -32,6 +33,7 @@ const EditableField = ({ value, fieldName, placeholder = "", className = "", typ
         className={`w-full p-0 border border-blue-400 bg-blue-50 text-sm`}
         style={type === "inline" ? { display: "inline-block", width: "80px" } : {}}
         disabled={disabled || isBusy}
+        maxLength={maxLength}
       />
     );
   }
@@ -83,7 +85,11 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
     .replace(/[\r\n]+/g, ' ')
     .trim();
 
-  const isFormLocked = isEditing && data?.icType === 'new' && !bookSetValidation?.isValid;
+  const isOldIcValid = data?.bookNo?.length === 4 && /^\d{3}$/.test(data?.setNo);
+  const isFormLocked = isEditing && (
+    (data?.icType === 'new' && !bookSetValidation?.isValid) ||
+    (data?.icType !== 'new' && !isOldIcValid)
+  );
 
   return (
     <div className="a4-page text-black">
@@ -125,7 +131,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
                   <div className="h-[2px]" />
                 </div>
                 <div className="p-1 flex items-center justify-center min-h-[22px]">
-                  <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={bookNo} fieldName="bookNo" disabled={isBusy} className="text-center font-bold text-[12px]" />
+                  <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={bookNo} fieldName="bookNo" disabled={isBusy} className="text-center font-bold text-[12px]" maxLength={4} />
                 </div>
               </div>
               <div className="flex flex-col">
@@ -135,7 +141,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
                   <div className="h-[2px]" />
                 </div>
                 <div className="p-1 flex items-center justify-center min-h-[22px]">
-                  <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={setNo} fieldName="setNo" disabled={isBusy} className="text-center font-bold text-[12px]" />
+                  <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={setNo} fieldName="setNo" disabled={isBusy} className="text-center font-bold text-[12px]" maxLength={3} />
                 </div>
               </div>
             </div>

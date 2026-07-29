@@ -144,6 +144,15 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
     });
   };
   const handleSaveChanges = async () => {
+    if (dataToPass.bookNo.length !== 4) {
+      setNotification({ open: true, message: "Book No. must be exactly 4 characters long.", severity: 'warning' });
+      return;
+    }
+    if (!/^\d{3}$/.test(dataToPass.setNo)) {
+      setNotification({ open: true, message: "Set No. must be exactly 3 digits.", severity: 'warning' });
+      return;
+    }
+
     try {
       setNotification({ open: true, message: "Saving draft changes...", severity: 'info' });
       await saveProcessIcSaveChanges({
@@ -179,6 +188,15 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
   const handleVerifyBookSet = async () => {
     if (!dataToPass.bookNo || !dataToPass.setNo) {
       setNotification({ open: true, message: "Please fill in both Book No. and Set No. before verifying.", severity: 'warning' });
+      return;
+    }
+
+    if (dataToPass.bookNo.length !== 4) {
+      setNotification({ open: true, message: "Book No. must be exactly 4 characters long.", severity: 'warning' });
+      return;
+    }
+    if (!/^\d{3}$/.test(dataToPass.setNo)) {
+      setNotification({ open: true, message: "Set No. must be exactly 3 digits.", severity: 'warning' });
       return;
     }
     
@@ -225,7 +243,18 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
           return;
       }
       
-      if (!bookSetValidation.isValid) {
+      if (dataToPass.bookNo.length !== 4) {
+          setNotification({ open: true, message: "Book No. must be exactly 4 characters long.", severity: 'warning' });
+          setIsESigning(false);
+          return;
+      }
+      if (!/^\d{3}$/.test(dataToPass.setNo)) {
+          setNotification({ open: true, message: "Set No. must be exactly 3 digits.", severity: 'warning' });
+          setIsESigning(false);
+          return;
+      }
+      
+      if (dataToPass.icType === 'new' && !bookSetValidation.isValid) {
           console.warn("⚠️ Validation failed: Book No or Set No has not been verified.");
           setNotification({ open: true, message: "Please Verify the Book No. and Set No. before saving.", severity: 'warning' });
           setIsESigning(false);

@@ -1,6 +1,6 @@
 import React from "react";
 
-const EditableField = ({ isEditing, value, onChange, className = "", type = "text", disabled = false }) => {
+const EditableField = ({ isEditing, value, onChange, className = "", type = "text", disabled = false, maxLength }) => {
 
   if (!isEditing) {
     return type === "inline" ? <span className={className}>{value}</span> : <div className={className}>{value}</div>;
@@ -12,6 +12,7 @@ const EditableField = ({ isEditing, value, onChange, className = "", type = "tex
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}
         rows={3}
+        maxLength={maxLength}
       />
     );
   }
@@ -22,6 +23,7 @@ const EditableField = ({ isEditing, value, onChange, className = "", type = "tex
       value={value || ""}
       onChange={(e) => onChange(e.target.value)}
       disabled={disabled}
+      maxLength={maxLength}
       style={type === "inline" ? { display: "inline-block", width: "80px" } : {}}
     />
   );
@@ -80,7 +82,11 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
   };
   const poSrNoStr = extractPoSrNo(contractRef);
 
-  const isFormLocked = isEditing && data?.icType === 'new' && !bookSetValidation?.isValid;
+  const isOldIcValid = data?.bookNo?.length === 4 && /^\d{3}$/.test(data?.setNo);
+  const isFormLocked = isEditing && (
+    (data?.icType === 'new' && !bookSetValidation?.isValid) ||
+    (data?.icType !== 'new' && !isOldIcValid)
+  );
 
   return (
     <div className="a4-page">
@@ -122,7 +128,7 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
                   <div className="h-[2px]" />
                 </div>
                 <div className="p-1 flex items-center justify-center min-h-[22px]">
-                  <EditableField isEditing={isEditing} disabled={isBusy} value={bookNo} onChange={(val) => onChange("bookNo", val)} className="text-center font-bold text-[12px]" />
+                  <EditableField isEditing={isEditing} disabled={isBusy} value={bookNo} onChange={(val) => onChange("bookNo", val)} className="text-center font-bold text-[12px]" maxLength={4} />
                 </div>
               </div>
               <div className="flex flex-col">
@@ -132,7 +138,7 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
                   <div className="h-[2px]" />
                 </div>
                 <div className="p-1 flex items-center justify-center min-h-[22px]">
-                  <EditableField isEditing={isEditing} disabled={isBusy} value={setNo} onChange={(val) => onChange("setNo", val)} className="text-center font-bold text-[12px]" />
+                  <EditableField isEditing={isEditing} disabled={isBusy} value={setNo} onChange={(val) => onChange("setNo", val)} className="text-center font-bold text-[12px]" maxLength={3} />
                 </div>
               </div>
             </div>

@@ -338,27 +338,33 @@ export const useCallActions = () => {
    */
   const fetchAllIEs = useCallback(async () => {
     try {
-      const response = await axios.get(
-        `${API_BASE_URL}/api/auth/api/users/by-role`,
-        {
-          params: { roleName: 'IE' },
-          headers: {
-            ...getAuthHeaders(),
-          },
+      const [ieRes, processRes, railRes] = await Promise.all([
+        axios.get(`${API_BASE_URL}/api/auth/api/users/by-role`, { params: { roleName: 'IE' }, headers: getAuthHeaders() }).catch(() => ({ data: { responseData: [] } })),
+        axios.get(`${API_BASE_URL}/api/auth/api/users/by-role`, { params: { roleName: 'Process IE' }, headers: getAuthHeaders() }).catch(() => ({ data: { responseData: [] } })),
+        axios.get(`${API_BASE_URL}/api/auth/api/users/by-role`, { params: { roleName: 'Rail Main IE' }, headers: getAuthHeaders() }).catch(() => ({ data: { responseData: [] } }))
+      ]);
+
+      const combined = [
+        ...(ieRes.data?.responseData || []),
+        ...(processRes.data?.responseData || []),
+        ...(railRes.data?.responseData || [])
+      ];
+
+      // Remove duplicate users by id/employeeCode if any
+      const uniqueUsersMap = new Map();
+      combined.forEach(user => {
+        if (user && user.userId && !uniqueUsersMap.has(user.userId)) {
+          uniqueUsersMap.set(user.userId, {
+            id: user.userId,
+            name: user.fullName || user.userName,
+            employeeCode: user.employeeCode,
+            shortName: user.shortName,
+            roleName: user.roleName || user.role
+          });
         }
-      );
+      });
 
-      if (response.data?.responseStatus?.statusCode !== 0) {
-        throw new Error('Failed to fetch IEs');
-      }
-
-      return response.data.responseData.map(user => ({
-        id: user.userId,
-        name: user.fullName || user.userName,
-        employeeCode: user.employeeCode,
-        shortName: user.shortName,
-        roleName: user.roleName
-      }));
+      return Array.from(uniqueUsersMap.values());
     } catch (err) {
       console.error('Error fetching IEs:', err);
       return [];

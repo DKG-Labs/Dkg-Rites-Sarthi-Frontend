@@ -257,6 +257,7 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
   const columns = [
     { key: 'call_no', label: 'Call No.' },
     { key: 'po_no', label: 'PO No.' },
+    { key: 'ibsCaseNo', label: 'IBS Case Number' },
     {
       key: 'vendor_name',
       label: 'Vendor Name',

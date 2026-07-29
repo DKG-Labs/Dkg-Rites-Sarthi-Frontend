@@ -18,11 +18,16 @@ import { finalSecantStiffnessService } from '../../services/finalSecantStiffness
 import { finalNcrAdhesionService } from '../../services/finalNcrAdhesionService';
 import { finalNcrBreakingLoadService } from '../../services/finalNcrBreakingLoadService';
 import { finalNcrNylonCordService } from '../../services/finalNcrNylonCordService';
+import { finalResilienceTestService } from '../../services/finalResilienceTestService';
+import { finalOzoneTestService } from '../../services/finalOzoneTestService';
+import { finalPeriodicTgaService } from '../../services/finalPeriodicTgaService';
+import { finalPeriodicDurabilityService } from '../../services/finalPeriodicDurabilityService';
+import { finalPeriodicAbrasionService } from '../../services/finalPeriodicAbrasionService';
 import { performTransitionAction } from '../../services/workflowService';
 import { getStoredUser } from '../../services/authService';
 import Notification from '../Notification';
 import AnnexureLoader from '../annexures/AnnexureLoader';
-
+import PeriodicTestingTab from './PeriodicTestingTab';
 
 const HardnessCell = ({ value, onChange, min, max }) => {
   const [isEditing, setIsEditing] = React.useState(false);
@@ -145,6 +150,11 @@ const SECTION_CONFIG = {
   ncrAdhesion: { name: 'NCRGRSP Adhesion', primaryCount: 2, doubleCount: 4, startSample: 1 },
   ncrBreaking: { name: 'NCRGRSP Breaking Load', primaryCount: 5, doubleCount: 10, startSample: 1 },
   ncrCord: { name: 'NCRGRSP Nylon Cord', primaryCount: 3, doubleCount: 6, startSample: 1 },
+  resilience: { name: 'Resilience Test', primaryCount: 3, doubleCount: 6, startSample: 1 },
+  ozone: { name: 'Ozone Test', primaryCount: 1, doubleCount: 2, startSample: 1 },
+  tga: { name: 'Periodic - TGA', primaryCount: 5, doubleCount: 0, startSample: 1 },
+  durability: { name: 'Periodic - Durability', primaryCount: 5, doubleCount: 0, startSample: 1 },
+  abrasion: { name: 'Periodic - Abrasion', primaryCount: 5, doubleCount: 0, startSample: 1 }
 };
 
 const padHardness = (h, targetSize = 15) => {
@@ -205,7 +215,8 @@ const padPhysicalData = (pd) => {
       mPad2: pad(pd?.loadTest?.mPad2, 8, { left: '', right: '' }),
       mPad3: pad(pd?.loadTest?.mPad3, 8, { left: '', right: '' }),
       mPad4: pad(pd?.loadTest?.mPad4, 8, { left: '', right: '' })
-    }
+    },
+    resilience: pad(pd?.resilience, 3, { i1: '', i2: '', i3: '', i4: '', i5: '', i6: '' })
   };
 };
 
@@ -232,6 +243,43 @@ const padElecData = (ed) => {
     ash: {
       compoundA: pad(ed?.ash?.compoundA, 9, { crucible: '', sample: '', ash: '' }),
       compoundB: pad(ed?.ash?.compoundB, 9, { crucible: '', sample: '', ash: '' })
+    },
+    ozone: pad(ed?.ozone, 1, { initial: '40', stretched: '52', obs: '' })
+  };
+};
+
+const padPeriodicData = (prd) => {
+  const pad = (arr, size, fill = '') => {
+    const a = Array.isArray(arr) ? arr : [];
+    const padded = [];
+    for (let i = 0; i < size; i++) {
+      const val = a[i];
+      if (val === null || val === undefined) {
+        padded.push(typeof fill === 'object' ? JSON.parse(JSON.stringify(fill)) : fill);
+      } else {
+        padded.push(val);
+      }
+    }
+    return padded;
+  };
+  return {
+    tga: {
+      dateOfLastTest: prd?.tga?.dateOfLastTest || '',
+      qtyProduced: prd?.tga?.qtyProduced || '',
+      threshold: 30000,
+      samples: pad(prd?.tga?.samples, 5, { lotNo: '', sampleNo: '', weight: '', tempRange: '', polymer: '' })
+    },
+    durability: {
+      dateOfLastTest: prd?.durability?.dateOfLastTest || '',
+      qtyProduced: prd?.durability?.qtyProduced || '',
+      threshold: 1000000,
+      samples: pad(prd?.durability?.samples, 5, { lotNo: '', initialThick: '', finalThick: '', initialLoad: '', finalLoad: '' })
+    },
+    abrasion: {
+      dateOfLastTest: prd?.abrasion?.dateOfLastTest || '',
+      qtyProduced: prd?.abrasion?.qtyProduced || '',
+      threshold: 1000000,
+      samples: pad(prd?.abrasion?.samples, 5, { lotNo: '', sampleNo: '', initialMass: '', finalMass: '' })
     }
   };
 };
@@ -426,6 +474,23 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     return { a: 27, variation: 5 };
   };
 
+  const getSecantTolerance = (lotId) => {
+    const lot = lots.find(l => l.id === lotId) || { railpadType: '' };
+    const type = (lot.railpadType || activeRailpadType || '').toLowerCase();
+
+    if (type.includes('6.2') && type.includes('cgrsp')) return { min: 100, max: 240 };
+    if (type.includes('10mm') && type.includes('cgrsp')) return { min: 100, max: 170 };
+    if (type.includes('6mm') && type.includes('ncr')) return { min: 150, max: 250 };
+    if (type.includes('10mm') && type.includes('ncr')) return { min: 100, max: 170 };
+    if (type.includes('10mm') && type.includes('grsp')) return { min: 100, max: 170 };
+    if (type.includes('6mm') && type.includes('grsp')) return { min: 150, max: 250 };
+
+    if (type.includes('6.2')) return { min: 100, max: 240 };
+    if (type.includes('10mm')) return { min: 100, max: 170 };
+    if (type.includes('cgrsp')) return { min: 100, max: 240 };
+    return { min: 150, max: 250 };
+  };
+
   const currentHardnessSpecs = getHardnessTolerance(selectedLot);
   const currentTensileSpecs = getTensileTolerance(selectedLot);
   const currentElongationSpecs = getElongationTolerance(selectedLot);
@@ -433,6 +498,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
   const currentLoadSpecs = getLoadDeflectionTolerance(selectedLot);
   const currentSGSpecs = getSGTolerance(selectedLot);
   const currentAshSpecs = getAshTolerance(selectedLot);
+  const currentSecantSpecs = getSecantTolerance(selectedLot);
 
   // State for Physical Properties (Tab 2)
   const [physicalData, setPhysicalData] = useState(() => padPhysicalData(null));
@@ -443,6 +509,9 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
   // State for Specialized Tests (Tab 4)
   const [specType, setSpecType] = useState('CGRSP');
   const [specData, setSpecData] = useState(() => padSpecData(null));
+
+  // State for Periodic Tests
+  const [periodicData, setPeriodicData] = useState(() => padPeriodicData(null));
 
   // Refs and effect for double-sampling weight panel visibility
   // IMPORTANT: These must be declared here (before any early returns) to satisfy React Rules of Hooks.
@@ -510,6 +579,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       physicalData,
       elecData,
       specData,
+      periodicData,
       specType,
       reTestActive,
       reOfferActive,
@@ -527,7 +597,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     if (visualData.dv || visualData.dd || weightData.samples1.some(s => s !== '') || remarks || sealingType) {
       setIsDirty(true);
     }
-  }, [selectedLot, currentCallId, activeTab, visualData, weightData, physicalData, elecData, specData, specType, reTestActive, reOfferActive, remarks, sealingType, steelStampNumber, hologramEntries, loadedLot, dbDimensionalStatus, dbDimensionalNotOk]);
+  }, [selectedLot, currentCallId, activeTab, visualData, weightData, physicalData, elecData, specData, periodicData, specType, reTestActive, reOfferActive, remarks, sealingType, steelStampNumber, hologramEntries, loadedLot, dbDimensionalStatus, dbDimensionalNotOk]);
 
   // Drafts are auto-saved in real-time, so no browser reload warning is needed.
 
@@ -558,13 +628,12 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         setLoading(true);
         let shouldKeepLoading = false;
         try {
-          const data = await fetchInspectionCallByCallNo(callId);
-          let savedLotResults = [];
-          try {
-            savedLotResults = await finalInspectionLotResultsService.getByCallNo(callId);
-          } catch (e) {
-            console.error("Error loading saved lot results:", e);
-          }
+          const [dataResult, savedLotResultsResult] = await Promise.allSettled([
+            fetchInspectionCallByCallNo(callId),
+            finalInspectionLotResultsService.getByCallNo(callId)
+          ]);
+          const data = dataResult.status === 'fulfilled' ? dataResult.value : null;
+          const savedLotResults = savedLotResultsResult.status === 'fulfilled' ? (savedLotResultsResult.value || []) : [];
           if (data && data.lots) {
             // Map backend lot data to frontend format if needed
             const formattedLots = data.lots.map(l => {
@@ -610,8 +679,10 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
             if (formattedLots.length > 0) {
               const savedLotId = localStorage.getItem(`railpad_selected_lot_${currentCallId}`);
               const lotExists = formattedLots.some(l => l.id === savedLotId);
-              setSelectedLot(lotExists ? savedLotId : formattedLots[0].id);
+              const targetLot = lotExists ? savedLotId : formattedLots[0].id;
+              setSelectedLot(targetLot);
               shouldKeepLoading = true;
+              loadLotData(targetLot);
             }
             // Notify parent about the full call details (for the header)
             if (onUpdateCall) {
@@ -709,578 +780,556 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       }
     }
 
-    // --- NON-DRAFT DB LOAD PATH ---
-    let visualDbData = null;
     try {
-      if (currentCallId && lotId) {
-        visualDbData = await finalVisualDimensionalInspectionService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading visual/dimensional data from backend:", e);
-    }
+      // --- NON-DRAFT DB LOAD PATH (OPTIMIZED PARALLEL FETCH) ---
+      let visualDbData = null;
+      let lotResults = [];
+      let hardnessDbData = null;
+      let tensileDbData = null;
+      let elongationDbData = null;
+      let modulusDbData = null;
+      let compressionDbData = null;
+      let tensionDbData = null;
+      let loadDbData = null;
+      let electricalDbData = null;
+      let sgDbData = null;
+      let ashDbData = null;
+      let adhesionDbData = null;
+      let secantDbData = null;
+      let ncrAdhesionDbData = null;
+      let ncrBreakingDbData = null;
+      let ncrCordDbData = null;
+      let weightDbData = null;
+      let resilienceDbData = null;
+      let ozoneDbData = null;
+      let periodicTgaDbData = null;
+      let periodicDurabilityDbData = null;
+      let periodicAbrasionDbData = null;
 
-    let lotResults = [];
-    try {
-      if (currentCallId) {
-        lotResults = await finalInspectionLotResultsService.getByCallNo(currentCallId);
-      }
-    } catch (e) {
-      console.error("Error loading lot results from backend in loadLotData:", e);
-    }
-    const currentLotResult = lotResults.find(r => r.lotNo === lotId);
-    let finalRemarks = '';
-    let finalSealingType = 'RITES_HOLOGRAM';
-    let finalSteelStampNumber = '';
-    let finalHologramEntries = [];
-    let finalSpecType = 'CGRSP';
-    let finalReTestActive = false;
-    let finalReOfferActive = false;
+      if (currentCallId && lotId) {
+        const results = await Promise.allSettled([
+          finalVisualDimensionalInspectionService.getByCallAndLot(currentCallId, lotId),
+          finalInspectionLotResultsService.getByCallNo(currentCallId),
+          finalHardnessTestService.getByCallAndLot(currentCallId, lotId),
+          finalTensileStrengthService.getByCallAndLot(currentCallId, lotId),
+          finalElongationService.getByCallAndLot(currentCallId, lotId),
+          finalModulusService.getByCallAndLot(currentCallId, lotId),
+          finalCompressionSetService.getByCallAndLot(currentCallId, lotId),
+          finalTensionSetService.getByCallAndLot(currentCallId, lotId),
+          finalLoadTestService.getByCallAndLot(currentCallId, lotId),
+          finalElectricalResistanceService.getByCallAndLot(currentCallId, lotId),
+          finalSpecificGravityService.getByCallAndLot(currentCallId, lotId),
+          finalAshContentService.getByCallAndLot(currentCallId, lotId),
+          finalAdhesionService.getByCallAndLot(currentCallId, lotId),
+          finalSecantStiffnessService.getByCallAndLot(currentCallId, lotId),
+          finalNcrAdhesionService.getByCallAndLot(currentCallId, lotId),
+          finalNcrBreakingLoadService.getByCallAndLot(currentCallId, lotId),
+          finalNcrNylonCordService.getByCallAndLot(currentCallId, lotId),
+          finalWeightTestService.getByCallAndLot(currentCallId, lotId),
+          finalResilienceTestService.getByCallAndLot(currentCallId, lotId),
+          finalOzoneTestService.getByCallAndLot(currentCallId, lotId),
+          finalPeriodicTgaService.getByCallAndLot(currentCallId, lotId),
+          finalPeriodicDurabilityService.getByCallAndLot(currentCallId, lotId),
+          finalPeriodicAbrasionService.getByCallAndLot(currentCallId, lotId)
+        ]);
 
-    if (currentLotResult) {
-      finalRemarks = currentLotResult.remarks || '';
-      finalSpecType = currentLotResult.railpadType || 'CGRSP';
-      const dbHologram = currentLotResult.hologram;
-      if (dbHologram) {
-        finalSealingType = 'RITES_HOLOGRAM';
-        finalHologramEntries = dbHologram.split(',').map((part, idx) => {
-          if (part.includes('-')) {
-            const rangeParts = part.split('-');
-            return {
-              id: Date.now() + idx,
-              type: 'range',
-              from: rangeParts[0] || '',
-              to: rangeParts[1] || ''
-            };
-          } else {
-            return {
-              id: Date.now() + idx,
-              type: 'single',
-              value: part || ''
-            };
-          }
-        });
-      } else {
-        finalSealingType = '';
+        visualDbData = results[0].status === 'fulfilled' ? results[0].value : null;
+        lotResults = results[1].status === 'fulfilled' ? (results[1].value || []) : [];
+        hardnessDbData = results[2].status === 'fulfilled' ? results[2].value : null;
+        tensileDbData = results[3].status === 'fulfilled' ? results[3].value : null;
+        elongationDbData = results[4].status === 'fulfilled' ? results[4].value : null;
+        modulusDbData = results[5].status === 'fulfilled' ? results[5].value : null;
+        compressionDbData = results[6].status === 'fulfilled' ? results[6].value : null;
+        tensionDbData = results[7].status === 'fulfilled' ? results[7].value : null;
+        loadDbData = results[8].status === 'fulfilled' ? results[8].value : null;
+        electricalDbData = results[9].status === 'fulfilled' ? results[9].value : null;
+        sgDbData = results[10].status === 'fulfilled' ? results[10].value : null;
+        ashDbData = results[11].status === 'fulfilled' ? results[11].value : null;
+        adhesionDbData = results[12].status === 'fulfilled' ? results[12].value : null;
+        secantDbData = results[13].status === 'fulfilled' ? results[13].value : null;
+        ncrAdhesionDbData = results[14].status === 'fulfilled' ? results[14].value : null;
+        ncrBreakingDbData = results[15].status === 'fulfilled' ? results[15].value : null;
+        ncrCordDbData = results[16].status === 'fulfilled' ? results[16].value : null;
+        weightDbData = results[17].status === 'fulfilled' ? results[17].value : null;
+        resilienceDbData = results[18].status === 'fulfilled' ? results[18].value : null;
+        ozoneDbData = results[19].status === 'fulfilled' ? results[19].value : null;
+        periodicTgaDbData = results[20].status === 'fulfilled' ? results[20].value : null;
+        periodicDurabilityDbData = results[21].status === 'fulfilled' ? results[21].value : null;
+        periodicAbrasionDbData = results[22].status === 'fulfilled' ? results[22].value : null;
       }
-    }
 
-    let finalDbDimensionalStatus = visualDbData ? (visualDbData.dimensionalResult || null) : null;
-    setDbDimensionalStatus(finalDbDimensionalStatus);
-    // Track the original not-ok count from DB so we know if the user has changed it
-    let finalDbDimensionalNotOk = visualDbData && visualDbData.dimensionalNotOk !== null && visualDbData.dimensionalNotOk !== undefined
-      ? String(visualDbData.dimensionalNotOk)
-      : null;
-    setDbDimensionalNotOk(finalDbDimensionalNotOk);
+      const currentLotResult = lotResults.find(r => r.lotNo === lotId);
+      let finalRemarks = '';
+      let finalSealingType = 'RITES_HOLOGRAM';
+      let finalSteelStampNumber = '';
+      let finalHologramEntries = [];
+      let finalSpecType = 'CGRSP';
+      let finalReTestActive = false;
+      let finalReOfferActive = false;
 
-    let hardnessDbData = null;
-    let tensileDbData = null;
-    let elongationDbData = null;
-    let modulusDbData = null;
-    let compressionDbData = null;
-    let tensionDbData = null;
-    let loadDbData = null;
-    let electricalDbData = null;
-    let sgDbData = null;
-    let ashDbData = null;
-    let adhesionDbData = null;
-    let secantDbData = null;
-    let ncrAdhesionDbData = null;
-    let ncrBreakingDbData = null;
-    let ncrCordDbData = null;
-
-    try {
-      if (currentCallId && lotId) {
-        hardnessDbData = await finalHardnessTestService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading hardness data from backend:", e);
-    }
-    try {
-      if (currentCallId && lotId) {
-        tensileDbData = await finalTensileStrengthService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading tensile data from backend:", e);
-    }
-    try {
-      if (currentCallId && lotId) {
-        elongationDbData = await finalElongationService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading elongation data from backend:", e);
-    }
-    try {
-      if (currentCallId && lotId) {
-        modulusDbData = await finalModulusService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading modulus data from backend:", e);
-    }
-    try {
-      if (currentCallId && lotId) {
-        compressionDbData = await finalCompressionSetService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading compression data from backend:", e);
-    }
-    try {
-      if (currentCallId && lotId) {
-        tensionDbData = await finalTensionSetService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading tension data from backend:", e);
-    }
-    try {
-      if (currentCallId && lotId) {
-        loadDbData = await finalLoadTestService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading load test data from backend:", e);
-    }
-    try {
-      if (currentCallId && lotId) {
-        electricalDbData = await finalElectricalResistanceService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading electrical resistance data from backend:", e);
-    }
-    try {
-      if (currentCallId && lotId) {
-        sgDbData = await finalSpecificGravityService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading specific gravity data from backend:", e);
-    }
-    try {
-      if (currentCallId && lotId) {
-        ashDbData = await finalAshContentService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading ash content data from backend:", e);
-    }
-    try {
-      if (currentCallId && lotId) {
-        adhesionDbData = await finalAdhesionService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading adhesion data from backend:", e);
-    }
-    try {
-      if (currentCallId && lotId) {
-        secantDbData = await finalSecantStiffnessService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading secant data from backend:", e);
-    }
-    try {
-      if (currentCallId && lotId) {
-        ncrAdhesionDbData = await finalNcrAdhesionService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading NCR adhesion data from backend:", e);
-    }
-    try {
-      if (currentCallId && lotId) {
-        ncrBreakingDbData = await finalNcrBreakingLoadService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading NCR breaking data from backend:", e);
-    }
-    try {
-      if (currentCallId && lotId) {
-        ncrCordDbData = await finalNcrNylonCordService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading NCR nylon cord data from backend:", e);
-    }
-
-    // Reset form states (simulating new data load)
-
-    let weightDbData = null;
-    try {
-      if (currentCallId && lotId) {
-        weightDbData = await finalWeightTestService.getByCallAndLot(currentCallId, lotId);
-      }
-    } catch (e) {
-      console.error("Error loading weight testing data from backend:", e);
-    }
-
-    let baseVisual;
-    if (visualDbData) {
-      baseVisual = {
-        visualN: visualDbData.visualSamples || 25,
-        dv: visualDbData.visualNotOk !== null && visualDbData.visualNotOk !== undefined ? String(visualDbData.visualNotOk) : '',
-        visualReason: visualDbData.visualReason || '',
-        dimN: visualDbData.dimensionalSamples || 25,
-        dd: visualDbData.dimensionalNotOk !== null && visualDbData.dimensionalNotOk !== undefined ? String(visualDbData.dimensionalNotOk) : '',
-        dimReason: visualDbData.dimensionalReason || ''
-      };
-    } else {
-      baseVisual = {
-        dv: '',
-        dd: '',
-        visualReason: '',
-        dimReason: '',
-        visualN: 25,
-        dimN: 25
-      };
-    }
-    setVisualData(baseVisual);
-
-    const lot = lots.find(l => l.id === lotId) || { size: 1500, drawingNo: 'RDSO/T-8528' };
-    const aql = getWeightAQL(lot.size);
-    const tolerance = WEIGHT_TOLERANCE[lot.drawingNo] || { max: 445 };
-
-    let baseWeight;
-    if (weightDbData) {
-      const s1 = Array(weightDbData.n1 || aql.n1).fill('');
-      const s2 = Array(weightDbData.n2 || aql.n2).fill('');
-      if (weightDbData.samples) {
-        weightDbData.samples.forEach(s => {
-          if (s.samplingNo === 1 && s.sampleNo >= 1 && s.sampleNo <= s1.length) {
-            s1[s.sampleNo - 1] = s.sampleValue !== null && s.sampleValue !== undefined ? String(s.sampleValue) : '';
-          } else if (s.samplingNo === 2 && s.sampleNo >= 1 && s.sampleNo <= s2.length) {
-            s2[s.sampleNo - 1] = s.sampleValue !== null && s.sampleValue !== undefined ? String(s.sampleValue) : '';
-          }
-        });
-      }
-      baseWeight = {
-        samples1: s1,
-        samples2: s2,
-        n1: weightDbData.n1 || aql.n1,
-        ac1: weightDbData.ac1 !== null && weightDbData.ac1 !== undefined ? weightDbData.ac1 : aql.ac1,
-        re1: weightDbData.re1 !== null && weightDbData.re1 !== undefined ? weightDbData.re1 : aql.re1,
-        n2: weightDbData.n2 || aql.n2,
-        ac2: weightDbData.ac2 !== null && weightDbData.ac2 !== undefined ? weightDbData.ac2 : aql.ac2,
-        re2: weightDbData.re2 !== null && weightDbData.re2 !== undefined ? weightDbData.re2 : aql.re2,
-        min: weightDbData.minWeight !== null && weightDbData.minWeight !== undefined ? weightDbData.minWeight : 0,
-        max: weightDbData.maxWeight !== null && weightDbData.maxWeight !== undefined ? weightDbData.maxWeight : tolerance.max,
-        isSecondActive: weightDbData.isSecondActive || false
-      };
-    } else {
-      baseWeight = {
-        samples1: Array(aql.n1).fill(''),
-        samples2: Array(aql.n2).fill(''),
-        n1: aql.n1,
-        ac1: aql.ac1,
-        re1: aql.re1,
-        n2: aql.n2,
-        ac2: aql.ac2,
-        re2: aql.re2,
-        min: 0,
-        max: tolerance.max,
-        isSecondActive: false
-      };
-    }
-    setWeightData(baseWeight);
-
-    let basePhys = padPhysicalData(null);
-    if (hardnessDbData) {
-      basePhys.hardness = {
-        compoundA: [
-          hardnessDbData.sampleA1 || '', hardnessDbData.sampleA2 || '', hardnessDbData.sampleA3 || '', hardnessDbData.sampleA4 || '', hardnessDbData.sampleA5 || '',
-          hardnessDbData.marginalA1 || '', hardnessDbData.marginalA2 || '', hardnessDbData.marginalA3 || '', hardnessDbData.marginalA4 || '', hardnessDbData.marginalA5 || '',
-          hardnessDbData.marginalA6 || '', hardnessDbData.marginalA7 || '', hardnessDbData.marginalA8 || '', hardnessDbData.marginalA9 || '', hardnessDbData.marginalA10 || ''
-        ],
-        compoundB: [
-          hardnessDbData.sampleB1 || '', hardnessDbData.sampleB2 || '', hardnessDbData.sampleB3 || '', hardnessDbData.sampleB4 || '', hardnessDbData.sampleB5 || '',
-          hardnessDbData.marginalB1 || '', hardnessDbData.marginalB2 || '', hardnessDbData.marginalB3 || '', hardnessDbData.marginalB4 || '', hardnessDbData.marginalB5 || '',
-          hardnessDbData.marginalB6 || '', hardnessDbData.marginalB7 || '', hardnessDbData.marginalB8 || '', hardnessDbData.marginalB9 || '', hardnessDbData.marginalB10 || ''
-        ]
-      };
-    }
-    if (tensileDbData) {
-      basePhys.tensile = {
-        before: [
-          tensileDbData.sampleBefore1 || '', tensileDbData.sampleBefore2 || '', tensileDbData.sampleBefore3 || '', tensileDbData.sampleBefore4 || '', tensileDbData.sampleBefore5 || '',
-          tensileDbData.marginalBefore1 || '', tensileDbData.marginalBefore2 || '', tensileDbData.marginalBefore3 || '', tensileDbData.marginalBefore4 || '', tensileDbData.marginalBefore5 || '',
-          tensileDbData.marginalBefore6 || '', tensileDbData.marginalBefore7 || '', tensileDbData.marginalBefore8 || '', tensileDbData.marginalBefore9 || '', tensileDbData.marginalBefore10 || ''
-        ],
-        after: [
-          tensileDbData.sampleAfter1 || '', tensileDbData.sampleAfter2 || '', tensileDbData.sampleAfter3 || '', tensileDbData.sampleAfter4 || '', tensileDbData.sampleAfter5 || '',
-          tensileDbData.marginalAfter1 || '', tensileDbData.marginalAfter2 || '', tensileDbData.marginalAfter3 || '', tensileDbData.marginalAfter4 || '', tensileDbData.marginalAfter5 || '',
-          tensileDbData.marginalAfter6 || '', tensileDbData.marginalAfter7 || '', tensileDbData.marginalAfter8 || '', tensileDbData.marginalAfter9 || '', tensileDbData.marginalAfter10 || ''
-        ]
-      };
-    }
-    if (elongationDbData) {
-      basePhys.elongation = {
-        before: [
-          elongationDbData.sampleBefore1 || '', elongationDbData.sampleBefore2 || '', elongationDbData.sampleBefore3 || '', elongationDbData.sampleBefore4 || '', elongationDbData.sampleBefore5 || '',
-          elongationDbData.marginalBefore1 || '', elongationDbData.marginalBefore2 || '', elongationDbData.marginalBefore3 || '', elongationDbData.marginalBefore4 || '', elongationDbData.marginalBefore5 || '',
-          elongationDbData.marginalBefore6 || '', elongationDbData.marginalBefore7 || '', elongationDbData.marginalBefore8 || '', elongationDbData.marginalBefore9 || '', elongationDbData.marginalBefore10 || ''
-        ],
-        after: [
-          elongationDbData.sampleAfter1 || '', elongationDbData.sampleAfter2 || '', elongationDbData.sampleAfter3 || '', elongationDbData.sampleAfter4 || '', elongationDbData.sampleAfter5 || '',
-          elongationDbData.marginalAfter1 || '', elongationDbData.marginalAfter2 || '', elongationDbData.marginalAfter3 || '', elongationDbData.marginalAfter4 || '', elongationDbData.marginalAfter5 || '',
-          elongationDbData.marginalAfter6 || '', elongationDbData.marginalAfter7 || '', elongationDbData.marginalAfter8 || '', elongationDbData.marginalAfter9 || '', elongationDbData.marginalAfter10 || ''
-        ]
-      };
-    }
-    if (modulusDbData) {
-      basePhys.modulus = {
-        before: [
-          modulusDbData.sampleBefore1 || '', modulusDbData.sampleBefore2 || '', modulusDbData.sampleBefore3 || '',
-          modulusDbData.marginalBefore1 || '', modulusDbData.marginalBefore2 || '', modulusDbData.marginalBefore3 || '',
-          modulusDbData.marginalBefore4 || '', modulusDbData.marginalBefore5 || '', modulusDbData.marginalBefore6 || ''
-        ],
-        after: [
-          modulusDbData.sampleAfter1 || '', modulusDbData.sampleAfter2 || '', modulusDbData.sampleAfter3 || '',
-          modulusDbData.marginalAfter1 || '', modulusDbData.marginalAfter2 || '', modulusDbData.marginalAfter3 || '',
-          modulusDbData.marginalAfter4 || '', modulusDbData.marginalAfter5 || '', modulusDbData.marginalAfter6 || ''
-        ]
-      };
-    }
-    if (compressionDbData) {
-      basePhys.compression = {
-        initial: [
-          compressionDbData.sampleInitial1 || '', compressionDbData.sampleInitial2 || '', compressionDbData.sampleInitial3 || '',
-          compressionDbData.marginalInitial1 || '', compressionDbData.marginalInitial2 || '', compressionDbData.marginalInitial3 || '',
-          compressionDbData.marginalInitial4 || '', compressionDbData.marginalInitial5 || '', compressionDbData.marginalInitial6 || ''
-        ],
-        final: [
-          compressionDbData.sampleFinal1 || '', compressionDbData.sampleFinal2 || '', compressionDbData.sampleFinal3 || '',
-          compressionDbData.marginalFinal1 || '', compressionDbData.marginalFinal2 || '', compressionDbData.marginalFinal3 || '',
-          compressionDbData.marginalFinal4 || '', compressionDbData.marginalFinal5 || '', compressionDbData.marginalFinal6 || ''
-        ]
-      };
-    }
-    if (tensionDbData) {
-      basePhys.tension = {
-        initial: [
-          tensionDbData.sampleInitial1 || '', tensionDbData.sampleInitial2 || '', tensionDbData.sampleInitial3 || '',
-          tensionDbData.marginalInitial1 || '', tensionDbData.marginalInitial2 || '', tensionDbData.marginalInitial3 || '',
-          tensionDbData.marginalInitial4 || '', tensionDbData.marginalInitial5 || '', tensionDbData.marginalInitial6 || ''
-        ],
-        final: [
-          tensionDbData.sampleFinal1 || '', tensionDbData.sampleFinal2 || '', tensionDbData.sampleFinal3 || '',
-          tensionDbData.marginalFinal1 || '', tensionDbData.marginalFinal2 || '', tensionDbData.marginalFinal3 || '',
-          tensionDbData.marginalFinal4 || '', tensionDbData.marginalFinal5 || '', tensionDbData.marginalFinal6 || ''
-        ]
-      };
-    }
-    if (loadDbData) {
-      basePhys.loadTest = {
-        pad1: [
-          { left: loadDbData.pad1L1 || '', right: loadDbData.pad1R1 || '' },
-          { left: loadDbData.pad1L2 || '', right: loadDbData.pad1R2 || '' },
-          { left: loadDbData.pad1L3 || '', right: loadDbData.pad1R3 || '' },
-          { left: loadDbData.pad1L4 || '', right: loadDbData.pad1R4 || '' },
-          { left: loadDbData.pad1L5 || '', right: loadDbData.pad1R5 || '' },
-          { left: loadDbData.pad1L6 || '', right: loadDbData.pad1R6 || '' },
-          { left: loadDbData.pad1L7 || '', right: loadDbData.pad1R7 || '' },
-          { left: loadDbData.pad1L8 || '', right: loadDbData.pad1R8 || '' }
-        ],
-        pad2: [
-          { left: loadDbData.pad2L1 || '', right: loadDbData.pad2R1 || '' },
-          { left: loadDbData.pad2L2 || '', right: loadDbData.pad2R2 || '' },
-          { left: loadDbData.pad2L3 || '', right: loadDbData.pad2R3 || '' },
-          { left: loadDbData.pad2L4 || '', right: loadDbData.pad2R4 || '' },
-          { left: loadDbData.pad2L5 || '', right: loadDbData.pad2R5 || '' },
-          { left: loadDbData.pad2L6 || '', right: loadDbData.pad2R6 || '' },
-          { left: loadDbData.pad2L7 || '', right: loadDbData.pad2R7 || '' },
-          { left: loadDbData.pad2L8 || '', right: loadDbData.pad2R8 || '' }
-        ],        mPad1: [
-          { left: loadDbData.mpad1L1 || '', right: loadDbData.mpad1R1 || '' },
-          { left: loadDbData.mpad1L2 || '', right: loadDbData.mpad1R2 || '' },
-          { left: loadDbData.mpad1L3 || '', right: loadDbData.mpad1R3 || '' },
-          { left: loadDbData.mpad1L4 || '', right: loadDbData.mpad1R4 || '' },
-          { left: loadDbData.mpad1L5 || '', right: loadDbData.mpad1R5 || '' },
-          { left: loadDbData.mpad1L6 || '', right: loadDbData.mpad1R6 || '' },
-          { left: loadDbData.mpad1L7 || '', right: loadDbData.mpad1R7 || '' },
-          { left: loadDbData.mpad1L8 || '', right: loadDbData.mpad1R8 || '' }
-        ],
-        mPad2: [
-          { left: loadDbData.mpad2L1 || '', right: loadDbData.mpad2R1 || '' },
-          { left: loadDbData.mpad2L2 || '', right: loadDbData.mpad2R2 || '' },
-          { left: loadDbData.mpad2L3 || '', right: loadDbData.mpad2R3 || '' },
-          { left: loadDbData.mpad2L4 || '', right: loadDbData.mpad2R4 || '' },
-          { left: loadDbData.mpad2L5 || '', right: loadDbData.mpad2R5 || '' },
-          { left: loadDbData.mpad2L6 || '', right: loadDbData.mpad2R6 || '' },
-          { left: loadDbData.mpad2L7 || '', right: loadDbData.mpad2R7 || '' },
-          { left: loadDbData.mpad2L8 || '', right: loadDbData.mpad2R8 || '' }
-        ],
-        mPad3: [
-          { left: loadDbData.mpad3L1 || '', right: loadDbData.mpad3R1 || '' },
-          { left: loadDbData.mpad3L2 || '', right: loadDbData.mpad3R2 || '' },
-          { left: loadDbData.mpad3L3 || '', right: loadDbData.mpad3R3 || '' },
-          { left: loadDbData.mpad3L4 || '', right: loadDbData.mpad3R4 || '' },
-          { left: loadDbData.mpad3L5 || '', right: loadDbData.mpad3R5 || '' },
-          { left: loadDbData.mpad3L6 || '', right: loadDbData.mpad3R6 || '' },
-          { left: loadDbData.mpad3L7 || '', right: loadDbData.mpad3R7 || '' },
-          { left: loadDbData.mpad3L8 || '', right: loadDbData.mpad3R8 || '' }
-        ],
-        mPad4: [
-          { left: loadDbData.mpad4L1 || '', right: loadDbData.mpad4R1 || '' },
-          { left: loadDbData.mpad4L2 || '', right: loadDbData.mpad4R2 || '' },
-          { left: loadDbData.mpad4L3 || '', right: loadDbData.mpad4R3 || '' },
-          { left: loadDbData.mpad4L4 || '', right: loadDbData.mpad4R4 || '' },
-          { left: loadDbData.mpad4L5 || '', right: loadDbData.mpad4R5 || '' },
-          { left: loadDbData.mpad4L6 || '', right: loadDbData.mpad4R6 || '' },
-          { left: loadDbData.mpad4L7 || '', right: loadDbData.mpad4R7 || '' },
-          { left: loadDbData.mpad4L8 || '', right: loadDbData.mpad4R8 || '' }
-        ]
-      };
-    }
-    setPhysicalData(basePhys);
-    let baseElec = padElecData(null);
-    if (electricalDbData) {
-      baseElec.resistance = [
-        { bF: electricalDbData.s1BeforeForward || '', bR: electricalDbData.s1BeforeReverse || '', aF: electricalDbData.s1AfterForward || '', aR: electricalDbData.s1AfterReverse || '' },
-        { bF: electricalDbData.s2BeforeForward || '', bR: electricalDbData.s2BeforeReverse || '', aF: electricalDbData.s2AfterForward || '', aR: electricalDbData.s2AfterReverse || '' },
-        { bF: electricalDbData.s3BeforeForward || '', bR: electricalDbData.s3BeforeReverse || '', aF: electricalDbData.s3AfterForward || '', aR: electricalDbData.s3AfterReverse || '' },
-        { bF: electricalDbData.s4BeforeForward || '', bR: electricalDbData.s4BeforeReverse || '', aF: electricalDbData.s4AfterForward || '', aR: electricalDbData.s4AfterReverse || '' },
-        { bF: electricalDbData.s5BeforeForward || '', bR: electricalDbData.s5BeforeReverse || '', aF: electricalDbData.s5AfterForward || '', aR: electricalDbData.s5AfterReverse || '' },
-        { bF: electricalDbData.s6BeforeForward || '', bR: electricalDbData.s6BeforeReverse || '', aF: electricalDbData.s6AfterForward || '', aR: electricalDbData.s6AfterReverse || '' }
-      ];
-    }
-    if (sgDbData) {
-      baseElec.sg = {
-        compoundA: [
-          { air: sgDbData.s1AAir || '', water: sgDbData.s1AWater || '' },
-          { air: sgDbData.s2AAir || '', water: sgDbData.s2AWater || '' },
-          { air: sgDbData.s3AAir || '', water: sgDbData.s3AWater || '' },
-          { air: sgDbData.s4AAir || '', water: sgDbData.s4AWater || '' },
-          { air: sgDbData.s5AAir || '', water: sgDbData.s5AWater || '' },
-          { air: sgDbData.s6AAir || '', water: sgDbData.s6AWater || '' }
-        ],
-        compoundB: [
-          { air: sgDbData.s1BAir || '', water: sgDbData.s1BWater || '' },
-          { air: sgDbData.s2BAir || '', water: sgDbData.s2BWater || '' },
-          { air: sgDbData.s3BAir || '', water: sgDbData.s3BWater || '' },
-          { air: sgDbData.s4BAir || '', water: sgDbData.s4BWater || '' },
-          { air: sgDbData.s5BAir || '', water: sgDbData.s5BWater || '' },
-          { air: sgDbData.s6BAir || '', water: sgDbData.s6BWater || '' }
-        ]
-      };
-    }
-    if (ashDbData) {
-      baseElec.ash = {
-        compoundA: [
-          { crucible: ashDbData.s1ACrucible || '', sample: ashDbData.s1ASample || '', ash: ashDbData.s1AAsh || '' },
-          { crucible: ashDbData.s2ACrucible || '', sample: ashDbData.s2ASample || '', ash: ashDbData.s2AAsh || '' },
-          { crucible: ashDbData.s3ACrucible || '', sample: ashDbData.s3ASample || '', ash: ashDbData.s3AAsh || '' },
-          { crucible: ashDbData.m1ACrucible || '', sample: ashDbData.m1ASample || '', ash: ashDbData.m1AAsh || '' },
-          { crucible: ashDbData.m2ACrucible || '', sample: ashDbData.m2ASample || '', ash: ashDbData.m2AAsh || '' },
-          { crucible: ashDbData.m3ACrucible || '', sample: ashDbData.m3ASample || '', ash: ashDbData.m3AAsh || '' },
-          { crucible: ashDbData.m4ACrucible || '', sample: ashDbData.m4ASample || '', ash: ashDbData.m4AAsh || '' },
-          { crucible: ashDbData.m5ACrucible || '', sample: ashDbData.m5ASample || '', ash: ashDbData.m5AAsh || '' },
-          { crucible: ashDbData.m6ACrucible || '', sample: ashDbData.m6ASample || '', ash: ashDbData.m6AAsh || '' }
-        ],
-        compoundB: [
-          { crucible: ashDbData.s1BCrucible || '', sample: ashDbData.s1BSample || '', ash: ashDbData.s1BAsh || '' },
-          { crucible: ashDbData.s2BCrucible || '', sample: ashDbData.s2BSample || '', ash: ashDbData.s2BAsh || '' },
-          { crucible: ashDbData.s3BCrucible || '', sample: ashDbData.s3BSample || '', ash: ashDbData.s3BAsh || '' },
-          { crucible: ashDbData.m1BCrucible || '', sample: ashDbData.m1BSample || '', ash: ashDbData.m1BAsh || '' },
-          { crucible: ashDbData.m2BCrucible || '', sample: ashDbData.m2BSample || '', ash: ashDbData.m2BAsh || '' },
-          { crucible: ashDbData.m3BCrucible || '', sample: ashDbData.m3BSample || '', ash: ashDbData.m3BAsh || '' },
-          { crucible: ashDbData.m4BCrucible || '', sample: ashDbData.m4BSample || '', ash: ashDbData.m4BAsh || '' },
-          { crucible: ashDbData.m5BCrucible || '', sample: ashDbData.m5BSample || '', ash: ashDbData.m5BAsh || '' },
-          { crucible: ashDbData.m6BCrucible || '', sample: ashDbData.m6BSample || '', ash: ashDbData.m6BAsh || '' }
-        ]
-      };
-    }
-    setElecData(baseElec);
-
-    let baseSpec = padSpecData(null);
-    if (adhesionDbData) {
-      baseSpec.adhesion = [
-        adhesionDbData.sample1 || '', adhesionDbData.sample2 || '',
-        adhesionDbData.marginal1 || '', adhesionDbData.marginal2 || '', adhesionDbData.marginal3 || '', adhesionDbData.marginal4 || ''
-      ];
-    }
-    if (secantDbData) {
-      baseSpec.secant = [
-        {
-          s20: { a: secantDbData.s1S20A || '', b: secantDbData.s1S20B || '', c: secantDbData.s1S20C || '', d: secantDbData.s1S20D || '' },
-          s90: { a: secantDbData.s1S90A || '', b: secantDbData.s1S90B || '', c: secantDbData.s1S90C || '', d: secantDbData.s1S90D || '' }
-        },
-        {
-          s20: { a: secantDbData.s2S20A || '', b: secantDbData.s2S20B || '', c: secantDbData.s2S20C || '', d: secantDbData.s2S20D || '' },
-          s90: { a: secantDbData.s2S90A || '', b: secantDbData.s2S90B || '', c: secantDbData.s2S90C || '', d: secantDbData.s2S90D || '' }
-        },
-        {
-          s20: { a: secantDbData.m1S20A || '', b: secantDbData.m1S20B || '', c: secantDbData.m1S20C || '', d: secantDbData.m1S20D || '' },
-          s90: { a: secantDbData.m1S90A || '', b: secantDbData.m1S90B || '', c: secantDbData.m1S90C || '', d: secantDbData.m1S90D || '' }
-        },
-        {
-          s20: { a: secantDbData.m2S20A || '', b: secantDbData.m2S20B || '', c: secantDbData.m2S20C || '', d: secantDbData.m2S20D || '' },
-          s90: { a: secantDbData.m2S90A || '', b: secantDbData.m2S90B || '', c: secantDbData.m2S90C || '', d: secantDbData.m2S90D || '' }
-        },
-        {
-          s20: { a: secantDbData.m3S20A || '', b: secantDbData.m3S20B || '', c: secantDbData.m3S20C || '', d: secantDbData.m3S20D || '' },
-          s90: { a: secantDbData.m3S90A || '', b: secantDbData.m3S90B || '', c: secantDbData.m3S90C || '', d: secantDbData.m3S90D || '' }
-        },
-        {
-          s20: { a: secantDbData.m4S20A || '', b: secantDbData.m4S20B || '', c: secantDbData.m4S20C || '', d: secantDbData.m4S20D || '' },
-          s90: { a: secantDbData.m4S90A || '', b: secantDbData.m4S90B || '', c: secantDbData.m4S90C || '', d: secantDbData.m4S90D || '' }
+      if (currentLotResult) {
+        finalRemarks = currentLotResult.remarks || '';
+        finalSpecType = currentLotResult.railpadType || 'CGRSP';
+        const dbHologram = currentLotResult.hologram;
+        if (dbHologram) {
+          finalSealingType = 'RITES_HOLOGRAM';
+          finalHologramEntries = dbHologram.split(',').map((part, idx) => {
+            if (part.includes('-')) {
+              const rangeParts = part.split('-');
+              return {
+                id: Date.now() + idx,
+                type: 'range',
+                from: rangeParts[0] || '',
+                to: rangeParts[1] || ''
+              };
+            } else {
+              return {
+                id: Date.now() + idx,
+                type: 'single',
+                value: part || ''
+              };
+            }
+          });
+        } else {
+          finalSealingType = '';
         }
-      ];
-    }
-    if (ncrAdhesionDbData) {
-      baseSpec.ncrgrsp = baseSpec.ncrgrsp || {};
-      baseSpec.ncrgrsp.adhesion = [
-        { peel: ncrAdhesionDbData.s1Peel || '', hpull: ncrAdhesionDbData.s1Hpull || '' },
-        { peel: ncrAdhesionDbData.s2Peel || '', hpull: ncrAdhesionDbData.s2Hpull || '' },
-        { peel: ncrAdhesionDbData.m1Peel || '', hpull: ncrAdhesionDbData.m1Hpull || '' },
-        { peel: ncrAdhesionDbData.m2Peel || '', hpull: ncrAdhesionDbData.m2Hpull || '' },
-        { peel: ncrAdhesionDbData.m3Peel || '', hpull: ncrAdhesionDbData.m3Hpull || '' },
-        { peel: ncrAdhesionDbData.m4Peel || '', hpull: ncrAdhesionDbData.m4Hpull || '' }
-      ];
-    }
-    if (ncrBreakingDbData) {
-      baseSpec.ncrgrsp = baseSpec.ncrgrsp || {};
-      baseSpec.ncrgrsp.breaking = [
-        ncrBreakingDbData.sample1 || '', ncrBreakingDbData.sample2 || '', ncrBreakingDbData.sample3 || '', ncrBreakingDbData.sample4 || '', ncrBreakingDbData.sample5 || '',
-        ncrBreakingDbData.marginal1 || '', ncrBreakingDbData.marginal2 || '', ncrBreakingDbData.marginal3 || '', ncrBreakingDbData.marginal4 || '', ncrBreakingDbData.marginal5 || '',
-        ncrBreakingDbData.marginal6 || '', ncrBreakingDbData.marginal7 || '', ncrBreakingDbData.marginal8 || '', ncrBreakingDbData.marginal9 || '', ncrBreakingDbData.marginal10 || ''
-      ];
-    }
-    if (ncrCordDbData) {
-      baseSpec.ncrgrsp = baseSpec.ncrgrsp || {};
-      baseSpec.ncrgrsp.nylonCord = [
-        { denier: ncrCordDbData.s1Denier || '', epi: ncrCordDbData.s1Epi || '', thickness: ncrCordDbData.s1Thickness || '', loadAtBreak: ncrCordDbData.s1LoadAtBreak || '', elongation: ncrCordDbData.s1Elongation || '', twists: ncrCordDbData.s1Twists || '' },
-        { denier: ncrCordDbData.s2Denier || '', epi: ncrCordDbData.s2Epi || '', thickness: ncrCordDbData.s2Thickness || '', loadAtBreak: ncrCordDbData.s2LoadAtBreak || '', elongation: ncrCordDbData.s2Elongation || '', twists: ncrCordDbData.s2Twists || '' },
-        { denier: ncrCordDbData.s3Denier || '', epi: ncrCordDbData.s3Epi || '', thickness: ncrCordDbData.s3Thickness || '', loadAtBreak: ncrCordDbData.s3LoadAtBreak || '', elongation: ncrCordDbData.s3Elongation || '', twists: ncrCordDbData.s3Twists || '' },
-        { denier: ncrCordDbData.m1Denier || '', epi: ncrCordDbData.m1Epi || '', thickness: ncrCordDbData.m1Thickness || '', loadAtBreak: ncrCordDbData.m1LoadAtBreak || '', elongation: ncrCordDbData.m1Elongation || '', twists: ncrCordDbData.m1Twists || '' },
-        { denier: ncrCordDbData.m2Denier || '', epi: ncrCordDbData.m2Epi || '', thickness: ncrCordDbData.m2Thickness || '', loadAtBreak: ncrCordDbData.m2LoadAtBreak || '', elongation: ncrCordDbData.m2Elongation || '', twists: ncrCordDbData.m2Twists || '' },
-        { denier: ncrCordDbData.m3Denier || '', epi: ncrCordDbData.m3Epi || '', thickness: ncrCordDbData.m3Thickness || '', loadAtBreak: ncrCordDbData.m3LoadAtBreak || '', elongation: ncrCordDbData.m3Elongation || '', twists: ncrCordDbData.m3Twists || '' },
-        { denier: ncrCordDbData.m4Denier || '', epi: ncrCordDbData.m4Epi || '', thickness: ncrCordDbData.m4Thickness || '', loadAtBreak: ncrCordDbData.m4LoadAtBreak || '', elongation: ncrCordDbData.m4Elongation || '', twists: ncrCordDbData.m4Twists || '' },
-        { denier: ncrCordDbData.m5Denier || '', epi: ncrCordDbData.m5Epi || '', thickness: ncrCordDbData.m5Thickness || '', loadAtBreak: ncrCordDbData.m5LoadAtBreak || '', elongation: ncrCordDbData.m5Elongation || '', twists: ncrCordDbData.m5Twists || '' },
-        { denier: ncrCordDbData.m6Denier || '', epi: ncrCordDbData.m6Epi || '', thickness: ncrCordDbData.m6Thickness || '', loadAtBreak: ncrCordDbData.m6LoadAtBreak || '', elongation: ncrCordDbData.m6Elongation || '', twists: ncrCordDbData.m6Twists || '' }
-      ];
-    }
-    setSpecData(baseSpec);
-    setRemarks(finalRemarks);
-    setSealingType(finalSealingType);
-    setSteelStampNumber(finalSteelStampNumber);
-    setHologramEntries(finalHologramEntries);
-    setSpecType(finalSpecType);
-    setReTestActive(finalReTestActive);
-    setReOfferActive(finalReOfferActive);
+      }
 
-    // Explicitly persist the freshly fetched database data as initial draft
-    const initialDraftData = {
-      activeTab: 'visual',
-      visualData: baseVisual,
-      weightData: baseWeight,
-      physicalData: basePhys,
-      elecData: baseElec,
-      specData: baseSpec,
-      specType: finalSpecType,
-      reTestActive: finalReTestActive,
-      reOfferActive: finalReOfferActive,
-      remarks: finalRemarks,
-      sealingType: finalSealingType,
-      steelStampNumber: finalSteelStampNumber,
-      hologramEntries: finalHologramEntries,
-      dbDimensionalStatus: finalDbDimensionalStatus
-    };
-    localStorage.setItem(draftKey, JSON.stringify(initialDraftData));
+      let finalDbDimensionalStatus = visualDbData ? (visualDbData.dimensionalResult || null) : null;
+      setDbDimensionalStatus(finalDbDimensionalStatus);
+      // Track the original not-ok count from DB so we know if the user has changed it
+      let finalDbDimensionalNotOk = visualDbData && visualDbData.dimensionalNotOk !== null && visualDbData.dimensionalNotOk !== undefined
+        ? String(visualDbData.dimensionalNotOk)
+        : null;
+      setDbDimensionalNotOk(finalDbDimensionalNotOk);
 
-    // Set the loaded lot ref so we know loading is complete!
-    setLoadedLot(lotId);
-    setLoading(false);
+      let baseVisual;
+      if (visualDbData) {
+        baseVisual = {
+          visualN: visualDbData.visualSamples || 25,
+          dv: visualDbData.visualNotOk !== null && visualDbData.visualNotOk !== undefined ? String(visualDbData.visualNotOk) : '',
+          visualReason: visualDbData.visualReason || '',
+          dimN: visualDbData.dimensionalSamples || 25,
+          dd: visualDbData.dimensionalNotOk !== null && visualDbData.dimensionalNotOk !== undefined ? String(visualDbData.dimensionalNotOk) : '',
+          dimReason: visualDbData.dimensionalReason || ''
+        };
+      } else {
+        baseVisual = {
+          dv: '',
+          dd: '',
+          visualReason: '',
+          dimReason: '',
+          visualN: 25,
+          dimN: 25
+        };
+      }
+      setVisualData(baseVisual);
+
+      const lot = lots.find(l => l.id === lotId) || { size: 1500, drawingNo: 'RDSO/T-8528' };
+      const aql = getWeightAQL(lot.size);
+      const tolerance = WEIGHT_TOLERANCE[lot.drawingNo] || { max: 445 };
+
+      let baseWeight;
+      if (weightDbData) {
+        const s1 = Array(weightDbData.n1 || aql.n1).fill('');
+        const s2 = Array(weightDbData.n2 || aql.n2).fill('');
+        if (weightDbData.samples) {
+          weightDbData.samples.forEach(s => {
+            if (s.samplingNo === 1 && s.sampleNo >= 1 && s.sampleNo <= s1.length) {
+              s1[s.sampleNo - 1] = s.sampleValue !== null && s.sampleValue !== undefined ? String(s.sampleValue) : '';
+            } else if (s.samplingNo === 2 && s.sampleNo >= 1 && s.sampleNo <= s2.length) {
+              s2[s.sampleNo - 1] = s.sampleValue !== null && s.sampleValue !== undefined ? String(s.sampleValue) : '';
+            }
+          });
+        }
+        baseWeight = {
+          samples1: s1,
+          samples2: s2,
+          n1: weightDbData.n1 || aql.n1,
+          ac1: weightDbData.ac1 !== null && weightDbData.ac1 !== undefined ? weightDbData.ac1 : aql.ac1,
+          re1: weightDbData.re1 !== null && weightDbData.re1 !== undefined ? weightDbData.re1 : aql.re1,
+          n2: weightDbData.n2 || aql.n2,
+          ac2: weightDbData.ac2 !== null && weightDbData.ac2 !== undefined ? weightDbData.ac2 : aql.ac2,
+          re2: weightDbData.re2 !== null && weightDbData.re2 !== undefined ? weightDbData.re2 : aql.re2,
+          min: weightDbData.minWeight !== null && weightDbData.minWeight !== undefined ? weightDbData.minWeight : 0,
+          max: weightDbData.maxWeight !== null && weightDbData.maxWeight !== undefined ? weightDbData.maxWeight : tolerance.max,
+          isSecondActive: weightDbData.isSecondActive || false
+        };
+      } else {
+        baseWeight = {
+          samples1: Array(aql.n1).fill(''),
+          samples2: Array(aql.n2).fill(''),
+          n1: aql.n1,
+          ac1: aql.ac1,
+          re1: aql.re1,
+          n2: aql.n2,
+          ac2: aql.ac2,
+          re2: aql.re2,
+          min: 0,
+          max: tolerance.max,
+          isSecondActive: false
+        };
+      }
+      setWeightData(baseWeight);
+
+      let basePhys = padPhysicalData(null);
+      if (hardnessDbData) {
+        basePhys.hardness = {
+          compoundA: [
+            hardnessDbData.sampleA1 || '', hardnessDbData.sampleA2 || '', hardnessDbData.sampleA3 || '', hardnessDbData.sampleA4 || '', hardnessDbData.sampleA5 || '',
+            hardnessDbData.marginalA1 || '', hardnessDbData.marginalA2 || '', hardnessDbData.marginalA3 || '', hardnessDbData.marginalA4 || '', hardnessDbData.marginalA5 || '',
+            hardnessDbData.marginalA6 || '', hardnessDbData.marginalA7 || '', hardnessDbData.marginalA8 || '', hardnessDbData.marginalA9 || '', hardnessDbData.marginalA10 || ''
+          ],
+          compoundB: [
+            hardnessDbData.sampleB1 || '', hardnessDbData.sampleB2 || '', hardnessDbData.sampleB3 || '', hardnessDbData.sampleB4 || '', hardnessDbData.sampleB5 || '',
+            hardnessDbData.marginalB1 || '', hardnessDbData.marginalB2 || '', hardnessDbData.marginalB3 || '', hardnessDbData.marginalB4 || '', hardnessDbData.marginalB5 || '',
+            hardnessDbData.marginalB6 || '', hardnessDbData.marginalB7 || '', hardnessDbData.marginalB8 || '', hardnessDbData.marginalB9 || '', hardnessDbData.marginalB10 || ''
+          ]
+        };
+      }
+      if (tensileDbData) {
+        basePhys.tensile = {
+          before: [
+            tensileDbData.sampleBefore1 || '', tensileDbData.sampleBefore2 || '', tensileDbData.sampleBefore3 || '', tensileDbData.sampleBefore4 || '', tensileDbData.sampleBefore5 || '',
+            tensileDbData.marginalBefore1 || '', tensileDbData.marginalBefore2 || '', tensileDbData.marginalBefore3 || '', tensileDbData.marginalBefore4 || '', tensileDbData.marginalBefore5 || '',
+            tensileDbData.marginalBefore6 || '', tensileDbData.marginalBefore7 || '', tensileDbData.marginalBefore8 || '', tensileDbData.marginalBefore9 || '', tensileDbData.marginalBefore10 || ''
+          ],
+          after: [
+            tensileDbData.sampleAfter1 || '', tensileDbData.sampleAfter2 || '', tensileDbData.sampleAfter3 || '', tensileDbData.sampleAfter4 || '', tensileDbData.sampleAfter5 || '',
+            tensileDbData.marginalAfter1 || '', tensileDbData.marginalAfter2 || '', tensileDbData.marginalAfter3 || '', tensileDbData.marginalAfter4 || '', tensileDbData.marginalAfter5 || '',
+            tensileDbData.marginalAfter6 || '', tensileDbData.marginalAfter7 || '', tensileDbData.marginalAfter8 || '', tensileDbData.marginalAfter9 || '', tensileDbData.marginalAfter10 || ''
+          ]
+        };
+      }
+      if (elongationDbData) {
+        basePhys.elongation = {
+          before: [
+            elongationDbData.sampleBefore1 || '', elongationDbData.sampleBefore2 || '', elongationDbData.sampleBefore3 || '', elongationDbData.sampleBefore4 || '', elongationDbData.sampleBefore5 || '',
+            elongationDbData.marginalBefore1 || '', elongationDbData.marginalBefore2 || '', elongationDbData.marginalBefore3 || '', elongationDbData.marginalBefore4 || '', elongationDbData.marginalBefore5 || '',
+            elongationDbData.marginalBefore6 || '', elongationDbData.marginalBefore7 || '', elongationDbData.marginalBefore8 || '', elongationDbData.marginalBefore9 || '', elongationDbData.marginalBefore10 || ''
+          ],
+          after: [
+            elongationDbData.sampleAfter1 || '', elongationDbData.sampleAfter2 || '', elongationDbData.sampleAfter3 || '', elongationDbData.sampleAfter4 || '', elongationDbData.sampleAfter5 || '',
+            elongationDbData.marginalAfter1 || '', elongationDbData.marginalAfter2 || '', elongationDbData.marginalAfter3 || '', elongationDbData.marginalAfter4 || '', elongationDbData.marginalAfter5 || '',
+            elongationDbData.marginalAfter6 || '', elongationDbData.marginalAfter7 || '', elongationDbData.marginalAfter8 || '', elongationDbData.marginalAfter9 || '', elongationDbData.marginalAfter10 || ''
+          ]
+        };
+      }
+      if (modulusDbData) {
+        basePhys.modulus = {
+          before: [
+            modulusDbData.sampleBefore1 || '', modulusDbData.sampleBefore2 || '', modulusDbData.sampleBefore3 || '',
+            modulusDbData.marginalBefore1 || '', modulusDbData.marginalBefore2 || '', modulusDbData.marginalBefore3 || '',
+            modulusDbData.marginalBefore4 || '', modulusDbData.marginalBefore5 || '', modulusDbData.marginalBefore6 || ''
+          ],
+          after: [
+            modulusDbData.sampleAfter1 || '', modulusDbData.sampleAfter2 || '', modulusDbData.sampleAfter3 || '',
+            modulusDbData.marginalAfter1 || '', modulusDbData.marginalAfter2 || '', modulusDbData.marginalAfter3 || '',
+            modulusDbData.marginalAfter4 || '', modulusDbData.marginalAfter5 || '', modulusDbData.marginalAfter6 || ''
+          ]
+        };
+      }
+      if (compressionDbData) {
+        basePhys.compression = {
+          initial: [
+            compressionDbData.sampleInitial1 || '', compressionDbData.sampleInitial2 || '', compressionDbData.sampleInitial3 || '',
+            compressionDbData.marginalInitial1 || '', compressionDbData.marginalInitial2 || '', compressionDbData.marginalInitial3 || '',
+            compressionDbData.marginalInitial4 || '', compressionDbData.marginalInitial5 || '', compressionDbData.marginalInitial6 || ''
+          ],
+          final: [
+            compressionDbData.sampleFinal1 || '', compressionDbData.sampleFinal2 || '', compressionDbData.sampleFinal3 || '',
+            compressionDbData.marginalFinal1 || '', compressionDbData.marginalFinal2 || '', compressionDbData.marginalFinal3 || '',
+            compressionDbData.marginalFinal4 || '', compressionDbData.marginalFinal5 || '', compressionDbData.marginalFinal6 || ''
+          ]
+        };
+      }
+      if (tensionDbData) {
+        basePhys.tension = {
+          initial: [
+            tensionDbData.sampleInitial1 || '', tensionDbData.sampleInitial2 || '', tensionDbData.sampleInitial3 || '',
+            tensionDbData.marginalInitial1 || '', tensionDbData.marginalInitial2 || '', tensionDbData.marginalInitial3 || '',
+            tensionDbData.marginalInitial4 || '', tensionDbData.marginalInitial5 || '', tensionDbData.marginalInitial6 || ''
+          ],
+          final: [
+            tensionDbData.sampleFinal1 || '', tensionDbData.sampleFinal2 || '', tensionDbData.sampleFinal3 || '',
+            tensionDbData.marginalFinal1 || '', tensionDbData.marginalFinal2 || '', tensionDbData.marginalFinal3 || '',
+            tensionDbData.marginalFinal4 || '', tensionDbData.marginalFinal5 || '', tensionDbData.marginalFinal6 || ''
+          ]
+        };
+      }
+      if (loadDbData) {
+        basePhys.loadTest = {
+          pad1: [
+            { left: loadDbData.pad1L1 || '', right: loadDbData.pad1R1 || '' },
+            { left: loadDbData.pad1L2 || '', right: loadDbData.pad1R2 || '' },
+            { left: loadDbData.pad1L3 || '', right: loadDbData.pad1R3 || '' },
+            { left: loadDbData.pad1L4 || '', right: loadDbData.pad1R4 || '' },
+            { left: loadDbData.pad1L5 || '', right: loadDbData.pad1R5 || '' },
+            { left: loadDbData.pad1L6 || '', right: loadDbData.pad1R6 || '' },
+            { left: loadDbData.pad1L7 || '', right: loadDbData.pad1R7 || '' },
+            { left: loadDbData.pad1L8 || '', right: loadDbData.pad1R8 || '' }
+          ],
+          pad2: [
+            { left: loadDbData.pad2L1 || '', right: loadDbData.pad2R1 || '' },
+            { left: loadDbData.pad2L2 || '', right: loadDbData.pad2R2 || '' },
+            { left: loadDbData.pad2L3 || '', right: loadDbData.pad2R3 || '' },
+            { left: loadDbData.pad2L4 || '', right: loadDbData.pad2R4 || '' },
+            { left: loadDbData.pad2L5 || '', right: loadDbData.pad2R5 || '' },
+            { left: loadDbData.pad2L6 || '', right: loadDbData.pad2R6 || '' },
+            { left: loadDbData.pad2L7 || '', right: loadDbData.pad2R7 || '' },
+            { left: loadDbData.pad2L8 || '', right: loadDbData.pad2R8 || '' }
+          ],        mPad1: [
+            { left: loadDbData.mpad1L1 || '', right: loadDbData.mpad1R1 || '' },
+            { left: loadDbData.mpad1L2 || '', right: loadDbData.mpad1R2 || '' },
+            { left: loadDbData.mpad1L3 || '', right: loadDbData.mpad1R3 || '' },
+            { left: loadDbData.mpad1L4 || '', right: loadDbData.mpad1R4 || '' },
+            { left: loadDbData.mpad1L5 || '', right: loadDbData.mpad1R5 || '' },
+            { left: loadDbData.mpad1L6 || '', right: loadDbData.mpad1R6 || '' },
+            { left: loadDbData.mpad1L7 || '', right: loadDbData.mpad1R7 || '' },
+            { left: loadDbData.mpad1L8 || '', right: loadDbData.mpad1R8 || '' }
+          ],
+          mPad2: [
+            { left: loadDbData.mpad2L1 || '', right: loadDbData.mpad2R1 || '' },
+            { left: loadDbData.mpad2L2 || '', right: loadDbData.mpad2R2 || '' },
+            { left: loadDbData.mpad2L3 || '', right: loadDbData.mpad2R3 || '' },
+            { left: loadDbData.mpad2L4 || '', right: loadDbData.mpad2R4 || '' },
+            { left: loadDbData.mpad2L5 || '', right: loadDbData.mpad2R5 || '' },
+            { left: loadDbData.mpad2L6 || '', right: loadDbData.mpad2R6 || '' },
+            { left: loadDbData.mpad2L7 || '', right: loadDbData.mpad2R7 || '' },
+            { left: loadDbData.mpad2L8 || '', right: loadDbData.mpad2R8 || '' }
+          ],
+          mPad3: [
+            { left: loadDbData.mpad3L1 || '', right: loadDbData.mpad3R1 || '' },
+            { left: loadDbData.mpad3L2 || '', right: loadDbData.mpad3R2 || '' },
+            { left: loadDbData.mpad3L3 || '', right: loadDbData.mpad3R3 || '' },
+            { left: loadDbData.mpad3L4 || '', right: loadDbData.mpad3R4 || '' },
+            { left: loadDbData.mpad3L5 || '', right: loadDbData.mpad3R5 || '' },
+            { left: loadDbData.mpad3L6 || '', right: loadDbData.mpad3R6 || '' },
+            { left: loadDbData.mpad3L7 || '', right: loadDbData.mpad3R7 || '' },
+            { left: loadDbData.mpad3L8 || '', right: loadDbData.mpad3R8 || '' }
+          ],
+          mPad4: [
+            { left: loadDbData.mpad4L1 || '', right: loadDbData.mpad4R1 || '' },
+            { left: loadDbData.mpad4L2 || '', right: loadDbData.mpad4R2 || '' },
+            { left: loadDbData.mpad4L3 || '', right: loadDbData.mpad4R3 || '' },
+            { left: loadDbData.mpad4L4 || '', right: loadDbData.mpad4R4 || '' },
+            { left: loadDbData.mpad4L5 || '', right: loadDbData.mpad4R5 || '' },
+            { left: loadDbData.mpad4L6 || '', right: loadDbData.mpad4R6 || '' },
+            { left: loadDbData.mpad4L7 || '', right: loadDbData.mpad4R7 || '' },
+            { left: loadDbData.mpad4L8 || '', right: loadDbData.mpad4R8 || '' }
+          ]
+        };
+      }
+      if (resilienceDbData) {
+        basePhys.resilience = [
+          { i1: resilienceDbData.s1Impact1 || '', i2: resilienceDbData.s1Impact2 || '', i3: resilienceDbData.s1Impact3 || '', i4: resilienceDbData.s1Impact4 || '', i5: resilienceDbData.s1Impact5 || '', i6: resilienceDbData.s1Impact6 || '' },
+          { i1: resilienceDbData.s2Impact1 || '', i2: resilienceDbData.s2Impact2 || '', i3: resilienceDbData.s2Impact3 || '', i4: resilienceDbData.s2Impact4 || '', i5: resilienceDbData.s2Impact5 || '', i6: resilienceDbData.s2Impact6 || '' },
+          { i1: resilienceDbData.s3Impact1 || '', i2: resilienceDbData.s3Impact2 || '', i3: resilienceDbData.s3Impact3 || '', i4: resilienceDbData.s3Impact4 || '', i5: resilienceDbData.s3Impact5 || '', i6: resilienceDbData.s3Impact6 || '' }
+        ];
+      }
+      setPhysicalData(basePhys);
+      let baseElec = padElecData(null);
+      if (electricalDbData) {
+        baseElec.resistance = [
+          { bF: electricalDbData.s1BeforeForward || '', bR: electricalDbData.s1BeforeReverse || '', aF: electricalDbData.s1AfterForward || '', aR: electricalDbData.s1AfterReverse || '' },
+          { bF: electricalDbData.s2BeforeForward || '', bR: electricalDbData.s2BeforeReverse || '', aF: electricalDbData.s2AfterForward || '', aR: electricalDbData.s2AfterReverse || '' },
+          { bF: electricalDbData.s3BeforeForward || '', bR: electricalDbData.s3BeforeReverse || '', aF: electricalDbData.s3AfterForward || '', aR: electricalDbData.s3AfterReverse || '' },
+          { bF: electricalDbData.s4BeforeForward || '', bR: electricalDbData.s4BeforeReverse || '', aF: electricalDbData.s4AfterForward || '', aR: electricalDbData.s4AfterReverse || '' },
+          { bF: electricalDbData.s5BeforeForward || '', bR: electricalDbData.s5BeforeReverse || '', aF: electricalDbData.s5AfterForward || '', aR: electricalDbData.s5AfterReverse || '' },
+          { bF: electricalDbData.s6BeforeForward || '', bR: electricalDbData.s6BeforeReverse || '', aF: electricalDbData.s6AfterForward || '', aR: electricalDbData.s6AfterReverse || '' }
+        ];
+      }
+      if (sgDbData) {
+        baseElec.sg = {
+          compoundA: [
+            { air: sgDbData.s1AAir || '', water: sgDbData.s1AWater || '' },
+            { air: sgDbData.s2AAir || '', water: sgDbData.s2AWater || '' },
+            { air: sgDbData.s3AAir || '', water: sgDbData.s3AWater || '' },
+            { air: sgDbData.s4AAir || '', water: sgDbData.s4AWater || '' },
+            { air: sgDbData.s5AAir || '', water: sgDbData.s5AWater || '' },
+            { air: sgDbData.s6AAir || '', water: sgDbData.s6AWater || '' }
+          ],
+          compoundB: [
+            { air: sgDbData.s1BAir || '', water: sgDbData.s1BWater || '' },
+            { air: sgDbData.s2BAir || '', water: sgDbData.s2BWater || '' },
+            { air: sgDbData.s3BAir || '', water: sgDbData.s3BWater || '' },
+            { air: sgDbData.s4BAir || '', water: sgDbData.s4BWater || '' },
+            { air: sgDbData.s5BAir || '', water: sgDbData.s5BWater || '' },
+            { air: sgDbData.s6BAir || '', water: sgDbData.s6BWater || '' }
+          ]
+        };
+      }
+      if (ashDbData) {
+        baseElec.ash = {
+          compoundA: [
+            { crucible: ashDbData.s1ACrucible || '', sample: ashDbData.s1ASample || '', ash: ashDbData.s1AAsh || '' },
+            { crucible: ashDbData.s2ACrucible || '', sample: ashDbData.s2ASample || '', ash: ashDbData.s2AAsh || '' },
+            { crucible: ashDbData.s3ACrucible || '', sample: ashDbData.s3ASample || '', ash: ashDbData.s3AAsh || '' },
+            { crucible: ashDbData.m1ACrucible || '', sample: ashDbData.m1ASample || '', ash: ashDbData.m1AAsh || '' },
+            { crucible: ashDbData.m2ACrucible || '', sample: ashDbData.m2ASample || '', ash: ashDbData.m2AAsh || '' },
+            { crucible: ashDbData.m3ACrucible || '', sample: ashDbData.m3ASample || '', ash: ashDbData.m3AAsh || '' },
+            { crucible: ashDbData.m4ACrucible || '', sample: ashDbData.m4ASample || '', ash: ashDbData.m4AAsh || '' },
+            { crucible: ashDbData.m5ACrucible || '', sample: ashDbData.m5ASample || '', ash: ashDbData.m5AAsh || '' },
+            { crucible: ashDbData.m6ACrucible || '', sample: ashDbData.m6ASample || '', ash: ashDbData.m6AAsh || '' }
+          ],
+          compoundB: [
+            { crucible: ashDbData.s1BCrucible || '', sample: ashDbData.s1BSample || '', ash: ashDbData.s1BAsh || '' },
+            { crucible: ashDbData.s2BCrucible || '', sample: ashDbData.s2BSample || '', ash: ashDbData.s2BAsh || '' },
+            { crucible: ashDbData.s3BCrucible || '', sample: ashDbData.s3BSample || '', ash: ashDbData.s3BAsh || '' },
+            { crucible: ashDbData.m1BCrucible || '', sample: ashDbData.m1BSample || '', ash: ashDbData.m1BAsh || '' },
+            { crucible: ashDbData.m2BCrucible || '', sample: ashDbData.m2BSample || '', ash: ashDbData.m2BAsh || '' },
+            { crucible: ashDbData.m3BCrucible || '', sample: ashDbData.m3BSample || '', ash: ashDbData.m3BAsh || '' },
+            { crucible: ashDbData.m4BCrucible || '', sample: ashDbData.m4BSample || '', ash: ashDbData.m4BAsh || '' },
+            { crucible: ashDbData.m5BCrucible || '', sample: ashDbData.m5BSample || '', ash: ashDbData.m5BAsh || '' },
+            { crucible: ashDbData.m6BCrucible || '', sample: ashDbData.m6BSample || '', ash: ashDbData.m6BAsh || '' }
+          ]
+        };
+      }
+      if (ozoneDbData) {
+        baseElec.ozone = [
+          { initial: ozoneDbData.initialLength || '40', stretched: ozoneDbData.stretchedLength || '52', obs: ozoneDbData.observation || '' }
+        ];
+      }
+      setElecData(baseElec);
+
+      let baseSpec = padSpecData(null);
+      if (adhesionDbData) {
+        baseSpec.adhesion = [
+          adhesionDbData.sample1 || '', adhesionDbData.sample2 || '',
+          adhesionDbData.marginal1 || '', adhesionDbData.marginal2 || '', adhesionDbData.marginal3 || '', adhesionDbData.marginal4 || ''
+        ];
+      }
+      if (secantDbData) {
+        baseSpec.secant = [
+          {
+            s20: { a: secantDbData.s1S20A || '', b: secantDbData.s1S20B || '', c: secantDbData.s1S20C || '', d: secantDbData.s1S20D || '' },
+            s90: { a: secantDbData.s1S90A || '', b: secantDbData.s1S90B || '', c: secantDbData.s1S90C || '', d: secantDbData.s1S90D || '' }
+          },
+          {
+            s20: { a: secantDbData.s2S20A || '', b: secantDbData.s2S20B || '', c: secantDbData.s2S20C || '', d: secantDbData.s2S20D || '' },
+            s90: { a: secantDbData.s2S90A || '', b: secantDbData.s2S90B || '', c: secantDbData.s2S90C || '', d: secantDbData.s2S90D || '' }
+          },
+          {
+            s20: { a: secantDbData.m1S20A || '', b: secantDbData.m1S20B || '', c: secantDbData.m1S20C || '', d: secantDbData.m1S20D || '' },
+            s90: { a: secantDbData.m1S90A || '', b: secantDbData.m1S90B || '', c: secantDbData.m1S90C || '', d: secantDbData.m1S90D || '' }
+          },
+          {
+            s20: { a: secantDbData.m2S20A || '', b: secantDbData.m2S20B || '', c: secantDbData.m2S20C || '', d: secantDbData.m2S20D || '' },
+            s90: { a: secantDbData.m2S90A || '', b: secantDbData.m2S90B || '', c: secantDbData.m2S90C || '', d: secantDbData.m2S90D || '' }
+          },
+          {
+            s20: { a: secantDbData.m3S20A || '', b: secantDbData.m3S20B || '', c: secantDbData.m3S20C || '', d: secantDbData.m3S20D || '' },
+            s90: { a: secantDbData.m3S90A || '', b: secantDbData.m3S90B || '', c: secantDbData.m3S90C || '', d: secantDbData.m3S90D || '' }
+          },
+          {
+            s20: { a: secantDbData.m4S20A || '', b: secantDbData.m4S20B || '', c: secantDbData.m4S20C || '', d: secantDbData.m4S20D || '' },
+            s90: { a: secantDbData.m4S90A || '', b: secantDbData.m4S90B || '', c: secantDbData.m4S90C || '', d: secantDbData.m4S90D || '' }
+          }
+        ];
+      }
+      if (ncrAdhesionDbData) {
+        baseSpec.ncrgrsp = baseSpec.ncrgrsp || {};
+        baseSpec.ncrgrsp.adhesion = [
+          { peel: ncrAdhesionDbData.s1Peel || '', hpull: ncrAdhesionDbData.s1Hpull || '' },
+          { peel: ncrAdhesionDbData.s2Peel || '', hpull: ncrAdhesionDbData.s2Hpull || '' },
+          { peel: ncrAdhesionDbData.m1Peel || '', hpull: ncrAdhesionDbData.m1Hpull || '' },
+          { peel: ncrAdhesionDbData.m2Peel || '', hpull: ncrAdhesionDbData.m2Hpull || '' },
+          { peel: ncrAdhesionDbData.m3Peel || '', hpull: ncrAdhesionDbData.m3Hpull || '' },
+          { peel: ncrAdhesionDbData.m4Peel || '', hpull: ncrAdhesionDbData.m4Hpull || '' }
+        ];
+      }
+      if (ncrBreakingDbData) {
+        baseSpec.ncrgrsp = baseSpec.ncrgrsp || {};
+        baseSpec.ncrgrsp.breaking = [
+          ncrBreakingDbData.sample1 || '', ncrBreakingDbData.sample2 || '', ncrBreakingDbData.sample3 || '', ncrBreakingDbData.sample4 || '', ncrBreakingDbData.sample5 || '',
+          ncrBreakingDbData.marginal1 || '', ncrBreakingDbData.marginal2 || '', ncrBreakingDbData.marginal3 || '', ncrBreakingDbData.marginal4 || '', ncrBreakingDbData.marginal5 || '',
+          ncrBreakingDbData.marginal6 || '', ncrBreakingDbData.marginal7 || '', ncrBreakingDbData.marginal8 || '', ncrBreakingDbData.marginal9 || '', ncrBreakingDbData.marginal10 || ''
+        ];
+      }
+      if (ncrCordDbData) {
+        baseSpec.ncrgrsp = baseSpec.ncrgrsp || {};
+        baseSpec.ncrgrsp.nylonCord = [
+          { denier: ncrCordDbData.s1Denier || '', epi: ncrCordDbData.s1Epi || '', thickness: ncrCordDbData.s1Thickness || '', loadAtBreak: ncrCordDbData.s1LoadAtBreak || '', elongation: ncrCordDbData.s1Elongation || '', twists: ncrCordDbData.s1Twists || '' },
+          { denier: ncrCordDbData.s2Denier || '', epi: ncrCordDbData.s2Epi || '', thickness: ncrCordDbData.s2Thickness || '', loadAtBreak: ncrCordDbData.s2LoadAtBreak || '', elongation: ncrCordDbData.s2Elongation || '', twists: ncrCordDbData.s2Twists || '' },
+          { denier: ncrCordDbData.s3Denier || '', epi: ncrCordDbData.s3Epi || '', thickness: ncrCordDbData.s3Thickness || '', loadAtBreak: ncrCordDbData.s3LoadAtBreak || '', elongation: ncrCordDbData.s3Elongation || '', twists: ncrCordDbData.s3Twists || '' },
+          { denier: ncrCordDbData.m1Denier || '', epi: ncrCordDbData.m1Epi || '', thickness: ncrCordDbData.m1Thickness || '', loadAtBreak: ncrCordDbData.m1LoadAtBreak || '', elongation: ncrCordDbData.m1Elongation || '', twists: ncrCordDbData.m1Twists || '' },
+          { denier: ncrCordDbData.m2Denier || '', epi: ncrCordDbData.m2Epi || '', thickness: ncrCordDbData.m2Thickness || '', loadAtBreak: ncrCordDbData.m2LoadAtBreak || '', elongation: ncrCordDbData.m2Elongation || '', twists: ncrCordDbData.m2Twists || '' },
+          { denier: ncrCordDbData.m3Denier || '', epi: ncrCordDbData.m3Epi || '', thickness: ncrCordDbData.m3Thickness || '', loadAtBreak: ncrCordDbData.m3LoadAtBreak || '', elongation: ncrCordDbData.m3Elongation || '', twists: ncrCordDbData.m3Twists || '' },
+          { denier: ncrCordDbData.m4Denier || '', epi: ncrCordDbData.m4Epi || '', thickness: ncrCordDbData.m4Thickness || '', loadAtBreak: ncrCordDbData.m4LoadAtBreak || '', elongation: ncrCordDbData.m4Elongation || '', twists: ncrCordDbData.m4Twists || '' },
+          { denier: ncrCordDbData.m5Denier || '', epi: ncrCordDbData.m5Epi || '', thickness: ncrCordDbData.m5Thickness || '', loadAtBreak: ncrCordDbData.m5LoadAtBreak || '', elongation: ncrCordDbData.m5Elongation || '', twists: ncrCordDbData.m5Twists || '' },
+          { denier: ncrCordDbData.m6Denier || '', epi: ncrCordDbData.m6Epi || '', thickness: ncrCordDbData.m6Thickness || '', loadAtBreak: ncrCordDbData.m6LoadAtBreak || '', elongation: ncrCordDbData.m6Elongation || '', twists: ncrCordDbData.m6Twists || '' }
+        ];
+      }
+      setSpecData(baseSpec);
+
+      let basePeriodic = padPeriodicData(null);
+      if (periodicTgaDbData) {
+        basePeriodic.tga.dateOfLastTest = periodicTgaDbData.dateOfLastTest || '';
+        basePeriodic.tga.qtyProduced = periodicTgaDbData.qtyProducedSinceLastTest !== null && periodicTgaDbData.qtyProducedSinceLastTest !== undefined ? String(periodicTgaDbData.qtyProducedSinceLastTest) : '';
+        basePeriodic.tga.samples = [
+          { lotNo: periodicTgaDbData.s1LotNo || '', sampleNo: periodicTgaDbData.s1SampleNo || '', weight: periodicTgaDbData.s1SampleWt || '', tempRange: periodicTgaDbData.s1TempRange || '', polymer: periodicTgaDbData.s1PolymerContent || '' },
+          { lotNo: periodicTgaDbData.s2LotNo || '', sampleNo: periodicTgaDbData.s2SampleNo || '', weight: periodicTgaDbData.s2SampleWt || '', tempRange: periodicTgaDbData.s2TempRange || '', polymer: periodicTgaDbData.s2PolymerContent || '' },
+          { lotNo: periodicTgaDbData.s3LotNo || '', sampleNo: periodicTgaDbData.s3SampleNo || '', weight: periodicTgaDbData.s3SampleWt || '', tempRange: periodicTgaDbData.s3TempRange || '', polymer: periodicTgaDbData.s3PolymerContent || '' },
+          { lotNo: periodicTgaDbData.s4LotNo || '', sampleNo: periodicTgaDbData.s4SampleNo || '', weight: periodicTgaDbData.s4SampleWt || '', tempRange: periodicTgaDbData.s4TempRange || '', polymer: periodicTgaDbData.s4PolymerContent || '' },
+          { lotNo: periodicTgaDbData.s5LotNo || '', sampleNo: periodicTgaDbData.s5SampleNo || '', weight: periodicTgaDbData.s5SampleWt || '', tempRange: periodicTgaDbData.s5TempRange || '', polymer: periodicTgaDbData.s5PolymerContent || '' }
+        ];
+      }
+      if (periodicDurabilityDbData) {
+        basePeriodic.durability.dateOfLastTest = periodicDurabilityDbData.dateOfLastTest || '';
+        basePeriodic.durability.qtyProduced = periodicDurabilityDbData.qtyProducedSinceLastTest !== null && periodicDurabilityDbData.qtyProducedSinceLastTest !== undefined ? String(periodicDurabilityDbData.qtyProducedSinceLastTest) : '';
+        basePeriodic.durability.samples = [
+          { lotNo: periodicDurabilityDbData.s1LotNo || '', initialThick: periodicDurabilityDbData.s1InitialThickness || '', finalThick: periodicDurabilityDbData.s1FinalThickness || '', initialLoad: periodicDurabilityDbData.s1InitialLoadComp || '', finalLoad: periodicDurabilityDbData.s1FinalLoadComp || '' },
+          { lotNo: periodicDurabilityDbData.s2LotNo || '', initialThick: periodicDurabilityDbData.s2InitialThickness || '', finalThick: periodicDurabilityDbData.s2FinalThickness || '', initialLoad: periodicDurabilityDbData.s2InitialLoadComp || '', finalLoad: periodicDurabilityDbData.s2FinalLoadComp || '' },
+          { lotNo: periodicDurabilityDbData.s3LotNo || '', initialThick: periodicDurabilityDbData.s3InitialThickness || '', finalThick: periodicDurabilityDbData.s3FinalThickness || '', initialLoad: periodicDurabilityDbData.s3InitialLoadComp || '', finalLoad: periodicDurabilityDbData.s3FinalLoadComp || '' },
+          { lotNo: periodicDurabilityDbData.s4LotNo || '', initialThick: periodicDurabilityDbData.s4InitialThickness || '', finalThick: periodicDurabilityDbData.s4FinalThickness || '', initialLoad: periodicDurabilityDbData.s4InitialLoadComp || '', finalLoad: periodicDurabilityDbData.s4FinalLoadComp || '' },
+          { lotNo: periodicDurabilityDbData.s5LotNo || '', initialThick: periodicDurabilityDbData.s5InitialThickness || '', finalThick: periodicDurabilityDbData.s5FinalThickness || '', initialLoad: periodicDurabilityDbData.s5InitialLoadComp || '', finalLoad: periodicDurabilityDbData.s5FinalLoadComp || '' }
+        ];
+      }
+      if (periodicAbrasionDbData) {
+        basePeriodic.abrasion.dateOfLastTest = periodicAbrasionDbData.dateOfLastTest || '';
+        basePeriodic.abrasion.qtyProduced = periodicAbrasionDbData.qtyProducedSinceLastTest !== null && periodicAbrasionDbData.qtyProducedSinceLastTest !== undefined ? String(periodicAbrasionDbData.qtyProducedSinceLastTest) : '';
+        basePeriodic.abrasion.samples = [
+          { lotNo: periodicAbrasionDbData.s1LotNo || '', sampleNo: periodicAbrasionDbData.s1SampleNo || '', initialMass: periodicAbrasionDbData.s1InitialMass || '', finalMass: periodicAbrasionDbData.s1FinalMass || '', relativeLoss: periodicAbrasionDbData.s1RelativeLoss || '' },
+          { lotNo: periodicAbrasionDbData.s2LotNo || '', sampleNo: periodicAbrasionDbData.s2SampleNo || '', initialMass: periodicAbrasionDbData.s2InitialMass || '', finalMass: periodicAbrasionDbData.s2FinalMass || '', relativeLoss: periodicAbrasionDbData.s2RelativeLoss || '' },
+          { lotNo: periodicAbrasionDbData.s3LotNo || '', sampleNo: periodicAbrasionDbData.s3SampleNo || '', initialMass: periodicAbrasionDbData.s3InitialMass || '', finalMass: periodicAbrasionDbData.s3FinalMass || '', relativeLoss: periodicAbrasionDbData.s3RelativeLoss || '' },
+          { lotNo: periodicAbrasionDbData.s4LotNo || '', sampleNo: periodicAbrasionDbData.s4SampleNo || '', initialMass: periodicAbrasionDbData.s4InitialMass || '', finalMass: periodicAbrasionDbData.s4FinalMass || '', relativeLoss: periodicAbrasionDbData.s4RelativeLoss || '' },
+          { lotNo: periodicAbrasionDbData.s5LotNo || '', sampleNo: periodicAbrasionDbData.s5SampleNo || '', initialMass: periodicAbrasionDbData.s5InitialMass || '', finalMass: periodicAbrasionDbData.s5FinalMass || '', relativeLoss: periodicAbrasionDbData.s5RelativeLoss || '' }
+        ];
+      }
+      setPeriodicData(basePeriodic);
+      setRemarks(finalRemarks);
+      setSealingType(finalSealingType);
+      setSteelStampNumber(finalSteelStampNumber);
+      setHologramEntries(finalHologramEntries);
+      setSpecType(finalSpecType);
+      setReTestActive(finalReTestActive);
+      setReOfferActive(finalReOfferActive);
+
+      // Explicitly persist the freshly fetched database data as initial draft
+      const initialDraftData = {
+        activeTab: 'visual',
+        visualData: baseVisual,
+        weightData: baseWeight,
+        physicalData: basePhys,
+        elecData: baseElec,
+        specData: baseSpec,
+        specType: finalSpecType,
+        reTestActive: finalReTestActive,
+        reOfferActive: finalReOfferActive,
+        remarks: finalRemarks,
+        sealingType: finalSealingType,
+        steelStampNumber: finalSteelStampNumber,
+        hologramEntries: finalHologramEntries,
+        dbDimensionalStatus: finalDbDimensionalStatus
+      };
+      localStorage.setItem(draftKey, JSON.stringify(initialDraftData));
+    } catch (err) {
+      console.error("Error loading lot data:", err);
+    } finally {
+      // Set the loaded lot ref so we know loading is complete!
+      setLoadedLot(lotId);
+      setLoading(false);
+    }
   }
 
   const handleLotClick = (lotId) => {
@@ -1396,11 +1445,18 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
         const localActiveSections = [
           'hardness', 'tensile', 'elongation', 'modulus', 'compression', 'tension', 'load',
-          'resistance', 'sg', 'ash', 'adhesion', 'secant'
+          'resistance', 'sg', 'ash', 'adhesion', 'secant', 'resilience', 'ozone'
         ];
         if (isNCRGRSP) {
           localActiveSections.push('ncrAdhesion', 'ncrBreaking', 'ncrCord');
         }
+
+        const isTgaMandatory = parseInt(periodicData?.tga?.qtyProduced || 0, 10) >= 30000;
+        const isDurabilityMandatory = parseInt(periodicData?.durability?.qtyProduced || 0, 10) >= 100000;
+        const isAbrasionMandatory = parseInt(periodicData?.abrasion?.qtyProduced || 0, 10) >= 100000;
+        if (isTgaMandatory) localActiveSections.push('tga');
+        if (isDurabilityMandatory) localActiveSections.push('durability');
+        if (isAbrasionMandatory) localActiveSections.push('abrasion');
 
         const localRawReports = {};
         localActiveSections.forEach(key => {
@@ -2239,6 +2295,182 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           );
         }
 
+        const resilienceReport = rawReports['resilience'];
+        const resilienceStatusStr = getSectionStatus('resilience');
+        const resiliencePayload = {
+          callNo: currentCallId,
+          lotNo: selectedLot,
+          plantId: call?.plantId || 'N/A',
+          vendorCode: call?.vendorCode || 'N/A',
+          shift: call?.shift || 'A',
+          railpadType: activeRailpadType,
+          offeredQty: offeredQty,
+          s1Impact1: physicalData.resilience[0]?.i1 || '',
+          s1Impact2: physicalData.resilience[0]?.i2 || '',
+          s1Impact3: physicalData.resilience[0]?.i3 || '',
+          s1Impact4: physicalData.resilience[0]?.i4 || '',
+          s1Impact5: physicalData.resilience[0]?.i5 || '',
+          s1Impact6: physicalData.resilience[0]?.i6 || '',
+          s2Impact1: physicalData.resilience[1]?.i1 || '',
+          s2Impact2: physicalData.resilience[1]?.i2 || '',
+          s2Impact3: physicalData.resilience[1]?.i3 || '',
+          s2Impact4: physicalData.resilience[1]?.i4 || '',
+          s2Impact5: physicalData.resilience[1]?.i5 || '',
+          s2Impact6: physicalData.resilience[1]?.i6 || '',
+          s3Impact1: physicalData.resilience[2]?.i1 || '',
+          s3Impact2: physicalData.resilience[2]?.i2 || '',
+          s3Impact3: physicalData.resilience[2]?.i3 || '',
+          s3Impact4: physicalData.resilience[2]?.i4 || '',
+          s3Impact5: physicalData.resilience[2]?.i5 || '',
+          s3Impact6: physicalData.resilience[2]?.i6 || '',
+          resilienceStatus: resilienceStatusStr,
+          notOkCount: resilienceReport ? (resilienceReport.primaryOutCount + resilienceReport.doubleOutCount) : 0,
+          remarks: remarks || ''
+        };
+
+        const ozoneReport = rawReports['ozone'];
+        const ozoneStatusStr = getSectionStatus('ozone');
+        const ozonePayload = {
+          callNo: currentCallId,
+          lotNo: selectedLot,
+          plantId: call?.plantId || 'N/A',
+          vendorCode: call?.vendorCode || 'N/A',
+          shift: call?.shift || 'A',
+          railpadType: activeRailpadType,
+          offeredQty: offeredQty,
+          initialLength: elecData.ozone[0]?.initial || '',
+          stretchedLength: elecData.ozone[0]?.stretched || '',
+          observation: elecData.ozone[0]?.obs || '',
+          ozoneStatus: ozoneStatusStr,
+          notOkCount: ozoneReport ? (ozoneReport.primaryOutCount + ozoneReport.doubleOutCount) : 0,
+          remarks: remarks || ''
+        };
+
+        const tgaPayload = {
+          callNo: currentCallId,
+          lotNo: selectedLot,
+          plantId: call?.plantId || 'N/A',
+          vendorCode: call?.vendorCode || 'N/A',
+          shift: call?.shift || 'A',
+          railpadType: activeRailpadType,
+          offeredQty: offeredQty,
+          dateOfLastTest: periodicData.tga.dateOfLastTest,
+          qtyProducedSinceLastTest: periodicData.tga.qtyProduced ? parseInt(periodicData.tga.qtyProduced, 10) : null,
+          s1LotNo: periodicData.tga.samples[0]?.lotNo || '',
+          s1SampleNo: periodicData.tga.samples[0]?.sampleNo || '',
+          s1SampleWt: periodicData.tga.samples[0]?.weight || '',
+          s1TempRange: periodicData.tga.samples[0]?.tempRange || '',
+          s1PolymerContent: periodicData.tga.samples[0]?.polymer || '',
+          s2LotNo: periodicData.tga.samples[1]?.lotNo || '',
+          s2SampleNo: periodicData.tga.samples[1]?.sampleNo || '',
+          s2SampleWt: periodicData.tga.samples[1]?.weight || '',
+          s2TempRange: periodicData.tga.samples[1]?.tempRange || '',
+          s2PolymerContent: periodicData.tga.samples[1]?.polymer || '',
+          s3LotNo: periodicData.tga.samples[2]?.lotNo || '',
+          s3SampleNo: periodicData.tga.samples[2]?.sampleNo || '',
+          s3SampleWt: periodicData.tga.samples[2]?.weight || '',
+          s3TempRange: periodicData.tga.samples[2]?.tempRange || '',
+          s3PolymerContent: periodicData.tga.samples[2]?.polymer || '',
+          s4LotNo: periodicData.tga.samples[3]?.lotNo || '',
+          s4SampleNo: periodicData.tga.samples[3]?.sampleNo || '',
+          s4SampleWt: periodicData.tga.samples[3]?.weight || '',
+          s4TempRange: periodicData.tga.samples[3]?.tempRange || '',
+          s4PolymerContent: periodicData.tga.samples[3]?.polymer || '',
+          s5LotNo: periodicData.tga.samples[4]?.lotNo || '',
+          s5SampleNo: periodicData.tga.samples[4]?.sampleNo || '',
+          s5SampleWt: periodicData.tga.samples[4]?.weight || '',
+          s5TempRange: periodicData.tga.samples[4]?.tempRange || '',
+          s5PolymerContent: periodicData.tga.samples[4]?.polymer || '',
+          tgaStatus: getSectionStatus('tga'),
+          remarks: remarks || ''
+        };
+
+        const durabilityPayload = {
+          callNo: currentCallId,
+          lotNo: selectedLot,
+          plantId: call?.plantId || 'N/A',
+          vendorCode: call?.vendorCode || 'N/A',
+          shift: call?.shift || 'A',
+          railpadType: activeRailpadType,
+          offeredQty: offeredQty,
+          dateOfLastTest: periodicData.durability.dateOfLastTest,
+          qtyProducedSinceLastTest: periodicData.durability.qtyProduced ? parseInt(periodicData.durability.qtyProduced, 10) : null,
+          s1LotNo: periodicData.durability.samples[0]?.lotNo || '',
+          s1InitialThickness: periodicData.durability.samples[0]?.initialThick || '',
+          s1FinalThickness: periodicData.durability.samples[0]?.finalThick || '',
+          s1InitialLoadComp: periodicData.durability.samples[0]?.initialLoad || '',
+          s1FinalLoadComp: periodicData.durability.samples[0]?.finalLoad || '',
+          s2LotNo: periodicData.durability.samples[1]?.lotNo || '',
+          s2InitialThickness: periodicData.durability.samples[1]?.initialThick || '',
+          s2FinalThickness: periodicData.durability.samples[1]?.finalThick || '',
+          s2InitialLoadComp: periodicData.durability.samples[1]?.initialLoad || '',
+          s2FinalLoadComp: periodicData.durability.samples[1]?.finalLoad || '',
+          s3LotNo: periodicData.durability.samples[2]?.lotNo || '',
+          s3InitialThickness: periodicData.durability.samples[2]?.initialThick || '',
+          s3FinalThickness: periodicData.durability.samples[2]?.finalThick || '',
+          s3InitialLoadComp: periodicData.durability.samples[2]?.initialLoad || '',
+          s3FinalLoadComp: periodicData.durability.samples[2]?.finalLoad || '',
+          s4LotNo: periodicData.durability.samples[3]?.lotNo || '',
+          s4InitialThickness: periodicData.durability.samples[3]?.initialThick || '',
+          s4FinalThickness: periodicData.durability.samples[3]?.finalThick || '',
+          s4InitialLoadComp: periodicData.durability.samples[3]?.initialLoad || '',
+          s4FinalLoadComp: periodicData.durability.samples[3]?.finalLoad || '',
+          s5LotNo: periodicData.durability.samples[4]?.lotNo || '',
+          s5InitialThickness: periodicData.durability.samples[4]?.initialThick || '',
+          s5FinalThickness: periodicData.durability.samples[4]?.finalThick || '',
+          s5InitialLoadComp: periodicData.durability.samples[4]?.initialLoad || '',
+          s5FinalLoadComp: periodicData.durability.samples[4]?.finalLoad || '',
+          durabilityStatus: getSectionStatus('durability'),
+          remarks: remarks || ''
+        };
+
+        const abrasionPayload = {
+          callNo: currentCallId,
+          lotNo: selectedLot,
+          plantId: call?.plantId || 'N/A',
+          vendorCode: call?.vendorCode || 'N/A',
+          shift: call?.shift || 'A',
+          railpadType: activeRailpadType,
+          offeredQty: offeredQty,
+          dateOfLastTest: periodicData.abrasion.dateOfLastTest,
+          qtyProducedSinceLastTest: periodicData.abrasion.qtyProduced ? parseInt(periodicData.abrasion.qtyProduced, 10) : null,
+          s1LotNo: periodicData.abrasion.samples[0]?.lotNo || '',
+          s1SampleNo: periodicData.abrasion.samples[0]?.sampleNo || '',
+          s1InitialMass: periodicData.abrasion.samples[0]?.initialMass || '',
+          s1FinalMass: periodicData.abrasion.samples[0]?.finalMass || '',
+          s1RelativeLoss: periodicData.abrasion.samples[0]?.relativeLoss || '',
+          s2LotNo: periodicData.abrasion.samples[1]?.lotNo || '',
+          s2SampleNo: periodicData.abrasion.samples[1]?.sampleNo || '',
+          s2InitialMass: periodicData.abrasion.samples[1]?.initialMass || '',
+          s2FinalMass: periodicData.abrasion.samples[1]?.finalMass || '',
+          s2RelativeLoss: periodicData.abrasion.samples[1]?.relativeLoss || '',
+          s3LotNo: periodicData.abrasion.samples[2]?.lotNo || '',
+          s3SampleNo: periodicData.abrasion.samples[2]?.sampleNo || '',
+          s3InitialMass: periodicData.abrasion.samples[2]?.initialMass || '',
+          s3FinalMass: periodicData.abrasion.samples[2]?.finalMass || '',
+          s3RelativeLoss: periodicData.abrasion.samples[2]?.relativeLoss || '',
+          s4LotNo: periodicData.abrasion.samples[3]?.lotNo || '',
+          s4SampleNo: periodicData.abrasion.samples[3]?.sampleNo || '',
+          s4InitialMass: periodicData.abrasion.samples[3]?.initialMass || '',
+          s4FinalMass: periodicData.abrasion.samples[3]?.finalMass || '',
+          s4RelativeLoss: periodicData.abrasion.samples[3]?.relativeLoss || '',
+          s5LotNo: periodicData.abrasion.samples[4]?.lotNo || '',
+          s5SampleNo: periodicData.abrasion.samples[4]?.sampleNo || '',
+          s5InitialMass: periodicData.abrasion.samples[4]?.initialMass || '',
+          s5FinalMass: periodicData.abrasion.samples[4]?.finalMass || '',
+          s5RelativeLoss: periodicData.abrasion.samples[4]?.relativeLoss || '',
+          abrasionStatus: getSectionStatus('abrasion'),
+          remarks: remarks || ''
+        };
+
+        savePromises.push(
+          finalResilienceTestService.save(resiliencePayload),
+          finalOzoneTestService.save(ozonePayload),
+          finalPeriodicTgaService.save(tgaPayload),
+          finalPeriodicDurabilityService.save(durabilityPayload),
+          finalPeriodicAbrasionService.save(abrasionPayload)
+        );
+
         await Promise.all(savePromises);
         setDbDimensionalStatus(dimensionalResult);
 
@@ -2393,11 +2625,18 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
         const localActiveSections = [
           'hardness', 'tensile', 'elongation', 'modulus', 'compression', 'tension', 'load',
-          'resistance', 'sg', 'ash', 'adhesion', 'secant'
+          'resistance', 'sg', 'ash', 'adhesion', 'secant', 'resilience', 'ozone'
         ];
         if (isNCRGRSP) {
           localActiveSections.push('ncrAdhesion', 'ncrBreaking', 'ncrCord');
         }
+
+        const isTgaMandatory = parseInt(periodicData?.tga?.qtyProduced || 0, 10) >= 30000;
+        const isDurabilityMandatory = parseInt(periodicData?.durability?.qtyProduced || 0, 10) >= 100000;
+        const isAbrasionMandatory = parseInt(periodicData?.abrasion?.qtyProduced || 0, 10) >= 100000;
+        if (isTgaMandatory) localActiveSections.push('tga');
+        if (isDurabilityMandatory) localActiveSections.push('durability');
+        if (isAbrasionMandatory) localActiveSections.push('abrasion');
 
         const localRawReports = {};
         localActiveSections.forEach(key => {
@@ -3718,7 +3957,11 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
             const waterB = parseFloat(rB.water);
             if (isNaN(airB) || isNaN(waterB) || airB === waterB) return { filled: false, out: false };
             const sgB = airB / (airB - waterB);
-            out = out || sgB > specs.b || Math.abs(sgA - sgB) > specs.variation;
+            if (isNCRGRSP) {
+              out = out || sgB > specs.b || Math.abs(sgA - sgB) > specs.variation;
+            } else {
+              out = out || sgB > specs.b;
+            }
           }
           return { filled: true, out };
         };
@@ -3758,7 +4001,11 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
             const aB = parseFloat(rB.ash);
             if (isNaN(cB) || isNaN(sB) || isNaN(aB) || sB === cB) return { filled: false, out: false };
             const ashB = ((aB - cB) / (sB - cB)) * 100;
-            out = out || ashB > specs.b || Math.abs(ashA - ashB) > specs.variation;
+            if (isNCRGRSP) {
+              out = out || ashB > specs.b || Math.abs(ashA - ashB) > specs.variation;
+            } else {
+              out = out || ashB > specs.b;
+            }
           }
           return { filled: true, out };
         };
@@ -3807,6 +4054,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
       case 'secant': {
         if (!specData?.secant || !Array.isArray(specData.secant)) break;
+        const specs = getSecantTolerance(selectedLot);
         const checkSample = (s) => {
           if (!s || !s.s20 || !s.s90) return { filled: false, out: false };
           const isS20Complete = Object.values(s.s20).every(v => v !== '');
@@ -3817,7 +4065,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           const diff = d2 - d1;
           if (Math.abs(diff) <= 0.0001) return { filled: false, out: false };
           const stiffness = 70 / diff;
-          const out = stiffness < 15 || stiffness > 25;
+          const out = stiffness < specs.min || stiffness > specs.max;
           return { filled: true, out };
         };
 
@@ -3921,6 +4169,103 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         }
         break;
       }
+      
+      case 'resilience': {
+        const checkSample = (r) => {
+          if (!r || r.i1 === '' || r.i2 === '' || r.i3 === '' || r.i4 === '' || r.i5 === '' || r.i6 === '') return { filled: false, out: false };
+          const i4 = parseFloat(r.i4);
+          const i5 = parseFloat(r.i5);
+          const i6 = parseFloat(r.i6);
+          if (isNaN(i4) || isNaN(i5) || isNaN(i6)) return { filled: false, out: false };
+          const avg = (i4 + i5 + i6) / 3;
+          return { filled: true, out: avg < 30 };
+        };
+        for (let i = 0; i < 3; i++) {
+          const r = checkSample(physicalData.resilience[i]);
+          if (r.filled) {
+            primaryFilled++;
+            if (r.out) primaryOutCount++;
+          }
+        }
+        break;
+      }
+      
+      case 'ozone': {
+        const checkSample = (r) => {
+          if (!r || r.initial === '' || r.stretched === '' || r.obs === '') return { filled: false, out: false };
+          return { filled: true, out: r.obs === 'Cracks' };
+        };
+        const r = checkSample(elecData.ozone[0]);
+        if (r.filled) {
+          primaryFilled++;
+          if (r.out) primaryOutCount++;
+        }
+        break;
+      }
+      
+      case 'tga': {
+        if (!periodicData?.tga?.samples) break;
+        const checkSample = (val) => {
+          if (!val || val.weight === '' || val.tempRange === '' || val.polymer === '') return { filled: false, out: false };
+          const p = parseFloat(val.polymer);
+          if (isNaN(p)) return { filled: false, out: false };
+          return { filled: true, out: p <= 50.0 };
+        };
+        for (let i = 0; i < 5; i++) {
+          const r = checkSample(periodicData.tga.samples[i]);
+          if (r.filled) {
+            primaryFilled++;
+            if (r.out) primaryOutCount++;
+          }
+        }
+        break;
+      }
+      
+      case 'durability': {
+        if (!periodicData?.durability?.samples) break;
+        const maxThicknessReduction = (activeRailpadType || '').toLowerCase().includes('10mm') ? 1.0 : 0.6;
+        const checkSample = (val) => {
+          if (!val || val.initialThick === '' || val.finalThick === '' || val.initialLoad === '' || val.finalLoad === '') return { filled: false, out: false };
+          const it = parseFloat(val.initialThick);
+          const ft = parseFloat(val.finalThick);
+          const il = parseFloat(val.initialLoad);
+          const fl = parseFloat(val.finalLoad);
+          if (isNaN(it) || isNaN(ft) || isNaN(il) || isNaN(fl)) return { filled: false, out: false };
+          
+          const reduction = it - ft;
+          const changeLd = il === 0 ? 0 : Math.abs(((fl - il) / il) * 100);
+          
+          const out = reduction > maxThicknessReduction || changeLd > 10;
+          return { filled: true, out };
+        };
+        for (let i = 0; i < 5; i++) {
+          const r = checkSample(periodicData.durability.samples[i]);
+          if (r.filled) {
+            primaryFilled++;
+            if (r.out) primaryOutCount++;
+          }
+        }
+        break;
+      }
+      
+      case 'abrasion': {
+        if (!periodicData?.abrasion?.samples) break;
+        const checkSample = (val) => {
+          if (!val || val.initialMass === '' || val.finalMass === '' || !val.relativeLoss || val.relativeLoss === '') return { filled: false, out: false };
+          const rl = parseFloat(val.relativeLoss);
+          if (isNaN(rl)) return { filled: false, out: false };
+          const out = rl < 180 || rl > 220;
+          return { filled: true, out };
+        };
+        for (let i = 0; i < 5; i++) {
+          const r = checkSample(periodicData.abrasion.samples[i]);
+          if (r.filled) {
+            primaryFilled++;
+            if (r.out) primaryOutCount++;
+          }
+        }
+        break;
+      }
     }
 
     return {
@@ -3935,7 +4280,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
   const activeSections = [
     'hardness', 'tensile', 'elongation', 'modulus', 'compression', 'tension', 'load',
-    'resistance', 'sg', 'ash', 'adhesion', 'secant'
+    'resistance', 'sg', 'ash', 'adhesion', 'secant', 'resilience', 'ozone', 'tga', 'durability', 'abrasion'
   ];
   if (isNCRGRSP) {
     activeSections.push('ncrAdhesion', 'ncrBreaking', 'ncrCord');
@@ -4051,7 +4396,8 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     modulus: getSectionStatus('modulus'),
     compression: getSectionStatus('compression'),
     tension: getSectionStatus('tension'),
-    load: getSectionStatus('load')
+    load: getSectionStatus('load'),
+    resilience: getSectionStatus('resilience')
   };
 
   const physicalFailedCount = Object.values(physicalResults).filter(r => r === 'FAIL').length;
@@ -4066,7 +4412,8 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
   const elecResults = {
     resistance: getSectionStatus('resistance'),
     sg: getSectionStatus('sg'),
-    ash: getSectionStatus('ash')
+    ash: getSectionStatus('ash'),
+    ozone: getSectionStatus('ozone')
   };
   const elecFailedCount = Object.values(elecResults).filter(r => r === 'FAIL').length;
   const elecPendingCount = Object.values(elecResults).filter(r => r === 'PENDING' || r === 'UNDER TESTING' || r === 'MARGINAL').length;
@@ -4097,6 +4444,17 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     cord: getSectionStatus('ncrCord')
   };
 
+  const periodicResults = {
+    tga: getSectionStatus('tga'),
+    durability: getSectionStatus('durability'),
+    abrasion: getSectionStatus('abrasion')
+  };
+
+  const periodicFailedCount = Object.values(periodicResults).filter(r => r === 'FAIL').length;
+  const periodicPendingCount = Object.values(periodicResults).filter(r => r === 'PENDING' || r === 'UNDER TESTING' || r === 'MARGINAL').length;
+  const periodicDecision = periodicPendingCount > 0 && periodicFailedCount === 0 ? 'PENDING VERIFICATION' : (periodicFailedCount === 0 ? 'LOT PASSED' : 'PERMANENT REJECT');
+
+
   const specFailedCount = Object.values(specResults).filter(r => r === 'FAIL').length;
   const specPendingCount = Object.values(specResults).filter(r => r === 'PENDING' || r === 'UNDER TESTING' || r === 'MARGINAL').length;
   const specDecision = specPendingCount > 0 && specFailedCount === 0 ? 'PENDING VERIFICATION' : (specFailedCount === 0 ? 'LOT PASSED' : 'PERMANENT REJECT');
@@ -4113,6 +4471,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
   const elecStatus = elecDecision === 'LOT PASSED' ? 'PASS' : elecDecision === 'PENDING VERIFICATION' ? 'PENDING' : elecDecision === 'RE-TEST REQUIRED' ? 'RE-TEST' : 'FAIL';
   const specStatus = specDecision === 'LOT PASSED' ? 'PASS' : specDecision === 'PENDING VERIFICATION' ? 'PENDING' : specDecision === 'RE-TEST REQUIRED' ? 'RE-TEST' : 'FAIL';
   const ncrStatus = ncrDecision === 'LOT PASSED' ? 'PASS' : ncrDecision === 'PENDING VERIFICATION' ? 'PENDING' : ncrDecision === 'RE-TEST REQUIRED' ? 'RE-TEST' : 'FAIL';
+  const periodicStatus = periodicDecision === 'LOT PASSED' ? 'PASS' : periodicDecision === 'PENDING VERIFICATION' ? 'PENDING' : periodicDecision === 'RE-TEST REQUIRED' ? 'RE-TEST' : 'FAIL';
 
   const isDimensionalReOffered = dimensionalStatus === 'RE-OFFERED' || dimensionalStatus === 'RE-OFFER';
   const isWeightPass = weightStatus === 'ACCEPTED';
@@ -4124,7 +4483,8 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     || physicalStatus === 'PENDING' || physicalStatus === 'RE-TEST'
     || elecStatus === 'PENDING' || elecStatus === 'RE-TEST'
     || specStatus === 'PENDING' || specStatus === 'RE-TEST'
-    || (isNCRGRSP && (ncrStatus === 'PENDING' || ncrStatus === 'RE-TEST'));
+    || (isNCRGRSP && (ncrStatus === 'PENDING' || ncrStatus === 'RE-TEST'))
+    || periodicStatus === 'PENDING' || periodicStatus === 'RE-TEST';
 
   const isAnyCoreFailed = visualStatus === 'FAIL'
     || dimensionalStatus === 'FAIL'
@@ -4132,7 +4492,8 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     || physicalStatus === 'FAIL'
     || elecStatus === 'FAIL'
     || specStatus === 'FAIL'
-    || (isNCRGRSP && ncrStatus === 'FAIL');
+    || (isNCRGRSP && ncrStatus === 'FAIL')
+    || periodicStatus === 'FAIL';
 
   let activeLotOverallStatus = 'PENDING';
   let acceptedQty = 0;
@@ -4204,6 +4565,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     { id: 'electrical', label: 'Electrical & Chemical' },
     { id: 'specialized', label: 'Dynamic & Durability Test' },
     ...(isNCRGRSP ? [{ id: 'ncrgrsp', label: 'NCRGRSP Test' }] : []),
+    { id: 'periodic', label: 'Periodic Testing' },
     ...(showMarginalTab ? [{ id: 'marginal', label: 'Marginal Double-Sampling' }] : [])
   ];
 
@@ -4598,6 +4960,8 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                               style={{
                                 width: '100%',
                                 padding: '6px 10px',
+                                minHeight: '38px',
+                                lineHeight: '1.5',
                                 borderRadius: '6px',
                                 border: '1px solid #cbd5e1',
                                 fontSize: '13px',
@@ -4658,6 +5022,8 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                               style={{
                                 width: '100%',
                                 padding: '6px 10px',
+                                minHeight: '38px',
+                                lineHeight: '1.5',
                                 borderRadius: '6px',
                                 border: '1px solid #cbd5e1',
                                 fontSize: '13px',
@@ -5667,6 +6033,62 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                     </table>
                   </div>
 
+                  {/* Resilience by Vertical Rebound Test */}
+                  <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', overflow: 'hidden', marginTop: '12px' }}>
+                    <div style={{ background: '#f8fafc', padding: '12px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>Resilience by Vertical Rebound Test</h4>
+                      </div>
+                      <div style={{ display: 'flex', gap: '20px' }}>
+                        <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
+                          Status: <span style={{ color: physicalResults.resilience === 'PASS' ? '#059669' : physicalResults.resilience === 'FAIL' ? '#f59e0b' : '#64748b', fontWeight: '800' }}>{physicalResults.resilience || 'PENDING'}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ background: '#fcfcfc' }}>
+                          <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }}>Sample No.</th>
+                          <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }}>1st Impact</th>
+                          <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }}>2nd Impact</th>
+                          <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }}>3rd Impact</th>
+                          <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }}>4th Impact</th>
+                          <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }}>5th Impact</th>
+                          <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }}>6th Impact</th>
+                          <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }}>% Resilience</th>
+                          <th style={{ padding: '10px', fontSize: '11px', border: '1px solid #f1f5f9' }}>Result</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[0, 1, 2].map((idx) => {
+                          const data = physicalData.resilience[idx] || { i1: '', i2: '', i3: '', i4: '', i5: '', i6: '' };
+                          const i4 = parseFloat(data.i4);
+                          const i5 = parseFloat(data.i5);
+                          const i6 = parseFloat(data.i6);
+                          const avg = (!isNaN(i4) && !isNaN(i5) && !isNaN(i6)) ? ((i4 + i5 + i6) / 3).toFixed(2) : '-';
+                          const pass = avg !== '-' && parseFloat(avg) >= 30;
+
+                          return (
+                            <tr key={idx}>
+                              <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', fontWeight: '800', background: '#f8fafc', border: '1px solid #f1f5f9' }}>{idx + 1}</td>
+                              {['i1', 'i2', 'i3', 'i4', 'i5', 'i6'].map((impactKey) => (
+                                <td key={impactKey} style={{ padding: '4px', border: '1px solid #f1f5f9' }}>
+                                  <input type="number" value={data[impactKey]} onChange={(e) => setPhysicalData(prev => {
+                                    const newRes = [...prev.resilience];
+                                    newRes[idx] = { ...newRes[idx], [impactKey]: e.target.value };
+                                    return { ...prev, resilience: newRes };
+                                  })} style={{ width: '100%', padding: '6px', border: '1px solid #e2e8f0', borderRadius: '4px', textAlign: 'center', fontSize: '12px', fontWeight: '700' }} />
+                                </td>
+                              ))}
+                              <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', fontWeight: '900', background: '#f8fafc', border: '1px solid #f1f5f9' }}>{avg}{avg !== '-' && '%'}</td>
+                              <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', fontWeight: '900', border: '1px solid #f1f5f9', color: pass ? '#059669' : '#ef4444' }}>{avg !== '-' ? (pass ? 'Pass' : 'Fail') : '-'}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
                   {/* Layer 3: Physical Decision */}
                   {physicalDecision !== 'PENDING VERIFICATION' && (
                     <section style={{
@@ -5773,7 +6195,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                             <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Sample</th>
                             <th colSpan="3" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>Compound A</th>
                             {isCGRSP && <th colSpan="3" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>Compound B</th>}
-                            {isCGRSP && <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Variation</th>}
+                            {isNCRGRSP && <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Variation</th>}
                           </tr>
                           <tr>
                             <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Wt. Air (g)</th>
@@ -5812,7 +6234,9 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                       <input type="number" value={rB.water} onChange={(e) => setElecData(prev => ({ ...prev, sg: { ...prev.sg, compoundB: prev.sg.compoundB.map((r, i) => i === idx ? { ...r, water: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
                                     </td>
                                     <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: sgB !== '-' && parseFloat(sgB) > currentSGSpecs.b ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{sgB}</td>
-                                    <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: variation !== '-' && Math.abs(parseFloat(variation)) > currentSGSpecs.variation ? '#ef4444' : '#64748b', background: '#f8fafc' }}>{variation}</td>
+                                    {isNCRGRSP && (
+                                      <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: variation !== '-' && Math.abs(parseFloat(variation)) > currentSGSpecs.variation ? '#ef4444' : '#64748b', background: '#f8fafc' }}>{variation}</td>
+                                    )}
                                   </>
                                 )}
                               </tr>
@@ -5843,7 +6267,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                             <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Sample</th>
                             <th colSpan="4" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>Product A</th>
                             {isCGRSP && <th colSpan="4" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>Product B</th>}
-                            {isCGRSP && <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Variation</th>}
+                            {isNCRGRSP && <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Variation</th>}
                           </tr>
                           <tr>
                             <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Crucible</th>
@@ -5894,12 +6318,60 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                       <input type="number" value={rB.ash} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundB: prev.ash.compoundB.map((r, i) => i === idx ? { ...r, ash: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
                                     </td>
                                     <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: ashB !== '-' && parseFloat(ashB) > currentAshSpecs.b ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{ashB}%</td>
-                                    <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: variation !== '-' && Math.abs(parseFloat(variation)) > currentAshSpecs.variation ? '#ef4444' : '#64748b', background: '#f8fafc' }}>{variation}</td>
+                                    {isNCRGRSP && (
+                                      <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: variation !== '-' && Math.abs(parseFloat(variation)) > currentAshSpecs.variation ? '#ef4444' : '#64748b', background: '#f8fafc' }}>{variation}</td>
+                                    )}
                                   </>
                                 )}
                               </tr>
                             );
                           })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Ozone Test */}
+                  <div style={{ background: 'white', borderRadius: '20px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', marginTop: '24px' }}>
+                    <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>Ozone Test</h3>
+                      </div>
+                      <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
+                        <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: elecResults.ozone === 'PASS' ? '#dcfce7' : elecResults.ozone === 'FAIL' ? '#fee2e2' : '#f1f5f9', color: elecResults.ozone === 'PASS' ? '#166534' : elecResults.ozone === 'FAIL' ? '#991b1b' : '#64748b' }}>{elecResults.ozone || 'PENDING'}</span>
+                      </div>
+                    </div>
+                    <div style={{ padding: '20px' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr>
+                            <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Sample</th>
+                            <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>10mm Wide Strip Initial Length (Bench Mark)</th>
+                            <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>After 30% Stretched Length</th>
+                            <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Observation</th>
+                            <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Remarks / Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '700', color: '#64748b' }}>S1</td>
+                            <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
+                              <input type="text" value={elecData.ozone[0]?.initial || '40mm'} readOnly style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px', background: '#f1f5f9', color: '#64748b' }} />
+                            </td>
+                            <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
+                              <input type="text" value={elecData.ozone[0]?.stretched || '52mm'} readOnly style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px', background: '#f1f5f9', color: '#64748b' }} />
+                            </td>
+                            <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
+                              <select value={elecData.ozone[0]?.obs || ''} onChange={(e) => setElecData(prev => ({ ...prev, ozone: [{ ...prev.ozone[0], obs: e.target.value }] }))} style={{ width: '100%', padding: '8px', minHeight: '38px', lineHeight: '1.5', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '13px' }}>
+                                <option value="">Select...</option>
+                                <option value="No Crack">No Crack</option>
+                                <option value="Cracks">Cracks</option>
+                              </select>
+                            </td>
+                            <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: elecData.ozone[0]?.obs === 'Cracks' ? '#ef4444' : elecData.ozone[0]?.obs === 'No Crack' ? '#059669' : '#64748b', background: '#f8fafc' }}>
+                              {elecData.ozone[0]?.obs === 'No Crack' ? 'Pass' : elecData.ozone[0]?.obs === 'Cracks' ? 'Fail' : '-'}
+                            </td>
+                          </tr>
                         </tbody>
                       </table>
                     </div>
@@ -5976,7 +6448,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                     <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
                         <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>Secant Stiffness</h3>
-                        <div style={{ fontSize: '11px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>FOR: {activeRailpadType} | Standard: 15 - 25 kN/mm</div>
+                        <div style={{ fontSize: '11px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>FOR: {activeRailpadType} | Standard: {currentSecantSpecs.min} - {currentSecantSpecs.max} kN/mm</div>
                       </div>
                       <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: specResults.secant === 'PASS' ? '#dcfce7' : specResults.secant === 'FAIL' ? '#fef3c7' : '#fee2e2', color: specResults.secant === 'PASS' ? '#166534' : specResults.secant === 'FAIL' ? '#b45309' : '#991b1b' }}>{specResults.secant === 'FAIL' ? 'MARGINAL' : specResults.secant}</span>
                     </div>
@@ -6013,7 +6485,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                     </td>
                                   ))}
                                   <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: '#21808d', background: '#f8fafc' }}>{res.isS20Complete ? res.d1.toFixed(2) : '-'}</td>
-                                  <td rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: res.stiffness >= 15 && res.stiffness <= 25 ? '#166534' : '#ef4444', background: '#f1f5f9', fontSize: '18px' }}>
+                                  <td rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: res.stiffness >= currentSecantSpecs.min && res.stiffness <= currentSecantSpecs.max ? '#166534' : '#ef4444', background: '#f1f5f9', fontSize: '18px' }}>
                                     {res.stiffness > 0 ? res.stiffness : '-'}
                                   </td>
                                 </tr>
@@ -6054,6 +6526,16 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                     </section>
                   )}
                 </div>
+              )}
+
+              {activeTab === 'periodic' && (
+                <PeriodicTestingTab
+                  periodicData={periodicData}
+                  setPeriodicData={setPeriodicData}
+                  activeRailpadType={activeRailpadType}
+                  getSectionStatus={getSectionStatus}
+                  markDirty={markDirty}
+                />
               )}
 
               {activeTab === 'ncrgrsp' && specData.ncrgrsp && (
@@ -6910,7 +7392,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                     <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Sample</th>
                                     <th colSpan="3" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>Compound A</th>
                                     {isCGRSP && <th colSpan="3" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>Compound B</th>}
-                                    {isCGRSP && <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Variation</th>}
+                                    {isNCRGRSP && <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Variation</th>}
                                   </tr>
                                   <tr>
                                     <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Wt. Air (g)</th>
@@ -6950,7 +7432,9 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                               <input type="number" value={rB.water || ''} onChange={(e) => setElecData(prev => ({ ...prev, sg: { ...prev.sg, compoundB: prev.sg.compoundB.map((r, i) => i === realIdx ? { ...r, water: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
                                             </td>
                                             <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: sgB !== '-' && parseFloat(sgB) > specs.b ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{sgB}</td>
-                                            <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: variation !== '-' && Math.abs(parseFloat(variation)) > specs.variation ? '#ef4444' : '#64748b', background: '#f8fafc' }}>{variation}</td>
+                                            {isNCRGRSP && (
+                                              <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: variation !== '-' && Math.abs(parseFloat(variation)) > specs.variation ? '#ef4444' : '#64748b', background: '#f8fafc' }}>{variation}</td>
+                                            )}
                                           </>
                                         )}
                                       </tr>
@@ -6988,7 +7472,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                     <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Sample</th>
                                     <th colSpan="4" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>Product A</th>
                                     {isCGRSP && <th colSpan="4" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '12px', color: '#475569', fontWeight: '800' }}>Product B</th>}
-                                    {isCGRSP && <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Variation</th>}
+                                    {isNCRGRSP && <th rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Variation</th>}
                                   </tr>
                                   <tr>
                                     <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Crucible</th>
@@ -7040,7 +7524,9 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                               <input type="number" value={rB.ash || ''} onChange={(e) => setElecData(prev => ({ ...prev, ash: { ...prev.ash, compoundB: prev.ash.compoundB.map((r, i) => i === realIdx ? { ...r, ash: e.target.value } : r) } }))} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} />
                                             </td>
                                             <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: ashB !== '-' && parseFloat(ashB) > specs.b ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{ashB}%</td>
-                                            <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: variation !== '-' && Math.abs(parseFloat(variation)) > specs.variation ? '#ef4444' : '#64748b', background: '#f8fafc' }}>{variation}</td>
+                                            {isNCRGRSP && (
+                                              <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: variation !== '-' && Math.abs(parseFloat(variation)) > specs.variation ? '#ef4444' : '#64748b', background: '#f8fafc' }}>{variation}</td>
+                                            )}
                                           </>
                                         )}
                                       </tr>
@@ -7114,7 +7600,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                             <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <div>
                                 <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>{config.name} (Double Sampling)</h3>
-                                <div style={{ fontSize: '11px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>Limit: 15 - 25 kN/mm</div>
+                                <div style={{ fontSize: '11px', color: '#21808d', fontWeight: '700', marginTop: '2px' }}>Limit: {currentSecantSpecs.min} - {currentSecantSpecs.max} kN/mm</div>
                               </div>
                               <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: status === 'PASS' ? '#dcfce7' : status === 'FAIL' ? '#fee2e2' : '#fff7ed', color: status === 'PASS' ? '#166534' : status === 'FAIL' ? '#991b1b' : '#c2410c', textTransform: 'uppercase' }}>{status}</span>
                             </div>
@@ -7153,7 +7639,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                             </td>
                                           ))}
                                           <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: '#21808d', background: '#f8fafc' }}>{res.isS20Complete ? res.d1.toFixed(2) : '-'}</td>
-                                          <td rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: res.stiffness >= 15 && res.stiffness <= 25 ? '#166534' : '#ef4444', background: '#f1f5f9', fontSize: '18px' }}>
+                                          <td rowSpan="2" style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: res.stiffness >= currentSecantSpecs.min && res.stiffness <= currentSecantSpecs.max ? '#166534' : '#ef4444', background: '#f1f5f9', fontSize: '18px' }}>
                                             {res.stiffness > 0 ? res.stiffness : '-'}
                                           </td>
                                         </tr>
@@ -7558,6 +8044,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                     { key: 'physical', label: 'Physical & Ageing Properties', status: physicalStatus },
                     { key: 'electrical', label: 'Electrical & Chemical', status: elecStatus },
                     { key: 'specialized', label: 'Dynamic & Durability Test', status: specStatus },
+                    { key: 'periodic', label: 'Periodic Testing', status: periodicStatus },
                     ...(isNCRGRSP ? [{ key: 'ncrgrsp', label: 'NCRGRSP', status: ncrStatus }] : [])
                   ].map(({ key, label, status }) => {
                     const badge = getSubmoduleBadge(status);
@@ -7647,7 +8134,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                           }
                         ];
                       } else if (activeSubmoduleTab === 'physical') {
-                        const keys = ['hardness', 'tensile', 'elongation', 'modulus', 'compression', 'tension', 'load'];
+                        const keys = ['hardness', 'tensile', 'elongation', 'modulus', 'compression', 'tension', 'load', 'resilience'];
                         rows = keys.map(k => {
                           const rep = rawReports[k];
                           const name = SECTION_CONFIG[k]?.name || k;
@@ -7655,7 +8142,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                           return { name, size, status: getSectionStatus(k) };
                         });
                       } else if (activeSubmoduleTab === 'electrical') {
-                        const keys = ['resistance', 'sg', 'ash'];
+                        const keys = ['resistance', 'sg', 'ash', 'ozone'];
                         rows = keys.map(k => {
                           const rep = rawReports[k];
                           const name = SECTION_CONFIG[k]?.name || k;
@@ -7672,6 +8159,14 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                         });
                       } else if (activeSubmoduleTab === 'ncrgrsp') {
                         const keys = ['ncrAdhesion', 'ncrBreaking', 'ncrCord'];
+                        rows = keys.map(k => {
+                          const rep = rawReports[k];
+                          const name = SECTION_CONFIG[k]?.name || k;
+                          const size = (rep && (rep.doubleFilled > 0 || k === marginalSectionKey)) ? `${rep.primaryCount} + ${rep.doubleCount}` : (rep ? rep.primaryCount : 0);
+                          return { name, size, status: getSectionStatus(k) };
+                        });
+                      } else if (activeSubmoduleTab === 'periodic') {
+                        const keys = ['tga', 'durability', 'abrasion'];
                         rows = keys.map(k => {
                           const rep = rawReports[k];
                           const name = SECTION_CONFIG[k]?.name || k;

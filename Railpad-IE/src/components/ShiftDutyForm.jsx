@@ -16,6 +16,8 @@ const ShiftDutyForm = ({ onSubmit, onCancel, hideCompanyAndUnit = false, initial
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
+    if (hideCompanyAndUnit) return;
+
     const fetchCompanies = async () => {
       setIsLoadingCompanies(true);
       try {
@@ -38,15 +40,15 @@ const ShiftDutyForm = ({ onSubmit, onCancel, hideCompanyAndUnit = false, initial
     };
 
     fetchCompanies();
-  }, []);
+  }, [hideCompanyAndUnit]);
 
   useEffect(() => {
-    const fetchUnits = async () => {
-      if (!formData.company) {
-        setUnits([]);
-        return;
-      }
+    if (hideCompanyAndUnit || !formData.company) {
+      setUnits([]);
+      return;
+    }
 
+    const fetchUnits = async () => {
       setIsLoadingUnits(true);
       try {
         const user = getStoredUser();
@@ -66,7 +68,7 @@ const ShiftDutyForm = ({ onSubmit, onCancel, hideCompanyAndUnit = false, initial
     };
 
     fetchUnits();
-  }, [formData.company]);
+  }, [formData.company, hideCompanyAndUnit]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

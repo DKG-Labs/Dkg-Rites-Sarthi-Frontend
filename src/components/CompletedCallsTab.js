@@ -125,6 +125,7 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
   const columns = [
     { key: 'call_no', label: 'Call No.' },
     { key: 'po_no', label: 'PO No.' },
+    { key: 'ibsCaseNo', label: 'IBS Case Number' },
     { key: 'vendor_name', label: 'Vendor Name' },
     { key: 'product_type', label: 'Product Type', render: (val) => getProductTypeDisplayName(val) },
     { key: 'requested_date', label: 'Date', render: (val) => formatDate(val) },

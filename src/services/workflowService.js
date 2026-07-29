@@ -212,6 +212,7 @@ export const fetchUserPendingCalls = async (forceRefresh = false) => {
         assignedToUser: transition.assignedToUser,
         // Map API fields to table fields
         po_no: transition.poNo || '-',
+        ibsCaseNo: transition.ibsCaseNo || '-',
         rawPoNo: transition.rawPoNo,
         vendor_name: vendorName,
         product_type: transition.productType || '-',

@@ -380,7 +380,8 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
           rlyShortName: dashboardData.poData.rlyShortName || '',
           place_of_inspection: dashboardData.poData.companyName
             ? `${dashboardData.poData.companyName}${dashboardData.poData.unitName ? ' (' + dashboardData.poData.unitName + ')' : ''}${dashboardData.poData.unitAddress ? ' - ' + dashboardData.poData.unitAddress : ''}`
-            : (dashboardData.poData.inspPlace || '')
+            : (dashboardData.poData.inspPlace || ''),
+          ibsCaseNo: dashboardData.poData.ibsCaseNo || ''
         };
         setPoData(mappedPoData);
         console.log('✅ PO Data mapped and set:', mappedPoData);
@@ -1267,7 +1268,12 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
 
       // Prepare all data first (same as finish/pause inspection)
       const ercUsed = lotsWithSampling.reduce((sum, lot) => sum + (parseInt(lotInspectionData[lot.lotNo]?.ercUsedForTesting) || 0), 0);
-      const qtyRejected = lotsWithSampling.filter(lot => isLotRejected(lot.lotNo)).reduce((sum, lot) => sum + lot.lotSize, 0);
+      const qtyRejected = lotsWithSampling.reduce((sum, lot) => {
+        if (isLotRejected(lot.lotNo)) {
+          return sum + lot.lotSize;
+        }
+        return sum + (rejectedCountsPerLot[lot.lotNo] || 0);
+      }, 0);
       const qtyNowPassed = totalQtyOffered - ercUsed - qtyRejected;
       const poQty = poData?.poQty || 10000;
       const poSrQty = poData?.poSrQty || 0;
@@ -1388,6 +1394,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     poData,
     testResultsPerLot,
     isLotRejected,
+    rejectedCountsPerLot,
     capturedImages
   ]);
 
@@ -1460,7 +1467,12 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
 
       // Prepare all data first
       const ercUsed = lotsWithSampling.reduce((sum, lot) => sum + (parseInt(lotInspectionData[lot.lotNo]?.ercUsedForTesting) || 0), 0);
-      const qtyRejected = lotsWithSampling.filter(lot => isLotRejected(lot.lotNo)).reduce((sum, lot) => sum + lot.lotSize, 0);
+      const qtyRejected = lotsWithSampling.reduce((sum, lot) => {
+        if (isLotRejected(lot.lotNo)) {
+          return sum + lot.lotSize;
+        }
+        return sum + (rejectedCountsPerLot[lot.lotNo] || 0);
+      }, 0);
       const qtyNowPassed = totalQtyOffered - ercUsed - qtyRejected;
       const poQty = poData?.poQty || 10000;
       const poSrQty = poData?.poSrQty || 0;
@@ -1652,7 +1664,12 @@ Workflow Status: ✅ Transitioned to COMPLETED
 
       // Prepare all data first (same as finish inspection)
       const ercUsed = lotsWithSampling.reduce((sum, lot) => sum + (parseInt(lotInspectionData[lot.lotNo]?.ercUsedForTesting) || 0), 0);
-      const qtyRejected = lotsWithSampling.filter(lot => isLotRejected(lot.lotNo)).reduce((sum, lot) => sum + lot.lotSize, 0);
+      const qtyRejected = lotsWithSampling.reduce((sum, lot) => {
+        if (isLotRejected(lot.lotNo)) {
+          return sum + lot.lotSize;
+        }
+        return sum + (rejectedCountsPerLot[lot.lotNo] || 0);
+      }, 0);
       const qtyNowPassed = totalQtyOffered - ercUsed - qtyRejected;
       const poQty = poData?.poQty || 10000;
       const poSrQty = poData?.poSrQty || 0;
@@ -1858,6 +1875,10 @@ Workflow Status: ✅ Transitioned to COMPLETED
                   disabled
                   style={{ height: 'auto', minHeight: '38px', resize: 'none' }}
                 />
+              </div>
+              <div className="fp-form-group">
+                <label className="fp-form-label">IBS Case Number</label>
+                <input className="fp-input" value={poData?.ibsCaseNo || 'N/A'} disabled style={{ fontWeight: 'bold' }} />
               </div>
             </div>
           </div>

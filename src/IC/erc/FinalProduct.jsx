@@ -39,7 +39,16 @@ const generateQuantityRemarks = (c) => {
     const qtyRejected = Number(c.qtyNowRejected || 0);
     const words = numberToWords(qtyNowPassed).toLowerCase();
     
-    let text = `Quantity Now Passed ${words} Nos only. Excluding of xxxxx Nos consumed in destructive testing.\n`;
+    // Calculate total erc_used_for_testing sum
+    let ercUsedCount = 0;
+    if (c.ercUsedForTesting !== undefined && c.ercUsedForTesting !== null && c.ercUsedForTesting > 0) {
+        ercUsedCount = c.ercUsedForTesting;
+    } else if (c.lotDetails && Array.isArray(c.lotDetails) && c.lotDetails.length > 0) {
+        ercUsedCount = c.lotDetails.reduce((sum, l) => sum + (Number(l.ercUsedForTesting) || 0), 0);
+    }
+    const ercText = ercUsedCount > 0 ? `${ercUsedCount}` : "xxxxx";
+    
+    let text = `QUANTITY NOW PASSED ${words.toUpperCase()} NOS ONLY. EXCLUDING OF ${ercText} NOS CONSUMED IN DESTRUCTIVE TESTING.\n`;
     
     if (c.lotDetails && c.lotDetails.length > 0) {
         let markings = c.lotDetails.map(l => `${l.lotNo || ''}, H No - ${l.heatNo || ''}`).join(' & ');
@@ -77,6 +86,20 @@ const generateQuantityRemarks = (c) => {
     }
     
     return text;
+};
+
+const generateReasonsForRejection = (c) => {
+    let totalRejected = Number(c.qtyNowRejected || 0);
+    if (totalRejected === 0 && c.lotDetails && Array.isArray(c.lotDetails) && c.lotDetails.length > 0) {
+        totalRejected = c.lotDetails.reduce((sum, l) => sum + (Number(l.totalRejectedQty || l.rejectedQty) || 0), 0);
+    }
+    
+    if (!totalRejected || totalRejected <= 0) {
+        return "Not Applicable";
+    }
+    
+    const words = numberToWords(totalRejected);
+    return `${words} (${totalRejected}) Nos. of ERC rejected due to dimensional non-conformity and/or visual surface defects such as deep dents, bends, cracks, or other specified defects and Dimension Inspection /Hardness Test/Decarburisation/ Freedom from defect /Micro-Structure/Application and Diflection Test/Toe Load Test .`;
 };
 
 export default function FinalProductCertificate({ call = {}, onBack }) {
@@ -198,7 +221,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
       quantityNowPassedText: c.quantityNowPassedText || generateQuantityRemarks(c),
       sealingPattern: c.sealingPattern || "",
       facsimileText: c.facsimileText || "",
-      reasonsForRejection: c.reasonsForRejection || "Not Applicable",
+      reasonsForRejection: (c.reasonsForRejection && c.reasonsForRejection !== "Not Applicable") ? c.reasonsForRejection : generateReasonsForRejection(c),
       inspectingEngineer: c.inspectingEngineer || "",
       lotDetails: c.lotDetails || [],
       remarks: c.ibsCaseNo && c.ibsCaseNo !== '-' ? `IBS Case No: ${c.ibsCaseNo}\n${c.remarks || ""}`.trim() : (c.remarks || ""),

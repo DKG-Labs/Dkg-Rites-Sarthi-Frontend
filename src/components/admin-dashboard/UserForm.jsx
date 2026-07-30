@@ -4,8 +4,10 @@ import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { USER_ROLES, REGIONS, DESIGNATIONS, DISCIPLINES } from './utils/mockData';
 
-export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCancel }) => {
+export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCancel, formError, isSubmitting = false }) => {
     const [passwordError, setPasswordError] = useState('');
+    const [localError, setLocalError] = useState('');
+    const [roleAddPrompt, setRoleAddPrompt] = useState(null);
     const [showPassword, setShowPassword] = useState(false);
     const [formData, setFormData] = useState({
         userName: '',
@@ -91,14 +93,13 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
     const handleChange = (e) => {
         const { name, value } = e.target;
         
-        // Clear password error when user starts typing
         if (name === 'password') {
             setPasswordError('');
         }
+        setLocalError('');
         
         setFormData(prev => {
             const newState = { ...prev, [name]: value };
-            // Automatically set userName to match employeeCode for login consistency
             if (name === 'employeeCode') {
                 newState.userName = value;
             }
@@ -117,13 +118,30 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
         }
     };
 
-
+    const handleConfirmAddRole = () => {
+        if (!roleAddPrompt) return;
+        const { existing, selectedRole, existingRoles } = roleAddPrompt;
+        const updatedRoleNames = [...existingRoles, selectedRole];
+        const dataToSubmit = {
+            ...existing,
+            roleNames: updatedRoleNames,
+            userId: existing.userId || existing.id
+        };
+        Object.keys(dataToSubmit).forEach(key => {
+            if (dataToSubmit[key] === '') {
+                dataToSubmit[key] = null;
+            }
+        });
+        setRoleAddPrompt(null);
+        onSubmit(dataToSubmit);
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setPasswordError('');
+        setLocalError('');
+        setRoleAddPrompt(null);
         
-        // Password validation (only required for new users or if password is provided)
         if (!user || formData.password) {
             const pwd = formData.password;
             if (pwd.length < 8) {
@@ -144,7 +162,6 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
             }
         }
 
-        // Validation for duplicate user
         if (!user) {
             const existing = existingUsers.find(u => 
                 (formData.employeeCode && u.employeeCode === formData.employeeCode) || 
@@ -156,40 +173,17 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
                 const existingRoles = (existing.roleName || '').split(',').map(r => r.trim());
 
                 if (existingRoles.includes(selectedRole)) {
-                    window.alert(`Error: User with Employee Code ${formData.employeeCode} already has the role "${selectedRole}".`);
+                    setLocalError(`User with Employee Code ${formData.employeeCode} already has the role "${selectedRole}".`);
                     return;
                 }
 
-                const confirmAdd = window.confirm(
-                    `User with Employee Code ${formData.employeeCode} already exists with roles: ${existing.roleName}.\n\nDo you want to add the "${selectedRole}" role to this existing user instead?`
-                );
-
-                if (confirmAdd) {
-                    // Update existing user by appending the new role
-                    const updatedRoleNames = [...existingRoles, selectedRole];
-                    const dataToSubmit = {
-                        ...existing,
-                        roleNames: updatedRoleNames,
-                        // Ensure ID is passed for update
-                        userId: existing.userId || existing.id
-                    };
-                    Object.keys(dataToSubmit).forEach(key => {
-                        if (dataToSubmit[key] === '') {
-                            dataToSubmit[key] = null;
-                        }
-                    });
-                    onSubmit(dataToSubmit);
-                    return;
-                } else {
-                    return; // User cancelled
-                }
+                setRoleAddPrompt({ existing, selectedRole, existingRoles });
+                return;
             }
         }
 
-        // Ensure userName matches fullName before submission
         const finalData = { ...formData, userName: formData.fullName };
         
-        // Convert any empty strings to null to prevent database type conversion errors (e.g. date_of_birth)
         Object.keys(finalData).forEach(key => {
             if (finalData[key] === '') {
                 finalData[key] = null;
@@ -210,8 +204,69 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
         'Rail Process IE': 'Railpad Process IE'
     };
 
+    const displayError = formError || localError || passwordError;
+
     return (
         <form onSubmit={handleSubmit} className="user-form-professional">
+            {roleAddPrompt && (
+                <div style={{
+                    background: '#eff6ff',
+                    border: '1.5px solid #bfdbfe',
+                    color: '#1e40af',
+                    padding: '14px 18px',
+                    borderRadius: '10px',
+                    marginBottom: '18px',
+                    fontSize: '13px',
+                    boxShadow: '0 2px 6px rgba(30, 64, 175, 0.08)'
+                }}>
+                    <div style={{ fontWeight: 700, marginBottom: '6px', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>ℹ️</span> User Already Exists
+                    </div>
+                    <p style={{ margin: '0 0 12px 0', lineHeight: 1.5 }}>
+                        User with Employee Code <strong>{formData.employeeCode}</strong> already exists with roles: <strong>{roleAddPrompt.existingRoles.join(', ')}</strong>.<br />
+                        Do you want to add the role <strong>"{roleAddPrompt.selectedRole}"</strong> to this existing user?
+                    </p>
+                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                        <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={() => setRoleAddPrompt(null)}
+                            disabled={isSubmitting}
+                            style={{ padding: '5px 14px', fontSize: 12, borderRadius: 6 }}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            className="btn btn-primary"
+                            onClick={handleConfirmAddRole}
+                            disabled={isSubmitting}
+                            style={{ padding: '5px 14px', fontSize: 12, borderRadius: 6 }}
+                        >
+                            Yes, Add Role
+                        </button>
+                    </div>
+                </div>
+            )}
+            {displayError && (
+                <div style={{
+                    background: '#fef2f2',
+                    border: '1.5px solid #fecaca',
+                    color: '#991b1b',
+                    padding: '12px 16px',
+                    borderRadius: '8px',
+                    marginBottom: '18px',
+                    fontWeight: '600',
+                    fontSize: '13px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    boxShadow: '0 2px 6px rgba(220, 38, 38, 0.08)'
+                }}>
+                    <span style={{ fontSize: 16 }}>⚠️</span>
+                    <span>{displayError}</span>
+                </div>
+            )}
             {/* 1. Account Information Section */}
             <div className="form-section">
                 <div className="form-section-title">
@@ -593,11 +648,41 @@ export const UserForm = ({ user, roles = [], existingUsers = [], onSubmit, onCan
             </div>
 
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '10px' }}>
-                <button type="button" className="btn btn-secondary" onClick={onCancel}>
+                <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={onCancel}
+                    disabled={isSubmitting}
+                    style={{ cursor: isSubmitting ? 'not-allowed' : 'pointer' }}
+                >
                     Cancel
                 </button>
-                <button type="submit" className="btn btn-primary" style={{ minWidth: '120px' }}>
-                    {user ? 'Update User' : 'Create User'}
+                <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={isSubmitting}
+                    style={{
+                        minWidth: '130px',
+                        opacity: isSubmitting ? 0.75 : 1,
+                        cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px'
+                    }}
+                >
+                    {isSubmitting ? (
+                        <>
+                            <span style={{
+                                width: 14, height: 14, border: '2px solid rgba(255,255,255,0.4)',
+                                borderTopColor: '#fff', borderRadius: '50%',
+                                animation: 'spin 0.8s linear infinite', display: 'inline-block'
+                            }}></span>
+                            <span>Saving...</span>
+                        </>
+                    ) : (
+                        user ? 'Update User' : 'Create User'
+                    )}
                 </button>
             </div>
         </form>

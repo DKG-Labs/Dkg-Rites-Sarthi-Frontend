@@ -20,9 +20,16 @@ const SearchableSelect = ({ options, value, onChange, placeholder, disabled, dis
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    const getOptionLabel = (opt) => {
+        if (!opt) return '';
+        if (typeof opt === 'string' || typeof opt === 'number') return String(opt);
+        if (displayKey && opt[displayKey] && String(opt[displayKey]).trim()) return String(opt[displayKey]).trim();
+        return opt.companyName || opt.vendorName || opt.plantName || opt.vendorCode || opt.name || String(opt);
+    };
+
     const filteredOptions = options.filter(opt => {
-        const text = displayKey ? (opt[displayKey] || '') : (opt || '');
-        return text.toString().toLowerCase().includes(searchTerm.toLowerCase());
+        const text = getOptionLabel(opt);
+        return text.toLowerCase().includes(searchTerm.toLowerCase());
     });
 
     const handleSelect = (option) => {
@@ -35,8 +42,11 @@ const SearchableSelect = ({ options, value, onChange, placeholder, disabled, dis
         if (!val) return placeholder;
         if (displayKey && valueKey) {
             const found = options.find(o => String(o[valueKey]) === String(val));
-            return found ? found[displayKey] : placeholder;
+            if (found) {
+                return getOptionLabel(found);
+            }
         }
+        if (typeof val === 'object') return getOptionLabel(val);
         return val;
     };
 
@@ -65,8 +75,8 @@ const SearchableSelect = ({ options, value, onChange, placeholder, disabled, dis
                     <div className="searchable-select-list">
                         {filteredOptions.length > 0 ? (
                             filteredOptions.map((opt, idx) => {
-                                const optionValue = valueKey ? opt[valueKey] : opt;
-                                const optionDisplay = displayKey ? opt[displayKey] : opt;
+                                const optionValue = valueKey ? (opt[valueKey] || opt) : opt;
+                                const optionDisplay = getOptionLabel(opt);
                                 return (
                                     <div
                                         key={idx}
@@ -206,12 +216,25 @@ export const IEFieldsForm = ({
                     setCompanies(sleeperCompanies || []);
                 } else if (productType === 'RAILPAD') {
                     const roleId = ROLES.find(r => r.name === selectedRole)?.id;
-                    const [roleUsers, railpadCompanies] = await Promise.all([
-                        getUsersByRole(roleId),
-                        getRailpadCompanies()
+                    const [roleUsers, railpadCompanies, generalCompanies] = await Promise.all([
+                        getUsersByRole(roleId).catch(() => []),
+                        getRailpadCompanies().catch(() => []),
+                        getCompanies().catch(() => [])
                     ]);
                     setUsers(formatUsers(roleUsers));
-                    setCompanies(railpadCompanies || []);
+
+                    const combinedCompanies = [...(railpadCompanies || [])];
+                    const existingCodes = new Set(combinedCompanies.map(c => c.vendorCode || c.companyName));
+
+                    (generalCompanies || []).forEach(gc => {
+                        const code = typeof gc === 'object' ? (gc.vendorCode || gc.companyName || gc.name) : gc;
+                        if (code && !existingCodes.has(code)) {
+                            existingCodes.add(code);
+                            combinedCompanies.push(typeof gc === 'string' ? { vendorCode: gc, companyName: gc } : gc);
+                        }
+                    });
+
+                    setCompanies(combinedCompanies);
                 } else {
                     const [roleUsers, companyList] = await Promise.all([
                         getUsersByRole(selectedRole),

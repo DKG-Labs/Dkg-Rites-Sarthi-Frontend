@@ -13,6 +13,45 @@ import { getStoredUser } from '../../services/authService';
 import { Snackbar, Alert } from '@mui/material';
 import './admin.css';
 
+export const parseUserFriendlyErrorMessage = (rawErrorMsg) => {
+    if (!rawErrorMsg) return 'Failed to save user. Please try again.';
+    const msg = String(rawErrorMsg);
+    const upper = msg.toUpperCase();
+
+    if (upper.includes('SHORT_NAME') || upper.includes('SHORT NAME')) {
+        return 'Short Name already registered. Please enter a unique Short Name.';
+    }
+    if (upper.includes('EMPLOYEE_CODE') || upper.includes('RITES_EMPLOYEE_CODE') || upper.includes('EMPLOYEE CODE')) {
+        return 'Employee Code already registered. Please enter a unique Employee Code.';
+    }
+    if (upper.includes('EMAIL')) {
+        return 'Email address already registered. Please enter a unique Email.';
+    }
+    if (upper.includes('MOBILE')) {
+        return 'Mobile number already registered.';
+    }
+
+    const dupMatch = msg.match(/Duplicate entry '([^']+)'/i);
+    if (dupMatch && dupMatch[1]) {
+        return `'${dupMatch[1]}' is already registered in the system.`;
+    }
+
+    let cleaned = msg
+        .replace(/could not execute statement/gi, '')
+        .replace(/\[insert into [^\]]+\]/gi, '')
+        .replace(/\[update [^\]]+\]/gi, '')
+        .replace(/for key '[^']+'/gi, '')
+        .replace(/\[.*?\]/g, '')
+        .replace(/JDBC exception executing SQL/gi, '')
+        .trim();
+
+    if (!cleaned || cleaned.length < 3) {
+        return 'User already exists or duplicate details provided.';
+    }
+
+    return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+};
+
 export const AdminDashboard = () => {
     const [activeModule, setActiveModule] = useState('users');
     const [modalOpen, setModalOpen] = useState(false);
@@ -26,6 +65,8 @@ export const AdminDashboard = () => {
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
     const [successOpen, setSuccessOpen] = useState(false);
     const [successDetails, setSuccessDetails] = useState({ title: '', message: '', employeeCode: '' });
+    const [formError, setFormError] = useState(null);
+    const [isSubmittingUser, setIsSubmittingUser] = useState(false);
     const refreshData = () => setRefreshTrigger(prev => prev + 1);
 
     const handleCloseSnackbar = (event, reason) => {
@@ -56,6 +97,8 @@ export const AdminDashboard = () => {
     // User Module Handlers
     const handleCreateUser = () => {
         setSelectedItem(null);
+        setFormError(null);
+        setIsSubmittingUser(false);
         setModalTitle('Create New User');
         setModalContent('user-form');
         setModalOpen(true);
@@ -63,6 +106,8 @@ export const AdminDashboard = () => {
 
     const handleEditUser = (user) => {
         setSelectedItem(user);
+        setFormError(null);
+        setIsSubmittingUser(false);
         setModalTitle('Edit User');
         setModalContent('user-form');
         setModalOpen(true);
@@ -80,16 +125,18 @@ export const AdminDashboard = () => {
         if (window.confirm('Are you sure you want to delete this user?')) {
             try {
                 await deleteUserApi(userId);
-                alert('User deleted successfully');
+                setSnackbar({ open: true, message: 'User deleted successfully', severity: 'success' });
                 refreshData();
             } catch (error) {
-                alert('Failed to delete user: ' + error.message);
+                setSnackbar({ open: true, message: 'Failed to delete user: ' + parseUserFriendlyErrorMessage(error.message), severity: 'error' });
             }
         }
     };
 
     const handleSubmitUser = async (formData) => {
+        setIsSubmittingUser(true);
         try {
+            setFormError(null);
             const currentUser = getStoredUser();
             const dataToSubmit = {
                 ...formData,
@@ -106,17 +153,21 @@ export const AdminDashboard = () => {
             refreshData();
             setModalOpen(false);
             setSelectedItem(null);
-            
-            const isZonalRailway = formData.roleNames.includes('ZONAL RAILWAY');
+            const isZonalRailway = formData.roleNames?.includes('ZONAL RAILWAY');
             setSuccessDetails({
                 title: 'Success!',
                 message: selectedItem ? 'User has been updated successfully.' : 'User has been created successfully.',
                 employeeCode: (!selectedItem && isZonalRailway) ? responseData?.employeeCode : null
             });
             setSuccessOpen(true);
+            setSnackbar({ open: true, message: 'User saved successfully!', severity: 'success' });
         } catch (error) {
             console.error('Error submitting user:', error);
-            window.alert(`Failed to save user: ${error.message}`);
+            const userFriendlyMsg = parseUserFriendlyErrorMessage(error.message);
+            setFormError(userFriendlyMsg);
+            setSnackbar({ open: true, message: userFriendlyMsg, severity: 'error' });
+        } finally {
+            setIsSubmittingUser(false);
         }
     };
 
@@ -391,8 +442,9 @@ export const AdminDashboard = () => {
                         roles={roles}
                         existingUsers={users}
                         onSubmit={handleSubmitUser}
-                        onCancel={() => setModalOpen(false)}
-                        
+                        onCancel={() => { if (!isSubmittingUser) { setModalOpen(false); setFormError(null); } }}
+                        formError={formError}
+                        isSubmitting={isSubmittingUser}
                     />
                 )}
                 {modalContent === 'master-form' && (

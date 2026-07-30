@@ -283,7 +283,16 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
   }, [call]);
 
   const handleFieldChange = (fieldName, value) => {
-    setData(prev => ({ ...prev, [fieldName]: value }));
+    setData(prev => {
+      const updated = { ...prev, [fieldName]: value };
+      if (['qtyOnOrder', 'qtyPassedPreviously', 'qtyNowPassed'].includes(fieldName)) {
+        const order = parseFloat(updated.qtyOnOrder) || 0;
+        const prevPassed = parseFloat(updated.qtyPassedPreviously) || 0;
+        const nowPassed = parseFloat(updated.qtyNowPassed) || 0;
+        updated.qtyStillDue = Math.max(0, order - prevPassed - nowPassed);
+      }
+      return updated;
+    });
     if (fieldName === 'bookNo' || fieldName === 'setNo') {
       setBookSetValidation({ isValid: false, message: null, isValidating: false });
     }
@@ -315,6 +324,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
           maNumberAndDate: data.maNumberAndDate,
           purchasingAuthority: data.purchasingAuthority,
           description: data.description,
+          manufacturer: data.manufacturer,
           trRecDate: data.trRecDate,
           noOfVisits: data.noOfVisits,
           datesOfInspection: data.datesOfInspection,
@@ -429,6 +439,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
           maNumberAndDate: data.maNumberAndDate,
           purchasingAuthority: data.purchasingAuthority,
           description: data.description,
+          manufacturer: data.manufacturer,
           trRecDate: data.trRecDate,
           noOfVisits: data.noOfVisits,
           datesOfInspection: data.datesOfInspection,
@@ -470,8 +481,8 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
           </file>
           <pdf>
             <page>1</page>
-            <cood>410,80</cood>
-            <size>150,50</size>
+            <cood>375,190</cood>
+            <size>150,45</size>
           </pdf>
           <data>${base64Pdf}</data>
         </request>
@@ -493,10 +504,63 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
     }
   };
 
+  const handleCancelChanges = async () => {
+    setIsEditing(false);
+    let initialData = transformCallToIC(call);
+    const icNumber = initialData.certificateNo || call.icNo || call.call_no;
+    if (icNumber) {
+      let savedEdit = await getFinalIcSaveChanges(icNumber);
+      if (!savedEdit) {
+        savedEdit = await getFinalIcEditData(icNumber);
+      }
+      if (savedEdit) {
+        initialData = {
+          ...initialData,
+          bookNo: savedEdit.bookNo || initialData.bookNo,
+          setNo: savedEdit.setNo || initialData.setNo,
+          offeredInstNo: savedEdit.offeredInstallmentNo || initialData.offeredInstNo,
+          passedInstNo: savedEdit.passedInstallmentNo || initialData.passedInstNo,
+          consignee: savedEdit.consignee || initialData.consignee,
+          qtyOfferedPreviously: savedEdit.cummQtyOfferedPrev || initialData.qtyOfferedPreviously,
+          qtyPassedPreviously: savedEdit.qtyPrevPassed || initialData.qtyPassedPreviously,
+          qtyStillDue: savedEdit.qtyStillDue || initialData.qtyStillDue,
+          maNumberAndDate: savedEdit.maNumberAndDate || initialData.maNumberAndDate,
+          purchasingAuthority: savedEdit.purchasingAuthority || initialData.purchasingAuthority,
+          description: savedEdit.description || initialData.description,
+          trRecDate: savedEdit.trRecDate || initialData.trRecDate,
+        };
+      }
+    }
+    setData(initialData);
+    setNotification({ open: true, message: "Edited changes cancelled.", severity: 'info' });
+  };
+
   return (
     <Box sx={{ padding: 3 }}>
       <div className="no-print" style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-        <button onClick={onBack} className="btn btn-outline">← Back</button>
+        <Button
+          variant="outlined"
+          onClick={onBack}
+          sx={{
+            backgroundColor: '#ffffff',
+            color: '#334155',
+            borderColor: '#cbd5e1',
+            fontWeight: 700,
+            fontSize: '0.8125rem',
+            px: 2.5,
+            py: 0.75,
+            borderRadius: '6px',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+            textTransform: 'none',
+            '&:hover': {
+              backgroundColor: '#f8fafc',
+              borderColor: '#94a3b8',
+              color: '#0f172a',
+            }
+          }}
+        >
+          ← Back
+        </Button>
         <div style={{ display: "flex", gap: 8 }}>
           <button
             onClick={isEditing ? handleSaveChanges : () => setIsEditing(true)}
@@ -505,6 +569,15 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
           >
             {isEditing ? "Save Changes" : "✎ Edit"}
           </button>
+          {isEditing && (
+            <button
+              onClick={handleCancelChanges}
+              className="btn btn-outline border-red-500 text-red-600 hover:bg-red-50"
+              disabled={isESigning}
+            >
+              Cancel Changes
+            </button>
+          )}
           <Button 
             variant="contained" 
             color="success" 

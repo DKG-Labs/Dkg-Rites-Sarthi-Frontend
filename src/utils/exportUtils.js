@@ -13,9 +13,9 @@ export async function exportToPdf(element, filename = "certificate.pdf") {
   // Find the actual certificate page inside the wrapper
   const certificatePage = element.querySelector('.certificate-page') || element;
 
-  // Capture with optimized settings for A4 (Scale 1.5 balances quality vs size)
+  // Capture with optimized settings for A4 (Scale 2 for crisp print quality)
   const canvas = await html2canvas(certificatePage, {
-    scale: 1.5,
+    scale: 2,
     useCORS: true,
     backgroundColor: '#ffffff',
     logging: false,
@@ -25,30 +25,23 @@ export async function exportToPdf(element, filename = "certificate.pdf") {
     onclone: (clonedDoc) => {
       const clonedElement = clonedDoc.querySelector('.certificate-page') || clonedDoc.body;
       clonedElement.style.width = '210mm';
-      clonedElement.style.height = 'auto';
+      clonedElement.style.maxWidth = '210mm';
+      clonedElement.style.margin = '0 auto';
+      clonedElement.style.padding = '45mm 7mm 15mm 7mm';
+      clonedElement.style.boxSizing = 'border-box';
     },
     removeContainer: true,
   });
 
-  const imgData = canvas.toDataURL("image/jpeg", 0.75);
+  const imgData = canvas.toDataURL("image/jpeg", 0.95);
   const pdf = new jsPDF("p", "mm", "a4");
 
   // A4 dimensions: 210mm x 297mm
   const pdfWidth = pdf.internal.pageSize.getWidth();
   const pdfHeight = pdf.internal.pageSize.getHeight();
 
-  // Calculate image dimensions to fit A4 while maintaining aspect ratio
-  const imgWidth = pdfWidth;
-  const imgHeight = (canvas.height * pdfWidth) / canvas.width;
-
-  // If content is taller than A4, scale it to fit
-  if (imgHeight > pdfHeight) {
-    const scaledWidth = (canvas.width * pdfHeight) / canvas.height;
-    pdf.addImage(imgData, "JPEG", (pdfWidth - scaledWidth) / 2, 0, scaledWidth, pdfHeight, undefined, "FAST");
-  } else {
-    // Center vertically if shorter than A4
-    pdf.addImage(imgData, "JPEG", 0, (pdfHeight - imgHeight) / 2, imgWidth, imgHeight, undefined, "FAST");
-  }
+  // Render full A4 page (210mm x 297mm) with 45mm top space, 15mm bottom space, 7mm side margins
+  pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight, undefined, "FAST");
 
   pdf.save(filename);
 }
@@ -64,7 +57,7 @@ export async function generatePdfBase64(element, filename = null) {
   const certificatePage = element.querySelector('.certificate-page') || element;
 
   const canvas = await html2canvas(certificatePage, {
-    scale: 1.5,
+    scale: 2,
     useCORS: true,
     backgroundColor: '#ffffff',
     logging: false,
@@ -74,24 +67,21 @@ export async function generatePdfBase64(element, filename = null) {
     onclone: (clonedDoc) => {
       const clonedElement = clonedDoc.querySelector('.certificate-page') || clonedDoc.body;
       clonedElement.style.width = '210mm';
-      clonedElement.style.height = 'auto';
+      clonedElement.style.maxWidth = '210mm';
+      clonedElement.style.margin = '0 auto';
+      clonedElement.style.padding = '45mm 7mm 15mm 7mm';
+      clonedElement.style.boxSizing = 'border-box';
     },
     removeContainer: true,
   });
 
-  const imgData = canvas.toDataURL("image/jpeg", 0.75);
+  const imgData = canvas.toDataURL("image/jpeg", 0.95);
   const pdf = new jsPDF("p", "mm", "a4");
 
   const pdfWidth = pdf.internal.pageSize.getWidth();
   const pdfHeight = pdf.internal.pageSize.getHeight();
-  const imgHeight = (canvas.height * pdfWidth) / canvas.width;
 
-  if (imgHeight > pdfHeight) {
-    const scaledWidth = (canvas.width * pdfHeight) / canvas.height;
-    pdf.addImage(imgData, "JPEG", (pdfWidth - scaledWidth) / 2, 0, scaledWidth, pdfHeight, undefined, "FAST");
-  } else {
-    pdf.addImage(imgData, "JPEG", 0, (pdfHeight - imgHeight) / 2, pdfWidth, imgHeight, undefined, "FAST");
-  }
+  pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight, undefined, "FAST");
 
   // If filename is provided, download the PDF
   if (filename) {

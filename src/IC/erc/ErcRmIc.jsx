@@ -386,9 +386,30 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
             </div>
             <EditableField isEditing={false} type="textarea" value={sealFacsimile} onChange={(val) => onChange("sealFacsimile", val)} className="break-words leading-tight text-[10px]" />
           </div>
-          <div className="p-1 flex flex-col justify-between min-h-[60px]">
+          <div className="p-1 flex flex-col justify-between min-h-[60px] relative">
             <div className="font-semibold text-[10px]">निरीक्षण अभियंता / Inspecting Engineer</div>
-            <EditableField isEditing={false} value={inspectingEngineer} onChange={(val) => onChange("inspectingEngineer", val)} className="mt-2 text-right font-semibold" />
+            {isBusy ? (
+              <div className="my-1 p-1 border border-blue-600 bg-blue-50/70 rounded text-center">
+                <div className="text-[9px] font-bold text-blue-800 flex items-center justify-center gap-1">
+                  <span>✓</span> Digitally Signed
+                </div>
+                <div className="text-[8.5px] font-bold text-gray-900 uppercase">
+                  {inspectingEngineer || "INSPECTING ENGINEER"}
+                </div>
+                <div className="text-[7.5px] text-gray-600 font-semibold">
+                  RITES Limited • {certificateDate || "Dated"}
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-end w-full mt-1">
+                {inspectingEngineer && (
+                  <div className="text-[8px] text-blue-700 font-semibold italic mb-0.5">
+                    [Digitally Signed]
+                  </div>
+                )}
+                <EditableField isEditing={false} value={inspectingEngineer} onChange={(val) => onChange("inspectingEngineer", val)} className="mt-1 text-right font-semibold uppercase text-[10px]" />
+              </div>
+            )}
           </div>
         </div>
 

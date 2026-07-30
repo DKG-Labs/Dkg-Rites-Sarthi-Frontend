@@ -67,9 +67,46 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
     .replace(/[\r\n]+/g, ' ')
     .trim();
 
-  const totalProcessed = lots.reduce((s, l) => s + (l.totalProcessed || 0), 0).toFixed(3);
-  const totalAccepted = lots.reduce((s, l) => s + (l.acceptedQty || 0), 0).toFixed(3);
-  const totalRejected = lots.reduce((s, l) => s + (l.rejectedQty || 0), 0).toFixed(3);
+  const numberToWords = (num) => {
+    if (!num || isNaN(num) || num === 0) return "Zero";
+    const a = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+    const b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+    
+    if ((num = num.toString()).length > 9) return "Overflow";
+    let n = ("000000000" + num).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+    if (!n) return "";
+    let str = "";
+    str += (Number(n[1]) !== 0) ? (a[Number(n[1])] || b[n[1][0]] + " " + a[n[1][1]]) + " Crore " : "";
+    str += (Number(n[2]) !== 0) ? (a[Number(n[2])] || b[n[2][0]] + " " + a[n[2][1]]) + " Lakh " : "";
+    str += (Number(n[3]) !== 0) ? (a[Number(n[3])] || b[n[3][0]] + " " + a[n[3][1]]) + " Thousand " : "";
+    str += (Number(n[4]) !== 0) ? a[Number(n[4])] + " Hundred " : "";
+    str += (Number(n[5]) !== 0) ? ((str !== "") ? " " : "") + (a[Number(n[5])] || b[n[5][0]] + " " + a[n[5][1]]) : "";
+    return str.trim();
+  };
+
+  const formatCleanNum = (val) => {
+    const n = Number(val || 0);
+    if (isNaN(n)) return "0";
+    return Number.isInteger(n) ? String(n) : String(Number(n.toFixed(3)));
+  };
+
+  const numTotalProcessed = lots.reduce((s, l) => s + Number(l.totalProcessed || 0), 0);
+  const numTotalRejected = lots.reduce((s, l) => s + Number(l.rejectedQty || 0), 0);
+  const numTotalAccepted = Math.max(0, numTotalProcessed - numTotalRejected);
+
+  const totalProcessed = formatCleanNum(numTotalProcessed);
+  const totalAccepted = formatCleanNum(numTotalAccepted);
+  const totalRejected = formatCleanNum(numTotalRejected);
+
+  const displayReference = (() => {
+    if (!reference) return "";
+    const acceptedInt = Math.round(numTotalAccepted);
+    const words = numberToWords(acceptedInt);
+    if (/^Quantity\s+.*?Nos\./i.test(reference)) {
+      return reference.replace(/^Quantity\s+.*?Nos\./i, `Quantity ${words} Nos.`);
+    }
+    return reference;
+  })();
 
   const extractPoSrNo = (refStr) => {
     if (!refStr) return "001";
@@ -227,7 +264,7 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
             <div className="p-2">
               <div className="h-1.5" />
               <div className="font-semibold text-[10px]">उत्पादक / Manufacturer</div>
-              <EditableField isEditing={false} type="textarea" value={manufacturer} onChange={(val) => onChange("manufacturer", val)} className="break-words dynamic-text leading-tight" />
+              <EditableField isEditing={isEditing} type="textarea" value={manufacturer} onChange={(val) => onChange("manufacturer", val)} className="break-words dynamic-text leading-tight" />
             </div>
           </div>
 
@@ -330,30 +367,40 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
           </div>
 
           {/* Body rows */}
-          {lots.map((lot, idx) => (
-            <div
-              key={idx}
-              className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] text-center border-x border-b border-black"
-            >
-              <div className="border-r border-black py-1 px-2 text-sm">
-                {idx === 0 ? (
-                  <EditableField
-                    isEditing={isEditing}
-                    type="textarea"
-                    value={chpClause}
-                    onChange={(val) => onChange("chpClause", val)}
-                    className="w-full text-center"
-                  />
-                ) : (
-                  ""
-                )}
+          {lots.map((lot, idx) => {
+            const proc = Number(lot.totalProcessed || 0);
+            const rej = Number(lot.rejectedQty || 0);
+            const acc = Math.max(0, proc - rej);
+
+            const displayProc = formatCleanNum(proc);
+            const displayAcc = formatCleanNum(acc);
+            const displayRej = formatCleanNum(rej);
+
+            return (
+              <div
+                key={idx}
+                className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] text-center border-x border-b border-black"
+              >
+                <div className="border-r border-black py-1 px-2 text-sm">
+                  {idx === 0 ? (
+                    <EditableField
+                      isEditing={isEditing}
+                      type="textarea"
+                      value={chpClause}
+                      onChange={(val) => onChange("chpClause", val)}
+                      className="w-full text-center"
+                    />
+                  ) : (
+                    ""
+                  )}
+                </div>
+                <div className="border-r border-black py-1 px-2">{lot.heatNo}</div>
+                <div className="border-r border-black py-1 px-2">{displayProc}</div>
+                <div className="border-r border-black py-1 px-2">{displayAcc}</div>
+                <div className="py-1 px-2">{displayRej}</div>
               </div>
-              <div className="border-r border-black py-1 px-2">{lot.heatNo}</div>
-              <div className="border-r border-black py-1 px-2">{lot.totalProcessed}</div>
-              <div className="border-r border-black py-1 px-2">{lot.acceptedQty}</div>
-              <div className="py-1 px-2">{lot.rejectedQty}</div>
-            </div>
-          ))}
+            );
+          })}
 
           {/* TOTAL row */}
           <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] font-semibold border-x border-b border-black">
@@ -367,7 +414,7 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
           {/* Reference row */}
           <div className="border-x border-b border-black p-2">
             <span className="font-semibold">संदर्भ / Reference: </span>
-            <span className="dynamic-text">{reference}</span>
+            <span className="dynamic-text">{displayReference}</span>
           </div>
 
           {/* Call date / inspection date / man-days */}

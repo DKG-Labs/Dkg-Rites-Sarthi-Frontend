@@ -33,16 +33,16 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
   const [isSaving, setIsSaving] = useState(false);
   const [passedHeats, setPassedHeats] = useState({});
 
-  const showNotification = (message, type = 'error', autoClose = true, delay = 4000) => {
+  const showNotification = useCallback((message, type = 'error', autoClose = true, delay = 4000) => {
     setNotification({ message, type });
     if (autoClose) {
       setTimeout(() => setNotification({ message: '', type }), delay);
     }
-  };
+  }, []);
 
   // Visual Defects List
   const defectList = useMemo(() => ([
-    'No Defect', 'Distortion', 'Twist', 'Kink', 'Not Straight', 'Fold',
+    'No Defect', 'All Defects', 'Distortion', 'Twist', 'Kink', 'Not Straight', 'Fold',
     'Lap', 'Crack', 'Pit', 'Groove', 'Excessive Scaling', 'Internal Defect (Piping, Segregation)', 'Other'
   ]), []);
 
@@ -82,7 +82,8 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
         state[hNo] = {
           selectedDefects: defectList.reduce((acc, d) => { acc[d] = false; return acc; }, {}),
           defectCounts: defectList.reduce((acc, d) => { acc[d] = ''; return acc; }, {}),
-          otherRemarks: ''
+          otherRemarks: '',
+          allDefectsRemark: ''
         };
       }
     });
@@ -100,7 +101,8 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
           next[hNo] = {
             selectedDefects: defectList.reduce((acc, d) => { acc[d] = false; return acc; }, {}),
             defectCounts: defectList.reduce((acc, d) => { acc[d] = ''; return acc; }, {}),
-            otherRemarks: ''
+            otherRemarks: '',
+            allDefectsRemark: ''
           };
           changed = true;
         }
@@ -159,6 +161,9 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
           // Load other remarks if present
           if (item.otherRemarks) {
             currentHeatData.otherRemarks = item.otherRemarks;
+          }
+          if (item.allDefectsRemark) {
+            currentHeatData.allDefectsRemark = item.allDefectsRemark;
           }
 
           // NEW FORMAT: Backend returns one record per heat with defects and defectLengths maps
@@ -224,14 +229,28 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
           Object.keys(sel).forEach(k => { sel[k] = false; counts[k] = ''; });
           sel['No Defect'] = true;
           hv.otherRemarks = ''; // Clear other remarks on No Defect
+          hv.allDefectsRemark = ''; // Clear all defects remark
+        }
+      } else if (defectName === 'All Defects') {
+        if (sel['All Defects']) {
+          sel['All Defects'] = false;
+          hv.allDefectsRemark = '';
+        } else {
+          Object.keys(sel).forEach(k => { sel[k] = false; counts[k] = ''; });
+          sel['All Defects'] = true;
+          hv.otherRemarks = '';
         }
       } else {
         sel[defectName] = !sel[defectName];
         if (!sel[defectName]) {
           counts[defectName] = '';
-          if (defectName === 'Other') hv.otherRemarks = ''; // Clear other remarks if Other is deselected
+          if (defectName === 'Other') hv.otherRemarks = '';
         }
         if (sel['No Defect']) sel['No Defect'] = false;
+        if (sel['All Defects']) {
+          sel['All Defects'] = false;
+          hv.allDefectsRemark = '';
+        }
       }
       hv.selectedDefects = sel;
       hv.defectCounts = counts;
@@ -266,7 +285,21 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
     });
   }, [activeHeatTab, heats]);
 
+  const handleAllDefectsRemarkChange = useCallback((value) => {
+    const currentHeat = heats[activeHeatTab];
+    const hNo = (currentHeat.heatNo || currentHeat.heat_no || `Heat-${activeHeatTab + 1}`).toString().trim().toUpperCase();
+
+    setHeatVisualData(prev => {
+      const next = { ...prev };
+      const hv = { ...next[hNo] };
+      hv.allDefectsRemark = value;
+      next[hNo] = hv;
+      return next;
+    });
+  }, [activeHeatTab, heats]);
+
   // Validation: ensure that if any length-defect is selected, its value must be filled
+  // AND if All Defects is selected, mandatory remark reason must be provided
   const validateHeatData = useCallback((heatIdx) => {
     const heat = heats[heatIdx];
     if (!heat) return true;
@@ -275,6 +308,14 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
     const hv = heatVisualData[hNo] || {};
     const selected = hv.selectedDefects || {};
     const counts = hv.defectCounts || {};
+
+    // Validate mandatory remark for All Defects
+    if (selected['All Defects']) {
+      if (!hv.allDefectsRemark || !hv.allDefectsRemark.trim()) {
+        showNotification('Please enter mandatory reason for "All Defects" rejection before leaving this heat or page.', 'warning');
+        return false;
+      }
+    }
 
     for (let defect of LENGTH_DEFECTS) {
       if (selected[defect]) {
@@ -286,7 +327,7 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
       }
     }
     return true;
-  }, [heatVisualData, heats]);
+  }, [heatVisualData, heats, showNotification]);
 
   const handleSelectHeat = useCallback((idx) => {
     // If trying to leave current heat, validate current heat
@@ -342,11 +383,33 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
     return totalLengthMetres * factor;
   }, [productModel]);
 
+  const currentHeat = heats[activeHeatTab];
+  const currentHeatNo = currentHeat?.heatNo || currentHeat?.heat_no;
+  const isCurrentHeatPassed = passedHeats[currentHeatNo];
+
+  // Calculate total offered qty for all heats with the same heat number
+  const totalOfferedQty = useMemo(() => {
+    if (!currentHeatNo) return 0;
+    return heats
+      .filter(h => (h.heatNo || h.heat_no) === currentHeatNo)
+      .reduce((sum, h) => sum + (parseFloat(h.weight) || 0), 0);
+  }, [heats, currentHeatNo]);
+
   // Calculate values for current heat
   const activeHeatNo = (heats[activeHeatTab]?.heatNo || heats[activeHeatTab]?.heat_no || `Heat-${activeHeatTab + 1}`).toString().trim().toUpperCase();
   const currentHeatData = heatVisualData[activeHeatNo] || {};
-  const totalDefectiveLength = calculateTotalDefectiveLength(currentHeatData);
-  const weightRejected = calculateWeightRejected(totalDefectiveLength);
+
+  // If All Defects is selected, auto-calculate total defective length & reject entire offered weight!
+  const isAllDefectsSelected = !!currentHeatData?.selectedDefects?.['All Defects'];
+  const model = productModel?.toUpperCase().includes('V') ? 'MK-V' : 'MK-III';
+  const weightFactor = WEIGHT_FACTORS[model] || 0.00263;
+
+  const totalDefectiveLength = isAllDefectsSelected
+    ? (weightFactor > 0 ? (totalOfferedQty / weightFactor) : 0)
+    : calculateTotalDefectiveLength(currentHeatData);
+
+  const calculatedWeightRejected = calculateWeightRejected(totalDefectiveLength);
+  const weightRejected = isAllDefectsSelected ? totalOfferedQty : calculatedWeightRejected;
 
   // Handle Pass button click
   const handlePassVisualInspection = useCallback(async () => {
@@ -373,6 +436,11 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
       return;
     }
 
+    if (currentHeatData.selectedDefects?.['All Defects'] && (!currentHeatData.allDefectsRemark || !currentHeatData.allDefectsRemark.trim())) {
+      showNotification('Please enter mandatory reason for "All Defects" rejection before passing', 'error');
+      return;
+    }
+
     setIsSaving(true);
     try {
       // Get current user ID from localStorage
@@ -391,6 +459,7 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
           return acc;
         }, {}),
         otherRemarks: currentHeatData.otherRemarks || '',
+        allDefectsRemark: currentHeatData.allDefectsRemark || '',
         weightRejected: weightRejected,
         defectCount: selectedDefects.includes('No Defect') ? 0 : selectedDefects.length
       };
@@ -426,19 +495,7 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
     } finally {
       setIsSaving(false);
     }
-  }, [activeHeatTab, heats, inspectionCallNo, heatVisualData, weightRejected]);
-
-  const currentHeat = heats[activeHeatTab];
-  const currentHeatNo = currentHeat?.heatNo || currentHeat?.heat_no;
-  const isCurrentHeatPassed = passedHeats[currentHeatNo];
-
-  // Calculate total offered qty for all heats with the same heat number
-  const totalOfferedQty = useMemo(() => {
-    if (!currentHeatNo) return 0;
-    return heats
-      .filter(h => (h.heatNo || h.heat_no) === currentHeatNo)
-      .reduce((sum, h) => sum + (parseFloat(h.weight) || 0), 0);
-  }, [heats, currentHeatNo]);
+  }, [activeHeatTab, heats, inspectionCallNo, heatVisualData, weightRejected, showNotification]);
 
   // Validation: Check if rejected weight exceeds total offered qty
   const isValidationFailed = weightRejected > totalOfferedQty;
@@ -454,7 +511,7 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
       const message = `⚠️ Rejected weight (${weightRejected.toFixed(6)} T) exceeds offered quantity (${totalOfferedQty.toFixed(3)} T). Edit highlighted defect values to reduce weight.`;
       showNotification(message, 'warning', true, 8000);
     }
-  }, [isValidationFailed, weightRejected, totalOfferedQty]);
+  }, [isValidationFailed, weightRejected, totalOfferedQty, showNotification]);
 
   // Wrapper functions to check validation before allowing navigation
   const handleSelectHeatWithValidation = useCallback((idx) => {
@@ -463,7 +520,7 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
       return;
     }
     handleSelectHeat(idx);
-  }, [isValidationFailed, handleSelectHeat]);
+  }, [isValidationFailed, handleSelectHeat, showNotification]);
 
   const handleBackClickWithValidation = useCallback(() => {
     if (isValidationFailed) {
@@ -471,7 +528,7 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
       return;
     }
     handleBackClick();
-  }, [isValidationFailed, handleBackClick]);
+  }, [isValidationFailed, handleBackClick, showNotification]);
 
   const handleNavigateSubmoduleWithValidation = useCallback((sub) => {
     if (isValidationFailed) {
@@ -479,7 +536,7 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
       return;
     }
     handleNavigateSubmodule(sub);
-  }, [isValidationFailed, handleNavigateSubmodule]);
+  }, [isValidationFailed, handleNavigateSubmodule, showNotification]);
 
   return (
     <div className="visual-page-container">
@@ -572,42 +629,51 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
             const counts = hv.defectCounts || {};
             return defectList.map((d) => {
               const isNoDefect = d === 'No Defect';
+              const isAllDefects = d === 'All Defects';
               const checked = selected[d];
-              const disabled = isNoDefect ? false : selected['No Defect'];
+              const disabled = isNoDefect
+                ? selected['All Defects']
+                : (isAllDefects ? selected['No Defect'] : (selected['No Defect'] || selected['All Defects']));
               const isMatchingDefectType = !!checked;
               const rowClassName = [
                 'checkbox-item',
                 'visual-defect-row',
                 isMatchingDefectType ? 'matching' : 'non-matching',
-                d === 'Other' ? 'other-defect-row' : ''
+                d === 'Other' ? 'other-defect-row' : '',
+                isAllDefects ? 'all-defects-row' : ''
               ].join(' ');
               return (
                 <div key={d} className={rowClassName} style={{ opacity: isValidationFailed && !checked ? 0.5 : 1 }}>
-                  <input
-                    type="checkbox"
-                    id={`defect-${d}`}
-                    checked={!!checked}
-                    onChange={() => handleDefectToggle(d)}
-                    disabled={disabled || (isValidationFailed && !checked)}
-                    title={isValidationFailed && !checked ? 'Cannot add more defects - rejected weight exceeds offered quantity' : ''}
-                  />
-                  <label htmlFor={`defect-${d}`}>{d}</label>
-                  {!isNoDefect && selected[d] && (
+                  <div className="defect-checkbox-header">
                     <input
-                      type="number"
-                      className="form-control visual-defect-count"
-                      value={counts[d] || ''}
-                      onChange={(e) => handleDefectCountChange(d, e.target.value)}
-                      placeholder="Length (m)"
-                      min="0"
-                      step="0.001"
-                      style={{
-                        backgroundColor: isValidationFailed ? '#fef3c7' : '#fff',
-                        borderColor: isValidationFailed ? '#fcd34d' : '#e5e7eb'
-                      }}
-                      title={isValidationFailed ? 'Edit this value to reduce rejected weight' : ''}
+                      type="checkbox"
+                      id={`defect-${d}`}
+                      checked={!!checked}
+                      onChange={() => handleDefectToggle(d)}
+                      disabled={disabled || (isValidationFailed && !checked)}
+                      title={isValidationFailed && !checked ? 'Cannot add more defects - rejected weight exceeds offered quantity' : ''}
                     />
-                  )}
+                    <label htmlFor={`defect-${d}`} style={{ fontWeight: isAllDefects ? 700 : 500, color: isAllDefects && checked ? '#dc2626' : 'inherit', margin: 0 }}>
+                      {d}
+                    </label>
+                    {!isNoDefect && !isAllDefects && selected[d] && (
+                      <input
+                        type="number"
+                        className="form-control visual-defect-count"
+                        value={counts[d] || ''}
+                        onChange={(e) => handleDefectCountChange(d, e.target.value)}
+                        placeholder="Length (m)"
+                        min="0"
+                        step="0.001"
+                        style={{
+                          backgroundColor: isValidationFailed ? '#fef3c7' : '#fff',
+                          borderColor: isValidationFailed ? '#fcd34d' : '#e5e7eb',
+                          marginLeft: 'auto'
+                        }}
+                        title={isValidationFailed ? 'Edit this value to reduce rejected weight' : ''}
+                      />
+                    )}
+                  </div>
                   {d === 'Other' && selected[d] && (
                     <div className="other-remarks-box">
                       <textarea
@@ -616,6 +682,30 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
                         onChange={(e) => handleOtherRemarksChange(e.target.value)}
                         placeholder="Enter other defect details..."
                       />
+                    </div>
+                  )}
+                  {d === 'All Defects' && selected[d] && (
+                    <div className="other-remarks-box">
+                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#dc2626', marginBottom: '6px' }}>
+                        Reason for All Defects Rejection (Mandatory) *
+                      </label>
+                      <textarea
+                        className="other-remarks-textarea"
+                        value={hv.allDefectsRemark || ''}
+                        onChange={(e) => handleAllDefectsRemarkChange(e.target.value)}
+                        placeholder="Enter mandatory reason why all weight of this heat is being rejected..."
+                        rows={3}
+                        style={{
+                          width: '100%',
+                          borderColor: (!hv.allDefectsRemark || !hv.allDefectsRemark.trim()) ? '#dc2626' : '#d1d5db',
+                          backgroundColor: (!hv.allDefectsRemark || !hv.allDefectsRemark.trim()) ? '#fff5f5' : '#ffffff'
+                        }}
+                      />
+                      {(!hv.allDefectsRemark || !hv.allDefectsRemark.trim()) && (
+                        <span style={{ fontSize: '0.8rem', color: '#dc2626', fontWeight: 600, display: 'block', marginTop: '4px' }}>
+                          ⚠️ Reason is mandatory. Cannot switch heat or navigate until entered.
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
@@ -693,7 +783,9 @@ const VisualInspectionPage = ({ onBack, heats = [], productModel = 'MK-III', onN
               color: '#94a3b8',
               fontStyle: 'italic'
             }}>
-              Auto-calculated from: Distortion, Twist, Kink, Not Straight, Fold, Lap, Crack
+              {isAllDefectsSelected
+                ? `Auto-calculated from All Defects: Offered Qty (${totalOfferedQty.toFixed(3)} T) ÷ factor (${weightFactor})`
+                : 'Auto-calculated from: Distortion, Twist, Kink, Not Straight, Fold, Lap, Crack'}
             </p>
           </div>
 

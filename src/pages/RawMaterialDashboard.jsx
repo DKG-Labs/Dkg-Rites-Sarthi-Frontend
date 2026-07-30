@@ -947,11 +947,20 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
    * Defects considered: All defect types including Distortion, Twist, Kink, Not Straight, Fold, Lap, Crack, Pit, Groove, Excessive Scaling, Internal Defect
    * Input: Defect lengths in metres
    */
-  const calculateVisualRejectedWeight = useCallback((heatVisualData) => {
-    if (!heatVisualData?.selectedDefects || !heatVisualData?.defectCounts) return 0;
+  const calculateVisualRejectedWeight = useCallback((heatVisualData, offeredQty = 0) => {
+    if (!heatVisualData?.selectedDefects) return 0;
 
     const selected = heatVisualData.selectedDefects;
-    const counts = heatVisualData.defectCounts;
+
+    // If "All Defects" is selected, reject 100% of offered weight
+    if (selected['All Defects']) {
+      if (heatVisualData.weightRejected !== undefined && heatVisualData.weightRejected !== null) {
+        return parseFloat(heatVisualData.weightRejected) || offeredQty;
+      }
+      return offeredQty;
+    }
+
+    const counts = heatVisualData.defectCounts || {};
     const lengthDefects = ['Distortion', 'Twist', 'Kink', 'Not Straight', 'Fold', 'Lap', 'Crack', 'Pit', 'Groove', 'Excessive Scaling', 'Internal Defect (Piping, Segregation)'];
 
     // Calculate total defective length in metres
@@ -974,15 +983,11 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
    * 1. If heat has been marked as passed (isPassed flag), return 'Pass'
    * 2. If no defect is selected, return 'Pending'
    * 3. If "No Defect" is selected, return 'OK'
-   * 4. If any other defect is selected:
-   *    - If all selected defects have their lengths filled, return 'OK' or 'NOT OK' based on selection
-   *    - If any selected defect is missing length, return 'Pending'
+   * 4. If "All Defects" is selected with mandatory remark, return 'NOT OK'
+   * 5. If any other length defect is selected and counts are filled, return 'PARTIAL'
    */
   const validateVisualHeat = useCallback((heatVisualData) => {
     if (!heatVisualData?.selectedDefects) return 'Pending';
-
-    // If heat has been marked as passed, return Pass
-    // if (heatVisualData.isPassed) return 'Pass';
 
     const selected = heatVisualData.selectedDefects;
     const counts = heatVisualData.defectCounts || {};
@@ -994,9 +999,16 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
     // If "No Defect" is selected, it's OK (no need to check counts)
     if (selected['No Defect']) return 'OK';
 
+    // If "All Defects" is selected, check mandatory remark
+    if (selected['All Defects']) {
+      const remark = heatVisualData.allDefectsRemark;
+      if (!remark || !remark.trim()) return 'Pending';
+      return 'NOT OK';
+    }
+
     // Check if any other defect is selected
     const selectedDefects = Object.entries(selected)
-      .filter(([key, val]) => key !== 'No Defect' && val)
+      .filter(([key, val]) => key !== 'No Defect' && key !== 'All Defects' && val)
       .map(([key]) => key);
 
     if (selectedDefects.length === 0) return 'Pending';
@@ -1204,10 +1216,9 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
         const normalizedHNo = heatNo.toString().trim().toUpperCase();
 
-        // Calibration: Validate overall submodule completion (Ladle Analysis removed)
+        // Calibration: Validate overall submodule completion
         statuses.calibration = validateCalibrationHeat(calData);
 
-        // Visual, Dimensional, etc. use the heatNo as key (with fallback to index for legacy support)
         const getHeatData = (storageData, hNo, idx) => {
           return getStoredHeatData(storageData, hNo, idx);
         };
@@ -1222,6 +1233,20 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         if (mh) statuses.materialTest = validateMaterialTestHeat(mh);
 
         statuses.packing = validatePackingStorage(packData, normalizedHNo);
+
+        // If any section is NOT OK or complete rejection occurred, remaining pending sections are Not Required
+        const offeredWeight = parseFloat(heat.weight) || 0;
+        const totalRejectedWeight = vh ? calculateVisualRejectedWeight(vh, offeredWeight) : 0;
+        const isVisualCompleteRejection = statuses.visual === 'NOT OK' || (offeredWeight > 0 && totalRejectedWeight >= offeredWeight);
+        const isCompleteRejection = isVisualCompleteRejection || statuses.dimensional === 'NOT OK' || statuses.materialTest === 'NOT OK' || statuses.calibration === 'NOT OK';
+
+        if (isCompleteRejection) {
+          Object.keys(statuses).forEach(key => {
+            if (statuses[key] === 'Pending') {
+              statuses[key] = 'Not Required';
+            }
+          });
+        }
 
         heatStatuses[heatNo] = statuses;
       });
@@ -1251,6 +1276,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       window.removeEventListener('rm:statusRefresh', handleCustomRefresh);
       clearInterval(pollInterval);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [call?.call_no, activeHeats, consolidatedHeats, productModel, validateCalibrationHeat, validateVisualHeat, validateDimensionalHeat, validateMaterialTestHeat, validatePackingStorage]);
 
   /**
@@ -1320,8 +1346,8 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         // Find this unique heat's visual data index
         const uniqueHeatIndex = consolidatedHeats.findIndex(h => (h.heatNo || h.heat_no) === heatNo);
         let heatVisualData = getStoredHeatData(visualData, heatNo, uniqueHeatIndex);
-        const rejectedWeight = calculateVisualRejectedWeight(heatVisualData);
-        const offeredWeight = heat.weight;
+        const offeredWeight = parseFloat(heat.weight) || 0;
+        const rejectedWeight = calculateVisualRejectedWeight(heatVisualData, offeredWeight);
 
         const isCompleteRejection = rejectedWeight >= offeredWeight;
 
@@ -1687,7 +1713,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
           // Use the index from consolidated list
           const heatVisualData = getStoredHeatData(visualData, heatNo || heat?.heatNo || heat?.heat_no, heatIndex);
-          totalRejectedWeight = calculateVisualRejectedWeight(heatVisualData);
+          totalRejectedWeight = calculateVisualRejectedWeight(heatVisualData, weight);
 
           // Check if any modules are still pending
           const anyPending = Object.values(effectiveStatuses).some(s => s === 'Pending');
@@ -2276,7 +2302,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
             if (!processedHeatNumbers.has(originalHeatNumber)) {
               const heatIndex = activeHeats.findIndex(h => (h.heatNo || h.heat_no) === originalHeatNumber);
               const heatVisualData = getStoredHeatData(visualData, heatNo || heat?.heatNo || heat?.heat_no, heatIndex);
-              const rejectedWeight = calculateVisualRejectedWeight(heatVisualData);
+              const rejectedWeight = calculateVisualRejectedWeight(heatVisualData, parseFloat(originalHeat.weight || heat.weight) || 0);
               totalRejectedWeight += rejectedWeight;
               processedHeatNumbers.add(originalHeatNumber);
             }
@@ -2722,7 +2748,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
             if (!processedHeatNumbers.has(originalHeatNumber)) {
               const heatIndex = activeHeats.findIndex(h => (h.heatNo || h.heat_no) === originalHeatNumber);
               const heatVisualData = getStoredHeatData(visualData, heatNo || heat?.heatNo || heat?.heat_no, heatIndex);
-              const rejectedWeight = calculateVisualRejectedWeight(heatVisualData);
+              const rejectedWeight = calculateVisualRejectedWeight(heatVisualData, parseFloat(originalHeat.weight || heat.weight) || 0);
               totalRejectedWeight += rejectedWeight;
               processedHeatNumbers.add(originalHeatNumber);
             }
@@ -3311,20 +3337,25 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
                 const dimensionalNotOk = heatStatuses.dimensional === 'NOT OK';
                 const materialTestNotOk = heatStatuses.materialTest === 'NOT OK';
-                const anyPending = Object.values(heatStatuses).some(s => s === 'Pending');
-
-                if (anyPending) return 'PENDING';
+                const calibrationNotOk = heatStatuses.calibration === 'NOT OK';
 
                 // Calculate accepted weight from visual inspection
                 const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${call?.call_no}${getShiftSuffix()}`;
                 const visualRaw = localStorage.getItem(visualKey);
                 const visualData = visualRaw ? JSON.parse(visualRaw) : [];
                 const heatVisualData = getStoredHeatData(visualData, heatNo || heat?.heatNo || heat?.heat_no, heatIndex);
-                const totalRejectedWeight = calculateVisualRejectedWeight(heatVisualData);
                 const offeredWeight = parseFloat(heat.weight) || 0;
+                const totalRejectedWeight = calculateVisualRejectedWeight(heatVisualData, offeredWeight);
                 const acceptedWeight = offeredWeight - totalRejectedWeight;
+                const isVisualCompleteRejection = heatStatuses.visual === 'NOT OK' || (offeredWeight > 0 && totalRejectedWeight >= offeredWeight);
 
-                if (dimensionalNotOk || materialTestNotOk || acceptedWeight === 0) return 'REJECTED';
+                if (dimensionalNotOk || materialTestNotOk || calibrationNotOk || isVisualCompleteRejection || (offeredWeight > 0 && acceptedWeight === 0)) {
+                  return 'REJECTED';
+                }
+
+                const anyPending = Object.values(heatStatuses).some(s => s === 'Pending');
+                if (anyPending) return 'PENDING';
+
                 if (acceptedWeight < offeredWeight) return 'PARTIALLY_ACCEPTED';
                 return 'ACCEPTED';
               });
@@ -3353,9 +3384,9 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                 statusBorder = '#fca5a5';
               } else if (totalHeats > 0) {
                 overallStatus = 'PARTIALLY ACCEPTED';
-                statusBg = '#fef3c7';
-                statusColor = '#92400e';
-                statusBorder = '#fcd34d';
+                statusBg = '#ffedd5';
+                statusColor = '#c2410c';
+                statusBorder = '#ea580c';
               }
 
               return (
@@ -3389,30 +3420,30 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
               // Determine overall heat status
               const dimensionalNotOk = heatStatuses.dimensional === 'NOT OK';
               const materialTestNotOk = heatStatuses.materialTest === 'NOT OK';
-              const anyPending = Object.values(heatStatuses).some(s => s === 'Pending');
+              const calibrationNotOk = heatStatuses.calibration === 'NOT OK';
 
-              // Calculate accepted weight to determine if partial rejection occurred
+              // Calculate accepted weight to determine if complete rejection occurred
               const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${call?.call_no}${getShiftSuffix()}`;
               const visualRaw = localStorage.getItem(visualKey);
               const visualData = visualRaw ? JSON.parse(visualRaw) : [];
               const heatVisualData = getStoredHeatData(visualData, heatNo || heat?.heatNo || heat?.heat_no, heatIndex);
-              const totalRejectedWeight = calculateVisualRejectedWeight(heatVisualData);
               const offeredWeight = parseFloat(heat.weight) || 0;
+              const totalRejectedWeight = calculateVisualRejectedWeight(heatVisualData, offeredWeight);
               const acceptedWeight = offeredWeight - totalRejectedWeight;
+              const isVisualCompleteRejection = heatStatuses.visual === 'NOT OK' || (offeredWeight > 0 && totalRejectedWeight >= offeredWeight);
+
+              const isCompleteRejection = dimensionalNotOk || materialTestNotOk || calibrationNotOk || isVisualCompleteRejection || (offeredWeight > 0 && acceptedWeight === 0);
 
               let isAccepted = false;
               let isPartiallyAccepted = false;
               let isRejected = false;
-              let isPending = anyPending;
 
-              if (!isPending) {
-                if (dimensionalNotOk || materialTestNotOk || acceptedWeight === 0) {
-                  isRejected = true;
-                } else if (acceptedWeight < offeredWeight) {
-                  isPartiallyAccepted = true;
-                } else {
-                  isAccepted = true;
-                }
+              if (isCompleteRejection) {
+                isRejected = true;
+              } else if (acceptedWeight < offeredWeight) {
+                isPartiallyAccepted = true;
+              } else {
+                isAccepted = true;
               }
 
               // Container styling based on status
@@ -3449,7 +3480,9 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                       const isOk = status === 'OK';
                       const isNotOk = status === 'NOT OK';
                       const isPending = status === 'Pending';
+                      const isNotRequired = status === 'Not Required';
                       const isPass = status === 'Pass';
+                      const isPartial = status === 'PARTIAL' || status === 'Partial';
 
                       return (
                         <span
@@ -3459,10 +3492,10 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                             padding: '4px 12px',
                             borderRadius: '4px',
                             fontSize: '12px',
-                            fontWeight: 500,
-                            background: isPass ? '#dcfce7' : isOk ? '#dcfce7' : isNotOk ? '#fee2e2' : '#fef3c7',
-                            color: isPass ? '#166534' : isOk ? '#166534' : isNotOk ? '#991b1b' : '#92400e',
-                            border: `1px solid ${isPass ? '#86efac' : isOk ? '#86efac' : isNotOk ? '#fca5a5' : '#fcd34d'}`,
+                            fontWeight: isPartial ? 700 : 500,
+                            background: isPass ? '#dcfce7' : isOk ? '#dcfce7' : isNotOk ? '#fee2e2' : isPartial ? '#ffedd5' : isNotRequired ? '#f1f5f9' : '#fef3c7',
+                            color: isPass ? '#166534' : isOk ? '#166534' : isNotOk ? '#991b1b' : isPartial ? '#c2410c' : isNotRequired ? '#475569' : '#92400e',
+                            border: isPartial ? '2px solid #ea580c' : `1px solid ${isPass ? '#86efac' : isOk ? '#86efac' : isNotOk ? '#fca5a5' : isNotRequired ? '#cbd5e1' : '#fcd34d'}`,
                             cursor: isPending ? 'help' : 'default'
                           }}
                         >
@@ -3477,10 +3510,10 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
                         padding: '4px 12px',
                         borderRadius: '4px',
                         fontSize: '12px',
-                        fontWeight: 500,
-                        background: isRejected ? '#fee2e2' : isPartiallyAccepted ? '#fef3c7' : isAccepted ? '#dcfce7' : '#fef3c7',
-                        color: isRejected ? '#991b1b' : isPartiallyAccepted ? '#92400e' : isAccepted ? '#166534' : '#92400e',
-                        border: `1px solid ${isRejected ? '#fca5a5' : isPartiallyAccepted ? '#fcd34d' : isAccepted ? '#86efac' : '#fcd34d'}`,
+                        fontWeight: isPartiallyAccepted ? 700 : 500,
+                        background: isRejected ? '#fee2e2' : isPartiallyAccepted ? '#ffedd5' : isAccepted ? '#dcfce7' : '#fef3c7',
+                        color: isRejected ? '#991b1b' : isPartiallyAccepted ? '#c2410c' : isAccepted ? '#166534' : '#92400e',
+                        border: isPartiallyAccepted ? '2px solid #ea580c' : `1px solid ${isRejected ? '#fca5a5' : isAccepted ? '#86efac' : '#fcd34d'}`,
                         marginLeft: 'auto'
                       }}
                     >
@@ -3541,30 +3574,28 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
                           const dimensionalNotOk = heatStatuses.dimensional === 'NOT OK';
                           const materialTestNotOk = heatStatuses.materialTest === 'NOT OK';
-                          const anyPending = Object.values(heatStatuses).some(s => s === 'Pending');
-
-                          // If Dimension or Material Testing is NOT OK, complete heat is rejected
-                          if (dimensionalNotOk || materialTestNotOk) {
-                            return '0';
-                          }
-
-                          // If any module is pending, accepted material is 0
-                          if (anyPending) {
-                            return '0';
-                          }
+                          const calibrationNotOk = heatStatuses.calibration === 'NOT OK';
+                          const offeredTons = parseFloat(heat.weight) || 0;
 
                           // Calculate rejected weight from visual inspection
                           const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${callNo}${getShiftSuffix()}`;
                           const visualRaw = localStorage.getItem(visualKey);
                           const visualData = visualRaw ? JSON.parse(visualRaw) : [];
-
-                          // Use unique index from consolidated list
                           const heatVisualData = getStoredHeatData(visualData, heatNo || heat?.heatNo || heat?.heat_no, heatIndex);
-                          const totalRejectedWeight = calculateVisualRejectedWeight(heatVisualData);
+                          const totalRejectedWeight = calculateVisualRejectedWeight(heatVisualData, offeredTons);
+                          const isVisualCompleteRejection = heatStatuses.visual === 'NOT OK' || (offeredTons > 0 && totalRejectedWeight >= offeredTons);
 
-                          const offeredTons = parseFloat(heat.weight) || 0;
+                          if (dimensionalNotOk || materialTestNotOk || calibrationNotOk || isVisualCompleteRejection) {
+                            return '0';
+                          }
+
+                          const anyPending = Object.values(heatStatuses).some(s => s === 'Pending');
+                          if (anyPending) {
+                            return '0';
+                          }
+
                           const acceptedQty = offeredTons - totalRejectedWeight;
-                          return acceptedQty.toFixed(6);
+                          return Math.max(0, acceptedQty).toFixed(6);
                         })()}
                       </strong>
                     </div>
@@ -3588,34 +3619,28 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
                           const dimensionalNotOk = heatStatuses.dimensional === 'NOT OK';
                           const materialTestNotOk = heatStatuses.materialTest === 'NOT OK';
-                          const anyPending = Object.values(heatStatuses).some(s => s === 'Pending');
-
-                          // If Dimension or Material Testing is NOT OK, complete heat is rejected
-                          if (dimensionalNotOk || materialTestNotOk) {
-                            return '0';
-                          }
-
-                          // If any module is pending, accepted material is 0
-                          if (anyPending) {
-                            return '0';
-                          }
+                          const calibrationNotOk = heatStatuses.calibration === 'NOT OK';
+                          const offeredTons = parseFloat(heat.weight) || 0;
 
                           // Calculate rejected weight from visual inspection
                           const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${callNo}${getShiftSuffix()}`;
                           const visualRaw = localStorage.getItem(visualKey);
                           const visualData = visualRaw ? JSON.parse(visualRaw) : [];
-
                           const heatVisualData = getStoredHeatData(visualData, heatNo || heat?.heatNo || heat?.heat_no, heatIndex);
-                          const totalRejectedWeight = calculateVisualRejectedWeight(heatVisualData);
+                          const totalRejectedWeight = calculateVisualRejectedWeight(heatVisualData, offeredTons);
+                          const isVisualCompleteRejection = heatStatuses.visual === 'NOT OK' || (offeredTons > 0 && totalRejectedWeight >= offeredTons);
 
-                          // Calculate: Accepted Qty (Tons) = Offered Qty - Rejected Weight
-                          const offeredTons = parseFloat(heat.weight) || 0;
-                          const acceptedQtyTons = offeredTons - totalRejectedWeight;
+                          if (dimensionalNotOk || materialTestNotOk || calibrationNotOk || isVisualCompleteRejection) {
+                            return '0';
+                          }
 
-                          // Calculate: Wt. Accepted (Numbers) depending on productModel
+                          const anyPending = Object.values(heatStatuses).some(s => s === 'Pending');
+                          if (anyPending) {
+                            return '0';
+                          }
+
+                          const acceptedQtyTons = Math.max(0, offeredTons - totalRejectedWeight);
                           const wtAcceptedNumbers = (acceptedQtyTons * 1000) / getErcDivisor(productModel);
-
-                          // Return without decimals
                           return Math.floor(wtAcceptedNumbers);
                         })()}
                       </strong>
@@ -3640,26 +3665,21 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
                           const dimensionalNotOk = heatStatuses.dimensional === 'NOT OK';
                           const materialTestNotOk = heatStatuses.materialTest === 'NOT OK';
+                          const calibrationNotOk = heatStatuses.calibration === 'NOT OK';
+                          const offeredTons = parseFloat(heat.weight) || 0;
 
-                          // If Dimension or Material Testing is NOT OK, complete heat is rejected
-                          if (dimensionalNotOk || materialTestNotOk) {
-                            const offeredTons = parseFloat(heat.weight) || 0;
-                            return offeredTons.toFixed(6);
-                          }
-
-                          // Otherwise, calculate rejected weight from visual inspection
                           const visualKey = `${STORAGE_KEYS.VISUAL_INSPECTION}_${callNo}${getShiftSuffix()}`;
                           const visualRaw = localStorage.getItem(visualKey);
                           const visualData = visualRaw ? JSON.parse(visualRaw) : [];
-
                           const heatVisualData = getStoredHeatData(visualData, heatNo || heat?.heatNo || heat?.heat_no, heatIndex);
-                          const totalRejectedWeight = calculateVisualRejectedWeight(heatVisualData);
+                          const totalRejectedWeight = calculateVisualRejectedWeight(heatVisualData, offeredTons);
+                          const isVisualCompleteRejection = heatStatuses.visual === 'NOT OK' || (offeredTons > 0 && totalRejectedWeight >= offeredTons);
 
-                          // Show calculated rejected weight from visual defects
-                          if (totalRejectedWeight > 0) {
-                            return totalRejectedWeight.toFixed(6);
+                          if (dimensionalNotOk || materialTestNotOk || calibrationNotOk || isVisualCompleteRejection) {
+                            return (totalRejectedWeight > 0 ? totalRejectedWeight : offeredTons).toFixed(6);
                           }
-                          return '0';
+
+                          return totalRejectedWeight.toFixed(6);
                         })()}
                       </strong>
                     </div>

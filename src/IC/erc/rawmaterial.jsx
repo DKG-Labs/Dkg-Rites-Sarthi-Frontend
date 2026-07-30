@@ -465,10 +465,68 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
   };
 
 
+  const handleCancelChanges = async () => {
+    setIsEditing(false);
+    let initialData = transformCallToIC(call, poDetails);
+    const icNumber = initialData.certificateNo || call.icNo || call.call_no;
+    if (icNumber) {
+      let savedEdit = await getRmIcSaveChanges(icNumber);
+      if (!savedEdit) {
+        savedEdit = await getRmIcEditData(icNumber);
+      }
+      if (savedEdit) {
+        initialData = {
+          ...initialData,
+          bookNo: savedEdit.bookNo || initialData.bookNo,
+          setNo: savedEdit.setNo || initialData.setNo,
+          offeredInstNo: savedEdit.offeredInstallmentNo || initialData.offeredInstNo,
+          passedInstNo: savedEdit.passedInstallmentNo || initialData.passedInstNo,
+          consigneeRailway: savedEdit.consigneeRailway || initialData.consigneeRailway,
+          consigneeManufacturer: savedEdit.consigneeManufacturer || initialData.consigneeManufacturer,
+          contractRef: savedEdit.contractRef || initialData.contractRef,
+          contractorPo: savedEdit.contractorPo || initialData.contractorPo,
+          maNumberAndDate: savedEdit.maNumberAndDate || initialData.maNumberAndDate,
+          purchasingAuthority: savedEdit.purchasingAuthority || initialData.purchasingAuthority,
+          description: savedEdit.description || initialData.description,
+          specNo: savedEdit.specNo || initialData.specNo,
+          qapNo: savedEdit.qapNo || initialData.qapNo,
+          chpClause: savedEdit.chpClause || initialData.chpClause,
+          visitsNo: savedEdit.visitsNo || initialData.visitsNo,
+          drgNo: savedEdit.drawingNo || initialData.drgNo,
+          manufacturer: savedEdit.manufacturer || initialData.manufacturer,
+        };
+      }
+    }
+    setEditableData(initialData);
+    setNotification({ open: true, message: "Edited changes cancelled.", severity: 'info' });
+  };
+
   return (
     <Box sx={{ padding: 3 }}>
       <div className="no-print" style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-        <button onClick={onBack} className="btn btn-outline">← Back</button>
+        <Button
+          variant="outlined"
+          onClick={onBack}
+          sx={{
+            backgroundColor: '#ffffff',
+            color: '#334155',
+            borderColor: '#cbd5e1',
+            fontWeight: 700,
+            fontSize: '0.8125rem',
+            px: 2.5,
+            py: 0.75,
+            borderRadius: '6px',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+            textTransform: 'none',
+            '&:hover': {
+              backgroundColor: '#f8fafc',
+              borderColor: '#94a3b8',
+              color: '#0f172a',
+            }
+          }}
+        >
+          ← Back
+        </Button>
         <div style={{ display: "flex", gap: 8 }}>
           <Button
             variant="outlined" 
@@ -479,6 +537,17 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
           >
             {isEditing ? "Save Changes" : "Edit Certificate"}
           </Button>
+          {isEditing && (
+            <Button
+              variant="outlined"
+              color="error"
+              size="small"
+              onClick={handleCancelChanges}
+              disabled={isESigning}
+            >
+              Cancel Changes
+            </Button>
+          )}
           <Button 
             variant="contained" 
             color="success" 

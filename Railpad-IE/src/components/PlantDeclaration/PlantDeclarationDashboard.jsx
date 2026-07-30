@@ -9,7 +9,7 @@ import {
 } from '../../services/plantDeclarationService';
 import { getStoredUser } from '../../services/authService';
 
-const PlantDeclarationDashboard = () => {
+const PlantDeclarationDashboard = ({ dutyPlantId }) => {
   const [pendingList, setPendingList] = useState([]);
   const [completedList, setCompletedList] = useState([]);
   const [statusTab, setStatusTab] = useState('PENDING'); // 'PENDING' or 'COMPLETED'
@@ -79,7 +79,7 @@ const PlantDeclarationDashboard = () => {
 
   useEffect(() => {
     loadData();
-  }, [statusTab]);
+  }, [statusTab, dutyPlantId]);
 
   const formatDateTime = (dateVal) => {
     if (!dateVal) return '—';
@@ -107,12 +107,13 @@ const PlantDeclarationDashboard = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      // Fetch mapped plant IDs only once
-      let currentMappedIds = mappedPlantIdsState;
-      if (currentMappedIds === null) {
-        currentMappedIds = user?.userId ? await fetchMappedPlantIds(user.userId, 'Main IE') : [];
-        setMappedPlantIdsState(currentMappedIds);
-      }
+      // Use duty plant (selected at Start Duty) to filter workflow transitions
+      const filterByDutyPlant = (list) => {
+        if (!dutyPlantId) return list || []; // If no duty plant, show all
+        return (list || []).filter(tx =>
+          tx.plantId && tx.plantId.trim() === dutyPlantId.trim()
+        );
+      };
 
       const mapList = (list) => {
         return (list || []).map((tx) => {
@@ -126,18 +127,15 @@ const PlantDeclarationDashboard = () => {
         });
       };
 
-      const filterByMappedPlants = (list) => {
-        if (!currentMappedIds || currentMappedIds.length === 0) return [];
-        return (list || []).filter(tx => currentMappedIds.includes(tx.plantId));
-      };
+      const filterByMappedPlants = filterByDutyPlant;
 
       // Fetch only the data required for the active tab
       if (statusTab === 'PENDING') {
-        const pendingData = await fetchPendingWorkflowTransitions('Rail Process IE');
-        setPendingList(mapList(filterByMappedPlants(pendingData)));
+        const pendingData = await fetchPendingWorkflowTransitions('Rail Process IE', dutyPlantId);
+        setPendingList(mapList(filterByDutyPlant(pendingData)));
       } else {
         const completedData = await fetchCompletedCalls();
-        setCompletedList(mapList(filterByMappedPlants(completedData)));
+        setCompletedList(mapList(filterByDutyPlant(completedData)));
       }
     } catch (err) {
       console.error('Error fetching transitions:', err);
@@ -262,7 +260,7 @@ const PlantDeclarationDashboard = () => {
   }, [statusTab, selectedModuleId]);
 
   return (
-    <div style={{ padding: '24px', fontFamily: '"Outfit", sans-serif', color: '#1e293b', background: '#f8fafc', minHeight: '85vh' }}>
+    <div className="pd-dashboard-root">
 
       {/* Skeleton Shimmer Keyframes */}
       <style>{`
@@ -279,6 +277,87 @@ const PlantDeclarationDashboard = () => {
           background-size: 200% 100%;
           animation: shimmer 1.5s infinite;
           border-radius: 4px;
+        }
+        .pd-baseline-grid {
+          display: grid;
+          grid-template-columns: repeat(5, 1fr);
+          gap: 14px;
+        }
+        @media (max-width: 1024px) {
+          .pd-baseline-grid {
+            grid-template-columns: repeat(3, 1fr);
+          }
+        }
+        .pd-pagination-container {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 16px 24px;
+          border-top: 1px solid #e2e8f0;
+          background: #f8fafc;
+          border-bottom-left-radius: 16px;
+          border-bottom-right-radius: 16px;
+        }
+        .pd-dashboard-root {
+          padding: 24px;
+          font-family: "Outfit", sans-serif;
+          color: #1e293b;
+          background: #f8fafc;
+          min-height: 85vh;
+        }
+        .pd-list-header {
+          padding: 20px 24px;
+          border-bottom: 1px solid #e2e8f0;
+          background: #fafbfc;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 16px;
+        }
+        @media (max-width: 640px) {
+          .pd-dashboard-root {
+            padding: 8px !important;
+          }
+          .pd-list-header {
+            padding: 12px 14px !important;
+            flex-direction: column !important;
+            align-items: flex-start !important;
+          }
+          .pd-baseline-grid {
+            grid-template-columns: repeat(1, 1fr);
+          }
+          .pd-baseline-card {
+            min-height: auto !important;
+          }
+          .pd-pagination-container {
+            flex-direction: column;
+            gap: 12px;
+            padding: 12px 16px;
+            align-items: center;
+          }
+          .pd-pagination-controls {
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+            align-items: center;
+          }
+        }
+        .pd-action-buttons-wrap {
+          display: flex;
+          gap: 16px;
+          justify-content: flex-end;
+        }
+        @media (max-width: 640px) {
+          .pd-action-buttons-wrap {
+            flex-direction: column !important;
+            gap: 12px !important;
+          }
+          .pd-action-buttons-wrap button {
+            width: 100% !important;
+            padding: 12px 16px !important;
+            box-sizing: border-box !important;
+          }
         }
       `}</style>
 
@@ -321,7 +400,7 @@ const PlantDeclarationDashboard = () => {
 
       {/* PERSISTENT 5 IMMINENT INTERACTIVE CARDS AT THE TOP */}
       <div style={{ animation: 'fadeIn 0.4s ease-out', marginBottom: '28px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '14px' }}>
+        <div className="pd-baseline-grid">
           {modules.map((mod) => {
             const pendingCount = getPendingCount(mod.id);
             const isSelected = selectedModuleId === mod.id;
@@ -329,6 +408,7 @@ const PlantDeclarationDashboard = () => {
               <div
                 key={mod.id}
                 onClick={() => handleCardClick(mod.id)}
+                className="pd-baseline-card"
                 style={{
                   background: '#ffffff',
                   border: isSelected ? `2px solid ${mod.color}` : '1px solid #e2e8f0',
@@ -482,26 +562,28 @@ const PlantDeclarationDashboard = () => {
                         <div style={{ fontWeight: '800', color: '#0f172a', marginBottom: '6px' }}>Unit #{idx + 1}: {unit.unitName}</div>
                         <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '14px' }}><strong>Factory Address:</strong> {unit.address} | <strong>Manufacturing Lines:</strong> {unit.numLines}</div>
 
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                          <thead>
-                            <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #cbd5e1' }}>
-                              <th style={{ padding: '8px 12px', fontWeight: '700', textAlign: 'left' }}>Product Name</th>
-                              <th style={{ padding: '8px 12px', fontWeight: '700', textAlign: 'left' }}>RDSO Approval Letter No.</th>
-                              <th style={{ padding: '8px 12px', fontWeight: '700', textAlign: 'left' }}>Approval Date</th>
-                              <th style={{ padding: '8px 12px', fontWeight: '700', textAlign: 'right' }}>Declared Capacity (Pcs/M)</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {unit.products?.map((prod, pIdx) => (
-                              <tr key={pIdx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                <td style={{ padding: '8px 12px', fontWeight: '600' }}>{prod.productName}</td>
-                                <td style={{ padding: '8px 12px' }}>{prod.approvalNo}</td>
-                                <td style={{ padding: '8px 12px' }}>{prod.approvalDate}</td>
-                                <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '700' }}>{prod.capacity}</td>
+                        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', whiteSpace: 'nowrap' }}>
+                            <thead>
+                              <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #cbd5e1' }}>
+                                <th style={{ padding: '8px 12px', fontWeight: '700', textAlign: 'left' }}>Product Name</th>
+                                <th style={{ padding: '8px 12px', fontWeight: '700', textAlign: 'left' }}>RDSO Approval Letter No.</th>
+                                <th style={{ padding: '8px 12px', fontWeight: '700', textAlign: 'left' }}>Approval Date</th>
+                                <th style={{ padding: '8px 12px', fontWeight: '700', textAlign: 'right' }}>Declared Capacity (Pcs/M)</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody>
+                              {unit.products?.map((prod, pIdx) => (
+                                <tr key={pIdx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                  <td style={{ padding: '8px 12px', fontWeight: '600' }}>{prod.productName}</td>
+                                  <td style={{ padding: '8px 12px' }}>{prod.approvalNo}</td>
+                                  <td style={{ padding: '8px 12px' }}>{prod.approvalDate}</td>
+                                  <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '700' }}>{prod.capacity}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -556,22 +638,24 @@ const PlantDeclarationDashboard = () => {
                     </div>
 
                     <h4 style={{ fontSize: '13px', fontWeight: '700', color: '#475569', marginBottom: '10px' }}>Chemical Recipe Ingredients Breakdown</h4>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '8px', overflow: 'hidden' }}>
-                      <thead>
-                        <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #cbd5e1' }}>
-                          <th style={{ padding: '10px 16px', fontWeight: '700' }}>Ingredient / Raw Material Name</th>
-                          <th style={{ padding: '10px 16px', fontWeight: '700', textAlign: 'center' }}>Proportion Percentage (%)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {detailData.ingredients?.map((ing, idx) => (
-                          <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                            <td style={{ padding: '10px 16px', fontWeight: '600' }}>{ing.rawMaterial}</td>
-                            <td style={{ padding: '10px 16px', textAlign: 'center', fontWeight: '700', color: '#2563eb' }}>{ing.percentage}%</td>
+                    <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '8px', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                        <thead>
+                          <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #cbd5e1' }}>
+                            <th style={{ padding: '10px 16px', fontWeight: '700' }}>Ingredient / Raw Material Name</th>
+                            <th style={{ padding: '10px 16px', fontWeight: '700', textAlign: 'center' }}>Proportion Percentage (%)</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {detailData.ingredients?.map((ing, idx) => (
+                            <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                              <td style={{ padding: '10px 16px', fontWeight: '600' }}>{ing.rawMaterial}</td>
+                              <td style={{ padding: '10px 16px', textAlign: 'center', fontWeight: '700', color: '#2563eb' }}>{ing.percentage}%</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
 
@@ -716,7 +800,7 @@ const PlantDeclarationDashboard = () => {
                       />
                     </div>
 
-                    <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-end' }}>
+                    <div className="pd-action-buttons-wrap">
                       <button
                         type="button"
                         disabled={isSubmitting}
@@ -764,7 +848,7 @@ const PlantDeclarationDashboard = () => {
       ) : (
         // VIEW 2: TRANSACTIONS LIST VIEW
         <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', overflow: 'hidden', animation: 'fadeIn 0.3s ease-out' }}>
-          <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', background: '#fafbfc', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+          <div className="pd-list-header">
             <h2 style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span>{selectedModuleObj?.icon}</span> {selectedModuleObj?.title} – {statusTab === 'PENDING' ? 'Pending Verifications' : 'Verified Baselines'}
             </h2>
@@ -824,12 +908,12 @@ const PlantDeclarationDashboard = () => {
             </div>
           </div>
 
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', whiteSpace: 'nowrap' }}>
               <thead>
                 <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #e2e8f0' }}>
-                  <th style={{ padding: '14px 24px', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase' }}>Vendor Info</th>
-                  <th style={{ padding: '14px 24px', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase' }}>
+                  <th style={{ padding: '14px 24px', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Vendor Info</th>
+                  <th style={{ padding: '14px 24px', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
                     {selectedModuleId === 1 ? 'Product Name & RDSO Approval Letter No.' :
                       selectedModuleId === 2 ? 'Material Name & Ref Doc No.' :
                         selectedModuleId === 4 ? 'Pad Type & Recipe Ref' :
@@ -837,10 +921,10 @@ const PlantDeclarationDashboard = () => {
                             selectedModuleId === 6 ? 'Pad Type & QAP No.' :
                               'Product Name & Approval Letter No.'}
                   </th>
-                  <th style={{ padding: '14px 24px', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase' }}>Plant ID</th>
-                  <th style={{ padding: '14px 24px', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase' }}>Date & Time</th>
-                  <th style={{ padding: '14px 24px', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase' }}>Status</th>
-                  <th style={{ padding: '14px 24px', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', textAlign: 'center' }}>Action</th>
+                  <th style={{ padding: '14px 24px', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Plant ID</th>
+                  <th style={{ padding: '14px 24px', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Date & Time</th>
+                  <th style={{ padding: '14px 24px', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Status</th>
+                  <th style={{ padding: '14px 24px', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', textAlign: 'center', whiteSpace: 'nowrap' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -872,21 +956,20 @@ const PlantDeclarationDashboard = () => {
                 ) : paginatedTransactions.length > 0 ? (
                   paginatedTransactions.map((tx) => (
                     <tr key={tx.workflowTransitionId} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.2s' }}>
-                      <td style={{ padding: '16px 24px' }}>
+                      <td style={{ padding: '16px 24px', whiteSpace: 'nowrap' }}>
                         <div style={{ fontWeight: '700', color: '#1e293b' }}>{tx.vendorName || 'Vendor Manufacturer'}</div>
-                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>Code: {tx.vendorCode || '—'}</div>
                       </td>
-                      <td style={{ padding: '16px 24px' }}>
+                      <td style={{ padding: '16px 24px', whiteSpace: 'nowrap' }}>
                         <div style={{ fontWeight: '700', color: '#1e293b' }}>{tx.productName || '—'}</div>
                         <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>Ref: {tx.rdsoApprovalLetterNo || '—'}</div>
                       </td>
-                      <td style={{ padding: '16px 24px', fontWeight: '600', color: '#475569' }}>
-                        Plant #{tx.plantId || '1'}
+                      <td style={{ padding: '16px 24px', fontWeight: '600', color: '#475569', whiteSpace: 'nowrap' }}>
+                        {tx.plantId || '—'}
                       </td>
-                      <td style={{ padding: '16px 24px', fontSize: '13px', color: '#475569', fontWeight: '500' }}>
+                      <td style={{ padding: '16px 24px', fontSize: '13px', color: '#475569', fontWeight: '500', whiteSpace: 'nowrap' }}>
                         {formatDateTime(tx.declarationDate)}
                       </td>
-                      <td style={{ padding: '16px 24px' }}>
+                      <td style={{ padding: '16px 24px', whiteSpace: 'nowrap' }}>
                         <span style={{
                           display: 'inline-flex',
                           padding: '4px 10px',
@@ -899,7 +982,7 @@ const PlantDeclarationDashboard = () => {
                           {tx.status || 'PENDING'}
                         </span>
                       </td>
-                      <td style={{ padding: '16px 24px', textAlign: 'center' }}>
+                      <td style={{ padding: '16px 24px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                         <button
                           onClick={() => handleSelectTransaction(tx)}
                           style={{
@@ -941,12 +1024,12 @@ const PlantDeclarationDashboard = () => {
 
           {/* Pagination Controls */}
           {moduleTransactions.length > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid #e2e8f0', background: '#f8fafc', borderBottomLeftRadius: '16px', borderBottomRightRadius: '16px' }}>
-              <div style={{ fontSize: '13px', color: '#64748b' }}>
+            <div className="pd-pagination-container" style={{ borderTop: '1px solid #e2e8f0', background: '#f8fafc', borderBottomLeftRadius: '16px', borderBottomRightRadius: '16px' }}>
+              <div style={{ fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap' }}>
                 Showing {startIndex + 1} to {Math.min(endIndex, moduleTransactions.length)} of {moduleTransactions.length} entries
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div className="pd-pagination-controls" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
                   <span style={{ fontSize: '13px', color: '#64748b' }}>Rows per page:</span>
                   <select
                     value={itemsPerPage}

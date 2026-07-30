@@ -481,8 +481,8 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
           </file>
           <pdf>
             <page>1</page>
-            <cood>375,190</cood>
-            <size>150,45</size>
+            <cood>390,155</cood>
+            <size>180,60</size>
           </pdf>
           <data>${base64Pdf}</data>
         </request>

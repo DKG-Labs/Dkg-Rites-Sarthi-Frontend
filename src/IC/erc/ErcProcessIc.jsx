@@ -447,26 +447,28 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
               </div>
               <EditableField isEditing={false} type="textarea" value={sealingPattern || "NA"} onChange={(val) => onChange("sealingPattern", val)} className="dynamic-text leading-tight text-[10px] font-bold" />
             </div>
-            <div className="p-1 flex flex-col justify-between min-h-[60px]">
+            <div className="p-1 flex flex-col justify-between min-h-[90px]">
               <div className="font-semibold text-[10px]">Inspecting Engineer</div>
               <EditableField isEditing={false} value={inspectingEngineer} onChange={(val) => onChange("inspectingEngineer", val)} className="mt-2 text-right font-semibold" />
             </div>
           </div>
 
           {/* Footer certification */}
-          <div className="border-x border-b border-black p-1 text-center">
-            <div className="font-semibold text-[10px] italic">
+          <div className="border-x border-b border-black p-3 text-center">
+            <div className="font-semibold text-[11px] italic mb-1">
               It is certified that Process Inspection of ERCs carried out satisfactorily
               and Material cleared for Product Inspection.
             </div>
-            <div className="mt-1 text-[9px] leading-tight text-gray-700">
+            <div className="mt-1 text-[10px] leading-snug text-gray-700">
               <span className="font-bold">Distribution: </span>
               Manufacturer office copy, Purchaser (Railway), RITES Bill
               Copy, RITES for final IC incorporate
             </div>
-            <div className="h-1" />
+            <div className="h-4" />
           </div>
         </fieldset>
+        {/* Bottom spacer — reserves space for physical printer footer */}
+        <div style={{ minHeight: '30mm' }} />
       </div>
     </div>
   );

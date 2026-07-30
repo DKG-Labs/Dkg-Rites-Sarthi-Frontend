@@ -381,7 +381,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
             <div className="font-bold leading-tight">Facsimile of seal</div>
             <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={facsimileText} fieldName="facsimileText" type="textarea" className="text-black italic leading-tight flex-grow" />
           </div>
-          <div className="p-1 flex flex-col justify-between min-h-[60px] relative">
+          <div className="p-1 flex flex-col justify-between min-h-[90px] relative">
             <div className="font-bold leading-tight text-[9.5px]">Inspecting Engineer</div>
             <div className="flex flex-col items-end w-full mt-1">
               <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={inspectingEngineer} fieldName="inspectingEngineer" className="text-right font-bold uppercase text-[10px]" />
@@ -405,6 +405,8 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
           </div>
         </div>
         </fieldset>
+        {/* Bottom spacer — reserves space for physical printer footer */}
+        <div style={{ minHeight: '20mm' }} />
       </div>
     </div>
   );

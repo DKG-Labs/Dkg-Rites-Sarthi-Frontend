@@ -101,7 +101,11 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
     try {
       if (activeTab === 'pending') {
         // --- PENDING TRANSITIONS LOGIC ---
-        const transUrl = `${getBaseUrl()}${API_ENDPOINTS.RAILPAD_WORKFLOW.ALL_PENDING_TRANSITIONS}?roleName=Rail%20Process%20IE`;
+        const dutyPlantId = currentShift?.unit?.trim() || currentShift?.plantId?.trim() || '';
+        let transUrl = `${getBaseUrl()}${API_ENDPOINTS.RAILPAD_WORKFLOW.ALL_PENDING_TRANSITIONS}?roleName=Rail%20Process%20IE`;
+        if (dutyPlantId) {
+          transUrl += `&plantId=${encodeURIComponent(dutyPlantId)}`;
+        }
         const transResponse = await fetch(transUrl, {
           headers: getDefaultHeaders(user.token)
         });

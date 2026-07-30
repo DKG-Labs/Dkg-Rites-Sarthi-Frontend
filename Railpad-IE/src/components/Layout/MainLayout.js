@@ -19,6 +19,23 @@ const MainLayout = ({ children, activeItem, onItemClick, onLogout, user, isShift
                 />
             )}
 
+            <style>{`
+                @media (max-width: 768px) {
+                    .main-header {
+                        padding: 0 12px !important;
+                        height: 60px !important;
+                    }
+                    .brand-subtitle {
+                        display: none !important;
+                    }
+                    .brand-title {
+                        font-size: 15px !important;
+                    }
+                    .user-profile-meta {
+                        display: none !important;
+                    }
+                }
+            `}</style>
             <header className="main-header" style={{
                 height: '70px',
                 background: '#ffffff',
@@ -71,7 +88,7 @@ const MainLayout = ({ children, activeItem, onItemClick, onLogout, user, isShift
                         }}>
                             {user?.userName?.charAt(0)?.toUpperCase() || 'U'}
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                        <div className="user-profile-meta" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                             <span style={{ fontSize: '14px', fontWeight: '600', color: '#0f172a', lineHeight: '1.2', letterSpacing: '0.2px', textTransform: 'uppercase' }}>
                                 {user?.userName || 'Nitin Rajput'}
                             </span>

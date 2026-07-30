@@ -386,7 +386,7 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
             </div>
             <EditableField isEditing={false} type="textarea" value={sealFacsimile} onChange={(val) => onChange("sealFacsimile", val)} className="break-words leading-tight text-[10px]" />
           </div>
-          <div className="p-1 flex flex-col justify-between min-h-[60px] relative">
+          <div className="p-1 flex flex-col justify-between min-h-[90px] relative">
             <div className="font-semibold text-[10px]">निरीक्षण अभियंता / Inspecting Engineer</div>
             <div className="flex flex-col items-end w-full mt-1">
               <EditableField isEditing={false} value={inspectingEngineer} onChange={(val) => onChange("inspectingEngineer", val)} className="mt-1 text-right font-semibold uppercase text-[10px]" />
@@ -395,20 +395,22 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
         </div>
 
         {/* Footer */}
-        <div className="border-x border-b border-black p-1 text-center">
-          <div className="font-semibold text-[10px] italic">
+        <div className="border-x border-b border-black p-3 text-center">
+          <div className="font-semibold text-[11px] italic mb-1">
             It is certified that material is cleared for the next stage.
           </div>
-          <div className="mt-1 text-[9px] leading-tight text-gray-700">
+          <div className="mt-1 text-[10px] leading-snug text-gray-700">
             <span className="font-bold">Distribution: </span>
             Manufacturer Office copy with case, RITES Bill Copy,
             Contractor, Purchaser (Railway), Consignee (Railway), Consignee
             (Manufacturer of finished product), RITES Office copy, RITES for
             final IC
           </div>
-          <div className="h-1" />
+          <div className="h-4" />
         </div>
         </fieldset>
+        {/* Bottom spacer — reserves space for physical printer footer */}
+        <div style={{ minHeight: '30mm' }} />
       </div>
     </div>
   );

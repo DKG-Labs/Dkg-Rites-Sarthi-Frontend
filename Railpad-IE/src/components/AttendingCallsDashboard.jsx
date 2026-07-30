@@ -6,7 +6,7 @@ import { getStoredUser } from '../services/authService';
 
 import ShiftDutyForm from './ShiftDutyForm';
 
-const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal }) => {
+const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal, dutyPlantId }) => {
   const [activeTab, setActiveTab] = useState(() => {
     return localStorage.getItem('railpad_attending_calls_tab') || 'pending';
   });
@@ -42,13 +42,13 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal 
     localStorage.setItem('railpad_attending_calls_tab', activeTab);
     activeTabRef.current = activeTab;
     loadCalls();
-  }, [activeTab]);
+  }, [activeTab, dutyPlantId]);
 
   const loadCalls = async () => {
     setLoading(true);
     try {
       const [pendingDataResponse, completedDataResponse] = await Promise.all([
-        fetchPendingWorkflowTransitions('Rail Main IE').catch(() => []),
+        fetchPendingWorkflowTransitions('Rail Main IE', dutyPlantId).catch(() => []),
         fetchCompletedCalls().catch(() => [])
       ]);
 

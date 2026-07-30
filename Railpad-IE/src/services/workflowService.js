@@ -1,9 +1,13 @@
 import { getBaseUrl, API_ENDPOINTS } from './apiConfig';
 import { getStoredUser } from './authService';
 
-export const fetchPendingWorkflowTransitions = async (roleName) => {
+export const fetchPendingWorkflowTransitions = async (roleName, plantId = '') => {
   try {
-    const response = await fetch(`${getBaseUrl()}${API_ENDPOINTS.RAILPAD_WORKFLOW.ALL_PENDING_TRANSITIONS}?roleName=${encodeURIComponent(roleName)}`);
+    let url = `${getBaseUrl()}${API_ENDPOINTS.RAILPAD_WORKFLOW.ALL_PENDING_TRANSITIONS}?roleName=${encodeURIComponent(roleName)}`;
+    if (plantId) {
+      url += `&plantId=${encodeURIComponent(plantId)}`;
+    }
+    const response = await fetch(url);
     const data = await response.json();
     if (data.responseStatus?.statusCode === 0) {
       return data.responseData || [];

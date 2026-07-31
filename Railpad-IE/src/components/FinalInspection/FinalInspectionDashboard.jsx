@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { fetchInspectionCallById, fetchInspectionCallByCallNo } from '../../services/inspectionService';
 import { finalInspectionLotResultsService } from '../../services/finalInspectionLotResultsService';
 import { finalVisualDimensionalInspectionService } from '../../services/finalVisualDimensionalInspectionService';
@@ -4617,75 +4618,8 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
             -webkit-appearance: none;
             margin: 0;
           }
-          input[type=number] {
-            -moz-appearance: textfield;
-          }
         `}
       </style>
-
-      {/* Confirmation Modal */}
-      {showConfirmModal && (
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'rgba(15, 23, 42, 0.4)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          animation: 'fadeIn 0.2s ease-out'
-        }}>
-          <div style={{
-            background: 'white',
-            padding: '40px',
-            borderRadius: '24px',
-            maxWidth: '400px',
-            width: '100%',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-            animation: 'modalPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-            textAlign: 'center'
-          }}>
-            <div style={{ fontSize: '48px', marginBottom: '20px' }}>⚠️</div>
-            <h3 style={{ fontSize: '22px', fontWeight: '800', color: '#0f172a', margin: '0 0 12px 0' }}>Unsaved Changes</h3>
-            <p style={{ fontSize: '15px', color: '#64748b', margin: '0 0 32px 0', lineHeight: '1.5' }}>
-              You have unsaved changes in the current lot testing form. Switching lots will discard these changes. Do you want to continue?
-            </p>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button
-                onClick={() => setShowConfirmModal(false)}
-                style={{
-                  flex: 1,
-                  padding: '14px',
-                  borderRadius: '12px',
-                  border: '1px solid #e2e8f0',
-                  background: 'white',
-                  color: '#64748b',
-                  fontWeight: '700',
-                  cursor: 'pointer'
-                }}
-              >
-                No, Keep Editing
-              </button>
-              <button
-                onClick={handleDiscardChanges}
-                style={{
-                  flex: 1,
-                  padding: '14px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  background: '#ef4444',
-                  color: 'white',
-                  fontWeight: '700',
-                  cursor: 'pointer'
-                }}
-              >
-                Yes, Discard
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* 2nd Sampling Auto-Hide Confirmation Modal */}
       {showWeightPopup && (

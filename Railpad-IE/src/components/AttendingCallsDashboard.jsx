@@ -66,25 +66,6 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
       let certCalls = rpCompletedAll.filter(c => (c.status === 'INSPECTION_DONE' || c.status === 'CERTIFICATE_PENDING' || c.status === 'COMPLETED' || c.jobStatus === 'COMPLETED' || c.status === 'ISSUE IC' || c.status === 'IC_ISSUE' || c.jobStatus === 'ISSUE IC' || c.jobStatus === 'IC_ISSUE'));
       let finalCompletedCalls = rpCompletedAll.filter(c => c.status === 'IC_GENERATION' || c.jobStatus === 'IC_GENERATION');
 
-      if (certCalls.length === 0) {
-        certCalls = [
-          {
-            workflowTransitionId: 10245,
-            requestId: "RP-IC-2026062401",
-            vendorCode: "MG_RUBBER",
-            vendorName: "M/s MG Rubber",
-            plantId: "Sankra Somni",
-            poiCode: "POI-MGRUBBER-01",
-            createdDate: new Date().toISOString(),
-            status: "INSPECTION_DONE",
-            jobStatus: "INSPECTION_DONE",
-            accessibleUserIds: [Number(user?.userId || 1), 1],
-            rlyPoSrNo: "60256836107122/020",
-            railPadType: "CGRSP 10mm",
-          }
-        ];
-      }
-
       setCounts({
         pending: rpPending.length,
         certificates: certCalls.length,

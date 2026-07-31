@@ -394,8 +394,8 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
           </file>
           <pdf>
             <page>1</page>
-            <cood>425,175</cood>
-            <size>110,40</size>
+            <cood>405,118</cood>
+            <size>160,38</size>
           </pdf>
           <data>${base64Pdf}</data>
         </request>

@@ -151,7 +151,7 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
             }
             
             if (ercNos > 0) {
-              resultText = `${lines.join("\n")}\nTotal\u00A0Qty\u00A0\u2011\u00A0${totalMt.toFixed(3)}MT\nNO\u00A0OF\u00A0ERC\u00A0=\n${ercNos}\u00A0NOs\n(Approximate)`;
+              resultText = `${lines.join("\n")}\nTotal\u00A0Qty\u00A0\u2011\u00A0${totalMt.toFixed(3)}MT\n${ercNos}\u00A0NOs\u00A0(Approx.)`;
             } else {
               resultText = `${lines.join("\n")}\nTotal\u00A0Qty\u00A0\u2011\u00A0${totalMt.toFixed(3)}MT`;
             }
@@ -441,8 +441,8 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
           </file>
           <pdf>
             <page>1</page>
-            <cood>390,150</cood>
-            <size>160,50</size>
+            <cood>395,82</cood>
+            <size>170,36</size>
           </pdf>
           <data>${base64Pdf}</data>
         </request>

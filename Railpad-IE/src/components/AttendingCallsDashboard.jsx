@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { fetchPendingWorkflowTransitions, fetchCompletedCalls, performTransitionAction } from '../services/workflowService';
+import { fetchPendingWorkflowTransitions, fetchCompletedCalls, performTransitionAction, isPlantIdMatching } from '../services/workflowService';
 import { scheduleInspection } from '../services/scheduleService';
 import Notification from './Notification';
 import { getStoredUser } from '../services/authService';
@@ -48,15 +48,20 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
     setLoading(true);
     try {
       const [pendingDataResponse, completedDataResponse] = await Promise.all([
-        fetchPendingWorkflowTransitions('Rail Main IE', dutyPlantId).catch(() => []),
-        fetchCompletedCalls(dutyPlantId).catch(() => [])
+        fetchPendingWorkflowTransitions('Rail Main IE', dutyPlantId, 2).catch(() => []),
+        fetchCompletedCalls(dutyPlantId, 2).catch(() => [])
       ]);
 
       const pendingData = pendingDataResponse || [];
       const completedDataAll = completedDataResponse || [];
 
-      let rpPending = pendingData.filter(c => c.requestId && String(c.requestId).toUpperCase().startsWith('RP'));
-      let rpCompletedAll = completedDataAll.filter(c => c.requestId && String(c.requestId).toUpperCase().startsWith('RP'));
+      let rpPending = pendingData.filter(c => c.requestId);
+      let rpCompletedAll = completedDataAll.filter(c => c.requestId);
+
+      if (dutyPlantId) {
+        rpPending = rpPending.filter(c => !c.plantId || isPlantIdMatching(c.plantId, dutyPlantId));
+        rpCompletedAll = rpCompletedAll.filter(c => !c.plantId || isPlantIdMatching(c.plantId, dutyPlantId));
+      }
 
       let certCalls = rpCompletedAll.filter(c => (c.status === 'INSPECTION_DONE' || c.status === 'CERTIFICATE_PENDING' || c.status === 'COMPLETED' || c.jobStatus === 'COMPLETED' || c.status === 'ISSUE IC' || c.status === 'IC_ISSUE' || c.jobStatus === 'ISSUE IC' || c.jobStatus === 'IC_ISSUE'));
       let finalCompletedCalls = rpCompletedAll.filter(c => c.status === 'IC_GENERATION' || c.jobStatus === 'IC_GENERATION');

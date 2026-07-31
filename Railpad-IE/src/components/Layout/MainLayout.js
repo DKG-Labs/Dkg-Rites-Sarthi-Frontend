@@ -1,11 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
+import { fetchMappedPlantIds } from '../../services/workflowService';
 
 const MainLayout = ({ children, activeItem, onItemClick, onLogout, user, isShiftActive }) => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isSidebarPinned, setIsSidebarPinned] = useState(false);
     const [isSidebarHovered, setIsSidebarHovered] = useState(false);
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+    const [isMainMapped, setIsMainMapped] = useState(false);
+
+    useEffect(() => {
+        const checkMappings = async () => {
+            const uId = user?.userId || localStorage.getItem('userId');
+            if (uId) {
+                try {
+                    const mainPlants = await fetchMappedPlantIds(uId, 'Main IE');
+                    if (mainPlants && mainPlants.length > 0) {
+                        setIsMainMapped(true);
+                    }
+                } catch (err) {}
+            }
+        };
+        checkMappings();
+    }, [user?.userId]);
 
     const userInitial = user?.userName ? user.userName.charAt(0).toUpperCase() : 'I';
 
@@ -93,7 +110,24 @@ const MainLayout = ({ children, activeItem, onItemClick, onLogout, user, isShift
                                 {user?.userName || 'Nitin Rajput'}
                             </span>
                             <span style={{ fontSize: '12px', color: '#64748b', marginTop: '3px', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <span>Role: {(user?.roleName || 'ERC Main IE').replace(/Rail Process IE/gi, 'Railpad Process IE').replace(/Rail Main IE/gi, 'Railpad Main IE')}</span>
+                                <span>Role: {(() => {
+                                    const roleInput = user?.roleName || 'ERC Main IE';
+                                    const roles = Array.isArray(roleInput) ? roleInput : [roleInput];
+                                    const formatted = roles.map(r => {
+                                        let str = String(r).trim();
+                                        if (str === 'Main IE') return 'Railpad Main IE';
+                                        if (str === 'Process IE') return 'Railpad Process IE';
+                                        return str
+                                            .replace(/Rail Process IE/gi, 'Railpad Process IE')
+                                            .replace(/Rail Main IE/gi, 'Railpad Main IE');
+                                    });
+                                    const railpadRoles = formatted.filter(r => r.includes('Railpad') || r.includes('Main IE') || r.includes('Process IE'));
+                                    const finalRoles = railpadRoles.length > 0 ? [...railpadRoles] : [...formatted];
+                                    if (isMainMapped && !finalRoles.includes('Railpad Main IE')) {
+                                        finalRoles.push('Railpad Main IE');
+                                    }
+                                    return Array.from(new Set(finalRoles)).join(' & ');
+                                })()}</span>
                                 <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#cbd5e1' }}></span>
                                 <span style={{ color: '#475569' }}>EMP CODE : {user?.employeeCode || user?.employeeId || user?.userId || '12191'}</span>
                             </span>

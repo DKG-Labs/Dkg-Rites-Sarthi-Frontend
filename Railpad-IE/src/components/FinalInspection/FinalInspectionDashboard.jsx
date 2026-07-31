@@ -1381,11 +1381,11 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         showNotification('Remarks are required to finish the inspection.', 'warning');
         return;
       }
-      if (sealingType === 'RITES_HOLOGRAM' && hologramEntries.length === 0) {
-        showNotification('At least one hologram entry must be added when using Holograms.', 'warning');
+      if (activeLotOverallStatus === 'ACCEPTED' && sealingType === 'RITES_HOLOGRAM' && hologramEntries.length === 0) {
+        showNotification('At least one hologram entry must be added when using Holograms for an accepted lot.', 'warning');
         return;
       }
-      if (sealingType === 'RITES_HOLOGRAM') {
+      if (activeLotOverallStatus === 'ACCEPTED' && sealingType === 'RITES_HOLOGRAM') {
         const hasEmptyHolo = hologramEntries.some(h => (h.type === 'range' && (!h.from || !h.to)) || (h.type === 'single' && !h.value));
         if (hasEmptyHolo) {
           showNotification('Please fill out all added hologram numbers completely.', 'warning');
@@ -8539,23 +8539,42 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
               >
                 Withheld Inspection
               </button>
-              <button
-                onClick={() => handleSaveAction('FINISH')}
-                disabled={isSubmitting || !remarks || (sealingType === 'RITES_HOLOGRAM' && hologramEntries.length === 0)}
-                style={{
-                  padding: '8px 20px',
-                  fontSize: '13px',
-                  fontWeight: '700',
-                  borderRadius: '8px',
-                  cursor: (isSubmitting || !remarks || (sealingType === 'RITES_HOLOGRAM' && hologramEntries.length === 0)) ? 'not-allowed' : 'pointer',
-                  background: '#21808d',
-                  color: '#fff',
-                  border: 'none',
-                  opacity: (isSubmitting || !remarks || (sealingType === 'RITES_HOLOGRAM' && hologramEntries.length === 0)) ? 0.6 : 1
-                }}
-              >
-                Finish Inspection
-              </button>
+              {(() => {
+                const isLotAccepted = activeLotOverallStatus === 'ACCEPTED';
+                const isHologramRequired = isLotAccepted && sealingType === 'RITES_HOLOGRAM' && hologramEntries.length === 0;
+                const hasPendingLotsInMultiLot = totalLots > 1 && effectiveLots.some(l => l.status === 'Pending');
+                const isSingleLotPending = totalLots === 1 && (activeLotOverallStatus === 'PENDING' || !activeLotOverallStatus);
+
+                const isFinishDisabled = isSubmitting || !remarks || isHologramRequired || hasPendingLotsInMultiLot || isSingleLotPending;
+
+                let finishTitle = '';
+                if (isSubmitting) finishTitle = 'Submitting inspection...';
+                else if (!remarks) finishTitle = 'Please enter remarks to finish inspection';
+                else if (isHologramRequired) finishTitle = 'Please add hologram entries for accepted lot';
+                else if (hasPendingLotsInMultiLot) finishTitle = 'Please complete all lots before finishing inspection';
+                else if (isSingleLotPending) finishTitle = 'Please complete inspection tests for the lot';
+
+                return (
+                  <button
+                    onClick={() => handleSaveAction('FINISH')}
+                    disabled={isFinishDisabled}
+                    title={finishTitle}
+                    style={{
+                      padding: '8px 20px',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      borderRadius: '8px',
+                      cursor: isFinishDisabled ? 'not-allowed' : 'pointer',
+                      background: '#21808d',
+                      color: '#fff',
+                      border: 'none',
+                      opacity: isFinishDisabled ? 0.6 : 1
+                    }}
+                  >
+                    Finish Inspection
+                  </button>
+                );
+              })()}
             </div>
           </div>
         );

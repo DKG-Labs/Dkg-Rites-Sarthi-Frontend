@@ -210,6 +210,7 @@ const padPhysicalData = (pd) => {
       final: pad(pd?.tension?.final, 9)
     },
     loadTest: {
+      loads: pad(pd?.loadTest?.loads, 8, ''),
       pad1: pad(pd?.loadTest?.pad1, 8, { left: '', right: '' }),
       pad2: pad(pd?.loadTest?.pad2, 8, { left: '', right: '' }),
       mPad1: pad(pd?.loadTest?.mPad1, 8, { left: '', right: '' }),
@@ -322,6 +323,31 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
   const [reOfferActive, setReOfferActive] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSubmoduleTab, setActiveSubmoduleTab] = useState('visualDim');
+  const [visibleLoadRows, setVisibleLoadRows] = useState(4);
+
+  const handleDeleteRow = (indexToDelete) => {
+    if (visibleLoadRows <= 1) return;
+    
+    setPhysicalData(prev => {
+      const newData = { ...prev };
+      const loadTest = { ...newData.loadTest };
+      
+      const newLoads = [...loadTest.loads];
+      newLoads.splice(indexToDelete, 1);
+      newLoads.push('');
+      loadTest.loads = newLoads;
+
+      ['pad1', 'pad2', 'mPad1', 'mPad2', 'mPad3', 'mPad4'].forEach(padKey => {
+        const newPad = [...loadTest[padKey]];
+        newPad.splice(indexToDelete, 1);
+        newPad.push({ left: '', right: '' });
+        loadTest[padKey] = newPad;
+      });
+
+      return { ...newData, loadTest };
+    });
+    setVisibleLoadRows(prev => prev - 1);
+  };
 
   const activeLot = lots.find(l => l.id === selectedLot) || lots[0] || { railpadType: 'GRSP' };
   const activeRailpadType = activeLot.railpadType || 'GRSP';
@@ -5942,20 +5968,34 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                         </tr>
                       </thead>
                       <tbody>
-                        {[0.08, 0.76, 1.52, 2.28, 3.8, 7.6, 11.4, 15.2].map((load, idx) => (
-                          <tr key={load}>
-                            <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', fontWeight: '800', background: '#f8fafc', border: '1px solid #f1f5f9' }}>{load}</td>
+                        {physicalData.loadTest.loads.slice(0, visibleLoadRows).map((load, idx) => (
+                          <tr key={idx}>
+                            <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', fontWeight: '800', background: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <input 
+                                  type="number" 
+                                  value={load} 
+                                  onChange={(e) => {
+                                    const newLoads = [...physicalData.loadTest.loads];
+                                    newLoads[idx] = e.target.value;
+                                    setPhysicalData(prev => ({ ...prev, loadTest: { ...prev.loadTest, loads: newLoads } }));
+                                  }} 
+                                  style={{ width: '100%', padding: '6px', border: '1px solid #e2e8f0', borderRadius: '4px', textAlign: 'center', fontSize: '12px', fontWeight: '800' }} 
+                                />
+                                <button type="button" onClick={() => handleDeleteRow(idx)} title="Delete Row" style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 'bold', padding: '0 4px', fontSize: '14px' }}>✕</button>
+                              </div>
+                            </td>
                             {['pad1', 'pad2'].map(padKey => {
                               const data = physicalData.loadTest[padKey][idx];
                               const defl = (data.left && data.right) ? ((parseFloat(data.left) + parseFloat(data.right)) / 2).toFixed(2) : '-';
-                              const isOutAtEnd = idx === 7 && defl !== '-' && (parseFloat(defl) < currentLoadSpecs.min || parseFloat(defl) > currentLoadSpecs.max);
+                              const isOutAtEnd = idx === (visibleLoadRows - 1) && defl !== '-' && (parseFloat(defl) < currentLoadSpecs.min || parseFloat(defl) > currentLoadSpecs.max);
                               return (
                                 <React.Fragment key={padKey}>
                                   <td style={{ padding: '4px', border: '1px solid #f1f5f9' }}>
-                                    <input type="number" value={data.left} onChange={(e) => setPhysicalData(prev => ({ ...prev, loadTest: { ...prev.loadTest, [padKey]: prev.loadTest[padKey].map((v, i) => i === idx ? { ...v, left: e.target.value } : v) } }))} style={{ width: '100%', padding: '6px', border: '1px solid #e2e8f0', borderRadius: '4px', textAlign: 'center', fontSize: '12px', fontWeight: '700' }} />
+                                    <input type="number" value={data.left} disabled={!load || String(load).trim() === ''} onChange={(e) => setPhysicalData(prev => ({ ...prev, loadTest: { ...prev.loadTest, [padKey]: prev.loadTest[padKey].map((v, i) => i === idx ? { ...v, left: e.target.value } : v) } }))} style={{ width: '100%', padding: '6px', border: '1px solid #e2e8f0', borderRadius: '4px', textAlign: 'center', fontSize: '12px', fontWeight: '700', backgroundColor: (!load || String(load).trim() === '') ? '#f8fafc' : '#fff' }} />
                                   </td>
                                   <td style={{ padding: '4px', border: '1px solid #f1f5f9' }}>
-                                    <input type="number" value={data.right} onChange={(e) => setPhysicalData(prev => ({ ...prev, loadTest: { ...prev.loadTest, [padKey]: prev.loadTest[padKey].map((v, i) => i === idx ? { ...v, right: e.target.value } : v) } }))} style={{ width: '100%', padding: '6px', border: '1px solid #e2e8f0', borderRadius: '4px', textAlign: 'center', fontSize: '12px', fontWeight: '700' }} />
+                                    <input type="number" value={data.right} disabled={!load || String(load).trim() === ''} onChange={(e) => setPhysicalData(prev => ({ ...prev, loadTest: { ...prev.loadTest, [padKey]: prev.loadTest[padKey].map((v, i) => i === idx ? { ...v, right: e.target.value } : v) } }))} style={{ width: '100%', padding: '6px', border: '1px solid #e2e8f0', borderRadius: '4px', textAlign: 'center', fontSize: '12px', fontWeight: '700', backgroundColor: (!load || String(load).trim() === '') ? '#f8fafc' : '#fff' }} />
                                   </td>
                                   <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', fontWeight: '900', background: '#f8fafc', border: '1px solid #f1f5f9', color: isOutAtEnd ? '#ef4444' : '#21808d' }}>{defl}</td>
                                 </React.Fragment>
@@ -5963,6 +6003,19 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                             })}
                           </tr>
                         ))}
+                        {visibleLoadRows < 8 && (
+                          <tr>
+                            <td style={{ textAlign: 'center', padding: '10px' }}>
+                              <button 
+                                type="button" 
+                                onClick={() => setVisibleLoadRows(prev => Math.min(prev + 1, 8))}
+                                style={{ padding: '5px 15px', background: '#e2e8f0', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', width: '100%' }}>
+                                + Add Row
+                              </button>
+                            </td>
+                            <td colSpan="6" style={{ border: 'none' }}></td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -7207,20 +7260,34 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                 </tr>
                               </thead>
                               <tbody>
-                                {[0.08, 0.76, 1.52, 2.28, 3.8, 7.6, 11.4, 15.2].map((load, idx) => (
-                                  <tr key={load}>
-                                    <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', fontWeight: '800', background: '#f8fafc', border: '1px solid #f1f5f9' }}>{load}</td>
+                                {physicalData.loadTest.loads.slice(0, visibleLoadRows).map((load, idx) => (
+                                  <tr key={idx}>
+                                    <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', fontWeight: '800', background: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        <input 
+                                          type="number" 
+                                          value={load} 
+                                          onChange={(e) => {
+                                            const newLoads = [...physicalData.loadTest.loads];
+                                            newLoads[idx] = e.target.value;
+                                            setPhysicalData(prev => ({ ...prev, loadTest: { ...prev.loadTest, loads: newLoads } }));
+                                          }} 
+                                          style={{ width: '100%', padding: '6px', border: '1px solid #e2e8f0', borderRadius: '4px', textAlign: 'center', fontSize: '12px', fontWeight: '800' }} 
+                                        />
+                                        <button type="button" onClick={() => handleDeleteRow(idx)} title="Delete Row" style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 'bold', padding: '0 4px', fontSize: '14px' }}>✕</button>
+                                      </div>
+                                    </td>
                                     {['mPad1', 'mPad2', 'mPad3', 'mPad4'].map(padKey => {
                                       const data = physicalData.loadTest[padKey][idx];
                                       const defl = (data.left && data.right) ? ((parseFloat(data.left) + parseFloat(data.right)) / 2).toFixed(2) : '-';
-                                      const isOutAtEnd = idx === 7 && defl !== '-' && (parseFloat(defl) < specs.min || parseFloat(defl) > specs.max);
+                                      const isOutAtEnd = idx === (visibleLoadRows - 1) && defl !== '-' && (parseFloat(defl) < specs.min || parseFloat(defl) > specs.max);
                                       return (
                                         <React.Fragment key={padKey}>
                                           <td style={{ padding: '4px', border: '1px solid #f1f5f9' }}>
-                                            <input type="number" value={data.left} onChange={(e) => setPhysicalData(prev => ({ ...prev, loadTest: { ...prev.loadTest, [padKey]: prev.loadTest[padKey].map((v, i) => i === idx ? { ...v, left: e.target.value } : v) } }))} style={{ width: '100%', padding: '6px', border: '1px solid #f1f5f9', borderRadius: '4px', textAlign: 'center', fontSize: '12px', fontWeight: '700' }} />
+                                            <input type="number" value={data.left} disabled={!load || String(load).trim() === ''} onChange={(e) => setPhysicalData(prev => ({ ...prev, loadTest: { ...prev.loadTest, [padKey]: prev.loadTest[padKey].map((v, i) => i === idx ? { ...v, left: e.target.value } : v) } }))} style={{ width: '100%', padding: '6px', border: '1px solid #f1f5f9', borderRadius: '4px', textAlign: 'center', fontSize: '12px', fontWeight: '700', backgroundColor: (!load || String(load).trim() === '') ? '#f8fafc' : '#fff' }} />
                                           </td>
                                           <td style={{ padding: '4px', border: '1px solid #f1f5f9' }}>
-                                            <input type="number" value={data.right} onChange={(e) => setPhysicalData(prev => ({ ...prev, loadTest: { ...prev.loadTest, [padKey]: prev.loadTest[padKey].map((v, i) => i === idx ? { ...v, right: e.target.value } : v) } }))} style={{ width: '100%', padding: '6px', border: '1px solid #f1f5f9', borderRadius: '4px', textAlign: 'center', fontSize: '12px', fontWeight: '700' }} />
+                                            <input type="number" value={data.right} disabled={!load || String(load).trim() === ''} onChange={(e) => setPhysicalData(prev => ({ ...prev, loadTest: { ...prev.loadTest, [padKey]: prev.loadTest[padKey].map((v, i) => i === idx ? { ...v, right: e.target.value } : v) } }))} style={{ width: '100%', padding: '6px', border: '1px solid #f1f5f9', borderRadius: '4px', textAlign: 'center', fontSize: '12px', fontWeight: '700', backgroundColor: (!load || String(load).trim() === '') ? '#f8fafc' : '#fff' }} />
                                           </td>
                                           <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', fontWeight: '900', background: '#f8fafc', border: '1px solid #f1f5f9', color: isOutAtEnd ? '#ef4444' : '#21808d' }}>{defl}</td>
                                         </React.Fragment>
@@ -7228,6 +7295,19 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                     })}
                                   </tr>
                                 ))}
+                                {visibleLoadRows < 8 && (
+                                  <tr>
+                                    <td style={{ textAlign: 'center', padding: '10px' }}>
+                                      <button 
+                                        type="button" 
+                                        onClick={() => setVisibleLoadRows(prev => Math.min(prev + 1, 8))}
+                                        style={{ padding: '5px 15px', background: '#e2e8f0', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', width: '100%' }}>
+                                        + Add Row
+                                      </button>
+                                    </td>
+                                    <td colSpan="12" style={{ border: 'none' }}></td>
+                                  </tr>
+                                )}
                               </tbody>
                             </table>
                           </div>

@@ -84,7 +84,7 @@ export default function FinalReportsPage({ onBack }) {
       {/* HEADER */}
       <div className="rep-header">
         <div>
-          <h1 className="rep-title">Inspection Report</h1>
+          <h1 className="rep-title">Under Development</h1>
           <p className="rep-subtitle">Consolidated Summary of All Modules</p>
         </div>
         <button className="rep-btn-outline" onClick={onBack}>← Back</button>
@@ -192,11 +192,11 @@ export default function FinalReportsPage({ onBack }) {
           <textarea rows="3" placeholder="Enter final remarks..."></textarea>
         </div>
 
-        <div className="rep-actions">
+        {/* <div className="rep-actions">
           <button className="rep-btn-outline">Export PDF</button>
           <button className="rep-btn-outline" onClick={onBack}>Cancel</button>
           <button className="rep-btn-primary">Generate IC</button>
-        </div>
+        </div> */}
       </div>
 
     </div>

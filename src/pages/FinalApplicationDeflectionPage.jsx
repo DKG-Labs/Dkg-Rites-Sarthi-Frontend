@@ -47,7 +47,7 @@ const FinalApplicationDeflectionPage = ({ onBack, onNavigateSubmodule }) => {
   }, [cachedData, callNo]);
 
   /* Active tab state */
-  const [activeTab, setActiveTab] = useState('dimension');
+  const [activeTab, setActiveTab] = useState('deflection');
 
   /* Build lot data with IS 2500 Table 2 - Dimension & Weight (AQL 2.5) */
   const lotsData = useMemo(() => lotsFromVendor.map(lot => {
@@ -461,12 +461,12 @@ const FinalApplicationDeflectionPage = ({ onBack, onNavigateSubmodule }) => {
 
       {/* TABS */}
       <div className="ad-tabs">
-        <button
+        {/* <button
           className={`ad-tab ${activeTab === 'dimension' ? 'active' : ''}`}
           onClick={() => setActiveTab('dimension')}
         >
           📏 Dimensional Inspection
-        </button>
+        </button> */}
         <button
           className={`ad-tab ${activeTab === 'deflection' ? 'active' : ''}`}
           onClick={() => setActiveTab('deflection')}

@@ -79,12 +79,18 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
     setNo = "",
   } = data;
 
-  // Still Due Qty = Order Qty - Previously Passed Qty - Now Passed Qty
+  // Qty Now Accepted = Offered - Rejected
   const numQtyOnOrder = parseFloat(qtyOnOrder) || 0;
   const numQtyPassedPreviously = parseFloat(qtyPassedPreviously) || 0;
-  const numQtyNowPassed = parseFloat(qtyNowPassed) || 0;
-  const calculatedQtyStillDue = Math.max(0, numQtyOnOrder - numQtyPassedPreviously - numQtyNowPassed);
-  const displayQtyStillDue = (numQtyOnOrder > 0 || numQtyPassedPreviously > 0 || numQtyNowPassed > 0)
+  const numQtyNowOffered = parseFloat(qtyNowOffered) || 0;
+  const numQtyNowRejected = parseFloat(qtyNowRejected) || 0;
+
+  const rawAccepted = numQtyNowOffered > 0 ? Math.max(0, numQtyNowOffered - numQtyNowRejected) : (parseFloat(String(qtyNowPassed || 0).replace(/\*/g, '')) || 0);
+  const displayQtyNowPassed = String(qtyNowPassed || "").endsWith('*') ? qtyNowPassed : `${rawAccepted}*`;
+
+  // Still Due Qty = Order Qty - Previously Passed Qty - Now Accepted Qty
+  const calculatedQtyStillDue = Math.max(0, numQtyOnOrder - numQtyPassedPreviously - rawAccepted);
+  const displayQtyStillDue = (numQtyOnOrder > 0 || numQtyPassedPreviously > 0 || rawAccepted > 0)
     ? String(calculatedQtyStillDue)
     : (qtyStillDue || "0");
 
@@ -314,7 +320,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
               { val: qtyOfferedPreviously, field: "qtyOfferedPreviously" },
               { val: qtyPassedPreviously, field: "qtyPassedPreviously" },
               { val: qtyNowOffered, field: "qtyNowOffered" },
-              { val: qtyNowPassed, field: "qtyNowPassed" },
+              { val: displayQtyNowPassed, field: "qtyNowPassed" },
               { val: qtyNowRejected, field: "qtyNowRejected" },
               { val: displayQtyStillDue, field: "qtyStillDue" }
             ].map((col, idx) => (
@@ -381,7 +387,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
             <div className="font-bold leading-tight">Facsimile of seal</div>
             <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={facsimileText} fieldName="facsimileText" type="textarea" className="text-black italic leading-tight flex-grow" />
           </div>
-          <div className="p-1 flex flex-col justify-between min-h-[90px] relative">
+          <div className="p-1 flex flex-col justify-between min-h-[90px] relative ie-signature-box">
             <div className="font-bold leading-tight text-[9.5px]">Inspecting Engineer</div>
             <div className="flex flex-col items-end w-full mt-1">
               <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={inspectingEngineer} fieldName="inspectingEngineer" className="text-right font-bold uppercase text-[10px]" />

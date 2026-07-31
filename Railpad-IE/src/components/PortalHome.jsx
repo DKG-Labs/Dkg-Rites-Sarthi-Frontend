@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ShiftDutyForm from './ShiftDutyForm';
 import PlantDeclarationDashboard from './PlantDeclaration/PlantDeclarationDashboard';
+import { fetchMappedPlantIds } from '../services/workflowService';
 
 /* ─── Locked Card Overlay ─────────────────────────────────────────── */
 const LockedCardOverlay = ({ visible }) => {
@@ -46,9 +47,35 @@ const LockedCardOverlay = ({ visible }) => {
 
 /* ─── Main Component ──────────────────────────────────────────────── */
 const PortalHome = ({ user, onModuleSelect, isShiftActive, currentShift, defaultShowPlantDeclaration, onClosePlantDeclaration }) => {
-  const roleLower = (user?.roleName || '').toLowerCase();
-  const hasProcessAccess = roleLower.includes('process ie') || roleLower === 'railpad ie';
-  const hasMainAccess = roleLower.includes('main ie') || roleLower === 'railpad ie';
+  const [isMainIeMapped, setIsMainIeMapped] = useState(false);
+  const [isProcessIeMapped, setIsProcessIeMapped] = useState(false);
+
+  useEffect(() => {
+    const checkMappings = async () => {
+      const uId = user?.userId || localStorage.getItem('userId');
+      if (uId) {
+        try {
+          const mainPlants = await fetchMappedPlantIds(uId, 'Main IE');
+          if (mainPlants && mainPlants.length > 0) {
+            setIsMainIeMapped(true);
+          }
+          const processPlants = await fetchMappedPlantIds(uId, 'Process IE');
+          if (processPlants && processPlants.length > 0) {
+            setIsProcessIeMapped(true);
+          }
+        } catch (err) {
+          console.error('Error checking IE mappings:', err);
+        }
+      }
+    };
+    checkMappings();
+  }, [user?.userId]);
+
+  const roleInput = user?.roleName || localStorage.getItem('roleName') || '';
+  const roleLower = (Array.isArray(roleInput) ? roleInput.join(' ') : String(roleInput)).toLowerCase();
+
+  const hasProcessAccess = roleLower.includes('process ie') || roleLower.includes('rail process ie') || roleLower === 'railpad ie' || isProcessIeMapped;
+  const hasMainAccess = roleLower.includes('main ie') || roleLower.includes('rail main ie') || roleLower === 'railpad ie' || isMainIeMapped;
 
   const dutyPlantId = currentShift?.unit || null;
   const [showShiftForm, setShowShiftForm] = useState(false);

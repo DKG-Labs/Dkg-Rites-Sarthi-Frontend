@@ -88,7 +88,11 @@ const ShiftDutyForm = ({ onSubmit, onCancel, hideCompanyAndUnit = false, initial
 
     if (formData.shift && isCompanyValid && formData.date && isUnitValid) {
       setIsSubmitting(true);
-      onSubmit(formData);
+      const normalizedUnit = formData.unit ? (String(formData.unit).trim().startsWith(':') ? String(formData.unit).trim() : `:${String(formData.unit).trim()}`) : '';
+      onSubmit({
+        ...formData,
+        unit: normalizedUnit
+      });
     }
   };
 

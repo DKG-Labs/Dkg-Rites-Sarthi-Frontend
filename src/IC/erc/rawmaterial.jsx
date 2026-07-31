@@ -8,7 +8,7 @@ import {
     Alert,
     Box
 } from "@mui/material";
-import { exportToPdf, generatePdfBase64 } from "../../utils/exportUtils";
+import { exportToPdf, generatePdfBase64, calculateSignatureCoords } from "../../utils/exportUtils";
 import { uploadSignedCertificate, saveRmIcEditData, getRmIcEditData, saveRmIcSaveChanges, getRmIcSaveChanges, validateBookSetNo } from "../../services/certificateService";
 import { performTransitionAction } from "../../services/workflowService";
 import { getCurrentUserId } from "../../services/workflowApiService";
@@ -151,7 +151,7 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
             }
             
             if (ercNos > 0) {
-              resultText = `${lines.join("\n")}\nTotal\u00A0Qty\u00A0\u2011\u00A0${totalMt.toFixed(3)}MT\nNO\u00A0OF\u00A0ERC\u00A0=\n${ercNos}\u00A0NOs\n(Approximate)`;
+              resultText = `${lines.join("\n")}\nTotal\u00A0Qty\u00A0\u2011\u00A0${totalMt.toFixed(3)}MT\n${ercNos}\u00A0NOs\u00A0(Approx.)`;
             } else {
               resultText = `${lines.join("\n")}\nTotal\u00A0Qty\u00A0\u2011\u00A0${totalMt.toFixed(3)}MT`;
             }
@@ -422,6 +422,8 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
       const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}+05:30`;
       const txn = Math.random().toString(16).slice(2, 10).toUpperCase();
 
+      const sigCoords = calculateSignatureCoords(printAreaRef.current, "395,145", "170,36");
+
       const xmlRequest = `
         <request>
           <command>pkiNetworkSign</command>
@@ -443,8 +445,8 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
           </file>
           <pdf>
             <page>1</page>
-            <cood>390,150</cood>
-            <size>160,50</size>
+            <cood>${sigCoords.cood}</cood>
+            <size>${sigCoords.size}</size>
           </pdf>
           <data>${base64Pdf}</data>
         </request>

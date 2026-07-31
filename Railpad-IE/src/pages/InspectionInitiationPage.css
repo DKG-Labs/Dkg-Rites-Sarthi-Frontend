@@ -272,10 +272,14 @@
 .cancel-btn { background: #ef4444; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; }
 .initiate-btn { background: #22c55e; color: white; border: none; padding: 10px 32px; border-radius: 8px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(34, 197, 94, 0.2); }
 
-.initiate-btn:disabled {
-  background: #cbd5e1;
-  cursor: not-allowed;
-  box-shadow: none;
+.initiate-btn:disabled,
+.withheld-btn:disabled,
+.cancel-btn:disabled {
+  background: #cbd5e1 !important;
+  color: #94a3b8 !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+  opacity: 0.6;
 }
 
 @media (max-width: 768px) {

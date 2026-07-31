@@ -3,6 +3,7 @@ import ProductionVerificationScreen from './ProductionVerificationScreen';
 import Pagination from '../common/Pagination';
 import '../../styles/ProductionVerification.css';
 import { getBaseUrl, API_ENDPOINTS, getDefaultHeaders } from '../../services/apiConfig';
+import { normalizePlantId, isPlantIdMatching } from '../../services/workflowService';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -101,8 +102,8 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
     try {
       if (activeTab === 'pending') {
         // --- PENDING TRANSITIONS LOGIC ---
-        const dutyPlantId = currentShift?.unit?.trim() || currentShift?.plantId?.trim() || '';
-        let transUrl = `${getBaseUrl()}${API_ENDPOINTS.RAILPAD_WORKFLOW.ALL_PENDING_TRANSITIONS}?roleName=Rail%20Process%20IE`;
+        const dutyPlantId = normalizePlantId(currentShift?.unit || currentShift?.plantId || '');
+        let transUrl = `${getBaseUrl()}${API_ENDPOINTS.RAILPAD_WORKFLOW.ALL_PENDING_TRANSITIONS}?roleName=Rail%20Process%20IE&workflowId=1`;
         if (dutyPlantId) {
           transUrl += `&plantId=${encodeURIComponent(dutyPlantId)}`;
         }
@@ -115,7 +116,7 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
           const transitions = transData.responseData || [];
           const filteredTrans = transitions.filter(t => {
             const isModuleMatch = Number(t.moduleId) === 3;
-            const isPlantMatch = t.plantId?.trim() === currentShift.unit?.trim();
+            const isPlantMatch = isPlantIdMatching(t.plantId, currentShift?.unit);
             const isUserMatch = t.accessibleUserIds?.includes(Number(user.userId));
             return isModuleMatch && isPlantMatch && isUserMatch;
           });
@@ -158,8 +159,8 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
         }
       } else {
         // --- VERIFIED (COMPLETED) CALLS LOGIC ---
-        const dutyPlantId = currentShift?.unit?.trim() || currentShift?.plantId?.trim() || '';
-        let completedUrl = `${getBaseUrl()}${API_ENDPOINTS.RAILPAD_WORKFLOW.ALL_COMPLETED_CALLS}?userId=${user.userId}`;
+        const dutyPlantId = normalizePlantId(currentShift?.unit || currentShift?.plantId || '');
+        let completedUrl = `${getBaseUrl()}${API_ENDPOINTS.RAILPAD_WORKFLOW.ALL_COMPLETED_CALLS}?userId=${user.userId}&workflowId=1`;
         if (dutyPlantId) {
           completedUrl += `&plantId=${encodeURIComponent(dutyPlantId)}`;
         }
@@ -174,7 +175,7 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
           // Filter for current role and plant
           const myCompleted = completed.filter(c =>
             c.currentRole === 'Rail Process IE' &&
-            c.plantId?.trim() === currentShift.unit?.trim() &&
+            isPlantIdMatching(c.plantId, currentShift?.unit) &&
             Number(c.moduleId) === 3
           );
 

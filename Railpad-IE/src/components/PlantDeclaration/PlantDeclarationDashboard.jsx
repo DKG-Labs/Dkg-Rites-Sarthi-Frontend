@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fetchPendingWorkflowTransitions, fetchCompletedCalls, performTransitionAction, fetchMappedPlantIds } from '../../services/workflowService';
+import { fetchPendingWorkflowTransitions, fetchCompletedCalls, performTransitionAction, fetchMappedPlantIds, isPlantIdMatching } from '../../services/workflowService';
 import {
   plantSetupService,
   rawMaterialService,
@@ -111,7 +111,7 @@ const PlantDeclarationDashboard = ({ dutyPlantId }) => {
       const filterByDutyPlant = (list) => {
         if (!dutyPlantId) return list || []; // If no duty plant, show all
         return (list || []).filter(tx =>
-          tx.plantId && tx.plantId.trim() === dutyPlantId.trim()
+          tx.plantId && isPlantIdMatching(tx.plantId, dutyPlantId)
         );
       };
 
@@ -131,10 +131,10 @@ const PlantDeclarationDashboard = ({ dutyPlantId }) => {
 
       // Fetch only the data required for the active tab
       if (statusTab === 'PENDING') {
-        const pendingData = await fetchPendingWorkflowTransitions('Rail Main IE', dutyPlantId);
+        const pendingData = await fetchPendingWorkflowTransitions('Rail Main IE', dutyPlantId, 1);
         setPendingList(mapList(filterByDutyPlant(pendingData)));
       } else {
-        const completedData = await fetchCompletedCalls(dutyPlantId);
+        const completedData = await fetchCompletedCalls(dutyPlantId, 1);
         setCompletedList(mapList(filterByDutyPlant(completedData)));
       }
     } catch (err) {

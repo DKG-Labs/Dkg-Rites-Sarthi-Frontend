@@ -8,7 +8,7 @@ import {
     Alert,
     Box
 } from "@mui/material";
-import { exportToPdf, generatePdfBase64 } from "../../utils/exportUtils";
+import { exportToPdf, generatePdfBase64, calculateSignatureCoords } from "../../utils/exportUtils";
 import { uploadSignedCertificate, saveRmIcEditData, getRmIcEditData, saveRmIcSaveChanges, getRmIcSaveChanges, validateBookSetNo } from "../../services/certificateService";
 import { performTransitionAction } from "../../services/workflowService";
 import { getCurrentUserId } from "../../services/workflowApiService";
@@ -420,6 +420,8 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
       const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}+05:30`;
       const txn = Math.random().toString(16).slice(2, 10).toUpperCase();
 
+      const sigCoords = calculateSignatureCoords(printAreaRef.current, "395,145", "170,36");
+
       const xmlRequest = `
         <request>
           <command>pkiNetworkSign</command>
@@ -441,8 +443,8 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
           </file>
           <pdf>
             <page>1</page>
-            <cood>395,82</cood>
-            <size>170,36</size>
+            <cood>${sigCoords.cood}</cood>
+            <size>${sigCoords.size}</size>
           </pdf>
           <data>${base64Pdf}</data>
         </request>

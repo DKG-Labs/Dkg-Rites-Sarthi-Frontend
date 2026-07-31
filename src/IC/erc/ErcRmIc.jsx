@@ -386,7 +386,7 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
             </div>
             <EditableField isEditing={false} type="textarea" value={sealFacsimile} onChange={(val) => onChange("sealFacsimile", val)} className="break-words leading-tight text-[10px]" />
           </div>
-          <div className="p-1 flex flex-col justify-between min-h-[90px] relative">
+          <div className="p-1 flex flex-col justify-between min-h-[90px] relative ie-signature-box">
             <div className="font-semibold text-[10px]">निरीक्षण अभियंता / Inspecting Engineer</div>
             <div className="flex flex-col items-end w-full mt-1">
               <EditableField isEditing={false} value={inspectingEngineer} onChange={(val) => onChange("inspectingEngineer", val)} className="mt-1 text-right font-semibold uppercase text-[10px]" />

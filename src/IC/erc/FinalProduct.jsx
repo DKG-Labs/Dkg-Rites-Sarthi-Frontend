@@ -10,7 +10,7 @@ import {
 } from '@mui/material';
 import { formatDate } from "../../utils/helpers";
 import ErcFinalIc from "./ErcFinalIc";
-import { exportToPdf, generatePdfBase64 } from "../../utils/exportUtils";
+import { exportToPdf, generatePdfBase64, calculateSignatureCoords } from "../../utils/exportUtils";
 import { uploadSignedCertificate, saveFinalIcEditData, getFinalIcEditData, saveFinalIcSaveChanges, getFinalIcSaveChanges, validateBookSetNo } from "../../services/certificateService";
 import { performTransitionAction } from "../../services/workflowService";
 import { getCurrentUserId } from "../../services/workflowApiService";
@@ -35,29 +35,34 @@ const numberToWords = (num) => {
 };
 
 const generateQuantityRemarks = (c) => {
-    const qtyNowPassed = Number(c.qtyNowPassed || 0) > Number(c.qtyOnOrder || 0) ? Number(c.qtyOnOrder || 0) : Number(c.qtyNowPassed || 0);
-    const qtyRejected = Number(c.qtyNowRejected || 0);
-    const words = numberToWords(qtyNowPassed).toLowerCase();
+    const qtyNowOffered = Number(c.qtyNowOffered || 0);
+    const qtyNowRejected = Number(c.qtyNowRejected || 0);
+    const qtyNowAccepted = qtyNowOffered > 0 ? Math.max(0, qtyNowOffered - qtyNowRejected) : (Number(String(c.qtyNowPassed || 0).replace(/\*/g, '')) || 0);
+    const words = numberToWords(qtyNowAccepted).toLowerCase();
     
-    // Calculate total erc_used_for_testing sum
-    let ercUsedCount = 0;
-    if (c.ercUsedForTesting !== undefined && c.ercUsedForTesting !== null && c.ercUsedForTesting > 0) {
-        ercUsedCount = c.ercUsedForTesting;
+    // Calculate total erc_used_for_testing sum from call or lot details
+    let ercUsedCount = null;
+    if (c.ercUsedForTesting !== undefined && c.ercUsedForTesting !== null) {
+        ercUsedCount = Number(c.ercUsedForTesting);
+    } else if (c.erc_used_for_testing !== undefined && c.erc_used_for_testing !== null) {
+        ercUsedCount = Number(c.erc_used_for_testing);
     } else if (c.lotDetails && Array.isArray(c.lotDetails) && c.lotDetails.length > 0) {
-        ercUsedCount = c.lotDetails.reduce((sum, l) => sum + (Number(l.ercUsedForTesting) || 0), 0);
+        ercUsedCount = c.lotDetails.reduce((sum, l) => sum + (Number(l.ercUsedForTesting || l.erc_used_for_testing || l.ercUsed || l.erc_used || l.noOfErcUsed || l.no_of_erc_used || l.testingQty) || 0), 0);
+    } else if (c.finalLotDetails && Array.isArray(c.finalLotDetails) && c.finalLotDetails.length > 0) {
+        ercUsedCount = c.finalLotDetails.reduce((sum, l) => sum + (Number(l.ercUsedForTesting || l.erc_used_for_testing || l.ercUsed || l.erc_used || l.noOfErcUsed || l.no_of_erc_used || l.testingQty) || 0), 0);
     }
-    const ercText = ercUsedCount > 0 ? `${ercUsedCount}` : "xxxxx";
+    const ercText = (ercUsedCount !== null && !isNaN(ercUsedCount)) ? `${ercUsedCount}` : "xxxxx";
     
-    let text = `QUANTITY NOW PASSED ${words.toUpperCase()} NOS ONLY. EXCLUDING OF ${ercText} NOS CONSUMED IN DESTRUCTIVE TESTING.\n`;
+    let text = `*QUANTITY NOW PASSED ${words.toUpperCase()} NOS ONLY. INCLUDING * ${ercText} NOS CONSUMED IN DESTRUCTIVE TESTING.\n`;
     
     if (c.lotDetails && c.lotDetails.length > 0) {
         let markings = c.lotDetails.map(l => `${l.lotNo || ''}, H No - ${l.heatNo || ''}`).join(' & ');
         text += `\nMarking - ${markings}\n`;
     }
     
-    if (qtyNowPassed > 0) {
-        let bagsOf50 = Math.floor(qtyNowPassed / 50);
-        let rem = qtyNowPassed % 50;
+    if (qtyNowAccepted > 0) {
+        let bagsOf50 = Math.floor(qtyNowAccepted / 50);
+        let rem = qtyNowAccepted % 50;
         let packText = [];
         if (bagsOf50 > 0) packText.push(`${bagsOf50.toString().padStart(2, '0')} Bags x 50 Nos`);
         if (rem > 0) packText.push(`01 Bag x ${rem} Nos`);
@@ -81,7 +86,7 @@ const generateQuantityRemarks = (c) => {
         }
     }
     
-    if (qtyRejected > 0 && qtyNowPassed === 0) {
+    if (qtyNowRejected > 0 && qtyNowAccepted === 0) {
         text += `\nMaterial is Non-conforming as per Lab Report No. [FILL_LAB_REPORT]. In the chemical test, the observed value was [OBSERVED], which exceeds the specified limit.\n`;
     }
     
@@ -458,6 +463,8 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
       const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}+05:30`;
       const txn = Math.random().toString(16).slice(2, 10).toUpperCase();
 
+      const sigCoords = calculateSignatureCoords(printAreaRef.current, "395,160", "170,36");
+
       const xmlRequest = `
         <request>
           <command>pkiNetworkSign</command>
@@ -479,8 +486,8 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
           </file>
           <pdf>
             <page>1</page>
-            <cood>395,160</cood>
-            <size>170,36</size>
+            <cood>${sigCoords.cood}</cood>
+            <size>${sigCoords.size}</size>
           </pdf>
           <data>${base64Pdf}</data>
         </request>

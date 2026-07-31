@@ -373,6 +373,36 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
       const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}+05:30`;
       const txn = "SARTHI" + Math.random().toString(16).slice(2, 10).toUpperCase();
 
+      // Dynamically calculate eSign position from DOM
+      let sigCood = "405,118";
+      let sigSize = "160,38";
+      try {
+        const certPage = element?.querySelector('.certificate-page') || element;
+        let ieEl = certPage?.querySelector('.ie-signature-box');
+        if (!ieEl && certPage) {
+          const allElements = Array.from(certPage.querySelectorAll('td, div, span'));
+          ieEl = allElements.find(el => el.textContent && (el.textContent.includes('Inspecting Engineer') || el.textContent.includes('निरीक्षण अभियंता')));
+        }
+        if (ieEl && certPage) {
+          const pageRect = certPage.getBoundingClientRect();
+          const ieRect = ieEl.getBoundingClientRect();
+          const pdfWidth = 595.28;
+          const pdfHeight = 841.89;
+          const leftRatio = (ieRect.left - pageRect.left) / pageRect.width;
+          const widthRatio = ieRect.width / pageRect.width;
+          const bottomRatio = (pageRect.bottom - ieRect.bottom) / pageRect.height;
+          const heightRatio = ieRect.height / pageRect.height;
+          const pdfX = Math.round(leftRatio * pdfWidth) + 4;
+          const pdfY = Math.round(bottomRatio * pdfHeight) + 4;
+          const pdfW = Math.max(100, Math.round(widthRatio * pdfWidth) - 8);
+          const pdfH = Math.max(30, Math.round(heightRatio * pdfHeight) - 8);
+          sigCood = `${pdfX},${pdfY}`;
+          sigSize = `${pdfW},${pdfH}`;
+        }
+      } catch (err) {
+        console.error("Dynamic signature calc error:", err);
+      }
+
       const xmlRequest = `
         <request>
           <command>pkiNetworkSign</command>
@@ -394,8 +424,8 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
           </file>
           <pdf>
             <page>1</page>
-            <cood>405,118</cood>
-            <size>160,38</size>
+            <cood>${sigCood}</cood>
+            <size>${sigSize}</size>
           </pdf>
           <data>${base64Pdf}</data>
         </request>

@@ -131,10 +131,10 @@ const PlantDeclarationDashboard = ({ dutyPlantId }) => {
 
       // Fetch only the data required for the active tab
       if (statusTab === 'PENDING') {
-        const pendingData = await fetchPendingWorkflowTransitions('Rail Process IE', dutyPlantId);
+        const pendingData = await fetchPendingWorkflowTransitions('Rail Main IE', dutyPlantId);
         setPendingList(mapList(filterByDutyPlant(pendingData)));
       } else {
-        const completedData = await fetchCompletedCalls();
+        const completedData = await fetchCompletedCalls(dutyPlantId);
         setCompletedList(mapList(filterByDutyPlant(completedData)));
       }
     } catch (err) {

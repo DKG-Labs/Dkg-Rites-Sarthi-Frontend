@@ -41,14 +41,18 @@ export const fetchMappedPlantIds = async (userId, ieType = 'Main IE') => {
   }
 };
 
-export const fetchCompletedCalls = async () => {
+export const fetchCompletedCalls = async (plantId = '') => {
   try {
     const user = getStoredUser();
     if (!user || !user.userId) {
       console.warn('No user found in storage for completed calls fetch');
       return [];
     }
-    const response = await fetch(`${getBaseUrl()}${API_ENDPOINTS.RAILPAD_WORKFLOW.ALL_COMPLETED_CALLS}?userId=${user.userId}`);
+    let url = `${getBaseUrl()}${API_ENDPOINTS.RAILPAD_WORKFLOW.ALL_COMPLETED_CALLS}?userId=${user.userId}`;
+    if (plantId) {
+      url += `&plantId=${encodeURIComponent(plantId)}`;
+    }
+    const response = await fetch(url);
     const data = await response.json();
     if (data.responseStatus?.statusCode === 0) {
       return data.responseData || [];

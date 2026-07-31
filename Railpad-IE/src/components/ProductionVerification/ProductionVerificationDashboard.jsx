@@ -158,7 +158,11 @@ const ProductionVerificationDashboard = ({ activeCard, setActiveCard, currentShi
         }
       } else {
         // --- VERIFIED (COMPLETED) CALLS LOGIC ---
-        const completedUrl = `${getBaseUrl()}${API_ENDPOINTS.RAILPAD_WORKFLOW.ALL_COMPLETED_CALLS}`;
+        const dutyPlantId = currentShift?.unit?.trim() || currentShift?.plantId?.trim() || '';
+        let completedUrl = `${getBaseUrl()}${API_ENDPOINTS.RAILPAD_WORKFLOW.ALL_COMPLETED_CALLS}?userId=${user.userId}`;
+        if (dutyPlantId) {
+          completedUrl += `&plantId=${encodeURIComponent(dutyPlantId)}`;
+        }
         const completedResponse = await fetch(completedUrl, {
           headers: getDefaultHeaders(user.token)
         });

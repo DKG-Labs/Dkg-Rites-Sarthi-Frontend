@@ -49,7 +49,7 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
     try {
       const [pendingDataResponse, completedDataResponse] = await Promise.all([
         fetchPendingWorkflowTransitions('Rail Main IE', dutyPlantId).catch(() => []),
-        fetchCompletedCalls().catch(() => [])
+        fetchCompletedCalls(dutyPlantId).catch(() => [])
       ]);
 
       const pendingData = pendingDataResponse || [];

@@ -443,8 +443,8 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
           </file>
           <pdf>
             <page>1</page>
-            <cood>390,220</cood>
-            <size>180,60</size>
+            <cood>390,150</cood>
+            <size>160,50</size>
           </pdf>
           <data>${base64Pdf}</data>
         </request>

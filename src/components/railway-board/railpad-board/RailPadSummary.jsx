@@ -4,23 +4,23 @@ import './RailPadSummary.css';
 const RailPadSummary = ({ summaryData = {}, onPoIssuedClick, onInspectionCallClick }) => {
     // Real data from backend; fallback to 0 when not yet loaded
     const data = {
-        totalPoIssued: summaryData.railPadPoIssued || 0,
+        totalPoIssued: summaryData.railPadPoIssued ?? 0,
         totalPoQtyOnOrder: {
-            nos: summaryData.railPadPoQuantityNos || 0,
-            set: summaryData.railPadPoQuantitySet || 0
+            nos: summaryData.railPadPoQuantityNos ?? 0,
+            set: summaryData.railPadPoQuantitySet ?? 0
         },
         totalPoQtyAccepted: {
-            nos: summaryData.totalAcceptedNos || 0,
-            set: summaryData.totalAcceptedSet || 0
+            nos: summaryData.totalAcceptedNos ?? 0,
+            set: summaryData.totalAcceptedSet ?? 0
         },
         inspectionCalls: {
-            pending: summaryData.pendingCalls || 0,
-            underInspection: summaryData.underInspectionCalls || 0
+            pending: summaryData.pendingCalls ?? 0,
+            underInspection: summaryData.underInspectionCalls ?? 0
         },
-        avgProductionPerDay: summaryData.railPadAvgProductionPerDay || summaryData.avgProductionPerDay || 0,
-        rejectedInProcess: summaryData.rejectedInProcess || 0,
-        rejectedInFinal: summaryData.rejectedInFinal || 0,
-        rejectionRate: summaryData.railPadRejectionPercentage || 0
+        avgProductionPerDay: summaryData.railPadAvgProductionPerDay ?? summaryData.avgProductionPerDay ?? 0,
+        rejectedInProcess: summaryData.rejectedInProcess ?? 0,
+        rejectedInFinal: summaryData.rejectedInFinal ?? 0,
+        rejectionRate: summaryData.railPadRejectionPercentage ?? 0
     };
 
     return (
@@ -96,7 +96,7 @@ const RailPadSummary = ({ summaryData = {}, onPoIssuedClick, onInspectionCallCli
                 </div>
                 <div className="prof-card card-spring-green" style={{ textAlign: 'center' }}>
                     <div className="kpi-lbl">Avg Production/Day</div>
-                    <div className="kpi-val">{data.avgProductionPerDay}</div>
+                    <div className="kpi-val">{Number(data.avgProductionPerDay || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
                     <div className="kpi-sub">Across all units</div>
                 </div>
                 <div className="prof-card card-gold" style={{ textAlign: 'center' }}>

@@ -396,8 +396,8 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
 
         {/* Footer */}
         <div className="border-x border-b border-black p-3 text-center">
-          <div className="font-semibold text-[11px] italic mb-1">
-            It is certified that material is cleared for the next stage.
+          <div className="font-semibold text-[11px] italic mb-1 uppercase">
+            {data?.certificationText || "IT IS CERTIFIED THAT THE MATERIAL IS CLEARED FOR THE NEXT STAGE."}
           </div>
           <div className="mt-1 text-[10px] leading-snug text-gray-700">
             <span className="font-bold">Distribution: </span>

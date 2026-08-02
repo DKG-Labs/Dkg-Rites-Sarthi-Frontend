@@ -130,34 +130,37 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
       clearedQty: (() => {
         if (c.heatDetails && Array.isArray(c.heatDetails) && c.heatDetails.length > 0) {
           let totalMt = 0;
-          const lines = c.heatDetails.filter(h => ["ACCEPTED", "PARTIALLY_ACCEPTED"].includes(h.status)).map(h => {
+          const lines = c.heatDetails.map(h => {
+            if (h.status === "ACCEPTED" || h.status === "PARTIALLY_ACCEPTED") {
               const val = parseFloat(h.weightAcceptedMt || 0);
               totalMt += val;
               return `${h.heatNo}\u00A0\u2011\u00A0${val.toFixed(3)}MT`;
-          });
-          if (lines.length > 0) {
-            let resultText = "";
-            
-            const searchString = c.ercType || `${c.description || ''} ${c.productDescription || ''} ${c.remarks || ''}`;
-            const ercType = normalizeErcType(searchString);
-            
-            let ercNos = 0;
-            if (ercType === "MK-III") {
-              ercNos = Math.floor((totalMt * 1000) / 0.928426);
-            } else if (ercType === "MK-V") {
-              ercNos = Math.floor((totalMt * 1000) / 1.133);
-            } else if (ercType === "ERC-J") {
-              ercNos = Math.floor((totalMt * 1000) / 0.928);
-            }
-            
-            if (ercNos > 0) {
-              resultText = `${lines.join("\n")}\nTotal\u00A0Qty\u00A0\u2011\u00A0${totalMt.toFixed(3)}MT\n${ercNos}\u00A0NOs\u00A0(Approx.)`;
             } else {
-              resultText = `${lines.join("\n")}\nTotal\u00A0Qty\u00A0\u2011\u00A0${totalMt.toFixed(3)}MT`;
+              return `${h.heatNo}\u00A0\u2011\u00A0Nill`;
             }
-            return resultText;
+          });
+
+          const searchString = c.ercType || `${c.description || ''} ${c.productDescription || ''} ${c.remarks || ''}`;
+          const ercType = normalizeErcType(searchString);
+          
+          let ercNos = 0;
+          if (ercType === "MK-III") {
+            ercNos = Math.floor((totalMt * 1000) / 0.928426);
+          } else if (ercType === "MK-V") {
+            ercNos = Math.floor((totalMt * 1000) / 1.133);
+          } else if (ercType === "ERC-J") {
+            ercNos = Math.floor((totalMt * 1000) / 0.928);
           }
-          return "";
+          
+          if (totalMt > 0) {
+            if (ercNos > 0) {
+              return `${lines.join("\n")}\nTotal\u00A0Qty\u00A0\u2011\u00A0${totalMt.toFixed(3)}MT\n${ercNos}\u00A0NOs\u00A0(Approx.)`;
+            } else {
+              return `${lines.join("\n")}\nTotal\u00A0Qty\u00A0\u2011\u00A0${totalMt.toFixed(3)}MT`;
+            }
+          } else {
+            return `${lines.join("\n")}\nTotal\u00A0Qty\u00A0\u2011\u00A0Nill`;
+          }
         }
         return c.clearedQty || "";
       })(),
@@ -173,7 +176,45 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
         }
         return c.qtyRejected || "Nil";
       })(),
-      remarks: c.ibsCaseNo && c.ibsCaseNo !== '-' ? `(IBS Case No: ${c.ibsCaseNo}), ${c.remarks || ""}`.trim() : (c.remarks || ""),
+      remarks: (() => {
+        let remarkBody = "";
+        if (c.heatDetails && Array.isArray(c.heatDetails) && c.heatDetails.length > 0) {
+          const acceptedCount = c.heatDetails.filter(h => h.status === "ACCEPTED").length;
+          const rejectedCount = c.heatDetails.filter(h => h.status === "REJECTED").length;
+          const searchString = c.ercType || `${c.description || ''} ${c.productDescription || ''} ${c.remarks || ''}`;
+          const ercType = normalizeErcType(searchString) || "MK-V";
+          const formattedErcType = ercType === "MK-III" ? "MK-III" : ercType === "MK-IV" ? "MK-IV" : ercType === "ERC-J" ? "ERC-J" : "MK-V";
+
+          if (acceptedCount > 0 && rejectedCount === 0) {
+            remarkBody = `LOT FOUND ACCEPTABLE AND CLEARED FOR MANUFACTURING OF ERC ${formattedErcType}.`;
+          } else if (acceptedCount === 0 && rejectedCount > 0) {
+            remarkBody = `LOT FOUND NOT ACCEPTABLE AND NOT CLEARED FOR MANUFACTURING OF ERC ${formattedErcType}`;
+          } else {
+            remarkBody = `LOT FOUND PARTIALLY ACCEPTABLE. ACCEPTED QUANTITY CLEARED FOR MANUFACTURING OF ERC ${formattedErcType}; BALANCE QUANTITY REJECTED.`;
+          }
+        } else {
+          remarkBody = c.remarks || "";
+        }
+
+        if (c.ibsCaseNo && c.ibsCaseNo !== '-') {
+          return `(IBS Case No: ${c.ibsCaseNo}), ${remarkBody}`.trim();
+        }
+        return remarkBody;
+      })(),
+      certificationText: (() => {
+        if (c.heatDetails && Array.isArray(c.heatDetails) && c.heatDetails.length > 0) {
+          const acceptedCount = c.heatDetails.filter(h => h.status === "ACCEPTED").length;
+          const rejectedCount = c.heatDetails.filter(h => h.status === "REJECTED").length;
+          if (acceptedCount > 0 && rejectedCount === 0) {
+            return "IT IS CERTIFIED THAT THE MATERIAL IS CLEARED FOR THE NEXT STAGE.";
+          } else if (acceptedCount === 0 && rejectedCount > 0) {
+            return "IT IS CERTIFIED THAT THE MATERIAL IS NOT CLEARED FOR THE NEXT STAGE.";
+          } else if (acceptedCount > 0 && rejectedCount > 0) {
+            return "IT IS CERTIFIED THAT THE ACCEPTED MATERIAL IS CLEARED FOR THE NEXT STAGE, WHILE THE REJECTED MATERIAL IS NOT CLEARED.";
+          }
+        }
+        return "IT IS CERTIFIED THAT THE MATERIAL IS CLEARED FOR THE NEXT STAGE.";
+      })(),
       callDate: c.dateOfCall || "",
       visitsNo: c.noOfVisits || "",
       inspectionDate: c.dateOfInspection || "",

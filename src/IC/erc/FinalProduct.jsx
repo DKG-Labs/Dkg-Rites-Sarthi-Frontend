@@ -78,12 +78,20 @@ const generateQuantityRemarks = (c) => {
         let processText = c.processIcNo ? `Process IC No-${c.processIcNo}${processDateStr}` : "";
 
         if (rmText && processText) {
-            text += `\nRM Inspection and Process Inspection Accepted against Vide\n${rmText}\n& ${processText}\n`;
+            text += `\nRM Inspection and Process Inspection Accepted against Vide\n${rmText}\n& ${processText}`;
         } else if (rmText) {
-            text += `\nRM Inspection Accepted against Vide\n${rmText}\n`;
+            text += `\nRM Inspection Accepted against Vide\n${rmText}`;
         } else if (processText) {
-            text += `\nProcess Inspection Accepted against Vide\n${processText}\n`;
+            text += `\nProcess Inspection Accepted against Vide\n${processText}`;
         }
+        
+        if (c.ibsCaseNo && c.ibsCaseNo !== '-') {
+            text += ` , (IBS Case No: ${c.ibsCaseNo})\n`;
+        } else {
+            text += `\n`;
+        }
+    } else if (c.ibsCaseNo && c.ibsCaseNo !== '-') {
+        text += `\n(IBS Case No: ${c.ibsCaseNo})\n`;
     }
     
     if (qtyNowRejected > 0 && qtyNowAccepted === 0) {

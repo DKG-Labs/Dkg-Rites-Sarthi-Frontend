@@ -372,6 +372,7 @@ const ProfessionalCardSection = ({
             setLocalProcessOverallRejection(null);
             setLocalAvgProduction(null);
             setLocalSummaryData(null);
+            setTotalCallsData(null);
             try {
                 const isPrimaryFilterApplied = filterMode === 'vendorwise' ? !!selectedVendorPlant : !!selectedZonalRailway;
 
@@ -465,7 +466,10 @@ const ProfessionalCardSection = ({
 
         const fetchTotalCalls = async () => {
             try {
-                if (getSummaryKey(selectedProduct) !== 'erc') return;
+                if (getSummaryKey(selectedProduct) !== 'erc') {
+                    setTotalCallsData(null);
+                    return;
+                }
                 const isPrimaryFilterApplied = filterMode === 'vendorwise' ? !!selectedVendorPlant : !!selectedZonalRailway;
 
                 const params = {

@@ -53,7 +53,14 @@ export const parseUserFriendlyErrorMessage = (rawErrorMsg) => {
 };
 
 export const AdminDashboard = () => {
-    const [activeModule, setActiveModule] = useState('users');
+    const [activeModule, setActiveModule] = useState(() => {
+        return localStorage.getItem('adminActiveModule') || 'users';
+    });
+
+    const handleModuleSelect = (moduleName) => {
+        localStorage.setItem('adminActiveModule', moduleName);
+        setActiveModule(moduleName);
+    };
     const [modalOpen, setModalOpen] = useState(false);
     const [modalTitle, setModalTitle] = useState('');
     const [modalContent, setModalContent] = useState(null);
@@ -204,9 +211,19 @@ export const AdminDashboard = () => {
             if (productType === 'SLEEPER') {
                 // Sleeper specific mapping submission
                 const { sleeperMapping, mappingType } = formData;
+                let existingId = null;
+                if (selectedItem && selectedItem.id) {
+                    const idStr = String(selectedItem.id);
+                    if (idStr.startsWith('sleeper_')) {
+                        existingId = parseInt(idStr.substring(8), 10);
+                    } else if (!isNaN(Number(idStr))) {
+                        existingId = parseInt(idStr, 10);
+                    }
+                }
                 
                 if (mappingType === 'employee wise') {
                     const payload = {
+                        id: existingId,
                         poiCode: sleeperMapping.poiCode,
                         plantId: sleeperMapping.plantId,
                         employeeCode: sleeperMapping.employeeCode,
@@ -226,11 +243,21 @@ export const AdminDashboard = () => {
             } else if (productType === 'RAILPAD') {
                 // Railpad specific mapping submission
                 const { railpadMapping } = formData;
+                let existingId = null;
+                if (selectedItem && selectedItem.id) {
+                    const idStr = String(selectedItem.id);
+                    if (idStr.startsWith('rail_')) {
+                        existingId = parseInt(idStr.substring(5), 10);
+                    } else if (!isNaN(Number(idStr))) {
+                        existingId = parseInt(idStr, 10);
+                    }
+                }
                 const payload = {
+                    id: existingId,
                     poiCode: railpadMapping.poiCode,
                     plantId: railpadMapping.plantId,
                     ieUserId: railpadMapping.employeeId,
-                    ieType: formData.roleId === 'Rail Main IE' ? 'MAIN_IE' : 'PROCESS_IE'
+                    ieType: (role && role.includes('Main')) || formData.roleId === 'Rail Main IE' ? 'MAIN_IE' : 'PROCESS_IE'
                 };
                 await saveRailpadMappingApi(payload);
             } else {
@@ -258,9 +285,13 @@ export const AdminDashboard = () => {
                 }
             }
 
+            localStorage.setItem('adminActiveModule', 'mapping');
             setSnackbar({ open: true, message: selectedItem ? 'Mapping updated successfully!' : 'Mapping created successfully!', severity: 'success' });
             setModalOpen(false);
             refreshData();
+            setTimeout(() => {
+                window.location.reload();
+            }, 300);
         } catch (error) {
             console.error('Error saving mapping:', error);
             setSnackbar({ open: true, message: error.message || 'Failed to save mapping. Please verify your inputs and try again.', severity: 'error' });
@@ -335,7 +366,7 @@ export const AdminDashboard = () => {
                     <li className="nav-item">
                         <button
                             className={`nav-link ${activeModule === 'users' ? 'active' : ''}`}
-                            onClick={() => setActiveModule('users')}
+                            onClick={() => handleModuleSelect('users')}
                         >
                             <span>👥</span>
                             <span>User Management</span>
@@ -345,7 +376,7 @@ export const AdminDashboard = () => {
                     <li className="nav-item">
                         <button
                             className={`nav-link ${activeModule === 'masters' ? 'active' : ''}`}
-                            onClick={() => setActiveModule('masters')}
+                            onClick={() => handleModuleSelect('masters')}
                         >
                             <span>📋</span>
                             <span>Master Data</span>
@@ -354,7 +385,7 @@ export const AdminDashboard = () => {
                     <li className="nav-item">
                         <button
                             className={`nav-link ${activeModule === 'calibration' ? 'active' : ''}`}
-                            onClick={() => setActiveModule('calibration')}
+                            onClick={() => handleModuleSelect('calibration')}
                         >
                             <span>🔧</span>
                             <span>Calibration</span>
@@ -364,7 +395,7 @@ export const AdminDashboard = () => {
                     <li className="nav-item">
                         <button
                             className={`nav-link ${activeModule === 'mapping' ? 'active' : ''}`}
-                            onClick={() => setActiveModule('mapping')}
+                            onClick={() => handleModuleSelect('mapping')}
                         >
                             <span>🗺️</span>
                             <span>IE Mapping</span>

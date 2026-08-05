@@ -14,6 +14,13 @@ const reportService = {
         return handleResponse(response);
     },
 
+    getRailPadVendorPlants: async () => {
+        const response = await fetch(`${API_BASE_URL}/api/filters/railpad-vendor-plants`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
     getZonalRailways: async (poiCode) => {
         const response = await fetch(`${API_BASE_URL}/api/filters/zonal-railways?poiCode=${poiCode}`, {
             headers: getAuthHeaders(),
@@ -35,13 +42,28 @@ const reportService = {
         return handleResponse(response);
     },
 
+    getRailPadZonalRailways: async () => {
+        const response = await fetch(`${API_BASE_URL}/api/filters/railpad-zonal-railways`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
+    getRailPadVendorPlantsByZone: async (zone) => {
+        const response = await fetch(`${API_BASE_URL}/api/filters/railpad-vendor-plants-by-zone?zone=${encodeURIComponent(zone || '')}`, {
+            headers: getAuthHeaders(),
+        });
+        return handleResponse(response);
+    },
+
     getIcIssuedCounts: async (params) => {
-        const { vendorPlantCode, zonalRailway, startDate, endDate } = params || {};
+        const { vendorPlantCode, zonalRailway, startDate, endDate, product } = params || {};
         const url = new URL(`${API_ENDPOINTS.REPORTS}/icIssuedCounts`);
         if (vendorPlantCode) url.searchParams.append('vendorPlantCode', vendorPlantCode);
         if (zonalRailway) url.searchParams.append('zonalRailway', zonalRailway);
         if (startDate) url.searchParams.append('startDate', startDate);
         if (endDate) url.searchParams.append('endDate', endDate);
+        if (product) url.searchParams.append('product', product);
 
         const response = await fetch(url.toString(), {
             headers: getAuthHeaders(),
@@ -56,7 +78,7 @@ const reportService = {
     getLevel1Report: async (params) => {
         const forceRefresh = params && params._refresh > 0;
         const CACHE_KEY = 'cache_level1ReportPoData';
-        
+
         if (!forceRefresh) {
             const cached = localStorage.getItem(CACHE_KEY);
             if (cached) {
@@ -71,9 +93,9 @@ const reportService = {
         const response = await fetch(`${API_ENDPOINTS.REPORTS}/1stLevelReportPoData`, {
             headers: getAuthHeaders(),
         });
-        
+
         const result = await handleResponse(response);
-        
+
         if (result) {
             try {
                 localStorage.setItem(CACHE_KEY, JSON.stringify(result));
@@ -81,7 +103,7 @@ const reportService = {
                 console.error('Failed to cache level1 report data (quota exceeded?)');
             }
         }
-        
+
         return result;
     },
 
@@ -438,13 +460,14 @@ const reportService = {
     },
 
     getInspectionCallStatus: async (params) => {
-        const { vendor, zone, startDate, endDate } = params || {};
+        const { vendor, zone, startDate, endDate, product } = params || {};
         let url = `${API_ENDPOINTS.REPORTS}/inspectionCallStatus`;
         const queryParams = new URLSearchParams();
         if (vendor && vendor !== 'all') queryParams.append('vendorPlantCode', vendor);
         if (zone && zone !== 'all') queryParams.append('zonalRailway', zone);
         if (startDate) queryParams.append('startDate', startDate);
         if (endDate) queryParams.append('endDate', endDate);
+        if (product) queryParams.append('product', product);
         if (queryParams.toString()) url += `?${queryParams.toString()}`;
 
         const response = await fetch(url, {
@@ -545,13 +568,14 @@ const reportService = {
     },
 
     getInspectionDetails: async (params) => {
-        const { startDate, endDate, vendor, zone } = params || {};
+        const { startDate, endDate, vendor, zone, product } = params || {};
         let url = `${API_ENDPOINTS.REPORTS}/inspectionDetails`;
         const queryParams = new URLSearchParams();
         if (startDate) queryParams.append('startDate', startDate);
         if (endDate) queryParams.append('endDate', endDate);
         if (vendor && vendor !== 'all') queryParams.append('vendorPlantCode', vendor);
         if (zone && zone !== 'all') queryParams.append('zonalRailway', zone);
+        if (product) queryParams.append('product', product);
         if (queryParams.toString()) url += `?${queryParams.toString()}`;
 
         const response = await fetch(url, {
@@ -863,20 +887,22 @@ const reportService = {
 
     getInspectionCallStatusDetails: async (stage, status, filters) => {
         let url;
-        if (stage === 'Railpad') {
+        const isRailPad = stage === 'Railpad' || filters?.isRailPad || filters?.product === 'RailPad';
+        if (isRailPad) {
             url = new URL(`${API_ENDPOINTS.REPORTS}/railPadInspectionCallStatusDetails`);
+            if (stage && stage !== 'Railpad') url.searchParams.append('stage', stage);
             url.searchParams.append('status', status);
         } else {
             url = new URL(`${API_ENDPOINTS.REPORTS}/inspectionCallStatusDetails`);
             url.searchParams.append('stage', stage);
             url.searchParams.append('status', status);
-            if (filters) {
-                const { vendor, zone, startDate, endDate } = filters;
-                if (vendor && vendor !== 'all') url.searchParams.append('vendorPlantCode', vendor);
-                if (zone && zone !== 'all') url.searchParams.append('zonalRailway', zone);
-                if (startDate) url.searchParams.append('startDate', startDate);
-                if (endDate) url.searchParams.append('endDate', endDate);
-            }
+        }
+        if (filters) {
+            const { vendor, zone, startDate, endDate } = filters;
+            if (vendor && vendor !== 'all') url.searchParams.append('vendorPlantCode', vendor);
+            if (zone && zone !== 'all') url.searchParams.append('zonalRailway', zone);
+            if (startDate) url.searchParams.append('startDate', startDate);
+            if (endDate) url.searchParams.append('endDate', endDate);
         }
         try {
             const response = await fetch(url.toString(), {

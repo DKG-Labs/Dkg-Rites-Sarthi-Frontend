@@ -41,7 +41,11 @@ const SearchableSelect = ({ options, value, onChange, placeholder, disabled, dis
     const getDisplayText = (val) => {
         if (!val) return placeholder;
         if (displayKey && valueKey) {
-            const found = options.find(o => String(o[valueKey]) === String(val));
+            const found = options.find(o => 
+                String(o[valueKey]) === String(val) || 
+                String(o[valueKey]) === `:${val}` || 
+                `:${o[valueKey]}` === String(val)
+            );
             if (found) {
                 return getOptionLabel(found);
             }
@@ -112,9 +116,43 @@ export const IEFieldsForm = ({
     getRailpadPlants,
     initialData
 }) => {
-    const [productType, setProductType] = useState('ERC');
+    const [productType, setProductType] = useState(() => {
+        if (initialData) {
+            const isRailpad = (initialData.id && String(initialData.id).startsWith('rail_')) || 
+                              (initialData.mappingType && initialData.mappingType.includes('Railpad')) ||
+                              (initialData.inspectingEngineer && initialData.inspectingEngineer.includes('Railpad'));
+            if (isRailpad) return 'RAILPAD';
+
+            const isSleeper = (initialData.id && String(initialData.id).startsWith('sleeper_')) || 
+                              (initialData.mappingType && initialData.mappingType.includes('Sleeper')) ||
+                              (initialData.inspectingEngineer && initialData.inspectingEngineer.includes('Sleeper'));
+            if (isSleeper) return 'SLEEPER';
+        }
+        return 'ERC';
+    });
     const [mappingType, setMappingType] = useState('employee wise'); // 'employee wise' or 'company wise' (for Sleeper)
-    const [selectedRole, setSelectedRole] = useState('IE');
+    const [selectedRole, setSelectedRole] = useState(() => {
+        if (initialData) {
+            const isRailpad = (initialData.id && String(initialData.id).startsWith('rail_')) || 
+                              (initialData.mappingType && initialData.mappingType.includes('Railpad')) ||
+                              (initialData.inspectingEngineer && initialData.inspectingEngineer.includes('Railpad'));
+            if (isRailpad) {
+                const isProcess = (initialData.mappingType && initialData.mappingType.includes('Process')) ||
+                                  (initialData.inspectingEngineer && initialData.inspectingEngineer.includes('Process'));
+                return isProcess ? 'Railpad Process IE (Process IE)' : 'Railpad Main IE (main IE)';
+            }
+            const isSleeper = (initialData.id && String(initialData.id).startsWith('sleeper_')) || 
+                              (initialData.mappingType && initialData.mappingType.includes('Sleeper')) ||
+                              (initialData.inspectingEngineer && initialData.inspectingEngineer.includes('Sleeper'));
+            if (isSleeper) {
+                const isProcess = (initialData.mappingType && initialData.mappingType.includes('Process')) ||
+                                  (initialData.inspectingEngineer && initialData.inspectingEngineer.includes('Process'));
+                return isProcess ? 'Process IE' : 'Main IE';
+            }
+            if (initialData.mappingType?.includes('Process')) return 'Process IE';
+        }
+        return 'IE';
+    });
     const [users, setUsers] = useState([]); // Users for the MAIN profile (based on selectedRole)
     const [ieUsers, setIeUsers] = useState([]); // List of IEs (role 'IE') for Process IE mapping
     const [companies, setCompanies] = useState([]);
@@ -196,6 +234,7 @@ export const IEFieldsForm = ({
     }, [productType]);
 
     useEffect(() => {
+        let isActive = true;
         // Clear previous state immediately when switching mode to avoid stale company data leak
         setUsers([]);
         setCompanies([]);
@@ -219,8 +258,10 @@ export const IEFieldsForm = ({
                         getSleeperEmployeesByRole(roleId),
                         getSleeperCompanies()
                     ]);
-                    setUsers(formatUsers(roleUsers));
-                    setCompanies(sleeperCompanies || []);
+                    if (isActive) {
+                        setUsers(formatUsers(roleUsers));
+                        setCompanies(sleeperCompanies || []);
+                    }
                 } else if (productType === 'RAILPAD') {
                     const roleObj = ROLES.find(r => r.name === selectedRole);
                     const roleId = roleObj?.id || (selectedRole.includes('Process') ? 'Rail Process IE' : 'Rail Main IE');
@@ -228,28 +269,36 @@ export const IEFieldsForm = ({
                         getUsersByRole(roleId).catch(() => []),
                         getRailpadCompanies().catch(() => [])
                     ]);
-                    setUsers(formatUsers(roleUsers));
-                    setCompanies(railpadCompanies || []);
+                    if (isActive) {
+                        setUsers(formatUsers(roleUsers));
+                        setCompanies(railpadCompanies || []);
+                    }
                 } else {
                     const [roleUsers, companyList] = await Promise.all([
                         getUsersByRole(selectedRole),
                         getCompanies()
                     ]);
-                    setUsers(formatUsers(roleUsers));
-                    setCompanies(companyList || []);
+                    if (isActive) {
+                        setUsers(formatUsers(roleUsers));
+                        setCompanies(companyList || []);
 
-                    if (selectedRole === 'Process IE') {
-                        const ies = await getUsersByRole('Process IE');
-                        setIeUsers(formatUsers(ies));
+                        if (selectedRole === 'Process IE') {
+                            const ies = await getUsersByRole('Process IE');
+                            if (isActive) setIeUsers(formatUsers(ies));
+                        }
                     }
                 }
             } catch (error) {
-                console.error('Error fetching initial data:', error);
+                if (isActive) console.error('Error fetching initial data:', error);
             } finally {
-                setLoading(false);
+                if (isActive) setLoading(false);
             }
         };
         fetchInitialData();
+
+        return () => {
+            isActive = false;
+        };
     }, [selectedRole, productType, getUsersByRole, getCompanies, getSleeperEmployeesByRole, getSleeperCompanies, getRailpadCompanies, ROLES]);
 
     // Pre-fill form when editing

@@ -34,34 +34,39 @@ const RailPadSummary = ({
     const finalDetails = (inspectionDetails || []).find(x => x.name === 'Final') || {};
 
     const processAcceptedNos = processDetails.acceptedNos !== undefined ? processDetails.acceptedNos : (processDetails.accepted || 0);
-    const processRejectedNos = processDetails.rejectedNos !== undefined ? processDetails.rejectedNos : (processDetails.rejected || 0);
+    const processRejectedNos = summaryData.rejectedInProcess !== undefined && summaryData.rejectedInProcess !== null
+        ? summaryData.rejectedInProcess
+        : (processDetails.rejectedNos !== undefined ? processDetails.rejectedNos : (processDetails.rejected || 0));
 
     const finalAcceptedNos = finalDetails.acceptedNos !== undefined ? finalDetails.acceptedNos : (finalDetails.accepted || 0);
     const finalAcceptedSet = finalDetails.acceptedSet || 0;
-    const finalRejectedNos = finalDetails.rejectedNos !== undefined ? finalDetails.rejectedNos : (finalDetails.rejected || 0);
+    const finalRejectedNos = summaryData.rejectedInFinal !== undefined && summaryData.rejectedInFinal !== null
+        ? summaryData.rejectedInFinal
+        : (finalDetails.rejectedNos !== undefined ? finalDetails.rejectedNos : (finalDetails.rejected || 0));
     const finalRejectedSet = finalDetails.rejectedSet || 0;
 
     // Row 4 calculations (Production & Rejection)
     const avgProductionPerDay = summaryData.railPadAvgProductionPerDay ?? 0;
-    
-    // Process Rejection
-    const processOfferedTotal = (processDetails.accepted || 0) + (processDetails.rejected || 0);
-    const processRejectionPercentage = processOfferedTotal > 0 
-        ? ((processRejectedNos / processOfferedTotal) * 100).toFixed(2) 
-        : '0.00';
+    const totalProcessProduced = summaryData.totalProcessProduced ?? 0;
 
-    // Final Rejection
+    // Process Rejection %
+    const processOfferedTotal = (processDetails.accepted || 0) + (processDetails.rejected || 0);
+    const processRejectionPercentage = totalProcessProduced > 0 
+        ? ((processRejectedNos / totalProcessProduced) * 100).toFixed(2) 
+        : (processOfferedTotal > 0 ? ((processRejectedNos / processOfferedTotal) * 100).toFixed(2) : '0.00');
+
+    // Final Rejection %
     const finalOfferedTotal = (finalDetails.accepted || 0) + (finalDetails.rejected || 0);
     const finalRejectionPercentage = finalOfferedTotal > 0 
         ? ((finalRejectedNos / finalOfferedTotal) * 100).toFixed(2) 
         : '0.00';
 
-    // Overall Rejection
-    const totalOfferedQty = processOfferedTotal + finalOfferedTotal;
-    const totalRejectedQty = processRejectedNos + finalRejectedNos;
-    const overallRejectionPercentage = totalOfferedQty > 0
-        ? ((totalRejectedQty / totalOfferedQty) * 100).toFixed(2)
-        : (summaryData.railPadRejectionPercentage ?? '0.00');
+    // Overall Rejection % = (Process Rejection + Final Rejection) / Total Process Produced
+    const overallRejectionPercentage = totalProcessProduced > 0
+        ? (((processRejectedNos + finalRejectedNos) / totalProcessProduced) * 100).toFixed(2)
+        : (summaryData.railPadRejectionPercentage !== undefined && summaryData.railPadRejectionPercentage !== null
+            ? String(summaryData.railPadRejectionPercentage)
+            : '0.00');
 
     // Extract stage-wise data from inspectionCallStatus prop
     const totalItem = inspectionCallStatus.find(x => x.name === 'Total' || x.category === 'Total');

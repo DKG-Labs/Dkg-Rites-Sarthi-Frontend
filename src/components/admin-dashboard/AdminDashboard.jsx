@@ -948,7 +948,7 @@ const saveCompanyWiseSleeperMappingApi = async (payload) => {
 const getRailpadCompaniesApi = async () => {
     try {
         const token = localStorage.getItem('authToken');
-        const response = await fetch(`${API_BASE_URL}/api/reports/railpad/closed-loop/manufacturers`, {
+        const response = await fetch(`${API_BASE_URL}/api/railpad-vendor-plant/companies`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -969,7 +969,7 @@ const getRailpadCompaniesApi = async () => {
 const getRailpadPlantsApi = async (vendorCode) => {
     try {
         const token = localStorage.getItem('authToken');
-        const response = await fetch(`${API_BASE_URL}/api/reports/railpad/closed-loop/plants?vendorCode=${encodeURIComponent(vendorCode)}`, {
+        const response = await fetch(`${API_BASE_URL}/api/railpad-vendor-plant/vendor/${encodeURIComponent(vendorCode)}/plants`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -977,8 +977,9 @@ const getRailpadPlantsApi = async (vendorCode) => {
             }
         });
         const data = await response.json();
-        if (data.responseStatus?.statusCode !== 0) throw new Error(data.responseStatus?.message || 'API Error');
-        return data.responseData;
+        if (data.plants) return data.plants;
+        if (data.responseData) return data.responseData.plants || data.responseData;
+        return data;
     } catch (error) {
         throw error;
     }

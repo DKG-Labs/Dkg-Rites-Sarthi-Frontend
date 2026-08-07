@@ -10,7 +10,7 @@ import {
 } from '@mui/material';
 import { formatDate } from "../../utils/helpers";
 import ErcFinalIc from "./ErcFinalIc";
-import { exportToPdf, generatePdfBase64 } from "../../utils/exportUtils";
+import { exportToPdf, generatePdfBase64, calculateSignatureCoords } from "../../utils/exportUtils";
 import { uploadSignedCertificate, saveFinalIcEditData, getFinalIcEditData, saveFinalIcSaveChanges, getFinalIcSaveChanges, validateBookSetNo } from "../../services/certificateService";
 import { performTransitionAction } from "../../services/workflowService";
 import { getCurrentUserId } from "../../services/workflowApiService";
@@ -35,20 +35,34 @@ const numberToWords = (num) => {
 };
 
 const generateQuantityRemarks = (c) => {
-    const qtyNowPassed = Number(c.qtyNowPassed || 0) > Number(c.qtyOnOrder || 0) ? Number(c.qtyOnOrder || 0) : Number(c.qtyNowPassed || 0);
-    const qtyRejected = Number(c.qtyNowRejected || 0);
-    const words = numberToWords(qtyNowPassed).toLowerCase();
+    const qtyNowOffered = Number(c.qtyNowOffered || 0);
+    const qtyNowRejected = Number(c.qtyNowRejected || 0);
+    const qtyNowAccepted = qtyNowOffered > 0 ? Math.max(0, qtyNowOffered - qtyNowRejected) : (Number(String(c.qtyNowPassed || 0).replace(/\*/g, '')) || 0);
+    const words = numberToWords(qtyNowAccepted).toLowerCase();
     
-    let text = `Quantity Now Passed ${words} Nos only. Excluding of xxxxx Nos consumed in destructive testing.\n`;
+    // Calculate total erc_used_for_testing sum from call or lot details
+    let ercUsedCount = null;
+    if (c.ercUsedForTesting !== undefined && c.ercUsedForTesting !== null) {
+        ercUsedCount = Number(c.ercUsedForTesting);
+    } else if (c.erc_used_for_testing !== undefined && c.erc_used_for_testing !== null) {
+        ercUsedCount = Number(c.erc_used_for_testing);
+    } else if (c.lotDetails && Array.isArray(c.lotDetails) && c.lotDetails.length > 0) {
+        ercUsedCount = c.lotDetails.reduce((sum, l) => sum + (Number(l.ercUsedForTesting || l.erc_used_for_testing || l.ercUsed || l.erc_used || l.noOfErcUsed || l.no_of_erc_used || l.testingQty) || 0), 0);
+    } else if (c.finalLotDetails && Array.isArray(c.finalLotDetails) && c.finalLotDetails.length > 0) {
+        ercUsedCount = c.finalLotDetails.reduce((sum, l) => sum + (Number(l.ercUsedForTesting || l.erc_used_for_testing || l.ercUsed || l.erc_used || l.noOfErcUsed || l.no_of_erc_used || l.testingQty) || 0), 0);
+    }
+    const ercText = (ercUsedCount !== null && !isNaN(ercUsedCount)) ? `${ercUsedCount}` : "xxxxx";
+    
+    let text = `*QUANTITY NOW PASSED ${words.toUpperCase()} NOS ONLY. INCLUDING * ${ercText} NOS CONSUMED IN DESTRUCTIVE TESTING.\n`;
     
     if (c.lotDetails && c.lotDetails.length > 0) {
         let markings = c.lotDetails.map(l => `${l.lotNo || ''}, H No - ${l.heatNo || ''}`).join(' & ');
         text += `\nMarking - ${markings}\n`;
     }
     
-    if (qtyNowPassed > 0) {
-        let bagsOf50 = Math.floor(qtyNowPassed / 50);
-        let rem = qtyNowPassed % 50;
+    if (qtyNowAccepted > 0) {
+        let bagsOf50 = Math.floor(qtyNowAccepted / 50);
+        let rem = qtyNowAccepted % 50;
         let packText = [];
         if (bagsOf50 > 0) packText.push(`${bagsOf50.toString().padStart(2, '0')} Bags x 50 Nos`);
         if (rem > 0) packText.push(`01 Bag x ${rem} Nos`);
@@ -64,19 +78,41 @@ const generateQuantityRemarks = (c) => {
         let processText = c.processIcNo ? `Process IC No-${c.processIcNo}${processDateStr}` : "";
 
         if (rmText && processText) {
-            text += `\nRM Inspection and Process Inspection Accepted against Vide\n${rmText}\n& ${processText}\n`;
+            text += `\nRM Inspection and Process Inspection Accepted against Vide\n${rmText}\n& ${processText}`;
         } else if (rmText) {
-            text += `\nRM Inspection Accepted against Vide\n${rmText}\n`;
+            text += `\nRM Inspection Accepted against Vide\n${rmText}`;
         } else if (processText) {
-            text += `\nProcess Inspection Accepted against Vide\n${processText}\n`;
+            text += `\nProcess Inspection Accepted against Vide\n${processText}`;
         }
+        
+        if (c.ibsCaseNo && c.ibsCaseNo !== '-') {
+            text += ` , (IBS Case No: ${c.ibsCaseNo})\n`;
+        } else {
+            text += `\n`;
+        }
+    } else if (c.ibsCaseNo && c.ibsCaseNo !== '-') {
+        text += `\n(IBS Case No: ${c.ibsCaseNo})\n`;
     }
     
-    if (qtyRejected > 0 && qtyNowPassed === 0) {
+    if (qtyNowRejected > 0 && qtyNowAccepted === 0) {
         text += `\nMaterial is Non-conforming as per Lab Report No. [FILL_LAB_REPORT]. In the chemical test, the observed value was [OBSERVED], which exceeds the specified limit.\n`;
     }
     
     return text;
+};
+
+const generateReasonsForRejection = (c) => {
+    let totalRejected = Number(c.qtyNowRejected || 0);
+    if (totalRejected === 0 && c.lotDetails && Array.isArray(c.lotDetails) && c.lotDetails.length > 0) {
+        totalRejected = c.lotDetails.reduce((sum, l) => sum + (Number(l.totalRejectedQty || l.rejectedQty) || 0), 0);
+    }
+    
+    if (!totalRejected || totalRejected <= 0) {
+        return "Not Applicable";
+    }
+    
+    const words = numberToWords(totalRejected);
+    return `${words} (${totalRejected}) Nos. of ERC rejected due to dimensional non-conformity and/or visual surface defects such as deep dents, bends, cracks, or other specified defects and Dimension Inspection /Hardness Test/Decarburisation/ Freedom from defect /Micro-Structure/Application and Diflection Test/Toe Load Test .`;
 };
 
 export default function FinalProductCertificate({ call = {}, onBack }) {
@@ -198,7 +234,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
       quantityNowPassedText: c.quantityNowPassedText || generateQuantityRemarks(c),
       sealingPattern: c.sealingPattern || "",
       facsimileText: c.facsimileText || "",
-      reasonsForRejection: c.reasonsForRejection || "Not Applicable",
+      reasonsForRejection: (c.reasonsForRejection && c.reasonsForRejection !== "Not Applicable") ? c.reasonsForRejection : generateReasonsForRejection(c),
       inspectingEngineer: c.inspectingEngineer || "",
       lotDetails: c.lotDetails || [],
       remarks: c.ibsCaseNo && c.ibsCaseNo !== '-' ? `IBS Case No: ${c.ibsCaseNo}\n${c.remarks || ""}`.trim() : (c.remarks || ""),
@@ -258,13 +294,31 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
   }, [call]);
 
   const handleFieldChange = (fieldName, value) => {
-    setData(prev => ({ ...prev, [fieldName]: value }));
+    setData(prev => {
+      const updated = { ...prev, [fieldName]: value };
+      if (['qtyOnOrder', 'qtyPassedPreviously', 'qtyNowPassed'].includes(fieldName)) {
+        const order = parseFloat(updated.qtyOnOrder) || 0;
+        const prevPassed = parseFloat(updated.qtyPassedPreviously) || 0;
+        const nowPassed = parseFloat(updated.qtyNowPassed) || 0;
+        updated.qtyStillDue = Math.max(0, order - prevPassed - nowPassed);
+      }
+      return updated;
+    });
     if (fieldName === 'bookNo' || fieldName === 'setNo') {
       setBookSetValidation({ isValid: false, message: null, isValidating: false });
     }
   };
 
   const handleSaveChanges = async () => {
+    if (data.bookNo.length !== 4) {
+      setNotification({ open: true, message: "Book No. must be exactly 4 characters long.", severity: 'warning' });
+      return;
+    }
+    if (!/^\d{3}$/.test(data.setNo)) {
+      setNotification({ open: true, message: "Set No. must be exactly 3 digits.", severity: 'warning' });
+      return;
+    }
+
     try {
       setNotification({ open: true, message: "Saving draft changes...", severity: 'info' });
       await saveFinalIcSaveChanges({
@@ -281,6 +335,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
           maNumberAndDate: data.maNumberAndDate,
           purchasingAuthority: data.purchasingAuthority,
           description: data.description,
+          manufacturer: data.manufacturer,
           trRecDate: data.trRecDate,
           noOfVisits: data.noOfVisits,
           datesOfInspection: data.datesOfInspection,
@@ -298,6 +353,15 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
   const handleVerifyBookSet = async () => {
     if (!data.bookNo || !data.setNo) {
       setNotification({ open: true, message: "Please fill in both Book No. and Set No. before verifying.", severity: 'warning' });
+      return;
+    }
+
+    if (data.bookNo.length !== 4) {
+      setNotification({ open: true, message: "Book No. must be exactly 4 characters long.", severity: 'warning' });
+      return;
+    }
+    if (!/^\d{3}$/.test(data.setNo)) {
+      setNotification({ open: true, message: "Set No. must be exactly 3 digits.", severity: 'warning' });
       return;
     }
     
@@ -346,7 +410,18 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
           return;
       }
 
-      if (!bookSetValidation.isValid) {
+      if (data.bookNo.length !== 4) {
+          setNotification({ open: true, message: "Book No. must be exactly 4 characters long.", severity: 'warning' });
+          setIsESigning(false);
+          return;
+      }
+      if (!/^\d{3}$/.test(data.setNo)) {
+          setNotification({ open: true, message: "Set No. must be exactly 3 digits.", severity: 'warning' });
+          setIsESigning(false);
+          return;
+      }
+      
+      if (data.icType === 'new' && !bookSetValidation.isValid) {
           console.warn("⚠️ Validation failed: Book No or Set No has not been verified.");
           setNotification({ open: true, message: "Please Verify the Book No. and Set No. before signing.", severity: 'warning' });
           setIsESigning(false);
@@ -375,6 +450,7 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
           maNumberAndDate: data.maNumberAndDate,
           purchasingAuthority: data.purchasingAuthority,
           description: data.description,
+          manufacturer: data.manufacturer,
           trRecDate: data.trRecDate,
           noOfVisits: data.noOfVisits,
           datesOfInspection: data.datesOfInspection,
@@ -394,6 +470,8 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
       const pad = (n) => n.toString().padStart(2, '0');
       const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}+05:30`;
       const txn = Math.random().toString(16).slice(2, 10).toUpperCase();
+
+      const sigCoords = calculateSignatureCoords(printAreaRef.current, "395,160", "170,36");
 
       const xmlRequest = `
         <request>
@@ -416,8 +494,8 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
           </file>
           <pdf>
             <page>1</page>
-            <cood>410,80</cood>
-            <size>150,50</size>
+            <cood>${sigCoords.cood}</cood>
+            <size>${sigCoords.size}</size>
           </pdf>
           <data>${base64Pdf}</data>
         </request>
@@ -439,10 +517,63 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
     }
   };
 
+  const handleCancelChanges = async () => {
+    setIsEditing(false);
+    let initialData = transformCallToIC(call);
+    const icNumber = initialData.certificateNo || call.icNo || call.call_no;
+    if (icNumber) {
+      let savedEdit = await getFinalIcSaveChanges(icNumber);
+      if (!savedEdit) {
+        savedEdit = await getFinalIcEditData(icNumber);
+      }
+      if (savedEdit) {
+        initialData = {
+          ...initialData,
+          bookNo: savedEdit.bookNo || initialData.bookNo,
+          setNo: savedEdit.setNo || initialData.setNo,
+          offeredInstNo: savedEdit.offeredInstallmentNo || initialData.offeredInstNo,
+          passedInstNo: savedEdit.passedInstallmentNo || initialData.passedInstNo,
+          consignee: savedEdit.consignee || initialData.consignee,
+          qtyOfferedPreviously: savedEdit.cummQtyOfferedPrev || initialData.qtyOfferedPreviously,
+          qtyPassedPreviously: savedEdit.qtyPrevPassed || initialData.qtyPassedPreviously,
+          qtyStillDue: savedEdit.qtyStillDue || initialData.qtyStillDue,
+          maNumberAndDate: savedEdit.maNumberAndDate || initialData.maNumberAndDate,
+          purchasingAuthority: savedEdit.purchasingAuthority || initialData.purchasingAuthority,
+          description: savedEdit.description || initialData.description,
+          trRecDate: savedEdit.trRecDate || initialData.trRecDate,
+        };
+      }
+    }
+    setData(initialData);
+    setNotification({ open: true, message: "Edited changes cancelled.", severity: 'info' });
+  };
+
   return (
     <Box sx={{ padding: 3 }}>
       <div className="no-print" style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-        <button onClick={onBack} className="btn btn-outline">← Back</button>
+        <Button
+          variant="outlined"
+          onClick={onBack}
+          sx={{
+            backgroundColor: '#ffffff',
+            color: '#334155',
+            borderColor: '#cbd5e1',
+            fontWeight: 700,
+            fontSize: '0.8125rem',
+            px: 2.5,
+            py: 0.75,
+            borderRadius: '6px',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+            textTransform: 'none',
+            '&:hover': {
+              backgroundColor: '#f8fafc',
+              borderColor: '#94a3b8',
+              color: '#0f172a',
+            }
+          }}
+        >
+          ← Back
+        </Button>
         <div style={{ display: "flex", gap: 8 }}>
           <button
             onClick={isEditing ? handleSaveChanges : () => setIsEditing(true)}
@@ -451,6 +582,15 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
           >
             {isEditing ? "Save Changes" : "✎ Edit"}
           </button>
+          {isEditing && (
+            <button
+              onClick={handleCancelChanges}
+              className="btn btn-outline border-red-500 text-red-600 hover:bg-red-50"
+              disabled={isESigning}
+            >
+              Cancel Changes
+            </button>
+          )}
           <Button 
             variant="contained" 
             color="success" 

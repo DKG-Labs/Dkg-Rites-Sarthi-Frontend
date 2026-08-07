@@ -914,6 +914,7 @@ const App = () => {
         <PortalHome
           user={loggedInUser}
           isShiftActive={isShiftActive}
+          currentShift={currentShift}
           defaultShowPlantDeclaration={autoOpenPlantDeclaration}
           onClosePlantDeclaration={() => setAutoOpenPlantDeclaration(false)}
           onModuleSelect={(moduleId, shiftData) => {
@@ -1160,6 +1161,7 @@ const App = () => {
         </div>
       ) : activeItem === 'ATTENDING_CALLS' ? (
         <AttendingCallsDashboard 
+          dutyPlantId={currentShift?.unit}
           onBackToPortal={() => setActiveItem('PortalHome')}
           onStart={(call) => {
             setSelectedCallForInitiation(call);

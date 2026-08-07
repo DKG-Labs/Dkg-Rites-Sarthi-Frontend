@@ -1,9 +1,30 @@
 import { getBaseUrl, API_ENDPOINTS } from './apiConfig';
 import { getStoredUser } from './authService';
 
-export const fetchPendingWorkflowTransitions = async (roleName) => {
+export const normalizePlantId = (plantId) => {
+  if (!plantId) return '';
+  const trimmed = String(plantId).trim();
+  return trimmed.startsWith(':') ? trimmed : `:${trimmed}`;
+};
+
+export const isPlantIdMatching = (plantA, plantB) => {
+  if (!plantA || !plantB) return false;
+  const cleanA = String(plantA).trim().replace(/^:/, '').toLowerCase();
+  const cleanB = String(plantB).trim().replace(/^:/, '').toLowerCase();
+  return cleanA === cleanB;
+};
+
+export const fetchPendingWorkflowTransitions = async (roleName, plantId = '', workflowId = '') => {
   try {
-    const response = await fetch(`${getBaseUrl()}${API_ENDPOINTS.RAILPAD_WORKFLOW.ALL_PENDING_TRANSITIONS}?roleName=${encodeURIComponent(roleName)}`);
+    const formattedPlantId = normalizePlantId(plantId);
+    let url = `${getBaseUrl()}${API_ENDPOINTS.RAILPAD_WORKFLOW.ALL_PENDING_TRANSITIONS}?roleName=${encodeURIComponent(roleName)}`;
+    if (formattedPlantId) {
+      url += `&plantId=${encodeURIComponent(formattedPlantId)}`;
+    }
+    if (workflowId) {
+      url += `&workflowId=${encodeURIComponent(workflowId)}`;
+    }
+    const response = await fetch(url);
     const data = await response.json();
     if (data.responseStatus?.statusCode === 0) {
       return data.responseData || [];
@@ -37,14 +58,22 @@ export const fetchMappedPlantIds = async (userId, ieType = 'Main IE') => {
   }
 };
 
-export const fetchCompletedCalls = async () => {
+export const fetchCompletedCalls = async (plantId = '', workflowId = '') => {
   try {
     const user = getStoredUser();
     if (!user || !user.userId) {
       console.warn('No user found in storage for completed calls fetch');
       return [];
     }
-    const response = await fetch(`${getBaseUrl()}${API_ENDPOINTS.RAILPAD_WORKFLOW.ALL_COMPLETED_CALLS}?userId=${user.userId}`);
+    const formattedPlantId = normalizePlantId(plantId);
+    let url = `${getBaseUrl()}${API_ENDPOINTS.RAILPAD_WORKFLOW.ALL_COMPLETED_CALLS}?userId=${user.userId}`;
+    if (formattedPlantId) {
+      url += `&plantId=${encodeURIComponent(formattedPlantId)}`;
+    }
+    if (workflowId) {
+      url += `&workflowId=${encodeURIComponent(workflowId)}`;
+    }
+    const response = await fetch(url);
     const data = await response.json();
     if (data.responseStatus?.statusCode === 0) {
       return data.responseData || [];

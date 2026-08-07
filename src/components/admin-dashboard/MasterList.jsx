@@ -59,7 +59,7 @@ export const MasterList = ({ onEdit, onDelete, onCreateNew, onApprove }) => {
                     <div className="metric-value">{activeMasters}</div>
                     <div className="metric-status">Currently active</div>
                 </div>
-                <div className="metric-card highlight">
+                <div className="metric-card">
                     <div className="metric-label">Pending Approval</div>
                     <div className="metric-value">{pendingMasters}</div>
                     <div className="metric-status">Awaiting approval</div>

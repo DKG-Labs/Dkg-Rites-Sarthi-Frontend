@@ -14,12 +14,12 @@
 
 .certificate-page {
   width: 100%;
-  max-width: 190mm;
+  max-width: 210mm;
   min-height: 277mm;
   margin: 0 auto;
   background: white;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  padding: 45mm 10mm 15mm 10mm;
+  padding: 45mm 7mm 15mm 7mm;
   /* Match print margins for on-screen consistency */
   box-sizing: border-box;
   overflow: visible;
@@ -183,7 +183,7 @@
 
   @page {
     size: A4;
-    margin: 45mm 10mm 15mm 10mm;
+    margin: 45mm 10mm 28mm 10mm;
   }
 }
 

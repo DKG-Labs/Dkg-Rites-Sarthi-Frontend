@@ -1108,6 +1108,8 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
 
   /* Finish inspection state */
   const [isFinishingInspection, setIsFinishingInspection] = useState(false);
+  const [showFinishConfirm, setShowFinishConfirm] = useState(false);
+  const [finishSuccessData, setFinishSuccessData] = useState(null);
   const isProcessingFinishRef = useRef(false);
 
   /* Pause inspection state */
@@ -1268,7 +1270,12 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
 
       // Prepare all data first (same as finish/pause inspection)
       const ercUsed = lotsWithSampling.reduce((sum, lot) => sum + (parseInt(lotInspectionData[lot.lotNo]?.ercUsedForTesting) || 0), 0);
-      const qtyRejected = lotsWithSampling.filter(lot => isLotRejected(lot.lotNo)).reduce((sum, lot) => sum + lot.lotSize, 0);
+      const qtyRejected = lotsWithSampling.reduce((sum, lot) => {
+        if (isLotRejected(lot.lotNo)) {
+          return sum + lot.lotSize;
+        }
+        return sum + (rejectedCountsPerLot[lot.lotNo] || 0);
+      }, 0);
       const qtyNowPassed = totalQtyOffered - ercUsed - qtyRejected;
       const poQty = poData?.poQty || 10000;
       const poSrQty = poData?.poSrQty || 0;
@@ -1317,6 +1324,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
       const lotResultsDataArray = lotsWithSampling.map(lot => {
         const lotData = lotInspectionData[lot.lotNo] || {};
         const tests = testResultsPerLot[lot.lotNo] || {};
+        const lotRejQty = isLotRejected(lot.lotNo) ? lot.lotSize : (typeof rejectedCountsPerLot !== 'undefined' && rejectedCountsPerLot && rejectedCountsPerLot[lot.lotNo] !== undefined ? rejectedCountsPerLot[lot.lotNo] : 0);
 
         return {
           inspectionCallNo: callNo,
@@ -1331,6 +1339,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
           weightStatus: tests.weight || 'PENDING',
           chemicalStatus: tests.chemical || 'PENDING',
           ercUsedForTesting: parseInt(lotData.ercUsedForTesting) || 0,
+          totalRejectedQty: lotRejQty,
           stdPackingNo: parseInt(lotData.stdPackingNo) || 50,
           bagsWithStdPacking: parseInt(lotData.bagsStdPacking) || 0,
           nonStdBagsCount: parseInt(lotData.nonStdBagsCount) || 0,
@@ -1389,6 +1398,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
     poData,
     testResultsPerLot,
     isLotRejected,
+    rejectedCountsPerLot,
     capturedImages
   ]);
 
@@ -1428,7 +1438,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
   }, [selectedCall?.call_no]);
 
   /* -------------------- FINISH INSPECTION HANDLER -------------------- */
-  const handleFinishInspection = async () => {
+  const handleFinishInspection = () => {
     const callNo = selectedCall?.call_no;
     if (!callNo) {
       alert('❌ Call number not found. Cannot finish inspection.');
@@ -1445,11 +1455,13 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
       return;
     }
 
-    // Confirm before finishing
-    const confirmed = window.confirm(
-      '⚠️ Are you sure you want to finish the inspection? This will save all submodule data to the database.'
-    );
-    if (!confirmed) return;
+    setShowFinishConfirm(true);
+  };
+
+  const confirmFinishInspection = async () => {
+    setShowFinishConfirm(false);
+    const callNo = selectedCall?.call_no;
+    if (!callNo) return;
 
     if (isProcessingFinishRef.current) return;
     
@@ -1461,7 +1473,12 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
 
       // Prepare all data first
       const ercUsed = lotsWithSampling.reduce((sum, lot) => sum + (parseInt(lotInspectionData[lot.lotNo]?.ercUsedForTesting) || 0), 0);
-      const qtyRejected = lotsWithSampling.filter(lot => isLotRejected(lot.lotNo)).reduce((sum, lot) => sum + lot.lotSize, 0);
+      const qtyRejected = lotsWithSampling.reduce((sum, lot) => {
+        if (isLotRejected(lot.lotNo)) {
+          return sum + lot.lotSize;
+        }
+        return sum + (rejectedCountsPerLot[lot.lotNo] || 0);
+      }, 0);
       const qtyNowPassed = totalQtyOffered - ercUsed - qtyRejected;
       const poQty = poData?.poQty || 10000;
       const poSrQty = poData?.poSrQty || 0;
@@ -1512,6 +1529,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
       const lotResultsDataArray = lotsWithSampling.map(lot => {
         const lotData = lotInspectionData[lot.lotNo] || {};
         const tests = testResultsPerLot[lot.lotNo] || {};
+        const lotRejQty = isLotRejected(lot.lotNo) ? lot.lotSize : (typeof rejectedCountsPerLot !== 'undefined' && rejectedCountsPerLot && rejectedCountsPerLot[lot.lotNo] !== undefined ? rejectedCountsPerLot[lot.lotNo] : 0);
 
         return {
           inspectionCallNo: callNo,
@@ -1526,6 +1544,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
           weightStatus: tests.weight || 'PENDING',
           chemicalStatus: tests.chemical || 'PENDING',
           ercUsedForTesting: parseInt(lotData.ercUsedForTesting) || 0,
+          totalRejectedQty: lotRejQty,
           stdPackingNo: parseInt(lotData.stdPackingNo) || 50,
           bagsWithStdPacking: parseInt(lotData.bagsStdPacking) || 0,
           nonStdBagsCount: parseInt(lotData.nonStdBagsCount) || 0,
@@ -1597,32 +1616,18 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
         console.warn('Inspection saved but workflow transition failed');
       }
 
-      // Show summary
-      const summary = `
-✅ Inspection Finished Successfully!
-
-Dashboard Results Saved:
-  ✓ Cumulative Results
-  ✓ Inspection Summary
-  ✓ Lot Results (${lotsWithSampling.length} lots)
-
-Saved Modules: ${results.success.length}
-${results.success.map(m => `  ✓ ${m}`).join('\n')}
-
-${results.skipped.length > 0 ? `Skipped (No Data): ${results.skipped.length}\n${results.skipped.map(m => `  - ${m}`).join('\n')}\n` : ''}
-
-${results.failed.length > 0 ? `Failed: ${results.failed.length}\n${results.failed.map(f => `  ✗ ${f.module}: ${f.error}`).join('\n')}` : ''}
-
-Workflow Status: ✅ Transitioned to COMPLETED
-      `;
-
-      alert(summary);
-
       // Clear draft data
       localStorage.removeItem(`${DASHBOARD_DRAFT_KEY}${callNo}`);
 
-      // Navigate back
-      onBack();
+      // Set finish success data for custom modal display
+      setFinishSuccessData({
+        callNo,
+        lotCount: lotsWithSampling.length,
+        savedModulesCount: results.success.length,
+        savedModules: results.success,
+        skippedModules: results.skipped,
+        failedModules: results.failed
+      });
     } catch (error) {
       console.error('❌ Error finishing inspection:', error);
       const errorMsg = getCleanErrorMessage(error);
@@ -1653,7 +1658,12 @@ Workflow Status: ✅ Transitioned to COMPLETED
 
       // Prepare all data first (same as finish inspection)
       const ercUsed = lotsWithSampling.reduce((sum, lot) => sum + (parseInt(lotInspectionData[lot.lotNo]?.ercUsedForTesting) || 0), 0);
-      const qtyRejected = lotsWithSampling.filter(lot => isLotRejected(lot.lotNo)).reduce((sum, lot) => sum + lot.lotSize, 0);
+      const qtyRejected = lotsWithSampling.reduce((sum, lot) => {
+        if (isLotRejected(lot.lotNo)) {
+          return sum + lot.lotSize;
+        }
+        return sum + (rejectedCountsPerLot[lot.lotNo] || 0);
+      }, 0);
       const qtyNowPassed = totalQtyOffered - ercUsed - qtyRejected;
       const poQty = poData?.poQty || 10000;
       const poSrQty = poData?.poSrQty || 0;
@@ -1702,6 +1712,7 @@ Workflow Status: ✅ Transitioned to COMPLETED
       const lotResultsDataArray = lotsWithSampling.map(lot => {
         const lotData = lotInspectionData[lot.lotNo] || {};
         const tests = testResultsPerLot[lot.lotNo] || {};
+        const lotRejQty = isLotRejected(lot.lotNo) ? lot.lotSize : (typeof rejectedCountsPerLot !== 'undefined' && rejectedCountsPerLot && rejectedCountsPerLot[lot.lotNo] !== undefined ? rejectedCountsPerLot[lot.lotNo] : 0);
 
         return {
           inspectionCallNo: callNo,
@@ -1716,6 +1727,7 @@ Workflow Status: ✅ Transitioned to COMPLETED
           weightStatus: tests.weight || 'PENDING',
           chemicalStatus: tests.chemical || 'PENDING',
           ercUsedForTesting: parseInt(lotData.ercUsedForTesting) || 0,
+          totalRejectedQty: lotRejQty,
           stdPackingNo: parseInt(lotData.stdPackingNo) || 50,
           bagsWithStdPacking: parseInt(lotData.bagsStdPacking) || 0,
           nonStdBagsCount: parseInt(lotData.nonStdBagsCount) || 0,
@@ -2163,6 +2175,26 @@ Workflow Status: ✅ Transitioned to COMPLETED
                         style={{ fontSize: '12px', padding: '6px' }}
                       />
                     </FormField>
+                    <FormField label="Total Rejected Qty">
+                      <input
+                        className="fp-input"
+                        value={(() => {
+                          if (rejected) return lot.lotSize;
+                          if (typeof rejectedCountsPerLot !== 'undefined' && rejectedCountsPerLot && rejectedCountsPerLot[lot.lotNo] !== undefined) {
+                            return rejectedCountsPerLot[lot.lotNo];
+                          }
+                          return 0;
+                        })()}
+                        disabled
+                        style={{
+                          fontSize: '12px',
+                          padding: '6px',
+                          fontWeight: 'bold',
+                          color: (rejected || (typeof rejectedCountsPerLot !== 'undefined' && rejectedCountsPerLot && rejectedCountsPerLot[lot.lotNo] > 0)) ? '#dc2626' : '#1e293b',
+                          backgroundColor: (rejected || (typeof rejectedCountsPerLot !== 'undefined' && rejectedCountsPerLot && rejectedCountsPerLot[lot.lotNo] > 0)) ? '#fef2f2' : '#f8fafc'
+                        }}
+                      />
+                    </FormField>
                     <FormField label="Std. Packing No.">
                       <input className="fp-input" value={data.stdPackingNo} disabled style={{ fontSize: '12px', padding: '6px' }} />
                     </FormField>
@@ -2410,6 +2442,75 @@ Workflow Status: ✅ Transitioned to COMPLETED
         Return to Landing Page
       </button>
 
+      {/* FINISH SUCCESS MODAL */}
+      {finishSuccessData && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+        }}>
+          <div style={{
+            background: '#fff', borderRadius: '12px', padding: '32px 36px',
+            maxWidth: '480px', width: '90%', boxShadow: '0 8px 40px rgba(0,0,0,0.22)',
+            textAlign: 'center'
+          }}>
+            {/* Green checkmark icon */}
+            <div style={{
+              width: '60px', height: '60px', borderRadius: '50%',
+              background: '#dcfce7', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', margin: '0 auto 16px'
+            }}>
+              <span style={{ fontSize: '28px', color: '#16a34a' }}>✓</span>
+            </div>
+
+            <h2 style={{ margin: '0 0 6px', fontSize: '20px', fontWeight: '700', color: '#166534' }}>
+              Inspection Completed Successfully!
+            </h2>
+            <p style={{ margin: '0 0 16px', fontSize: '14px', color: '#64748b', fontWeight: '500' }}>
+              Call No: <strong style={{ color: '#1e293b' }}>{finishSuccessData.callNo}</strong>
+            </p>
+
+            <div style={{
+              background: '#f8fafc', borderRadius: '8px', padding: '16px',
+              textAlign: 'left', marginBottom: '20px', fontSize: '13px', color: '#475569',
+              lineHeight: '1.6', maxHeight: '220px', overflowY: 'auto', border: '1px solid #e2e8f0'
+            }}>
+              <div style={{ fontWeight: '600', color: '#1e293b', marginBottom: '4px' }}>
+                Dashboard Results Saved:
+              </div>
+              <div style={{ paddingLeft: '8px', marginBottom: '10px' }}>
+                ✓ Cumulative Results<br />
+                ✓ Inspection Summary<br />
+                ✓ Lot Results ({finishSuccessData.lotCount} lots)
+              </div>
+
+              {finishSuccessData.savedModulesCount > 0 && (
+                <>
+                  <div style={{ fontWeight: '600', color: '#1e293b', marginBottom: '4px' }}>
+                    Saved Submodules ({finishSuccessData.savedModulesCount}):
+                  </div>
+                  <div style={{ paddingLeft: '8px', color: '#15803d' }}>
+                    {finishSuccessData.savedModules.map((m, idx) => (
+                      <div key={idx}>✓ {m}</div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            <button
+              onClick={() => { setFinishSuccessData(null); onBack(); }}
+              style={{
+                background: '#16a34a', color: '#fff', border: 'none',
+                borderRadius: '8px', padding: '10px 40px', fontSize: '15px',
+                fontWeight: '600', cursor: 'pointer', width: '100%'
+              }}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* PAUSE SUCCESS MODAL */}
       {pauseSuccessData && (
         <div style={{
@@ -2554,6 +2655,95 @@ Workflow Status: ✅ Transitioned to COMPLETED
                 Yes, Pause
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* FINISH CONFIRMATION MODAL */}
+      {showFinishConfirm && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+        }}>
+          <div style={{
+            background: '#fff', borderRadius: '12px', padding: '32px 36px',
+            maxWidth: '420px', width: '90%', boxShadow: '0 8px 40px rgba(0,0,0,0.22)',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: '60px', height: '60px', borderRadius: '50%',
+              background: '#eff6ff', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', margin: '0 auto 16px'
+            }}>
+              <span style={{ fontSize: '28px', color: '#2563eb' }}>⚠️</span>
+            </div>
+
+            <h2 style={{ margin: '0 0 12px', fontSize: '20px', fontWeight: '700', color: '#1e3a8a' }}>
+              Finish & Submit Inspection?
+            </h2>
+            <p style={{ margin: '0 0 24px', fontSize: '14px', color: '#475569', lineHeight: '1.5' }}>
+              Are you sure you want to complete this final inspection? All test results and packing details will be finalized and submitted.
+            </p>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => setShowFinishConfirm(false)}
+                style={{
+                  background: '#f1f5f9', color: '#475569', border: 'none',
+                  borderRadius: '8px', padding: '10px 20px', fontSize: '15px',
+                  fontWeight: '600', cursor: 'pointer', flex: 1
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmFinishInspection}
+                style={{
+                  background: '#2563eb', color: '#fff', border: 'none',
+                  borderRadius: '8px', padding: '10px 20px', fontSize: '15px',
+                  fontWeight: '600', cursor: 'pointer', flex: 1
+                }}
+              >
+                Yes, Finish
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FINISHING / SAVING LOADING MODAL OVERLAY */}
+      {(isFinishingInspection || isPausingInspection) && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000,
+          backdropFilter: 'blur(2px)'
+        }}>
+          <div style={{
+            background: '#fff', borderRadius: '14px', padding: '36px 40px',
+            maxWidth: '420px', width: '90%', boxShadow: '0 12px 48px rgba(0,0,0,0.3)',
+            textAlign: 'center'
+          }}>
+            {/* Spinning Loader */}
+            <div style={{
+              width: '52px', height: '52px', margin: '0 auto 20px',
+              border: '4px solid #e2e8f0', borderTopColor: isFinishingInspection ? '#2563eb' : '#ea580c',
+              borderRadius: '50%', animation: 'fpSpin 1s linear infinite'
+            }} />
+            <style>{`
+              @keyframes fpSpin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            `}</style>
+
+            <h2 style={{ margin: '0 0 10px', fontSize: '20px', fontWeight: '700', color: '#1e293b' }}>
+              {isFinishingInspection ? 'Submitting Inspection...' : 'Pausing Inspection...'}
+            </h2>
+            <p style={{ margin: 0, fontSize: '14px', color: '#64748b', lineHeight: '1.5' }}>
+              {isFinishingInspection 
+                ? 'Please wait while all test results and lot details are being saved.'
+                : 'Please wait while your current inspection progress is being saved.'}
+            </p>
           </div>
         </div>
       )}

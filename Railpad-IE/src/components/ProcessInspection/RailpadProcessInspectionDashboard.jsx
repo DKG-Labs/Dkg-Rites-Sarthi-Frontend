@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { getBaseUrl, getDefaultHeaders } from '../../services/apiConfig';
 import { performTransitionAction } from '../../services/workflowService';
 import Notification from '../Notification';
@@ -303,15 +304,53 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
     const isFinish = actionType === 'FINISH';
     setIsSubmitting(true);
     try {
-      const calculatedCallQty = summary?.totalOfferedQty || call.qtyDesiredForFinal || call.callQty || 0;
-      
+      // Compile reason for rejection from selected rejected batches supporting multiple drawings and reasons
+      let compiledReason = reasonForRejection;
+      if (!compiledReason) {
+        const rejectedBatchesList = batches.filter(
+          (b) => selectedBatches[b.declarationBatchId] && selectedBatches[b.declarationBatchId].qtyRejected > 0
+        );
+        const reasonItems = [];
+        rejectedBatchesList.forEach(batch => {
+          const selectedBatchInfo = selectedBatches[batch.declarationBatchId];
+          const totalBatchRejected = selectedBatchInfo ? selectedBatchInfo.qtyRejected : 0;
+
+          if (batch.rejections && batch.rejections.length > 0) {
+            // Group rejections by drawingNo
+            const drawingGroups = {};
+            batch.rejections.forEach(rej => {
+              const dwg = rej.drawingNo || batch.drawingNo || 'General';
+              if (!drawingGroups[dwg]) drawingGroups[dwg] = [];
+              const qtyStr = rej.rejectedQty != null ? ` (${rej.rejectedQty} Nos)` : '';
+              drawingGroups[dwg].push(`${rej.reason || 'Rejected'}${qtyStr}`);
+            });
+
+            const dwgParts = Object.keys(drawingGroups).map(dwg => {
+              const reasonsStr = drawingGroups[dwg].join(', ');
+              return dwg !== 'General' ? `Drawing ${dwg}: [${reasonsStr}]` : `[${reasonsStr}]`;
+            });
+
+            reasonItems.push(`Batch ${batch.batchNo} - ${dwgParts.join('; ')}`);
+          } else if (batch.verificationRejectedReason) {
+            const dwgStr = batch.drawingNo ? ` (Drawing ${batch.drawingNo})` : '';
+            reasonItems.push(`Batch ${batch.batchNo}${dwgStr}: ${totalBatchRejected} Nos - [${batch.verificationRejectedReason}]`);
+          } else {
+            const dwgStr = batch.drawingNo ? ` (Drawing ${batch.drawingNo})` : '';
+            reasonItems.push(`Batch ${batch.batchNo}${dwgStr}: ${totalBatchRejected} Nos rejected`);
+          }
+        });
+        compiledReason = reasonItems.join(' | ');
+      }
+
+      const calculatedCallQty = summary?.totalOfferedQty || call.qtyDesiredForFinal || call.callQty || call.totalQty || 0;
+
       const payload = {
         callNo: call.requestId || call.callNo,
         callQty: calculatedCallQty,
         totalManufacturedQty: totals.totalManufactured,
         totalRejectedQty: totals.totalRejected,
         totalAcceptedQty: totals.totalAccepted,
-        reasonForRejection: reasonForRejection,
+        reasonForRejection: compiledReason,
         lotRangeFrom: lotRangeFrom,
         lotRangeTo: lotRangeTo,
         remarks: remarks,
@@ -737,7 +776,7 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
         </button>
       </div>
 
-      {showConfirmModal && (
+      {showConfirmModal && ReactDOM.createPortal(
         <div style={{
           position: 'fixed',
           top: 0, left: 0, right: 0, bottom: 0,
@@ -746,13 +785,13 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 9999
+          zIndex: 999999
         }}>
           <div className="fade-in" style={{
             background: 'white',
             borderRadius: '16px',
             padding: '32px',
-            width: '100%',
+            width: '90%',
             maxWidth: '400px',
             boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
           }}>
@@ -760,21 +799,21 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
               width: '48px',
               height: '48px',
               borderRadius: '50%',
-              background: '#fef2f2',
+              background: '#ecfdf5',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               marginBottom: '16px'
             }}>
-              <span style={{ fontSize: '24px' }}>⚠️</span>
+              <span style={{ fontSize: '24px' }}>📋</span>
             </div>
             
             <h3 style={{ margin: '0 0 12px 0', fontSize: '20px', fontWeight: '800', color: '#0f172a' }}>
-              Confirm Finish Inspection
+              Finish Inspection
             </h3>
             
             <p style={{ margin: '0 0 24px 0', color: '#475569', fontSize: '15px', lineHeight: '1.5' }}>
-              Are you sure you want to finish this inspection? This will finalize the inspection data and transition the workflow status. This action cannot be undone.
+              Are you sure you want to complete this inspection? All entered batch quantities and inspection details will be saved and submitted.
             </p>
             
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
@@ -827,12 +866,13 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
                     Processing...
                   </>
                 ) : (
-                  'Proceed'
+                  'Confirm & Submit'
                 )}
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

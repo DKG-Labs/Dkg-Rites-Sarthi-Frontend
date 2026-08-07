@@ -1,6 +1,6 @@
 import React from "react";
 
-const EditableField = ({ isEditing, value, onChange, className = "", type = "text", disabled = false }) => {
+const EditableField = ({ isEditing, value, onChange, className = "", type = "text", disabled = false, maxLength }) => {
 
   if (!isEditing) {
     return type === "inline" ? <span className={className}>{value}</span> : <div className={className}>{value}</div>;
@@ -12,6 +12,7 @@ const EditableField = ({ isEditing, value, onChange, className = "", type = "tex
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}
         rows={3}
+        maxLength={maxLength}
       />
     );
   }
@@ -22,6 +23,7 @@ const EditableField = ({ isEditing, value, onChange, className = "", type = "tex
       value={value || ""}
       onChange={(e) => onChange(e.target.value)}
       disabled={disabled}
+      maxLength={maxLength}
       style={type === "inline" ? { display: "inline-block", width: "80px" } : {}}
     />
 
@@ -84,7 +86,11 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
   };
   const poSrNoStr = extractPoSrNo(contractRef);
 
-  const isFormLocked = isEditing && data?.icType === 'new' && !bookSetValidation?.isValid;
+  const isOldIcValid = data?.bookNo?.length === 4 && /^\d{3}$/.test(data?.setNo);
+  const isFormLocked = isEditing && (
+    (data?.icType === 'new' && !bookSetValidation?.isValid) ||
+    (data?.icType !== 'new' && !isOldIcValid)
+  );
 
   return (
     <div className="a4-page">
@@ -126,7 +132,7 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
                   <div className="h-[2px]" />
                 </div>
                 <div className="p-1 flex items-center justify-center min-h-[22px]">
-                  <EditableField isEditing={isEditing} disabled={isBusy} value={bookNo} onChange={(val) => onChange("bookNo", val)} className="text-center font-bold text-[12px]" />
+                  <EditableField isEditing={isEditing} disabled={isBusy} value={bookNo} onChange={(val) => onChange("bookNo", val)} className="text-center font-bold text-[12px]" maxLength={4} />
                 </div>
               </div>
               <div className="flex flex-col">
@@ -136,7 +142,7 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
                   <div className="h-[2px]" />
                 </div>
                 <div className="p-1 flex items-center justify-center min-h-[22px]">
-                  <EditableField isEditing={isEditing} disabled={isBusy} value={setNo} onChange={(val) => onChange("setNo", val)} className="text-center font-bold text-[12px]" />
+                  <EditableField isEditing={isEditing} disabled={isBusy} value={setNo} onChange={(val) => onChange("setNo", val)} className="text-center font-bold text-[12px]" maxLength={3} />
                 </div>
               </div>
             </div>
@@ -336,7 +342,7 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
             <EditableField isEditing={false} type="textarea" value={contractChpReq} onChange={(val) => onChange("contractChpReq", val)} className="border-r border-black py-1 px-2 break-words dynamic-text" />
             <EditableField isEditing={false} type="textarea" value={inspectionDetails} onChange={(val) => onChange("inspectionDetails", val)} className="border-r border-black py-1 px-2 break-words dynamic-text" />
             <EditableField isEditing={false} type="textarea" value={result} onChange={(val) => onChange("result", val)} className="border-r border-black py-1 px-2 break-words whitespace-pre-wrap" />
-            <EditableField isEditing={false} type="textarea" value={clearedQty} onChange={(val) => onChange("clearedQty", val)} className="border-r border-black py-1 px-2 break-words whitespace-pre-wrap" />
+            <EditableField isEditing={false} type="textarea" value={clearedQty} onChange={(val) => onChange("clearedQty", val)} className="border-r border-black py-1 px-2 break-words whitespace-pre-wrap text-[10px] leading-tight" />
             <EditableField isEditing={false} type="textarea" value={qtyRejected} onChange={(val) => onChange("qtyRejected", val)} className="py-1 px-2 break-words whitespace-pre-wrap" />
           </div>
         </div>
@@ -380,27 +386,31 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
             </div>
             <EditableField isEditing={false} type="textarea" value={sealFacsimile} onChange={(val) => onChange("sealFacsimile", val)} className="break-words leading-tight text-[10px]" />
           </div>
-          <div className="p-1 flex flex-col justify-between min-h-[60px]">
+          <div className="p-1 flex flex-col justify-between min-h-[90px] relative ie-signature-box">
             <div className="font-semibold text-[10px]">निरीक्षण अभियंता / Inspecting Engineer</div>
-            <EditableField isEditing={false} value={inspectingEngineer} onChange={(val) => onChange("inspectingEngineer", val)} className="mt-2 text-right font-semibold" />
+            <div className="flex flex-col items-end w-full mt-1">
+              <EditableField isEditing={false} value={inspectingEngineer} onChange={(val) => onChange("inspectingEngineer", val)} className="mt-1 text-right font-semibold uppercase text-[10px]" />
+            </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="border-x border-b border-black p-1 text-center">
-          <div className="font-semibold text-[10px] italic">
-            It is certified that material is cleared for the next stage.
+        <div className="border-x border-b border-black p-3 text-center">
+          <div className="font-semibold text-[11px] italic mb-1 uppercase">
+            {data?.certificationText || "IT IS CERTIFIED THAT THE MATERIAL IS CLEARED FOR THE NEXT STAGE."}
           </div>
-          <div className="mt-1 text-[9px] leading-tight text-gray-700">
+          <div className="mt-1 text-[10px] leading-snug text-gray-700">
             <span className="font-bold">Distribution: </span>
             Manufacturer Office copy with case, RITES Bill Copy,
             Contractor, Purchaser (Railway), Consignee (Railway), Consignee
             (Manufacturer of finished product), RITES Office copy, RITES for
             final IC
           </div>
-          <div className="h-1" />
+          <div className="h-4" />
         </div>
         </fieldset>
+        {/* Bottom spacer — reserves space for physical printer footer */}
+        <div style={{ minHeight: '30mm' }} />
       </div>
     </div>
   );

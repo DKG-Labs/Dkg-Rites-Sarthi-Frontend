@@ -148,9 +148,17 @@ const HydraulicPressForm = ({ onSubmit, onCancel, editData, currentShift, isView
     const temp = parseFloat(formData.curingTemp);
     const pressure = parseFloat(formData.curingPressure);
 
-    const isTimeValid = activeLimits && !isNaN(time) && time >= activeLimits.minCuringTime && time <= activeLimits.maxCuringTime;
-    const isTempValid = activeLimits && !isNaN(temp) && temp >= activeLimits.minCuringTemp && temp <= activeLimits.maxCuringTemp;
-    const isPressureValid = activeLimits && !isNaN(pressure) && pressure >= activeLimits.minCuringPressure && pressure <= activeLimits.maxCuringPressure;
+    const isTimeValid = activeLimits && !isNaN(time) &&
+      (activeLimits.minCuringTime == null || time >= activeLimits.minCuringTime) &&
+      (activeLimits.maxCuringTime == null || time <= activeLimits.maxCuringTime);
+
+    const isTempValid = activeLimits && !isNaN(temp) &&
+      (activeLimits.minCuringTemp == null || temp >= activeLimits.minCuringTemp) &&
+      (activeLimits.maxCuringTemp == null || temp <= activeLimits.maxCuringTemp);
+
+    const isPressureValid = activeLimits && !isNaN(pressure) &&
+      (activeLimits.minCuringPressure == null || pressure >= activeLimits.minCuringPressure) &&
+      (activeLimits.maxCuringPressure == null || pressure <= activeLimits.maxCuringPressure);
 
     const isOk = isTimeValid && isTempValid && isPressureValid && formData.batchNo && formData.railPadType;
     setFormData(prev => ({ ...prev, status: isOk ? 'OK' : 'Not OK' }));
@@ -327,7 +335,7 @@ const HydraulicPressForm = ({ onSubmit, onCancel, editData, currentShift, isView
                     <strong style={{ fontSize: '0.9rem' }}>✓ Verified QAP Curing Limits</strong>
                     <div>⏱️ Curing Time: {activeLimits.minCuringTime} - {activeLimits.maxCuringTime} min</div>
                     <div>🌡️ Curing Temp: {activeLimits.minCuringTemp} - {activeLimits.maxCuringTemp} °C</div>
-                    <div>⚡ Curing Pressure: {activeLimits.minCuringPressure} - {activeLimits.maxCuringPressure} Kg/cm²</div>
+                    <div>⚡ Curing Pressure: {activeLimits.maxCuringPressure ? `${activeLimits.minCuringPressure} - ${activeLimits.maxCuringPressure}` : `${activeLimits.minCuringPressure}+`} Kg/cm²</div>
                   </div>
                 ) : (
                   <div style={{
@@ -446,7 +454,7 @@ const HydraulicPressForm = ({ onSubmit, onCancel, editData, currentShift, isView
           <div className="form-group" style={{ marginTop: '12px' }}>
              <label>
               Curing Pressure (Kg/cm²)
-              {activeLimits && <span style={{fontSize: '10px', fontWeight: 'normal', color: '#64748b', marginLeft: '6px'}}>QAP: {activeLimits.minCuringPressure}-{activeLimits.maxCuringPressure}</span>}
+              {activeLimits && <span style={{fontSize: '10px', fontWeight: 'normal', color: '#64748b', marginLeft: '6px'}}>QAP: {activeLimits.maxCuringPressure ? `${activeLimits.minCuringPressure}-${activeLimits.maxCuringPressure}` : `${activeLimits.minCuringPressure}+`}</span>}
             </label>
             <input
               type="number"

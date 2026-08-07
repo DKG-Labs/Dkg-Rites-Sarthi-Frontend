@@ -225,6 +225,64 @@ const InspectionInitiationPage = ({ call, onProceed, onBack, onUpdateCall }) => 
     }
   };
 
+  const handleWithheldCall = async () => {
+    if (sectionAStatus !== 'approved' || sectionBStatus !== 'approved') {
+      setNotification({ message: 'Please verify both sections first', type: 'warning' });
+      return;
+    }
+    if (!window.confirm('Are you sure you want to withhold this inspection call?')) return;
+    try {
+      setIsSubmitting(true);
+      const user = getStoredUser();
+      const res = await performTransitionAction({
+        workflowTransitionId: call.workflowTransitionId,
+        requestId: call.requestId,
+        action: 'WITHHOLD',
+        remarks: formState.remarks || 'Call withheld by IE',
+        actionBy: user?.userId
+      });
+      if (res.responseStatus?.statusCode === 0) {
+        setNotification({ message: 'Call withheld successfully!', type: 'success' });
+        setTimeout(() => onBack(), 1500);
+      } else {
+        setNotification({ message: res.responseStatus?.message || 'Failed to withhold call', type: 'error' });
+      }
+    } catch (err) {
+      setNotification({ message: 'Error withholding call: ' + err.message, type: 'error' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCancelCall = async () => {
+    if (sectionAStatus !== 'approved' || sectionBStatus !== 'approved') {
+      setNotification({ message: 'Please verify both sections first', type: 'warning' });
+      return;
+    }
+    if (!window.confirm('Are you sure you want to cancel this inspection call?')) return;
+    try {
+      setIsSubmitting(true);
+      const user = getStoredUser();
+      const res = await performTransitionAction({
+        workflowTransitionId: call.workflowTransitionId,
+        requestId: call.requestId,
+        action: 'CANCEL',
+        remarks: formState.remarks || 'Call cancelled by IE',
+        actionBy: user?.userId
+      });
+      if (res.responseStatus?.statusCode === 0) {
+        setNotification({ message: 'Call cancelled successfully!', type: 'success' });
+        setTimeout(() => onBack(), 1500);
+      } else {
+        setNotification({ message: res.responseStatus?.message || 'Failed to cancel call', type: 'error' });
+      }
+    } catch (err) {
+      setNotification({ message: 'Error cancelling call: ' + err.message, type: 'error' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const DataSkeleton = ({ count = 8 }) => (
     <div className="data-grid-2col">
       {Array(count).fill(0).map((_, i) => (
@@ -465,12 +523,24 @@ const InspectionInitiationPage = ({ call, onProceed, onBack, onUpdateCall }) => 
       <div className="page-footer">
         <button className="back-btn" onClick={onBack}>BACK TO DASHBOARD</button>
         <div className="right-buttons">
-          <button className="withheld-btn">WITHHELD CALL</button>
-          <button className="cancel-btn">CANCEL CALL</button>
+          <button 
+            className="withheld-btn"
+            disabled={isSubmitting || sectionAStatus !== 'approved' || sectionBStatus !== 'approved'}
+            onClick={handleWithheldCall}
+          >
+            WITHHELD CALL
+          </button>
+          <button 
+            className="cancel-btn"
+            disabled={isSubmitting || sectionAStatus !== 'approved' || sectionBStatus !== 'approved'}
+            onClick={handleCancelCall}
+          >
+            CANCEL CALL
+          </button>
           <button
             className="initiate-btn"
             onClick={handleOpenVerifyForm}
-            disabled={isSubmitting || sectionBStatus !== 'approved'}
+            disabled={isSubmitting || sectionAStatus !== 'approved' || sectionBStatus !== 'approved'}
           >
             {isSubmitting ? 'VERIFYING...' : 'OPEN & VERIFY FORM'}
           </button>

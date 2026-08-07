@@ -101,13 +101,18 @@ export const getInitials = (name) => {
  */
 export const filterBySearch = (items, searchTerm, fields) => {
     if (!searchTerm) return items;
-    const term = searchTerm.toLowerCase();
-    return items.filter(item =>
-        fields.some(field => {
+    const term = searchTerm.trim().toLowerCase();
+    return items.filter(item => {
+        if (!fields || fields.length === 0) {
+            return Object.values(item || {}).some(val =>
+                val !== null && val !== undefined && val.toString().toLowerCase().includes(term)
+            );
+        }
+        return fields.some(field => {
             const value = field.split('.').reduce((obj, key) => obj?.[key], item);
             return value?.toString().toLowerCase().includes(term);
-        })
-    );
+        });
+    });
 };
 
 /**

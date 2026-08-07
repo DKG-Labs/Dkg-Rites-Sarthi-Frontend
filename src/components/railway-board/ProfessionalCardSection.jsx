@@ -157,6 +157,11 @@ const ProfessionalCardSection = ({
         return 'erc'; // Default
     };
 
+    const currentProductLower = (selectedProduct || '').toLowerCase();
+    const isRailPad = currentProductLower.includes('rail pad') || currentProductLower.includes('railpad');
+    const isSleeper = currentProductLower.includes('sleeper');
+    const isErc = currentProductLower.includes('erc') || currentProductLower === 'all' || !currentProductLower;
+
     getSummaryKey(selectedProduct);
     const [activeReport, setActiveReport] = useState(activeReportFromParent || 'mpr');
     const [drilldownManufacturer, setDrilldownManufacturer] = useState(null);
@@ -236,17 +241,36 @@ const ProfessionalCardSection = ({
         const fetchInitialOptions = async () => {
             try {
                 if (filterMode === 'vendorwise') {
-                    const response = await reportService.getVendorPlants();
-                    const data = response.responseData || response.data || response;
-                    if (Array.isArray(data)) {
-                        const filteredData = data.filter(vp => !vp.companyName?.toLowerCase().includes('dummy'));
-                        const sortedData = [...filteredData].sort((a, b) =>
-                            (a.companyName || '').localeCompare(b.companyName || '')
-                        );
-                        setVendorPlants(sortedData);
+                    if (isRailPad) {
+                        const response = await reportService.getRailPadVendorPlants();
+                        const data = response.responseData || response.data || response;
+                        if (Array.isArray(data)) {
+                            const formattedData = data.map(vp => ({
+                                poiCode: vp.plantId || vp.vendorCode,
+                                companyName: vp.companyName || vp.plantName,
+                                unitName: vp.plantName || '',
+                                address: vp.plantName || ''
+                            }));
+                            const sortedData = [...formattedData].sort((a, b) =>
+                                (a.unitName || a.companyName || '').localeCompare(b.unitName || b.companyName || '', undefined, { sensitivity: 'base' })
+                            );
+                            setVendorPlants(sortedData);
+                        }
+                    } else {
+                        const response = await reportService.getVendorPlants();
+                        const data = response.responseData || response.data || response;
+                        if (Array.isArray(data)) {
+                            const filteredData = data.filter(vp => !vp.companyName?.toLowerCase().includes('dummy'));
+                            const sortedData = [...filteredData].sort((a, b) =>
+                                (a.companyName || '').localeCompare(b.companyName || '')
+                            );
+                            setVendorPlants(sortedData);
+                        }
                     }
                 } else {
-                    const response = await reportService.getAllZonalRailways();
+                    const response = isRailPad 
+                        ? await reportService.getRailPadZonalRailways() 
+                        : await reportService.getAllZonalRailways();
                     const data = response.responseData || response.data || response;
                     if (Array.isArray(data)) {
                         const sortedData = [...data].sort((a, b) =>
@@ -265,7 +289,7 @@ const ProfessionalCardSection = ({
         setSelectedZonalRailway('');
 
         fetchInitialOptions();
-    }, [filterMode]);
+    }, [filterMode, selectedProduct, isRailPad]);
 
     // Dependent fetch: Zonal Railways based on selected Vendor Plant
     useEffect(() => {
@@ -302,21 +326,38 @@ const ProfessionalCardSection = ({
                 return;
             }
             try {
-                const response = await reportService.getVendorPlantsByZone(selectedZonalRailway);
-                const data = response.responseData || response.data || response;
-                if (Array.isArray(data)) {
-                    const filteredData = data.filter(vp => !vp.companyName?.toLowerCase().includes('dummy'));
-                    const sortedData = [...filteredData].sort((a, b) =>
-                        (a.companyName || '').localeCompare(b.companyName || '')
-                    );
-                    setVendorPlants(sortedData);
+                if (isRailPad) {
+                    const response = await reportService.getRailPadVendorPlantsByZone(selectedZonalRailway);
+                    const data = response.responseData || response.data || response;
+                    if (Array.isArray(data)) {
+                        const formattedData = data.map(vp => ({
+                            poiCode: vp.poiCode || vp.plantId || vp.vendorCode,
+                            companyName: vp.companyName || vp.unitName || vp.plantName,
+                            unitName: vp.unitName || vp.plantName || vp.companyName || '',
+                            address: vp.address || vp.plantName || ''
+                        }));
+                        const sortedData = [...formattedData].sort((a, b) =>
+                            (a.unitName || a.companyName || '').localeCompare(b.unitName || b.companyName || '', undefined, { sensitivity: 'base' })
+                        );
+                        setVendorPlants(sortedData);
+                    }
+                } else {
+                    const response = await reportService.getVendorPlantsByZone(selectedZonalRailway);
+                    const data = response.responseData || response.data || response;
+                    if (Array.isArray(data)) {
+                        const filteredData = data.filter(vp => !vp.companyName?.toLowerCase().includes('dummy'));
+                        const sortedData = [...filteredData].sort((a, b) =>
+                            (a.companyName || '').localeCompare(b.companyName || '')
+                        );
+                        setVendorPlants(sortedData);
+                    }
                 }
             } catch (error) {
                 console.error("Error fetching vendor plants by zone:", error);
             }
         };
         fetchVendorPlants();
-    }, [selectedZonalRailway, filterMode]);
+    }, [selectedZonalRailway, filterMode, selectedProduct, isRailPad]);
 
     const [isDashboardLoading, setIsDashboardLoading] = useState(false);
 
@@ -326,6 +367,12 @@ const ProfessionalCardSection = ({
 
         const fetchAllDashboardData = async () => {
             setIsDashboardLoading(true);
+            setLocalInspectionCallStatus(null);
+            setLocalInspectionDetails(null);
+            setLocalProcessOverallRejection(null);
+            setLocalAvgProduction(null);
+            setLocalSummaryData(null);
+            setTotalCallsData(null);
             try {
                 const isPrimaryFilterApplied = filterMode === 'vendorwise' ? !!selectedVendorPlant : !!selectedZonalRailway;
 
@@ -338,6 +385,7 @@ const ProfessionalCardSection = ({
                     zone: selectedZonalRailway,
                     startDate: isPrimaryFilterApplied ? filterStartDate : '',
                     endDate: isPrimaryFilterApplied ? filterEndDate : '',
+                    product: isRailPad ? 'RailPad' : 'ERC',
                     _refresh: refreshTick
                 };
 
@@ -359,7 +407,7 @@ const ProfessionalCardSection = ({
                         isPrimaryFilterApplied ? filterStartDate : '',
                         isPrimaryFilterApplied ? filterEndDate : ''
                     ).catch(e => { console.error(e); return null; }),
-                    reportService.getDashboardSummary({ vendor: selectedVendorPlant, zone: selectedZonalRailway }).catch(e => { console.error(e); return null; }),
+                    reportService.getDashboardSummary(params).catch(e => { console.error(e); return null; }),
                     minLoadingPromise
                 ]);
 
@@ -411,16 +459,19 @@ const ProfessionalCardSection = ({
             isActive = false;
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedVendorPlant, selectedZonalRailway, filterStartDate, filterEndDate, refreshTick]);
+    }, [selectedVendorPlant, selectedZonalRailway, filterStartDate, filterEndDate, refreshTick, selectedProduct]);
 
     useEffect(() => {
         let isActive = true;
 
         const fetchTotalCalls = async () => {
             try {
-                if (getSummaryKey(selectedProduct) !== 'erc') return;
+                if (getSummaryKey(selectedProduct) !== 'erc') {
+                    setTotalCallsData(null);
+                    return;
+                }
                 const isPrimaryFilterApplied = filterMode === 'vendorwise' ? !!selectedVendorPlant : !!selectedZonalRailway;
-                
+
                 const params = {
                     zone: selectedZonalRailway,
                     vendor: selectedVendorPlant,
@@ -429,7 +480,7 @@ const ProfessionalCardSection = ({
                     _refresh: refreshTick
                 };
                 const response = await reportService.getErcDashboardTotalCalls(params);
-                
+
                 if (!isActive) return;
 
                 const data = response?.responseData || response?.data || response;
@@ -495,6 +546,7 @@ const ProfessionalCardSection = ({
             setIsIcModalOpen(true);
             const isPrimaryFilterApplied = filterMode === 'vendorwise' ? !!selectedVendorPlant : !!selectedZonalRailway;
             const response = await reportService.getInspectionCallStatusDetails(stage, status, {
+                isRailPad: isRailPad,
                 vendor: selectedVendorPlant,
                 zone: selectedZonalRailway,
                 startDate: isPrimaryFilterApplied ? filterStartDate : '',
@@ -523,9 +575,16 @@ const ProfessionalCardSection = ({
                 startDate: isPrimaryFilterApplied ? filterStartDate : '',
                 endDate: isPrimaryFilterApplied ? filterEndDate : ''
             };
-            if (type === 'Open') response = await reportService.getErcDashboardOpenCalls(filters);
-            else if (type === 'Under Inspection') response = await reportService.getErcDashboardUnderInspectionCalls(filters);
-            else if (type === 'Pending') response = await reportService.getErcDashboardPendingCalls(filters);
+            if (isRailPad) {
+                response = await reportService.getInspectionCallStatusDetails('ALL', type, {
+                    isRailPad: true,
+                    ...filters
+                });
+            } else {
+                if (type === 'Open') response = await reportService.getErcDashboardOpenCalls(filters);
+                else if (type === 'Under Inspection') response = await reportService.getErcDashboardUnderInspectionCalls(filters);
+                else if (type === 'Pending') response = await reportService.getErcDashboardPendingCalls(filters);
+            }
 
             const data = response?.responseData || response?.data || response || [];
             setIcModalData(data);
@@ -780,12 +839,6 @@ const ProfessionalCardSection = ({
 
 
     const renderSubContent = () => {
-        // Under Development Placeholder for non-ERC products
-        const product = selectedProduct?.toLowerCase() || '';
-        const isSleeper = product.includes('sleeper');
-        const isErc = product.includes('erc') || product === 'all' || !product;
-
-        const isRailPad = product.includes('rail pad') || product.includes('railpad');
         const isUnderDev = (!isErc && !isSleeper && !isRailPad) || (isSleeper && activeMainCard !== 'summary' && activeMainCard !== 'quality' && activeMainCard !== 'lifecycle' && activeMainCard !== 'feedback' && activeMainCard !== 'reports' && activeMainCard !== 'scada' && activeMainCard !== 'performance' && activeMainCard !== 'sleeper-anomaly');
 
 
@@ -857,16 +910,13 @@ const ProfessionalCardSection = ({
                             if (isSleeper) {
                                 return <SleeperSummary summaryData={localSummaryData || summaryData || {}} onPoIssuedClick={handlePoIssuedClick} refreshTick={refreshTick} />;
                             }
-                            if (isRailPad) {
-                                return <RailPadSummary summaryData={localSummaryData || summaryData || {}} onPoIssuedClick={handlePoIssuedClick} onInspectionCallClick={handleInspectionCallClick} />;
-                            }
                             const s = localSummaryData || summaryData || {};
                             const isPrimaryFilterApplied = filterMode === 'vendorwise' ? !!selectedVendorPlant : !!selectedZonalRailway;
 
                             return (
                                 <div className="summary-tab-content">
-                                    {/* Global Filters for ERC */}
-                                    {isErc && (
+                                    {/* Global Filters for ERC and Rail Pad */}
+                                    {(isErc || isRailPad) && (
                                         <div className="global-filters mb" style={{
                                             display: 'flex', gap: '15px', background: '#f8fafc',
                                             padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0',
@@ -920,15 +970,20 @@ const ProfessionalCardSection = ({
                                                     }
                                                     disabled={filterMode === 'zonalwise' ? (!selectedZonalRailway || vendorPlants.length === 0) : false}
                                                 >
-                                                    {vendorPlants.map((vp, i) => (
-                                                        <Option
-                                                            key={i}
-                                                            value={vp.poiCode}
-                                                            title={`${vp.companyName} - ${vp.unitName} - ${vp.address}`}
-                                                        >
-                                                            {vp.companyName} - {vp.unitName}
-                                                        </Option>
-                                                    ))}
+                                                    {vendorPlants.map((vp, i) => {
+                                                        const label = isRailPad
+                                                            ? (vp.unitName || vp.companyName)
+                                                            : (vp.unitName && vp.unitName !== vp.companyName ? `${vp.companyName} - ${vp.unitName}` : vp.companyName);
+                                                        return (
+                                                            <Option
+                                                                key={i}
+                                                                value={vp.poiCode}
+                                                                title={`${vp.companyName} - ${vp.unitName} - ${vp.address}`}
+                                                            >
+                                                                {label}
+                                                            </Option>
+                                                        );
+                                                    })}
                                                 </Select>
                                             </div>
                                             <div style={{ flex: '1', minWidth: '170px', order: filterMode === 'zonalwise' ? 1 : 2 }}>
@@ -1030,6 +1085,18 @@ const ProfessionalCardSection = ({
                                                 <div className="prof-card" style={{ padding: '24px', gridColumn: 'span 2' }}><Skeleton active paragraph={{ rows: 4 }} title={false} /></div>
                                             </div>
                                         </div>
+                                    ) : isRailPad ? (
+                                        <RailPadSummary
+                                            summaryData={localSummaryData || {}}
+                                            inspectionCallStatus={localInspectionCallStatus || []}
+                                            inspectionDetails={localInspectionDetails || []}
+                                            icIssuedData={icIssuedData}
+                                            totalCallsData={totalCallsData}
+                                            onPoIssuedClick={handlePoIssuedClick}
+                                            onInspectionCallClick={handleInspectionCallClick}
+                                            onTotalCallsClick={handleTotalCallsClick}
+                                            onIcIssuedClick={() => setIsIcIssuedModalOpen(true)}
+                                        />
                                     ) : (
                                         <>
                                             <div className="g3 mb">
@@ -2262,13 +2329,13 @@ const ProfessionalCardSection = ({
                             }}>&times;</button>
                         </div>
                         <div style={{ flex: 1, overflow: 'auto', position: 'relative', padding: '20px' }}>
-                            <DownloadIcAnnexures 
-                                selectedProduct={selectedProduct} 
-                                fromDate={filterStartDate} 
-                                toDate={filterEndDate} 
+                            <DownloadIcAnnexures
+                                selectedProduct={selectedProduct}
+                                fromDate={filterStartDate}
+                                toDate={filterEndDate}
                                 vendorPlantCode={selectedVendorPlant}
                                 zonalRailway={selectedZonalRailway}
-                                hideFilters={true} 
+                                hideFilters={true}
                             />
                         </div>
                     </div>

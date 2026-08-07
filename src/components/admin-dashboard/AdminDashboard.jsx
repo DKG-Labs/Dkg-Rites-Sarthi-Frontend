@@ -13,8 +13,54 @@ import { getStoredUser } from '../../services/authService';
 import { Snackbar, Alert } from '@mui/material';
 import './admin.css';
 
+export const parseUserFriendlyErrorMessage = (rawErrorMsg) => {
+    if (!rawErrorMsg) return 'Failed to save user. Please try again.';
+    const msg = String(rawErrorMsg);
+    const upper = msg.toUpperCase();
+
+    if (upper.includes('SHORT_NAME') || upper.includes('SHORT NAME')) {
+        return 'Short Name already registered. Please enter a unique Short Name.';
+    }
+    if (upper.includes('EMPLOYEE_CODE') || upper.includes('RITES_EMPLOYEE_CODE') || upper.includes('EMPLOYEE CODE')) {
+        return 'Employee Code already registered. Please enter a unique Employee Code.';
+    }
+    if (upper.includes('EMAIL')) {
+        return 'Email address already registered. Please enter a unique Email.';
+    }
+    if (upper.includes('MOBILE')) {
+        return 'Mobile number already registered.';
+    }
+
+    const dupMatch = msg.match(/Duplicate entry '([^']+)'/i);
+    if (dupMatch && dupMatch[1]) {
+        return `'${dupMatch[1]}' is already registered in the system.`;
+    }
+
+    let cleaned = msg
+        .replace(/could not execute statement/gi, '')
+        .replace(/\[insert into [^\]]+\]/gi, '')
+        .replace(/\[update [^\]]+\]/gi, '')
+        .replace(/for key '[^']+'/gi, '')
+        .replace(/\[.*?\]/g, '')
+        .replace(/JDBC exception executing SQL/gi, '')
+        .trim();
+
+    if (!cleaned || cleaned.length < 3) {
+        return 'User already exists or duplicate details provided.';
+    }
+
+    return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+};
+
 export const AdminDashboard = () => {
-    const [activeModule, setActiveModule] = useState('users');
+    const [activeModule, setActiveModule] = useState(() => {
+        return localStorage.getItem('adminActiveModule') || 'users';
+    });
+
+    const handleModuleSelect = (moduleName) => {
+        localStorage.setItem('adminActiveModule', moduleName);
+        setActiveModule(moduleName);
+    };
     const [modalOpen, setModalOpen] = useState(false);
     const [modalTitle, setModalTitle] = useState('');
     const [modalContent, setModalContent] = useState(null);
@@ -24,6 +70,8 @@ export const AdminDashboard = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+    const [formError, setFormError] = useState(null);
+    const [isSubmittingUser, setIsSubmittingUser] = useState(false);
     const refreshData = () => setRefreshTrigger(prev => prev + 1);
 
     const handleCloseSnackbar = (event, reason) => {
@@ -55,6 +103,8 @@ export const AdminDashboard = () => {
     // User Module Handlers
     const handleCreateUser = () => {
         setSelectedItem(null);
+        setFormError(null);
+        setIsSubmittingUser(false);
         setModalTitle('Create New User');
         setModalContent('user-form');
         setModalOpen(true);
@@ -62,6 +112,8 @@ export const AdminDashboard = () => {
 
     const handleEditUser = (user) => {
         setSelectedItem(user);
+        setFormError(null);
+        setIsSubmittingUser(false);
         setModalTitle('Edit User');
         setModalContent('user-form');
         setModalOpen(true);
@@ -79,16 +131,18 @@ export const AdminDashboard = () => {
         if (window.confirm('Are you sure you want to delete this user?')) {
             try {
                 await deleteUserApi(userId);
-                alert('User deleted successfully');
+                setSnackbar({ open: true, message: 'User deleted successfully', severity: 'success' });
                 refreshData();
             } catch (error) {
-                alert('Failed to delete user: ' + error.message);
+                setSnackbar({ open: true, message: 'Failed to delete user: ' + parseUserFriendlyErrorMessage(error.message), severity: 'error' });
             }
         }
     };
 
     const handleSubmitUser = async (formData) => {
+        setIsSubmittingUser(true);
         try {
+            setFormError(null);
             const currentUser = getStoredUser();
             const dataToSubmit = {
                 ...formData,
@@ -104,10 +158,14 @@ export const AdminDashboard = () => {
             refreshData();
             setModalOpen(false);
             setSelectedItem(null);
-            window.alert('User saved successfully!');
+            setSnackbar({ open: true, message: 'User saved successfully!', severity: 'success' });
         } catch (error) {
             console.error('Error submitting user:', error);
-            window.alert(`Failed to save user: ${error.message}`);
+            const userFriendlyMsg = parseUserFriendlyErrorMessage(error.message);
+            setFormError(userFriendlyMsg);
+            setSnackbar({ open: true, message: userFriendlyMsg, severity: 'error' });
+        } finally {
+            setIsSubmittingUser(false);
         }
     };
 
@@ -153,9 +211,19 @@ export const AdminDashboard = () => {
             if (productType === 'SLEEPER') {
                 // Sleeper specific mapping submission
                 const { sleeperMapping, mappingType } = formData;
+                let existingId = null;
+                if (selectedItem && selectedItem.id) {
+                    const idStr = String(selectedItem.id);
+                    if (idStr.startsWith('sleeper_')) {
+                        existingId = parseInt(idStr.substring(8), 10);
+                    } else if (!isNaN(Number(idStr))) {
+                        existingId = parseInt(idStr, 10);
+                    }
+                }
                 
                 if (mappingType === 'employee wise') {
                     const payload = {
+                        id: existingId,
                         poiCode: sleeperMapping.poiCode,
                         plantId: sleeperMapping.plantId,
                         employeeCode: sleeperMapping.employeeCode,
@@ -175,11 +243,21 @@ export const AdminDashboard = () => {
             } else if (productType === 'RAILPAD') {
                 // Railpad specific mapping submission
                 const { railpadMapping } = formData;
+                let existingId = null;
+                if (selectedItem && selectedItem.id) {
+                    const idStr = String(selectedItem.id);
+                    if (idStr.startsWith('rail_')) {
+                        existingId = parseInt(idStr.substring(5), 10);
+                    } else if (!isNaN(Number(idStr))) {
+                        existingId = parseInt(idStr, 10);
+                    }
+                }
                 const payload = {
+                    id: existingId,
                     poiCode: railpadMapping.poiCode,
                     plantId: railpadMapping.plantId,
                     ieUserId: railpadMapping.employeeId,
-                    ieType: formData.roleId === 'Rail Main IE' ? 'MAIN_IE' : 'PROCESS_IE'
+                    ieType: (role && role.includes('Main')) || formData.roleId === 'Rail Main IE' ? 'MAIN_IE' : 'PROCESS_IE'
                 };
                 await saveRailpadMappingApi(payload);
             } else {
@@ -207,9 +285,13 @@ export const AdminDashboard = () => {
                 }
             }
 
+            localStorage.setItem('adminActiveModule', 'mapping');
             setSnackbar({ open: true, message: selectedItem ? 'Mapping updated successfully!' : 'Mapping created successfully!', severity: 'success' });
             setModalOpen(false);
             refreshData();
+            setTimeout(() => {
+                window.location.reload();
+            }, 300);
         } catch (error) {
             console.error('Error saving mapping:', error);
             setSnackbar({ open: true, message: error.message || 'Failed to save mapping. Please verify your inputs and try again.', severity: 'error' });
@@ -284,7 +366,7 @@ export const AdminDashboard = () => {
                     <li className="nav-item">
                         <button
                             className={`nav-link ${activeModule === 'users' ? 'active' : ''}`}
-                            onClick={() => setActiveModule('users')}
+                            onClick={() => handleModuleSelect('users')}
                         >
                             <span>👥</span>
                             <span>User Management</span>
@@ -294,7 +376,7 @@ export const AdminDashboard = () => {
                     <li className="nav-item">
                         <button
                             className={`nav-link ${activeModule === 'masters' ? 'active' : ''}`}
-                            onClick={() => setActiveModule('masters')}
+                            onClick={() => handleModuleSelect('masters')}
                         >
                             <span>📋</span>
                             <span>Master Data</span>
@@ -303,7 +385,7 @@ export const AdminDashboard = () => {
                     <li className="nav-item">
                         <button
                             className={`nav-link ${activeModule === 'calibration' ? 'active' : ''}`}
-                            onClick={() => setActiveModule('calibration')}
+                            onClick={() => handleModuleSelect('calibration')}
                         >
                             <span>🔧</span>
                             <span>Calibration</span>
@@ -313,7 +395,7 @@ export const AdminDashboard = () => {
                     <li className="nav-item">
                         <button
                             className={`nav-link ${activeModule === 'mapping' ? 'active' : ''}`}
-                            onClick={() => setActiveModule('mapping')}
+                            onClick={() => handleModuleSelect('mapping')}
                         >
                             <span>🗺️</span>
                             <span>IE Mapping</span>
@@ -382,8 +464,9 @@ export const AdminDashboard = () => {
                         roles={roles}
                         existingUsers={users}
                         onSubmit={handleSubmitUser}
-                        onCancel={() => setModalOpen(false)}
-                        
+                        onCancel={() => { if (!isSubmittingUser) { setModalOpen(false); setFormError(null); } }}
+                        formError={formError}
+                        isSubmitting={isSubmittingUser}
                     />
                 )}
                 {modalContent === 'master-form' && (
@@ -865,7 +948,7 @@ const saveCompanyWiseSleeperMappingApi = async (payload) => {
 const getRailpadCompaniesApi = async () => {
     try {
         const token = localStorage.getItem('authToken');
-        const response = await fetch(`${API_BASE_URL}/api/reports/railpad/closed-loop/manufacturers`, {
+        const response = await fetch(`${API_BASE_URL}/api/railpad-vendor-plant/companies`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -886,7 +969,7 @@ const getRailpadCompaniesApi = async () => {
 const getRailpadPlantsApi = async (vendorCode) => {
     try {
         const token = localStorage.getItem('authToken');
-        const response = await fetch(`${API_BASE_URL}/api/reports/railpad/closed-loop/plants?vendorCode=${encodeURIComponent(vendorCode)}`, {
+        const response = await fetch(`${API_BASE_URL}/api/railpad-vendor-plant/vendor/${encodeURIComponent(vendorCode)}/plants`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -894,8 +977,9 @@ const getRailpadPlantsApi = async (vendorCode) => {
             }
         });
         const data = await response.json();
-        if (data.responseStatus?.statusCode !== 0) throw new Error(data.responseStatus?.message || 'API Error');
-        return data.responseData;
+        if (data.plants) return data.plants;
+        if (data.responseData) return data.responseData.plants || data.responseData;
+        return data;
     } catch (error) {
         throw error;
     }

@@ -53,7 +53,7 @@ export const CalibrationList = ({ onEdit, onDelete, onCreateNew, onUploadCertifi
                     <div className="metric-value">{validCalibrations}</div>
                     <div className="metric-status">Current calibrations</div>
                 </div>
-                <div className="metric-card highlight">
+                <div className="metric-card">
                     <div className="metric-label">Expired</div>
                     <div className="metric-value">{expiredCalibrations}</div>
                     <div className="metric-status">Need recalibration</div>

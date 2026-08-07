@@ -20,9 +20,16 @@ const SearchableSelect = ({ options, value, onChange, placeholder, disabled, dis
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    const getOptionLabel = (opt) => {
+        if (!opt) return '';
+        if (typeof opt === 'string' || typeof opt === 'number') return String(opt);
+        if (displayKey && opt[displayKey] && String(opt[displayKey]).trim()) return String(opt[displayKey]).trim();
+        return opt.companyName || opt.vendorName || opt.plantName || opt.vendorCode || opt.name || String(opt);
+    };
+
     const filteredOptions = options.filter(opt => {
-        const text = displayKey ? (opt[displayKey] || '') : (opt || '');
-        return text.toString().toLowerCase().includes(searchTerm.toLowerCase());
+        const text = getOptionLabel(opt);
+        return text.toLowerCase().includes(searchTerm.toLowerCase());
     });
 
     const handleSelect = (option) => {
@@ -34,9 +41,16 @@ const SearchableSelect = ({ options, value, onChange, placeholder, disabled, dis
     const getDisplayText = (val) => {
         if (!val) return placeholder;
         if (displayKey && valueKey) {
-            const found = options.find(o => String(o[valueKey]) === String(val));
-            return found ? found[displayKey] : placeholder;
+            const found = options.find(o => 
+                String(o[valueKey]) === String(val) || 
+                String(o[valueKey]) === `:${val}` || 
+                `:${o[valueKey]}` === String(val)
+            );
+            if (found) {
+                return getOptionLabel(found);
+            }
         }
+        if (typeof val === 'object') return getOptionLabel(val);
         return val;
     };
 
@@ -65,8 +79,8 @@ const SearchableSelect = ({ options, value, onChange, placeholder, disabled, dis
                     <div className="searchable-select-list">
                         {filteredOptions.length > 0 ? (
                             filteredOptions.map((opt, idx) => {
-                                const optionValue = valueKey ? opt[valueKey] : opt;
-                                const optionDisplay = displayKey ? opt[displayKey] : opt;
+                                const optionValue = valueKey ? (opt[valueKey] || opt) : opt;
+                                const optionDisplay = getOptionLabel(opt);
                                 return (
                                     <div
                                         key={idx}
@@ -102,9 +116,43 @@ export const IEFieldsForm = ({
     getRailpadPlants,
     initialData
 }) => {
-    const [productType, setProductType] = useState('ERC');
+    const [productType, setProductType] = useState(() => {
+        if (initialData) {
+            const isRailpad = (initialData.id && String(initialData.id).startsWith('rail_')) || 
+                              (initialData.mappingType && initialData.mappingType.includes('Railpad')) ||
+                              (initialData.inspectingEngineer && initialData.inspectingEngineer.includes('Railpad'));
+            if (isRailpad) return 'RAILPAD';
+
+            const isSleeper = (initialData.id && String(initialData.id).startsWith('sleeper_')) || 
+                              (initialData.mappingType && initialData.mappingType.includes('Sleeper')) ||
+                              (initialData.inspectingEngineer && initialData.inspectingEngineer.includes('Sleeper'));
+            if (isSleeper) return 'SLEEPER';
+        }
+        return 'ERC';
+    });
     const [mappingType, setMappingType] = useState('employee wise'); // 'employee wise' or 'company wise' (for Sleeper)
-    const [selectedRole, setSelectedRole] = useState('IE');
+    const [selectedRole, setSelectedRole] = useState(() => {
+        if (initialData) {
+            const isRailpad = (initialData.id && String(initialData.id).startsWith('rail_')) || 
+                              (initialData.mappingType && initialData.mappingType.includes('Railpad')) ||
+                              (initialData.inspectingEngineer && initialData.inspectingEngineer.includes('Railpad'));
+            if (isRailpad) {
+                const isProcess = (initialData.mappingType && initialData.mappingType.includes('Process')) ||
+                                  (initialData.inspectingEngineer && initialData.inspectingEngineer.includes('Process'));
+                return isProcess ? 'Railpad Process IE (Process IE)' : 'Railpad Main IE (main IE)';
+            }
+            const isSleeper = (initialData.id && String(initialData.id).startsWith('sleeper_')) || 
+                              (initialData.mappingType && initialData.mappingType.includes('Sleeper')) ||
+                              (initialData.inspectingEngineer && initialData.inspectingEngineer.includes('Sleeper'));
+            if (isSleeper) {
+                const isProcess = (initialData.mappingType && initialData.mappingType.includes('Process')) ||
+                                  (initialData.inspectingEngineer && initialData.inspectingEngineer.includes('Process'));
+                return isProcess ? 'Process IE' : 'Main IE';
+            }
+            if (initialData.mappingType?.includes('Process')) return 'Process IE';
+        }
+        return 'IE';
+    });
     const [users, setUsers] = useState([]); // Users for the MAIN profile (based on selectedRole)
     const [ieUsers, setIeUsers] = useState([]); // List of IEs (role 'IE') for Process IE mapping
     const [companies, setCompanies] = useState([]);
@@ -186,6 +234,13 @@ export const IEFieldsForm = ({
     }, [productType]);
 
     useEffect(() => {
+        let isActive = true;
+        // Clear previous state immediately when switching mode to avoid stale company data leak
+        setUsers([]);
+        setCompanies([]);
+        setSleeperPlants([]);
+        setRailpadPlants([]);
+
         const fetchInitialData = async () => {
             setLoading(true);
             try {
@@ -197,87 +252,138 @@ export const IEFieldsForm = ({
                 };
 
                 if (productType === 'SLEEPER') {
-                    const roleId = ROLES.find(r => r.name === selectedRole)?.id || 10;
+                    const roleObj = ROLES.find(r => r.name === selectedRole);
+                    const roleId = roleObj?.id || 10;
                     const [roleUsers, sleeperCompanies] = await Promise.all([
                         getSleeperEmployeesByRole(roleId),
                         getSleeperCompanies()
                     ]);
-                    setUsers(formatUsers(roleUsers));
-                    setCompanies(sleeperCompanies || []);
+                    if (isActive) {
+                        setUsers(formatUsers(roleUsers));
+                        setCompanies(sleeperCompanies || []);
+                    }
                 } else if (productType === 'RAILPAD') {
-                    const roleId = ROLES.find(r => r.name === selectedRole)?.id;
+                    const roleObj = ROLES.find(r => r.name === selectedRole);
+                    const roleId = roleObj?.id || (selectedRole.includes('Process') ? 'Rail Process IE' : 'Rail Main IE');
                     const [roleUsers, railpadCompanies] = await Promise.all([
-                        getUsersByRole(roleId),
-                        getRailpadCompanies()
+                        getUsersByRole(roleId).catch(() => []),
+                        getRailpadCompanies().catch(() => [])
                     ]);
-                    setUsers(formatUsers(roleUsers));
-                    setCompanies(railpadCompanies || []);
+                    if (isActive) {
+                        setUsers(formatUsers(roleUsers));
+                        setCompanies(railpadCompanies || []);
+                    }
                 } else {
                     const [roleUsers, companyList] = await Promise.all([
                         getUsersByRole(selectedRole),
                         getCompanies()
                     ]);
-                    setUsers(formatUsers(roleUsers));
-                    setCompanies(companyList || []);
+                    if (isActive) {
+                        setUsers(formatUsers(roleUsers));
+                        setCompanies(companyList || []);
 
-                    if (selectedRole === 'Process IE') {
-                        const ies = await getUsersByRole('Process IE');
-                        setIeUsers(formatUsers(ies));
+                        if (selectedRole === 'Process IE') {
+                            const ies = await getUsersByRole('Process IE');
+                            if (isActive) setIeUsers(formatUsers(ies));
+                        }
                     }
                 }
             } catch (error) {
-                console.error('Error fetching initial data:', error);
+                if (isActive) console.error('Error fetching initial data:', error);
             } finally {
-                setLoading(false);
+                if (isActive) setLoading(false);
             }
         };
         fetchInitialData();
+
+        return () => {
+            isActive = false;
+        };
     }, [selectedRole, productType, getUsersByRole, getCompanies, getSleeperEmployeesByRole, getSleeperCompanies, getRailpadCompanies, ROLES]);
 
     // Pre-fill form when editing
     useEffect(() => {
         if (initialData) {
-            if (initialData.mappingType?.includes('Process IE')) {
-                setProductType('ERC');
-                setSelectedRole('Process IE');
-                // We don't have the exact userId, but we can set the iePoiMappings row
+            const isRailpad = (initialData.id && String(initialData.id).startsWith('rail_')) || 
+                              (initialData.mappingType && initialData.mappingType.includes('Railpad')) ||
+                              (initialData.inspectingEngineer && initialData.inspectingEngineer.includes('Railpad'));
+            
+            const isSleeper = (initialData.id && String(initialData.id).startsWith('sleeper_')) || 
+                              (initialData.mappingType && initialData.mappingType.includes('Sleeper')) ||
+                              (initialData.inspectingEngineer && initialData.inspectingEngineer.includes('Sleeper'));
+
+            if (isRailpad) {
+                setProductType('RAILPAD');
+                const isProcess = (initialData.mappingType && initialData.mappingType.includes('Process')) ||
+                                  (initialData.inspectingEngineer && initialData.inspectingEngineer.includes('Process'));
+                setSelectedRole(isProcess ? 'Railpad Process IE (Process IE)' : 'Railpad Main IE (main IE)');
+                
                 setFormData(prev => ({
                     ...prev,
-                    iePoiMappings: [{
-                        id: Date.now(),
-                        ieUserId: '', // would need actual ID, relying on UI to re-select or we can fake it if backend accepts code
-                        ieUserName: initialData.ieName,
-                        companyName: initialData.poiName?.split(' - ')[0] || '',
-                        unitName: initialData.poiName?.split(' - ')[1] || '',
-                        poiCode: initialData.poiCode,
-                        units: []
-                    }]
+                    railpadMapping: {
+                        ...prev.railpadMapping,
+                        employeeId: '',
+                        companyName: initialData.poiName || '',
+                        vendorCode: initialData.vendorCode || '',
+                        poiCode: initialData.poiCode || '',
+                        plantId: initialData.poiName || ''
+                    }
                 }));
-            } else if (initialData.mappingType?.includes('IE to CM')) {
-                setProductType('ERC');
-                setSelectedRole('IE');
-                // For IE to CM, controllingManagerUserId is set
-            } else if (initialData.mappingType?.includes('IE to POI')) {
-                setProductType('ERC');
-                setSelectedRole('IE');
+            } else if (isSleeper) {
+                setProductType('SLEEPER');
+                const isProcess = (initialData.mappingType && initialData.mappingType.includes('Process')) ||
+                                  (initialData.inspectingEngineer && initialData.inspectingEngineer.includes('Process'));
+                setSelectedRole(isProcess ? 'Process IE' : 'Main IE');
+                
                 setFormData(prev => ({
                     ...prev,
-                    iePinPoiList: [{
-                        id: Date.now(),
-                        product: 'ERC',
-                        companyName: initialData.poiName?.split(' - ')[0] || '',
-                        unitName: initialData.poiName?.split(' - ')[1] || '',
-                        pinCode: '',
-                        poiCode: initialData.poiCode,
-                        ieType: 'Primary',
-                        units: []
-                    }]
+                    sleeperMapping: {
+                        ...prev.sleeperMapping,
+                        employeeId: '',
+                        companyName: initialData.poiName || '',
+                        vendorCode: initialData.vendorCode || '',
+                        poiCode: initialData.poiCode || '',
+                        plantId: initialData.poiName || ''
+                    }
                 }));
+            } else {
+                // ERC mappings
+                setProductType('ERC');
+                if (initialData.mappingType?.includes('Process')) {
+                    setSelectedRole('Process IE');
+                    setFormData(prev => ({
+                        ...prev,
+                        iePoiMappings: [{
+                            id: Date.now(),
+                            ieUserId: '',
+                            ieUserName: initialData.ieName,
+                            companyName: initialData.poiName?.split(' - ')[0] || '',
+                            unitName: initialData.poiName?.split(' - ')[1] || '',
+                            poiCode: initialData.poiCode,
+                            units: []
+                        }]
+                    }));
+                } else {
+                    setSelectedRole('IE');
+                    setFormData(prev => ({
+                        ...prev,
+                        iePinPoiList: [{
+                            id: Date.now(),
+                            product: 'ERC',
+                            companyName: initialData.poiName?.split(' - ')[0] || '',
+                            unitName: initialData.poiName?.split(' - ')[1] || '',
+                            pinCode: '',
+                            poiCode: initialData.poiCode,
+                            ieType: 'Primary',
+                            units: []
+                        }]
+                    }));
+                }
             }
         }
     }, [initialData]);
 
-    // Auto-match user IDs from names after fetching lists when editing
+    // Auto-match user IDs and company details from names/codes after fetching lists when editing
     useEffect(() => {
         if (initialData) {
             setFormData(prev => {
@@ -294,7 +400,71 @@ export const IEFieldsForm = ({
                     }
                 }
                 
-                // Match Process IE User
+                // Match IE User by name/code
+                if (users.length > 0 && initialData.ieName) {
+                    const matchedIe = users.find(u => 
+                        u.fullName === initialData.ieName || 
+                        u.userName === initialData.ieName || 
+                        u.employeeCode === initialData.ieName ||
+                        (u.displayName && u.displayName.includes(initialData.ieName))
+                    );
+                    if (matchedIe) {
+                        if (updated.railpadMapping && !updated.railpadMapping.employeeId) {
+                            updated.railpadMapping.employeeId = matchedIe.userId;
+                            updated.railpadMapping.employeeCode = matchedIe.employeeCode;
+                            modified = true;
+                        }
+                        if (updated.sleeperMapping && !updated.sleeperMapping.employeeId) {
+                            updated.sleeperMapping.employeeId = matchedIe.userId;
+                            updated.sleeperMapping.employeeCode = matchedIe.employeeCode;
+                            modified = true;
+                        }
+                    }
+                }
+
+                // Match Railpad Company & fetch Plants when editing
+                if (productType === 'RAILPAD' && companies.length > 0 && initialData && !updated.railpadMapping.vendorCode) {
+                    const matchedCompany = companies.find(c => 
+                        (initialData.vendorCode && String(c.vendorCode) === String(initialData.vendorCode)) ||
+                        (initialData.poiCode && String(c.poiCode) === String(initialData.poiCode)) ||
+                        (initialData.poiName && c.vendorCode && initialData.poiName.includes(String(c.vendorCode).replace(':', ''))) ||
+                        (initialData.poiName && c.companyName && initialData.poiName.includes(c.companyName))
+                    );
+                    if (matchedCompany) {
+                        updated.railpadMapping.companyName = matchedCompany.companyName;
+                        updated.railpadMapping.vendorCode = matchedCompany.vendorCode;
+                        updated.railpadMapping.poiCode = matchedCompany.poiCode;
+                        updated.railpadMapping.plantId = initialData.poiName || '';
+                        modified = true;
+                        
+                        getRailpadPlants(matchedCompany.vendorCode).then(plants => {
+                            setRailpadPlants(plants || []);
+                        }).catch(err => console.error('Error fetching Railpad plants on edit match:', err));
+                    }
+                }
+
+                // Match Sleeper Company & fetch Plants when editing
+                if (productType === 'SLEEPER' && companies.length > 0 && initialData && !updated.sleeperMapping.vendorCode) {
+                    const matchedCompany = companies.find(c => 
+                        (initialData.vendorCode && String(c.vendorCode) === String(initialData.vendorCode)) ||
+                        (initialData.poiCode && String(c.poiCode) === String(initialData.poiCode)) ||
+                        (initialData.poiName && c.vendorCode && initialData.poiName.includes(String(c.vendorCode).replace(':', ''))) ||
+                        (initialData.poiName && c.companyName && initialData.poiName.includes(c.companyName))
+                    );
+                    if (matchedCompany) {
+                        updated.sleeperMapping.companyName = matchedCompany.companyName;
+                        updated.sleeperMapping.vendorCode = matchedCompany.vendorCode;
+                        updated.sleeperMapping.poiCode = matchedCompany.poiCode;
+                        updated.sleeperMapping.plantId = initialData.poiName || '';
+                        modified = true;
+                        
+                        getSleeperPlants(matchedCompany.vendorCode).then(plants => {
+                            setSleeperPlants(plants || []);
+                        }).catch(err => console.error('Error fetching Sleeper plants on edit match:', err));
+                    }
+                }
+
+                // Match Process IE User for ERC
                 if (initialData.mappingType?.includes('Process IE') && ieUsers.length > 0 && updated.iePoiMappings[0]) {
                     const matchedIe = ieUsers.find(u => u.userName === initialData.ieName || u.employeeCode === initialData.ieCode);
                     if (matchedIe && !updated.iePoiMappings[0].ieUserId) {
@@ -304,7 +474,7 @@ export const IEFieldsForm = ({
                     }
                 }
 
-                // Match IE User for IE to POI
+                // Match IE User for ERC IE to POI
                 if (initialData.mappingType?.includes('IE to POI') && users.length > 0 && !updated.userId) {
                     const matchedIe = users.find(u => u.userName === initialData.ieName || u.employeeCode === initialData.ieCode);
                     if (matchedIe) {
@@ -317,7 +487,7 @@ export const IEFieldsForm = ({
                 return modified ? updated : prev;
             });
         }
-    }, [initialData, users, ieUsers]);
+    }, [initialData, users, ieUsers, companies, productType, getRailpadPlants, getSleeperPlants]);
 
     const { companyName: sleeperCompanyName, plantId: sleeperPlantId } = formData.sleeperMapping;
 
@@ -738,6 +908,10 @@ export const IEFieldsForm = ({
                                 value={productType}
                                 onChange={(e) => {
                                     const val = e.target.value;
+                                    setCompanies([]);
+                                    setUsers([]);
+                                    setSleeperPlants([]);
+                                    setRailpadPlants([]);
                                     setProductType(val);
                                     // Reset role when product type changes to ensure valid roles
                                     if (val === 'SLEEPER') {
@@ -770,6 +944,10 @@ export const IEFieldsForm = ({
                                 className="form-control"
                                 value={selectedRole}
                                 onChange={(e) => {
+                                    setCompanies([]);
+                                    setUsers([]);
+                                    setSleeperPlants([]);
+                                    setRailpadPlants([]);
                                     setSelectedRole(e.target.value);
                                     // Reset form data on role change
                                     setFormData(prev => ({

@@ -125,10 +125,26 @@
   white-space: nowrap;
 }
 
-/* Other Defect Styling */
-.visual-defect-row.other-defect-row {
-  flex-wrap: wrap;
-  gap: 12px;
+.defect-checkbox-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+/* Other Defect & All Defects Styling */
+.visual-defect-row.other-defect-row,
+.visual-defect-row.all-defects-row {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.visual-defect-row.other-defect-row.matching,
+.visual-defect-row.all-defects-row.matching {
+  grid-column: 1 / -1;
+  width: 100%;
+  padding: 14px 16px;
 }
 
 .other-remarks-box {

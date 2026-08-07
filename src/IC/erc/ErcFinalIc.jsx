@@ -79,6 +79,21 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
     setNo = "",
   } = data;
 
+  // Qty Now Accepted = Offered - Rejected
+  const numQtyOnOrder = parseFloat(qtyOnOrder) || 0;
+  const numQtyPassedPreviously = parseFloat(qtyPassedPreviously) || 0;
+  const numQtyNowOffered = parseFloat(qtyNowOffered) || 0;
+  const numQtyNowRejected = parseFloat(qtyNowRejected) || 0;
+
+  const rawAccepted = numQtyNowOffered > 0 ? Math.max(0, numQtyNowOffered - numQtyNowRejected) : (parseFloat(String(qtyNowPassed || 0).replace(/\*/g, '')) || 0);
+  const displayQtyNowPassed = String(qtyNowPassed || "").endsWith('*') ? qtyNowPassed : `${rawAccepted}*`;
+
+  // Still Due Qty = Order Qty - Previously Passed Qty - Now Accepted Qty
+  const calculatedQtyStillDue = Math.max(0, numQtyOnOrder - numQtyPassedPreviously - rawAccepted);
+  const displayQtyStillDue = (numQtyOnOrder > 0 || numQtyPassedPreviously > 0 || rawAccepted > 0)
+    ? String(calculatedQtyStillDue)
+    : (qtyStillDue || "0");
+
   // Sanitize certificate number for display
   const displayCertificateNo = (certificateNo || '')
     .replace(/[\uFEFF\u200B]/g, '')
@@ -266,36 +281,36 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
         {/* Store Details Table Section */}
         <div className="flex flex-col border-x border-b border-black">
           {/* Table Header Row 1 */}
-          <div className="grid grid-cols-[0.5fr_2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr] border-b border-black bg-gray-50 font-bold text-center text-[9px] leading-[1.1] items-stretch min-h-[45px] text-black">
-            <div className="border-r border-black p-1.5 flex flex-col justify-center"><span>मद सं</span><span>Item No.</span></div>
+          <div className="grid grid-cols-[0.4fr_3.8fr_0.75fr_0.75fr_0.75fr_0.75fr_0.75fr_0.75fr_0.75fr] border-b border-black bg-gray-50 font-bold text-center text-[8.5px] leading-[1.1] items-stretch min-h-[40px] text-black">
+            <div className="border-r border-black p-1 flex flex-col justify-center"><span>मद सं</span><span>Item No.</span></div>
             <div className="border-r border-black p-1.5 flex flex-col justify-center"><span>भंडार का विवरण</span><span>Description of Stores</span></div>
-            <div className="border-r border-black p-1.5 flex flex-col justify-center"><span>आदेशित मात्रा</span><span>Quantity on order</span></div>
-            <div className="border-r border-black p-1.5 flex flex-col justify-center"><span>पहले प्रस्तुत संचयी मात्रा</span><span>Cumulative qty. offered previously</span></div>
-            <div className="border-r border-black p-1.5 flex flex-col justify-center"><span>पहले स्वीकृत मात्रा</span><span>Quantity previously passed</span></div>
-            <div className="border-r border-black p-1.5 flex flex-col justify-center"><span>अब प्रस्तुत मात्रा</span><span>Qty now offered</span></div>
-            <div className="border-r border-black p-1.5 flex flex-col justify-center"><span>अब स्वीकृत मात्रा</span><span>Qty now passed</span></div>
-            <div className="border-r border-black p-1.5 flex flex-col justify-center"><span>अब अस्वीकृत मात्रा</span><span>Qty now rejected</span></div>
-            <div className="p-1.5 flex flex-col justify-center"><span>बकाया मात्रा</span><span>Qty still due</span></div>
+            <div className="border-r border-black p-1 flex flex-col justify-center"><span>आदेशित मात्रा</span><span>Quantity on order</span></div>
+            <div className="border-r border-black p-1 flex flex-col justify-center"><span>पहले प्रस्तुत संचयी मात्रा</span><span>Cumulative qty. offered previously</span></div>
+            <div className="border-r border-black p-1 flex flex-col justify-center"><span>पहले स्वीकृत मात्रा</span><span>Quantity previously passed</span></div>
+            <div className="border-r border-black p-1 flex flex-col justify-center"><span>अब प्रस्तुत मात्रा</span><span>Qty now offered</span></div>
+            <div className="border-r border-black p-1 flex flex-col justify-center"><span>अब स्वीकृत मात्रा</span><span>Qty now passed</span></div>
+            <div className="border-r border-black p-1 flex flex-col justify-center"><span>अब अस्वीकृत मात्रा</span><span>Qty now rejected</span></div>
+            <div className="p-1 flex flex-col justify-center"><span>बकाया मात्रा</span><span>Qty still due</span></div>
           </div>
 
           {/* Table Header Row 2 (Column Numbers) */}
-          <div className="grid grid-cols-[0.5fr_2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr] border-b border-black text-center text-[9px] font-bold bg-white items-stretch min-h-[25px] text-black">
-            <div className="border-r border-black py-1 flex items-center justify-center">1</div>
-            <div className="border-r border-black py-1 flex items-center justify-center">2</div>
-            <div className="border-r border-black py-1 flex items-center justify-center">3</div>
-            <div className="border-r border-black py-1 flex items-center justify-center">4</div>
-            <div className="border-r border-black py-1 flex items-center justify-center">5</div>
-            <div className="border-r border-black py-1 flex items-center justify-center">6</div>
-            <div className="border-r border-black py-1 flex items-center justify-center">7</div>
-            <div className="border-r border-black py-1 flex items-center justify-center">8</div>
-            <div className="py-1 flex items-center justify-center">9</div>
+          <div className="grid grid-cols-[0.4fr_3.8fr_0.75fr_0.75fr_0.75fr_0.75fr_0.75fr_0.75fr_0.75fr] border-b border-black text-center text-[9px] font-bold bg-white items-stretch min-h-[22px] text-black">
+            <div className="border-r border-black py-0.5 flex items-center justify-center">1</div>
+            <div className="border-r border-black py-0.5 flex items-center justify-center">2</div>
+            <div className="border-r border-black py-0.5 flex items-center justify-center">3</div>
+            <div className="border-r border-black py-0.5 flex items-center justify-center">4</div>
+            <div className="border-r border-black py-0.5 flex items-center justify-center">5</div>
+            <div className="border-r border-black py-0.5 flex items-center justify-center">6</div>
+            <div className="border-r border-black py-0.5 flex items-center justify-center">7</div>
+            <div className="border-r border-black py-0.5 flex items-center justify-center">8</div>
+            <div className="py-0.5 flex items-center justify-center">9</div>
           </div>
 
           {/* Table Data Row */}
-          <div className="grid grid-cols-[0.5fr_2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr] text-center text-[10px] items-stretch border-b border-black min-h-[100px]">
+          <div className="grid grid-cols-[0.4fr_3.8fr_0.75fr_0.75fr_0.75fr_0.75fr_0.75fr_0.75fr_0.75fr] text-center text-[10px] items-stretch border-b border-black min-h-[40px]">
             <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={itemNo} fieldName="itemNo" className="border-r border-black p-1 flex items-center justify-center font-bold" />
-            <div className="border-r border-black p-2 text-left break-words flex flex-col justify-center font-bold">
-              <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={description} fieldName="description" type="textarea" className="uppercase" />
+            <div className="border-r border-black p-1.5 text-left break-words flex flex-col justify-center font-bold">
+              <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={description} fieldName="description" type="textarea" className="uppercase text-[8.5px] leading-[1.2] tracking-tight" />
             </div>
 
             {/* Units and Values for cols 3-9 */}
@@ -304,13 +319,13 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
               { val: qtyOfferedPreviously, field: "qtyOfferedPreviously" },
               { val: qtyPassedPreviously, field: "qtyPassedPreviously" },
               { val: qtyNowOffered, field: "qtyNowOffered" },
-              { val: qtyNowPassed, field: "qtyNowPassed" },
+              { val: displayQtyNowPassed, field: "qtyNowPassed" },
               { val: qtyNowRejected, field: "qtyNowRejected" },
-              { val: qtyStillDue, field: "qtyStillDue" }
+              { val: displayQtyStillDue, field: "qtyStillDue" }
             ].map((col, idx) => (
               <div key={idx} className={`${idx === 6 ? "" : "border-r"} border-black p-1 flex flex-col items-center justify-center`}>
                 <span className="mb-1 font-semibold text-[9px]"></span>
-                <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={col.val} fieldName={col.field} className="font-bold text-sm" />
+                <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={col.val} fieldName={col.field} className="font-bold text-xs whitespace-nowrap text-center" />
               </div>
             ))}
           </div>
@@ -371,9 +386,11 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
             <div className="font-bold leading-tight">Facsimile of seal</div>
             <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={facsimileText} fieldName="facsimileText" type="textarea" className="text-black italic leading-tight flex-grow" />
           </div>
-          <div className="p-1 flex flex-col justify-between min-h-[60px]">
-            <div className="font-bold leading-tight">Inspecting Engineer</div>
-            <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={inspectingEngineer} fieldName="inspectingEngineer" className="text-right font-bold uppercase" />
+          <div className="p-1 flex flex-col justify-between min-h-[90px] relative ie-signature-box">
+            <div className="font-bold leading-tight text-[9.5px]">Inspecting Engineer</div>
+            <div className="flex flex-col items-end w-full mt-1">
+              <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={inspectingEngineer} fieldName="inspectingEngineer" className="text-right font-bold uppercase text-[10px]" />
+            </div>
           </div>
         </div>
 
@@ -383,18 +400,18 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
           <EditableField isEditing={isEditing} onFieldChange={onFieldChange} isBusy={isBusy} value={reasonsForRejection} fieldName="reasonsForRejection" type="textarea" className="italic leading-tight" />
         </div>
 
-        {/* Sub-Footer row */}
-        <div className="border-x border-b border-black p-1 text-center font-bold text-[10px] italic">
-          It is certified that material is cleared for the next stage.
-        </div>
-
-        {/* Bottom Footer row */}
-        <div className="border-x border-b border-black p-1 text-center text-[9px] text-black leading-tight">
-          <span className="font-bold">Distribution: </span>
-          Manufacturer Office copy with case, RITES Bill Copy, Contractor, Purchaser (Railway), Consignee (Railway), Consignee (Manufacturer of finished product), RITES Office copy, RITES for final IC
-          <div className="h-1" />
+        {/* Static Bilingual Validity Statement for Final IC */}
+        <div className="grid grid-cols-2 border-x border-b border-black text-[8.5px] leading-tight font-bold italic">
+          <div className="border-r border-black p-1 text-center">
+            सामग्री को शीघ्र अति शीघ्र भेजा जाना चाहिए। प्रमाण पत्र सामग्री भेजने के लिए ३० दिन तक मान्य है। सभी प्रकार के पीएससी स्लीपर के लिए यह प्रमाणपत्र ९० दिनों तक मान्य रहेगा।
+          </div>
+          <div className="p-1 text-center">
+            The material should be dispatched as early as possible. The certificate is valid for a period of 30 days for dispatch of stores. However, in the case of all types of PSC Sleepers, the certificate is valid for 90 days.
+          </div>
         </div>
         </fieldset>
+        {/* Bottom spacer — reserves space for physical printer footer */}
+        <div style={{ minHeight: '20mm' }} />
       </div>
     </div>
   );

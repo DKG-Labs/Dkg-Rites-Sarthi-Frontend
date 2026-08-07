@@ -1,9 +1,24 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { REGIONS } from './utils/mockData';
-import { filterBySearch, paginate } from './utils/helpers';
+import { paginate } from './utils/helpers';
 import { DEFAULT_PAGE_SIZE } from './utils/constants';
 import { API_BASE_URL } from '../../services/apiConfig';
 import AnnexureLoader from '../annexures/AnnexureLoader';
+
+const formatInspectingEngineer = (mapping) => {
+  if (mapping.inspectingEngineer) return mapping.inspectingEngineer;
+  const type = mapping.mappingType || '';
+  if (type.includes('Railpad') || type.includes('Rail')) {
+    return type.toLowerCase().includes('process') ? 'Railpad Process IE' : 'Railpad Main IE';
+  }
+  if (type.includes('Sleeper')) {
+    return type.toLowerCase().includes('process') ? 'Sleeper Process IE' : 'Sleeper Main IE';
+  }
+  if (type.toLowerCase().includes('process')) {
+    return 'ERC Process IE';
+  }
+  return 'ERC IE';
+};
 
 export const IEMapping = ({ onEdit, onDelete, onCreateNew, refreshTrigger }) => {
   const [mappings, setMappings] = useState([]);
@@ -37,11 +52,40 @@ export const IEMapping = ({ onEdit, onDelete, onCreateNew, refreshTrigger }) => 
     fetchMappings();
   }, [refreshTrigger]);
 
+  const [activeCard, setActiveCard] = useState('total');
+
   const filteredMappings = useMemo(() => {
     let result = mappings;
 
+    if (activeCard === 'cm') {
+      result = result.filter(m => m?.mappingType === 'IE to CM');
+    } else if (activeCard === 'poi') {
+      result = result.filter(m => m?.mappingType === 'IE to POI' || m?.mappingType === 'Process IE to POI' || m?.mappingType?.includes('to POI'));
+    }
+
     if (searchTerm) {
-      result = filterBySearch(result, searchTerm, ['ieName', 'poiName', 'cm']);
+      const term = searchTerm.trim().toLowerCase();
+      result = result.filter(item => {
+        const ieRole = formatInspectingEngineer(item).toLowerCase();
+        const ieName = String(item.ieName || '').toLowerCase();
+        const poiName = String(item.poiName || '').toLowerCase();
+        const poiCode = String(item.poiCode || '').toLowerCase();
+        const cm = String(item.cm || '').toLowerCase();
+        const rio = String(item.rio || '').toLowerCase();
+        const status = String(item.status || '').toLowerCase();
+        const mappingType = String(item.mappingType || '').toLowerCase();
+
+        return (
+          ieRole.includes(term) ||
+          ieName.includes(term) ||
+          poiName.includes(term) ||
+          poiCode.includes(term) ||
+          cm.includes(term) ||
+          rio.includes(term) ||
+          status.includes(term) ||
+          mappingType.includes(term)
+        );
+      });
     }
 
     if (filterRegion) {
@@ -49,7 +93,7 @@ export const IEMapping = ({ onEdit, onDelete, onCreateNew, refreshTrigger }) => 
     }
 
     return result;
-  }, [searchTerm, filterRegion, mappings]);
+  }, [searchTerm, filterRegion, mappings, activeCard]);
 
   const paginatedMappings = useMemo(() => {
     return paginate(filteredMappings, currentPage, pageSize);
@@ -72,22 +116,38 @@ export const IEMapping = ({ onEdit, onDelete, onCreateNew, refreshTrigger }) => 
         gap: '16px',
         marginBottom: '24px'
       }}>
-        <div className="metric-card">
+        <div 
+          className={`metric-card ${activeCard === 'total' ? 'highlight' : ''}`}
+          onClick={() => { setActiveCard('total'); setCurrentPage(1); }}
+          style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+        >
           <div className="metric-label">Total Mappings</div>
           <div className="metric-value">{totalMappings}</div>
           <div className="metric-status">All mappings</div>
         </div>
-        <div className="metric-card">
+        <div 
+          className={`metric-card ${activeCard === 'cm' ? 'highlight' : ''}`}
+          onClick={() => { setActiveCard('cm'); setCurrentPage(1); }}
+          style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+        >
           <div className="metric-label">IE to CM</div>
           <div className="metric-value">{ieToCMMappings}</div>
           <div className="metric-status">CM mappings</div>
         </div>
-        <div className="metric-card highlight">
+        <div 
+          className={`metric-card ${activeCard === 'poi' ? 'highlight' : ''}`}
+          onClick={() => { setActiveCard('poi'); setCurrentPage(1); }}
+          style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+        >
           <div className="metric-label">IE to POI</div>
           <div className="metric-value">{ieToPOIMappings}</div>
           <div className="metric-status">POI mappings</div>
         </div>
-        <div className="metric-card">
+        <div 
+          className={`metric-card ${activeCard === 'regions' ? 'highlight' : ''}`}
+          onClick={() => { setActiveCard('regions'); setCurrentPage(1); }}
+          style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+        >
           <div className="metric-label">Regions</div>
           <div className="metric-value">{REGIONS.length}</div>
           <div className="metric-status">Available regions</div>
@@ -166,7 +226,7 @@ export const IEMapping = ({ onEdit, onDelete, onCreateNew, refreshTrigger }) => 
                     <tr key={mapping.id}>
                       <td>{mapping.rio}</td>
                       <td>{mapping.cm}</td>
-                      <td>{mapping.mappingType?.includes('Process') ? 'Process IE' : 'IE'}</td>
+                      <td>{formatInspectingEngineer(mapping)}</td>
                       <td>{mapping.ieName}</td>
                       <td>{mapping.poiCode}</td>
                       <td>{mapping.poiName}</td>

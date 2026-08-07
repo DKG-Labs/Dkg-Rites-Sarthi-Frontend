@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { fetchPendingWorkflowTransitions, fetchCompletedCalls, performTransitionAction } from '../services/workflowService';
+import { fetchPendingWorkflowTransitions, fetchCompletedCalls, performTransitionAction, isPlantIdMatching } from '../services/workflowService';
 import { scheduleInspection } from '../services/scheduleService';
 import Notification from './Notification';
 import { getStoredUser } from '../services/authService';
 
 import ShiftDutyForm from './ShiftDutyForm';
 
-const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal }) => {
+const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal, dutyPlantId }) => {
   const [activeTab, setActiveTab] = useState(() => {
     return localStorage.getItem('railpad_attending_calls_tab') || 'pending';
   });
@@ -42,43 +42,29 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal 
     localStorage.setItem('railpad_attending_calls_tab', activeTab);
     activeTabRef.current = activeTab;
     loadCalls();
-  }, [activeTab]);
+  }, [activeTab, dutyPlantId]);
 
   const loadCalls = async () => {
     setLoading(true);
     try {
       const [pendingDataResponse, completedDataResponse] = await Promise.all([
-        fetchPendingWorkflowTransitions('Rail Main IE').catch(() => []),
-        fetchCompletedCalls().catch(() => [])
+        fetchPendingWorkflowTransitions('Rail Main IE', dutyPlantId, 2).catch(() => []),
+        fetchCompletedCalls(dutyPlantId, 2).catch(() => [])
       ]);
 
       const pendingData = pendingDataResponse || [];
       const completedDataAll = completedDataResponse || [];
 
-      let rpPending = pendingData.filter(c => c.requestId && String(c.requestId).toUpperCase().startsWith('RP'));
-      let rpCompletedAll = completedDataAll.filter(c => c.requestId && String(c.requestId).toUpperCase().startsWith('RP'));
+      let rpPending = pendingData.filter(c => c.requestId);
+      let rpCompletedAll = completedDataAll.filter(c => c.requestId);
+
+      if (dutyPlantId) {
+        rpPending = rpPending.filter(c => !c.plantId || isPlantIdMatching(c.plantId, dutyPlantId));
+        rpCompletedAll = rpCompletedAll.filter(c => !c.plantId || isPlantIdMatching(c.plantId, dutyPlantId));
+      }
 
       let certCalls = rpCompletedAll.filter(c => (c.status === 'INSPECTION_DONE' || c.status === 'CERTIFICATE_PENDING' || c.status === 'COMPLETED' || c.jobStatus === 'COMPLETED' || c.status === 'ISSUE IC' || c.status === 'IC_ISSUE' || c.jobStatus === 'ISSUE IC' || c.jobStatus === 'IC_ISSUE'));
       let finalCompletedCalls = rpCompletedAll.filter(c => c.status === 'IC_GENERATION' || c.jobStatus === 'IC_GENERATION');
-
-      if (certCalls.length === 0) {
-        certCalls = [
-          {
-            workflowTransitionId: 10245,
-            requestId: "RP-IC-2026062401",
-            vendorCode: "MG_RUBBER",
-            vendorName: "M/s MG Rubber",
-            plantId: "Sankra Somni",
-            poiCode: "POI-MGRUBBER-01",
-            createdDate: new Date().toISOString(),
-            status: "INSPECTION_DONE",
-            jobStatus: "INSPECTION_DONE",
-            accessibleUserIds: [Number(user?.userId || 1), 1],
-            rlyPoSrNo: "60256836107122/020",
-            railPadType: "CGRSP 10mm",
-          }
-        ];
-      }
 
       setCounts({
         pending: rpPending.length,

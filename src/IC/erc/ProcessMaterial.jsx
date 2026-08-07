@@ -71,7 +71,17 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
         ? "process inspection as per PIO detailed under Annexure-A of Rly. Bd. Letter No. 2024/RS (G)/779/12 (E3482675) Dtd.06.01.2025" 
         : c.chpClause,
       lots: c.lots || [],
-      reference: c.reference ? c.reference.replace(/Mr\.?\s/gi, "") : "",
+      reference: (() => {
+        let refStr = c.reference ? c.reference.replace(/Mr\.?\s/gi, "") : "";
+        if (c.ibsCaseNo && c.ibsCaseNo !== '-') {
+          if (refStr) {
+            refStr += `, (IBS Case No: ${c.ibsCaseNo})`;
+          } else {
+            refStr = `(IBS Case No: ${c.ibsCaseNo})`;
+          }
+        }
+        return refStr;
+      })(),
       callDate: c.callDate || c.dateOfCall || "",
       inspectionDate: c.inspectionDate || c.dateOfInspection || "",
       manDays: c.manDays || "",
@@ -143,12 +153,17 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
       return { ...prev, [arrayField]: newArray };
     });
   };
+  const dataToPass = editableData || transformCallToIC(call);
+
   const handleSaveChanges = async () => {
-    if (dataToPass.bookNo.length !== 4) {
+    const bookNo = dataToPass?.bookNo || '';
+    const setNo = dataToPass?.setNo || '';
+
+    if (!bookNo || bookNo.length !== 4) {
       setNotification({ open: true, message: "Book No. must be exactly 4 characters long.", severity: 'warning' });
       return;
     }
-    if (!/^\d{3}$/.test(dataToPass.setNo)) {
+    if (!setNo || !/^\d{3}$/.test(setNo)) {
       setNotification({ open: true, message: "Set No. must be exactly 3 digits.", severity: 'warning' });
       return;
     }
@@ -168,6 +183,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
           billPayingOfficer: dataToPass.billPayingOfficer,
           purchasingAuthority: dataToPass.purchasingAuthority,
           description: dataToPass.description,
+          manufacturer: dataToPass.manufacturer,
           qapNo: dataToPass.qapNo,
           chpClause: dataToPass.chpClause,
           inspectionDate: dataToPass.inspectionDate,
@@ -183,19 +199,20 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
     }
   };
 
-  const dataToPass = editableData || transformCallToIC(call);
-
   const handleVerifyBookSet = async () => {
-    if (!dataToPass.bookNo || !dataToPass.setNo) {
+    const bookNo = dataToPass?.bookNo || '';
+    const setNo = dataToPass?.setNo || '';
+
+    if (!bookNo || !setNo) {
       setNotification({ open: true, message: "Please fill in both Book No. and Set No. before verifying.", severity: 'warning' });
       return;
     }
 
-    if (dataToPass.bookNo.length !== 4) {
+    if (bookNo.length !== 4) {
       setNotification({ open: true, message: "Book No. must be exactly 4 characters long.", severity: 'warning' });
       return;
     }
-    if (!/^\d{3}$/.test(dataToPass.setNo)) {
+    if (!/^\d{3}$/.test(setNo)) {
       setNotification({ open: true, message: "Set No. must be exactly 3 digits.", severity: 'warning' });
       return;
     }
@@ -203,7 +220,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
     setBookSetValidation(prev => ({ ...prev, isValidating: true }));
     try {
       const empNo = getStoredUser()?.employeeCode || "UNKNOWN";
-      const result = await validateBookSetNo(empNo, dataToPass.bookNo, dataToPass.setNo, "S");
+      const result = await validateBookSetNo(empNo, bookNo, setNo, "S");
       
       if (result.resultFlag === 1) {
         setBookSetValidation({ isValid: true, message: null, isValidating: false });
@@ -233,17 +250,20 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
   };
 
   const handleSaveIC = async () => {
+    const bookNo = dataToPass?.bookNo || '';
+    const setNo = dataToPass?.setNo || '';
+
     try {
       setIsESigning(true);
       
       // 1. Mandatory Validations
-      if (!dataToPass.bookNo || !dataToPass.setNo) {
+      if (!bookNo || !setNo) {
           setNotification({ open: true, message: "Please fill in the 'Book No.' and 'Set No.' before saving.", severity: 'warning' });
           setIsESigning(false);
           return;
       }
       
-      if (dataToPass.bookNo.length !== 4) {
+      if (bookNo.length !== 4) {
           setNotification({ open: true, message: "Book No. must be exactly 4 characters long.", severity: 'warning' });
           setIsESigning(false);
           return;
@@ -282,6 +302,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
           billPayingOfficer: dataToPass.billPayingOfficer,
           purchasingAuthority: dataToPass.purchasingAuthority,
           description: dataToPass.description,
+          manufacturer: dataToPass.manufacturer,
           qapNo: dataToPass.qapNo,
           chpClause: dataToPass.chpClause,
           inspectionDate: dataToPass.inspectionDate,
@@ -338,10 +359,64 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
     }
   };
 
+  const handleCancelChanges = async () => {
+    setIsEditing(false);
+    let initialData = transformCallToIC(call);
+    const icNumber = initialData.certificateNo || call.icNo || call.call_no;
+    if (icNumber) {
+      let savedEdit = await getProcessIcSaveChanges(icNumber);
+      if (!savedEdit) {
+        savedEdit = await getProcessIcEditData(icNumber);
+      }
+      if (savedEdit) {
+        initialData = {
+          ...initialData,
+          qapNo: savedEdit.qapNo || initialData.qapNo,
+          chpClause: savedEdit.chpClause || initialData.chpClause,
+          inspectionDate: savedEdit.inspectionDate || initialData.inspectionDate,
+          offeredInstNo: savedEdit.offeredInstallmentNo || initialData.offeredInstNo,
+          passedInstNo: savedEdit.passedInstallmentNo || initialData.passedInstNo,
+          consigneeRailway: savedEdit.consignee || initialData.consigneeRailway,
+          contractRef: savedEdit.contractRef || initialData.contractRef,
+          maNumberAndDate: savedEdit.maNumberAndDate || initialData.maNumberAndDate,
+          bookNo: savedEdit.bookNo || initialData.bookNo,
+          setNo: savedEdit.setNo || initialData.setNo,
+          billPayingOfficer: savedEdit.billPayingOfficer || initialData.billPayingOfficer,
+          purchasingAuthority: savedEdit.purchasingAuthority || initialData.purchasingAuthority,
+          description: savedEdit.description || initialData.description,
+        };
+      }
+    }
+    setEditableData(initialData);
+    setNotification({ open: true, message: "Edited changes cancelled.", severity: 'info' });
+  };
+
   return (
     <Box sx={{ padding: 3 }}>
       <div className="no-print" style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-        <button onClick={onBack} className="btn btn-outline">← Back</button>
+        <Button
+          variant="outlined"
+          onClick={onBack}
+          sx={{
+            backgroundColor: '#ffffff',
+            color: '#334155',
+            borderColor: '#cbd5e1',
+            fontWeight: 700,
+            fontSize: '0.8125rem',
+            px: 2.5,
+            py: 0.75,
+            borderRadius: '6px',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+            textTransform: 'none',
+            '&:hover': {
+              backgroundColor: '#f8fafc',
+              borderColor: '#94a3b8',
+              color: '#0f172a',
+            }
+          }}
+        >
+          ← Back
+        </Button>
         <div style={{ display: "flex", gap: 8 }}>
           <Button
             variant="outlined" 
@@ -352,6 +427,17 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
           >
             {isEditing ? "Save Changes" : "Edit Certificate"}
           </Button>
+          {isEditing && (
+            <Button
+              variant="outlined"
+              color="error"
+              size="small"
+              onClick={handleCancelChanges}
+              disabled={isESigning}
+            >
+              Cancel Changes
+            </Button>
+          )}
           <Button 
             variant="contained" 
             color="success" 

@@ -27,7 +27,7 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
     datesOfInspection = "",
     trRecDate = "",
     quantityNowPassedText = "",
-    sealingPattern = "RITES HOLOGRAM FROM SL NO. C0000599 TO C0001604 HAS BEEN AFFIXED ON THE LEAD SEAL ,TIED WITH SEALING WIRE TO THE PACKING STRIP OF EACH CORRUGATED BOX",
+    sealingPattern = "RITES HOLOGRAM HAS BEEN AFFIXED ON THE LEAD SEAL ,TIED WITH SEALING WIRE TO THE PACKING STRIP OF EACH CORRUGATED BOX",
     facsimileText = "",
     reasonsForRejection = "N/A",
     inspectingEngineer = "",
@@ -38,8 +38,8 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
 
   const allowedFields = [
     "bookNo", "setNo", "offeredInstNo", "passedInstNo", "contractRef",
-    "billPayingOfficer", "consignee", "purchasingAuthority", "description", 
-    "quantityNowPassedText", "noOfItemsChecked", "datesOfInspection", 
+    "billPayingOfficer", "consignee", "purchasingAuthority", "description",
+    "quantityNowPassedText", "noOfItemsChecked", "datesOfInspection",
     "trRecDate", "reasonsForRejection", "sealingPattern"
   ];
 
@@ -117,7 +117,7 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
     fontFamily: 'Arial, sans-serif',
     tableLayout: 'fixed'
   };
-  
+
   const thStyle = {
     border: '1px solid black',
     padding: '2px 3px',
@@ -130,14 +130,14 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
     verticalAlign: 'middle',
     lineHeight: '1.2'
   };
-  
+
   const tdStyle = {
     border: '1px solid black',
     padding: '4px',
     verticalAlign: 'top',
     fontSize: '10px'
   };
-  
+
   const tdCenterStyle = {
     ...tdStyle,
     textAlign: 'center'
@@ -156,10 +156,10 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
       fontSize: '11px',
       lineHeight: '1.3'
     }}>
-      
+
       {/* Top spacing to match RITES letterhead margin exactly */}
       <div style={{ height: '150px' }}></div>
-      
+
       {/* Book & Set Number Container */}
       <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginTop: '30px', marginBottom: '15px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -341,12 +341,12 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
               <div style={{ height: '6px' }} />
               <div style={{ fontWeight: '600', fontSize: '8.5px' }}>संविदा संदर्भ Contract References</div>
               <div style={{ fontSize: '9.5px', fontWeight: 'bold', display: 'flex', flexDirection: 'column', gap: '1px', marginTop: '2px' }}>
-                <EditableField 
-                  value={contractRef} 
-                  fieldName="contractRef" 
-                  type="textarea" 
-                  placeholder="PO NO..." 
-                  style={{ fontSize: '9.5px', marginTop: '2px', fontWeight: 'bold', minHeight: '60px' }} 
+                <EditableField
+                  value={contractRef}
+                  fieldName="contractRef"
+                  type="textarea"
+                  placeholder="PO NO..."
+                  style={{ fontSize: '9.5px', marginTop: '2px', fontWeight: 'bold', minHeight: '60px' }}
                   customRender={(val) => {
                     if (!val) return null;
                     return val.split('\n').map((line, idx) => {
@@ -394,15 +394,15 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
 
           {/* STORES TABLE HEADERS */}
           <tr style={{ background: '#ffffff' }}>
-            <th style={{ ...thStyle, borderBottom: 'none' }}>मद सं<br/>Item<br/>No.</th>
-            <th style={{ ...thStyle, textAlign: 'left', borderBottom: 'none' }}>भंडार का विवरण<br/>Description of Stores</th>
-            <th style={{ ...thStyle, borderBottom: 'none' }}>आदेशित मात्रा<br/>Quantity on<br/>Order</th>
-            <th style={{ ...thStyle, borderBottom: 'none' }}>पहले प्रस्तावित<br/>संचयी मात्रा<br/>Cumulative<br/>Qty Offered<br/>Previously</th>
-            <th style={{ ...thStyle, borderBottom: 'none' }}>पहले स्वीकृत<br/>मात्रा<br/>Qty Prev<br/>Passed</th>
-            <th style={{ ...thStyle, borderBottom: 'none' }}>अब प्रस्तावित<br/>मात्रा<br/>Qty Now<br/>Offered</th>
-            <th style={{ ...thStyle, borderBottom: 'none' }}>अब स्वीकृत<br/>मात्रा<br/>Qty Now<br/>Passed</th>
-            <th style={{ ...thStyle, borderBottom: 'none' }}>अब अस्वीकृत<br/>मात्रा<br/>Qty Now<br/>Rejected</th>
-            <th style={{ ...thStyle, borderBottom: 'none' }}>बकाया मात्रा<br/>Qty Still<br/>Due</th>
+            <th style={{ ...thStyle, borderBottom: 'none' }}>मद सं<br />Item<br />No.</th>
+            <th style={{ ...thStyle, textAlign: 'left', borderBottom: 'none' }}>भंडार का विवरण<br />Description of Stores</th>
+            <th style={{ ...thStyle, borderBottom: 'none' }}>आदेशित मात्रा<br />Quantity on<br />Order</th>
+            <th style={{ ...thStyle, borderBottom: 'none' }}>पहले प्रस्तावित<br />संचयी मात्रा<br />Cumulative<br />Qty Offered<br />Previously</th>
+            <th style={{ ...thStyle, borderBottom: 'none' }}>पहले स्वीकृत<br />मात्रा<br />Qty Prev<br />Passed</th>
+            <th style={{ ...thStyle, borderBottom: 'none' }}>अब प्रस्तावित<br />मात्रा<br />Qty Now<br />Offered</th>
+            <th style={{ ...thStyle, borderBottom: 'none' }}>अब स्वीकृत<br />मात्रा<br />Qty Now<br />Passed</th>
+            <th style={{ ...thStyle, borderBottom: 'none' }}>अब अस्वीकृत<br />मात्रा<br />Qty Now<br />Rejected</th>
+            <th style={{ ...thStyle, borderBottom: 'none' }}>बकाया मात्रा<br />Qty Still<br />Due</th>
           </tr>
 
           <tr style={{ textAlign: 'center', height: '18px', fontWeight: 'bold', background: '#ffffff' }}>
@@ -460,10 +460,10 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
             <td style={{ ...tdCenterStyle, borderTop: 'none', borderBottom: 'none' }}></td>
           </tr>
           <tr style={{ height: '1px' }}>
-            <td colSpan={7} style={{ 
-              ...tdStyle, 
-              padding: '0', 
-              boxSizing: 'border-box', 
+            <td colSpan={7} style={{
+              ...tdStyle,
+              padding: '0',
+              boxSizing: 'border-box',
               border: 'none',
               background: 'white'
             }}>
@@ -503,21 +503,21 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
             <td colSpan="9" style={{ padding: 0, border: '1px solid black' }}>
               <div style={{ display: 'flex', width: '100%' }}>
                 <div style={{ width: '20%', padding: '4px', borderRight: '1px solid black', fontSize: '9px' }}>
-                  <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>जाँच की गयी इकाइयों की सं.<br/>No. of items checked</div>
+                  <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>जाँच की गयी इकाइयों की सं.<br />No. of items checked</div>
                   <div style={{ marginTop: '8px', fontWeight: 'bold', fontSize: '10px' }}>
                     <EditableField value={noOfItemsChecked} fieldName="noOfItemsChecked" style={{ fontSize: '10px', fontWeight: 'bold', textAlign: 'center' }} />
                   </div>
                 </div>
                 <div style={{ width: '15%', padding: '4px', borderRight: '1px solid black', fontSize: '9px' }}>
-                  <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>बुलावे की तारीख<br/>Date of call</div>
+                  <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>बुलावे की तारीख<br />Date of call</div>
                   <div style={{ marginTop: '8px', fontWeight: 'bold', fontSize: '10px' }}>{dateOfCall}</div>
                 </div>
                 <div style={{ width: '10%', padding: '4px', borderRight: '1px solid black', fontSize: '9px' }}>
-                  <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>दौरों की संख्या<br/>No. of Visits</div>
+                  <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>दौरों की संख्या<br />No. of Visits</div>
                   <div style={{ marginTop: '8px', fontWeight: 'bold', fontSize: '10px' }}>{noOfVisits}</div>
                 </div>
                 <div style={{ width: '45%', padding: '4px', borderRight: '1px solid black', fontSize: '9px', overflow: 'hidden' }}>
-                  <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>निरीक्षण की तारीखें<br/>Date(s) of inspection</div>
+                  <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>निरीक्षण की तारीखें<br />Date(s) of inspection</div>
                   <div style={{ marginTop: '6px', fontWeight: 'bold', fontSize: '9px', lineHeight: '1.2', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                     <EditableField value={datesOfInspection} fieldName="datesOfInspection" type="textarea" style={{ fontSize: '9px', fontWeight: 'bold' }} />
                   </div>
@@ -540,21 +540,21 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
                   <tr>
                     {/* Row 1 left: Sealing pattern (40%) */}
                     <td style={{ width: '40%', padding: '4px', borderRight: '1px solid black', borderBottom: '1px solid black', fontSize: '9px', verticalAlign: 'top' }}>
-                      <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>सील बंदी मोहर बंदी का स्वरूप और सील मोहर का स्थान<br/>Pattern of sealing/stamping &amp; location of seal/stamp/sticker</div>
+                      <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>सील बंदी मोहर बंदी का स्वरूप और सील मोहर का स्थान<br />Pattern of sealing/stamping &amp; location of seal/stamp/sticker</div>
                       <div style={{ marginTop: '4px', fontWeight: 'bold', fontSize: '8px', lineHeight: '1.25', textTransform: 'uppercase' }}>
                         <EditableField value={sealingPattern} fieldName="sealingPattern" type="textarea" style={{ fontSize: '8px', fontWeight: 'bold' }} />
                       </div>
                     </td>
                     {/* Row 1 middle: Facsimile (30%) */}
                     <td style={{ width: '30%', padding: '4px', borderRight: '1px solid black', borderBottom: '1px solid black', fontSize: '9px', verticalAlign: 'top' }}>
-                      <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>मुहर / स्टाम्प की प्रतिकृति<br/>Facsimile of seal/stamp/sticker</div>
+                      <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>मुहर / स्टाम्प की प्रतिकृति<br />Facsimile of seal/stamp/sticker</div>
                       <div style={{ marginTop: '4px', fontStyle: 'italic', fontSize: '8px', lineHeight: '1.25' }}>
                         <EditableField value={facsimileText} fieldName="facsimileText" type="textarea" style={{ fontSize: '8px' }} />
                       </div>
                     </td>
                     {/* IE cell — rowSpan=2 spans both the sealing row and rejection row */}
                     <td rowSpan="2" className="ie-signature-box" style={{ width: '30%', padding: '4px', fontSize: '9px', verticalAlign: 'top', display: 'table-cell' }}>
-                      <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>निरीक्षण अभियंता<br/>Inspecting Engineer</div>
+                      <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>निरीक्षण अभियंता<br />Inspecting Engineer</div>
                       <div style={{ textAlign: 'right', fontWeight: 'bold', fontSize: '9px', textTransform: 'uppercase', marginTop: '30px' }}>
                         <EditableField value={inspectingEngineer} fieldName="inspectingEngineer" style={{ textAlign: 'right', fontWeight: 'bold' }} />
                       </div>

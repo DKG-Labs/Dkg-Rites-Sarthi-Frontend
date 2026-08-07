@@ -21,6 +21,7 @@ import {
 } from "../../services/certificateService";
 import { performTransitionAction } from "../../services/workflowService";
 import { getStoredUser } from "../../services/authService";
+import { finalInspectionLotResultsService } from "../../services/finalInspectionLotResultsService";
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -125,6 +126,28 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
         }
         const fetchedData = await generateRailpadIcDetails(callNo);
         
+        let dynamicSealingPattern = "";
+        if (!isProcessCall) {
+          try {
+            const lotResults = await finalInspectionLotResultsService.getByCallNo(callNo);
+            if (lotResults && lotResults.length > 0) {
+              const holograms = lotResults
+                .map(l => l.hologram)
+                .filter(Boolean)
+                .join(', ');
+              if (holograms) {
+                if (holograms.toUpperCase().includes("RITES HOLOGRAM")) {
+                  dynamicSealingPattern = holograms;
+                } else {
+                  dynamicSealingPattern = `RITES HOLOGRAM FROM SL NO. ${holograms} HAS BEEN AFFIXED ON THE LEAD SEAL ,TIED WITH SEALING WIRE TO THE PACKING STRIP OF EACH CORRUGATED BOX`;
+                }
+              }
+            }
+          } catch (err) {
+            console.error("Failed to fetch final inspection lot results for holograms:", err);
+          }
+        }
+
         // Map backend DTO to frontend props if needed or pass directly if keys match.
         // If keys are different, map them here. The DTO uses camelCase keys matching the frontend mostly.
         const mappedData = {
@@ -155,7 +178,7 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
             datesOfInspection: fetchedData.dateOfInspection || "",
             trRecDate: fetchedData.trRecDt || "",
             quantityNowPassedText: fetchedData.quantityNowPassedInWords || "",
-            sealingPattern: "RITES HOLOGRAM FROM SL NO. C0000599 TO C0001604 HAS BEEN AFFIXED ON THE LEAD SEAL ,TIED WITH SEALING WIRE TO THE PACKING STRIP OF EACH CORRUGATED BOX",
+            sealingPattern: dynamicSealingPattern || "RITES HOLOGRAM HAS BEEN AFFIXED ON THE LEAD SEAL ,TIED WITH SEALING WIRE TO THE PACKING STRIP OF EACH CORRUGATED BOX",
             facsimileText: "RITES HOLOGRAM SEAL",
             reasonsForRejection: fetchedData.reasonOfRejection || "Not Applicable",
             inspectingEngineer: user?.userName || "IE User",
@@ -219,6 +242,8 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
           }
         }
 
+        const HARDCODED_SEAL = "RITES HOLOGRAM FROM SL NO. C0000599 TO C0001604 HAS BEEN AFFIXED ON THE LEAD SEAL ,TIED WITH SEALING WIRE TO THE PACKING STRIP OF EACH CORRUGATED BOX";
+
         if (savedEdit) {
             // Merge saved fields
             mappedData.bookNo = savedEdit.bookNo || mappedData.bookNo;
@@ -238,7 +263,9 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
             mappedData.noOfItemsChecked = savedEdit.noOfItemsChecked || mappedData.noOfItemsChecked;
             mappedData.datesOfInspection = savedEdit.datesOfInspection || mappedData.datesOfInspection;
             mappedData.trRecDate = savedEdit.trRecDate || mappedData.trRecDate;
-            mappedData.sealingPattern = savedEdit.sealingPattern || mappedData.sealingPattern;
+            if (savedEdit.sealingPattern && savedEdit.sealingPattern !== HARDCODED_SEAL) {
+                mappedData.sealingPattern = savedEdit.sealingPattern;
+            }
             mappedData.facsimileText = savedEdit.facsimileText || mappedData.facsimileText;
             mappedData.reasonsForRejection = savedEdit.reasonsForRejection || mappedData.reasonsForRejection;
             mappedData.inspectingEngineer = savedEdit.inspectingEngineer || mappedData.inspectingEngineer;

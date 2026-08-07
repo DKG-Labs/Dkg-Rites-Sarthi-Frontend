@@ -1,6 +1,6 @@
 
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { CALL_STATUS } from '../utils/constants';
 import { getStoredUser, getAuthHeaders } from '../../../services/authService';
@@ -8,6 +8,45 @@ import { API_BASE_URL } from '../../../services/apiConfig';
 
 const BASE_URL = API_BASE_URL;
 
+const parsePoInfo = (item) => {
+  let rlyShortName = item.rlyShortName && item.rlyShortName !== '-' ? item.rlyShortName : '-';
+  let actualPoNo = item.poNo && item.poNo !== '-' ? item.poNo : '-';
+  let actualSerialNo = item.poSr && item.poSr !== '-' ? item.poSr : '-';
+
+  if ((rlyShortName === '-' || actualSerialNo === '-' || actualPoNo === '-') && item.rlyPoSrNo && item.rlyPoSrNo.includes('/')) {
+    const parts = item.rlyPoSrNo.split('/').map(p => p.trim());
+    if (parts.length >= 3) {
+      if (rlyShortName === '-') rlyShortName = parts[0];
+      if (actualPoNo === '-') actualPoNo = parts[1];
+      if (actualSerialNo === '-') actualSerialNo = parts[2];
+    } else if (parts.length === 2) {
+      if (/[a-zA-Z]/.test(parts[0])) {
+        if (rlyShortName === '-') rlyShortName = parts[0];
+        if (actualPoNo === '-') actualPoNo = parts[1];
+      } else {
+        if (actualPoNo === '-') actualPoNo = parts[0];
+        if (actualSerialNo === '-') actualSerialNo = parts[1];
+      }
+    }
+  }
+
+  if (actualPoNo === '-' && item.poNo) {
+    const poParts = (item.poNo || "").split("/").map(p => p.trim());
+    if (poParts.length > 0 && poParts[0]) {
+      const hasLetters = /[a-zA-Z]/.test(poParts[0]);
+      if (hasLetters) {
+        if (rlyShortName === '-') rlyShortName = poParts[0];
+        if (actualPoNo === '-') actualPoNo = poParts[1] || "-";
+        if (actualSerialNo === '-') actualSerialNo = poParts[2] || "-";
+      } else {
+        if (actualPoNo === '-') actualPoNo = poParts[0];
+        if (actualSerialNo === '-') actualSerialNo = poParts[1] || "-";
+      }
+    }
+  }
+
+  return { rlyShortName, actualPoNo, actualSerialNo };
+};
 
 export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
   const [pendingCalls, setPendingCalls] = useState([]);
@@ -81,22 +120,7 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
         internalStatus = CALL_STATUS.RETURNED;
       }
 
-      const poParts = (item.poNo || "").split("/").map(p => p.trim());
-      let rlyShortName = "-";
-      let actualPoNo = "-";
-      let actualSerialNo = "-";
-
-      if (poParts.length > 0 && poParts[0]) {
-        const hasLetters = /[a-zA-Z]/.test(poParts[0]);
-        if (hasLetters) {
-          rlyShortName = poParts[0];
-          actualPoNo = poParts[1] || "-";
-          actualSerialNo = poParts[2] || "-";
-        } else {
-          actualPoNo = poParts[0];
-          actualSerialNo = poParts[0] && poParts[1] ? `${poParts[0]} / ${poParts[1]}` : (poParts[1] || "-");
-        }
-      }
+      const { rlyShortName, actualPoNo, actualSerialNo } = parsePoInfo(item);
 
       return {
         id: item.workflowTransitionId,
@@ -106,7 +130,7 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
         poNumber: actualPoNo,
         poSerialNo: actualSerialNo,
         rlyShortName: rlyShortName,
-        rlyPoSr: item.poNo || '-',
+        rlyPoSr: item.rlyPoSrNo || item.poNo || '-',
         rawPoNo: item.rawPoNo || (actualPoNo !== '-' ? actualPoNo : ''),
         product: item.productType || (callType === 'SLEEPER' ? 'Sleeper' : callType === 'RAILPAD' ? 'Rail Pad' : '-'),
         productStage: item.productType || (callType === 'SLEEPER' ? 'Final' : callType === 'RAILPAD' ? 'Final' : '-'),
@@ -229,19 +253,7 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
         internalStatus = 'payment_pending';
       }
 
-      const poParts = (item.poNo || "").split("/").map(p => p.trim());
-      let rlyShortName = "-";
-      let actualPoNo = "-";
-
-      if (poParts.length > 0 && poParts[0]) {
-        const hasLetters = /[a-zA-Z]/.test(poParts[0]);
-        if (hasLetters) {
-          rlyShortName = poParts[0];
-          actualPoNo = poParts[1] || "-";
-        } else {
-          actualPoNo = poParts[0];
-        }
-      }
+      const { rlyShortName, actualPoNo, actualSerialNo } = parsePoInfo(item);
 
       return {
         id: item.workflowTransitionId,
@@ -249,11 +261,16 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
         vendor: { name: item.vendorName || item.vendorCode || '-' },
         submissionDateTime: item.createdDate,
         poNumber: actualPoNo,
+        poSerialNo: actualSerialNo,
         rlyShortName: rlyShortName,
+        rlyPoSr: item.rlyPoSrNo || item.poNo || '-',
         rawPoNo: item.rawPoNo || (actualPoNo !== '-' ? actualPoNo : ''),
         product: item.productType || (callType === 'SLEEPER' ? 'Sleeper' : callType === 'RAILPAD' ? 'Rail Pad' : '-'),
         productStage: item.productType || (callType === 'SLEEPER' ? 'Final' : callType === 'RAILPAD' ? 'Final' : '-'),
         desiredInspectionDate: item.desiredInspectionDate || item.createdDate,
+        dpDate: item.dpDate,
+        extDpDate: item.extDpDate,
+        dpDates: `${item.dpDate || '-'} / ${item.extDpDate || '-'}`,
         placeOfInspection: item.placeOfInspection || item.poiCode || '-',
         status: internalStatus,
         originalStatus: item.status,
@@ -324,19 +341,7 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
         internalStatus = 'cancelled_chargeable';
       }
 
-      const poParts = (item.poNo || "").split("/").map(p => p.trim());
-      let rlyShortName = "-";
-      let actualPoNo = "-";
-
-      if (poParts.length > 0 && poParts[0]) {
-        const hasLetters = /[a-zA-Z]/.test(poParts[0]);
-        if (hasLetters) {
-          rlyShortName = poParts[0];
-          actualPoNo = poParts[1] || "-";
-        } else {
-          actualPoNo = poParts[0];
-        }
-      }
+      const { rlyShortName, actualPoNo, actualSerialNo } = parsePoInfo(item);
 
       return {
         id: item.workflowTransitionId,
@@ -344,12 +349,17 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
         vendor: { name: item.vendorName || item.vendorCode || '-' },
         submissionDateTime: item.createdDate,
         poNumber: actualPoNo,
+        poSerialNo: actualSerialNo,
         rlyShortName: rlyShortName,
+        rlyPoSr: item.rlyPoSrNo || item.poNo || '-',
         rawPoNo: item.rawPoNo || (actualPoNo !== '-' ? actualPoNo : ''),
         vendorCode: item.vendorCode || '',
         product: item.productType || (callType === 'SLEEPER' ? 'Sleeper' : callType === 'RAILPAD' ? 'Rail Pad' : '-'),
         productStage: item.productType || (callType === 'SLEEPER' ? 'Final' : callType === 'RAILPAD' ? 'Final' : '-'),
         desiredInspectionDate: item.desiredInspectionDate || item.createdDate,
+        dpDate: item.dpDate,
+        extDpDate: item.extDpDate,
+        dpDates: `${item.dpDate || '-'} / ${item.extDpDate || '-'}`,
         placeOfInspection: item.placeOfInspection || item.poiCode || '-',
         status: internalStatus,
         originalStatus: item.status,
@@ -473,8 +483,12 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
     }
   }, [activeTab, fetchData, dataLoaded]);
 
-  // Reset loaded state when callType changes to force re-fetch
+  // Reset loaded state and clear call arrays when callType changes to force re-fetch
   useEffect(() => {
+    setPendingCalls([]);
+    setVerifiedCalls([]);
+    setDisposedCalls([]);
+    setDashboardKPIs(null);
     setDataLoaded({
       pending: false,
       verified: false,
@@ -482,6 +496,45 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
       kpis: false
     });
   }, [callType]);
+
+  // Compute dynamic KPIs for RAILPAD / SLEEPER or when API KPIs are not available
+  const computedKPIs = useMemo(() => {
+    if (callType === 'RAILPAD' || callType === 'SLEEPER' || !dashboardKPIs) {
+      const freshCount = pendingCalls.filter(c => 
+        c.status === CALL_STATUS.FRESH_SUBMISSION || 
+        c.originalStatus === 'Created' || 
+        c.originalStatus === 'CREATED' ||
+        c.submissionCount === 1
+      ).length;
+      const resubCount = pendingCalls.filter(c => 
+        c.status === CALL_STATUS.RESUBMISSION || 
+        c.originalStatus === 'ReSubmitted' || 
+        c.originalStatus === 'RESUBMITTED' ||
+        (c.submissionCount && c.submissionCount > 1)
+      ).length;
+      const retCount = pendingCalls.filter(c => 
+        c.status === CALL_STATUS.RETURNED || 
+        c.status === CALL_STATUS.RETURN_TO_VENDOR || 
+        (c.originalStatus && c.originalStatus.toString().includes('RETURN'))
+      ).length;
+
+      return {
+        pendingVerification: {
+          total: pendingCalls.length,
+          fresh: freshCount,
+          resubmissions: resubCount,
+          returned: retCount
+        },
+        verifiedOpen: {
+          total: verifiedCalls.length
+        },
+        disposed: {
+          total: disposedCalls.length
+        }
+      };
+    }
+    return dashboardKPIs;
+  }, [callType, dashboardKPIs, pendingCalls, verifiedCalls, disposedCalls]);
 
   // Get call by ID
   const getCallById = (callId) => {
@@ -521,7 +574,7 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
     pendingCalls,
     verifiedCalls,
     disposedCalls,
-    dashboardKPIs,
+    dashboardKPIs: computedKPIs,
     vendors,
     rioOffices,
 

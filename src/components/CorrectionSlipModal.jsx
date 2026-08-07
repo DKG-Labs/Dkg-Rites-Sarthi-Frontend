@@ -152,14 +152,14 @@ const getFieldMap = (productType) => {
 const emptyRow = () => ({ columnName: '', readAs: '', insteadOf: '', id: Date.now() + Math.random() });
 
 /* ─── Custom Field Dropdown ─── */
-const FieldDropdown = ({ options, value, onChange, disabled, placeholder = '— Select field —' }) => {
+const FieldDropdown = ({ options, hiddenKeys = [], value, onChange, disabled, placeholder = '— Select field —' }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const ref = useRef(null);
   const searchRef = useRef(null);
 
   const selected = options.find(o => o.key === value);
-  const filtered = options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()));
+  const filtered = options.filter(o => !hiddenKeys.includes(o.key) && o.label.toLowerCase().includes(search.toLowerCase()));
 
   useEffect(() => {
     const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
@@ -345,6 +345,19 @@ const S = {
     padding: '12px 16px', color: '#b91c1c', fontSize: '13px',
   },
 };
+
+const HIDDEN_DROPDOWN_KEYS = [
+  'certificateNo',
+  'certificateDate',
+  'bookNo',
+  'setNo',
+  'contractRef',
+  'qtyNowOffered',
+  'qtyNowPassed',
+  'qtyNowRejected',
+  'rmIcNo',
+  'processIcNo'
+];
 
 /* ─── main component ─── */
 const CorrectionSlipModal = ({ row, onClose }) => {
@@ -622,6 +635,7 @@ const CorrectionSlipModal = ({ row, onClose }) => {
                     <td style={{ ...S.td, padding: '6px 8px' }}>
                       <FieldDropdown
                         options={icFields}
+                        hiddenKeys={HIDDEN_DROPDOWN_KEYS}
                         value={corr.columnName}
                         onChange={(val) => updateRow(corr.id, 'columnName', val)}
                         disabled={loading || !!icError}

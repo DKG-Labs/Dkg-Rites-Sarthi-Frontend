@@ -49,7 +49,7 @@ export const generateFinalProductCertificate = async (icNumber) => {
     noOfVisits: "FIVE",
     datesOfInspection: "18/06/2026,19/06/2026,20/06/2026,22/06/2026,23/06/2026",
     trRecDate: "N/A",
-    sealingPattern: "RITES HOLOGRAM FROM SL NO. C0000599 TO C0001604 HAS BEEN AFFIXED ON THE LEAD SEAL ,TIED WITH SEALING WIRE TO THE PACKING STRIP OF EACH CORRUGATED BOX.",
+    sealingPattern: "RITES HOLOGRAM HAS BEEN AFFIXED ON THE LEAD SEAL ,TIED WITH SEALING WIRE TO THE PACKING STRIP OF EACH CORRUGATED BOX.",
     facsimileText: "RITES HOLOGRAM SEAL",
     reasonsForRejection: "N/A",
     inspectingEngineer: "AVINISH KUMAR JAISWAL",

@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { getBaseUrl } from './apiConfig';
 
-const BASE_URL = 'http://localhost:8080/api/rail-visual-inspection';
+const getBase = () => `${getBaseUrl()}/rail-visual-inspection`;
 
 const handleApiError = (error, defaultMessage) => {
   if (error.response && error.response.data && error.response.data.error) {
@@ -14,7 +15,7 @@ const handleApiError = (error, defaultMessage) => {
 export const visualInspectionService = {
   create: async (data) => {
     try {
-      const response = await axios.post(BASE_URL, data);
+      const response = await axios.post(getBase(), data);
       return response.data;
     } catch (error) {
       handleApiError(error, 'Failed to create visual inspection record');
@@ -23,7 +24,7 @@ export const visualInspectionService = {
 
   update: async (id, data) => {
     try {
-      const response = await axios.put(`${BASE_URL}/${id}`, data);
+      const response = await axios.put(`${getBase()}/${id}`, data);
       return response.data;
     } catch (error) {
       handleApiError(error, 'Failed to update visual inspection record');
@@ -32,7 +33,7 @@ export const visualInspectionService = {
 
   getList: async (plantId, vendorCode) => {
     try {
-      const response = await axios.get(`${BASE_URL}/${plantId}/${vendorCode}`);
+      const response = await axios.get(`${getBase()}/${plantId}/${vendorCode}`);
       return response.data;
     } catch (error) {
       handleApiError(error, 'Failed to fetch visual inspection records');
@@ -41,7 +42,7 @@ export const visualInspectionService = {
 
   delete: async (id) => {
     try {
-      const response = await axios.delete(`${BASE_URL}/${id}`);
+      const response = await axios.delete(`${getBase()}/${id}`);
       return response.data;
     } catch (error) {
       handleApiError(error, 'Failed to delete visual inspection record');

@@ -281,10 +281,11 @@ export const getPoSerialNumberByCallId = async (callNo) => {
 };
 
 /**
- * Step 2: Fetch Manufactured Quantity Summary by Heat and PO Serial Number
- * GET /api/processIe/getManufaturedQtyOfPo/{heatNo}/{poSerialNo}
+ * Step 2: Fetch Manufactured Quantity Summary by Heat and PO Serial Number / Call No
+ * GET /api/processIe/getManufaturedQtyOfPo/{heatNo}/{poSerialNo}?callNo={callNo}
  * @param {string} heatNo - Heat number (e.g., "11")
  * @param {string} poSerialNo - PO serial number from Step 1 (e.g., "001")
+ * @param {string} [callNo] - Optional Inspection call number to strictly scope by Vendor & PO
  * @returns {Promise<Object>} Quantity summary with fields:
  *   - manufaturedQty: Manufactured ERC quantity
  *   - rejectedQty: Rejected ERC quantity
@@ -292,11 +293,14 @@ export const getPoSerialNumberByCallId = async (callNo) => {
  *   - acceptedQty: Accepted ERC quantity
  *   - heatNo: Heat number
  */
-export const getManufacturedQtyOfPo = async (heatNo, poSerialNo) => {
+export const getManufacturedQtyOfPo = async (heatNo, poSerialNo, callNo = '') => {
   try {
     const baseUrl = API_BASE_URL.replace('/api/process-material', '');
-    const url = `${baseUrl}/api/processIe/getManufaturedQtyOfPo/${heatNo}/${poSerialNo}`;
-    console.log(`📡 [Heat Wise Accountal] Fetching manufactured qty for heat: ${heatNo}, PO serial: ${poSerialNo}`);
+    let url = `${baseUrl}/api/processIe/getManufaturedQtyOfPo/${encodeURIComponent(heatNo)}/${encodeURIComponent(poSerialNo)}`;
+    if (callNo) {
+      url += `?callNo=${encodeURIComponent(callNo)}`;
+    }
+    console.log(`📡 [Heat Wise Accountal] Fetching manufactured qty for heat: ${heatNo}, PO serial: ${poSerialNo}, Call: ${callNo}`);
     console.log(`📍 URL: ${url}`);
 
     const response = await fetch(url, {

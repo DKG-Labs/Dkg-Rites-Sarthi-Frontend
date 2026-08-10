@@ -184,21 +184,22 @@ const ManualChecks = ({ onBack, activeContainer, initialSubModule, initialViewMo
         };
 
         try {
-            if (editingEntry) {
+            const targetId = editingEntry ? editingEntry.id : enrichedData.id;
+            if (targetId) {
                 // UPDATE existing entry
                 let response;
                 if (subModule === 'mouldPrep') {
-                    response = await apiService.updateMouldPreparation(editingEntry.id, enrichedData);
+                    response = await apiService.updateMouldPreparation(targetId, enrichedData);
                 } else if (subModule === 'htsWire') {
-                    response = await apiService.updateHtsWirePlacement(editingEntry.id, enrichedData);
+                    response = await apiService.updateHtsWirePlacement(targetId, enrichedData);
                 } else if (subModule === 'demoulding') {
-                    response = await apiService.updateDemouldingInspection(editingEntry.id, enrichedData);
+                    response = await apiService.updateDemouldingInspection(targetId, enrichedData);
                 }
 
                 const updated = response?.responseData;
                 setEntries(prev => ({
                     ...prev,
-                    [subModule]: prev[subModule].map(e => e.id === editingEntry.id ? (updated || { ...enrichedData, id: editingEntry.id, timestamp: editingEntry.timestamp }) : e)
+                    [subModule]: (prev[subModule] || []).map(e => e.id === targetId ? (updated || { ...enrichedData, id: targetId, timestamp: e.timestamp }) : e)
                 }));
             } else {
                 // CREATE new entry

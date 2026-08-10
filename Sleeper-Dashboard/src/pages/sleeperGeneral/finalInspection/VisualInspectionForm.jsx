@@ -66,13 +66,11 @@ const VisualInspectionForm = ({ batch, onSave, onCancel, shift }) => {
         const typeLower = (batch?.sleeperType || '').toLowerCase();
         const isSingleBenchType = ['pnc', 'turnout', 'dc', 'scc', 'curved', 'dcs', 'ds'].some(kw => typeLower.includes(kw));
 
-        // Deduplicate by sleeperNo to handle cases where production_sleeper table
-        // has duplicate rows (e.g., double-submit on production declaration).
-        // Note: duplicate rows have DIFFERENT sleeperId (DB ids) but same sleeperNo.
-        // Exception: For single-bench types (Turnout, PnC, etc.), duplicate sleeper numbers are valid.
+        // Deduplicate by s.id (unique DB sleeperId) to handle duplicate DB records,
+        // while preserving all distinct sleeper items returned by backend (even if sleeperNo repeats).
         const seen = new Set();
         return mapped.filter(s => {
-            const key = isSingleBenchType ? s.id : (s.displayNo || s.id);
+            const key = s.id;
             if (seen.has(key)) return false;
             seen.add(key);
             return true;

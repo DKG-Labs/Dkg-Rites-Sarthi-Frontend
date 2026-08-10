@@ -75,6 +75,7 @@ export const apiService = {
 
     // ================= Demoulding Inspection =================
     getAllDemouldingInspection: () => getWithCache('/DemouldingInspection/all'),
+    getDemouldingInspectionByBatch: (batchNo) => api.get(`/DemouldingInspection/byBatch?batchNo=${encodeURIComponent(batchNo)}`),
     getDemouldingInspectionById: (id) => api.get(`/DemouldingInspection/${id}`),
     createDemouldingInspection: (payload) => api.post('/DemouldingInspection/create', payload),
     updateDemouldingInspection: (id, payload) => api.put(`/DemouldingInspection/update/${id}`, payload),

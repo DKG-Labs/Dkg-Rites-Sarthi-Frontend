@@ -733,10 +733,11 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
                             <div className="form-field">
                                 <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748b' }}>Bench No.</label>
                                 <input 
-                                    type="number" 
+                                    type="text" 
                                     name="benchNo"
                                     value={formData.benchNo}
                                     onChange={handleFormChange}
+                                    placeholder="e.g. A, B, C or 12"
                                     style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
                                 />
                             </div>

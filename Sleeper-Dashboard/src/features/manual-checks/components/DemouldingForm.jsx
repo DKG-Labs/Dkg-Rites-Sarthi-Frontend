@@ -440,30 +440,33 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                 newState.visualCheck = 'All OK';
             }
 
+            // Always reset selections when the check status changes so stale
+            // entries (e.g. from a previous "All Rejected" auto-fill) don't linger.
+            if (field === 'visualCheck' || field === 'dimCheck') {
+                newState.defectiveSleeperDetails = [];
+            }
+
             // Handle "All Rejected" transition automatically
             const isAllRejectedVisual = newState.visualCheck === 'All Rejected';
             const isAllRejectedDim = newState.dimCheck === 'All Rejected';
 
             if (isAllRejectedVisual || isAllRejectedDim) {
-                const currentDecls = [...newState.defectiveSleeperDetails];
+                const currentDecls = [];
                 (newState.gangNo || []).forEach(bench => {
                     const seqs = availableSleepersByBench[bench] || ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
                     seqs.forEach(seq => {
-                        if (!currentDecls.find(d => d.benchNo === bench && (d.sequence === seq || d.sleeperNo === seq))) {
-                            currentDecls.push({
-                                benchNo: bench,
-                                sequence: seq,
-                                sleeperNo: seq,
-                                visualReason: '',
-                                dimReason: ''
-                            });
-                        }
+                        currentDecls.push({
+                            benchNo: bench,
+                            sequence: seq,
+                            sleeperNo: formatSleeperLabel(bench, seq),
+                            visualReason: '',
+                            dimReason: ''
+                        });
                     });
                 });
                 newState.defectiveSleeperDetails = currentDecls;
-            } else if (newState.visualCheck === 'All OK' && newState.dimCheck === 'All OK') {
-                newState.defectiveSleeperDetails = [];
             }
+            // "All OK" for both: list already cleared above
             return newState;
         });
 
@@ -533,8 +536,8 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                     benchGangNo: String(item.benchNo || gangNoStr || ""),
                     sequenceNo: String(item.sequence || ""),
                     sleeperNo: String(item.sleeperNo || `${item.benchNo || gangNoStr}${item.sequence}` || ""),
-                    visualReason: formData.visualCheck !== 'All OK' ? String(item.visualReason || "") : "",
-                    dimReason: formData.dimCheck !== 'All OK' ? String(item.dimReason || "") : ""
+                    visualReason: String(item.visualReason || ""),
+                    dimReason: String(item.dimReason || "")
                 }));
 
             // Payload matching demoulding-inspection-controller schema exactly
@@ -1027,15 +1030,10 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                                                     <select
                                                         className="form-input-standard"
                                                         style={{ width: '100%', fontSize: '11px', height: '32px' }}
-                                                        value={item.visualReason || item.dimReason || ''}
+                                                        value={item.visualReason || ''}
                                                         onChange={e => {
-                                                            const val = e.target.value;
-                                                            const dimList = ['Outer Gauge', 'Rail Seat', 'Toe Gap', 'Rail Seat Slope', 'Height Gauge', 'Length of Sleeper'];
-                                                            if (dimList.includes(val)) {
-                                                                updateDefectiveSleeper(idx, { dimReason: val, visualReason: '' });
-                                                            } else {
-                                                                updateDefectiveSleeper(idx, { visualReason: val, dimReason: '' });
-                                                            }
+                                                            // Visual dropdown always saves to visualReason
+                                                            updateDefectiveSleeper(idx, { visualReason: e.target.value, dimReason: '' });
                                                         }}
                                                     >
                                                         <option value="">-- Select Visual Reason --</option>
@@ -1062,15 +1060,10 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                                                     <select
                                                         className="form-input-standard"
                                                         style={{ width: '100%', fontSize: '11px', height: '32px' }}
-                                                        value={item.dimReason || item.visualReason || ''}
+                                                        value={item.dimReason || ''}
                                                         onChange={e => {
-                                                            const val = e.target.value;
-                                                            const visList = ['Surface Defect', 'Honeycomb', 'Dowel Missing / Tilt / Sink', 'Insert Missing / Tilt / Sink', 'Crack'];
-                                                            if (visList.includes(val)) {
-                                                                updateDefectiveSleeper(idx, { visualReason: val, dimReason: '' });
-                                                            } else {
-                                                                updateDefectiveSleeper(idx, { dimReason: val, visualReason: '' });
-                                                            }
+                                                            // Dim dropdown always saves to dimReason
+                                                            updateDefectiveSleeper(idx, { dimReason: e.target.value, visualReason: '' });
                                                         }}
                                                     >
                                                         <option value="">-- Select Dim. Reason --</option>

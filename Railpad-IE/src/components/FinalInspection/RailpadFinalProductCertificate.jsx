@@ -25,35 +25,28 @@ import { finalInspectionLotResultsService } from "../../services/finalInspection
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-const formatDate = (dateString) => {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = date.getFullYear();
-  return `${day}/${month}/${year}`;
-};
-
-const numberToWords = (num) => {
-  if (num === 0) return "Zero";
-  const a = ["", "One ", "Two ", "Three ", "Four ", "Five ", "Six ", "Seven ", "Eight ", "Nine ", "Ten ", "Eleven ", "Twelve ", "Thirteen ", "Fourteen ", "Fifteen ", "Sixteen ", "Seventeen ", "Eighteen ", "Nineteen "];
-  const b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
-  
-  if ((num = num.toString()).length > 9) return "Overflow";
-  let n = ("000000000" + num).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
-  if (!n) return "";
-  let str = "";
-  str += (Number(n[1]) !== 0) ? (a[Number(n[1])] || b[n[1][0]] + " " + a[n[1][1]]) + "Crore " : "";
-  str += (Number(n[2]) !== 0) ? (a[Number(n[2])] || b[n[2][0]] + " " + a[n[2][1]]) + "Lakh " : "";
-  str += (Number(n[3]) !== 0) ? (a[Number(n[3])] || b[n[3][0]] + " " + a[n[3][1]]) + "Thousand " : "";
-  str += (Number(n[4]) !== 0) ? (a[Number(n[4])] || b[n[4][0]] + " " + a[n[4][1]]) + "Hundred " : "";
-  str += (Number(n[5]) !== 0) ? ((str !== "") ? "and " : "") + (a[Number(n[5])] || b[n[5][0]] + " " + a[n[5][1]]) : "";
-  return str.trim();
+const cleanRejectionReasonDrawing = (reasonStr) => {
+  if (!reasonStr) return "Not Applicable";
+  const matches = reasonStr.match(/Drawing\s+[^:\s|\[\]()]+/gi);
+  if (matches && matches.length > 0) {
+    const uniqueDrawings = new Set(matches.map(m => m.replace(/Drawing\s+/i, '').trim().toUpperCase()));
+    if (uniqueDrawings.size === 1) {
+      return reasonStr
+        .replace(/\s*-\s*Drawing\s+[^:\s|\[\]()]+:\s*/gi, ': ')
+        .replace(/\s*Drawing\s+[^:\s|\[\]()]+:\s*/gi, ': ')
+        .replace(/\s*\(Drawing\s+[^:\s|\[\]()]+\)/gi, '')
+        .replace(/\s*Drawing\s+[^:\s|\[\]()]+\s*/gi, ' ')
+        .replace(/\s*:\s*:\s*/g, ': ')
+        .trim();
+    }
+  }
+  return reasonStr;
 };
 
 export default function RailpadFinalProductCertificate({ call = {}, onBack, isViewOnly = false }) {
   const printAreaRef = useRef();
   const [data, setData] = useState({});
+  const [backupData, setBackupData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isESigning, setIsESigning] = useState(false);
@@ -62,6 +55,11 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
 
   const user = getStoredUser();
   const isProcessCall = call?.callType === 'PROCESS' || call?.requestId?.startsWith('RPP-') || call?.callNo?.startsWith('RPP-');
+
+  const dataRef = useRef(data);
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
 
   const showToast = (message, type = 'info') => {
     setNotification({ show: true, message, type });
@@ -77,12 +75,28 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
       
       if (status === 'success' && signedData) {
         try {
+          const callNo = call?.callNo || call?.call_no || call?.requestId;
+          const currentData = dataRef.current;
+
+          showToast("Saving IC edit details...", "info");
+          if (isProcessCall) {
+            await saveProcessIcEditData({
+              ...currentData,
+              icNumber: callNo,
+              installmentNo: currentData.offeredInstNo,
+              offeredInstNo: currentData.offeredInstNo,
+              passedInstNo: currentData.passedInstNo
+            });
+          } else {
+            await saveFinalIcEditData({ ...currentData, icNumber: callNo });
+          }
+
           showToast("Uploading signed certificate...", "info");
           await uploadSignedCertificate({
-            icNumber: certificateNo,
+            icNumber: certificateNo || callNo,
             signedData: signedData,
-            fileName: fileName,
-            uploadedBy: "Inspecting Engineer"
+            fileName: fileName || `${callNo}.pdf`,
+            uploadedBy: user?.userName || "Inspecting Engineer"
           });
           
           showToast("Signed certificate stored successfully!", "success");
@@ -92,9 +106,9 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
             console.log('🔄 Triggering workflow transition to IC_ISSUE');
             await performTransitionAction({
               workflowTransitionId: call?.workflowTransitionId || call?.id,
-              requestId: call?.requestId || call?.call_no,
+              requestId: call?.requestId || call?.call_no || call?.callNo,
               action: 'IC_ISSUE',
-              remarks: 'Digital signature applied (Mocked)',
+              remarks: 'Digital signature applied',
               actionBy: user?.userId || 1
             });
 
@@ -114,7 +128,7 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
 
     window.addEventListener('pki-status', handlePkiStatus);
     return () => window.removeEventListener('pki-status', handlePkiStatus);
-  }, [call, user]);
+  }, [call, user, isProcessCall, onBack]);
 
   useEffect(() => {
     const initializeData = async () => {
@@ -148,10 +162,8 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
           }
         }
 
-        // Map backend DTO to frontend props if needed or pass directly if keys match.
-        // If keys are different, map them here. The DTO uses camelCase keys matching the frontend mostly.
         const mappedData = {
-            certificateNo: fetchedData.certificateNo || "", // from somewhere else or hardcoded
+            certificateNo: fetchedData.certificateNo || "",
             certificateDate: fetchedData.certificateDate,
             bookNo: fetchedData.bookNo || "",
             setNo: fetchedData.setNo || "",
@@ -182,7 +194,6 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
             facsimileText: "RITES HOLOGRAM SEAL",
             reasonsForRejection: fetchedData.reasonOfRejection || "Not Applicable",
             inspectingEngineer: user?.userName || "IE User",
-            // Lot details could be fetched from call if needed, otherwise empty.
             lotDetails: []
         };
 
@@ -195,7 +206,13 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
               mappedData.qtyNowRejected = processData.totalRejectedQty || 0;
               
               if (processData.lotRangeFrom && processData.lotRangeTo) {
-                mappedData.lotNo = `${processData.lotRangeFrom} to ${processData.lotRangeTo}`;
+                if (String(processData.lotRangeFrom).trim() === String(processData.lotRangeTo).trim()) {
+                  mappedData.lotNo = String(processData.lotRangeFrom).trim();
+                } else {
+                  mappedData.lotNo = `${String(processData.lotRangeFrom).trim()} to ${String(processData.lotRangeTo).trim()}`;
+                }
+              } else if (processData.lotRangeFrom) {
+                mappedData.lotNo = String(processData.lotRangeFrom).trim();
               } else {
                 mappedData.lotNo = "N/A";
               }
@@ -204,7 +221,7 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
                 mappedData.quantityNowPassedText = processData.remarks;
               }
               if (processData.reasonForRejection) {
-                mappedData.reasonsForRejection = processData.reasonForRejection;
+                mappedData.reasonsForRejection = cleanRejectionReasonDrawing(processData.reasonForRejection);
               }
             }
 
@@ -215,10 +232,11 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
               }
             }
 
-            // Default dummy values for Spec. No. and QAP No. (user can edit manually)
             mappedData.specNo = mappedData.specNo || "IRS T-55-2025 Rev.1";
             mappedData.qapNo = mappedData.qapNo || "QAP/MG/CGRSP, REV-01 Effective Date: 14.01.2026";
-            mappedData.offeredInstNo = mappedData.offeredInstNo || "2nd & Final";
+            mappedData.offeredInstNo = mappedData.offeredInstNo || "";
+            mappedData.passedInstNo = mappedData.passedInstNo || "";
+            mappedData.sealingPattern = "NA";
           } catch (err) {
             console.error("Failed to fetch process inspection result details:", err);
           }
@@ -231,10 +249,6 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
           if (!savedEdit) {
             savedEdit = await getProcessIcEditData(callNo);
           }
-          // Map installmentNo back to offeredInstNo for the component
-          if (savedEdit && savedEdit.installmentNo) {
-            savedEdit.offeredInstNo = savedEdit.installmentNo;
-          }
         } else {
           savedEdit = await getFinalIcSaveChanges(callNo);
           if (!savedEdit) {
@@ -245,16 +259,22 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
         const HARDCODED_SEAL = "RITES HOLOGRAM FROM SL NO. C0000599 TO C0001604 HAS BEEN AFFIXED ON THE LEAD SEAL ,TIED WITH SEALING WIRE TO THE PACKING STRIP OF EACH CORRUGATED BOX";
 
         if (savedEdit) {
-            // Merge saved fields
             mappedData.bookNo = savedEdit.bookNo || mappedData.bookNo;
             mappedData.setNo = savedEdit.setNo || mappedData.setNo;
-            mappedData.offeredInstNo = savedEdit.offeredInstNo || mappedData.offeredInstNo;
+            mappedData.offeredInstNo = savedEdit.offeredInstNo || savedEdit.installmentNo || mappedData.offeredInstNo;
             mappedData.passedInstNo = savedEdit.passedInstNo || mappedData.passedInstNo;
             mappedData.contractRef = savedEdit.contractRef || mappedData.contractRef;
             mappedData.billPayingOfficer = savedEdit.billPayingOfficer || mappedData.billPayingOfficer;
             mappedData.consignee = savedEdit.consignee || mappedData.consignee;
             mappedData.purchasingAuthority = savedEdit.purchasingAuthority || mappedData.purchasingAuthority;
             mappedData.description = savedEdit.description || mappedData.description;
+            mappedData.drgNo = savedEdit.drgNo || mappedData.drgNo;
+            mappedData.specNo = savedEdit.specNo || mappedData.specNo;
+            mappedData.qapNo = savedEdit.qapNo || mappedData.qapNo;
+            mappedData.chpClNo = savedEdit.chpClNo || mappedData.chpClNo;
+            mappedData.lotNo = savedEdit.lotNo || mappedData.lotNo;
+            mappedData.qtyNowOffered = savedEdit.qtyNowOffered || mappedData.qtyNowOffered;
+            mappedData.qtyNowPassed = savedEdit.qtyNowPassed || mappedData.qtyNowPassed;
             mappedData.qtyOfferedPreviously = savedEdit.qtyOfferedPreviously || mappedData.qtyOfferedPreviously;
             mappedData.qtyPassedPreviously = savedEdit.qtyPassedPreviously || mappedData.qtyPassedPreviously;
             mappedData.qtyNowRejected = savedEdit.qtyNowRejected || mappedData.qtyNowRejected;
@@ -262,6 +282,8 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
             mappedData.quantityNowPassedText = savedEdit.quantityNowPassedText || mappedData.quantityNowPassedText;
             mappedData.noOfItemsChecked = savedEdit.noOfItemsChecked || mappedData.noOfItemsChecked;
             mappedData.datesOfInspection = savedEdit.datesOfInspection || mappedData.datesOfInspection;
+            mappedData.dateOfCall = savedEdit.dateOfCall || mappedData.dateOfCall;
+            mappedData.noOfVisits = savedEdit.noOfVisits || mappedData.noOfVisits;
             mappedData.trRecDate = savedEdit.trRecDate || mappedData.trRecDate;
             if (savedEdit.sealingPattern && savedEdit.sealingPattern !== HARDCODED_SEAL) {
                 mappedData.sealingPattern = savedEdit.sealingPattern;
@@ -269,6 +291,10 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
             mappedData.facsimileText = savedEdit.facsimileText || mappedData.facsimileText;
             mappedData.reasonsForRejection = savedEdit.reasonsForRejection || mappedData.reasonsForRejection;
             mappedData.inspectingEngineer = savedEdit.inspectingEngineer || mappedData.inspectingEngineer;
+        }
+
+        if (isProcessCall && mappedData.reasonsForRejection) {
+          mappedData.reasonsForRejection = cleanRejectionReasonDrawing(mappedData.reasonsForRejection);
         }
 
         setData(mappedData);
@@ -289,16 +315,27 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
     }
   };
 
+  const handleStartEdit = () => {
+    setBackupData({ ...data });
+    setIsEditing(true);
+  };
+
   const handleSaveChanges = async () => {
     try {
-      showToast("Saving draft...", "info");
+      showToast("Saving draft changes...", "info");
       const callNo = call.callNo || call.call_no || call.requestId;
       if (isProcessCall) {
-        await saveProcessIcSaveChanges({ ...data, icNumber: callNo, installmentNo: data.offeredInstNo });
+        await saveProcessIcSaveChanges({
+          ...data,
+          icNumber: callNo,
+          installmentNo: data.offeredInstNo,
+          offeredInstNo: data.offeredInstNo,
+          passedInstNo: data.passedInstNo
+        });
       } else {
         await saveFinalIcSaveChanges({ ...data, icNumber: callNo });
       }
-      showToast("Draft saved successfully!", "success");
+      showToast("Draft changes saved successfully!", "success");
       setIsEditing(false);
     } catch (error) {
       console.error("Save Changes Error:", error);
@@ -306,28 +343,74 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
     }
   };
 
+  const handleSaveIc = async () => {
+    try {
+      showToast("Saving IC details...", "info");
+      const callNo = call.callNo || call.call_no || call.requestId;
+      if (isProcessCall) {
+        await saveProcessIcEditData({
+          ...data,
+          icNumber: callNo,
+          installmentNo: data.offeredInstNo,
+          offeredInstNo: data.offeredInstNo,
+          passedInstNo: data.passedInstNo
+        });
+      } else {
+        await saveFinalIcEditData({ ...data, icNumber: callNo });
+      }
+      showToast("IC saved successfully!", "success");
+      setIsEditing(false);
+    } catch (error) {
+      console.error("Save IC Error:", error);
+      showToast("Failed to save IC: " + error.message, "error");
+    }
+  };
+
+  const handleCancelChanges = () => {
+    if (backupData) {
+      setData(backupData);
+    }
+    setIsEditing(false);
+    showToast("Changes cancelled.", "info");
+  };
+
   const handleVerifyBookSet = async () => {
-    if (!data.bookNo || !data.setNo) {
-      showToast("Please fill Book No. and Set No. first.", "warning");
+    const bookNo = data.bookNo || '';
+    const setNo = data.setNo || '';
+
+    if (!bookNo || !setNo) {
+      showToast("Please fill in both Book No. and Set No. before verifying.", "warning");
+      return;
+    }
+
+    if (bookNo.length !== 4) {
+      showToast("Book No. must be exactly 4 characters long.", "warning");
+      return;
+    }
+    if (!/^\d{3}$/.test(setNo)) {
+      showToast("Set No. must be exactly 3 digits.", "warning");
       return;
     }
     
     setBookSetValidation(prev => ({ ...prev, isValidating: true }));
     try {
-      const empNo = user?.employeeCode || "IE-AVINISH";
-      const result = await validateBookSetNo(empNo, data.bookNo, data.setNo, "F");
+      const empNo = user?.employeeCode || getStoredUser()?.employeeCode || "UNKNOWN";
+      const statusParam = isProcessCall ? "S" : "F";
+      const result = await validateBookSetNo(empNo, bookNo, setNo, statusParam);
       
       if (result.resultFlag === 1) {
         setBookSetValidation({ isValid: true, message: null, isValidating: false });
-        showToast("Book and Set number validated successfully!", "success");
+        showToast("Book No. and Set No. are valid.", "success");
       } else {
         setBookSetValidation({ isValid: false, message: result.message, isValidating: false });
         showToast(result.message || "Invalid Book/Set No.", "error");
+        // Clear invalid values
         setData(prev => ({ ...prev, bookNo: '', setNo: '' }));
       }
     } catch (error) {
       setBookSetValidation({ isValid: false, message: "Verification failed.", isValidating: false });
-      showToast("Verification failed: " + error.message, "error");
+      showToast("Error verifying Book/Set No: " + error.message, "error");
+      // Clear invalid values on error too
       setData(prev => ({ ...prev, bookNo: '', setNo: '' }));
     }
   };
@@ -337,13 +420,25 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
     try {
       showToast("Generating PDF export...", "info");
       const element = printAreaRef.current;
-      const canvas = await html2canvas(element, { scale: 2, useCORS: true, logging: false });
-      const imgData = canvas.toDataURL('image/jpeg', 1.0);
+      const certificatePage = element.querySelector('.certificate-page') || element;
+
+      const canvas = await html2canvas(certificatePage, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        scrollY: -window.scrollY,
+        scrollX: -window.scrollX,
+        windowWidth: 1200,
+        removeContainer: true,
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
       const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgWidth = 210;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
       
-      pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
       
       const certificateNo = data.certificateNo || "Railpad_IC";
       const sanitizedFilename = certificateNo.replace(/[/\\?%*:|"<>]/g, '-');
@@ -351,7 +446,71 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
       showToast("PDF downloaded successfully!", "success");
     } catch (err) {
       console.error(err);
-      showToast("Failed to export PDF", "error");
+      showToast("Failed to export PDF: " + err.message, "error");
+    }
+  };
+
+  const handleProcessSaveIc = async () => {
+    try {
+      setIsESigning(true);
+      
+      const bookNo = data.bookNo || '';
+      const setNo = data.setNo || '';
+
+      if (!bookNo || !setNo) {
+        showToast("Please enter Book No. and Set No. before saving IC.", "warning");
+        setIsESigning(false);
+        return;
+      }
+
+      if (bookNo.length !== 4) {
+        showToast("Book No. must be exactly 4 characters long.", "warning");
+        setIsESigning(false);
+        return;
+      }
+
+      if (!/^\d{3}$/.test(setNo)) {
+        showToast("Set No. must be exactly 3 digits.", "warning");
+        setIsESigning(false);
+        return;
+      }
+
+      const callNo = call.callNo || call.call_no || call.requestId;
+
+      showToast("Saving Process IC details...", "info");
+      await saveProcessIcEditData({
+        ...data,
+        icNumber: callNo,
+        installmentNo: data.offeredInstNo,
+        offeredInstNo: data.offeredInstNo,
+        passedInstNo: data.passedInstNo
+      });
+
+      showToast("Process IC data saved! Updating workflow...", "info");
+      await delay(500);
+
+      try {
+        console.log('🔄 Triggering workflow transition to IC_ISSUE');
+        await performTransitionAction({
+          workflowTransitionId: call?.workflowTransitionId || call?.id,
+          requestId: call?.requestId || call?.call_no || call?.callNo,
+          action: 'IC_ISSUE',
+          remarks: 'Process IC Saved and Issued',
+          actionBy: user?.userId || 1
+        });
+
+        showToast("Process IC saved and workflow updated successfully!", "success");
+        await delay(1000);
+        onBack();
+      } catch (workflowErr) {
+        console.error('⚠️ Workflow update failed:', workflowErr);
+        showToast("IC saved, but workflow transition failed: " + workflowErr.message, "error");
+      }
+    } catch (error) {
+      console.error("Save Process IC Error:", error);
+      showToast("Failed to save Process IC: " + error.message, "error");
+    } finally {
+      setIsESigning(false);
     }
   };
 
@@ -359,8 +518,23 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
     try {
       setIsESigning(true);
       
-      if (!data.bookNo || !data.setNo) {
+      const bookNo = data.bookNo || '';
+      const setNo = data.setNo || '';
+
+      if (!bookNo || !setNo) {
         showToast("Please enter Book No. and Set No. before signing.", "warning");
+        setIsESigning(false);
+        return;
+      }
+
+      if (bookNo.length !== 4) {
+        showToast("Book No. must be exactly 4 characters long.", "warning");
+        setIsESigning(false);
+        return;
+      }
+
+      if (!/^\d{3}$/.test(setNo)) {
+        showToast("Set No. must be exactly 3 digits.", "warning");
         setIsESigning(false);
         return;
       }
@@ -369,23 +543,39 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
 
       showToast("Saving final certificate details...", "info");
       if (isProcessCall) {
-        await saveProcessIcEditData({ ...data, icNumber: callNo, installmentNo: data.offeredInstNo });
+        await saveProcessIcEditData({
+          ...data,
+          icNumber: callNo,
+          installmentNo: data.offeredInstNo,
+          offeredInstNo: data.offeredInstNo,
+          passedInstNo: data.passedInstNo
+        });
       } else {
         await saveFinalIcEditData({ ...data, icNumber: callNo });
       }
 
       showToast("Generating PDF snapshot...", "info");
-      
-      // Delay slightly for render cycles
       await delay(300);
       
       const element = printAreaRef.current;
-      const canvas = await html2canvas(element, { scale: 1.5, useCORS: true, logging: false });
-      const imgData = canvas.toDataURL('image/jpeg', 0.9);
+      const certificatePage = element.querySelector('.certificate-page') || element;
+
+      const canvas = await html2canvas(certificatePage, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        scrollY: -window.scrollY,
+        scrollX: -window.scrollX,
+        windowWidth: 1200,
+        removeContainer: true,
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
       const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgWidth = 210;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
       
       const pdfOutput = pdf.output('datauristring');
       const base64Pdf = pdfOutput.split(',')[1];
@@ -394,13 +584,11 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
         throw new Error("Invalid PDF snapshot generated.");
       }
 
-      // Generate Capricorn signing XML
       const now = new Date();
       const pad = (n) => n.toString().padStart(2, '0');
       const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}+05:30`;
       const txn = "SARTHI" + Math.random().toString(16).slice(2, 10).toUpperCase();
 
-      // Dynamically calculate eSign position from DOM
       let sigCood = "405,118";
       let sigSize = "160,38";
       try {
@@ -458,7 +646,6 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
         </request>
       `.replace(/>\s+</g, "><").trim();
 
-      // Trigger local bridge, or simulate if not loaded
       if (typeof window.abc === 'function') {
         const fileName = (data.certificateNo || "Railpad_IC") + ".pdf";
         window.abc(xmlRequest, data.certificateNo || call.requestId || "Railpad_IC", fileName);
@@ -533,7 +720,7 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
       )}
 
       {/* Top action header bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', alignItems: 'center' }}>
         <button 
           onClick={onBack} 
           style={{
@@ -549,75 +736,146 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
           ← Back to List
         </button>
 
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {/* Edit / Save Draft Toggle */}
-          <button
-            onClick={isEditing ? handleSaveChanges : () => setIsEditing(true)}
-            disabled={isESigning}
-            style={{
-              padding: '8px 16px',
-              border: isEditing ? '1px solid #2563eb' : '1px solid #cbd5e1',
-              borderRadius: '6px',
-              background: isEditing ? '#2563eb' : 'white',
-              color: isEditing ? 'white' : '#334155',
-              fontWeight: '600',
-              cursor: 'pointer'
-            }}
-          >
-            {isEditing ? (isViewOnly ? "💾 Save Book/Set No" : "💾 Save Changes") : (isViewOnly ? "✎ Edit Book/Set No" : "✎ Edit IC Details")}
-          </button>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {!isEditing ? (
+            <>
+              {/* Edit Button */}
+              <button
+                onClick={handleStartEdit}
+                disabled={isESigning}
+                style={{
+                  padding: '8px 16px',
+                  border: '1px solid #2563eb',
+                  borderRadius: '6px',
+                  background: '#2563eb',
+                  color: 'white',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                ✎ Edit
+              </button>
 
-          {/* E-sign Button */}
-          {!isViewOnly && (
-            <button
-              onClick={handleESign}
-              disabled={isESigning || isEditing}
-              style={{
-                padding: '8px 16px',
-                border: 'none',
-                borderRadius: '6px',
-                background: '#059669',
-                color: 'white',
-                fontWeight: '700',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-            >
-              {isESigning ? (
-                <>
-                  <span style={{
-                    border: '2px solid #ffffff',
-                    borderTop: '2px solid transparent',
-                    borderRadius: '50%',
-                    width: '12px',
-                    height: '12px',
-                    display: 'inline-block',
-                    animation: 'spin 1s linear infinite'
-                  }}></span>
-                  Signing...
-                </>
-              ) : "✒️ E-SIGN IC"}
-            </button>
+              {/* E-sign / Save IC Button */}
+              {!isViewOnly && (
+                <button
+                  onClick={isProcessCall ? handleProcessSaveIc : handleESign}
+                  disabled={isESigning}
+                  style={{
+                    padding: '8px 16px',
+                    border: 'none',
+                    borderRadius: '6px',
+                    background: '#059669',
+                    color: 'white',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  {isESigning ? (
+                    <>
+                      <span style={{
+                        border: '2px solid #ffffff',
+                        borderTop: '2px solid transparent',
+                        borderRadius: '50%',
+                        width: '12px',
+                        height: '12px',
+                        display: 'inline-block',
+                        animation: 'spin 1s linear infinite'
+                      }}></span>
+                      {isProcessCall ? "Saving IC..." : "Signing..."}
+                    </>
+                  ) : (
+                    isProcessCall ? "💾 SAVE IC" : "✒️ E-SIGN IC"
+                  )}
+                </button>
+              )}
+
+              {/* Export PDF Button */}
+              <button
+                onClick={handleExport}
+                disabled={isESigning}
+                style={{
+                  padding: '8px 16px',
+                  border: 'none',
+                  borderRadius: '6px',
+                  background: '#4f46e5',
+                  color: 'white',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                📥 Export PDF
+              </button>
+            </>
+          ) : (
+            <>
+              {/* Save Changes Button */}
+              <button
+                onClick={handleSaveChanges}
+                disabled={isESigning}
+                style={{
+                  padding: '8px 16px',
+                  border: '1px solid #0284c7',
+                  borderRadius: '6px',
+                  background: '#0284c7',
+                  color: 'white',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                💾 Save Changes
+              </button>
+
+              {/* Save IC Button */}
+              <button
+                onClick={handleSaveIc}
+                disabled={isESigning}
+                style={{
+                  padding: '8px 16px',
+                  border: '1px solid #059669',
+                  borderRadius: '6px',
+                  background: '#059669',
+                  color: 'white',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                💾 Save IC
+              </button>
+
+              {/* Cancel Changes Button */}
+              <button
+                onClick={handleCancelChanges}
+                disabled={isESigning}
+                style={{
+                  padding: '8px 16px',
+                  border: '1px solid #dc2626',
+                  borderRadius: '6px',
+                  background: '#dc2626',
+                  color: 'white',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                ❌ Cancel Changes
+              </button>
+            </>
           )}
-
-          {/* Export PDF Button */}
-          <button
-            onClick={handleExport}
-            disabled={isESigning || isEditing}
-            style={{
-              padding: '8px 16px',
-              border: 'none',
-              borderRadius: '6px',
-              background: '#4f46e5',
-              color: 'white',
-              fontWeight: '600',
-              cursor: 'pointer'
-            }}
-          >
-            📥 Export PDF
-          </button>
         </div>
       </div>
 

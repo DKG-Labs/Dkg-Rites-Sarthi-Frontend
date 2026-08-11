@@ -312,6 +312,21 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
         const rejectedBatchesList = batches.filter(
           (b) => selectedBatches[b.declarationBatchId] && selectedBatches[b.declarationBatchId].qtyRejected > 0
         );
+
+        // Check if there are multiple unique drawing numbers across all rejected batches
+        const allRejectionDrawings = new Set();
+        rejectedBatchesList.forEach(batch => {
+          if (batch.rejections && batch.rejections.length > 0) {
+            batch.rejections.forEach(rej => {
+              const dwg = rej.drawingNo || batch.drawingNo;
+              if (dwg) allRejectionDrawings.add(dwg.trim().toUpperCase());
+            });
+          } else if (batch.drawingNo) {
+            allRejectionDrawings.add(batch.drawingNo.trim().toUpperCase());
+          }
+        });
+        const hasMultipleDrawings = allRejectionDrawings.size > 1;
+
         const reasonItems = [];
         rejectedBatchesList.forEach(batch => {
           const selectedBatchInfo = selectedBatches[batch.declarationBatchId];
@@ -329,15 +344,15 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
 
             const dwgParts = Object.keys(drawingGroups).map(dwg => {
               const reasonsStr = drawingGroups[dwg].join(', ');
-              return dwg !== 'General' ? `Drawing ${dwg}: [${reasonsStr}]` : `[${reasonsStr}]`;
+              return (hasMultipleDrawings && dwg !== 'General') ? `Drawing ${dwg}: [${reasonsStr}]` : `[${reasonsStr}]`;
             });
 
-            reasonItems.push(`Batch ${batch.batchNo} - ${dwgParts.join('; ')}`);
+            reasonItems.push(`Batch ${batch.batchNo}: ${dwgParts.join('; ')}`);
           } else if (batch.verificationRejectedReason) {
-            const dwgStr = batch.drawingNo ? ` (Drawing ${batch.drawingNo})` : '';
+            const dwgStr = hasMultipleDrawings && batch.drawingNo ? ` (Drawing ${batch.drawingNo})` : '';
             reasonItems.push(`Batch ${batch.batchNo}${dwgStr}: ${totalBatchRejected} Nos - [${batch.verificationRejectedReason}]`);
           } else {
-            const dwgStr = batch.drawingNo ? ` (Drawing ${batch.drawingNo})` : '';
+            const dwgStr = hasMultipleDrawings && batch.drawingNo ? ` (Drawing ${batch.drawingNo})` : '';
             reasonItems.push(`Batch ${batch.batchNo}${dwgStr}: ${totalBatchRejected} Nos rejected`);
           }
         });

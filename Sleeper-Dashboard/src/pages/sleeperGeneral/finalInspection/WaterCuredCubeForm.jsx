@@ -62,9 +62,10 @@ const WaterCuredCubeForm = ({ batch, preFillData, onSave, onCancel }) => {
         // X = Avg of Sample 1 Avg & Sample 2 Avg
         const x = (s1Avg > 0 && s2Avg > 0) ? (s1Avg + s2Avg) / 2 : 0;
 
-        // Y = min of all cubes
+        // Y = minimum of (Avg S1, Avg S2)
+        const y = (s1Avg > 0 && s2Avg > 0) ? Math.min(s1Avg, s2Avg) : 0;
+
         const allStrengths = cubes.filter(c => c.strength > 0).map(c => c.strength);
-        const y = allStrengths.length > 0 ? Math.min(...allStrengths) : 0;
 
         // Variations
         const calcVariation = (sampleCubes, avg) => {
@@ -136,6 +137,16 @@ const WaterCuredCubeForm = ({ batch, preFillData, onSave, onCancel }) => {
             await onSave({
                 testDate: cubes[0]?.date || new Date().toISOString().split('T')[0],
                 avgStrength: results.x,
+                s1Avg: results.s1Avg,
+                s2Avg: results.s2Avg,
+                avgX: results.x,
+                minY: results.y,
+                s1Variation: results.s1Variation,
+                s2Variation: results.s2Variation,
+                condition1: results.condition1,
+                condition2: results.condition2,
+                condition3: results.condition3,
+                mrSamples: results.mrSamples,
                 status: results.testResult,
                 sample1Results,
                 sample2Results
@@ -305,7 +316,7 @@ const WaterCuredCubeForm = ({ batch, preFillData, onSave, onCancel }) => {
                         <div className="value">{results.x.toFixed(2)} <span className="unit">N/mm²</span></div>
                     </div>
                     <div className={`analysis-card ${results.y > 0 ? 'active' : ''}`}>
-                        <label>Y (Min of all Cubes)</label>
+                        <label>Y (Min of Avg S1 & S2)</label>
                         <div className="value">{results.y.toFixed(2)} <span className="unit">N/mm²</span></div>
                     </div>
                     <div className={`analysis-card condition ${results.condition1 ? 'true' : ''}`}>

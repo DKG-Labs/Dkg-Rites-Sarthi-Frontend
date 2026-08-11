@@ -982,6 +982,36 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
         fetchBatches();
     }, [formData.castingDate, formData.lineNo, formData.shedNo, effectiveVendorId, effectivePlantId]);
 
+    // Fetch declared sleepers when batch or bench changes
+    const [availableSleepers, setAvailableSleepers] = useState([]);
+    useEffect(() => {
+        const fetchDeclaredSleepers = async () => {
+            const location = formData.lineNo || formData.shedNo;
+            if (formData.batchNo) {
+                try {
+                    const response = await apiService.getAllProductionSleepers(
+                        formData.batchNo,
+                        currentCube.benchNo || '',
+                        '',
+                        location || ''
+                    );
+                    if (response?.responseData && Array.isArray(response.responseData) && response.responseData.length > 0) {
+                        const uniqueSleepers = Array.from(new Set(response.responseData));
+                        setAvailableSleepers(uniqueSleepers);
+                    } else {
+                        setAvailableSleepers(['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z']);
+                    }
+                } catch (error) {
+                    console.error("Error fetching sleepers for batch in steam cube:", error);
+                    setAvailableSleepers(['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z']);
+                }
+            } else {
+                setAvailableSleepers(['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z']);
+            }
+        };
+        fetchDeclaredSleepers();
+    }, [formData.batchNo, currentCube.benchNo, formData.lineNo, formData.shedNo]);
+
     // Auto-generate Cube Code when bench or sequence changes
     useEffect(() => {
         if (currentCube.benchNo && currentCube.sleeperSequence) {
@@ -1183,7 +1213,7 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
                                 <SearchableSelect
                                     value={currentCube.sleeperSequence}
                                     onChange={(val) => setCurrentCube({ ...currentCube, sleeperSequence: val })}
-                                    options={['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'].map(s => ({ value: s, label: s }))}
+                                    options={availableSleepers.map(s => ({ value: s, label: s }))}
                                     placeholder="-- Select --"
                                 />
                             </div>

@@ -124,6 +124,8 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
           const draftBatches = draft.batches.map(b => ({
             declarationBatchId: b.declarationBatchId,
             batchNo: b.batchNo,
+            drawingNo: b.drawingNo,
+            reasonForRejection: b.reasonForRejection,
             productionDate: b.productionDate,
             qtyManufactured: b.qtyManufactured
           }));
@@ -363,11 +365,25 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
         isFinish: isFinish,
         batches: Object.keys(selectedBatches).map(id => {
           const batchData = selectedBatches[id];
-          const originalBatch = batches.find(b => b.declarationBatchId.toString() === id.toString());
+          const originalBatch = batches.find(b => b.declarationBatchId.toString() === id.toString()) || {};
+          
+          let batchRejectionReason = null;
+          if (batchData.qtyRejected > 0) {
+            if (originalBatch.rejections && originalBatch.rejections.length > 0) {
+              batchRejectionReason = originalBatch.rejections
+                .map(r => `${r.reason || 'Rejected'}${r.rejectedQty != null ? ` (${r.rejectedQty} Nos)` : ''}`)
+                .join(', ');
+            } else if (originalBatch.verificationRejectedReason) {
+              batchRejectionReason = originalBatch.verificationRejectedReason;
+            }
+          }
+
           return {
             declarationBatchId: id,
-            batchNo: originalBatch.batchNo,
-            productionDate: originalBatch.productionDate,
+            batchNo: originalBatch.batchNo || batchData.batchNo,
+            drawingNo: originalBatch.drawingNo || drawingNo || '',
+            reasonForRejection: batchRejectionReason,
+            productionDate: originalBatch.productionDate || batchData.productionDate,
             qtyManufactured: batchData.qtyManufactured,
             qtyRejected: batchData.qtyRejected,
             qtyAccepted: batchData.qtyManufactured - batchData.qtyRejected

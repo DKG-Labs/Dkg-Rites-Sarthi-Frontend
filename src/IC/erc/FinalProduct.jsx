@@ -233,6 +233,13 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
       qtyNowPassed: Number(c.qtyNowPassed || 0) > Number(c.qtyOnOrder || 0) ? Number(c.qtyOnOrder || 0) : Number(c.qtyNowPassed || 0),
       qtyNowRejected: c.qtyNowRejected || 0,
       qtyStillDue: c.qtyStillDue || 0,
+      ercUsedForTesting: c.ercUsedForTesting ?? c.erc_used_for_testing ?? (
+        c.lotDetails && Array.isArray(c.lotDetails) && c.lotDetails.length > 0
+          ? c.lotDetails.reduce((sum, l) => sum + (Number(l.ercUsedForTesting || l.erc_used_for_testing || l.ercUsed || l.erc_used || l.noOfErcUsed || l.no_of_erc_used || l.testingQty) || 0), 0)
+          : (c.finalLotDetails && Array.isArray(c.finalLotDetails) && c.finalLotDetails.length > 0
+              ? c.finalLotDetails.reduce((sum, l) => sum + (Number(l.ercUsedForTesting || l.erc_used_for_testing || l.ercUsed || l.erc_used || l.noOfErcUsed || l.no_of_erc_used || l.testingQty) || 0), 0)
+              : 0)
+      ),
       noOfItemsChecked: c.noOfItemsChecked || "",
       dateOfCall: c.dateOfCall || "",
       noOfVisits: c.noOfVisits || "",
@@ -305,11 +312,15 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
   const handleFieldChange = (fieldName, value) => {
     setData(prev => {
       const updated = { ...prev, [fieldName]: value };
-      if (['qtyOnOrder', 'qtyPassedPreviously', 'qtyNowPassed'].includes(fieldName)) {
+      if (['qtyOnOrder', 'qtyPassedPreviously', 'qtyNowPassed', 'qtyNowOffered', 'qtyNowRejected', 'ercUsedForTesting'].includes(fieldName)) {
         const order = parseFloat(updated.qtyOnOrder) || 0;
         const prevPassed = parseFloat(updated.qtyPassedPreviously) || 0;
-        const nowPassed = parseFloat(updated.qtyNowPassed) || 0;
-        updated.qtyStillDue = Math.max(0, order - prevPassed - nowPassed);
+        const nowOffered = parseFloat(updated.qtyNowOffered) || 0;
+        const nowRejected = parseFloat(updated.qtyNowRejected) || 0;
+        const ercTesting = parseFloat(updated.ercUsedForTesting) || 0;
+        const rawAccepted = nowOffered > 0 ? Math.max(0, nowOffered - nowRejected) : (parseFloat(String(updated.qtyNowPassed || 0).replace(/\*/g, '')) || 0);
+        const dispatchAccepted = Math.max(0, rawAccepted - ercTesting);
+        updated.qtyStillDue = Math.max(0, order - prevPassed - dispatchAccepted);
       }
       return updated;
     });

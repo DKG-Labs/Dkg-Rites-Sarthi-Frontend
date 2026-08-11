@@ -4630,7 +4630,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           if (!heatNo) continue;
 
           try {
-            const quantityData = await getManufacturedQtyOfPo(heatNo, poSerialNumber);
+            const quantityData = await getManufacturedQtyOfPo(heatNo, poSerialNumber, callNo);
             accountalDataMap[heatNo] = {
               manufaturedQty: quantityData.manufaturedQty || 0,
               rejectedQty: quantityData.rejectedQty || 0,

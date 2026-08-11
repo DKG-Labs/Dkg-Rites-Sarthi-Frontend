@@ -1,5 +1,85 @@
 import React from "react";
 
+// Top-level EditableField component to prevent focus loss during typing
+const EditableField = ({ 
+  value, 
+  fieldName, 
+  placeholder = "", 
+  style = {}, 
+  type = "text", 
+  disabled = false, 
+  maxLength = undefined,
+  customRender = null,
+  isEditing = false,
+  isViewOnly = false,
+  isBusy = false,
+  isBookSetEntered = false,
+  allowedFields = [],
+  onFieldChange = () => {}
+}) => {
+  const isBookOrSet = fieldName === "bookNo" || fieldName === "setNo";
+  const canEdit = isEditing && allowedFields.includes(fieldName) && (isBookOrSet || isBookSetEntered);
+  
+  if (canEdit) {
+    if (type === "textarea") {
+      return (
+        <textarea
+          value={value || ""}
+          maxLength={maxLength}
+          onChange={(e) => onFieldChange(fieldName, e.target.value)}
+          placeholder={placeholder}
+          style={{
+            width: '100%',
+            padding: '4px',
+            border: '1px solid #3b82f6',
+            borderRadius: '4px',
+            backgroundColor: '#eff6ff',
+            fontSize: '11px',
+            color: 'black',
+            resize: 'vertical',
+            fontFamily: 'sans-serif',
+            boxSizing: 'border-box',
+            ...style
+          }}
+          rows={2}
+          disabled={disabled || isBusy}
+        />
+      );
+    }
+    return (
+      <input
+        type="text"
+        value={value || ""}
+        maxLength={maxLength}
+        onChange={(e) => onFieldChange(fieldName, e.target.value)}
+        placeholder={placeholder}
+        style={{
+          width: '100%',
+          padding: '3px 6px',
+          border: '1px solid #3b82f6',
+          borderRadius: '4px',
+          backgroundColor: '#eff6ff',
+          fontSize: '11px',
+          color: 'black',
+          fontFamily: 'sans-serif',
+          boxSizing: 'border-box',
+          ...style
+        }}
+        disabled={disabled || isBusy}
+      />
+    );
+  }
+
+  if (customRender) {
+    return <div style={{ ...style }}>{customRender(value)}</div>;
+  }
+
+  if (type === "textarea") {
+    return <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', ...style }}>{value}</div>;
+  }
+  return <span style={{ wordBreak: 'break-word', ...style }}>{value}</span>;
+};
+
 const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOnly = false, onFieldChange = () => { }, onVerifyBookSet, bookSetValidation }) => {
 
   const {
@@ -40,72 +120,25 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
     "bookNo", "setNo", "offeredInstNo", "passedInstNo", "contractRef",
     "billPayingOfficer", "consignee", "purchasingAuthority", "description",
     "quantityNowPassedText", "noOfItemsChecked", "datesOfInspection",
-    "trRecDate", "reasonsForRejection", "sealingPattern"
+    "trRecDate", "reasonsForRejection", "sealingPattern", "contractor",
+    "placeOfInspection", "certificateDate", "inspectingEngineer"
   ];
+
+  const isBookSetEntered = Boolean(bookNo && bookNo.trim().length === 4 && setNo && /^\d{3}$/.test(setNo.trim()));
+
+  const fieldProps = {
+    isEditing,
+    isViewOnly,
+    isBusy,
+    isBookSetEntered,
+    allowedFields,
+    onFieldChange
+  };
 
   const displayCertificateNo = (certificateNo || '')
     .replace(/[\uFEFF\u200B]/g, '')
     .replace(/[\r\n]+/g, ' ')
     .trim();
-
-  // Helper component for editable fields
-  const EditableField = ({ value, fieldName, placeholder = "", style = {}, type = "text", disabled = false, customRender = null }) => {
-    const canEdit = isEditing && (isViewOnly ? ["bookNo", "setNo"].includes(fieldName) : allowedFields.includes(fieldName));
-    if (canEdit) {
-      if (type === "textarea") {
-        return (
-          <textarea
-            value={value || ""}
-            onChange={(e) => onFieldChange(fieldName, e.target.value)}
-            placeholder={placeholder}
-            style={{
-              width: '100%',
-              padding: '4px',
-              border: '1px solid #3b82f6',
-              borderRadius: '4px',
-              backgroundColor: '#eff6ff',
-              fontSize: '11px',
-              color: 'black',
-              resize: 'vertical',
-              fontFamily: 'sans-serif',
-              ...style
-            }}
-            rows={2}
-            disabled={disabled || isBusy}
-          />
-        );
-      }
-      return (
-        <input
-          type="text"
-          value={value || ""}
-          onChange={(e) => onFieldChange(fieldName, e.target.value)}
-          placeholder={placeholder}
-          style={{
-            width: '100%',
-            padding: '3px 6px',
-            border: '1px solid #3b82f6',
-            borderRadius: '4px',
-            backgroundColor: '#eff6ff',
-            fontSize: '11px',
-            color: 'black',
-            fontFamily: 'sans-serif',
-            ...style
-          }}
-          disabled={disabled || isBusy}
-        />
-      );
-    }
-
-    if (customRender) {
-      return <div style={{ ...style }}>{customRender(value)}</div>;
-    }
-
-    if (type === "textarea") {
-      return <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', ...style }}>{value}</div>;
-    }
-    return <span style={{ wordBreak: 'break-word', ...style }}>{value}</span>;
-  };
 
   const tableStyle = {
     width: '100%',
@@ -144,24 +177,24 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
   };
 
   return (
-    <div style={{
+    <div className="certificate-page" style={{
       width: '800px',
       margin: '0 auto',
-      padding: '20px',
+      padding: '16px 20px',
       background: 'white',
       color: 'black',
       fontFamily: "Arial, Helvetica, sans-serif",
       boxSizing: 'border-box',
       border: '1px solid #cbd5e1',
-      fontSize: '11px',
-      lineHeight: '1.3'
+      fontSize: '10px',
+      lineHeight: '1.25'
     }}>
 
-      {/* Top spacing to match RITES letterhead margin exactly */}
-      <div style={{ height: '150px' }}></div>
+      {/* Top spacing to match RITES letterhead margin exactly (matching ERC 35mm) */}
+      <div style={{ height: '35mm' }}></div>
 
       {/* Book & Set Number Container */}
-      <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginTop: '30px', marginBottom: '15px' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginTop: '8px', marginBottom: '10px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <div style={{ display: 'flex', border: '1px solid black', width: '180px', background: 'white' }}>
             <div style={{ flex: 1, borderRight: '1px solid black', display: 'flex', flexDirection: 'column' }}>
@@ -176,7 +209,7 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
                 बुक सं Book No.
               </div>
               <div style={{ padding: '3px', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '22px' }}>
-                <EditableField value={bookNo} fieldName="bookNo" disabled={isBusy} style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '11px' }} />
+                <EditableField value={bookNo} fieldName="bookNo" maxLength={4} disabled={isBusy} style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '11px', textTransform: 'uppercase' }} {...fieldProps} />
               </div>
             </div>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
@@ -191,7 +224,7 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
                 सेट सं Set No.
               </div>
               <div style={{ padding: '3px', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '22px' }}>
-                <EditableField value={setNo} fieldName="setNo" disabled={isBusy} style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '11px' }} />
+                <EditableField value={setNo} fieldName="setNo" maxLength={3} disabled={isBusy} style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '11px' }} {...fieldProps} />
               </div>
             </div>
           </div>
@@ -260,7 +293,7 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
         </div>
       </div>
 
-      {/* Certificate Info Row — 75% width aligned right, matching Sleeper IC (ErcFinalIc) design exactly */}
+      {/* Certificate Info Row — 75% width aligned right, matching Sleeper IC design exactly */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0px', width: '100%' }}>
         <div style={{
           display: 'grid',
@@ -274,7 +307,7 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
           <div style={{ borderRight: '1px solid black', padding: '4px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
             <div style={{ fontWeight: 'bold', fontSize: '8px', textTransform: 'uppercase' }}>प्रमाणपत्र पत्र सं. Certificate No.</div>
             <div style={{ fontWeight: 'bold', fontSize: '9.5px', marginTop: '4px', wordBreak: 'break-all', lineHeight: '1.2' }}>
-              <EditableField value={displayCertificateNo || certificateNo} fieldName="certificateNo" style={{ textAlign: 'center', fontWeight: 'bold' }} />
+              {displayCertificateNo || certificateNo}
             </div>
           </div>
 
@@ -282,7 +315,7 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
           <div style={{ borderRight: '1px solid black', padding: '4px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
             <div style={{ fontWeight: 'bold', fontSize: '8px', textTransform: 'uppercase' }}>दिनांक Date</div>
             <div style={{ fontWeight: 'bold', fontSize: '9.5px', marginTop: '4px' }}>
-              <EditableField value={certificateDate} fieldName="certificateDate" style={{ textAlign: 'center', fontWeight: 'bold' }} />
+              <EditableField value={certificateDate} fieldName="certificateDate" style={{ textAlign: 'center', fontWeight: 'bold' }} {...fieldProps} />
             </div>
           </div>
 
@@ -294,20 +327,20 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
                 <div>Offered Instt. No.</div>
               </div>
               <div style={{ fontSize: '11px', paddingRight: '32px' }}>
-                <EditableField value={offeredInstNo} fieldName="offeredInstNo" style={{ textAlign: 'right', fontWeight: 'bold' }} />
+                <EditableField value={offeredInstNo} fieldName="offeredInstNo" style={{ textAlign: 'right', fontWeight: 'bold' }} {...fieldProps} />
               </div>
             </div>
             <div style={{ marginTop: '4px', paddingTop: '4px', borderTop: '1px dotted #999', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ paddingBottom: '4px' }}>किस्त सं. पारित Passed Instt. No.</div>
               <div style={{ fontSize: '11px', paddingRight: '32px', paddingBottom: '4px' }}>
-                <EditableField value={passedInstNo} fieldName="passedInstNo" style={{ textAlign: 'right', fontWeight: 'bold' }} />
+                <EditableField value={passedInstNo} fieldName="passedInstNo" style={{ textAlign: 'right', fontWeight: 'bold' }} {...fieldProps} />
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Consolidated Data Table exactly matching Sleeper IC style */}
+      {/* Consolidated Data Table */}
       <table style={tableStyle}>
         <colgroup>
           <col style={{ width: '7%' }} />
@@ -321,17 +354,21 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
           <col style={{ width: '10%' }} />
         </colgroup>
         <tbody>
-          {/* Contractor & Place of Inspection — full-width 50/50 grid matching Sleeper IC */}
+          {/* Contractor & Place of Inspection */}
           <tr>
             <td colSpan="4" style={{ ...tdStyle, verticalAlign: 'top' }}>
               <div style={{ height: '6px' }} />
               <div style={{ fontWeight: '600', fontSize: '8.5px' }}>ठेकेदार Contractor</div>
-              <div style={{ marginTop: '2px', fontWeight: 'bold', wordBreak: 'break-words', textTransform: 'uppercase', lineHeight: '1.3' }}>{contractor}</div>
+              <div style={{ marginTop: '2px', fontWeight: 'bold', wordBreak: 'break-words', textTransform: 'uppercase', lineHeight: '1.3' }}>
+                <EditableField value={contractor} fieldName="contractor" type="textarea" {...fieldProps} />
+              </div>
             </td>
             <td colSpan="5" style={{ ...tdStyle, verticalAlign: 'top' }}>
               <div style={{ height: '6px' }} />
               <div style={{ fontWeight: '600', fontSize: '8.5px' }}>निरीक्षण का स्थान Place of Inspection</div>
-              <div style={{ marginTop: '2px', fontWeight: 'bold', wordBreak: 'break-words', textTransform: 'uppercase', lineHeight: '1.3' }}>{placeOfInspection}</div>
+              <div style={{ marginTop: '2px', fontWeight: 'bold', wordBreak: 'break-words', textTransform: 'uppercase', lineHeight: '1.3' }}>
+                <EditableField value={placeOfInspection} fieldName="placeOfInspection" type="textarea" {...fieldProps} />
+              </div>
             </td>
           </tr>
 
@@ -362,6 +399,7 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
                       return <div key={idx} style={{ marginTop: '1px' }}>{line}</div>;
                     });
                   }}
+                  {...fieldProps}
                 />
               </div>
             </td>
@@ -369,7 +407,7 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
               <div style={{ height: '6px' }} />
               <div style={{ fontWeight: '600', fontSize: '8.5px' }}>वित्त प्रदायगी अधिकारी Bill Paying Officer</div>
               <div style={{ marginTop: '2px', fontWeight: 'bold', wordBreak: 'break-words', textTransform: 'uppercase', lineHeight: '1.3' }}>
-                <EditableField value={billPayingOfficer} fieldName="billPayingOfficer" type="textarea" style={{ fontSize: '9.5px', fontWeight: 'bold' }} />
+                <EditableField value={billPayingOfficer} fieldName="billPayingOfficer" type="textarea" style={{ fontSize: '9.5px', fontWeight: 'bold' }} {...fieldProps} />
               </div>
             </td>
           </tr>
@@ -380,14 +418,14 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
               <div style={{ height: '6px' }} />
               <div style={{ fontWeight: '600', fontSize: '8.5px' }}>प्रेषिती Consignee</div>
               <div style={{ marginTop: '2px', fontWeight: 'bold', wordBreak: 'break-words', textTransform: 'uppercase', lineHeight: '1.3' }}>
-                <EditableField value={consignee} fieldName="consignee" type="textarea" style={{ fontSize: '10px' }} />
+                <EditableField value={consignee} fieldName="consignee" type="textarea" style={{ fontSize: '10px' }} {...fieldProps} />
               </div>
             </td>
             <td colSpan="5" style={{ ...tdStyle, verticalAlign: 'top' }}>
               <div style={{ height: '6px' }} />
               <div style={{ fontWeight: '600', fontSize: '8.5px' }}>क्रय अधिकारी Purchasing Authority</div>
               <div style={{ marginTop: '2px', fontWeight: 'bold', wordBreak: 'break-words', textTransform: 'uppercase', lineHeight: '1.3' }}>
-                <EditableField value={purchasingAuthority} fieldName="purchasingAuthority" type="textarea" style={{ fontSize: '10px' }} />
+                <EditableField value={purchasingAuthority} fieldName="purchasingAuthority" type="textarea" style={{ fontSize: '10px' }} {...fieldProps} />
               </div>
             </td>
           </tr>
@@ -415,19 +453,19 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
           <tr>
             <td rowSpan={3} style={{ ...tdCenterStyle, paddingTop: '15px', verticalAlign: 'top', borderBottom: 'none' }}>{itemNo}</td>
             <td rowSpan={3} style={{ ...tdStyle, padding: '8px', fontSize: '8.5px', lineHeight: '1.25', verticalAlign: 'top', borderBottom: 'none' }}>
-              <EditableField value={description} fieldName="description" type="textarea" style={{ fontSize: '8.5px' }} />
+              <EditableField value={description} fieldName="description" type="textarea" style={{ fontSize: '8.5px' }} {...fieldProps} />
             </td>
             <td style={{ ...tdCenterStyle, paddingTop: '15px', borderBottom: 'none' }}>
               <div>{qtyOnOrder}</div>
               <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>Nos.</div>
             </td>
             <td style={{ ...tdCenterStyle, paddingTop: '15px', borderBottom: 'none' }}>
-              <EditableField value={qtyOfferedPreviously} fieldName="qtyOfferedPreviously" style={{ textAlign: 'center', width: '45px' }} />
-              {!isEditing && <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>Nos.</div>}
+              <div>{qtyOfferedPreviously}</div>
+              <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>Nos.</div>
             </td>
             <td style={{ ...tdCenterStyle, paddingTop: '15px', borderBottom: 'none' }}>
-              <EditableField value={qtyPassedPreviously} fieldName="qtyPassedPreviously" style={{ textAlign: 'center', width: '45px' }} />
-              {!isEditing && <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>Nos.</div>}
+              <div>{qtyPassedPreviously}</div>
+              <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>Nos.</div>
             </td>
             <td style={{ ...tdCenterStyle, paddingTop: '15px', borderBottom: 'none' }}>
               <div>{qtyNowOffered}</div>
@@ -438,12 +476,12 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
               <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>Nos.</div>
             </td>
             <td style={{ ...tdCenterStyle, paddingTop: '15px', borderBottom: 'none' }}>
-              <EditableField value={qtyNowRejected} fieldName="qtyNowRejected" style={{ textAlign: 'center', width: '45px' }} />
-              {!isEditing && <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>Nos.</div>}
+              <div>{qtyNowRejected}</div>
+              <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>Nos.</div>
             </td>
             <td style={{ ...tdCenterStyle, paddingTop: '15px', borderBottom: 'none' }}>
-              <EditableField value={qtyStillDue} fieldName="qtyStillDue" style={{ textAlign: 'center', width: '45px' }} />
-              {!isEditing && <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>Nos.</div>}
+              <div>{qtyStillDue}</div>
+              <div style={{ fontWeight: 'normal', fontSize: '8px', color: '#475569', marginTop: '2px' }}>Nos.</div>
             </td>
           </tr>
 
@@ -480,12 +518,12 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
                 minHeight: '80px',
                 margin: '0 0 0 12px'
               }}>
-                <EditableField value={quantityNowPassedText} fieldName="quantityNowPassedText" type="textarea" style={{ fontSize: '8px', fontWeight: 'bold' }} />
+                <EditableField value={quantityNowPassedText} fieldName="quantityNowPassedText" type="textarea" style={{ fontSize: '8px', fontWeight: 'bold' }} {...fieldProps} />
               </div>
             </td>
           </tr>
 
-          {/* FILLER ROW to draw vertical lines below the text box */}
+          {/* FILLER ROW */}
           <tr style={{ height: '100%' }}>
             <td style={{ ...tdCenterStyle, borderTop: 'none', padding: 0 }}>
               <div style={{ minHeight: '70px' }}></div>
@@ -498,74 +536,74 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
             <td style={{ ...tdCenterStyle, borderTop: 'none' }}></td>
           </tr>
 
-          {/* INSPECTION DETAILS — flex row inside single colSpan=9 for independent widths */}
+          {/* INSPECTION DETAILS */}
           <tr>
             <td colSpan="9" style={{ padding: 0, border: '1px solid black' }}>
               <div style={{ display: 'flex', width: '100%' }}>
                 <div style={{ width: '20%', padding: '4px', borderRight: '1px solid black', fontSize: '9px' }}>
                   <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>जाँच की गयी इकाइयों की सं.<br />No. of items checked</div>
                   <div style={{ marginTop: '8px', fontWeight: 'bold', fontSize: '10px' }}>
-                    <EditableField value={noOfItemsChecked} fieldName="noOfItemsChecked" style={{ fontSize: '10px', fontWeight: 'bold', textAlign: 'center' }} />
+                    <EditableField value={noOfItemsChecked} fieldName="noOfItemsChecked" style={{ fontSize: '10px', fontWeight: 'bold', textAlign: 'center' }} {...fieldProps} />
                   </div>
                 </div>
                 <div style={{ width: '15%', padding: '4px', borderRight: '1px solid black', fontSize: '9px' }}>
                   <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>बुलावे की तारीख<br />Date of call</div>
-                  <div style={{ marginTop: '8px', fontWeight: 'bold', fontSize: '10px' }}>{dateOfCall}</div>
+                  <div style={{ marginTop: '8px', fontWeight: 'bold', fontSize: '10px' }}>
+                    <EditableField value={dateOfCall} fieldName="dateOfCall" style={{ fontSize: '10px', fontWeight: 'bold' }} {...fieldProps} />
+                  </div>
                 </div>
                 <div style={{ width: '10%', padding: '4px', borderRight: '1px solid black', fontSize: '9px' }}>
                   <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>दौरों की संख्या<br />No. of Visits</div>
-                  <div style={{ marginTop: '8px', fontWeight: 'bold', fontSize: '10px' }}>{noOfVisits}</div>
+                  <div style={{ marginTop: '8px', fontWeight: 'bold', fontSize: '10px' }}>
+                    <EditableField value={noOfVisits} fieldName="noOfVisits" style={{ fontSize: '10px', fontWeight: 'bold' }} {...fieldProps} />
+                  </div>
                 </div>
                 <div style={{ width: '45%', padding: '4px', borderRight: '1px solid black', fontSize: '9px', overflow: 'hidden' }}>
                   <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>निरीक्षण की तारीखें<br />Date(s) of inspection</div>
                   <div style={{ marginTop: '6px', fontWeight: 'bold', fontSize: '9px', lineHeight: '1.2', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
-                    <EditableField value={datesOfInspection} fieldName="datesOfInspection" type="textarea" style={{ fontSize: '9px', fontWeight: 'bold' }} />
+                    <EditableField value={datesOfInspection} fieldName="datesOfInspection" type="textarea" style={{ fontSize: '9px', fontWeight: 'bold' }} {...fieldProps} />
                   </div>
                 </div>
                 <div style={{ width: '10%', padding: '4px', fontSize: '9px' }}>
                   <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>TR Rec. dt.</div>
                   <div style={{ marginTop: '8px', fontWeight: 'bold', fontSize: '10px' }}>
-                    <EditableField value={trRecDate} fieldName="trRecDate" placeholder="TR Date" style={{ width: '60px' }} />
+                    <EditableField value={trRecDate} fieldName="trRecDate" placeholder="TR Date" style={{ width: '60px' }} {...fieldProps} />
                   </div>
                 </div>
               </div>
             </td>
           </tr>
 
-          {/* SEALING + REJECTION combined — nested table so IE column spans both rows (rowSpan=2) */}
+          {/* SEALING + REJECTION */}
           <tr>
             <td colSpan="9" style={{ padding: 0, border: '1px solid black' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
                 <tbody>
                   <tr>
-                    {/* Row 1 left: Sealing pattern (40%) */}
                     <td style={{ width: '40%', padding: '4px', borderRight: '1px solid black', borderBottom: '1px solid black', fontSize: '9px', verticalAlign: 'top' }}>
                       <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>सील बंदी मोहर बंदी का स्वरूप और सील मोहर का स्थान<br />Pattern of sealing/stamping &amp; location of seal/stamp/sticker</div>
                       <div style={{ marginTop: '4px', fontWeight: 'bold', fontSize: '8px', lineHeight: '1.25', textTransform: 'uppercase' }}>
-                        <EditableField value={sealingPattern} fieldName="sealingPattern" type="textarea" style={{ fontSize: '8px', fontWeight: 'bold' }} />
+                        <EditableField value={sealingPattern} fieldName="sealingPattern" type="textarea" style={{ fontSize: '8px', fontWeight: 'bold' }} {...fieldProps} />
                       </div>
                     </td>
-                    {/* Row 1 middle: Facsimile (30%) */}
                     <td style={{ width: '30%', padding: '4px', borderRight: '1px solid black', borderBottom: '1px solid black', fontSize: '9px', verticalAlign: 'top' }}>
                       <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>मुहर / स्टाम्प की प्रतिकृति<br />Facsimile of seal/stamp/sticker</div>
                       <div style={{ marginTop: '4px', fontStyle: 'italic', fontSize: '8px', lineHeight: '1.25' }}>
-                        <EditableField value={facsimileText} fieldName="facsimileText" type="textarea" style={{ fontSize: '8px' }} />
+                        <EditableField value={facsimileText} fieldName="facsimileText" type="textarea" style={{ fontSize: '8px' }} {...fieldProps} />
                       </div>
                     </td>
-                    {/* IE cell — rowSpan=2 spans both the sealing row and rejection row */}
                     <td rowSpan="2" className="ie-signature-box" style={{ width: '30%', padding: '4px', fontSize: '9px', verticalAlign: 'top', display: 'table-cell' }}>
                       <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>निरीक्षण अभियंता<br />Inspecting Engineer</div>
                       <div style={{ textAlign: 'right', fontWeight: 'bold', fontSize: '9px', textTransform: 'uppercase', marginTop: '30px' }}>
-                        <EditableField value={inspectingEngineer} fieldName="inspectingEngineer" style={{ textAlign: 'right', fontWeight: 'bold' }} />
+                        <EditableField value={inspectingEngineer} fieldName="inspectingEngineer" style={{ textAlign: 'right', fontWeight: 'bold' }} {...fieldProps} />
                       </div>
                     </td>
                   </tr>
                   <tr>
-                    {/* Row 2: Reason for rejection spans sealing + facsimile columns (70%) */}
                     <td colSpan="2" style={{ padding: '4px 6px', fontSize: '10px', verticalAlign: 'top', borderRight: '1px solid black' }}>
                       <span style={{ fontWeight: 'bold' }}>अस्वीकृति का कारण &nbsp;Reason of rejection: </span>
                       <span style={{ fontStyle: 'italic' }}>
-                        <EditableField value={reasonsForRejection} fieldName="reasonsForRejection" style={{ display: 'inline-block', width: '300px' }} />
+                        <EditableField value={reasonsForRejection} fieldName="reasonsForRejection" style={{ display: 'inline-block', width: '300px' }} {...fieldProps} />
                       </span>
                     </td>
                   </tr>
@@ -574,7 +612,7 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
             </td>
           </tr>
 
-          {/* FOOTER DISCLAIMERS — matching Sleeper IC footer color */}
+          {/* FOOTER DISCLAIMERS */}
           <tr>
             <td colSpan="4" style={{ border: '1px solid black', padding: '4px', fontSize: '7.5px', lineHeight: '1.25', fontWeight: '500', color: '#000' }}>
               सामग्री को शीघ्र अति शीघ्र भेजा जाना चाहिए। प्रमाण पत्र सामग्री भेजने के लिए 30 दिन तक मान्य है। सभी प्रकार के पीएससी स्लीपर के लिए यह प्रमाणपत्र 90 दिनों तक मान्य रहेगा।
@@ -586,8 +624,8 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
         </tbody>
       </table>
 
-      {/* Footer spacing to match A4 printing layouts */}
-      <div style={{ height: '60px' }}></div>
+      {/* Footer spacing */}
+      <div style={{ minHeight: '15mm' }}></div>
 
     </div>
   );

@@ -88,8 +88,22 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
   const rawAccepted = numQtyNowOffered > 0 ? Math.max(0, numQtyNowOffered - numQtyNowRejected) : (parseFloat(String(qtyNowPassed || 0).replace(/\*/g, '')) || 0);
   const displayQtyNowPassed = String(qtyNowPassed || "").endsWith('*') ? qtyNowPassed : `${rawAccepted}*`;
 
-  // Still Due Qty = Order Qty - Previously Passed Qty - Now Accepted Qty
-  const calculatedQtyStillDue = Math.max(0, numQtyOnOrder - numQtyPassedPreviously - rawAccepted);
+  // Calculate total erc_used_for_testing sum from data or lot details
+  let ercUsedCount = 0;
+  if (data?.ercUsedForTesting !== undefined && data?.ercUsedForTesting !== null) {
+    ercUsedCount = parseFloat(data.ercUsedForTesting) || 0;
+  } else if (data?.erc_used_for_testing !== undefined && data?.erc_used_for_testing !== null) {
+    ercUsedCount = parseFloat(data.erc_used_for_testing) || 0;
+  } else if (data?.lotDetails && Array.isArray(data.lotDetails) && data.lotDetails.length > 0) {
+    ercUsedCount = data.lotDetails.reduce((sum, l) => sum + (parseFloat(l.ercUsedForTesting || l.erc_used_for_testing || l.ercUsed || l.erc_used || l.noOfErcUsed || l.no_of_erc_used || l.testingQty) || 0), 0);
+  } else if (data?.finalLotDetails && Array.isArray(data.finalLotDetails) && data.finalLotDetails.length > 0) {
+    ercUsedCount = data.finalLotDetails.reduce((sum, l) => sum + (parseFloat(l.ercUsedForTesting || l.erc_used_for_testing || l.ercUsed || l.erc_used || l.noOfErcUsed || l.no_of_erc_used || l.testingQty) || 0), 0);
+  }
+
+  // Still Due Qty = Order Qty - Previously Passed Qty - Now Accepted Dispatched Qty (rawAccepted - ercUsedCount)
+  // i.e. Order Qty - Previously Passed Qty - rawAccepted + ercUsedCount (e.g. 123441 + 29 = 123470)
+  const dispatchAccepted = Math.max(0, rawAccepted - ercUsedCount);
+  const calculatedQtyStillDue = Math.max(0, numQtyOnOrder - numQtyPassedPreviously - dispatchAccepted);
   const displayQtyStillDue = (numQtyOnOrder > 0 || numQtyPassedPreviously > 0 || rawAccepted > 0)
     ? String(calculatedQtyStillDue)
     : (qtyStillDue || "0");
@@ -337,7 +351,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
               fieldName="quantityNowPassedText"
               type="textarea"
               placeholder="QUANTITY NOW PASSED: (In words and details...)"
-              className="font-bold text-black block leading-normal uppercase italic"
+              className="font-bold text-black block leading-normal italic"
             />
           </div>
         </div>

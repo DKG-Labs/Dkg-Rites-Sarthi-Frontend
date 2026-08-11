@@ -334,9 +334,10 @@ const VerificationDetailModal = ({ row, moduleLabel, actionBy, onClose, onDone }
                                     const auditKeys = [
                                         'updatedBy', 'modifiedBy', 'lastModifiedBy', 'createdBy',
                                         'updatedDate', 'updatedAt', 'modifiedDate', 'modifiedAt', 'lastModifiedDate',
-                                        'status', 'recordStatus', 'id', 'requestId', 'workflowTransitionId'
+                                        'status', 'recordStatus', 'id', 'requestId', 'workflowTransitionId',
+                                        'lbcTime', 'lbc_time', 'lbctime'
                                     ];
-                                    if (auditKeys.includes(key)) return null;
+                                    if (auditKeys.includes(key) || key.toLowerCase().includes('lbc')) return null;
 
                                     const forbiddenWords = ['id']; // Allow coil number words
                                     if (forbiddenWords.some(word => key.toLowerCase() === word)) return null;

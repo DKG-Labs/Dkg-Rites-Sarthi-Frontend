@@ -246,30 +246,46 @@ export const getFinalIcSaveChanges = async (icNumber) => {
 };
 
 /**
- * Validate Book No and Set No via Mock Backend
+ * Validate Book No and Set No via Backend Proxy (same as ERC)
  * @param {string} empNo
  * @param {string} bookNo
  * @param {string} setNo
- * @param {string} status "F" for Final
+ * @param {string} status "F" for Final, "S" for Stage (RM/Process)
  */
 export const validateBookSetNo = async (empNo, bookNo, setNo, status = "F") => {
-  await delay(400);
-  console.log(`🔍 [MOCK] Validating Book/Set: ${bookNo}/${setNo} for Emp: ${empNo}`);
-  
-  // Basic validation: Allow if both are valid numbers
-  const isBookNum = /^\d+$/.test(bookNo);
-  const isSetNum = /^\d+$/.test(setNo);
-
-  if (isBookNum && isSetNum) {
-    return {
-      resultFlag: 1,
-      message: "Validation Successful"
+  try {
+    const payload = {
+      EMP_NO: empNo,
+      BK_NO: bookNo,
+      SET_NO: setNo,
+      STATUS: status
     };
-  } else {
-    return {
-      resultFlag: 0,
-      message: "Invalid Book/Set format. Must be numeric."
-    };
+    
+    const url = `${getBaseUrl()}/ibs-validation/validate-book-set`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('authToken') || ''}`
+      },
+      body: JSON.stringify(payload)
+    });
+    
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.indexOf("application/json") !== -1) {
+      return await response.json();
+    } else {
+      const text = await response.text();
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        throw new Error(`Unexpected response: ${text}`);
+      }
+    }
+  } catch (error) {
+    console.error('Error validating Book/Set No:', error);
+    throw error;
   }
 };
 

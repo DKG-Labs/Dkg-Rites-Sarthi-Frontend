@@ -48,6 +48,57 @@ const parsePoInfo = (item) => {
   return { rlyShortName, actualPoNo, actualSerialNo };
 };
 
+const getStageOfInspection = (item, callType) => {
+  const reqId = String(item.requestId || item.callNumber || item.callNo || '').trim().toUpperCase();
+
+  // 1. Direct callType string from backend
+  if (item.callType) {
+    const ct = String(item.callType).trim().toUpperCase();
+    if (ct.includes('PROCESS')) return 'Process';
+    if (ct.includes('FINAL')) return 'Final';
+    if (ct.includes('RAW') || ct.includes('RM')) return 'Raw Material';
+  }
+
+  // 2. Direct stage/stageOfInspection from backend
+  if (item.stageOfInspection && item.stageOfInspection !== '-' && item.stageOfInspection !== 'Railpad') {
+    return item.stageOfInspection;
+  }
+  if (item.stage && item.stage !== '-') {
+    return item.stage;
+  }
+
+  // 3. Prefix matching:
+  // Railpad: RPP = Process, RPF / RFF = Final
+  if (reqId.startsWith('RPP')) return 'Process';
+  if (reqId.startsWith('RPF') || reqId.startsWith('RFF')) return 'Final';
+
+  // Sleeper / ERC prefixes
+  if (reqId.startsWith('EP') || reqId.startsWith('PRC') || reqId.startsWith('PROC') || reqId.startsWith('P-')) return 'Process';
+  if (reqId.startsWith('EF') || reqId.startsWith('FIN') || reqId.startsWith('F-')) return 'Final';
+  if (reqId.startsWith('ER') || reqId.startsWith('RMC') || reqId.startsWith('RM-') || reqId.startsWith('RM/')) return 'Raw Material';
+
+  // 4. Check productStage or productType if already descriptive
+  if (item.productStage && !['Final', 'Sleeper', 'Rail Pad', 'ERC', '-'].includes(item.productStage)) {
+    return item.productStage;
+  }
+  if (item.productType) {
+    const pt = String(item.productType).trim();
+    if (pt.toUpperCase() === 'PROCESS') return 'Process';
+    if (pt.toUpperCase() === 'FINAL') return 'Final';
+    if (pt.toUpperCase() === 'RAW MATERIAL') return 'Raw Material';
+  }
+
+  // 5. Product defaults
+  if (callType === 'RAILPAD') {
+    return reqId.startsWith('RPP') ? 'Process' : 'Final';
+  }
+  if (callType === 'SLEEPER') {
+    return reqId.startsWith('RMC') ? 'Raw Material' : 'Final';
+  }
+
+  return 'Final';
+};
+
 export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
   const [pendingCalls, setPendingCalls] = useState([]);
   const [verifiedCalls, setVerifiedCalls] = useState([]);
@@ -133,7 +184,7 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
         rlyPoSr: item.rlyPoSrNo || item.poNo || '-',
         rawPoNo: item.rawPoNo || (actualPoNo !== '-' ? actualPoNo : ''),
         product: item.productType || (callType === 'SLEEPER' ? 'Sleeper' : callType === 'RAILPAD' ? 'Rail Pad' : '-'),
-        productStage: item.productType || (callType === 'SLEEPER' ? 'Final' : callType === 'RAILPAD' ? 'Final' : '-'),
+        productStage: getStageOfInspection(item, callType),
         desiredInspectionDate: item.desiredInspectionDate || item.createdDate,
         placeOfInspection: item.placeOfInspection || item.poiCode || '-',
         dpDate: item.dpDate,
@@ -266,7 +317,7 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
         rlyPoSr: item.rlyPoSrNo || item.poNo || '-',
         rawPoNo: item.rawPoNo || (actualPoNo !== '-' ? actualPoNo : ''),
         product: item.productType || (callType === 'SLEEPER' ? 'Sleeper' : callType === 'RAILPAD' ? 'Rail Pad' : '-'),
-        productStage: item.productType || (callType === 'SLEEPER' ? 'Final' : callType === 'RAILPAD' ? 'Final' : '-'),
+        productStage: getStageOfInspection(item, callType),
         desiredInspectionDate: item.desiredInspectionDate || item.createdDate,
         dpDate: item.dpDate,
         extDpDate: item.extDpDate,
@@ -355,7 +406,7 @@ export const useCallDeskData = (activeTab = 'pending', callType = 'ERC') => {
         rawPoNo: item.rawPoNo || (actualPoNo !== '-' ? actualPoNo : ''),
         vendorCode: item.vendorCode || '',
         product: item.productType || (callType === 'SLEEPER' ? 'Sleeper' : callType === 'RAILPAD' ? 'Rail Pad' : '-'),
-        productStage: item.productType || (callType === 'SLEEPER' ? 'Final' : callType === 'RAILPAD' ? 'Final' : '-'),
+        productStage: getStageOfInspection(item, callType),
         desiredInspectionDate: item.desiredInspectionDate || item.createdDate,
         dpDate: item.dpDate,
         extDpDate: item.extDpDate,

@@ -58,6 +58,9 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
     const [availableLocations, setAvailableLocations] = useState([]);
     const [availableSleepersByBench, setAvailableSleepersByBench] = useState({});
     const [isBenchDropdownOpen, setIsBenchDropdownOpen] = useState(false);
+    const [confirmDeselectTarget, setConfirmDeselectTarget] = useState(null);
+    const [existingRecordId, setExistingRecordId] = useState(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const benchDropdownRef = useRef(null);
 
     useEffect(() => {
@@ -97,6 +100,79 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
         return d;
     };
 
+    const formatSleeperLabel = (benchStr, seqStr) => {
+        const s = String(seqStr || '').trim();
+        const b = String(benchStr || '').trim();
+        if (!s) return b;
+        if (!b) return s;
+        if (s.toLowerCase().startsWith(b.toLowerCase())) return s;
+        return `${b}${s}`;
+    };
+
+    const parseDefectiveSleepers = (rawDefects, visualCheck, dimCheck) => {
+        if (!Array.isArray(rawDefects)) return [];
+
+        if (visualCheck === 'All OK' && dimCheck === 'All OK') {
+            return [];
+        }
+
+        const isAllRejected = visualCheck === 'All Rejected' || dimCheck === 'All Rejected';
+        const visualOptions = ['Surface Defect', 'Honeycomb', 'Dowel Missing / Tilt / Sink', 'Insert Missing / Tilt / Sink', 'Crack'];
+        const dimOptions = ['Outer Gauge', 'Rail Seat', 'Toe Gap', 'Rail Seat Slope', 'Height Gauge', 'Length of Sleeper'];
+
+        return rawDefects
+            .filter(d => {
+                if (!d) return false;
+                const sleeperIdStr = String(d.sleeperNo || d.sleeper_no || d.sequenceNo || d.sequence_no || d.sequence || d.id || "").trim();
+                return Boolean(sleeperIdStr);
+            })
+            .map(d => {
+                const sleeperStr = String(d.sleeperNo || d.sequenceNo || d.sequence || "").trim();
+                const derivedBench = sleeperStr.match(/^\d+/)?.[0] || "";
+                const benchStr = String(d.benchGangNo || d.benchNo || "").trim() || derivedBench;
+                const seqStr = d.sequenceNo || d.sequence || sleeperStr;
+
+                const rawVis = String(d.visualReason || d.visual_reason || "").trim();
+                const rawDim = String(d.dimReason || d.dim_reason || "").trim();
+                const rawGen = String(d.reason || d.rejectionReason || "").trim();
+
+                let visReason = "";
+                let dimReasonVal = "";
+
+                if (rawVis && !rawDim) {
+                    if (dimOptions.includes(rawVis)) dimReasonVal = rawVis;
+                    else visReason = rawVis;
+                } else if (rawDim && !rawVis) {
+                    if (visualOptions.includes(rawDim)) visReason = rawDim;
+                    else dimReasonVal = rawDim;
+                } else if (rawVis && rawDim) {
+                    visReason = rawVis;
+                    dimReasonVal = "";
+                } else if (rawGen) {
+                    if (dimOptions.includes(rawGen)) dimReasonVal = rawGen;
+                    else visReason = rawGen;
+                }
+
+                return {
+                    benchNo: benchStr,
+                    sequence: seqStr,
+                    sleeperNo: sleeperStr,
+                    visualReason: visReason,
+                    dimReason: dimReasonVal,
+                    defectType: visReason ? "Visual" : (dimReasonVal ? "Dimensional" : "Visual")
+                };
+            });
+
+        const uniqueMap = new Map();
+        for (const item of parsed) {
+            const label = formatSleeperLabel(item.benchNo, item.sleeperNo || item.sequence).toUpperCase();
+            if (!uniqueMap.has(label)) {
+                uniqueMap.set(label, item);
+            }
+        }
+        return Array.from(uniqueMap.values());
+    };
+
     // Modify Must Spread Full Row
     useEffect(() => {
         if (initialData) {
@@ -114,16 +190,11 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                 visualCheck: initialData.visualCheck || 'All OK',
                 dimCheck: initialData.dimCheck || 'All OK',
                 remarks: initialData.overallRemarks || initialData.remarks || '',
-                defectiveSleeperDetails: (initialData.defectiveSleepers || initialData.defectiveSleeperDetails || [])
-                    .filter(d => Boolean(d.sequenceNo || d.sequence || d.sleeperNo)) // Filter out empty defaults
-                    .map(d => ({
-                        benchNo: d.benchGangNo || d.benchNo || "",
-                        sequence: d.sequenceNo || d.sequence || "",
-                        sleeperNo: d.sleeperNo || "",
-                        visualReason: d.visualReason || "",
-                        dimReason: d.dimReason || "",
-                        defectType: d.visualReason ? "Visual" : (d.dimReason ? "Dimensional" : "")
-                    }))
+                defectiveSleeperDetails: parseDefectiveSleepers(
+                    initialData.defectiveSleepers || initialData.defectiveSleeperDetails || [],
+                    initialData.visualCheck,
+                    initialData.dimCheck
+                )
             });
         }
     }, [initialData, activeContainer]);
@@ -197,9 +268,60 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
         }
     }, [formData.casting, formData.location, vendorId, initialData, dutyUnit]);
 
-    // Fetch benches when batch changes
+    // Fetch benches and populate existing inspection details when batch changes
     useEffect(() => {
         if (formData.batch && !initialData) {
+            const populateExisting = async () => {
+                let allRecords = Array.isArray(existingEntries) ? [...existingEntries] : [];
+
+                try {
+                    let fetchedList = [];
+                    if (apiService.getDemouldingInspectionByBatch) {
+                        const batchResp = await apiService.getDemouldingInspectionByBatch(formData.batch);
+                        fetchedList = batchResp?.responseData || (Array.isArray(batchResp) ? batchResp : []);
+                    }
+                    if (!fetchedList || fetchedList.length === 0) {
+                        const allResp = await apiService.getAllDemouldingInspection();
+                        fetchedList = allResp?.responseData || (Array.isArray(allResp) ? allResp : []);
+                    }
+                    if (Array.isArray(fetchedList)) {
+                        allRecords = [...allRecords, ...fetchedList];
+                    }
+                } catch (err) {
+                    console.error("Error fetching demoulding records:", err);
+                }
+
+                const matchingRecords = allRecords.filter(r => 
+                    String(r.batchNo || r.batch || r.batchNumber || '').trim().toLowerCase() === String(formData.batch).trim().toLowerCase()
+                );
+
+                if (matchingRecords.length > 0) {
+                    const latestRecord = matchingRecords[matchingRecords.length - 1];
+                    if (latestRecord && latestRecord.id) {
+                        setExistingRecordId(latestRecord.id);
+                    }
+                    const rawDefects = latestRecord.defectiveSleepers || latestRecord.defectiveSleeperDetails || latestRecord.defectiveSleeperList || latestRecord.defective_sleepers || latestRecord.defects || [];
+
+                    const parsedDefects = parseDefectiveSleepers(
+                        rawDefects,
+                        latestRecord.visualCheck,
+                        latestRecord.dimCheck
+                    );
+                    setFormData(prev => {
+                        const hasActiveEdits = prev.defectiveSleeperDetails && prev.defectiveSleeperDetails.length > 0;
+                        return {
+                            ...prev,
+                            visualCheck: latestRecord.visualCheck || prev.visualCheck || 'All OK',
+                            dimCheck: latestRecord.dimCheck || prev.dimCheck || 'All OK',
+                            process: latestRecord.processStatus || latestRecord.process || prev.process || '',
+                            remarks: latestRecord.overallRemarks || latestRecord.remarks || prev.remarks || '',
+                            defectiveSleeperDetails: hasActiveEdits ? prev.defectiveSleeperDetails : (parsedDefects.length > 0 ? parsedDefects : prev.defectiveSleeperDetails)
+                        };
+                    });
+                }
+            };
+            populateExisting();
+
             const fetchBenches = async () => {
                 try {
                     const response = await apiService.getAllProductionBenches(formData.batch, formData.location);
@@ -233,7 +355,7 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
         } else if (!formData.batch) {
             setBenches([]);
         }
-    }, [formData.batch, initialData, allWitnessedRecords]);
+    }, [formData.batch, initialData, existingEntries, allWitnessedRecords]);
 
     // Fetch sleeper types when bench changes
     useEffect(() => {
@@ -311,14 +433,17 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                 newState.type = '';
             }
 
-            // Auto-update defective sleepers bench number if bench (gangNo) changes
-            if (field === 'gangNo') {
-                const benchStr = Array.isArray(value) ? value.join(', ') : value;
-                newState.defectiveSleeperDetails = (newState.defectiveSleeperDetails || []).map(d => ({
-                    ...d,
-                    benchNo: benchStr,
-                    sleeperNo: (benchStr && d.sequence) ? `${benchStr}${d.sequence}` : d.sleeperNo
-                }));
+            if (field === 'visualCheck' && value !== 'All OK') {
+                newState.dimCheck = 'All OK';
+            }
+            if (field === 'dimCheck' && value !== 'All OK') {
+                newState.visualCheck = 'All OK';
+            }
+
+            // Always reset selections when the check status changes so stale
+            // entries (e.g. from a previous "All Rejected" auto-fill) don't linger.
+            if (field === 'visualCheck' || field === 'dimCheck') {
+                newState.defectiveSleeperDetails = [];
             }
 
             // Handle "All Rejected" transition automatically
@@ -326,25 +451,22 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
             const isAllRejectedDim = newState.dimCheck === 'All Rejected';
 
             if (isAllRejectedVisual || isAllRejectedDim) {
-                const currentDecls = [...newState.defectiveSleeperDetails];
+                const currentDecls = [];
                 (newState.gangNo || []).forEach(bench => {
                     const seqs = availableSleepersByBench[bench] || ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
                     seqs.forEach(seq => {
-                        if (!currentDecls.find(d => d.benchNo === bench && (d.sequence === seq || d.sleeperNo === seq))) {
-                            currentDecls.push({
-                                benchNo: bench,
-                                sequence: seq,
-                                sleeperNo: seq,
-                                visualReason: '',
-                                dimReason: ''
-                            });
-                        }
+                        currentDecls.push({
+                            benchNo: bench,
+                            sequence: seq,
+                            sleeperNo: formatSleeperLabel(bench, seq),
+                            visualReason: '',
+                            dimReason: ''
+                        });
                     });
                 });
                 newState.defectiveSleeperDetails = currentDecls;
-            } else if (newState.visualCheck === 'All OK' && newState.dimCheck === 'All OK') {
-                newState.defectiveSleeperDetails = [];
             }
+            // "All OK" for both: list already cleared above
             return newState;
         });
 
@@ -355,7 +477,9 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
 
     const [showValidation, setShowValidation] = useState(false);
 
-    const handleSave = () => {
+    const handleSave = async () => {
+        if (isSubmitting) return;
+
         const errors = [];
         const gangNoStr = Array.isArray(formData.gangNo) ? formData.gangNo.join(', ') : (formData.gangNo || '');
         if (!formData.batch) errors.push('Batch No.');
@@ -370,15 +494,16 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
             errors.push(`At least one ${fieldLabel} sleeper must be selected from the grid below`);
         }
 
-        // If checks are not OK, ensure exactly one reason is filled per sleeper
+        // If checks are not OK, ensure exactly one non-empty reason is filled per sleeper
         if (!bothAllOk && formData.defectiveSleeperDetails.length > 0) {
-            const hasInvalidReasons = formData.defectiveSleeperDetails.some(d => {
-                // Return true if zero reasons OR more than one reason (though UI prevents >1)
-                const reasonCount = (d.visualReason ? 1 : 0) + (d.dimReason ? 1 : 0);
-                return reasonCount !== 1;
+            const missingReasonItem = formData.defectiveSleeperDetails.find(d => {
+                const vis = String(d.visualReason || "").trim();
+                const dim = String(d.dimReason || "").trim();
+                return !vis && !dim;
             });
-            if (hasInvalidReasons) {
-                errors.push('Each defective sleeper must have exactly one rejection reason (either Visual or Dimensional)');
+            if (missingReasonItem) {
+                const label = formatSleeperLabel(missingReasonItem.benchNo, missingReasonItem.sleeperNo || missingReasonItem.sequence);
+                errors.push(`Defect reason is required for sleeper ${label}. Please select a reason from the dropdown in the table below.`);
             }
         }
 
@@ -390,62 +515,68 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
         setShowValidation(false);
         setValidationErrors([]);
 
-        // Build defective sleepers payload:
-        // - "All OK": auto-send all 8 positions with empty reasons (backend requires non-empty array)
-        // - Non-OK: use manually selected sleepers with their reasons
-        const mappedDefectiveSleepers = bothAllOk
-            ? (formData.gangNo || []).flatMap(bench => {
-                const seqs = availableSleepersByBench[bench] || ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-                return seqs.map(seq => ({
-                    benchGangNo: String(bench),
-                    sequenceNo: String(seq),
-                    sleeperNo: String(seq),
-                    visualReason: "",
-                    dimReason: ""
+        setIsSubmitting(true);
+
+        try {
+            // Build defective sleepers payload:
+            // - "All OK": auto-send all 8 positions with empty reasons (backend requires non-empty array)
+            // - Non-OK: use manually selected sleepers with their reasons
+            const mappedDefectiveSleepers = bothAllOk
+                ? (formData.gangNo || []).flatMap(bench => {
+                    const seqs = availableSleepersByBench[bench] || ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+                    return seqs.map(seq => ({
+                        benchGangNo: String(bench),
+                        sequenceNo: String(seq),
+                        sleeperNo: String(seq),
+                        visualReason: "",
+                        dimReason: ""
+                    }));
+                })
+                : formData.defectiveSleeperDetails.map(item => ({
+                    benchGangNo: String(item.benchNo || gangNoStr || ""),
+                    sequenceNo: String(item.sequence || ""),
+                    sleeperNo: String(item.sleeperNo || `${item.benchNo || gangNoStr}${item.sequence}` || ""),
+                    visualReason: String(item.visualReason || ""),
+                    dimReason: String(item.dimReason || "")
                 }));
-            })
-            : formData.defectiveSleeperDetails.map(item => ({
-                benchGangNo: String(item.benchNo || gangNoStr || ""),
-                sequenceNo: String(item.sequence || ""),
-                sleeperNo: String(item.sleeperNo || `${item.benchNo || gangNoStr}${item.sequence}` || ""),
-                visualReason: formData.visualCheck !== 'All OK' ? String(item.visualReason || "") : "",
-                dimReason: formData.dimCheck !== 'All OK' ? String(item.dimReason || "") : ""
+
+            // Payload matching demoulding-inspection-controller schema exactly
+            const payload = {
+                id: existingRecordId || initialData?.id,
+                lineShedNo: formData.location || activeContainer?.name || 'N/A',
+                inspectionDate: formatToBackendDate(formData.inspectionDate),
+                inspectionTime: formData.inspectionTime,
+                castingDate: formatToBackendDate(formData.casting),
+                batchNo: String(formData.batch || ''),
+                benchNo: String(gangNoStr),
+                sleeperType: formData.type || 'RT-1234',
+                processStatus: formData.process || 'Satisfactory',
+                visualCheck: formData.visualCheck || 'All OK',
+                dimCheck: formData.dimCheck || 'All OK',
+                overallRemarks: formData.remarks || '',
+                createdBy: String(localStorage.getItem('userId') || "0"),
+                updatedBy: String(localStorage.getItem('userId') || "0"),
+                defectiveSleepers: mappedDefectiveSleepers
+            };
+
+            await onSave(payload);
+
+            // Reset non-shared fields
+            setFormData(prev => ({
+                ...prev,
+                inspectionDate: getSafeToday(),
+                inspectionTime: getSafeNowTime(),
+                process: '',
+                visualCheck: 'All OK',
+                dimCheck: 'All OK',
+                defectiveSleeperDetails: [],
+                remarks: ''
             }));
-
-        console.log("Saving Date:", formData.inspectionDate);
-        console.log("Saving Time:", formData.inspectionTime);
-
-        // Payload matching demoulding-inspection-controller schema exactly
-        const payload = {
-            lineShedNo: formData.location || activeContainer?.name || 'N/A',
-            inspectionDate: formatToBackendDate(formData.inspectionDate),
-            inspectionTime: formData.inspectionTime,
-            castingDate: formatToBackendDate(formData.casting),
-            batchNo: String(formData.batch || ''),
-            benchNo: String(gangNoStr),
-            sleeperType: formData.type || 'RT-1234',
-            processStatus: formData.process || 'Satisfactory',
-            visualCheck: formData.visualCheck || 'All OK',
-            dimCheck: formData.dimCheck || 'All OK',
-            overallRemarks: formData.remarks || '',
-            createdBy: String(localStorage.getItem('userId') || "0"),
-            updatedBy: String(localStorage.getItem('userId') || "0"),
-            defectiveSleepers: mappedDefectiveSleepers
-        };
-
-        onSave(payload);
-
-        // Reset non-shared fields
-        setFormData(prev => ({
-            ...prev,
-            inspectionDate: getSafeToday(),
-            inspectionTime: getSafeNowTime(),
-            process: '',
-            visualCheck: 'All OK',
-            dimCheck: 'All OK',
-            defectiveSleeperDetails: [],
-            remarks: ''
-        }));
+        } catch (err) {
+            console.error("Error during save:", err);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const addDefectiveSleeper = () => {
@@ -467,12 +598,15 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
     const updateDefectiveSleeper = (index, field, value) => {
         setFormData(prev => {
             const updated = [...prev.defectiveSleeperDetails];
-            updated[index] = { ...updated[index], [field]: value };
-            if (field === 'benchNo' || field === 'sequence') {
-                const b = field === 'benchNo' ? value : updated[index].benchNo;
-                const s = field === 'sequence' ? value : updated[index].sequence;
-                updated[index].sleeperNo = (b && s) ? `${b}${s}` : '';
+            if (!updated[index]) return prev;
+            if (typeof field === 'object' && field !== null) {
+                updated[index] = { ...updated[index], ...field };
+            } else {
+                updated[index] = { ...updated[index], [field]: value };
             }
+            const b = updated[index].benchNo;
+            const s = updated[index].sequence || updated[index].sleeperNo;
+            updated[index].sleeperNo = formatSleeperLabel(b, s);
             return { ...prev, defectiveSleeperDetails: updated };
         });
     };
@@ -767,8 +901,40 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                                 border: '1px dashed #cbd5e1',
                             }}>
                                 {(availableSleepersByBench[bench] || ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']).map((seq, idx) => {
+                                    const matchesSleeper = (d) => {
+                                        const dSleeper = String(d.sleeperNo || d.sequence || '').trim().toUpperCase();
+                                        const targetSeq = String(seq || '').trim().toUpperCase();
+                                        const dBench = String(d.benchNo || '').trim();
+                                        const targetBench = String(bench || '').trim();
+
+                                        // 1. Direct exact match (e.g., "1A" === "1A")
+                                        if (dSleeper !== '' && dSleeper === targetSeq) {
+                                            return true;
+                                        }
+
+                                        // 2. Formatted sleeper label match (e.g. bench 1 + seq A => "1A" === "1A")
+                                        const dFormatted = formatSleeperLabel(dBench, dSleeper).toUpperCase();
+                                        const tFormatted = formatSleeperLabel(targetBench, targetSeq).toUpperCase();
+                                        if (dFormatted !== '' && dFormatted === tFormatted) {
+                                            return true;
+                                        }
+
+                                        // 3. Fallback match for sequence and bench
+                                        const dSeq = String(d.sequence || d.sequenceNo || '').trim().toUpperCase();
+                                        if (dSeq !== '' && (dSeq === targetSeq || dSeq === targetSeq.replace(/^\d+/, ''))) {
+                                            const dClean = dSleeper.replace(/^[^\d]*/, '').replace(/^\d+/, '');
+                                            const tClean = targetSeq.replace(/^[^\d]*/, '').replace(/^\d+/, '');
+                                            const benchMatch = !dBench || dBench === targetBench || dBench.split(',').map(s => s.trim()).includes(targetBench) || dSleeper.startsWith(targetBench);
+                                            if (benchMatch && (dSleeper === targetSeq || (dClean !== '' && dClean === tClean))) {
+                                                return true;
+                                            }
+                                        }
+
+                                        return false;
+                                    };
+
                                     // Check if this sleeper is currently marked as defective for this bench
-                                    const isDefective = formData.defectiveSleeperDetails.some(d => String(d.benchNo) === String(bench) && (d.sequence === seq || d.sleeperNo === seq));
+                                    const isDefective = formData.defectiveSleeperDetails.some(matchesSleeper);
 
                                     // Check if rejection is forced by "All Rejected" status
                                     const isAllRejectedVisual = formData.visualCheck === 'All Rejected';
@@ -778,22 +944,27 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                                     const handleClick = () => {
                                         if (isForced) return; // Cannot toggle if forced by "All Rejected"
 
-                                        setFormData(prev => {
-                                            const exists = prev.defectiveSleeperDetails.some(d => String(d.benchNo) === String(bench) && (d.sequence === seq || d.sleeperNo === seq));
-                                            let updated;
-                                            if (exists) {
-                                                updated = prev.defectiveSleeperDetails.filter(d => !(String(d.benchNo) === String(bench) && (d.sequence === seq || d.sleeperNo === seq)));
-                                            } else {
-                                                updated = [...prev.defectiveSleeperDetails, {
+                                        if (isDefective) {
+                                            const displayLabel = formatSleeperLabel(bench, seq);
+                                            setConfirmDeselectTarget({
+                                                sleeperNo: displayLabel,
+                                                benchNo: bench,
+                                                sequence: seq,
+                                                matcher: matchesSleeper,
+                                                type: 'grid'
+                                            });
+                                        } else {
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                defectiveSleeperDetails: [...prev.defectiveSleeperDetails, {
                                                     benchNo: bench,
                                                     sequence: seq,
-                                                    sleeperNo: seq,
+                                                    sleeperNo: formatSleeperLabel(bench, seq),
                                                     visualReason: '',
                                                     dimReason: ''
-                                                }];
-                                            }
-                                            return { ...prev, defectiveSleeperDetails: updated };
-                                        });
+                                                }]
+                                            }));
+                                        }
                                     };
 
                                     return (
@@ -851,17 +1022,19 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                                     {formData.defectiveSleeperDetails.map((item, idx) => (
                                         <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
                                             <td style={{ padding: '12px', fontWeight: '800', color: '#1e293b' }}>
-                                                {item.benchNo ? `${fieldLabel} ${item.benchNo} - ` : ''}{item.sleeperNo || `${item.benchNo}${item.sequence}`}
+                                                {item.benchNo ? `${fieldLabel} ${item.benchNo} - ` : ''}{formatSleeperLabel(item.benchNo, item.sleeperNo || item.sequence)}
                                             </td>
 
                                             {(formData.visualCheck !== 'All OK' && !(formData.visualCheck === 'Partially OK' && formData.dimCheck === 'All Rejected')) && (
                                                 <td style={{ padding: '8px 12px' }}>
                                                     <select
                                                         className="form-input-standard"
-                                                        style={{ width: '100%', fontSize: '11px', height: '32px', opacity: item.dimReason ? 0.6 : 1, cursor: item.dimReason ? 'not-allowed' : 'pointer' }}
-                                                        value={item.visualReason}
-                                                        onChange={e => updateDefectiveSleeper(idx, 'visualReason', e.target.value)}
-                                                        disabled={!!item.dimReason}
+                                                        style={{ width: '100%', fontSize: '11px', height: '32px' }}
+                                                        value={item.visualReason || ''}
+                                                        onChange={e => {
+                                                            // Visual dropdown always saves to visualReason
+                                                            updateDefectiveSleeper(idx, { visualReason: e.target.value, dimReason: '' });
+                                                        }}
                                                     >
                                                         <option value="">-- Select Visual Reason --</option>
                                                         <option value="Surface Defect">Surface Defect</option>
@@ -869,6 +1042,15 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                                                         <option value="Dowel Missing / Tilt / Sink">Dowel Missing / Tilt / Sink</option>
                                                         <option value="Insert Missing / Tilt / Sink">Insert Missing / Tilt / Sink</option>
                                                         <option value="Crack">Crack</option>
+                                                        <option value="Outer Gauge">Outer Gauge</option>
+                                                        <option value="Rail Seat">Rail Seat</option>
+                                                        <option value="Toe Gap">Toe Gap</option>
+                                                        <option value="Rail Seat Slope">Rail Seat Slope</option>
+                                                        <option value="Height Gauge">Height Gauge</option>
+                                                        <option value="Length of Sleeper">Length of Sleeper</option>
+                                                        {Boolean(item.visualReason && !['Surface Defect', 'Honeycomb', 'Dowel Missing / Tilt / Sink', 'Insert Missing / Tilt / Sink', 'Crack', 'Outer Gauge', 'Rail Seat', 'Toe Gap', 'Rail Seat Slope', 'Height Gauge', 'Length of Sleeper'].includes(item.visualReason)) && (
+                                                            <option value={item.visualReason}>{item.visualReason}</option>
+                                                        )}
                                                     </select>
                                                 </td>
                                             )}
@@ -877,10 +1059,12 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                                                 <td style={{ padding: '8px 12px' }}>
                                                     <select
                                                         className="form-input-standard"
-                                                        style={{ width: '100%', fontSize: '11px', height: '32px', opacity: item.visualReason ? 0.6 : 1, cursor: item.visualReason ? 'not-allowed' : 'pointer' }}
-                                                        value={item.dimReason}
-                                                        onChange={e => updateDefectiveSleeper(idx, 'dimReason', e.target.value)}
-                                                        disabled={!!item.visualReason}
+                                                        style={{ width: '100%', fontSize: '11px', height: '32px' }}
+                                                        value={item.dimReason || ''}
+                                                        onChange={e => {
+                                                            // Dim dropdown always saves to dimReason
+                                                            updateDefectiveSleeper(idx, { dimReason: e.target.value, visualReason: '' });
+                                                        }}
                                                     >
                                                         <option value="">-- Select Dim. Reason --</option>
                                                         <option value="Outer Gauge">Outer Gauge</option>
@@ -889,6 +1073,14 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                                                         <option value="Rail Seat Slope">Rail Seat Slope</option>
                                                         <option value="Height Gauge">Height Gauge</option>
                                                         <option value="Length of Sleeper">Length of Sleeper</option>
+                                                        <option value="Surface Defect">Surface Defect</option>
+                                                        <option value="Honeycomb">Honeycomb</option>
+                                                        <option value="Dowel Missing / Tilt / Sink">Dowel Missing / Tilt / Sink</option>
+                                                        <option value="Insert Missing / Tilt / Sink">Insert Missing / Tilt / Sink</option>
+                                                        <option value="Crack">Crack</option>
+                                                        {Boolean(item.dimReason && !['Outer Gauge', 'Rail Seat', 'Toe Gap', 'Rail Seat Slope', 'Height Gauge', 'Length of Sleeper', 'Surface Defect', 'Honeycomb', 'Dowel Missing / Tilt / Sink', 'Insert Missing / Tilt / Sink', 'Crack'].includes(item.dimReason)) && (
+                                                            <option value={item.dimReason}>{item.dimReason}</option>
+                                                        )}
                                                     </select>
                                                 </td>
                                             )}
@@ -897,7 +1089,12 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                                                 {/* Show remove button always — not just for Partially OK */}
                                                 {!(formData.visualCheck === 'All Rejected' || formData.dimCheck === 'All Rejected') && (
                                                     <button
-                                                        onClick={() => removeDefectiveSleeper(idx)}
+                                                        type="button"
+                                                        onClick={() => setConfirmDeselectTarget({
+                                                            sleeperNo: formatSleeperLabel(item.benchNo, item.sleeperNo || item.sequence),
+                                                            index: idx,
+                                                            type: 'table'
+                                                        })}
                                                         style={{ color: '#ef4444', border: 'none', background: 'none', cursor: 'pointer', fontSize: '16px', padding: '4px' }}
                                                     >×</button>
                                                 )}
@@ -912,11 +1109,141 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
             )}
 
             <div className="form-actions-row">
-                <button className="toggle-btn" type="button" onClick={handleSave} style={{ minWidth: '160px', height: '42px' }}>
-                    {initialData ? 'Update Record' : 'Save Record'}
+                <button 
+                    className="toggle-btn" 
+                    type="button" 
+                    onClick={handleSave} 
+                    disabled={isSubmitting}
+                    style={{ 
+                        minWidth: '160px', 
+                        height: '42px',
+                        opacity: isSubmitting ? 0.65 : 1,
+                        cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px'
+                    }}
+                >
+                    {isSubmitting ? (
+                        <>
+                            <span style={{
+                                width: '14px',
+                                height: '14px',
+                                border: '2px solid rgba(255,255,255,0.3)',
+                                borderTopColor: '#fff',
+                                borderRadius: '50%',
+                                display: 'inline-block',
+                                animation: 'spin 0.8s linear infinite'
+                            }} />
+                            Saving...
+                        </>
+                    ) : (initialData ? 'Update Record' : 'Save Record')}
                 </button>
-                {initialData && <button className="toggle-btn secondary" type="button" onClick={onCancel}>Cancel</button>}
+                {initialData && <button className="toggle-btn secondary" type="button" onClick={onCancel} disabled={isSubmitting}>Cancel</button>}
             </div>
+
+            {/* Confirmation Modal for Deselecting Sleeper */}
+            {confirmDeselectTarget && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(15, 23, 42, 0.55)',
+                    backdropFilter: 'blur(4px)',
+                    zIndex: 99999,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '24px'
+                }}>
+                    <div className="fade-in" style={{
+                        maxWidth: '420px',
+                        width: '100%',
+                        background: '#fff',
+                        borderRadius: '20px',
+                        padding: '24px',
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                        border: '1px solid #e2e8f0',
+                        textAlign: 'center'
+                    }}>
+                        <div style={{
+                            width: '52px',
+                            height: '52px',
+                            background: '#fee2e2',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            margin: '0 auto 16px auto',
+                            color: '#ef4444',
+                            fontSize: '24px',
+                            fontWeight: 'bold'
+                        }}>⚠</div>
+
+                        <h3 style={{ margin: '0 0 8px 0', fontSize: '1.2rem', fontWeight: '800', color: '#1e293b' }}>
+                            Confirm Deselection
+                        </h3>
+
+                        <p style={{ margin: '0 0 24px 0', fontSize: '0.95rem', color: '#475569', lineHeight: '1.5' }}>
+                            Are you sure to deselect Sleeper <strong style={{ color: '#ef4444', fontWeight: '800' }}>{confirmDeselectTarget.sleeperNo}</strong>?
+                        </p>
+
+                        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                            <button
+                                type="button"
+                                onClick={() => setConfirmDeselectTarget(null)}
+                                style={{
+                                    flex: 1,
+                                    padding: '12px',
+                                    borderRadius: '12px',
+                                    border: '1px solid #cbd5e1',
+                                    background: '#f8fafc',
+                                    color: '#475569',
+                                    fontWeight: '700',
+                                    fontSize: '0.9rem',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s'
+                                }}
+                            >
+                                No
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (confirmDeselectTarget.type === 'grid' && confirmDeselectTarget.matcher) {
+                                        const matcher = confirmDeselectTarget.matcher;
+                                        setFormData(prev => ({
+                                            ...prev,
+                                            defectiveSleeperDetails: prev.defectiveSleeperDetails.filter(d => !matcher(d))
+                                        }));
+                                    } else if (confirmDeselectTarget.type === 'table' && typeof confirmDeselectTarget.index === 'number') {
+                                        removeDefectiveSleeper(confirmDeselectTarget.index);
+                                    }
+                                    setConfirmDeselectTarget(null);
+                                }}
+                                style={{
+                                    flex: 1,
+                                    padding: '12px',
+                                    borderRadius: '12px',
+                                    border: 'none',
+                                    background: '#ef4444',
+                                    color: '#fff',
+                                    fontWeight: '800',
+                                    fontSize: '0.9rem',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)',
+                                    transition: 'all 0.2s'
+                                }}
+                            >
+                                Yes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Validation Errors Modal */}
             {validationErrors.length > 0 && (

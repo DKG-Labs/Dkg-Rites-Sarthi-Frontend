@@ -536,7 +536,7 @@ const CompactionConcrete = ({
                                 <h4>Manual Entry Form</h4>
                             </div>
                             <div className="form-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))' }}>
-                                <div className="form-field"><label>Bench No.</label><input type="number" min="0" value={manualForm.benchNo} onChange={e => setManualForm({ ...manualForm, benchNo: e.target.value })} /></div>
+                                <div className="form-field"><label>Bench No.</label><input type="text" placeholder="e.g. A, B, C or 12" value={manualForm.benchNo} onChange={e => setManualForm({ ...manualForm, benchNo: e.target.value })} /></div>
                                 <div className="form-field"><label>Time of Casting</label><input type="time" value={manualForm.timeOfCasting} onChange={e => setManualForm({ ...manualForm, timeOfCasting: e.target.value })} /></div>
                                 <div className="form-field">
                                     <label>Min RPM <small style={{ opacity: 0.6 }}>(8640+)</small></label>

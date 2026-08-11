@@ -21,8 +21,8 @@ const LOGGED_IN_USER_ID = parseInt(localStorage.getItem('userId') || '119', 10);
  */
 const PLANT_DECLARATION_MODULES = [
     { moduleId: 1, label: 'Plant Profile',     color: '#7c3aed' },
-    { moduleId: 2, label: 'Bench / Mould',     color: '#7c3aed' },
-    { moduleId: 3, label: 'Raw Material Src',  color: '#7c3aed' },
+    { moduleId: 2, label: 'Bench / Mould',     color: '#7c3aed', hidden: true },
+    { moduleId: 3, label: 'Raw Material Src',  color: '#7c3aed', isUnderDevelopment: true },
     { moduleId: 4, label: 'Mix Design',        color: '#7c3aed' },
     { moduleId: 12, label: 'Long Line',        color: '#7c3aed', hidden: true },
 ];
@@ -429,13 +429,37 @@ const PlantDeclarationVerification = () => {
                                     key={mod.moduleId}
                                     onClick={() => setSelectedModuleId(mod.moduleId)}
                                     className={`pdv-api-module-card ${isActive ? 'active' : ''}`}
-                                    style={{ borderColor: isActive ? mod.color : '#e2e8f0', background: isActive ? `${mod.color}10` : '#fff' }}
+                                    style={{ 
+                                        borderColor: isActive ? mod.color : '#e2e8f0', 
+                                        background: isActive ? `${mod.color}10` : '#fff',
+                                        cursor: 'pointer'
+                                    }}
                                 >
-                                    <div className="pdv-api-mod-label" style={{ color: isActive ? mod.color : '#334155' }}>{mod.label}</div>
-                                    <div style={{ display: 'flex', gap: '5px', marginTop: '8px' }}>
-                                        <span style={{ fontSize: '10px', background: '#fff7ed', color: '#c2410c', padding: '2px 6px', borderRadius: '4px' }}>P: {pCount}</span>
-                                        <span style={{ fontSize: '10px', background: '#ecfdf5', color: '#047857', padding: '2px 6px', borderRadius: '4px' }}>V: {hCount}</span>
+                                    <div className="pdv-api-mod-label" style={{ color: isActive ? mod.color : '#334155' }}>
+                                        {mod.label}
+                                        {mod.isUnderDevelopment && (
+                                            <span style={{ 
+                                                display: 'block',
+                                                fontSize: '9px',
+                                                fontWeight: '800',
+                                                color: '#d97706',
+                                                background: '#fef3c7',
+                                                padding: '1px 6px',
+                                                borderRadius: '4px',
+                                                marginTop: '4px',
+                                                width: 'fit-content',
+                                                textTransform: 'uppercase'
+                                            }}>
+                                                Under Development
+                                            </span>
+                                        )}
                                     </div>
+                                    {!mod.isUnderDevelopment && (
+                                        <div style={{ display: 'flex', gap: '5px', marginTop: '8px' }}>
+                                            <span style={{ fontSize: '10px', background: '#fff7ed', color: '#c2410c', padding: '2px 6px', borderRadius: '4px' }}>P: {pCount}</span>
+                                            <span style={{ fontSize: '10px', background: '#ecfdf5', color: '#047857', padding: '2px 6px', borderRadius: '4px' }}>V: {hCount}</span>
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })}

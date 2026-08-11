@@ -74,6 +74,114 @@ const InlineRow = ({ cols }) => (
     </div>
 );
 
+// Editable Batch Select Component (Combobox with dropdown & open text)
+const EditableBatchSelect = ({ value, onChange, availableBatches }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const wrapperRef = React.useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleSelect = (bNo) => {
+        onChange(bNo);
+        setIsOpen(false);
+    };
+
+    return (
+        <div ref={wrapperRef} style={{ position: 'relative', width: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+                <input
+                    type="text"
+                    value={value || ''}
+                    onChange={e => onChange(e.target.value)}
+                    onFocus={() => setIsOpen(true)}
+                    placeholder="Select or enter Batch No."
+                    style={{
+                        width: '100%',
+                        padding: '6px 28px 6px 10px',
+                        fontSize: '13px',
+                        background: '#fff',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '4px',
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                    }}
+                />
+                <div
+                    onClick={() => setIsOpen(prev => !prev)}
+                    style={{
+                        position: 'absolute',
+                        right: '8px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        cursor: 'pointer',
+                        color: '#64748b',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '2px'
+                    }}
+                >
+                    <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}
+                    >
+                        <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                </div>
+            </div>
+
+            {isOpen && availableBatches.length > 0 && (
+                <div style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 4px)',
+                    left: 0,
+                    right: 0,
+                    background: '#fff',
+                    border: '1.5px solid #3b82f6',
+                    borderRadius: '6px',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                    maxHeight: '180px',
+                    overflowY: 'auto',
+                    zIndex: 9999
+                }}>
+                    {availableBatches.map((b, idx) => (
+                        <div
+                            key={idx}
+                            onClick={() => handleSelect(b.batchNo)}
+                            style={{
+                                padding: '8px 12px',
+                                fontSize: '13px',
+                                cursor: 'pointer',
+                                background: String(b.batchNo) === String(value) ? '#eff6ff' : '#fff',
+                                color: String(b.batchNo) === String(value) ? '#1d4ed8' : '#1e293b',
+                                fontWeight: String(b.batchNo) === String(value) ? '700' : '400',
+                                borderBottom: idx < availableBatches.length - 1 ? '1px solid #f1f5f9' : 'none'
+                            }}
+                            onMouseEnter={e => { if (String(b.batchNo) !== String(value)) e.currentTarget.style.background = '#f8fafc'; }}
+                            onMouseLeave={e => { if (String(b.batchNo) !== String(value)) e.currentTarget.style.background = '#fff'; }}
+                        >
+                            {b.batchNo}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
 const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: propSetSteamRecords, displayMode = 'modal', batches: propBatches = [], activeContainer }) => {
     const { containers, allBatchDeclarations, dutyDate, vendorId, dutyUnit, fetchSteamCuring, vendorCode, selectedShift, userId, isActiveDuty } = useShift();
     const [viewMode, setViewMode] = useState('witnessed');
@@ -157,6 +265,9 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
         batchNo: '', 
         chamberNo: '', 
         benches: '', 
+        lbcTime: '',
+        curingStage: 'Pre-Steaming',
+        temperature: '',
         minConstTemp: '', 
         maxConstTemp: '',
         location: activeContainer?.name || '',
@@ -180,6 +291,9 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                     batchNo: '', 
                     chamberNo: '', 
                     benches: '', 
+                    lbcTime: '',
+                    curingStage: 'Pre-Steaming',
+                    temperature: '',
                     minConstTemp: '', 
                     maxConstTemp: '',
                     location: activeContainer?.name || availableLocations[0] || '',
@@ -377,9 +491,7 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
     }, [selectedBatch, batchOptions, availableBatches, allBatchDeclarations]);
 
     const isTempInvalid = (val) => {
-        if (val === '' || val === null || val === undefined) return false;
-        const num = parseFloat(val);
-        return !isNaN(num) && (num < 55 || num > 60);
+        return false;
     };
 
     const tabs = [
@@ -486,6 +598,9 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                 batchNo: target.batchNo || entry.batchNo,
                 chamberNo: target.chamberNo || entry.chamberNo,
                 benches: target.benches || entry.benches,
+                lbcTime: target.lbcTime || entry.lbcTime || '',
+                curingStage: target.curingStage || entry.curingStage || 'Pre-Steaming',
+                temperature: target.temperature ?? entry.temperature ?? target.minConstTemp ?? entry.minConstTemp,
                 minConstTemp: target.minConstTemp ?? target.minTemp ?? entry.minConstTemp,
                 maxConstTemp: target.maxConstTemp ?? target.maxTemp ?? entry.maxConstTemp,
                 grade: target.grade || entry.grade || 'M60'
@@ -504,6 +619,9 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                 batchNo: entry.batchNo,
                 chamberNo: entry.chamberNo,
                 benches: entry.benches,
+                lbcTime: entry.lbcTime || '',
+                curingStage: entry.curingStage || 'Pre-Steaming',
+                temperature: entry.temperature || entry.minConstTemp,
                 minConstTemp: entry.minConstTemp,
                 maxConstTemp: entry.maxConstTemp
             });
@@ -518,18 +636,23 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
             alert(isLine ? 'Batch number required' : 'Batch and Chamber numbers required');
             return;
         }
-        const minVal = parseFloat(manualForm.minConstTemp);
-        const maxVal = parseFloat(manualForm.maxConstTemp);
-        if (isNaN(minVal) || isNaN(maxVal) || minVal < 45 || minVal > 70) {
-            alert('Error: Temperature must be between 45°C and 70°C.');
+        const tempRaw = manualForm.temperature !== undefined && manualForm.temperature !== '' ? manualForm.temperature : manualForm.minConstTemp;
+        const tempVal = parseFloat(tempRaw);
+        if (isNaN(tempVal)) {
+            alert('Please enter a valid temperature value.');
             return;
         }
+        const statusVal = tempVal > 60 ? 'NOT OK' : 'OK';
         const newEntry = {
             ...manualForm,
+            curingStage: manualForm.curingStage || 'Pre-Steaming',
+            minConstTemp: tempVal,
+            maxConstTemp: tempVal,
+            temperature: tempVal,
             id: editingId || `m-${Date.now()}`,
             timestamp: new Date().toISOString(),
             source: 'Manual',
-            status: (minVal >= 55 && maxVal <= 60) ? 'OK' : 'NOT OK',
+            status: statusVal,
             shift: selectedShift,
             vendorCode: vendorCode,
             plantId: dutyUnit,
@@ -594,6 +717,9 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
             batchNo: '', 
             chamberNo: '', 
             benches: '', 
+            lbcTime: '',
+            curingStage: 'Pre-Steaming',
+            temperature: '',
             minConstTemp: '', 
             maxConstTemp: '',
             location: manualForm.location || activeContainer?.name || '',
@@ -620,8 +746,11 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                 .map(e => ({
                     batchNo: String(e.batchNo),
                     chamber: String(e.chamberNo || "0"),
-                    minTemp: parseFloat(e.minConstTemp) || 0,
-                    maxTemp: parseFloat(e.maxConstTemp) || 0
+                    minTemp: parseFloat(e.temperature !== undefined && e.temperature !== '' ? e.temperature : e.minConstTemp) || 0,
+                    maxTemp: parseFloat(e.temperature !== undefined && e.temperature !== '' ? e.temperature : e.maxConstTemp) || 0,
+                    lbcTime: e.lbcTime || '',
+                    curingStage: e.curingStage || 'Pre-Steaming',
+                    temperature: parseFloat(e.temperature !== undefined && e.temperature !== '' ? e.temperature : e.minConstTemp) || 0
                 }));
 
             const scadaRecordsPayload = batchRecords
@@ -662,12 +791,20 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
             const currentPlantId = dutyUnit || localStorage.getItem('dutyUnit');
             const currentUserIdInt = parseInt(userId || localStorage.getItem('userId') || "134");
 
+            const lastManual = manualRecords.length > 0 ? manualRecords[manualRecords.length - 1] : null;
+            const lbcVal = lastManual?.lbcTime || manualForm.lbcTime || '';
+            const stageVal = lastManual?.curingStage || manualForm.curingStage || 'Pre-Steaming';
+            const tempVal = lastManual?.temperature !== undefined ? lastManual.temperature : (parseFloat(manualForm.temperature !== undefined && manualForm.temperature !== '' ? manualForm.temperature : manualForm.minConstTemp) || 0);
+
             const payload = {
                 batchNo: String(batchNoStr),
-                chamber: String(manualForm.chamberNo || "0"),
+                chamber: String(manualForm.chamberNo || lastManual?.chamber || "0"),
                 grade: manualForm.grade || 'M60',
                 entryDate: manualForm.date ? (manualForm.date.includes('-') ? manualForm.date.split('-').reverse().join('/') : manualForm.date) : formatToIST(null, 'date'),
                 location: manualForm.location,
+                lbcTime: lbcVal,
+                curingStage: stageVal,
+                temperature: tempVal,
                 vendorCode: currentVendorCode,
                 plantId: currentPlantId,
                 shift: currentShift,
@@ -876,18 +1013,15 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                                 </div>
                                 <div className="form-field">
                                     <label style={{ fontSize: '10px' }}>Batch Number</label>
-                                    <select
-                                        value={selectedBatch}
-                                        onChange={e => {
-                                            const val = e.target.value;
-                                            // Store numeric ID if possible, otherwise string
-                                            setSelectedBatch(isNaN(Number(val)) ? val : Number(val));
+                                    <EditableBatchSelect
+                                        value={manualForm.batchNo}
+                                        onChange={val => {
+                                            setManualForm(prev => ({ ...prev, batchNo: val }));
+                                            const match = availableBatches.find(b => String(b.batchNo) === String(val) || String(b.id) === String(val));
+                                            setSelectedBatch(match ? match.id : val);
                                         }}
-                                        style={{ background: '#fff', fontSize: '13px', padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
-                                    >
-                                        <option value="">Select Batch</option>
-                                        {availableBatches.map(b => <option key={b.id} value={b.id}>{b.batchNo}</option>)}
-                                    </select>
+                                        availableBatches={availableBatches}
+                                    />
                                 </div>
                                 <div className="form-field">
                                     <label style={{ fontSize: '10px' }}>Chamber No.</label>
@@ -950,50 +1084,63 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                                 <span style={{ background: '#10b981', color: '#fff', fontSize: '10px', fontWeight: '800', width: '20px', height: '20px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>3</span>
                                 <h4 style={{ margin: 0, fontSize: '0.9rem', color: '#064e3b', fontWeight: '800' }}>Manual Entry Form</h4>
                             </div>
-                            <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '1rem' }}>
-                                <div className="form-field">
-                                    <label style={{ fontSize: '10px' }}>Declaration Summary</label>
-                                    <div style={{ padding: '6px', background: '#fff', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '11px', fontWeight: '700', color: '#065f46' }}>
-                                        Batch {manualForm.batchNo || '—'} / Chamber {manualForm.chamberNo || '—'}
+                            <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem' }}>
+                                {!((manualForm.location || '').toLowerCase().includes('line')) && (
+                                    <div className="form-field">
+                                        <label style={{ fontSize: '10px', fontWeight: '700', color: '#374151' }}>Chamber Number</label>
+                                        <input
+                                            type="text"
+                                            value={manualForm.chamberNo}
+                                            onChange={e => {
+                                                const val = e.target.value;
+                                                setManualForm(prev => ({ ...prev, chamberNo: val }));
+                                                setSelectedChamber(val);
+                                            }}
+                                            placeholder="Enter Chamber No."
+                                            style={{ padding: '6px 10px', fontSize: '13px', background: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                                        />
                                     </div>
+                                )}
+                                <div className="form-field">
+                                    <label style={{ fontSize: '10px', fontWeight: '700', color: '#374151' }}>Time of LBC</label>
+                                    <input
+                                        type="time"
+                                        value={manualForm.lbcTime || ''}
+                                        onChange={e => setManualForm(prev => ({ ...prev, lbcTime: e.target.value }))}
+                                        style={{ padding: '6px 10px', fontSize: '13px', background: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                                    />
                                 </div>
                                 <div className="form-field">
-                                    <label style={{ fontSize: '10px' }}>Min Temp</label>
-                                    <input
-                                        style={{
-                                            padding: '6px',
-                                            backgroundColor: isTempInvalid(manualForm.minConstTemp) ? '#ffe4e6' : '#ffffff',
-                                            borderColor: isTempInvalid(manualForm.minConstTemp) ? '#ef4444' : '#cbd5e1',
-                                            borderWidth: isTempInvalid(manualForm.minConstTemp) ? '2px' : '1px',
-                                            borderStyle: 'solid',
-                                            color: isTempInvalid(manualForm.minConstTemp) ? '#991b1b' : '#1e293b',
-                                            transition: 'all 0.2s',
-                                            fontWeight: isTempInvalid(manualForm.minConstTemp) ? '700' : '400'
-                                        }}
-                                        type="number"
-                                        value={manualForm.minConstTemp}
-                                        onChange={e => setManualForm({ ...manualForm, minConstTemp: e.target.value })}
-                                    />
-                                    {isTempInvalid(manualForm.minConstTemp) && <div style={{ fontSize: '10px', color: '#dc2626', fontWeight: '800', marginTop: '4px' }}>⚠ Must be 55–60°C</div>}
+                                    <label style={{ fontSize: '10px', fontWeight: '700', color: '#374151' }}>Stage of Steam Curing</label>
+                                    <select
+                                        value={manualForm.curingStage || 'Pre-Steaming'}
+                                        onChange={e => setManualForm(prev => ({ ...prev, curingStage: e.target.value }))}
+                                        style={{ padding: '6px 10px', fontSize: '13px', background: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                                    >
+                                        <option value="Pre-Steaming">Pre-Steaming</option>
+                                        <option value="Rising">Rising</option>
+                                        <option value="Constant">Constant</option>
+                                        <option value="Cooling">Cooling</option>
+                                    </select>
                                 </div>
                                 <div className="form-field">
-                                    <label style={{ fontSize: '10px' }}>Max Temp</label>
+                                    <label style={{ fontSize: '10px', fontWeight: '700', color: '#374151' }}>Temperature (°C)</label>
                                     <input
-                                        style={{
-                                            padding: '6px',
-                                            backgroundColor: isTempInvalid(manualForm.maxConstTemp) ? '#ffe4e6' : '#ffffff',
-                                            borderColor: isTempInvalid(manualForm.maxConstTemp) ? '#ef4444' : '#cbd5e1',
-                                            borderWidth: isTempInvalid(manualForm.maxConstTemp) ? '2px' : '1px',
-                                            borderStyle: 'solid',
-                                            color: isTempInvalid(manualForm.maxConstTemp) ? '#991b1b' : '#1e293b',
-                                            transition: 'all 0.2s',
-                                            fontWeight: isTempInvalid(manualForm.maxConstTemp) ? '700' : '400'
-                                        }}
                                         type="number"
-                                        value={manualForm.maxConstTemp}
-                                        onChange={e => setManualForm({ ...manualForm, maxConstTemp: e.target.value })}
+                                        step="any"
+                                        value={manualForm.temperature !== undefined && manualForm.temperature !== '' ? manualForm.temperature : (manualForm.minConstTemp || '')}
+                                        onChange={e => {
+                                            const val = e.target.value;
+                                            setManualForm(prev => ({ 
+                                                ...prev, 
+                                                temperature: val, 
+                                                minConstTemp: val, 
+                                                maxConstTemp: val 
+                                            }));
+                                        }}
+                                        placeholder="Enter Temperature"
+                                        style={{ padding: '6px 10px', fontSize: '13px', background: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px' }}
                                     />
-                                    {isTempInvalid(manualForm.maxConstTemp) && <div style={{ fontSize: '10px', color: '#dc2626', fontWeight: '800', marginTop: '4px' }}>⚠ Must be 55–60°C</div>}
                                 </div>
                             </div>
                             <div style={{ marginTop: '1rem', textAlign: 'center' }}><button className="toggle-btn" onClick={handleSaveManual}>{editingId ? 'Update Record' : 'Save Manual Record'}</button></div>
@@ -1007,7 +1154,7 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                                 <h4 style={{ margin: 0, fontSize: '0.9rem', color: '#1e293b', fontWeight: '800' }}>Recent Witness Logs</h4>
                             </div>
                             <table className="ui-table" style={{ background: '#fff', fontSize: '11px' }}>
-                                <thead><tr><th>Source</th><th>Date</th><th>Location</th><th>Batch</th><th>Chamber</th><th>Grade</th><th>Temp Range</th><th>Status</th><th>Actions</th></tr></thead>
+                                <thead><tr><th>Source</th><th>Date</th><th>Location</th><th>Batch</th><th>Chamber</th><th>Grade</th><th>Time of LBC</th><th>Stage</th><th>Temp (°C)</th><th>Status</th><th>Actions</th></tr></thead>
                                 <tbody>
                                     {sessionEntries
                                         .filter(e => e.source === 'Manual' && (!manualForm.batchNo || String(e.batchNo) === String(manualForm.batchNo)))
@@ -1018,13 +1165,22 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                                             <td>{e.date && e.date.includes('-') ? e.date.split('-').reverse().join('/') : (e.date || '—')}</td>
                                             <td>{e.location || '—'}</td>
                                             <td>{e.batchNo}</td>
-                                            <td>{e.chamberNo}</td>
+                                            <td>{e.chamberNo || '—'}</td>
                                             <td>{e.grade || '—'}</td>
-                                            <td>{e.minConstTemp}{e.maxConstTemp !== '—' ? `–${e.maxConstTemp}°C` : ''}</td>
+                                            <td>{e.lbcTime || '—'}</td>
+                                            <td>{e.curingStage || '—'}</td>
+                                            <td>{(e.temperature !== undefined && e.temperature !== '' && e.temperature !== null) ? `${e.temperature}°C` : (e.minConstTemp ? `${e.minConstTemp}°C` : '—')}</td>
                                             <td>
-                                                <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '800', background: e.status === 'OK' ? '#ecfdf5' : '#fef2f2', color: e.status === 'OK' ? '#059669' : '#dc2626' }}>
-                                                    {e.status || 'OK'}
-                                                </span>
+                                                {(() => {
+                                                    const t = parseFloat(e.temperature !== undefined && e.temperature !== '' ? e.temperature : e.minConstTemp);
+                                                    const st = !isNaN(t) ? (t > 60 ? 'NOT OK' : 'OK') : (e.status || 'OK');
+                                                    const isOk = st === 'OK' || st === 'REGISTERED';
+                                                    return (
+                                                        <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '800', background: isOk ? '#ecfdf5' : '#fef2f2', color: isOk ? '#059669' : '#dc2626' }}>
+                                                            {st}
+                                                        </span>
+                                                    );
+                                                })()}
                                             </td>
                                             <td>
                                                 <div style={{ display: 'flex', gap: '8px' }}>
@@ -1040,7 +1196,7 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                                             </td>
                                         </tr>
                                     ))}
-                                    {entries.length === 0 && <tr><td colSpan="9" style={{ textAlign: 'center', padding: '1.5rem', color: '#94a3b8' }}>No records yet.</td></tr>}
+                                    {entries.length === 0 && <tr><td colSpan="11" style={{ textAlign: 'center', padding: '1.5rem', color: '#94a3b8' }}>No records yet.</td></tr>}
                                 </tbody>
                             </table>
                         </div>
@@ -1080,7 +1236,7 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                         </div>
                         <div className="table-outer-wrapper" style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', overflowX: 'auto' }}>
                             <table className="ui-table" style={{ fontSize: '11px', minWidth: '800px' }}>
-                                <thead><tr><th>Source</th><th>Date</th><th>Location</th><th>Batch</th><th>Chamber</th><th>Grade</th><th>Temp Range</th><th>Status</th><th>Actions</th></tr></thead>
+                                <thead><tr><th>Source</th><th>Date</th><th>Location</th><th>Batch</th><th>Chamber</th><th>Grade</th><th>Time of LBC</th><th>Stage</th><th>Temp (°C)</th><th>Status</th><th>Actions</th></tr></thead>
                                 <tbody>
                                     {filteredEntries.filter(e => e.source === 'Manual' || e.source === 'Batch').map(e => (
                                         <tr key={e.id} style={{ background: e.isHeader ? '#f1f5f9' : 'transparent', fontWeight: e.isHeader ? '700' : '400' }}>
@@ -1093,13 +1249,22 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                                             <td>{e.date && e.date.includes('-') ? e.date.split('-').reverse().join('/') : (e.date || '—')}</td>
                                             <td>{e.location || '—'}</td>
                                             <td>{e.batchNo}</td>
-                                            <td>{e.chamberNo}</td>
+                                            <td>{e.chamberNo || '—'}</td>
                                             <td>{e.grade || '—'}</td>
-                                            <td>{e.minConstTemp}{e.maxConstTemp !== '—' ? `–${e.maxConstTemp}°C` : ''}</td>
+                                            <td>{e.lbcTime || '—'}</td>
+                                            <td>{e.curingStage || '—'}</td>
+                                            <td>{(e.temperature !== undefined && e.temperature !== '' && e.temperature !== null) ? `${e.temperature}°C` : (e.minConstTemp ? `${e.minConstTemp}°C` : '—')}</td>
                                             <td>
-                                                <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '800', background: e.status === 'OK' || e.status === 'REGISTERED' ? '#ecfdf5' : '#fef2f2', color: e.status === 'OK' || e.status === 'REGISTERED' ? '#059669' : '#dc2626' }}>
-                                                    {e.status || 'OK'}
-                                                </span>
+                                                {(() => {
+                                                    const t = parseFloat(e.temperature !== undefined && e.temperature !== '' ? e.temperature : e.minConstTemp);
+                                                    const st = !isNaN(t) ? (t > 60 ? 'NOT OK' : 'OK') : (e.status || 'OK');
+                                                    const isOk = st === 'OK' || st === 'REGISTERED';
+                                                    return (
+                                                        <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '800', background: isOk ? '#ecfdf5' : '#fef2f2', color: isOk ? '#059669' : '#dc2626' }}>
+                                                            {st}
+                                                        </span>
+                                                    );
+                                                })()}
                                             </td>
                                             <td>
                                                 {isActiveDuty ? (
@@ -1113,7 +1278,7 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                                             </td>
                                         </tr>
                                     ))}
-                                    {entries.length === 0 && <tr><td colSpan="9" style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>No records found.</td></tr>}
+                                    {entries.length === 0 && <tr><td colSpan="11" style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>No records found.</td></tr>}
                                 </tbody>
                             </table>
                         </div>

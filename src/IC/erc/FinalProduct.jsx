@@ -38,7 +38,6 @@ const generateQuantityRemarks = (c) => {
     const qtyNowOffered = Number(c.qtyNowOffered || 0);
     const qtyNowRejected = Number(c.qtyNowRejected || 0);
     const qtyNowAccepted = qtyNowOffered > 0 ? Math.max(0, qtyNowOffered - qtyNowRejected) : (Number(String(c.qtyNowPassed || 0).replace(/\*/g, '')) || 0);
-    const words = numberToWords(qtyNowAccepted).toLowerCase();
     
     // Calculate total erc_used_for_testing sum from call or lot details
     let ercUsedCount = null;
@@ -51,9 +50,17 @@ const generateQuantityRemarks = (c) => {
     } else if (c.finalLotDetails && Array.isArray(c.finalLotDetails) && c.finalLotDetails.length > 0) {
         ercUsedCount = c.finalLotDetails.reduce((sum, l) => sum + (Number(l.ercUsedForTesting || l.erc_used_for_testing || l.ercUsed || l.erc_used || l.noOfErcUsed || l.no_of_erc_used || l.testingQty) || 0), 0);
     }
-    const ercText = (ercUsedCount !== null && !isNaN(ercUsedCount)) ? `${ercUsedCount}` : "xxxxx";
     
-    let text = `*QUANTITY NOW PASSED ${words.toUpperCase()} NOS ONLY. INCLUDING * ${ercText} NOS CONSUMED IN DESTRUCTIVE TESTING.\n`;
+    let text = "";
+    if (ercUsedCount !== null && !isNaN(ercUsedCount) && ercUsedCount > 0) {
+        const dispatchQty = Math.max(0, qtyNowAccepted - ercUsedCount);
+        const dispatchWords = numberToWords(dispatchQty).toUpperCase();
+        const testingWords = numberToWords(ercUsedCount).toUpperCase();
+        text = `* Out of above ${qtyNowAccepted}, ${dispatchWords} (${dispatchQty})NOS ONLY has been finally accepted for dispatch and ${testingWords} (${ercUsedCount})Nos. has been consumed for DESTRUCTIVE TESTING.\n`;
+    } else {
+        const words = numberToWords(qtyNowAccepted).toUpperCase();
+        text = `* Out of above ${qtyNowAccepted}, ${words} (${qtyNowAccepted})NOS ONLY has been finally accepted for dispatch.\n`;
+    }
     
     if (c.lotDetails && c.lotDetails.length > 0) {
         let markings = c.lotDetails.map(l => `${l.lotNo || ''}, H No - ${l.heatNo || ''}`).join(' & ');

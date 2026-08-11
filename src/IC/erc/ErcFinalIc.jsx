@@ -338,7 +338,7 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
               fieldName="quantityNowPassedText"
               type="textarea"
               placeholder="QUANTITY NOW PASSED: (In words and details...)"
-              className="font-bold text-black block leading-normal uppercase italic"
+              className="font-bold text-black block leading-normal italic"
             />
           </div>
         </div>

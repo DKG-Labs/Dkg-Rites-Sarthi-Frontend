@@ -408,18 +408,20 @@ const ErcRmIC = ({ data = {}, isEditing = false, isBusy = false, onChange = () =
 
           {/* Footer */}
           <div className="border-x border-b border-black p-3 text-center">
-            <div className="font-semibold text-[11px] italic mb-1 uppercase">
+            <div className="font-semibold text-[11px] italic uppercase">
               {data?.certificationText || "IT IS CERTIFIED THAT THE MATERIAL IS CLEARED FOR THE NEXT STAGE."}
             </div>
-            <div className="mt-1 text-[10px] leading-snug text-gray-700">
-              <span className="font-bold">Distribution: </span>
-              Manufacturer Office copy with case, RITES Bill Copy,
-              Contractor, Purchaser (Railway), Consignee (Railway), Consignee
-              (Manufacturer of finished product), RITES Office copy, RITES for
-              final IC
+            <div className="text-[10px] italic text-gray-600">
+              यह प्रमाणित किया जाता है कि सामग्री को अगले चरण के लिए मंजूरी दे दी गई है
             </div>
-            <div className="h-4" />
+            <div className="mt-1 text-[10px] leading-snug text-gray-700">
+              <span className="font-bold">Distribution: </span>(i) Manufacture&nbsp;&nbsp;(ii) Purchasing Authority&nbsp;&nbsp;(iii) Office copy with case
+            </div>
+            <div className="text-[10px] leading-snug text-gray-700">
+              <span className="font-bold">वितरण: </span>(i) निर्माता&nbsp;&nbsp;(ii) क्रय अधिकारी&nbsp;&nbsp;(iii) कार्यालय प्रति केस के साथ
+            </div>
           </div>
+
         </fieldset>
         {/* Bottom spacer — reserves space for physical printer footer */}
         <div style={{ minHeight: '30mm' }} />

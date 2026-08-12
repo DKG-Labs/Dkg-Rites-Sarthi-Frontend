@@ -942,13 +942,13 @@ const FinalVisualDimensionalPage = ({ onBack, onNavigateSubmodule }) => {
                   <div className="sampling-label">1st Sampling</div>
                   <div className="dimensional-grid">
                     <div className="field">
-                      <label className="label">Main gauge acceptance (Go)</label>
+                      <label className="label">Main gauge (Go)</label>
                       <input className="input" type="number" min="0" value={d.dimMainGo1}
                         onChange={e => handleChange(lot.lotNo, "dimMainGo1", e.target.value)}
                         placeholder="0" />
                     </div>
                     <div className="field">
-                      <label className="label">Main gauge acceptance (No-Go)</label>
+                      <label className="label">Main gauge (No-Go)</label>
                       <input className="input" type="number" min="0" value={d.dimMainNoGo1}
                         onChange={e => handleChange(lot.lotNo, "dimMainNoGo1", e.target.value)}
                         placeholder="0" />

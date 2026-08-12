@@ -61,6 +61,8 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
     const [confirmDeselectTarget, setConfirmDeselectTarget] = useState(null);
     const [existingRecordId, setExistingRecordId] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isFetchingSleepers, setIsFetchingSleepers] = useState(false);
+    const [isFetchingFormOptions, setIsFetchingFormOptions] = useState(false);
     const benchDropdownRef = useRef(null);
 
     useEffect(() => {
@@ -244,7 +246,9 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
     // Fetch batches when casting date or location changes
     useEffect(() => {
         if (formData.casting && formData.location && formData.location !== 'N/A' && !initialData) {
+            let isSubscribed = true;
             const fetchBatches = async () => {
+                setIsFetchingFormOptions(true);
                 try {
                     const formattedDate = formatToBackendDate(formData.casting);
                     // Pass selected plant id (dutyUnit) and location (from form)
@@ -254,7 +258,7 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                         dutyUnit,
                         formData.location
                     );
-                    if (response?.responseData) {
+                    if (isSubscribed && response?.responseData) {
                         setBatches(response.responseData);
                         if (!response.responseData.includes(formData.batch)) {
                             setFormData(prev => ({ ...prev, batch: '', gangNo: '', type: '' }));
@@ -262,74 +266,77 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                     }
                 } catch (error) {
                     console.error("Error fetching batches:", error);
+                } finally {
+                    if (isSubscribed) setIsFetchingFormOptions(false);
                 }
             };
             fetchBatches();
+            return () => { isSubscribed = false; };
         }
     }, [formData.casting, formData.location, vendorId, initialData, dutyUnit]);
 
     // Fetch benches and populate existing inspection details when batch changes
     useEffect(() => {
         if (formData.batch && !initialData) {
-            const populateExisting = async () => {
-                let allRecords = Array.isArray(existingEntries) ? [...existingEntries] : [];
-
+            let isSubscribed = true;
+            const loadBatchData = async () => {
+                setIsFetchingFormOptions(true);
                 try {
-                    let fetchedList = [];
-                    if (apiService.getDemouldingInspectionByBatch) {
-                        const batchResp = await apiService.getDemouldingInspectionByBatch(formData.batch);
-                        fetchedList = batchResp?.responseData || (Array.isArray(batchResp) ? batchResp : []);
-                    }
-                    if (!fetchedList || fetchedList.length === 0) {
-                        const allResp = await apiService.getAllDemouldingInspection();
-                        fetchedList = allResp?.responseData || (Array.isArray(allResp) ? allResp : []);
-                    }
-                    if (Array.isArray(fetchedList)) {
-                        allRecords = [...allRecords, ...fetchedList];
-                    }
-                } catch (err) {
-                    console.error("Error fetching demoulding records:", err);
-                }
+                    let allRecords = Array.isArray(existingEntries) ? [...existingEntries] : [];
 
-                const matchingRecords = allRecords.filter(r => 
-                    String(r.batchNo || r.batch || r.batchNumber || '').trim().toLowerCase() === String(formData.batch).trim().toLowerCase()
-                );
-
-                if (matchingRecords.length > 0) {
-                    const latestRecord = matchingRecords[matchingRecords.length - 1];
-                    if (latestRecord && latestRecord.id) {
-                        setExistingRecordId(latestRecord.id);
+                    try {
+                        let fetchedList = [];
+                        if (apiService.getDemouldingInspectionByBatch) {
+                            const batchResp = await apiService.getDemouldingInspectionByBatch(formData.batch);
+                            fetchedList = batchResp?.responseData || (Array.isArray(batchResp) ? batchResp : []);
+                        }
+                        if (!fetchedList || fetchedList.length === 0) {
+                            const allResp = await apiService.getAllDemouldingInspection();
+                            fetchedList = allResp?.responseData || (Array.isArray(allResp) ? allResp : []);
+                        }
+                        if (Array.isArray(fetchedList)) {
+                            allRecords = [...allRecords, ...fetchedList];
+                        }
+                    } catch (err) {
+                        console.error("Error fetching demoulding records:", err);
                     }
-                    const rawDefects = latestRecord.defectiveSleepers || latestRecord.defectiveSleeperDetails || latestRecord.defectiveSleeperList || latestRecord.defective_sleepers || latestRecord.defects || [];
 
-                    const parsedDefects = parseDefectiveSleepers(
-                        rawDefects,
-                        latestRecord.visualCheck,
-                        latestRecord.dimCheck
+                    if (!isSubscribed) return;
+
+                    const matchingRecords = allRecords.filter(r => 
+                        String(r.batchNo || r.batch || r.batchNumber || '').trim().toLowerCase() === String(formData.batch).trim().toLowerCase()
                     );
-                    setFormData(prev => {
-                        const hasActiveEdits = prev.defectiveSleeperDetails && prev.defectiveSleeperDetails.length > 0;
-                        return {
-                            ...prev,
-                            visualCheck: latestRecord.visualCheck || prev.visualCheck || 'All OK',
-                            dimCheck: latestRecord.dimCheck || prev.dimCheck || 'All OK',
-                            process: latestRecord.processStatus || latestRecord.process || prev.process || '',
-                            remarks: latestRecord.overallRemarks || latestRecord.remarks || prev.remarks || '',
-                            defectiveSleeperDetails: hasActiveEdits ? prev.defectiveSleeperDetails : (parsedDefects.length > 0 ? parsedDefects : prev.defectiveSleeperDetails)
-                        };
-                    });
-                }
-            };
-            populateExisting();
 
-            const fetchBenches = async () => {
-                try {
+                    if (matchingRecords.length > 0) {
+                        const latestRecord = matchingRecords[matchingRecords.length - 1];
+                        if (latestRecord && latestRecord.id) {
+                            setExistingRecordId(latestRecord.id);
+                        }
+                        const rawDefects = latestRecord.defectiveSleepers || latestRecord.defectiveSleeperDetails || latestRecord.defectiveSleeperList || latestRecord.defective_sleepers || latestRecord.defects || [];
+
+                        const parsedDefects = parseDefectiveSleepers(
+                            rawDefects,
+                            latestRecord.visualCheck,
+                            latestRecord.dimCheck
+                        );
+                        setFormData(prev => {
+                            const hasActiveEdits = prev.defectiveSleeperDetails && prev.defectiveSleeperDetails.length > 0;
+                            return {
+                                ...prev,
+                                visualCheck: latestRecord.visualCheck || prev.visualCheck || 'All OK',
+                                dimCheck: latestRecord.dimCheck || prev.dimCheck || 'All OK',
+                                process: latestRecord.processStatus || latestRecord.process || prev.process || '',
+                                remarks: latestRecord.overallRemarks || latestRecord.remarks || prev.remarks || '',
+                                defectiveSleeperDetails: hasActiveEdits ? prev.defectiveSleeperDetails : (parsedDefects.length > 0 ? parsedDefects : prev.defectiveSleeperDetails)
+                            };
+                        });
+                    }
+
                     const response = await apiService.getAllProductionBenches(formData.batch, formData.location);
-                    if (response?.responseData) {
+                    if (isSubscribed && response?.responseData) {
                         const newBenches = response.responseData;
                         setBenches(newBenches);
 
-                        // Autofetch: If there's benches, select ALL of them by default on batch change
                         if (newBenches.length > 0) {
                             setFormData(prev => ({
                                 ...prev,
@@ -338,20 +345,22 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                         }
                     }
 
-                    // Autofetch Location on Batch selection
                     let foundLoc = '';
                     Object.values(allWitnessedRecords || {}).forEach(records => {
                         const match = records.find(r => String(r.batchNo) === String(formData.batch));
                         if (match && match.location) foundLoc = match.location;
                     });
-                    if (foundLoc) {
+                    if (isSubscribed && foundLoc) {
                         setFormData(prev => ({ ...prev, location: foundLoc }));
                     }
                 } catch (error) {
                     console.error("Error fetching benches:", error);
+                } finally {
+                    if (isSubscribed) setIsFetchingFormOptions(false);
                 }
             };
-            fetchBenches();
+            loadBatchData();
+            return () => { isSubscribed = false; };
         } else if (!formData.batch) {
             setBenches([]);
         }
@@ -360,14 +369,15 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
     // Fetch sleeper types when bench changes
     useEffect(() => {
         if (formData.batch && formData.gangNo && formData.gangNo.length > 0 && !initialData) {
+            let isSubscribed = true;
             const fetchSleeperTypes = async () => {
+                setIsFetchingFormOptions(true);
                 try {
                     const response = await apiService.getAllProductionSleeperTypes(formData.batch, formData.gangNo[0], formData.location);
-                    if (response?.responseData) {
+                    if (isSubscribed && response?.responseData) {
                         const newTypes = response.responseData;
                         setSleeperTypes(newTypes);
 
-                        // Autofetch: If there's a type, select the first one (ALWAYS on bench change)
                         if (newTypes.length > 0) {
                             setFormData(prev => ({
                                 ...prev,
@@ -377,9 +387,12 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                     }
                 } catch (error) {
                     console.error("Error fetching sleeper types:", error);
+                } finally {
+                    if (isSubscribed) setIsFetchingFormOptions(false);
                 }
             };
             fetchSleeperTypes();
+            return () => { isSubscribed = false; };
         } else if (!formData.gangNo || formData.gangNo.length === 0) {
             setSleeperTypes([]);
         }
@@ -388,9 +401,11 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
     // Fetch available sleepers when type changes
     useEffect(() => {
         if (formData.batch && formData.gangNo && formData.gangNo.length > 0 && formData.type) {
+            let isSubscribed = true;
             const fetchSleepers = async () => {
+                setIsFetchingSleepers(true);
                 try {
-                    const sleepersMap = { ...availableSleepersByBench };
+                    const sleepersMap = {};
                     for (const bench of formData.gangNo) {
                         const response = await apiService.getAllProductionSleepers(
                             formData.batch, 
@@ -404,17 +419,27 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                             sleepersMap[bench] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
                         }
                     }
-                    setAvailableSleepersByBench(sleepersMap);
+                    if (isSubscribed) {
+                        setAvailableSleepersByBench(sleepersMap);
+                    }
                 } catch (error) {
                     console.error("Error fetching sleeper list:", error);
                     const defaultMap = {};
                     formData.gangNo.forEach(b => defaultMap[b] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']);
-                    setAvailableSleepersByBench(defaultMap);
+                    if (isSubscribed) {
+                        setAvailableSleepersByBench(defaultMap);
+                    }
+                } finally {
+                    if (isSubscribed) {
+                        setIsFetchingSleepers(false);
+                    }
                 }
             };
             fetchSleepers();
+            return () => { isSubscribed = false; };
         } else if (!formData.gangNo || formData.gangNo.length === 0) {
             setAvailableSleepersByBench({});
+            setIsFetchingSleepers(false);
         }
     }, [formData.batch, formData.gangNo, formData.type, formData.location]);
 
@@ -885,120 +910,154 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                         </div>
                     </div>
 
-                    {/* The Grid Tooltips/Chips */}
-                    {(formData.gangNo || []).map(bench => (
-                        <div key={bench} style={{ marginBottom: '24px' }}>
-                            <div style={{ fontSize: '13px', fontWeight: '800', marginBottom: '10px', color: '#334155', textTransform: 'uppercase' }}>
-                                {fieldLabel} {bench}
-                            </div>
+                    {(isFetchingSleepers || isFetchingFormOptions) ? (
+                        <div style={{
+                            padding: '40px 24px',
+                            textAlign: 'center',
+                            background: '#f8fafc',
+                            borderRadius: '12px',
+                            border: '1px dashed #cbd5e1',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '12px',
+                            minHeight: '160px',
+                            marginBottom: '24px'
+                        }}>
                             <div style={{
-                                display: 'flex',
-                                flexWrap: 'wrap',
-                                gap: '10px',
-                                padding: '16px',
-                                background: '#f8fafc',
-                                borderRadius: '12px',
-                                border: '1px dashed #cbd5e1',
-                            }}>
-                                {(availableSleepersByBench[bench] || ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']).map((seq, idx) => {
-                                    const matchesSleeper = (d) => {
-                                        const dSleeper = String(d.sleeperNo || d.sequence || '').trim().toUpperCase();
-                                        const targetSeq = String(seq || '').trim().toUpperCase();
-                                        const dBench = String(d.benchNo || '').trim();
-                                        const targetBench = String(bench || '').trim();
-
-                                        // 1. Direct exact match (e.g., "1A" === "1A")
-                                        if (dSleeper !== '' && dSleeper === targetSeq) {
-                                            return true;
-                                        }
-
-                                        // 2. Formatted sleeper label match (e.g. bench 1 + seq A => "1A" === "1A")
-                                        const dFormatted = formatSleeperLabel(dBench, dSleeper).toUpperCase();
-                                        const tFormatted = formatSleeperLabel(targetBench, targetSeq).toUpperCase();
-                                        if (dFormatted !== '' && dFormatted === tFormatted) {
-                                            return true;
-                                        }
-
-                                        // 3. Fallback match for sequence and bench
-                                        const dSeq = String(d.sequence || d.sequenceNo || '').trim().toUpperCase();
-                                        if (dSeq !== '' && (dSeq === targetSeq || dSeq === targetSeq.replace(/^\d+/, ''))) {
-                                            const dClean = dSleeper.replace(/^[^\d]*/, '').replace(/^\d+/, '');
-                                            const tClean = targetSeq.replace(/^[^\d]*/, '').replace(/^\d+/, '');
-                                            const benchMatch = !dBench || dBench === targetBench || dBench.split(',').map(s => s.trim()).includes(targetBench) || dSleeper.startsWith(targetBench);
-                                            if (benchMatch && (dSleeper === targetSeq || (dClean !== '' && dClean === tClean))) {
-                                                return true;
-                                            }
-                                        }
-
-                                        return false;
-                                    };
-
-                                    // Check if this sleeper is currently marked as defective for this bench
-                                    const isDefective = formData.defectiveSleeperDetails.some(matchesSleeper);
-
-                                    // Check if rejection is forced by "All Rejected" status
-                                    const isAllRejectedVisual = formData.visualCheck === 'All Rejected';
-                                    const isAllRejectedDim = formData.dimCheck === 'All Rejected';
-                                    const isForced = isAllRejectedVisual || isAllRejectedDim;
-
-                                    const handleClick = () => {
-                                        if (isForced) return; // Cannot toggle if forced by "All Rejected"
-
-                                        if (isDefective) {
-                                            const displayLabel = formatSleeperLabel(bench, seq);
-                                            setConfirmDeselectTarget({
-                                                sleeperNo: displayLabel,
-                                                benchNo: bench,
-                                                sequence: seq,
-                                                matcher: matchesSleeper,
-                                                type: 'grid'
-                                            });
-                                        } else {
-                                            setFormData(prev => ({
-                                                ...prev,
-                                                defectiveSleeperDetails: [...prev.defectiveSleeperDetails, {
-                                                    benchNo: bench,
-                                                    sequence: seq,
-                                                    sleeperNo: formatSleeperLabel(bench, seq),
-                                                    visualReason: '',
-                                                    dimReason: ''
-                                                }]
-                                            }));
-                                        }
-                                    };
-
-                                    return (
-                                        <div
-                                            key={`${seq}-${idx}`}
-                                            onClick={handleClick}
-                                            style={{
-                                                minWidth: '56px',
-                                                height: '44px',
-                                                padding: '0 10px',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                borderRadius: '8px',
-                                                fontSize: '14px',
-                                                fontWeight: '800',
-                                                cursor: isForced ? 'not-allowed' : 'pointer',
-                                                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                                                background: (isDefective || isForced) ? '#fee2e2' : '#fff',
-                                                color: (isDefective || isForced) ? '#b91c1c' : '#64748b',
-                                                borderWidth: '2px',
-                                                borderStyle: 'solid',
-                                                borderColor: (isDefective || isForced) ? '#ef4444' : '#e2e8f0',
-                                                boxShadow: (isDefective || isForced) ? '0 4px 12px rgba(239, 68, 68, 0.2)' : 'none',
-                                                transform: (isDefective || isForced) ? 'scale(1.05)' : 'scale(1)'
-                                            }}
-                                        >
-                                            {seq}
-                                        </div>
-                                    );
-                                })}
+                                width: '32px',
+                                height: '32px',
+                                border: '3px solid #e2e8f0',
+                                borderTop: '3px solid #ef4444',
+                                borderRadius: '50%',
+                                animation: 'demouldingSpin 0.75s linear infinite'
+                            }}></div>
+                            <style>{`
+                                @keyframes demouldingSpin {
+                                    0% { transform: rotate(0deg); }
+                                    100% { transform: rotate(360deg); }
+                                }
+                            `}</style>
+                            <div>
+                                <div style={{ fontSize: '14px', fontWeight: '800', color: '#1e293b' }}>
+                                    Fetching Sleepers...
+                                </div>
+                                <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px', fontWeight: '500' }}>
+                                    Please wait while sleeper numbers are being loaded
+                                </div>
                             </div>
                         </div>
-                    ))}
+                    ) : (
+                        (formData.gangNo || []).map(bench => (
+                            <div key={bench} style={{ marginBottom: '24px' }}>
+                                <div style={{ fontSize: '13px', fontWeight: '800', marginBottom: '10px', color: '#334155', textTransform: 'uppercase' }}>
+                                    {fieldLabel} {bench}
+                                </div>
+                                <div style={{
+                                    display: 'flex',
+                                    flexWrap: 'wrap',
+                                    gap: '10px',
+                                    padding: '16px',
+                                    background: '#f8fafc',
+                                    borderRadius: '12px',
+                                    border: '1px dashed #cbd5e1',
+                                }}>
+                                    {(availableSleepersByBench[bench] || ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']).map((seq, idx) => {
+                                        const matchesSleeper = (d) => {
+                                            const dSleeper = String(d.sleeperNo || d.sequence || '').trim().toUpperCase();
+                                            const targetSeq = String(seq || '').trim().toUpperCase();
+                                            const dBench = String(d.benchNo || '').trim();
+                                            const targetBench = String(bench || '').trim();
+
+                                            if (dSleeper !== '' && dSleeper === targetSeq) {
+                                                return true;
+                                            }
+
+                                            const dFormatted = formatSleeperLabel(dBench, dSleeper).toUpperCase();
+                                            const tFormatted = formatSleeperLabel(targetBench, targetSeq).toUpperCase();
+                                            if (dFormatted !== '' && dFormatted === tFormatted) {
+                                                return true;
+                                            }
+
+                                            const dSeq = String(d.sequence || d.sequenceNo || '').trim().toUpperCase();
+                                            if (dSeq !== '' && (dSeq === targetSeq || dSeq === targetSeq.replace(/^\d+/, ''))) {
+                                                const dClean = dSleeper.replace(/^[^\d]*/, '').replace(/^\d+/, '');
+                                                const tClean = targetSeq.replace(/^[^\d]*/, '').replace(/^\d+/, '');
+                                                const benchMatch = !dBench || dBench === targetBench || dBench.split(',').map(s => s.trim()).includes(targetBench) || dSleeper.startsWith(targetBench);
+                                                if (benchMatch && (dSleeper === targetSeq || (dClean !== '' && dClean === tClean))) {
+                                                    return true;
+                                                }
+                                            }
+
+                                            return false;
+                                        };
+
+                                        const isDefective = formData.defectiveSleeperDetails.some(matchesSleeper);
+
+                                        const isAllRejectedVisual = formData.visualCheck === 'All Rejected';
+                                        const isAllRejectedDim = formData.dimCheck === 'All Rejected';
+                                        const isForced = isAllRejectedVisual || isAllRejectedDim;
+
+                                        const handleClick = () => {
+                                            if (isForced) return;
+
+                                            if (isDefective) {
+                                                const displayLabel = formatSleeperLabel(bench, seq);
+                                                setConfirmDeselectTarget({
+                                                    sleeperNo: displayLabel,
+                                                    benchNo: bench,
+                                                    sequence: seq,
+                                                    matcher: matchesSleeper
+                                                });
+                                            } else {
+                                                const displayLabel = formatSleeperLabel(bench, seq);
+                                                setFormData(prev => ({
+                                                    ...prev,
+                                                    defectiveSleeperDetails: [...prev.defectiveSleeperDetails, {
+                                                        benchNo: bench,
+                                                        sequence: seq,
+                                                        sleeperNo: displayLabel,
+                                                        visualReason: '',
+                                                        dimReason: '',
+                                                        defectType: 'Visual'
+                                                    }]
+                                                }));
+                                            }
+                                        };
+
+                                        return (
+                                            <div
+                                                key={idx}
+                                                onClick={handleClick}
+                                                style={{
+                                                    width: '56px',
+                                                    height: '42px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    borderRadius: '8px',
+                                                    fontSize: '14px',
+                                                    fontWeight: '800',
+                                                    cursor: isForced ? 'not-allowed' : 'pointer',
+                                                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                    background: (isDefective || isForced) ? '#fee2e2' : '#fff',
+                                                    color: (isDefective || isForced) ? '#b91c1c' : '#64748b',
+                                                    borderWidth: '2px',
+                                                    borderStyle: 'solid',
+                                                    borderColor: (isDefective || isForced) ? '#ef4444' : '#e2e8f0',
+                                                    boxShadow: (isDefective || isForced) ? '0 4px 12px rgba(239, 68, 68, 0.2)' : 'none',
+                                                    transform: (isDefective || isForced) ? 'scale(1.05)' : 'scale(1)'
+                                                }}
+                                            >
+                                                {seq}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ))
+                    )}
 
                     {/* Defect Reasons Table */}
                     {formData.defectiveSleeperDetails.length > 0 && (

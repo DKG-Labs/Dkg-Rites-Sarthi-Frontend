@@ -367,9 +367,9 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
         },
         { 
             key: 'gangs', 
-            label: 'Gangs/Benches', 
+            label: 'Sleeper Number', 
             render: (_, row) => {
-                const benches = (row.otherBenches || []).map(b => b.benchNo).filter(Boolean);
+                const benches = (row.otherBenches || []).map(b => b.sleeperSequence || b.cubeCode || b.benchNo).filter(Boolean);
                 return benches.length > 0 ? benches.join(', ') : '-';
             }
         },
@@ -671,8 +671,8 @@ const SteamCubeDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelet
         { label: 'Concrete Grade', value: sample.concreteGrade || sample.grade || '-' },
         { label: 'No. of Cubes', value: (sample.cubes || sample.cubeResults)?.length || 0 },
         { 
-            label: 'Gangs/Benches', 
-            value: (sample.otherBenches || []).map(b => b.benchNo).filter(Boolean).join(', ') || '-'
+            label: 'Sleeper Number', 
+            value: (sample.otherBenches || []).map(b => b.sleeperSequence || b.cubeCode || b.benchNo).filter(Boolean).join(', ') || '-'
         }
     ];
 
@@ -991,7 +991,7 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
                 try {
                     const response = await apiService.getAllProductionSleepers(
                         formData.batchNo,
-                        currentCube.benchNo || '',
+                        '',
                         '',
                         location || ''
                     );
@@ -1010,18 +1010,7 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
             }
         };
         fetchDeclaredSleepers();
-    }, [formData.batchNo, currentCube.benchNo, formData.lineNo, formData.shedNo]);
-
-    // Auto-generate Cube Code when bench or sequence changes
-    useEffect(() => {
-        if (currentCube.benchNo && currentCube.sleeperSequence) {
-            setCurrentCube(prev => ({ 
-                ...prev, 
-                cubeCode: `${prev.benchNo}/${prev.sleeperSequence}` 
-            }));
-        }
-    }, [currentCube.benchNo, currentCube.sleeperSequence]);
-
+    }, [formData.batchNo, formData.lineNo, formData.shedNo]);
 
     const handleLocationChange = (e) => {
         const val = e.target.value;
@@ -1035,14 +1024,15 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
     };
 
     const addCube = () => {
-        if (currentCube.benchNo) {
+        if (currentCube.sleeperSequence) {
+            const seq = String(currentCube.sleeperSequence);
             setFormData({
                 ...formData,
-                cubes: [...formData.cubes, { benchNo: String(currentCube.benchNo) }],
+                cubes: [...formData.cubes, { benchNo: seq }],
                 otherBenches: [...formData.otherBenches, {
-                    benchNo: String(currentCube.benchNo),
-                    sleeperSequence: currentCube.sleeperSequence || "",
-                    cubeCode: currentCube.cubeCode || ""
+                    benchNo: seq,
+                    sleeperSequence: seq,
+                    cubeCode: seq
                 }]
             });
             setCurrentCube({ benchNo: '', sleeperSequence: '', cubeCode: '' });
@@ -1197,41 +1187,21 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
                     {/* Cube Addition Section */}
                     <div style={{ marginTop: '24px', padding: '20px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                         <h4 style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#475569', fontWeight: '700' }}>Add Cubes</h4>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: '12px', alignItems: 'end' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '12px', alignItems: 'end' }}>
                             <div className="input-group">
-                                <label style={{ fontSize: '11px', color: '#64748b', fontWeight: '700' }}>Bench/Gang No.</label>
-                                <input
-                                    type="text"
-                                    value={currentCube.benchNo}
-                                    onChange={e => setCurrentCube({ ...currentCube, benchNo: e.target.value })}
-                                    placeholder="e.g., 401"
-                                    style={{ padding: '0 10px', height: '38px', borderRadius: '6px', border: '1.5px solid #e2e8f0', fontSize: '13px', color: '#1e293b', outline: 'none' }}
-                                />
-                            </div>
-                            <div className="input-group">
-                                <label style={{ fontSize: '11px', color: '#64748b', fontWeight: '700' }}>Sleeper Sequence</label>
+                                <label style={{ fontSize: '11px', color: '#64748b', fontWeight: '700' }}>Sleeper Number</label>
                                 <SearchableSelect
                                     value={currentCube.sleeperSequence}
-                                    onChange={(val) => setCurrentCube({ ...currentCube, sleeperSequence: val })}
+                                    onChange={(val) => setCurrentCube({ sleeperSequence: val, cubeCode: val, benchNo: val })}
                                     options={availableSleepers.map(s => ({ value: s, label: s }))}
                                     placeholder="-- Select --"
-                                />
-                            </div>
-                            <div className="input-group">
-                                <label style={{ fontSize: '11px', color: '#64748b', fontWeight: '700' }}>Cube Code (Auto)</label>
-                                <input
-                                    type="text"
-                                    readOnly
-                                    value={currentCube.cubeCode}
-                                    placeholder="Auto-generated"
-                                    style={{ padding: '0 10px', height: '38px', borderRadius: '6px', border: '1.5px solid #e2e8f0', fontSize: '13px', color: '#475569', outline: 'none', background: '#f8fafc' }}
                                 />
                             </div>
 
                             <button 
                                 className="btn-verify" 
                                 onClick={addCube} 
-                                style={{ height: '32px', padding: '0 16px', borderRadius: '16px', fontSize: '11px', fontWeight: '700' }}
+                                style={{ height: '38px', padding: '0 20px', borderRadius: '8px', fontSize: '12px', fontWeight: '700' }}
                             >
                                 + Add
                             </button>
@@ -1252,7 +1222,7 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
                                             alignItems: 'center',
                                             gap: '8px'
                                         }}>
-                                            <span style={{ fontWeight: '700', color: '#42818c' }}>{cube.cubeCode}</span>
+                                            <span style={{ fontWeight: '700', color: '#42818c' }}>{cube.sleeperSequence || cube.cubeCode || cube.benchNo}</span>
                                             <button
                                                 onClick={() => removeCube(idx)}
                                                 style={{

@@ -17,6 +17,7 @@ import { getCurrentUserId } from "../../services/workflowApiService";
 import { getStoredUser } from "../../services/authService";
 import reportService from "../../services/reportService";
 
+
 export default function ProcessMaterialCertificate({ call = {}, onBack }) {
   const printAreaRef = useRef();
   const [isEditing, setIsEditing] = useState(false);
@@ -24,6 +25,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
   const [editableData, setEditableData] = useState(null);
   const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
   const [bookSetValidation, setBookSetValidation] = useState({ isValid: false, message: null, isValidating: false });
+
 
   // Removed pki-status event listener as we no longer use DSC e-sign for Process IC
 
@@ -52,6 +54,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
       passedInstNo: c.passedInstNo || "",
       contractor: c.contractor || c.vendorName || c.vendor_name || "",
       manufacturer: c.manufacturer || "",
+      placeOfInspection: c.placeOfInspection || "",
       contractRef: formatContractRef(c.contractRef) || "",
       poDetails: c.poDetails || c.contractorPo || c.poNo || c.po_no || "",
       billPayingOfficer: c.billPayingOfficer || c.billOfficer || "",
@@ -116,6 +119,7 @@ export default function ProcessMaterialCertificate({ call = {}, onBack }) {
               billPayingOfficer: savedEdit.billPayingOfficer || initialData.billPayingOfficer,
               purchasingAuthority: savedEdit.purchasingAuthority || initialData.purchasingAuthority,
               description: savedEdit.description || initialData.description,
+              placeOfInspection: savedEdit.placeOfInspection || initialData.placeOfInspection,
             };
           }
           

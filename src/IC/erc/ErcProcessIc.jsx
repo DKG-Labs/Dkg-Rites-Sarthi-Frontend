@@ -265,6 +265,10 @@ const ErcProcessIC = ({ data = {}, isEditing = false, isBusy = false, onChange =
               <div className="h-1.5" />
               <div className="font-semibold text-[10px]">उत्पादक / Manufacturer</div>
               <EditableField isEditing={isEditing} type="textarea" value={manufacturer} onChange={(val) => onChange("manufacturer", val)} className="break-words dynamic-text leading-tight" />
+              <div className="mt-1 font-semibold text-[10px] pt-1">
+                निरीक्षण का स्थान / Place of Inspection
+              </div>
+              <EditableField isEditing={false} type="textarea" value={data.placeOfInspection || ''} onChange={(val) => onChange("placeOfInspection", val)} className="break-words dynamic-text leading-tight" />
             </div>
           </div>
 

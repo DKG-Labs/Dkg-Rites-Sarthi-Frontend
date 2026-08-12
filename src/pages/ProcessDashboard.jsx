@@ -1010,6 +1010,19 @@ const staticDataStyles = `
   }
 `;
 
+// Helper to determine if a grid row has real measurements, rejections or is explicitly marked as no-production
+const hasGridRowReadings = (row) => {
+  if (!row) return false;
+  if (row.noProduction) return true;
+  for (const key of Object.keys(row)) {
+    if (['hour', 'hourIndex', 'hourLabel', 'shift', 'lotNo', 'noProduction', 'createdBy', 'remarks'].includes(key)) continue;
+    const val = row[key];
+    if (Array.isArray(val) && val.some(v => v !== '' && v !== null && v !== undefined)) return true;
+    if (!Array.isArray(val) && val !== '' && val !== null && val !== undefined && val !== 0 && val !== '0') return true;
+  }
+  return false;
+};
+
 const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines: initialProductionLines = [], availableCalls = [], shift = 'A' }) => {
   // State for fetched data from backend
   const [fetchedCallData, setFetchedCallData] = useState(null);
@@ -5223,18 +5236,16 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         const simpleLineKey = String(currentLineNum);
         const lineLotData = manufacturedQtyByLine[lineKey] || manufacturedQtyByLine[simpleLineKey] || {};
 
-        // Extract lots from ALL available sources:
-        // 1. Grid data for this line (scan all 8-hour grid rows across all submodules)
-        // 2. manufacturedQtyByLine state
-        // 3. selectedLotByLine state
-        // 4. initiation lotDetailsList fallback
+        // Extract lots that have actual activity on this line in this shift:
+        // 1. Grid data for this line (scan all 8-hour grid rows across all submodules with actual readings)
+        // 2. manufacturedQtyByLine state (with positive quantities)
         const lotsSet = new Set();
 
         const submodulesList = ['shearing', 'turning', 'mpi', 'forging', 'quenching', 'tempering', 'finalCheck', 'testingFinishing'];
         for (const sub of submodulesList) {
           if (gridData?.[sub] && Array.isArray(gridData[sub])) {
             gridData[sub].forEach(row => {
-              if (row && row.lotNo && String(row.lotNo).trim()) {
+              if (row && row.lotNo && String(row.lotNo).trim() && hasGridRowReadings(row)) {
                 lotsSet.add(String(row.lotNo).trim());
               }
             });
@@ -5242,26 +5253,23 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         }
 
         Object.keys(lineLotData).forEach(key => {
-          if (key && key !== 'undefined' && key !== '') lotsSet.add(String(key).trim());
+          if (key && key !== 'undefined' && key !== '') {
+            const lotQuantities = lineLotData[key] || {};
+            const hasQty = Object.values(lotQuantities).some(val => parseInt(val, 10) > 0);
+            if (hasQty) {
+              lotsSet.add(String(key).trim());
+            }
+          }
         });
 
-        if (selectedLotByLine[lineKey]) {
-          lotsSet.add(String(selectedLotByLine[lineKey]).trim());
-        }
-
+        // Only process lots that have active manufacturing quantities or recorded grid readings in this shift
+        const lotsToProcess = Array.from(lotsSet);
         const lotDetails = lineInitiationData?.lotDetailsList || [];
-        if (lotsSet.size === 0 && lotDetails.length > 0) {
-          lotDetails.forEach(l => {
-            if (l.lotNumber) lotsSet.add(String(l.lotNumber).trim());
-          });
-        }
-
-        const lotsToProcess = lotsSet.size > 0 ? Array.from(lotsSet) : ['Default'];
 
         for (const lotNo of lotsToProcess) {
           const lotData = lineLotData[lotNo] || {};
 
-          // Filter grid data to only include rows for THIS specific lot (or single lot fallback)
+          // Filter grid data to only include rows for THIS specific lot (or single lot fallback with real readings)
           const filterByLot = (data) => {
             if (!data || !Array.isArray(data)) return [];
             return data.filter(row => {
@@ -5270,37 +5278,54 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
               if (rowLot) {
                 return rowLot === String(lotNo).trim();
               }
-              // If row has no lotNo set, but there is only 1 lot to process for this line, include it
-              if (lotsToProcess.length === 1) {
+              // If row has no lotNo set, but there is only 1 lot to process and row has readings, include it
+              if (lotsToProcess.length === 1 && hasGridRowReadings(row)) {
                 return true;
               }
               return false;
             });
           };
 
+          const manualQuantities = {
+            shearing: parseInt(lotData.shearing || 0, 10) || 0,
+            turning: parseInt(lotData.turning || 0, 10) || 0,
+            mpiTesting: parseInt(lotData.mpiTesting || 0, 10) || 0,
+            forging: parseInt(lotData.forging || 0, 10) || 0,
+            quenching: parseInt(lotData.quenching || 0, 10) || 0,
+            tempering: parseInt(lotData.tempering || 0, 10) || 0,
+            testingFinishing: parseInt(lotData.testingFinishing || 0, 10) || 0
+          };
+
+          const filteredShearing = filterByLot(gridData?.shearing);
+          const filteredTurning = filterByLot(gridData?.turning);
+          const filteredMpi = filterByLot(gridData?.mpi);
+          const filteredForging = filterByLot(gridData?.forging);
+          const filteredQuenching = filterByLot(gridData?.quenching);
+          const filteredTempering = filterByLot(gridData?.tempering);
+          const filteredFinalCheck = filterByLot(gridData?.finalCheck);
+          const filteredTestingFinishing = filterByLot(gridData?.testingFinishing);
+
+          const hasAnyMfgQty = Object.values(manualQuantities).some(v => v > 0);
+          const hasAnyGridRows = [filteredShearing, filteredTurning, filteredMpi, filteredForging, filteredQuenching, filteredTempering, filteredFinalCheck, filteredTestingFinishing].some(arr => arr.length > 0);
+
+          if (!hasAnyMfgQty && !hasAnyGridRows) {
+            console.log(`⏭️ [Shift Complete] Skipping inactive lot ${lotNo} on Line-${currentLineNum}`);
+            continue;
+          }
+
           const lotLineDto = {
             lineNo: `Line-${currentLineNum}`,
             poNo: linePoNo,
             inspectionCallNo: lineCallNo,
-            shearingData: enrichData(filterByLot(gridData?.shearing)),
-            turningData: enrichData(filterByLot(gridData?.turning)),
-            mpiData: enrichData(filterByLot(gridData?.mpi)),
-            forgingData: enrichData(filterByLot(gridData?.forging)),
-            quenchingData: enrichData(filterByLot(gridData?.quenching)),
-            temperingData: enrichData(filterByLot(gridData?.tempering)),
-            finalCheckData: enrichData(filterByLot(gridData?.finalCheck)),
-            testingFinishingData: enrichData(filterByLot(gridData?.testingFinishing)),
+            shearingData: enrichData(filteredShearing),
+            turningData: enrichData(filteredTurning),
+            mpiData: enrichData(filteredMpi),
+            forgingData: enrichData(filteredForging),
+            quenchingData: enrichData(filteredQuenching),
+            temperingData: enrichData(filteredTempering),
+            finalCheckData: enrichData(filteredFinalCheck),
+            testingFinishingData: enrichData(filteredTestingFinishing),
             remarks: ''
-          };
-
-          const manualQuantities = {
-            shearing: parseInt(lotData.shearing || 0) || 0,
-            turning: parseInt(lotData.turning || 0) || 0,
-            mpiTesting: parseInt(lotData.mpiTesting || 0) || 0,
-            forging: parseInt(lotData.forging || 0) || 0,
-            quenching: parseInt(lotData.quenching || 0) || 0,
-            tempering: parseInt(lotData.tempering || 0) || 0,
-            testingFinishing: parseInt(lotData.testingFinishing || 0) || 0
           };
 
           const targetLotDetail = lotDetails.find(l => l.lotNumber === lotNo) || lotDetails.find(l => l.lotNumber === lotNo.trim()) || lotDetails[0];
@@ -5308,7 +5333,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           const metaData = {
             lotNumbers: targetLotDetail?.lotNumber || lotNo || '',
             heatNumbers: targetLotDetail?.heatNumber || '',
-            totalOfferedQty: parseInt(targetLotDetail?.offeredQty) || 0,
+            totalOfferedQty: parseInt(targetLotDetail?.offeredQty, 10) || 0,
             shift: determinedShift
           };
 
@@ -5405,35 +5430,31 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           });
         }
 
-        // 2. Check gridData in localStorage
+        // 2. Check gridData in localStorage (only if real readings exist)
         const determinedShift = shift || lineInitiationData?.shiftOfInspection || call.shiftOfInspection || call.shift || 'A';
         const gridData = loadGridDataForLine(callNo, poNo, lineNo, determinedShift);
         const submodulesList = ['shearing', 'turning', 'mpi', 'forging', 'quenching', 'tempering', 'finalCheck', 'testingFinishing'];
         for (const sub of submodulesList) {
           if (gridData?.[sub] && Array.isArray(gridData[sub])) {
             gridData[sub].forEach(row => {
-              if (row && row.lotNo && String(row.lotNo).trim()) {
+              if (row && row.lotNo && String(row.lotNo).trim() && hasGridRowReadings(row)) {
                 activeLotsSet.add(String(row.lotNo).trim());
               }
             });
           }
         }
 
-        // 3. Check selectedLotByLine or manufacturedQtyByLine
-        if (selectedLotByLine[lineNoKey] && String(selectedLotByLine[lineNoKey]).trim()) {
-          activeLotsSet.add(String(selectedLotByLine[lineNoKey]).trim());
-        }
+        // 3. Check selectedLotByLine or manufacturedQtyByLine (only with positive qty)
         const lineLotData = manufacturedQtyByLine[lineNoKey] || manufacturedQtyByLine[String(prodLine.lineNumber || (lineIndex + 1))] || {};
         Object.keys(lineLotData).forEach(k => {
-          if (k && k !== 'undefined' && k !== '') activeLotsSet.add(String(k).trim());
+          if (k && k !== 'undefined' && k !== '') {
+            const lotQuantities = lineLotData[k] || {};
+            const hasQty = Object.values(lotQuantities).some(val => parseInt(val, 10) > 0);
+            if (hasQty) activeLotsSet.add(String(k).trim());
+          }
         });
 
-        // Fall back to first lot in lotDetailsList ONLY if no active lot exists anywhere
         const lotDetails = lineInitiationData?.lotDetailsList || [];
-        if (activeLotsSet.size === 0 && lotDetails.length > 0 && lotDetails[0]?.lotNumber) {
-          activeLotsSet.add(String(lotDetails[0].lotNumber).trim());
-        }
-
         const lotsToProcessForMap = Array.from(activeLotsSet);
 
         lotsToProcessForMap.forEach(lotNo => {
@@ -5585,7 +5606,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     } finally {
       setIsSaving(false);
     }
-  }, [call, localProductionLines, allCallOptions, callInitiationDataCache, manufacturedQtyByLine, manufacturingLines, onBack, resetProductionLinesState, validateAllLots, selectedLotByLine, shift, capturedImages]);
+  }, [call, localProductionLines, allCallOptions, callInitiationDataCache, manufacturedQtyByLine, manufacturingLines, onBack, resetProductionLinesState, validateAllLots, shift, capturedImages]);
 
   /**
    * Finishes inspection for the selected calls
@@ -5665,18 +5686,16 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         const simpleLineKey = String(currentLineNum);
         const lineLotData = manufacturedQtyByLine[lineKey] || manufacturedQtyByLine[simpleLineKey] || {};
 
-        // Extract lots from ALL available sources:
-        // 1. Grid data for this line (scan all 8-hour grid rows across all submodules)
-        // 2. manufacturedQtyByLine state
-        // 3. selectedLotByLine state
-        // 4. initiation lotDetailsList fallback
+        // Extract lots that have actual activity on this line:
+        // 1. Grid data for this line (scan all 8-hour grid rows across all submodules with actual readings)
+        // 2. manufacturedQtyByLine state (with positive quantities)
         const lotsSet = new Set();
 
         const submodulesList = ['shearing', 'turning', 'mpi', 'forging', 'quenching', 'tempering', 'finalCheck', 'testingFinishing'];
         for (const sub of submodulesList) {
           if (gridData?.[sub] && Array.isArray(gridData[sub])) {
             gridData[sub].forEach(row => {
-              if (row && row.lotNo && String(row.lotNo).trim()) {
+              if (row && row.lotNo && String(row.lotNo).trim() && hasGridRowReadings(row)) {
                 lotsSet.add(String(row.lotNo).trim());
               }
             });
@@ -5684,26 +5703,23 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         }
 
         Object.keys(lineLotData).forEach(key => {
-          if (key && key !== 'undefined' && key !== '') lotsSet.add(String(key).trim());
+          if (key && key !== 'undefined' && key !== '') {
+            const lotQuantities = lineLotData[key] || {};
+            const hasQty = Object.values(lotQuantities).some(val => parseInt(val, 10) > 0);
+            if (hasQty) {
+              lotsSet.add(String(key).trim());
+            }
+          }
         });
 
-        if (selectedLotByLine[lineKey]) {
-          lotsSet.add(String(selectedLotByLine[lineKey]).trim());
-        }
-
+        // Only process lots that have active manufacturing quantities or recorded grid readings
+        const lotsToProcess = Array.from(lotsSet);
         const lotDetails = lineInitiationData?.lotDetailsList || [];
-        if (lotsSet.size === 0 && lotDetails.length > 0) {
-          lotDetails.forEach(l => {
-            if (l.lotNumber) lotsSet.add(String(l.lotNumber).trim());
-          });
-        }
-
-        const lotsToProcess = lotsSet.size > 0 ? Array.from(lotsSet) : ['Default'];
 
         for (const lotNo of lotsToProcess) {
           const lotData = lineLotData[lotNo] || {};
 
-          // Filter grid data to only include rows for THIS specific lot (or single lot fallback)
+          // Filter grid data to only include rows for THIS specific lot (or single lot fallback with real readings)
           const filterByLot = (data) => {
             if (!data || !Array.isArray(data)) return [];
             return data.filter(row => {
@@ -5712,37 +5728,54 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
               if (rowLot) {
                 return rowLot === String(lotNo).trim();
               }
-              // If row has no lotNo set, but there is only 1 lot to process for this line, include it
-              if (lotsToProcess.length === 1) {
+              // If row has no lotNo set, but there is only 1 lot to process and row has readings, include it
+              if (lotsToProcess.length === 1 && hasGridRowReadings(row)) {
                 return true;
               }
               return false;
             });
           };
 
+          const manualQuantities = {
+            shearing: parseInt(lotData.shearing || 0, 10) || 0,
+            turning: parseInt(lotData.turning || 0, 10) || 0,
+            mpiTesting: parseInt(lotData.mpiTesting || 0, 10) || 0,
+            forging: parseInt(lotData.forging || 0, 10) || 0,
+            quenching: parseInt(lotData.quenching || 0, 10) || 0,
+            tempering: parseInt(lotData.tempering || 0, 10) || 0,
+            testingFinishing: parseInt(lotData.testingFinishing || 0, 10) || 0
+          };
+
+          const filteredShearing = filterByLot(gridData?.shearing);
+          const filteredTurning = filterByLot(gridData?.turning);
+          const filteredMpi = filterByLot(gridData?.mpi);
+          const filteredForging = filterByLot(gridData?.forging);
+          const filteredQuenching = filterByLot(gridData?.quenching);
+          const filteredTempering = filterByLot(gridData?.tempering);
+          const filteredFinalCheck = filterByLot(gridData?.finalCheck);
+          const filteredTestingFinishing = filterByLot(gridData?.testingFinishing);
+
+          const hasAnyMfgQty = Object.values(manualQuantities).some(v => v > 0);
+          const hasAnyGridRows = [filteredShearing, filteredTurning, filteredMpi, filteredForging, filteredQuenching, filteredTempering, filteredFinalCheck, filteredTestingFinishing].some(arr => arr.length > 0);
+
+          if (!hasAnyMfgQty && !hasAnyGridRows) {
+            console.log(`⏭️ [Finish] Skipping inactive lot ${lotNo} on Line-${currentLineNum}`);
+            continue;
+          }
+
           const lotLineDto = {
             lineNo: `Line-${currentLineNum}`,
             poNo: linePoNo,
             inspectionCallNo: lineCallNo,
-            shearingData: enrichData(filterByLot(gridData?.shearing)),
-            turningData: enrichData(filterByLot(gridData?.turning)),
-            mpiData: enrichData(filterByLot(gridData?.mpi)),
-            forgingData: enrichData(filterByLot(gridData?.forging)),
-            quenchingData: enrichData(filterByLot(gridData?.quenching)),
-            temperingData: enrichData(filterByLot(gridData?.tempering)),
-            finalCheckData: enrichData(filterByLot(gridData?.finalCheck)),
-            testingFinishingData: enrichData(filterByLot(gridData?.testingFinishing)),
+            shearingData: enrichData(filteredShearing),
+            turningData: enrichData(filteredTurning),
+            mpiData: enrichData(filteredMpi),
+            forgingData: enrichData(filteredForging),
+            quenchingData: enrichData(filteredQuenching),
+            temperingData: enrichData(filteredTempering),
+            finalCheckData: enrichData(filteredFinalCheck),
+            testingFinishingData: enrichData(filteredTestingFinishing),
             remarks: ''
-          };
-
-          const manualQuantities = {
-            shearing: parseInt(lotData.shearing || 0) || 0,
-            turning: parseInt(lotData.turning || 0) || 0,
-            mpiTesting: parseInt(lotData.mpiTesting || 0) || 0,
-            forging: parseInt(lotData.forging || 0) || 0,
-            quenching: parseInt(lotData.quenching || 0) || 0,
-            tempering: parseInt(lotData.tempering || 0) || 0,
-            testingFinishing: parseInt(lotData.testingFinishing || 0) || 0
           };
 
           const targetLotDetail = lotDetails.find(l => l.lotNumber === lotNo) || lotDetails.find(l => l.lotNumber === lotNo.trim()) || lotDetails[0];
@@ -5750,7 +5783,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           const metaData = {
             lotNumbers: targetLotDetail?.lotNumber || lotNo || '',
             heatNumbers: targetLotDetail?.heatNumber || '',
-            totalOfferedQty: parseInt(targetLotDetail?.offeredQty) || 0,
+            totalOfferedQty: parseInt(targetLotDetail?.offeredQty, 10) || 0,
             shift: determinedShift
           };
 
@@ -5796,7 +5829,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       console.error('❌ [Finish] Error finishing inspection:', error);
       throw error; // Propagate error to caller
     }
-  }, [call, localProductionLines, manufacturingLines, onBack, resetProductionLinesState, callInitiationDataCache, manufacturedQtyByLine, selectedLotByLine, shift, capturedImages]);
+  }, [call, localProductionLines, manufacturingLines, onBack, resetProductionLinesState, callInitiationDataCache, manufacturedQtyByLine, shift, capturedImages]);
 
   /**
    * Handle finish selected calls from modal

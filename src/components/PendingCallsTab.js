@@ -345,9 +345,9 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
     }
   };
 
-  // Show individual actions only when exactly one row is selected
+  // Show individual actions button for each row
   // Actions are determined by API status for Raw Material, or by schedule status for mock data
-  const actions = selectedRows.length === 1 ? (row) => {
+  const actions = (row) => {
     // Check if this is a call from workflow API (has workflow status)
     const isFromWorkflowAPI = row.status === 'CALL_REGISTERED' ||
       row.status === 'IE_SCHEDULED' ||
@@ -383,21 +383,23 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
       availableActions.push('view');
     }
 
-    return selectedRows.includes(row.id) ? (
+    return (
       <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
         <button 
           className="btn btn-sm btn-primary" 
-          onClick={() => {
+          onClick={(e) => {
+            if (e && e.stopPropagation) e.stopPropagation();
             setSelectedCallForView(row);
             setSelectedCallActions(availableActions);
             setShowDetailsModal(true);
           }}
+          style={{ whiteSpace: 'nowrap' }}
         >
           VIEW ACTIONS
         </button>
       </div>
-    ) : null;
-  } : null;
+    );
+  };
 
   // Separate selected calls into scheduled and unscheduled
   const scheduledCallsData = selectedCallsData.filter(call => isScheduled(call.call_no));
@@ -1419,7 +1421,7 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
             columns={columns}
             data={filteredCalls}
             actions={actions}
-            selectable={true}
+            selectable={false}
             selectedRows={selectedRows}
             onSelectionChange={handleSelectionChange}
             initialPageSize={10}

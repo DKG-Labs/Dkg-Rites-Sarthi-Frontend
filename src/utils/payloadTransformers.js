@@ -37,25 +37,138 @@ const calculateGenericAccepted = (list) => {
 };
 
 
+const hasValidShearingRow = (row) => {
+    if (!row) return false;
+    if (row.noProduction) return true;
+    const hasReadings = (row.lengthCutBar || []).some(v => v !== '' && v !== null && v !== undefined);
+    const hasDropdowns = (row.qualityDia || []).some(v => v !== '' && v !== null && v !== undefined) ||
+                         (row.sharpEdges || []).some(v => v !== '' && v !== null && v !== undefined) ||
+                         (row.crackedEdges || []).some(v => v !== '' && v !== null && v !== undefined);
+    const hasRejections = (row.rejectedQty || []).some(v => parseNumber(v) !== null && parseNumber(v) > 0);
+    return hasReadings || hasDropdowns || hasRejections;
+};
+
+const hasValidTurningRow = (row) => {
+    if (!row) return false;
+    if (row.noProduction) return true;
+    const hasReadings = (row.parallelLength || []).some(v => v !== '' && v !== null && v !== undefined) ||
+                         (row.fullTurningLength || []).some(v => v !== '' && v !== null && v !== undefined) ||
+                         (row.turningDia || []).some(v => v !== '' && v !== null && v !== undefined);
+    const hasRejections = (row.rejectedQty || []).some(v => parseNumber(v) !== null && parseNumber(v) > 0);
+    const hasAccepted = parseNumber(row.acceptedQty) !== null && parseNumber(row.acceptedQty) > 0;
+    return hasReadings || hasRejections || hasAccepted;
+};
+
+const hasValidMpiRow = (row) => {
+    if (!row) return false;
+    if (row.noProduction) return true;
+    const hasReadings = (row.testResults || []).some(v => v !== '' && v !== null && v !== undefined);
+    const hasRejections = parseNumber(row.rejectedQty) !== null && parseNumber(row.rejectedQty) > 0;
+    return hasReadings || hasRejections;
+};
+
+const hasValidForgingRow = (row) => {
+    if (!row) return false;
+    if (row.noProduction) return true;
+    const hasReadings = (row.forgingTemperature || []).some(v => v !== '' && v !== null && v !== undefined);
+    const hasDropdowns = (row.forgingStabilisation || []).some(v => v !== '' && v !== null && v !== undefined) ||
+                         (row.improperForging || []).some(v => v !== '' && v !== null && v !== undefined) ||
+                         (row.forgingDefect || []).some(v => v !== '' && v !== null && v !== undefined) ||
+                         (row.embossingDefect || []).some(v => v !== '' && v !== null && v !== undefined);
+    const hasRejections = (parseNumber(row.forgingTemperatureRejected) || 0) > 0 ||
+                          (parseNumber(row.forgingStabilisationRejected) || 0) > 0 ||
+                          (parseNumber(row.improperForgingRejected) || 0) > 0 ||
+                          (parseNumber(row.forgingDefectRejected) || 0) > 0 ||
+                          (parseNumber(row.embossingDefectRejected) || 0) > 0;
+    return hasReadings || hasDropdowns || hasRejections;
+};
+
+const hasValidQuenchingRow = (row) => {
+    if (!row) return false;
+    if (row.noProduction) return true;
+    const hasReadings = (row.quenchingTemperature || []).some(v => v !== '' && v !== null && v !== undefined) ||
+                         (row.quenchingDuration || []).some(v => v !== '' && v !== null && v !== undefined) ||
+                         (row.quenchingHardness || []).some(v => v !== '' && v !== null && v !== undefined);
+    const hasDropdowns = (row.boxGauge || []).some(v => v !== '' && v !== null && v !== undefined) ||
+                         (row.flatBearingArea || []).some(v => v !== '' && v !== null && v !== undefined) ||
+                         (row.fallingGauge || []).some(v => v !== '' && v !== null && v !== undefined);
+    const hasRejections = (parseNumber(row.quenchingTemperatureRejected) || 0) > 0 ||
+                          (parseNumber(row.quenchingDurationRejected) || 0) > 0 ||
+                          (parseNumber(row.quenchingHardnessRejected) || 0) > 0 ||
+                          (parseNumber(row.boxGaugeRejected) || 0) > 0 ||
+                          (parseNumber(row.flatBearingAreaRejected) || 0) > 0 ||
+                          (parseNumber(row.fallingGaugeRejected) || 0) > 0 ||
+                          (parseNumber(row.rejectedQty) || 0) > 0;
+    return hasReadings || hasDropdowns || hasRejections;
+};
+
+const hasValidTemperingRow = (row) => {
+    if (!row) return false;
+    if (row.noProduction) return true;
+    const hasReadings = (row.temperingTemperature || []).some(v => v !== '' && v !== null && v !== undefined) ||
+                         (row.temperingDuration || []).some(v => v !== '' && v !== null && v !== undefined);
+    const hasRejections = (parseNumber(row.temperingTemperatureRejected) || 0) > 0 ||
+                          (parseNumber(row.temperingDurationRejected) || 0) > 0 ||
+                          (parseNumber(row.rejectedQty) || 0) > 0;
+    const hasAccepted = parseNumber(row.acceptedQty) !== null && parseNumber(row.acceptedQty) > 0;
+    return hasReadings || hasRejections || hasAccepted;
+};
+
+const hasValidFinalCheckRow = (row) => {
+    if (!row) return false;
+    if (row.noProduction) return true;
+    const hasDropdowns = (row.boxGauge || []).some(v => v !== '' && v !== null && v !== undefined) ||
+                         (row.flatBearingArea || []).some(v => v !== '' && v !== null && v !== undefined) ||
+                         (row.fallingGauge || []).some(v => v !== '' && v !== null && v !== undefined) ||
+                         (row.surfaceDefect || []).some(v => v !== '' && v !== null && v !== undefined) ||
+                         (row.embossingDefect || []).some(v => v !== '' && v !== null && v !== undefined) ||
+                         (row.marking || []).some(v => v !== '' && v !== null && v !== undefined) ||
+                         (row.temperingHardness || []).some(v => v !== '' && v !== null && v !== undefined);
+    const hasRejections = (parseNumber(row.boxGaugeRejected) || 0) > 0 ||
+                          (parseNumber(row.flatBearingAreaRejected) || 0) > 0 ||
+                          (parseNumber(row.fallingGaugeRejected) || 0) > 0 ||
+                          (parseNumber(row.surfaceDefectRejected) || 0) > 0 ||
+                          (parseNumber(row.embossingDefectRejected) || 0) > 0 ||
+                          (parseNumber(row.markingRejected) || 0) > 0 ||
+                          (parseNumber(row.temperingHardnessRejected) || 0) > 0;
+    return hasDropdowns || hasRejections;
+};
+
+const hasValidTestingFinishingRow = (row) => {
+    if (!row) return false;
+    if (row.noProduction) return true;
+    const hasReadings = (row.toeLoad || []).some(v => v !== '' && v !== null && v !== undefined) ||
+                         (row.weight || []).some(v => v !== '' && v !== null && v !== undefined);
+    const hasDropdowns = (row.paintIdentification || []).some(v => v !== '' && v !== null && v !== undefined) ||
+                         (row.ercCoating || []).some(v => v !== '' && v !== null && v !== undefined);
+    const hasRejections = (parseNumber(row.toeLoadRejected) || 0) > 0 ||
+                          (parseNumber(row.weightRejected) || 0) > 0 ||
+                          (parseNumber(row.paintIdentificationRejected) || 0) > 0 ||
+                          (parseNumber(row.ercCoatingRejected) || 0) > 0 ||
+                          (parseNumber(row.rejectedQty) || 0) > 0;
+    const hasAccepted = parseNumber(row.acceptedQty) !== null && parseNumber(row.acceptedQty) > 0;
+    return hasReadings || hasDropdowns || hasRejections || hasAccepted;
+};
+
 export const transformLineDataForBackend = (frontendLineData, manualQuantities = {}, metaData = {}) => {
     if (!frontendLineData) return null;
 
-    const shearingData = frontendLineData.shearingData?.map(transformShearingRow) || [];
-    const turningData = frontendLineData.turningData?.map(transformTurningRow) || [];
-    const mpiData = frontendLineData.mpiData?.map(transformMpiRow) || [];
-    const forgingData = frontendLineData.forgingData?.map(transformForgingRow) || [];
-    const quenchingData = frontendLineData.quenchingData?.map(transformQuenchingRow) || [];
-    const finalCheckData = frontendLineData.finalCheckData?.map(transformFinalCheckRow) || [];
+    const shearingData = frontendLineData.shearingData?.filter(hasValidShearingRow).map(transformShearingRow) || [];
+    const turningData = frontendLineData.turningData?.filter(hasValidTurningRow).map(transformTurningRow) || [];
+    const mpiData = frontendLineData.mpiData?.filter(hasValidMpiRow).map(transformMpiRow) || [];
+    const forgingData = frontendLineData.forgingData?.filter(hasValidForgingRow).map(transformForgingRow) || [];
+    const quenchingData = frontendLineData.quenchingData?.filter(hasValidQuenchingRow).map(transformQuenchingRow) || [];
+    const finalCheckData = frontendLineData.finalCheckData?.filter(hasValidFinalCheckRow).map(transformFinalCheckRow) || [];
 
     // Calculate total tempering hardness rejected from Final Check to pass to Tempering
     const totalTemperingHardnessRejected = finalCheckData.reduce((acc, fcRow) =>
         acc + (parseNumber(fcRow.temperingHardnessRejected) || 0), 0);
 
-    const temperingData = frontendLineData.temperingData?.map(row =>
+    const temperingData = frontendLineData.temperingData?.filter(hasValidTemperingRow).map(row =>
         transformTemperingRow(row, totalTemperingHardnessRejected)
     ) || [];
 
-    const testingFinishingData = frontendLineData.testingFinishingData?.map(transformTestingFinishingRow) || [];
+    const testingFinishingData = frontendLineData.testingFinishingData?.filter(hasValidTestingFinishingRow).map(transformTestingFinishingRow) || [];
 
     // Check if there is any data at all (either grid data or manual quantities)
     const hasGridData = shearingData.length > 0 || turningData.length > 0 || mpiData.length > 0 || 

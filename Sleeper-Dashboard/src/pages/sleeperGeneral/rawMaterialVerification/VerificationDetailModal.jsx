@@ -87,7 +87,6 @@ const KEY_LABELS = {
     totalCastedSleepers: 'No. of Sleepers',
     totalSleeperTypes:   'Total Sleeper Types',
     sleeperType:         'Sleeper Type',
-    sleeperCategory:     'Sleeper Category',
     // benchNo:             'Bench No.',
     shiftType:           'Shift',
     // Generic / Audit
@@ -357,11 +356,8 @@ const VerificationDetailModal = ({ row, moduleLabel, actionBy, onClose, onDone }
 
                             const orderedDetail = {};
                             Object.keys(detail).forEach(k => {
+                                if (k === 'lbcTime' || k === 'lbc_time') return;
                                 orderedDetail[k] = detail[k];
-                                if (k === 'mixDesignReference' || k === 'mixDesign') {
-                                    if (detail.lbcTime) orderedDetail.lbcTime = detail.lbcTime;
-                                    else if (detail.lbc_time) orderedDetail.lbc_time = detail.lbc_time;
-                                }
                                 if (k === 'totalSleeperTypes') {
                                     if (sleeperTypes) orderedDetail.sleeperType = sleeperTypes;
                                     if (sleeperCategories) orderedDetail.sleeperCategory = sleeperCategories;
@@ -389,6 +385,7 @@ const VerificationDetailModal = ({ row, moduleLabel, actionBy, onClose, onDone }
                                 background: '#e2e8f0',
                             }}>
                                 {Object.entries(displayDetail).map(([key, val]) => {
+                                    if (row.moduleId === 11 && (key === 'lbcTime' || key === 'lbc_time')) return null;
                                     const auditKeys = [
                                         'updatedBy', 'modifiedBy', 'lastModifiedBy', 'createdBy',
                                         'updatedDate', 'updatedAt', 'modifiedDate', 'modifiedAt', 'lastModifiedDate',

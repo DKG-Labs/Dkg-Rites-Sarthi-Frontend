@@ -40,13 +40,16 @@ const ProcessOilTankCounterPage = ({ call, onBack, selectedLines = [], onNavigat
     if (currentProductionLine?.poNumber) {
       return currentProductionLine.poNumber;
     }
+    if (currentProductionLine?.po_no) {
+      return currentProductionLine.po_no;
+    }
     if (currentCallData?.po_no) {
       return currentCallData.po_no;
     }
     return call?.po_no || '';
   }, [currentProductionLine, currentCallData, call]);
 
-  const inspectionCallNo = currentCallData?.call_no || call?.call_no || '';
+  const inspectionCallNo = currentProductionLine?.icNumber || currentProductionLine?.call_no || currentCallData?.call_no || call?.call_no || '';
   const poNo = activeLinePoNo;
 
   const defaultLineState = { oilTankCounter: 45000, cleaningDone: false };
@@ -57,6 +60,7 @@ const ProcessOilTankCounterPage = ({ call, onBack, selectedLines = [], onNavigat
   // Track previous line for saving data before switching
   const prevLineRef = useRef(activeLine);
   const prevPoNoRef = useRef(poNo);
+  const prevCallNoRef = useRef(inspectionCallNo);
 
   // Save current data to localStorage
   const saveToLocal = useCallback(() => {
@@ -77,12 +81,13 @@ const ProcessOilTankCounterPage = ({ call, onBack, selectedLines = [], onNavigat
 
   // Save to localStorage when line changes
   useEffect(() => {
-    if (prevLineRef.current !== activeLine || prevPoNoRef.current !== poNo) {
-      if (prevPoNoRef.current && prevLineRef.current && perLineState[prevLineRef.current]) {
-        saveToLocalStorage('oilTank', inspectionCallNo, prevPoNoRef.current, prevLineRef.current, perLineState[prevLineRef.current], shift);
+    if (prevLineRef.current !== activeLine || prevPoNoRef.current !== poNo || prevCallNoRef.current !== inspectionCallNo) {
+      if (prevPoNoRef.current && prevLineRef.current && prevCallNoRef.current && perLineState[prevLineRef.current]) {
+        saveToLocalStorage('oilTank', prevCallNoRef.current, prevPoNoRef.current, prevLineRef.current, perLineState[prevLineRef.current], shift);
       }
       prevLineRef.current = activeLine;
       prevPoNoRef.current = poNo;
+      prevCallNoRef.current = inspectionCallNo;
     }
   }, [activeLine, poNo, inspectionCallNo, perLineState, shift]);
 

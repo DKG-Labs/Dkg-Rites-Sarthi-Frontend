@@ -3,6 +3,8 @@
  * Persists submodule data to localStorage to prevent data loss when switching lines/submodules
  */
 
+import { isSessionEnded } from '../utils/inspectionSessionControl';
+
 const STORAGE_PREFIX = 'process_inspection_';
 
 /**
@@ -24,6 +26,10 @@ const getStorageKey = (submodule, inspectionCallNo, poNo, lineNo, shift = '', lo
  * Optional lotNo parameter for lot-specific data
  */
 export const saveToLocalStorage = (submodule, inspectionCallNo, poNo, lineNo, data, shift = '', lotNo = null, date = '') => {
+  if (isSessionEnded()) {
+    console.log(`🛑 [LocalStorage] Save blocked for ${submodule} - session has ended`);
+    return false;
+  }
   try {
     const key = getStorageKey(submodule, inspectionCallNo, poNo, lineNo, shift, lotNo, date);
     localStorage.setItem(key, JSON.stringify(data));
@@ -42,12 +48,46 @@ export const loadFromLocalStorage = (submodule, inspectionCallNo, poNo, lineNo, 
   try {
     const key = getStorageKey(submodule, inspectionCallNo, poNo, lineNo, shift, lotNo, date);
     let stored = localStorage.getItem(key);
-    if (!stored && (date || sessionStorage.getItem('inspectionDate'))) {
-      // Fallback to legacy key without date if not found
-      const legacyKey = `${STORAGE_PREFIX}${submodule}_${inspectionCallNo}_${poNo}_${lineNo}${shift ? `_${shift}` : ''}${lotNo ? `_${lotNo}` : ''}`;
-      stored = localStorage.getItem(legacyKey);
+    if (stored) return JSON.parse(stored);
+
+    // Fallback 1: Legacy key without date
+    const legacyKey = `${STORAGE_PREFIX}${submodule}_${inspectionCallNo}_${poNo}_${lineNo}${shift ? `_${shift}` : ''}${lotNo ? `_${lotNo}` : ''}`;
+    stored = localStorage.getItem(legacyKey);
+    if (stored) return JSON.parse(stored);
+
+    // Fallback 2: Smart fuzzy scan across localStorage for matching submodule, call, line, shift
+    if (inspectionCallNo && lineNo) {
+      const cleanCallNo = String(inspectionCallNo).replace(/[-_/]/g, '').toLowerCase();
+      const cleanLineNum = String(lineNo).replace(/\D/g, '');
+      const prefix = `${STORAGE_PREFIX}${submodule}_`;
+
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (!k || !k.startsWith(prefix)) continue;
+        const normKey = k.toLowerCase();
+        const normKeyChars = normKey.replace(/[-_/]/g, '');
+
+        // Match call number
+        if (cleanCallNo && !normKeyChars.includes(cleanCallNo)) continue;
+
+        // Match line number
+        if (cleanLineNum && !normKey.includes(`line-${cleanLineNum}`) && !normKey.includes(`line_${cleanLineNum}`) && !normKey.includes(`line${cleanLineNum}`) && !normKey.endsWith(`_${cleanLineNum}`)) continue;
+
+        // Match shift if specified
+        if (shift && !normKey.includes(`_${shift.toLowerCase()}`)) continue;
+
+        // Match lot if specified
+        if (lotNo && !normKey.includes(`_${String(lotNo).toLowerCase()}`)) continue;
+
+        const val = localStorage.getItem(k);
+        if (val) {
+          console.log(`🔍 [LocalStorage] Recovered ${submodule} data using smart match key: ${k}`);
+          return JSON.parse(val);
+        }
+      }
     }
-    return stored ? JSON.parse(stored) : null;
+
+    return null;
   } catch (error) {
     console.error('Error loading from localStorage:', error);
     return null;
@@ -261,52 +301,54 @@ export const clearAllProcessData = (inspectionCallNo, poNo, lineNo, shift = '', 
     'lineFinalResult'
   ];
 
-  if (clearAllShifts) {
-    // Comprehensive scan to remove ALL shift/date variants for this call/PO/line
-    const patterns = submodules.map(sub => `${STORAGE_PREFIX}${sub}_${inspectionCallNo}_${poNo}_${lineNo}`);
+  try {
+    const cleanLineNum = lineNo ? String(lineNo).replace(/Line/i, '').replace(/[-_]/g, '').trim() : '';
+    const normCallNo = inspectionCallNo ? String(inspectionCallNo).replace(/[-_/]/g, '').toLowerCase() : '';
+    const normPoNo = poNo ? String(poNo).replace(/[-_/]/g, '').toLowerCase() : '';
+    const shiftPattern = shift ? `_${shift.toLowerCase()}` : '';
+
     const keysToRemove = [];
 
-    try {
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && patterns.some(pattern => key.startsWith(pattern))) {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith(STORAGE_PREFIX)) continue;
+
+      const normKey = key.toLowerCase();
+
+      // Check if it belongs to any process submodule
+      const isSubmoduleKey = submodules.some(sub => key.startsWith(`${STORAGE_PREFIX}${sub}_`));
+      if (!isSubmoduleKey) continue;
+
+      // Check call or po match
+      const matchesCall = !normCallNo || normKey.replace(/[-_/]/g, '').includes(normCallNo);
+      const matchesPo = !normPoNo || normKey.replace(/[-_/]/g, '').includes(normPoNo);
+
+      // Check line match
+      const matchesLine = !cleanLineNum ||
+                          normKey.includes(`line-${cleanLineNum}`) ||
+                          normKey.includes(`line_${cleanLineNum}`) ||
+                          normKey.includes(`line${cleanLineNum}`) ||
+                          normKey.endsWith(`_${cleanLineNum}`);
+
+      if ((matchesCall || matchesPo) && matchesLine) {
+        if (clearAllShifts) {
           keysToRemove.push(key);
+        } else {
+          // If clearing a specific shift, match keys with that shift or keys without a different shift indicator
+          const hasDifferentShift = ['_a', '_b', '_c'].some(s => s !== shiftPattern && normKey.includes(s));
+          if (!shiftPattern || normKey.includes(shiftPattern) || !hasDifferentShift) {
+            keysToRemove.push(key);
+          }
         }
       }
-
-      keysToRemove.forEach(key => {
-        localStorage.removeItem(key);
-        console.log(`🧹 [Cleanup] Removed all-shift key: ${key}`);
-      });
-    } catch (error) {
-      console.error('❌ [Cleanup] Error during comprehensive localStorage clear:', error);
     }
-  } else {
-    // Standard cleanup for a specific shift / date
-    submodules.forEach(submodule => {
-      clearFromLocalStorage(submodule, inspectionCallNo, poNo, lineNo, shift, null, date);
+
+    keysToRemove.forEach(key => {
+      localStorage.removeItem(key);
+      console.log(`🧹 [Cleanup] Removed localStorage key: ${key}`);
     });
-
-    // Handle lot-specific keys for the specific shift
-    try {
-      const shiftSuffix = shift ? `_${shift}` : '';
-      const pattern = `${STORAGE_PREFIX}lineFinalResult_${inspectionCallNo}_${poNo}_${lineNo}`;
-      const keysToRemove = [];
-
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith(pattern) && (!shiftSuffix || key.includes(shiftSuffix))) {
-          keysToRemove.push(key);
-        }
-      }
-
-      keysToRemove.forEach(key => {
-        localStorage.removeItem(key);
-        console.log(`🧹 [Cleanup] Removed shift-specific lot key: ${key}`);
-      });
-    } catch (error) {
-      console.error('❌ [Cleanup] Error clearing shift-specific process data:', error);
-    }
+  } catch (error) {
+    console.error('❌ [Cleanup] Error during process localStorage clear:', error);
   }
 };
 

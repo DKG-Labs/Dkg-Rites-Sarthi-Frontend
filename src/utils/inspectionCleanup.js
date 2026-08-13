@@ -32,6 +32,16 @@ export const performInspectionCleanup = (inspectionCallNo, productionLines, manu
     // Step 1: Block all future saves
     markSessionAsEnded();
 
+    const normCallNo = inspectionCallNo ? String(inspectionCallNo).replace(/[-_/]/g, '').toLowerCase() : '';
+    const allCallNumbers = new Set();
+    if (inspectionCallNo) allCallNumbers.add(inspectionCallNo);
+    if (productionLines && Array.isArray(productionLines)) {
+        productionLines.forEach(p => {
+            if (p?.icNumber) allCallNumbers.add(p.icNumber);
+            if (p?.call_no) allCallNumbers.add(p.call_no);
+        });
+    }
+
     // Step 2: Clear session storage
     try {
         const sessionKeys = [
@@ -41,29 +51,31 @@ export const performInspectionCleanup = (inspectionCallNo, productionLines, manu
             'additionalInitiatedCalls',
             'processSelectedLotByLine',
             'processCallInitiationDataCache',
-            'processManufacturedQtyByLine'
+            'processManufacturedQtyByLine',
+            'process_shift_completed'
         ];
 
-        sessionKeys.forEach(baseKey => {
-            if (clearAllShifts) {
-                // Clear all shift variants for the call from sessionStorage
-                const pattern = `${baseKey}_${inspectionCallNo}`;
-                const keysToRemove = [];
-                for (let i = 0; i < sessionStorage.length; i++) {
-                    const key = sessionStorage.key(i);
-                    if (key && (key === baseKey || key.startsWith(pattern))) {
-                        keysToRemove.push(key);
+        const sessionKeysToRemove = [];
+        for (let i = 0; i < sessionStorage.length; i++) {
+            const key = sessionStorage.key(i);
+            if (!key) continue;
+
+            const isProcessKey = sessionKeys.some(base => key === base || key.startsWith(`${base}_`));
+            if (isProcessKey) {
+                if (clearAllShifts) {
+                    sessionKeysToRemove.push(key);
+                } else {
+                    const normKey = key.toLowerCase();
+                    const matchesCall = !normCallNo || normKey.replace(/[-_/]/g, '').includes(normCallNo);
+                    const matchesShift = !shift || normKey.includes(`_${shift.toLowerCase()}`);
+                    if (matchesCall || matchesShift || sessionKeys.includes(key)) {
+                        sessionKeysToRemove.push(key);
                     }
                 }
-                keysToRemove.forEach(k => sessionStorage.removeItem(k));
-            } else {
-                // Clear specific shift variant
-                sessionStorage.removeItem(baseKey);
-                sessionStorage.removeItem(`${baseKey}_${inspectionCallNo}_${shift}`);
             }
-        });
-
-        console.log('✅ [Cleanup] Cleared sessionStorage variants');
+        }
+        sessionKeysToRemove.forEach(k => sessionStorage.removeItem(k));
+        console.log(`✅ [Cleanup] Cleared ${sessionKeysToRemove.length} sessionStorage keys`);
     } catch (error) {
         console.error('❌ [Cleanup] Error clearing sessionStorage:', error);
     }
@@ -72,10 +84,10 @@ export const performInspectionCleanup = (inspectionCallNo, productionLines, manu
     if (manufacturingLines && productionLines) {
         manufacturingLines.forEach(line => {
             productionLines.forEach((prodLine) => {
-                const poNo = prodLine.po_no || prodLine.poNumber || '';
-                const callNo = prodLine.icNumber || inspectionCallNo;
+                const poNo = prodLine?.po_no || prodLine?.poNumber || '';
+                const callNo = prodLine?.icNumber || prodLine?.call_no || inspectionCallNo;
 
-                if (poNo && callNo) {
+                if (callNo) {
                     try {
                         clearAllProcessData(callNo, poNo, line, shift, clearAllShifts);
                     } catch (error) {
@@ -86,19 +98,35 @@ export const performInspectionCleanup = (inspectionCallNo, productionLines, manu
         });
     }
 
-    // Step 4: Clear dashboard drafts
-    try {
-        if (inspectionCallNo) {
-            localStorage.removeItem(`${DASHBOARD_DRAFT_KEY}${inspectionCallNo}`);
-        }
+    // Fallback: Also clear directly for main inspection call
+    if (inspectionCallNo) {
+        ['Line-1', 'Line-2', 'Line-3', 'Line-4', 'Line-5'].forEach(line => {
+            try {
+                clearAllProcessData(inspectionCallNo, '', line, shift, clearAllShifts);
+            } catch (e) {}
+        });
+    }
 
-        if (productionLines) {
-            productionLines.forEach(prodLine => {
-                if (prodLine.icNumber && prodLine.icNumber !== inspectionCallNo) {
-                    localStorage.removeItem(`${DASHBOARD_DRAFT_KEY}${prodLine.icNumber}`);
+    // Step 4: Clear dashboard drafts (all matching variants including shift suffixes)
+    try {
+        const draftKeysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (!key || !key.startsWith(DASHBOARD_DRAFT_KEY)) continue;
+
+            const normKey = key.toLowerCase().replace(/[-_/]/g, '');
+            const matchesAnyCall = Array.from(allCallNumbers).some(c => normKey.includes(String(c).toLowerCase().replace(/[-_/]/g, '')));
+
+            if (matchesAnyCall || !inspectionCallNo) {
+                if (clearAllShifts || !shift || key.toLowerCase().includes(`_${shift.toLowerCase()}`) || !key.includes('_')) {
+                    draftKeysToRemove.push(key);
                 }
-            });
+            }
         }
+        draftKeysToRemove.forEach(k => {
+            localStorage.removeItem(k);
+            console.log(`🧹 [Cleanup] Removed draft key: ${k}`);
+        });
     } catch (error) {
         console.error('❌ [Cleanup] Error clearing dashboard drafts:', error);
     }

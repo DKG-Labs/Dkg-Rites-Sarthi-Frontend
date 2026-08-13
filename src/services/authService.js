@@ -152,10 +152,66 @@ export const resetPassword = async (identifier, newPassword) => {
 };
 
 /**
+ * Helper to wipe all temporary inspection and dashboard caches from storage
+ */
+export const clearAllInspectionStorageCaches = () => {
+  try {
+    sessionStorage.clear();
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+      if (
+        key.startsWith('process_') ||
+        key.startsWith('processProductionLinesData') ||
+        key.startsWith('processSelected') ||
+        key.startsWith('processManufactured') ||
+        key.startsWith('processFinal') ||
+        key.startsWith('processCall') ||
+        key.startsWith('additionalInitiatedCalls') ||
+        key.startsWith('chemicalAnalysisData_') ||
+        key.startsWith('hardnessTestData_') ||
+        key.startsWith('inclusionRatingData_') ||
+        key.startsWith('fpPackedInHDPE_') ||
+        key.startsWith('fpCleanedWithCoating_') ||
+        key.startsWith('fpLotInspectionData_') ||
+        key.startsWith('finalDecisionData_') ||
+        key.startsWith('deflectionTestData_') ||
+        key.startsWith('toeLoadTestData_') ||
+        key.startsWith('visualDimensionalData_') ||
+        key.startsWith('weightTestData_') ||
+        key.startsWith('raw_') ||
+        key.startsWith('dim_') ||
+        key.startsWith('mat_') ||
+        key.startsWith('pack_') ||
+        key.startsWith('cal_') ||
+        key.startsWith('correction_slip_') ||
+        key.startsWith('call_status_')
+      ) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+    console.log(`🧹 Cleared ${keysToRemove.length} temporary inspection caches for clean user switch/logout`);
+  } catch (e) {
+    console.error('Error clearing inspection caches:', e);
+  }
+};
+
+/**
  * Store authentication data in localStorage
  * @param {Object} authData - Authentication data from login response
  */
 export const storeAuthData = (authData) => {
+  const previousUserId = localStorage.getItem('userId');
+  const previousLoginId = localStorage.getItem('loginId');
+
+  // If a different user is logging in on the same machine, wipe all previous inspection caches
+  if (previousUserId && (String(previousUserId) !== String(authData.userId) || (authData.loginId && String(previousLoginId) !== String(authData.loginId)))) {
+    console.log(`🔄 User switched on same machine (${previousUserId} -> ${authData.userId}) - purging previous inspection caches`);
+    clearAllInspectionStorageCaches();
+  }
+
   localStorage.setItem('authToken', authData.token);
   localStorage.setItem('userId', authData.userId);
   if (authData.loginId) localStorage.setItem('loginId', authData.loginId);
@@ -203,9 +259,17 @@ export const isAuthenticated = () => {
 };
 
 /**
- * Logout user - clear all auth data
+ * Logout user - clear auth credentials and session state
+ * Preserves user's saved drafts in localStorage so the SAME user can resume work upon logging back in.
+ * If a DIFFERENT user logs in on this computer, storeAuthData will automatically purge the old user's caches.
  */
 export const logoutUser = () => {
+  try {
+    sessionStorage.clear();
+  } catch (e) {
+    console.error('Error clearing sessionStorage on logout:', e);
+  }
+
   localStorage.removeItem('authToken');
   localStorage.removeItem('userId');
   localStorage.removeItem('loginId');
@@ -213,6 +277,7 @@ export const logoutUser = () => {
   localStorage.removeItem('roleName');
   localStorage.removeItem('shortName');
   localStorage.removeItem('rio');
+  localStorage.removeItem('employeeCode');
 };
 
 /**

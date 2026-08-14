@@ -93,8 +93,8 @@ const SleeperSummary = ({ summaryData = {}, onPoIssuedClick, refreshTick }) => {
             rmt: 0
         },
         finalInspectionQty: {
-            nos: extractNumber(actualSummary.finalInspectionQuantity),
-            set: extractNumber(actualSummary.totalAcceptedSet),
+            nos: extractNumber(actualSummary.sleeperFinalInspectionQuantity || actualSummary.totalSleeperAcceptedNos || 0),
+            set: extractNumber(actualSummary.sleeperFinalInspectionQuantitySet || 0),
             rmt: 0
         },
         newSleepersInPipeline: extractNumber(actualSummary.newSleepersInPipeline),

@@ -134,14 +134,14 @@ const RailwayBoardDashboard = () => {
     }, []);
 
     // Data Fetching
-    const { data: reportData = [] } = useReportData(reportService.getLevel1Report, activeMainCard === 'lifecycle' ? dashboardFilters : undefined);
+    const { data: reportData = [] } = useReportData(reportService.getLevel1Report, (activeMainCard === 'lifecycle' && selectedProduct !== 'Sleeper') ? dashboardFilters : undefined);
     // NOTE: summaryData, inspectionCallStatusData, inspectionDetailsData are fetched locally inside ProfessionalCardSection — no duplicate calls here
-    const { data: qualityRejectionData } = useReportData(reportService.getQualityRejection, activeMainCard === 'quality' ? dashboardFilters : undefined);
-    const { data: manufacturerRejectionData } = useReportData(reportService.getManufacturerRejection, activeMainCard === 'quality' ? dashboardFilters : undefined);
-    const { data: stepWiseRejectionData } = useReportData(reportService.getManufacturingStepWiseRejection, activeMainCard === 'quality' ? dashboardFilters : undefined);
-    const { data: processPerformanceData } = useReportData(reportService.getProcessPerformance, activeMainCard === 'quality' ? dashboardFilters : undefined);
-    const { data: paretoAnalysisData } = useReportData(reportService.getParetoAnalysis, activeMainCard === 'quality' ? dashboardFilters : undefined);
-    const { data: monthlyRejectionTrendData } = useReportData(reportService.getMonthlyRejectionTrend, activeMainCard === 'quality' ? trendParams : undefined);
+    const { data: qualityRejectionData } = useReportData(reportService.getQualityRejection, (activeMainCard === 'quality' && selectedProduct === 'ERC') ? dashboardFilters : undefined);
+    const { data: manufacturerRejectionData } = useReportData(reportService.getManufacturerRejection, (activeMainCard === 'quality' && selectedProduct === 'ERC') ? dashboardFilters : undefined);
+    const { data: stepWiseRejectionData } = useReportData(reportService.getManufacturingStepWiseRejection, (activeMainCard === 'quality' && selectedProduct === 'ERC') ? dashboardFilters : undefined);
+    const { data: processPerformanceData } = useReportData(reportService.getProcessPerformance, (activeMainCard === 'quality' && selectedProduct === 'ERC') ? dashboardFilters : undefined);
+    const { data: paretoAnalysisData } = useReportData(reportService.getParetoAnalysis, (activeMainCard === 'quality' && selectedProduct !== 'Sleeper') ? dashboardFilters : undefined);
+    const { data: monthlyRejectionTrendData } = useReportData(reportService.getMonthlyRejectionTrend, (activeMainCard === 'quality' && selectedProduct !== 'Sleeper') ? trendParams : undefined);
 
     const [perfPage, setPerfPage] = useState(0);
     const [perfRowsPerPage, setPerfRowsPerPage] = useState(10);

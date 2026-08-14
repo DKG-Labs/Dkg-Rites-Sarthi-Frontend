@@ -425,6 +425,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     'RDSO/T-6618': { type: '6.2mm CGRSP', max: 167 },
     'RDSO/T-8327': { type: '6.2mm CGRSP', max: 154 },
     'RDSO/T-8528': { type: '10mm CGRSP', max: 445 },
+    'RDSO/T-8694': { type: '10mm CGRSP', max: 445 },
     'RDSO/T-8747': { type: '10mm CGRSP', max: 425 },
     'RDSO/T-8998': { type: '10mm CGRSP', max: 445 },
   };

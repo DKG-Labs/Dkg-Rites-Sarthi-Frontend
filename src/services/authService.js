@@ -203,15 +203,19 @@ export const clearAllInspectionStorageCaches = () => {
  * @param {Object} authData - Authentication data from login response
  */
 export const storeAuthData = (authData) => {
-  const previousUserId = localStorage.getItem('userId');
-  const previousLoginId = localStorage.getItem('loginId');
+  const previousUserId = localStorage.getItem('lastLoggedInUserId') || localStorage.getItem('userId');
+  const previousLoginId = localStorage.getItem('lastLoggedInLoginId') || localStorage.getItem('loginId');
+  const currentUserId = String(authData.userId || '');
+  const currentLoginId = String(authData.loginId || '');
 
   // If a different user is logging in on the same machine, wipe all previous inspection caches
-  if (previousUserId && (String(previousUserId) !== String(authData.userId) || (authData.loginId && String(previousLoginId) !== String(authData.loginId)))) {
-    console.log(`🔄 User switched on same machine (${previousUserId} -> ${authData.userId}) - purging previous inspection caches`);
+  if (previousUserId && (previousUserId !== currentUserId || (currentLoginId && previousLoginId && previousLoginId !== currentLoginId))) {
+    console.log(`🔄 User switched on same machine (${previousUserId} -> ${currentUserId}) - purging previous inspection caches`);
     clearAllInspectionStorageCaches();
   }
 
+  localStorage.setItem('lastLoggedInUserId', currentUserId);
+  if (currentLoginId) localStorage.setItem('lastLoggedInLoginId', currentLoginId);
   localStorage.setItem('authToken', authData.token);
   localStorage.setItem('userId', authData.userId);
   if (authData.loginId) localStorage.setItem('loginId', authData.loginId);
@@ -260,14 +264,14 @@ export const isAuthenticated = () => {
 
 /**
  * Logout user - clear auth credentials and session state
- * Preserves user's saved drafts in localStorage so the SAME user can resume work upon logging back in.
- * If a DIFFERENT user logs in on this computer, storeAuthData will automatically purge the old user's caches.
+ * Wipes inspection caches and sessionStorage so next login starts clean.
  */
 export const logoutUser = () => {
   try {
+    clearAllInspectionStorageCaches();
     sessionStorage.clear();
   } catch (e) {
-    console.error('Error clearing sessionStorage on logout:', e);
+    console.error('Error clearing storage on logout:', e);
   }
 
   localStorage.removeItem('authToken');

@@ -10,7 +10,7 @@ import { useShift } from '../../context/ShiftContext';
  * WireTensioning Feature
  * Handles integration of SCADA tensioning data and manual pressure logs.
  */
-const categoryOptions = ["Mainline", "Turnout"];
+const categoryOptions = ["Mainline", "Turnout", "Special"];
 const drawingOptions = {
     "Mainline": [
         "BG: RT-2496",
@@ -32,6 +32,18 @@ const drawingOptions = {
         "1 in 8.5 DCS: RT-6492",
         "1 in 8.5 DCS: RT-6493",
         "1 in 8.5 DCS: RT-6494"
+    ],
+    "Special": [
+        "RT-4148", "RT-8671", "RT-8969", "RT-4170", "RT-4171",
+        "RT-4172", "RT-4173", "RT-6896", "RT-6897", "RT-6898",
+        "RT-6899", "RT-8621", "RT-8622", "RT-8623", "RT-8624",
+        "RT-8979", "RT-8980", "RT-8981", "RT-8982", "RT-4088",
+        "RT-4089", "RT-4090", "RT-4091", "RT-4092", "RT-4093",
+        "RT-4094", "RT-4095", "RT-4096", "RT-4097", "RT-8672",
+        "RT-8970", "RT-8673", "RT-8674", "RT-8675", "RT-8676",
+        "RT-8677", "RT-8678", "RT-8679", "RT-8680", "RT-8971",
+        "RT-8972", "RT-8973", "RT-8974", "RT-8975", "RT-8976",
+        "RT-8977", "RT-8978", "RT-4149", "RT-8838", "RT-4852"
     ]
 };
 const TensionSubCard = ({ id, title, color, statusDetail, isActive, onClick }) => {
@@ -571,6 +583,8 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
             let typeToMatch = targetRecord.sleeperType || '';
             if (drawingOptions.Turnout.includes(typeToMatch) || typeToMatch.includes('Turnout') || typeToMatch.includes('1 in')) {
                 initialCat = 'Turnout';
+            } else if (drawingOptions.Special.includes(typeToMatch) || (targetRecord.sleeperCategory === 'Special')) {
+                initialCat = 'Special';
             }
 
             setFormData({
@@ -595,6 +609,8 @@ const WireTensioning = ({ onBack, batches = [], sharedState, displayMode = 'moda
             let typeToMatch = record.type || record.sleeperType || '';
             if (drawingOptions.Turnout.includes(typeToMatch) || typeToMatch.includes('Turnout') || typeToMatch.includes('1 in')) {
                 initialCat = 'Turnout';
+            } else if (drawingOptions.Special.includes(typeToMatch) || (record.sleeperCategory === 'Special')) {
+                initialCat = 'Special';
             }
             setFormData({
                 time: record.time,

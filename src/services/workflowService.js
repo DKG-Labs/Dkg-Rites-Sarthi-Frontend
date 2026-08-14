@@ -168,6 +168,11 @@ export const fetchUserPendingCalls = async (forceRefresh = false) => {
     const userTransitions = allTransitions.filter((transition) => {
       // Hide calls where IC has already been generated
       if (transition.status === 'GENERATE_IC') return false;
+      const statusUpper = (transition.status || '').toUpperCase();
+      const jobStatusUpper = (transition.jobStatus || '').toUpperCase();
+      if (statusUpper.includes('CANCELLED') || jobStatusUpper.includes('CANCELLED')) {
+        return false;
+      }
 
       const productType = transition.productType;
 

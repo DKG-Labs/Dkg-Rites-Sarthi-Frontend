@@ -49,9 +49,12 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
 
   // Get PO number for active line
   const activeLinePoNo = useMemo(() => {
-    // First try from production line (poNumber field)
+    // First try from production line (poNumber or po_no field)
     if (currentProductionLine?.poNumber) {
       return currentProductionLine.poNumber;
+    }
+    if (currentProductionLine?.po_no) {
+      return currentProductionLine.po_no;
     }
     // Then try from call data (po_no field)
     if (currentCallData?.po_no) {
@@ -317,12 +320,12 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
   // Loading state
   const [isLoading, setIsLoading] = useState(false);
 
-  const inspectionCallNo = currentCallData?.call_no || call?.call_no || '';
-
+  const inspectionCallNo = currentProductionLine?.icNumber || currentProductionLine?.call_no || currentCallData?.call_no || call?.call_no || '';
 
   // Track previous line to save data before switching
   const prevLineRef = useRef(activeLine);
   const prevPoNoRef = useRef(poNo);
+  const prevCallNoRef = useRef(inspectionCallNo);
 
   // Flag to prevent saving during initial load (prevents overwriting data with empty state)
   const isInitialLoadComplete = useRef(false);
@@ -339,8 +342,8 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
       return;
     }
 
-    if (!inspectionCallNo || !poNo) {
-      console.log('Cannot save - missing inspectionCallNo or poNo:', { inspectionCallNo, poNo });
+    if (!inspectionCallNo) {
+      console.log('Cannot save - missing inspectionCallNo');
       return;
     }
 
@@ -356,8 +359,9 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
       return;
     }
 
-    console.log('Saving grid data to localStorage:', { inspectionCallNo, poNo, activeLine, shift });
-    saveGridDataForLine(inspectionCallNo, poNo, activeLine, shift, {
+    const effectivePo = poNo || call?.po_no || 'PO_DEFAULT';
+    console.log('Saving grid data to localStorage:', { inspectionCallNo, poNo: effectivePo, activeLine, shift });
+    saveGridDataForLine(inspectionCallNo, effectivePo, activeLine, shift, {
       shearing: shearingData,
       turning: turningData,
       mpi: mpiData,
@@ -367,7 +371,7 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
       finalCheck: finalCheckData,
       testingFinishing: testingFinishingData
     });
-  }, [inspectionCallNo, poNo, activeLine, shearingData, turningData, mpiData, forgingData, quenchingData, temperingData, finalCheckData, testingFinishingData, shift]);
+  }, [inspectionCallNo, poNo, activeLine, shearingData, turningData, mpiData, forgingData, quenchingData, temperingData, finalCheckData, testingFinishingData, shift, call?.po_no]);
 
 
 
@@ -420,10 +424,10 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
   useEffect(() => {
     currentContextRef.current = {
       inspectionCallNo,
-      poNo,
+      poNo: poNo || call?.po_no || 'PO_DEFAULT',
       activeLine
     };
-  }, [inspectionCallNo, poNo, activeLine, shift]);
+  }, [inspectionCallNo, poNo, activeLine, shift, call?.po_no]);
 
   // Save to localStorage when data changes (debounced 500ms for faster persistence)
   useEffect(() => {
@@ -444,9 +448,9 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
       }
 
       const { inspectionCallNo: callNo, poNo: po, activeLine: line } = currentContextRef.current;
-      if (callNo && po && line) {
+      if (callNo && line) {
         console.log('Saving data on beforeunload/visibilitychange:', { callNo, po, line, shift });
-        saveGridDataForLine(callNo, po, line, shift, currentDataRef.current);
+        saveGridDataForLine(callNo, po || 'PO_DEFAULT', line, shift, currentDataRef.current);
       }
     };
 
@@ -457,11 +461,11 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
         return;
       }
 
-      // Save immediately on unmount without checks - always save if we have context
+      // Save immediately on unmount if modified and we have context
       const { inspectionCallNo: callNo, poNo: po, activeLine: line } = currentContextRef.current;
-      if (callNo && po && line && hasDataBeenModified.current) {
+      if (callNo && line && hasDataBeenModified.current) {
         console.log('Saving data on component unmount:', { callNo, po, line, shift });
-        saveGridDataForLine(callNo, po, line, shift, currentDataRef.current);
+        saveGridDataForLine(callNo, po || 'PO_DEFAULT', line, shift, currentDataRef.current);
       }
     };
 
@@ -739,16 +743,17 @@ const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A',
     hasDataBeenModified.current = false;
 
     // Save previous line's data before loading new line (only if data was modified)
-    if (prevLineRef.current && prevPoNoRef.current &&
-      (prevLineRef.current !== activeLine || prevPoNoRef.current !== poNo)) {
-      console.log('Saving previous line data before loading new line:', prevLineRef.current, shift);
+    if (prevLineRef.current && prevPoNoRef.current && prevCallNoRef.current &&
+      (prevLineRef.current !== activeLine || prevPoNoRef.current !== poNo || prevCallNoRef.current !== inspectionCallNo)) {
+      console.log('Saving previous line data before loading new line:', { call: prevCallNoRef.current, line: prevLineRef.current, shift });
       // Force save when switching lines (bypass the modification check)
-      saveGridDataForLine(inspectionCallNo, prevPoNoRef.current, prevLineRef.current, shift, currentDataRef.current);
+      saveGridDataForLine(prevCallNoRef.current, prevPoNoRef.current, prevLineRef.current, shift, currentDataRef.current);
     }
 
     // Update refs to current line
     prevLineRef.current = activeLine;
     prevPoNoRef.current = poNo;
+    prevCallNoRef.current = inspectionCallNo;
 
     console.log('fetchAllGridData: Loading data for', { inspectionCallNo, poNo, activeLine, shift });
 

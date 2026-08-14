@@ -82,7 +82,11 @@ const KEY_LABELS = {
     productionUnit:      'Production Unit',
     castingDate:         'Casting Date',
     batchNumber:         'Batch No.',
+    lbcTime:             'LBC Time',
+    lbc_time:            'LBC Time',
     totalCastedSleepers: 'No. of Sleepers',
+    totalSleeperTypes:   'Total Sleeper Types',
+    sleeperType:         'Sleeper Type',
     // benchNo:             'Bench No.',
     shiftType:           'Shift',
     // Generic / Audit
@@ -101,6 +105,19 @@ const KEY_LABELS = {
     modifiedBy:          'Updated By',
     lastModifiedBy:      'Updated By',
     remarks:             'Remarks',
+};
+
+const getSleeperNos = (group) => {
+    if (!group) return [];
+    const list = group.sleeperList || group.sleepers || [];
+    if (!Array.isArray(list)) return [];
+    return list.map(item => {
+        if (typeof item === 'string' || typeof item === 'number') return String(item);
+        if (typeof item === 'object' && item !== null) {
+            return item.sleeperNo || item.sleeperNumber || item.sleeperCode || item.name || item.id || '';
+        }
+        return '';
+    }).filter(Boolean);
 };
 
 const getStatusDisplay = (status) => {
@@ -312,7 +329,48 @@ const VerificationDetailModal = ({ row, moduleLabel, actionBy, onClose, onDone }
                         </div>
                     )}
 
-                    {!detailLoading && !detailError && detail && (
+                    {!detailLoading && !detailError && detail && (() => {
+                        let displayDetail = { ...detail };
+                        if (row.moduleId === 11 || detail.chambers || detail.gangs) {
+                            const allGroups = [];
+                            if (Array.isArray(detail.chambers)) {
+                                detail.chambers.forEach(c => {
+                                    if (Array.isArray(c.benchGroups)) {
+                                        c.benchGroups.forEach(bg => allGroups.push(bg));
+                                    }
+                                });
+                            }
+                            if (Array.isArray(detail.gangs)) {
+                                detail.gangs.forEach(g => allGroups.push(g));
+                            }
+
+                            const sleeperTypes = Array.from(new Set([
+                                detail.sleeperType,
+                                ...allGroups.map(g => g.sleeperType)
+                            ].filter(Boolean))).join(', ');
+
+                            const sleeperCategories = Array.from(new Set([
+                                detail.sleeperCategory,
+                                ...allGroups.map(g => g.sleeperCategory)
+                            ].filter(Boolean))).join(', ');
+
+                            const orderedDetail = {};
+                            Object.keys(detail).forEach(k => {
+                                if (k === 'lbcTime' || k === 'lbc_time') return;
+                                orderedDetail[k] = detail[k];
+                                if (k === 'totalSleeperTypes') {
+                                    if (sleeperTypes) orderedDetail.sleeperType = sleeperTypes;
+                                    if (sleeperCategories) orderedDetail.sleeperCategory = sleeperCategories;
+                                }
+                            });
+
+                            if (!orderedDetail.sleeperType && sleeperTypes) orderedDetail.sleeperType = sleeperTypes;
+                            if (!orderedDetail.sleeperCategory && sleeperCategories) orderedDetail.sleeperCategory = sleeperCategories;
+
+                            displayDetail = orderedDetail;
+                        }
+
+                        return (
                         <div style={{
                             background: '#f8fafc',
                             border: '1px solid #e2e8f0',
@@ -320,29 +378,25 @@ const VerificationDetailModal = ({ row, moduleLabel, actionBy, onClose, onDone }
                             overflow: 'hidden',
                             marginBottom: '16px',
                         }}>
-
-                            
-
-
                             <div style={{
                                 display: 'grid',
                                 gridTemplateColumns: 'repeat(2, 1fr)',
                                 gap: '1px',
                                 background: '#e2e8f0',
                             }}>
-                                {Object.entries(detail).map(([key, val]) => {
+                                {Object.entries(displayDetail).map(([key, val]) => {
+                                    if (row.moduleId === 11 && (key === 'lbcTime' || key === 'lbc_time')) return null;
                                     const auditKeys = [
                                         'updatedBy', 'modifiedBy', 'lastModifiedBy', 'createdBy',
                                         'updatedDate', 'updatedAt', 'modifiedDate', 'modifiedAt', 'lastModifiedDate',
-                                        'status', 'recordStatus', 'id', 'requestId', 'workflowTransitionId',
-                                        'lbcTime', 'lbc_time', 'lbctime'
+                                        'status', 'recordStatus', 'id', 'requestId', 'workflowTransitionId'
                                     ];
-                                    if (auditKeys.includes(key) || key.toLowerCase().includes('lbc')) return null;
+                                    if (auditKeys.includes(key)) return null;
 
                                     const forbiddenWords = ['id']; // Allow coil number words
                                     if (forbiddenWords.some(word => key.toLowerCase() === word)) return null;
 
-                                    // --- 🗃️ Handle Arrays (Like Coil Details) ---
+                                    // --- 🗃️ Handle Arrays (Like Chamber / Gang / Coil Details) ---
                                     if (Array.isArray(val)) {
                                         if (val.length === 0) return null;
                                         return (
@@ -353,6 +407,8 @@ const VerificationDetailModal = ({ row, moduleLabel, actionBy, onClose, onDone }
                                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
                                                     {val.map((item, idx) => {
                                                         const isModule11Chamber = row.moduleId === 11 && key === 'chambers';
+                                                        const isModule11Gang = row.moduleId === 11 && key === 'gangs';
+                                                        const isSpecialGroup = isModule11Chamber || isModule11Gang;
                                                         
                                                         return (
                                                             <div key={idx} style={{ 
@@ -360,46 +416,144 @@ const VerificationDetailModal = ({ row, moduleLabel, actionBy, onClose, onDone }
                                                                 background: '#f8fafc', 
                                                                 borderRadius: '8px', 
                                                                 border: '1px solid #e2e8f0',
-                                                                display: isModule11Chamber ? 'flex' : 'grid',
-                                                                flexDirection: isModule11Chamber ? 'column' : 'initial',
-                                                                gridTemplateColumns: isModule11Chamber ? 'none' : 'repeat(auto-fit, minmax(120px, 1fr))',
+                                                                display: isSpecialGroup ? 'flex' : 'grid',
+                                                                flexDirection: isSpecialGroup ? 'column' : 'initial',
+                                                                gridTemplateColumns: isSpecialGroup ? 'none' : 'repeat(auto-fit, minmax(120px, 1fr))',
                                                                 gap: '12px'
                                                             }}>
                                                                 {isModule11Chamber ? (
                                                                     <>
                                                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                                                                            <span style={{ fontSize: '12px', fontWeight: '800', color: '#1e293b' }}>
-                                                                                Chamber {item.chamberNo}
+                                                                            <span style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b' }}>
+                                                                                Chamber {item.chamberNo} {item.lbcTime ? `(LBC: ${item.lbcTime})` : ''}
                                                                             </span>
                                                                         </div>
-                                                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                                                             {(() => {
-                                                                                const benches = [];
-                                                                                if (Array.isArray(item.benchGroups)) {
-                                                                                    item.benchGroups.forEach(g => {
-                                                                                        if (g.benchNo) benches.push(String(g.benchNo));
-                                                                                    });
-                                                                                }
-                                                                                if (benches.length === 0) return <span style={{ fontSize: '11px', color: '#94a3b8' }}>No benches</span>;
-                                                                                return benches.map((b, i) => (
-                                                                                    <span key={i} style={{
-                                                                                        background: '#eff6ff', color: '#1d4ed8',
-                                                                                        padding: '2px 8px', borderRadius: '6px',
-                                                                                        fontSize: '11px', fontWeight: '700',
-                                                                                        border: '1px solid #dbeafe'
-                                                                                    }}>
-                                                                                        Bench {b}
-                                                                                    </span>
-                                                                                ));
+                                                                                const groups = Array.isArray(item.benchGroups) ? item.benchGroups : [];
+                                                                                if (groups.length === 0) return <span style={{ fontSize: '11px', color: '#94a3b8' }}>No benches</span>;
+                                                                                return groups.map((g, i) => {
+                                                                                    const sleeperNos = getSleeperNos(g);
+                                                                                    return (
+                                                                                        <div key={i} style={{
+                                                                                            background: '#fff',
+                                                                                            border: '1px solid #cbd5e1',
+                                                                                            borderRadius: '8px',
+                                                                                            padding: '10px 12px',
+                                                                                        }}>
+                                                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px', marginBottom: sleeperNos.length > 0 ? '6px' : '0px' }}>
+                                                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                                                                                    <span style={{
+                                                                                                        background: '#eff6ff', color: '#1d4ed8',
+                                                                                                        padding: '3px 10px', borderRadius: '6px',
+                                                                                                        fontSize: '12px', fontWeight: '800',
+                                                                                                        border: '1px solid #dbeafe'
+                                                                                                    }}>
+                                                                                                        Bench {g.benchNo}
+                                                                                                    </span>
+                                                                                                    {g.sleeperType && (
+                                                                                                        <span style={{ fontSize: '11px', fontWeight: '700', color: '#334155' }}>
+                                                                                                            {g.sleeperType}
+                                                                                                        </span>
+                                                                                                    )}
+                                                                                                    {g.sleeperCategory && (
+                                                                                                        <span style={{ fontSize: '10px', fontWeight: '600', color: '#475569', background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
+                                                                                                            {g.sleeperCategory}
+                                                                                                        </span>
+                                                                                                    )}
+                                                                                                </div>
+                                                                                                <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b' }}>
+                                                                                                    {sleeperNos.length > 0 ? `${sleeperNos.length} Sleepers` : (g.totalSleepers ? `${g.totalSleepers} Sleepers` : '')}
+                                                                                                </span>
+                                                                                            </div>
+
+                                                                                            {sleeperNos.length > 0 && (
+                                                                                                <div>
+                                                                                                    <div style={{ fontSize: '9px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>
+                                                                                                        Sleeper Nos:
+                                                                                                    </div>
+                                                                                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                                                                                        {sleeperNos.map((sNo, sIdx) => (
+                                                                                                            <span key={sIdx} style={{
+                                                                                                                background: '#f8fafc',
+                                                                                                                border: '1px solid #cbd5e1',
+                                                                                                                color: '#1e293b',
+                                                                                                                fontSize: '11px',
+                                                                                                                fontWeight: '700',
+                                                                                                                padding: '2px 6px',
+                                                                                                                borderRadius: '4px',
+                                                                                                                fontFamily: 'monospace'
+                                                                                                            }}>
+                                                                                                                {sNo}
+                                                                                                            </span>
+                                                                                                        ))}
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    );
+                                                                                });
                                                                             })()}
                                                                         </div>
+                                                                    </>
+                                                                ) : isModule11Gang ? (
+                                                                    <>
+                                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px', marginBottom: getSleeperNos(item).length > 0 ? '6px' : '0px' }}>
+                                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                                                                <span style={{
+                                                                                    background: '#eff6ff', color: '#1d4ed8',
+                                                                                    padding: '3px 10px', borderRadius: '6px',
+                                                                                    fontSize: '12px', fontWeight: '800',
+                                                                                    border: '1px solid #dbeafe'
+                                                                                }}>
+                                                                                    Gang {item.gangNo || item.id}
+                                                                                </span>
+                                                                                {item.sleeperType && (
+                                                                                    <span style={{ fontSize: '11px', fontWeight: '700', color: '#334155' }}>
+                                                                                        {item.sleeperType}
+                                                                                    </span>
+                                                                                )}
+                                                                                {item.sleeperCategory && (
+                                                                                    <span style={{ fontSize: '10px', fontWeight: '600', color: '#475569', background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
+                                                                                        {item.sleeperCategory}
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                            <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b' }}>
+                                                                                {getSleeperNos(item).length > 0 ? `${getSleeperNos(item).length} Sleepers` : (item.totalSleepers ? `${item.totalSleepers} Sleepers` : '')}
+                                                                            </span>
+                                                                        </div>
+
+                                                                        {getSleeperNos(item).length > 0 && (
+                                                                            <div>
+                                                                                <div style={{ fontSize: '9px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>
+                                                                                    Sleeper Nos:
+                                                                                </div>
+                                                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                                                                    {getSleeperNos(item).map((sNo, sIdx) => (
+                                                                                        <span key={sIdx} style={{
+                                                                                            background: '#f8fafc',
+                                                                                            border: '1px solid #cbd5e1',
+                                                                                            color: '#1e293b',
+                                                                                            fontSize: '11px',
+                                                                                            fontWeight: '700',
+                                                                                            padding: '2px 6px',
+                                                                                            borderRadius: '4px',
+                                                                                            fontFamily: 'monospace'
+                                                                                        }}>
+                                                                                            {sNo}
+                                                                                        </span>
+                                                                                    ))}
+                                                                                </div>
+                                                                            </div>
+                                                                        )}
                                                                     </>
                                                                 ) : typeof item === 'object' ? (
                                                                     Object.entries(item).map(([sk, sv]) => {
                                                                         if (['id', 'updatedby', 'updateddate'].some(w => sk.toLowerCase().includes(w))) return null;
                                                                         
                                                                         const formattedVal = formatValue(sv);
-                                                                        if (formattedVal === '—') return null; // Hide empty/null fields like Coil No in Range mode
+                                                                        if (formattedVal === '—') return null; // Hide empty/null fields
 
                                                                         return (
                                                                             <div key={sk}>
@@ -438,9 +592,8 @@ const VerificationDetailModal = ({ row, moduleLabel, actionBy, onClose, onDone }
                                 })}
                             </div>
                         </div>
-                    )}
-
-
+                        );
+                    })()}
 
                     {/* ── Action Area ── */}
                     {isAlreadyVerified ? (

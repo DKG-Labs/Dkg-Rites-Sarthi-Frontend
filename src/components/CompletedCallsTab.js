@@ -44,8 +44,14 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
           return;
         }
         const fetched = await fetchSignedCallsForIC(userId);
-        // Keep only completed / signed calls
-        const validCalls = fetched.filter(c => c.status === 'Completed' || c.status === 'DSC_SIGN_IC' || c.originalStatus === 'DSC_SIGN_IC');
+        // Keep completed / signed / cancelled calls
+        const validCalls = fetched.filter(c => 
+          c.status === 'Completed' || 
+          c.status === 'DSC_SIGN_IC' || 
+          c.originalStatus === 'DSC_SIGN_IC' ||
+          (c.status || '').toUpperCase().includes('CANCEL') ||
+          (c.originalStatus || '').toUpperCase().includes('CANCEL')
+        );
         setCompletedCalls(validCalls);
       } catch (err) {
         console.error('Error fetching completed calls:', err);
@@ -183,31 +189,43 @@ const CompletedCallsTab = ({ setSelectedCall, setCurrentPage }) => {
     }
   };
 
-  const actions = (row) => (
-    <div style={{ display: 'flex', gap: 'var(--space-8)', flexWrap: 'wrap' }}>
-      <button className="btn btn-sm btn-primary" onClick={(e) => { e.stopPropagation(); handleViewIC(row); }}>
-        View IC
-      </button>
-      <button
-        className="btn btn-sm btn-outline"
-        onClick={(e) => {
-          e.stopPropagation();
-          handleViewAnnexures(row);
-        }}
-        title="View Technical Annexures"
-      >
-        Annexures
-      </button>
-      <button
-        className="btn btn-sm"
-        style={{ background: '#f59e0b', color: '#fff', border: 'none' }}
-        onClick={(e) => { e.stopPropagation(); setCorrectionSlipRow(row); }}
-        title="Issue Correction Slip"
-      >
-        Correction Slip
-      </button>
-    </div>
-  );
+  const actions = (row) => {
+    const isCancelled = (row.status || '').toUpperCase().includes('CANCEL') || (row.originalStatus || '').toUpperCase().includes('CANCEL');
+
+    if (isCancelled) {
+      return (
+        <span style={{ color: '#dc2626', fontWeight: 600, fontSize: '13px', backgroundColor: '#fee2e2', padding: '4px 10px', borderRadius: '12px', display: 'inline-block' }}>
+          Call Cancelled
+        </span>
+      );
+    }
+
+    return (
+      <div style={{ display: 'flex', gap: 'var(--space-8)', flexWrap: 'wrap' }}>
+        <button className="btn btn-sm btn-primary" onClick={(e) => { e.stopPropagation(); handleViewIC(row); }}>
+          View IC
+        </button>
+        <button
+          className="btn btn-sm btn-outline"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleViewAnnexures(row);
+          }}
+          title="View Technical Annexures"
+        >
+          Annexures
+        </button>
+        <button
+          className="btn btn-sm"
+          style={{ background: '#f59e0b', color: '#fff', border: 'none' }}
+          onClick={(e) => { e.stopPropagation(); setCorrectionSlipRow(row); }}
+          title="Issue Correction Slip"
+        >
+          Correction Slip
+        </button>
+      </div>
+    );
+  };
 
   return (
     <div>

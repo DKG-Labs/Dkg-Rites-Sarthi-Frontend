@@ -5,6 +5,17 @@ import reportService from '../../../services/reportService';
 let cachedSleeperSummary = null;
 let lastRefreshTick_SleeperSummary = -1;
 
+const extractNumber = (val) => {
+    if (typeof val === 'number' && !isNaN(val)) return val;
+    if (val && typeof val === 'object') {
+        if (typeof val.responseData === 'number') return val.responseData;
+        if (typeof val.data === 'number') return val.data;
+        if (typeof val.count === 'number') return val.count;
+    }
+    const num = Number(val);
+    return isNaN(num) ? 0 : num;
+};
+
 const SleeperSummary = ({ summaryData = {}, onPoIssuedClick, refreshTick }) => {
     const [rejectedInProcess, setRejectedInProcess] = useState(0);
     const [rejectedInFinal, setRejectedInFinal] = useState(0);
@@ -26,25 +37,28 @@ const SleeperSummary = ({ summaryData = {}, onPoIssuedClick, refreshTick }) => {
             try {
                 // Fetch Demoulding Rejection
                 const demouldingRes = await reportService.getDemouldingRejectedCount();
-                const rejProcess = demouldingRes.responseData || demouldingRes || 0;
+                const rejProcess = extractNumber(demouldingRes?.responseData !== undefined ? demouldingRes.responseData : demouldingRes);
                 setRejectedInProcess(rejProcess);
 
                 // Fetch Final Inspection Rejection
                 const finalRes = await reportService.getFinalRejectedCount();
-                const rejFinal = finalRes.responseData || finalRes || 0;
+                const rejFinal = extractNumber(finalRes?.responseData !== undefined ? finalRes.responseData : finalRes);
                 setRejectedInFinal(rejFinal);
 
                 // Fetch Rejection Percentage
                 const rejectionRes = await reportService.getRejectionPercentage();
-                const percentage = rejectionRes.responseData !== undefined ? rejectionRes.responseData : rejectionRes;
-                const rejPct = Number(percentage || 0);
+                const rawPct = rejectionRes?.responseData !== undefined ? rejectionRes.responseData : rejectionRes;
+                const rejPct = extractNumber(rawPct);
                 setRejectionPercentage(rejPct);
 
                 // Fetch Final Inspection Call Status Counts
                 const callStatusRes = await reportService.getFinalInspectionCallStatusCounts();
-                const callStatusData = callStatusRes.responseData || callStatusRes || {};
-                const pendCalls = callStatusData.pending !== undefined ? callStatusData.pending : 0;
-                const underInspCalls = callStatusData.underInspection !== undefined ? callStatusData.underInspection : 0;
+                const callStatusData = (callStatusRes?.responseData && typeof callStatusRes.responseData === 'object')
+                    ? callStatusRes.responseData
+                    : (callStatusRes && typeof callStatusRes === 'object' && !callStatusRes.responseStatus ? callStatusRes : {});
+
+                const pendCalls = extractNumber(callStatusData.pending);
+                const underInspCalls = extractNumber(callStatusData.underInspection);
                 
                 setPendingCalls(pendCalls);
                 setUnderInspectionCalls(underInspCalls);
@@ -66,23 +80,27 @@ const SleeperSummary = ({ summaryData = {}, onPoIssuedClick, refreshTick }) => {
         fetchCounts();
     }, [refreshTick]);
 
+    const actualSummary = (summaryData?.responseData && typeof summaryData.responseData === 'object') 
+        ? summaryData.responseData 
+        : (summaryData || {});
+
     // Data based on the provided requirements
     const data = {
-        poIssued: summaryData.sleeperPoIssued || 0,
+        poIssued: extractNumber(actualSummary.sleeperPoIssued),
         poQuantity: {
-            nos: summaryData.sleeperPoQuantityNos || 0,
-            set: summaryData.sleeperPoQuantitySet || 0,
+            nos: extractNumber(actualSummary.sleeperPoQuantityNos),
+            set: extractNumber(actualSummary.sleeperPoQuantitySet),
             rmt: 0
         },
         finalInspectionQty: {
-            nos: summaryData.totalAcceptedNos || 0,
-            set: summaryData.totalAcceptedSet || 0,
+            nos: extractNumber(actualSummary.finalInspectionQuantity),
+            set: extractNumber(actualSummary.totalAcceptedSet),
             rmt: 0
         },
-        newSleepersInPipeline: summaryData.newSleepersInPipeline || 0,
-        sleepersRejectedInProcess: rejectedInProcess,
-        sleepersRejectedInFinal: rejectedInFinal,
-        rejectionPercentage: rejectionPercentage.toFixed(2)
+        newSleepersInPipeline: extractNumber(actualSummary.newSleepersInPipeline),
+        sleepersRejectedInProcess: extractNumber(rejectedInProcess),
+        sleepersRejectedInFinal: extractNumber(rejectedInFinal),
+        rejectionPercentage: (Number.isFinite(rejectionPercentage) ? rejectionPercentage : 0).toFixed(2)
     };
 
     return (

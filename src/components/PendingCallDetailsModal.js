@@ -9,7 +9,6 @@ import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded';
 import AttachmentRoundedIcon from '@mui/icons-material/AttachmentRounded';
 
 import { message } from 'antd';
-import { performTransitionAction } from '../services/workflowService';
 import CallCancellationModal from './CallCancellationModal';
 
 const PendingCallDetailsModal = ({

@@ -81,10 +81,10 @@ export const shouldShowScheduleDate = (apiStatus) => {
   // PAUSE_INSPECTION_RESUME_NEXT_DAY (Paused inspection), and INSPECTION_PAUSED
   // because the call was scheduled before inspection started
   return apiStatus === API_STATUS.IE_SCHEDULED ||
-         apiStatus === API_STATUS.SCHEDULED ||
-         apiStatus === API_STATUS.VERIFY_PO_DETAILS ||
-         apiStatus === API_STATUS.PAUSE_INSPECTION_RESUME_NEXT_DAY ||
-         apiStatus === API_STATUS.INSPECTION_PAUSED;
+    apiStatus === API_STATUS.SCHEDULED ||
+    apiStatus === API_STATUS.VERIFY_PO_DETAILS ||
+    apiStatus === API_STATUS.PAUSE_INSPECTION_RESUME_NEXT_DAY ||
+    apiStatus === API_STATUS.INSPECTION_PAUSED;
 };
 
 /**
@@ -113,7 +113,7 @@ export const getStatusVariant = (apiStatus) => {
  */
 export const getDetailedStatus = (systemStatus) => {
   const statusLower = (systemStatus || '').toUpperCase();
-  
+
   const mapping = {
     'CREATED': { mainStatus: 'Pending', subStatus: 'Call Raised' },
     'VERIFIED': { mainStatus: 'Pending', subStatus: 'Call Registered' },
@@ -129,13 +129,15 @@ export const getDetailedStatus = (systemStatus) => {
     'INSPECTION_COMPLETE_CONFIRM': { mainStatus: 'Completed', subStatus: 'IC Issuance Pending' },
     'GENERATE_IC': { mainStatus: 'Completed', subStatus: 'IC Issued' },
     'DSC_SIGN_IC': { mainStatus: 'Completed', subStatus: 'E-Signed' },
-    'CANCELLED': { mainStatus: 'Completed', subStatus: 'cancelled' },
+    'CANCELLED': { mainStatus: 'Cancelled', subStatus: 'CANCELLED' },
+    'CANCEL': { mainStatus: 'Cancelled', subStatus: 'CANCELLED' },
+    'COMPLETED-CANCELLED': { mainStatus: 'Cancelled', subStatus: 'CANCELLED' },
     'WITHHELD': { mainStatus: 'Under Inspection', subStatus: 'withheld' },
     'IC_PENDING': { mainStatus: 'Completed', subStatus: 'IC Pending' }
   };
 
   const result = mapping[statusLower] || { mainStatus: statusLower || '-', subStatus: '-' };
-  
+
   if (!result.subStatus || result.subStatus === '-' || result.subStatus.toLowerCase() === 'none') {
     result.combinedText = result.mainStatus;
   } else if (result.mainStatus.toLowerCase() === result.subStatus.toLowerCase()) {

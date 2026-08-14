@@ -9,6 +9,8 @@ import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded';
 import AttachmentRoundedIcon from '@mui/icons-material/AttachmentRounded';
 
 import { message } from 'antd';
+import { performTransitionAction } from '../services/workflowService';
+import CallCancellationModal from './CallCancellationModal';
 
 const PendingCallDetailsModal = ({
   isOpen,
@@ -19,10 +21,12 @@ const PendingCallDetailsModal = ({
   onSchedule,
   onReschedule,
   onStart,
-  onEnterShiftDetails
+  onEnterShiftDetails,
+  onDone
 }) => {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [tcPdfLoading, setTcPdfLoading] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
 
   const notify = (msg, type = 'success') => {
     if (showNotification) {
@@ -37,6 +41,8 @@ const PendingCallDetailsModal = ({
       }
     }
   };
+
+
 
   if (!isOpen || !call) return null;
 
@@ -245,6 +251,50 @@ const PendingCallDetailsModal = ({
               <button className="btn btn-primary" onClick={() => onEnterShiftDetails(false)} style={{ width: '100%', height: '100%', minHeight: '80px', borderRadius: '16px', fontWeight: 'bold' }}>ENTER SHIFT DETAILS</button>
             )}
 
+            {call.status !== 'CANCELLED' ? (
+              <button 
+                className="btn btn-danger" 
+                onClick={() => setShowCancelModal(true)} 
+                style={{ 
+                  width: '100%', 
+                  height: '100%', 
+                  minHeight: '80px', 
+                  borderRadius: '16px', 
+                  fontWeight: 'bold', 
+                  background: '#ef4444', 
+                  color: '#ffffff', 
+                  border: 'none', 
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '14px',
+                  boxShadow: '0 4px 6px -1px rgba(239, 68, 68, 0.2)'
+                }}
+              >
+                CANCEL CALL
+              </button>
+            ) : (
+              <div 
+                style={{ 
+                  width: '100%', 
+                  height: '100%', 
+                  minHeight: '80px', 
+                  borderRadius: '16px', 
+                  fontWeight: '800', 
+                  background: '#fef2f2', 
+                  color: '#dc2626', 
+                  border: '1px solid #fecaca', 
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '14px'
+                }}
+              >
+                🚫 CALL CANCELLED
+              </div>
+            )}
+
             <button
               onClick={handleDownloadLetter}
               disabled={pdfLoading}
@@ -333,6 +383,17 @@ const PendingCallDetailsModal = ({
           </div>
         </div>
       </div>
+
+      <CallCancellationModal
+        isOpen={showCancelModal}
+        onClose={() => setShowCancelModal(false)}
+        call={call}
+        showNotification={showNotification}
+        onSuccess={() => {
+          if (onDone) onDone();
+          if (onClose) onClose();
+        }}
+      />
     </div>
   );
 };

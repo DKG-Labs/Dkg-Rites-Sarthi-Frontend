@@ -171,7 +171,10 @@ const PendingCallsTab = ({ calls, onSchedule, onReschedule, onStart, onBulkSched
 
   // Apply filters to data
   const filteredCalls = useMemo(() => {
-    let result = [...pendingCalls];
+    let result = pendingCalls.filter(call => {
+      const s = (call.status || '').toUpperCase();
+      return !s.includes('CANCELLED');
+    });
 
     // Product Type filter
     if (filters.productTypes.length > 0) {

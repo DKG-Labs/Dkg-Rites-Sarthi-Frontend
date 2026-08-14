@@ -167,7 +167,13 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
         const userId = getCurrentUserId();
         if (!userId) return;
         const signed = await fetchSignedCallsForIC(userId);
-        const validSigned = signed.filter(c => c.status === 'Completed' || c.status === 'DSC_SIGN_IC' || c.originalStatus === 'DSC_SIGN_IC');
+        const validSigned = signed.filter(c => 
+          c.status === 'Completed' || 
+          c.status === 'DSC_SIGN_IC' || 
+          c.originalStatus === 'DSC_SIGN_IC' ||
+          (c.status || '').toUpperCase().includes('CANCEL') ||
+          (c.originalStatus || '').toUpperCase().includes('CANCEL')
+        );
         setSignedCallsCount(validSigned.length);
       } catch (error) {
         console.error('Failed to fetch signed calls count:', error);

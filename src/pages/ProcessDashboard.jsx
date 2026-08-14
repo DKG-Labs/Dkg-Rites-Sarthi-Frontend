@@ -7534,14 +7534,6 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
                 </button>
                 <button
                   type="button"
-                  className="btn btn-danger"
-                  onClick={() => handleOpenNewCallActionModal('CANCELLED')}
-                  disabled={isNewCallSaving || isLoadingInitiationData}
-                >
-                  Cancel Call
-                </button>
-                <button
-                  type="button"
                   className="btn btn-success"
                   onClick={handleOpenNewCallInitiateModal}
                   disabled={isNewCallSaving || isLoadingInitiationData}

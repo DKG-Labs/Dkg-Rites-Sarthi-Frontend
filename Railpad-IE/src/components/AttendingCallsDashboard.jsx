@@ -63,8 +63,12 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
         rpCompletedAll = rpCompletedAll.filter(c => !c.plantId || isPlantIdMatching(c.plantId, dutyPlantId));
       }
 
-      let certCalls = rpCompletedAll.filter(c => (c.status === 'INSPECTION_DONE' || c.status === 'CERTIFICATE_PENDING' || c.status === 'COMPLETED' || c.jobStatus === 'COMPLETED' || c.status === 'ISSUE IC' || c.status === 'IC_ISSUE' || c.jobStatus === 'ISSUE IC' || c.jobStatus === 'IC_ISSUE'));
-      let finalCompletedCalls = rpCompletedAll.filter(c => c.status === 'IC_GENERATION' || c.jobStatus === 'IC_GENERATION');
+      let certCalls = rpCompletedAll.filter(c => {
+        const isCompleted = c.status === 'IC_GENERATION' || c.jobStatus === 'IC_GENERATION' || c.status === 'GENERATED' || c.jobStatus === 'GENERATED';
+        if (isCompleted) return false;
+        return (c.status === 'INSPECTION_DONE' || c.status === 'CERTIFICATE_PENDING' || c.status === 'COMPLETED' || c.jobStatus === 'COMPLETED' || c.status === 'ISSUE IC' || c.status === 'IC_ISSUE' || c.jobStatus === 'ISSUE IC' || c.jobStatus === 'IC_ISSUE');
+      });
+      let finalCompletedCalls = rpCompletedAll.filter(c => c.status === 'IC_GENERATION' || c.jobStatus === 'IC_GENERATION' || c.status === 'GENERATED' || c.jobStatus === 'GENERATED');
 
       setCounts({
         pending: rpPending.length,
@@ -557,7 +561,7 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
                           ISSUE IC
                         </button>
                       )}
-                      {(call.jobStatus === 'ISSUE IC' || call.status === 'ISSUE IC' || call.jobStatus === 'IC_ISSUE' || call.status === 'IC_ISSUE') && (
+                      {(call.jobStatus === 'ISSUE IC' || call.status === 'ISSUE IC' || call.jobStatus === 'IC_ISSUE' || call.status === 'IC_ISSUE' || call.jobStatus === 'IC_GENERATION' || call.status === 'IC_GENERATION' || call.jobStatus === 'GENERATED' || call.status === 'GENERATED') && (
                         <button
                           onClick={() => onIssueIc && onIssueIc(call, true)}
                           style={{

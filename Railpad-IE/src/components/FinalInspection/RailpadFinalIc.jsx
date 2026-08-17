@@ -594,9 +594,7 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
                     </td>
                     <td rowSpan="2" className="ie-signature-box" style={{ width: '30%', padding: '4px', fontSize: '9px', verticalAlign: 'top', display: 'table-cell' }}>
                       <div style={{ fontWeight: 'bold', lineHeight: '1.2' }}>निरीक्षण अभियंता<br />Inspecting Engineer</div>
-                      <div style={{ textAlign: 'right', fontWeight: 'bold', fontSize: '9px', textTransform: 'uppercase', marginTop: '30px' }}>
-                        <EditableField value={inspectingEngineer} fieldName="inspectingEngineer" style={{ textAlign: 'right', fontWeight: 'bold' }} {...fieldProps} />
-                      </div>
+                      <div style={{ minHeight: '35px' }}></div>
                     </td>
                   </tr>
                   <tr>

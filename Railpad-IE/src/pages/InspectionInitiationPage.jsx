@@ -530,13 +530,6 @@ const InspectionInitiationPage = ({ call, onProceed, onBack, onUpdateCall }) => 
           >
             WITHHELD CALL
           </button>
-          <button 
-            className="cancel-btn"
-            disabled={isSubmitting || sectionAStatus !== 'approved' || sectionBStatus !== 'approved'}
-            onClick={handleCancelCall}
-          >
-            CANCEL CALL
-          </button>
           <button
             className="initiate-btn"
             onClick={handleOpenVerifyForm}

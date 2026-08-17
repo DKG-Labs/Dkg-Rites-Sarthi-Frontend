@@ -477,14 +477,6 @@ const InspectionInitiationPage = ({ call, onProceed, onBack, onShiftChange, onSe
           </button>
           <button
             type="button"
-            className="btn btn-danger inspection-action-buttons__btn"
-            onClick={() => handleOpenCallActionModal('CANCELLED')}
-            disabled={isSaving}
-          >
-            Cancel Call
-          </button>
-          <button
-            type="button"
             className="btn btn-success inspection-action-buttons__btn"
             onClick={handleOpenInitiateModal}
             disabled={isSaving}

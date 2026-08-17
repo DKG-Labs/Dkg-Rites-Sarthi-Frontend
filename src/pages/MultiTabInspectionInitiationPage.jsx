@@ -464,14 +464,6 @@ const MultiTabInspectionInitiationPage = ({ calls, onProceed, onBack }) => {
           >
             Withheld Call
           </button>
-          <button
-            type="button"
-            className="btn btn-danger inspection-action-buttons__btn"
-            onClick={() => handleOpenCallActionModal('CANCELLED')}
-            disabled={isSaving}
-          >
-            Cancel Call
-          </button>
           {activeCallIndex === calls.length - 1 && (
             <button
               className="btn btn-success inspection-action-buttons__btn"

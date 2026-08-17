@@ -51,7 +51,7 @@ const ProcessStaticPeriodicCheckPage = ({ call, onBack, selectedLines = [], lotN
     return formatPoNoWithSerial(poNo, poSerialNo);
   }, [currentProductionLine, currentCallData, call]);
 
-  const inspectionCallNo = currentCallData?.call_no || call?.call_no || '';
+  const inspectionCallNo = currentProductionLine?.icNumber || currentProductionLine?.call_no || currentCallData?.call_no || call?.call_no || '';
   const poNo = formattedActivePoNo;
 
   const defaultLineState = {
@@ -70,6 +70,7 @@ const ProcessStaticPeriodicCheckPage = ({ call, onBack, selectedLines = [], lotN
   // Track previous line for saving data before switching
   const prevLineRef = useRef(activeLine);
   const prevPoNoRef = useRef(poNo);
+  const prevCallNoRef = useRef(inspectionCallNo);
 
   // Flags to prevent saving during initial load
   const isInitialLoadComplete = useRef(false);
@@ -95,13 +96,14 @@ const ProcessStaticPeriodicCheckPage = ({ call, onBack, selectedLines = [], lotN
 
   // Save to localStorage when line changes
   useEffect(() => {
-    if (prevLineRef.current !== activeLine || prevPoNoRef.current !== poNo) {
+    if (prevLineRef.current !== activeLine || prevPoNoRef.current !== poNo || prevCallNoRef.current !== inspectionCallNo) {
       // Save previous line's data if modified
-      if (prevPoNoRef.current && prevLineRef.current && perLineState[prevLineRef.current] && hasDataBeenModified.current) {
-        saveToLocalStorage('staticCheck', inspectionCallNo, prevPoNoRef.current, prevLineRef.current, perLineState[prevLineRef.current], shift);
+      if (prevPoNoRef.current && prevLineRef.current && prevCallNoRef.current && perLineState[prevLineRef.current] && hasDataBeenModified.current) {
+        saveToLocalStorage('staticCheck', prevCallNoRef.current, prevPoNoRef.current, prevLineRef.current, perLineState[prevLineRef.current], shift);
       }
       prevLineRef.current = activeLine;
       prevPoNoRef.current = poNo;
+      prevCallNoRef.current = inspectionCallNo;
       // Reset flags for new line
       isInitialLoadComplete.current = false;
       hasDataBeenModified.current = false;

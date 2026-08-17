@@ -25,22 +25,90 @@ import { finalInspectionLotResultsService } from "../../services/finalInspection
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-const cleanRejectionReasonDrawing = (reasonStr) => {
-  if (!reasonStr) return "Not Applicable";
-  const matches = reasonStr.match(/Drawing\s+[^:\s|\[\]()]+/gi);
-  if (matches && matches.length > 0) {
-    const uniqueDrawings = new Set(matches.map(m => m.replace(/Drawing\s+/i, '').trim().toUpperCase()));
-    if (uniqueDrawings.size === 1) {
-      return reasonStr
-        .replace(/\s*-\s*Drawing\s+[^:\s|\[\]()]+:\s*/gi, ': ')
-        .replace(/\s*Drawing\s+[^:\s|\[\]()]+:\s*/gi, ': ')
-        .replace(/\s*\(Drawing\s+[^:\s|\[\]()]+\)/gi, '')
-        .replace(/\s*Drawing\s+[^:\s|\[\]()]+\s*/gi, ' ')
-        .replace(/\s*:\s*:\s*/g, ': ')
-        .trim();
+// Helper to format Lot No (e.g. if '1 to 1', display as '1')
+export const formatLotNo = (val) => {
+  if (!val) return "";
+  const str = String(val).trim();
+  const match = str.match(/^(.+?)\s+to\s+(.+)$/i);
+  if (match) {
+    const from = match[1].trim();
+    const to = match[2].trim();
+    if (from.toLowerCase() === to.toLowerCase()) {
+      return from;
     }
   }
-  return reasonStr;
+  return str;
+};
+
+// Helper to aggregate rejection reasons by reason and count without batch numbers and leading '#'
+export const aggregateRejectionReasons = (reasonStr) => {
+  if (!reasonStr) return "Not Applicable";
+  let cleaned = String(reasonStr).trim();
+  if (['NOT APPLICABLE', 'N/A', 'NA', 'NONE', ''].includes(cleaned.toUpperCase())) {
+    return "Not Applicable";
+  }
+
+  if (cleaned.startsWith('#')) {
+    cleaned = cleaned.substring(1).trim();
+  }
+  if (cleaned.toLowerCase().startsWith('reason of rejection:')) {
+    cleaned = cleaned.substring('reason of rejection:'.length).trim();
+  } else if (cleaned.toLowerCase().startsWith('reasons for rejection:')) {
+    cleaned = cleaned.substring('reasons for rejection:'.length).trim();
+  }
+
+  const countsMap = new Map();
+  const pattern1 = /([A-Za-z0-9\s/_\-]+?)\s*\(\s*(\d+)(?:\s*(?:Nos|nos|nos\.|Qty|qty|units|pieces|pcs))?\s*\)/gi;
+  let match;
+  let matchedCount = 0;
+
+  while ((match = pattern1.exec(cleaned)) !== null) {
+    let rawReason = match[1].trim();
+    const qty = parseInt(match[2], 10);
+
+    rawReason = rawReason.replace(/^[\[\]|:;\s]+/, '');
+    rawReason = rawReason.replace(/^Drawing\s+[^:\s|\[\]()]+:\s*/i, '').trim();
+
+    if (rawReason && !rawReason.toLowerCase().startsWith('batch') && !isNaN(qty)) {
+      const key = rawReason.toLowerCase();
+      if (countsMap.has(key)) {
+        countsMap.get(key).count += qty;
+      } else {
+        countsMap.set(key, { name: rawReason, count: qty });
+      }
+      matchedCount++;
+    }
+  }
+
+  if (matchedCount === 0) {
+    const pattern2 = /:\s*(\d+)\s*(?:Nos|nos)?\s*-\s*\[(.*?)\]/gi;
+    while ((match = pattern2.exec(cleaned)) !== null) {
+      const qty = parseInt(match[1], 10);
+      let rawReason = match[2].trim();
+      rawReason = rawReason.replace(/^Drawing\s+[^:\s|\[\]()]+:\s*/i, '').trim();
+      if (rawReason && !isNaN(qty)) {
+        const key = rawReason.toLowerCase();
+        if (countsMap.has(key)) {
+          countsMap.get(key).count += qty;
+        } else {
+          countsMap.set(key, { name: rawReason, count: qty });
+        }
+        matchedCount++;
+      }
+    }
+  }
+
+  if (countsMap.size > 0) {
+    return Array.from(countsMap.values())
+      .map(item => `${item.name} (${item.count})`)
+      .join(', ');
+  }
+
+  return cleaned || "Not Applicable";
+};
+
+const cleanRejectionReasonDrawing = (reasonStr) => {
+  return aggregateRejectionReasons(reasonStr);
 };
 
 export default function RailpadFinalProductCertificate({ call = {}, onBack, isViewOnly = false }) {
@@ -103,16 +171,16 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
           await delay(1000);
 
           try {
-            console.log('🔄 Triggering workflow transition to IC_ISSUE');
+            console.log('🔄 Triggering workflow transition to IC_GENERATION');
             await performTransitionAction({
               workflowTransitionId: call?.workflowTransitionId || call?.id,
               requestId: call?.requestId || call?.call_no || call?.callNo,
-              action: 'IC_ISSUE',
+              action: 'IC_GENERATION',
               remarks: 'Digital signature applied',
               actionBy: user?.userId || 1
             });
 
-            showToast("Workflow status updated to IC_ISSUE!", "success");
+            showToast("Workflow status updated to IC_GENERATION!", "success");
             await delay(1000);
             onBack();
           } catch (workflowErr) {
@@ -122,7 +190,12 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
         } catch (err) {
           console.error("Upload error:", err);
           showToast("Signed successfully, but failed to save: " + err.message, "error");
+        } finally {
+          setIsESigning(false);
         }
+      } else {
+        // E-Sign failed, was rejected or cancelled -> do NOT save edits or perform transition
+        setIsESigning(false);
       }
     };
 
@@ -193,7 +266,7 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
             sealingPattern: dynamicSealingPattern || "RITES HOLOGRAM HAS BEEN AFFIXED ON THE LEAD SEAL ,TIED WITH SEALING WIRE TO THE PACKING STRIP OF EACH CORRUGATED BOX",
             facsimileText: "RITES HOLOGRAM SEAL",
             reasonsForRejection: fetchedData.reasonOfRejection || "Not Applicable",
-            inspectingEngineer: user?.userName || "IE User",
+            inspectingEngineer: "",
             lotDetails: []
         };
 
@@ -206,7 +279,7 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
               mappedData.qtyNowRejected = processData.totalRejectedQty || 0;
               
               if (processData.lotRangeFrom && processData.lotRangeTo) {
-                if (String(processData.lotRangeFrom).trim() === String(processData.lotRangeTo).trim()) {
+                if (String(processData.lotRangeFrom).trim().toLowerCase() === String(processData.lotRangeTo).trim().toLowerCase()) {
                   mappedData.lotNo = String(processData.lotRangeFrom).trim();
                 } else {
                   mappedData.lotNo = `${String(processData.lotRangeFrom).trim()} to ${String(processData.lotRangeTo).trim()}`;
@@ -216,12 +289,13 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
               } else {
                 mappedData.lotNo = "N/A";
               }
+              mappedData.lotNo = formatLotNo(mappedData.lotNo);
               
               if (processData.remarks) {
                 mappedData.quantityNowPassedText = processData.remarks;
               }
               if (processData.reasonForRejection) {
-                mappedData.reasonsForRejection = cleanRejectionReasonDrawing(processData.reasonForRejection);
+                mappedData.reasonsForRejection = aggregateRejectionReasons(processData.reasonForRejection);
               }
             }
 
@@ -272,7 +346,7 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
             mappedData.specNo = savedEdit.specNo || mappedData.specNo;
             mappedData.qapNo = savedEdit.qapNo || mappedData.qapNo;
             mappedData.chpClNo = savedEdit.chpClNo || mappedData.chpClNo;
-            mappedData.lotNo = savedEdit.lotNo || mappedData.lotNo;
+            mappedData.lotNo = formatLotNo(savedEdit.lotNo || mappedData.lotNo);
             mappedData.qtyNowOffered = savedEdit.qtyNowOffered || mappedData.qtyNowOffered;
             mappedData.qtyNowPassed = savedEdit.qtyNowPassed || mappedData.qtyNowPassed;
             mappedData.qtyOfferedPreviously = savedEdit.qtyOfferedPreviously || mappedData.qtyOfferedPreviously;
@@ -294,7 +368,10 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
         }
 
         if (isProcessCall && mappedData.reasonsForRejection) {
-          mappedData.reasonsForRejection = cleanRejectionReasonDrawing(mappedData.reasonsForRejection);
+          mappedData.reasonsForRejection = aggregateRejectionReasons(mappedData.reasonsForRejection);
+        }
+        if (mappedData.lotNo) {
+          mappedData.lotNo = formatLotNo(mappedData.lotNo);
         }
 
         setData(mappedData);
@@ -539,21 +616,6 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
         return;
       }
 
-      const callNo = call.callNo || call.call_no || call.requestId;
-
-      showToast("Saving final certificate details...", "info");
-      if (isProcessCall) {
-        await saveProcessIcEditData({
-          ...data,
-          icNumber: callNo,
-          installmentNo: data.offeredInstNo,
-          offeredInstNo: data.offeredInstNo,
-          passedInstNo: data.passedInstNo
-        });
-      } else {
-        await saveFinalIcEditData({ ...data, icNumber: callNo });
-      }
-
       showToast("Generating PDF snapshot...", "info");
       await delay(300);
       
@@ -719,6 +781,52 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
         </div>
       )}
 
+      {/* Styles for E-sign Tooltip */}
+      <style>{`
+        .esign-tooltip-wrapper {
+          position: relative;
+          display: inline-flex;
+          align-items: center;
+        }
+        .esign-tooltip {
+          visibility: hidden;
+          opacity: 0;
+          position: absolute;
+          bottom: calc(100% + 8px);
+          left: 50%;
+          transform: translateX(-50%);
+          background-color: #1e293b;
+          color: #ffffff;
+          padding: 6px 12px;
+          border-radius: 6px;
+          font-size: 12px;
+          font-weight: 500;
+          white-space: nowrap;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+          z-index: 9999;
+          transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
+          pointer-events: none;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .esign-tooltip::after {
+          content: "";
+          position: absolute;
+          top: 100%;
+          left: 50%;
+          margin-left: -5px;
+          border-width: 5px;
+          border-style: solid;
+          border-color: #1e293b transparent transparent transparent;
+        }
+        .esign-tooltip-wrapper:hover .esign-tooltip {
+          visibility: visible;
+          opacity: 1;
+          transform: translateX(-50%) translateY(-2px);
+        }
+      `}</style>
+
       {/* Top action header bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', alignItems: 'center' }}>
         <button 
@@ -759,41 +867,64 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
                 ✎ Edit
               </button>
 
-              {/* E-sign / Save IC Button */}
+              {/* E-sign Button (For both Process IC and Final IC) */}
               {!isViewOnly && (
-                <button
-                  onClick={isProcessCall ? handleProcessSaveIc : handleESign}
-                  disabled={isESigning}
-                  style={{
-                    padding: '8px 16px',
-                    border: 'none',
-                    borderRadius: '6px',
-                    background: '#059669',
-                    color: 'white',
-                    fontWeight: '700',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px'
-                  }}
-                >
-                  {isESigning ? (
-                    <>
-                      <span style={{
-                        border: '2px solid #ffffff',
-                        borderTop: '2px solid transparent',
-                        borderRadius: '50%',
-                        width: '12px',
-                        height: '12px',
-                        display: 'inline-block',
-                        animation: 'spin 1s linear infinite'
-                      }}></span>
-                      {isProcessCall ? "Saving IC..." : "Signing..."}
-                    </>
-                  ) : (
-                    isProcessCall ? "💾 SAVE IC" : "✒️ E-SIGN IC"
-                  )}
-                </button>
+                (() => {
+                  const hasBookAndSet = Boolean(
+                    data?.bookNo && String(data.bookNo).trim().length > 0 &&
+                    data?.setNo && String(data.setNo).trim().length > 0
+                  );
+                  const isESignDisabled = isESigning || !hasBookAndSet;
+
+                  return (
+                    <div className="esign-tooltip-wrapper">
+                      <button
+                        onClick={handleESign}
+                        disabled={isESignDisabled}
+                        style={{
+                          padding: '8px 16px',
+                          border: 'none',
+                          borderRadius: '6px',
+                          background: isESignDisabled ? '#94a3b8' : '#059669',
+                          color: 'white',
+                          fontWeight: '700',
+                          cursor: isESignDisabled ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          opacity: isESignDisabled ? 0.75 : 1,
+                          transition: 'all 0.2s ease',
+                          boxShadow: isESignDisabled ? 'none' : '0 2px 4px rgba(5, 150, 105, 0.2)'
+                        }}
+                        title={!hasBookAndSet ? "Book No. and Set No. are required to E-Sign." : ""}
+                      >
+                        {isESigning ? (
+                          <>
+                            <span style={{
+                              border: '2px solid #ffffff',
+                              borderTop: '2px solid transparent',
+                              borderRadius: '50%',
+                              width: '12px',
+                              height: '12px',
+                              display: 'inline-block',
+                              animation: 'spin 1s linear infinite'
+                            }}></span>
+                            Signing...
+                          </>
+                        ) : (
+                          "✒️ E-SIGN IC"
+                        )}
+                      </button>
+
+                      {!hasBookAndSet && !isESigning && (
+                        <div className="esign-tooltip">
+                          <span>⚠️</span>
+                          <span>Please enter Book No. & Set No. before E-Signing</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()
               )}
 
               {/* Export PDF Button */}
@@ -833,26 +964,6 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
                 }}
               >
                 💾 Save Changes
-              </button>
-
-              {/* Save IC Button */}
-              <button
-                onClick={handleSaveIc}
-                disabled={isESigning}
-                style={{
-                  padding: '8px 16px',
-                  border: '1px solid #059669',
-                  borderRadius: '6px',
-                  background: '#059669',
-                  color: 'white',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
-              >
-                💾 Save IC
               </button>
 
               {/* Cancel Changes Button */}

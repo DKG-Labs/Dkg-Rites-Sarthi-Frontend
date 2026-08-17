@@ -1,4 +1,84 @@
-import React from "react";
+// Helper to format Lot No (e.g. if '1 to 1', display as '1')
+export const formatLotNo = (val) => {
+  if (!val) return "";
+  const str = String(val).trim();
+  const match = str.match(/^(.+?)\s+to\s+(.+)$/i);
+  if (match) {
+    const from = match[1].trim();
+    const to = match[2].trim();
+    if (from.toLowerCase() === to.toLowerCase()) {
+      return from;
+    }
+  }
+  return str;
+};
+
+// Helper to aggregate rejection reasons by reason and count without batch numbers and leading '#'
+export const aggregateRejectionReasons = (reasonStr) => {
+  if (!reasonStr) return "Not Applicable";
+  let cleaned = String(reasonStr).trim();
+  if (['NOT APPLICABLE', 'N/A', 'NA', 'NONE', ''].includes(cleaned.toUpperCase())) {
+    return "Not Applicable";
+  }
+
+  if (cleaned.startsWith('#')) {
+    cleaned = cleaned.substring(1).trim();
+  }
+  if (cleaned.toLowerCase().startsWith('reason of rejection:')) {
+    cleaned = cleaned.substring('reason of rejection:'.length).trim();
+  } else if (cleaned.toLowerCase().startsWith('reasons for rejection:')) {
+    cleaned = cleaned.substring('reasons for rejection:'.length).trim();
+  }
+
+  const countsMap = new Map();
+  const pattern1 = /([A-Za-z0-9\s/_\-]+?)\s*\(\s*(\d+)(?:\s*(?:Nos|nos|nos\.|Qty|qty|units|pieces|pcs))?\s*\)/gi;
+  let match;
+  let matchedCount = 0;
+
+  while ((match = pattern1.exec(cleaned)) !== null) {
+    let rawReason = match[1].trim();
+    const qty = parseInt(match[2], 10);
+
+    rawReason = rawReason.replace(/^[\[\]|:;\s]+/, '');
+    rawReason = rawReason.replace(/^Drawing\s+[^:\s|\[\]()]+:\s*/i, '').trim();
+
+    if (rawReason && !rawReason.toLowerCase().startsWith('batch') && !isNaN(qty)) {
+      const key = rawReason.toLowerCase();
+      if (countsMap.has(key)) {
+        countsMap.get(key).count += qty;
+      } else {
+        countsMap.set(key, { name: rawReason, count: qty });
+      }
+      matchedCount++;
+    }
+  }
+
+  if (matchedCount === 0) {
+    const pattern2 = /:\s*(\d+)\s*(?:Nos|nos)?\s*-\s*\[(.*?)\]/gi;
+    while ((match = pattern2.exec(cleaned)) !== null) {
+      const qty = parseInt(match[1], 10);
+      let rawReason = match[2].trim();
+      rawReason = rawReason.replace(/^Drawing\s+[^:\s|\[\]()]+:\s*/i, '').trim();
+      if (rawReason && !isNaN(qty)) {
+        const key = rawReason.toLowerCase();
+        if (countsMap.has(key)) {
+          countsMap.get(key).count += qty;
+        } else {
+          countsMap.set(key, { name: rawReason, count: qty });
+        }
+        matchedCount++;
+      }
+    }
+  }
+
+  if (countsMap.size > 0) {
+    return Array.from(countsMap.values())
+      .map(item => `${item.name} (${item.count})`)
+      .join(', ');
+  }
+
+  return cleaned || "Not Applicable";
+};
 
 // Top-level EditableField component to prevent focus loss during typing
 const EditableField = ({
@@ -397,7 +477,7 @@ const RailpadProcessIc = ({
                       <EditableField value={chpClNo} fieldName="chpClNo" type="textarea" {...fieldProps} />
                     </td>
                     <td style={{ ...tdStyle, borderBottom: 'none', textAlign: 'center' }}>
-                      {lotNo}
+                      {formatLotNo(lotNo)}
                     </td>
                     <td style={{ ...tdStyle, borderBottom: 'none', textAlign: 'center' }}>
                       {qtyNowOffered}
@@ -422,8 +502,8 @@ const RailpadProcessIc = ({
                 <EditableField value={quantityNowPassedText} fieldName="quantityNowPassedText" type="textarea" style={{ display: 'inline' }} {...fieldProps} />
               </div>
               <div style={{ marginTop: '6px' }}>
-                <span style={{ fontWeight: 'bold' }}># Reason of Rejection: </span>
-                <EditableField value={reasonsForRejection} fieldName="reasonsForRejection" type="textarea" style={{ display: 'inline' }} {...fieldProps} />
+                <span style={{ fontWeight: 'bold' }}>Reason of Rejection: </span>
+                <EditableField value={aggregateRejectionReasons(reasonsForRejection)} fieldName="reasonsForRejection" type="textarea" style={{ display: 'inline' }} {...fieldProps} />
               </div>
             </td>
           </tr>
@@ -453,16 +533,14 @@ const RailpadProcessIc = ({
           {/* Sealing & Inspecting Engineer */}
           <tr>
             <td colSpan="2" style={{ ...tdStyle, verticalAlign: 'top', width: '66%' }}>
-              <div style={{ fontWeight: 'bold', textDecoration: 'underline' }}>Pattern of sealing/stamping or identification:</div>
-              <div style={{ marginTop: '4px' }}>
-                <EditableField value={sealingPattern} fieldName="sealingPattern" type="textarea" {...fieldProps} />
+              <div style={{ fontWeight: 'bold' }}>Pattern of sealing/stamping or identification:</div>
+              <div style={{ marginTop: '4px', textAlign: 'center' }}>
+                <EditableField value={sealingPattern} fieldName="sealingPattern" type="textarea" style={{ textAlign: 'center' }} {...fieldProps} />
               </div>
             </td>
-            <td colSpan="1" style={{ ...tdStyle, verticalAlign: 'top', textAlign: 'center', width: '34%' }}>
+            <td colSpan="1" className="ie-signature-box" style={{ ...tdStyle, verticalAlign: 'top', textAlign: 'center', width: '34%' }}>
               <div style={{ fontWeight: 'bold' }}>Inspecting Engineer</div>
-              <div style={{ marginTop: '40px', fontWeight: 'bold', textTransform: 'uppercase' }}>
-                <EditableField value={inspectingEngineer} fieldName="inspectingEngineer" style={{ textAlign: 'center', fontWeight: 'bold' }} {...fieldProps} />
-              </div>
+              <div style={{ minHeight: '40px' }}></div>
             </td>
           </tr>
         </tbody>

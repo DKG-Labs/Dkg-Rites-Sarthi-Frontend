@@ -166,6 +166,12 @@ export const fetchUserPendingCalls = async (forceRefresh = false) => {
     // - Process: userId is in processIes array
     // - Final: userId is in finalIes array
     const userTransitions = allTransitions.filter((transition) => {
+      const statusUpper = (transition.status || '').toUpperCase();
+      const jobStatusUpper = (transition.jobStatus || '').toUpperCase();
+      if (statusUpper.includes('CANCELLED') || jobStatusUpper.includes('CANCELLED')) {
+        return false;
+      }
+
       const productType = transition.productType;
 
       if (productType === 'Raw Material') {

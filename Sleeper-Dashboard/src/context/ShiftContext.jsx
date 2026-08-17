@@ -48,19 +48,19 @@ export const ShiftProvider = ({ children }) => {
 
             let allowed = [];
 
-            // Shift A: 06:00 to 14:00 + 1 hr grace = 06:00 to 15:00
-            if (currentHour >= 6 && currentHour < 15) {
+            // Shift A: 05:00 to 17:00 + 1 hr grace = 05:00 to 18:00
+            if (currentHour >= 5 && currentHour < 18) {
                 allowed.push({ date: currentDateStr, shift: 'A' });
             }
-            // Shift B: 14:00 to 22:00 + 1 hr grace = 14:00 to 23:00
-            if (currentHour >= 14 && currentHour < 23) {
+            // Shift B: 13:00 to 23:55
+            if (currentHour >= 13 && currentHour < 24) {
                 allowed.push({ date: currentDateStr, shift: 'B' });
             }
-            // Shift C: 22:00 to 06:00 + 1 hr grace = 22:00 to 07:00
+            // Shift C: 22:00 to 09:00 + 1 hr grace = 22:00 to 10:00
             if (currentHour >= 22) {
                 allowed.push({ date: currentDateStr, shift: 'C' });
             }
-            if (currentHour < 7) {
+            if (currentHour < 10) {
                 // After midnight, the C shift that is currently active started yesterday
                 allowed.push({ date: yesterdayStr, shift: 'C' });
             }

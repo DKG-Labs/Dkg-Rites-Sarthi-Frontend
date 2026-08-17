@@ -317,10 +317,10 @@ const MainDashboard = () => {
                                         required
                                     >
                                         <option value="">Select Shift</option>
-                                        <option value="A">Shift A (Morning)</option>
-                                        <option value="B">Shift B (Afternoon)</option>
-                                        <option value="C">Shift C (Night)</option>
-                                        <option value="General">General (Audit/RM)</option>
+                                        <option value="A">Shift A (05:00 - 17:00)</option>
+                                        <option value="B">Shift B (13:00 - 23:55)</option>
+                                        <option value="C">Shift C (22:00 - 09:00)</option>
+                                        <option value="General">General (08:00 - 20:00)</option>
                                     </select>
                                 </label>
 

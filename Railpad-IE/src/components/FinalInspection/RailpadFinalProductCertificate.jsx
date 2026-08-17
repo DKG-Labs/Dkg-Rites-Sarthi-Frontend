@@ -167,7 +167,35 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
             uploadedBy: user?.userName || "Inspecting Engineer"
           });
           
-          showToast("Signed certificate stored successfully!", "success");
+          showToast("Signed certificate stored successfully in Azure!", "success");
+
+          // Auto-download the signed IC PDF
+          try {
+            if (signedData && typeof signedData === 'string') {
+              const cleanBase64 = signedData.includes(',') ? signedData.split(',')[1] : signedData;
+              if (cleanBase64.startsWith('JVBER') || cleanBase64.length > 50) {
+                const byteCharacters = atob(cleanBase64);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                  byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                const blob = new Blob([byteArray], { type: 'application/pdf' });
+                const blobUrl = URL.createObjectURL(blob);
+                const downloadLink = document.createElement('a');
+                downloadLink.href = blobUrl;
+                downloadLink.download = fileName || `${(certificateNo || callNo).replace(/[/\\?%*:|"<>]/g, '_')}.pdf`;
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+                showToast("E-Signed IC PDF downloaded successfully!", "success");
+              }
+            }
+          } catch (dlErr) {
+            console.warn("⚠️ Auto-download PDF error:", dlErr);
+          }
+
           await delay(1000);
 
           try {

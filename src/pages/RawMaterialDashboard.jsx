@@ -262,11 +262,12 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
         return;
       }
 
-      // Reset fetch flag if call changes
+      // Reset fetch flag and images if call changes
       if (currentCallRef.current !== callNo) {
         hasFetchedRef.current = false;
         hasLoadedDraftRef.current = false;
         currentCallRef.current = callNo;
+        setCapturedImages([]);
       }
 
       // Prevent duplicate API calls (especially in React StrictMode)
@@ -1882,6 +1883,16 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       localStorage.removeItem(`${STORAGE_KEYS.CALIBRATION}_${inspectionCallNo}${getShiftSuffix()}`);
       localStorage.removeItem(`${STORAGE_KEYS.MAIN_INSPECTION}_${inspectionCallNo}${getShiftSuffix()}`);
       localStorage.removeItem(`${DASHBOARD_DRAFT_KEY}${inspectionCallNo}${getShiftSuffix()}`);
+      localStorage.removeItem(`${DASHBOARD_DRAFT_KEY}${inspectionCallNo}`);
+
+      // Clear captured images from IndexedDB and state
+      const draftStorageKey = `${DASHBOARD_DRAFT_KEY}${inspectionCallNo}${getShiftSuffix()}`;
+      import('../utils/imageStorage').then(({ removeImages }) => {
+        removeImages(draftStorageKey).catch(console.error);
+        removeImages(`${DASHBOARD_DRAFT_KEY}${inspectionCallNo}`).catch(console.error);
+        removeImages('capturedImages').catch(console.error);
+      });
+      setCapturedImages([]);
 
       // Reset context cache
       updateRmPoDataCache(null);
@@ -1914,7 +1925,7 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
       setIsSaving(false);
       isProcessingFinishRef.current = false;
     }
-  }, [call?.call_no, call?.id, call?.pincode, call?.workflowTransitionId, activeHeats, onBack, numberOfBundles, numberOfERC, sourceOfRawMaterial, poData, productModel, heatSubmoduleStatuses, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, calculateVisualRejectedWeight, consolidatedHeats, canFinishInspection, updateRmCallDataCache, updateRmHeatDataCache, updateRmPoDataCache, capturedImages]);
+  }, [call?.call_no, call?.id, call?.pincode, call?.workflowTransitionId, activeHeats, onBack, numberOfBundles, numberOfERC, sourceOfRawMaterial, poData, productModel, heatSubmoduleStatuses, heatRemarks, heatSealingType, heatSteelStampNumber, heatHologramEntries, calculateVisualRejectedWeight, consolidatedHeats, canFinishInspection, updateRmCallDataCache, updateRmHeatDataCache, updateRmPoDataCache, capturedImages, setCapturedImages]);
 
   // Withheld modal handlers
   const handleOpenWithheldModal = () => {

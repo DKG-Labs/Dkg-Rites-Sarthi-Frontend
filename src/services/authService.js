@@ -208,10 +208,14 @@ export const storeAuthData = (authData) => {
   const currentUserId = String(authData.userId || '');
   const currentLoginId = String(authData.loginId || '');
 
-  // If a different user is logging in on the same machine, wipe all previous inspection caches
+  // If a different user is logging in on the same machine, clear session state so new user starts clean
   if (previousUserId && (previousUserId !== currentUserId || (currentLoginId && previousLoginId && previousLoginId !== currentLoginId))) {
-    console.log(`🔄 User switched on same machine (${previousUserId} -> ${currentUserId}) - purging previous inspection caches`);
-    clearAllInspectionStorageCaches();
+    console.log(`🔄 User switched on same machine (${previousUserId} -> ${currentUserId}) - resetting active session`);
+    try {
+      sessionStorage.clear();
+    } catch (e) {
+      console.error('Error clearing session on user switch:', e);
+    }
   }
 
   localStorage.setItem('lastLoggedInUserId', currentUserId);
@@ -263,16 +267,22 @@ export const isAuthenticated = () => {
 };
 
 /**
- * Logout user - clear auth credentials and session state
- * Wipes inspection caches and sessionStorage so next login starts clean.
+ * Logout user - clear auth credentials
+ * Preserves inspection drafts for the same user while keeping lastLoggedInUserId
+ * so storeAuthData can purge caches if a different user logs in next.
  */
 export const logoutUser = () => {
   try {
-    clearAllInspectionStorageCaches();
     sessionStorage.clear();
   } catch (e) {
     console.error('Error clearing storage on logout:', e);
   }
+
+  // Preserve lastLoggedInUserId & lastLoggedInLoginId to detect if a different user logs in next
+  const lastUserId = localStorage.getItem('userId') || localStorage.getItem('lastLoggedInUserId');
+  const lastLoginId = localStorage.getItem('loginId') || localStorage.getItem('lastLoggedInLoginId');
+  if (lastUserId) localStorage.setItem('lastLoggedInUserId', lastUserId);
+  if (lastLoginId) localStorage.setItem('lastLoggedInLoginId', lastLoginId);
 
   localStorage.removeItem('authToken');
   localStorage.removeItem('userId');

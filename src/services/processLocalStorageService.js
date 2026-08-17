@@ -7,31 +7,37 @@ import { isSessionEnded } from '../utils/inspectionSessionControl';
 
 const STORAGE_PREFIX = 'process_inspection_';
 
+const getCurrentUserId = () => {
+  return localStorage.getItem('userId') || localStorage.getItem('loginId') || '';
+};
+
 /**
- * Generate storage key for a specific submodule, line, date and shift
+ * Generate storage key for a specific submodule, line, date, shift, and user
  * Optional lotNo parameter for lot-specific data (e.g., lineFinalResult per lot)
  */
-const getStorageKey = (submodule, inspectionCallNo, poNo, lineNo, shift = '', lotNo = null, date = '') => {
+const getStorageKey = (submodule, inspectionCallNo, poNo, lineNo, shift = '', lotNo = null, date = '', userId = '') => {
+  const effectiveUserId = userId || getCurrentUserId();
+  const userPrefix = effectiveUserId ? `${STORAGE_PREFIX}${effectiveUserId}_` : STORAGE_PREFIX;
   const effectiveDate = date || sessionStorage.getItem('inspectionDate') || '';
   const dateSuffix = effectiveDate ? `_${effectiveDate}` : '';
   const shiftSuffix = shift ? `_${shift}` : '';
   if (lotNo) {
-    return `${STORAGE_PREFIX}${submodule}_${inspectionCallNo}_${poNo}_${lineNo}${dateSuffix}${shiftSuffix}_${lotNo}`;
+    return `${userPrefix}${submodule}_${inspectionCallNo}_${poNo}_${lineNo}${dateSuffix}${shiftSuffix}_${lotNo}`;
   }
-  return `${STORAGE_PREFIX}${submodule}_${inspectionCallNo}_${poNo}_${lineNo}${dateSuffix}${shiftSuffix}`;
+  return `${userPrefix}${submodule}_${inspectionCallNo}_${poNo}_${lineNo}${dateSuffix}${shiftSuffix}`;
 };
 
 /**
  * Save data to localStorage (persists across page refresh)
  * Optional lotNo parameter for lot-specific data
  */
-export const saveToLocalStorage = (submodule, inspectionCallNo, poNo, lineNo, data, shift = '', lotNo = null, date = '') => {
+export const saveToLocalStorage = (submodule, inspectionCallNo, poNo, lineNo, data, shift = '', lotNo = null, date = '', userId = '') => {
   if (isSessionEnded()) {
     console.log(`🛑 [LocalStorage] Save blocked for ${submodule} - session has ended`);
     return false;
   }
   try {
-    const key = getStorageKey(submodule, inspectionCallNo, poNo, lineNo, shift, lotNo, date);
+    const key = getStorageKey(submodule, inspectionCallNo, poNo, lineNo, shift, lotNo, date, userId);
     localStorage.setItem(key, JSON.stringify(data));
     return true;
   } catch (error) {
@@ -41,51 +47,57 @@ export const saveToLocalStorage = (submodule, inspectionCallNo, poNo, lineNo, da
 };
 
 /**
- * Load data from localStorage
+ * Load data from localStorage (strictly scoped to user)
  * Optional lotNo parameter for lot-specific data
  */
-export const loadFromLocalStorage = (submodule, inspectionCallNo, poNo, lineNo, shift = '', lotNo = null, date = '') => {
+export const loadFromLocalStorage = (submodule, inspectionCallNo, poNo, lineNo, shift = '', lotNo = null, date = '', userId = '') => {
   try {
-    const key = getStorageKey(submodule, inspectionCallNo, poNo, lineNo, shift, lotNo, date);
+    const effectiveUserId = userId || getCurrentUserId();
+    // 1. Try user-scoped key with date
+    const key = getStorageKey(submodule, inspectionCallNo, poNo, lineNo, shift, lotNo, date, effectiveUserId);
     let stored = localStorage.getItem(key);
     if (stored) return JSON.parse(stored);
 
-    // Fallback 1: Legacy key without date
-    const legacyKey = `${STORAGE_PREFIX}${submodule}_${inspectionCallNo}_${poNo}_${lineNo}${shift ? `_${shift}` : ''}${lotNo ? `_${lotNo}` : ''}`;
-    stored = localStorage.getItem(legacyKey);
-    if (stored) return JSON.parse(stored);
+    // 2. Try user-scoped key without date
+    if (effectiveUserId) {
+      const userLegacyKey = `${STORAGE_PREFIX}${effectiveUserId}_${submodule}_${inspectionCallNo}_${poNo}_${lineNo}${shift ? `_${shift}` : ''}${lotNo ? `_${lotNo}` : ''}`;
+      stored = localStorage.getItem(userLegacyKey);
+      if (stored) return JSON.parse(stored);
+    }
 
-    // Fallback 2: Smart fuzzy scan across localStorage for matching submodule, call, line, shift
-    if (inspectionCallNo && lineNo) {
-      const cleanCallNo = String(inspectionCallNo).replace(/[-_/]/g, '').toLowerCase();
-      const cleanLineNum = String(lineNo).replace(/\D/g, '');
-      const prefix = `${STORAGE_PREFIX}${submodule}_`;
+    // 3. Robust scan: find any matching key for this user, submodule, call, line, shift, and lot
+    const normCall = inspectionCallNo ? String(inspectionCallNo).replace(/[-_/]/g, '').toLowerCase() : '';
+    const normLine = lineNo ? String(lineNo).replace(/[-_]/g, '').toLowerCase() : '';
+    const normShift = shift ? String(shift).toLowerCase() : '';
+    const normLot = lotNo ? String(lotNo).trim().toLowerCase() : '';
 
+    if (normCall && normLine) {
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
-        if (!k || !k.startsWith(prefix)) continue;
-        const normKey = k.toLowerCase();
-        const normKeyChars = normKey.replace(/[-_/]/g, '');
+        if (!k) continue;
+        const normK = k.toLowerCase();
 
-        // Match call number
-        if (cleanCallNo && !normKeyChars.includes(cleanCallNo)) continue;
-
-        // Match line number
-        if (cleanLineNum && !normKey.includes(`line-${cleanLineNum}`) && !normKey.includes(`line_${cleanLineNum}`) && !normKey.includes(`line${cleanLineNum}`) && !normKey.endsWith(`_${cleanLineNum}`)) continue;
-
-        // Match shift if specified
-        if (shift && !normKey.includes(`_${shift.toLowerCase()}`)) continue;
-
-        // Match lot if specified
-        if (lotNo && !normKey.includes(`_${String(lotNo).toLowerCase()}`)) continue;
+        // Must belong to this user if userId is present
+        if (effectiveUserId && !normK.includes(`_${String(effectiveUserId).toLowerCase()}_`)) continue;
+        if (!normK.includes(`_${String(submodule).toLowerCase()}_`)) continue;
+        if (!normK.replace(/[-_/]/g, '').includes(normCall)) continue;
+        if (!normK.replace(/[-_/]/g, '').includes(normLine)) continue;
+        if (normShift && !normK.includes(`_${normShift}`) && !normK.includes(`_${normShift}_`)) continue;
+        if (normLot && !normK.includes(`_${normLot}`)) continue;
 
         const val = localStorage.getItem(k);
         if (val) {
-          console.log(`🔍 [LocalStorage] Recovered ${submodule} data using smart match key: ${k}`);
-          return JSON.parse(val);
+          try {
+            return JSON.parse(val);
+          } catch (e) {}
         }
       }
     }
+
+    // 4. Fallback: Legacy unscoped key
+    const legacyKey = `${STORAGE_PREFIX}${submodule}_${inspectionCallNo}_${poNo}_${lineNo}${shift ? `_${shift}` : ''}${lotNo ? `_${lotNo}` : ''}`;
+    stored = localStorage.getItem(legacyKey);
+    if (stored) return JSON.parse(stored);
 
     return null;
   } catch (error) {
@@ -98,10 +110,15 @@ export const loadFromLocalStorage = (submodule, inspectionCallNo, poNo, lineNo, 
  * Clear data from localStorage for a specific submodule
  * Optional lotNo parameter for lot-specific data
  */
-export const clearFromLocalStorage = (submodule, inspectionCallNo, poNo, lineNo, shift = '', lotNo = null, date = '') => {
+export const clearFromLocalStorage = (submodule, inspectionCallNo, poNo, lineNo, shift = '', lotNo = null, date = '', userId = '') => {
   try {
-    const key = getStorageKey(submodule, inspectionCallNo, poNo, lineNo, shift, lotNo, date);
+    const effectiveUserId = userId || getCurrentUserId();
+    const key = getStorageKey(submodule, inspectionCallNo, poNo, lineNo, shift, lotNo, date, effectiveUserId);
     localStorage.removeItem(key);
+    if (effectiveUserId) {
+      const userLegacyKey = `${STORAGE_PREFIX}${effectiveUserId}_${submodule}_${inspectionCallNo}_${poNo}_${lineNo}${shift ? `_${shift}` : ''}${lotNo ? `_${lotNo}` : ''}`;
+      localStorage.removeItem(userLegacyKey);
+    }
     const legacyKey = `${STORAGE_PREFIX}${submodule}_${inspectionCallNo}_${poNo}_${lineNo}${shift ? `_${shift}` : ''}${lotNo ? `_${lotNo}` : ''}`;
     localStorage.removeItem(legacyKey);
     return true;
@@ -315,8 +332,8 @@ export const clearAllProcessData = (inspectionCallNo, poNo, lineNo, shift = '', 
 
       const normKey = key.toLowerCase();
 
-      // Check if it belongs to any process submodule
-      const isSubmoduleKey = submodules.some(sub => key.startsWith(`${STORAGE_PREFIX}${sub}_`));
+      // Check if it belongs to any process submodule (scoped by user or legacy)
+      const isSubmoduleKey = submodules.some(sub => key.includes(`_${sub}_`) || key.startsWith(`${STORAGE_PREFIX}${sub}_`));
       if (!isSubmoduleKey) continue;
 
       // Check call or po match

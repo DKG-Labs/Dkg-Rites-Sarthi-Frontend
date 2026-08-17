@@ -79,14 +79,11 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
     setNo = "",
   } = data;
 
-  // Qty Now Accepted = Offered - Rejected
+  // Qty Now Accepted = Offered - Rejected - ErcUsed (or from qtyNowPassed)
   const numQtyOnOrder = parseFloat(qtyOnOrder) || 0;
   const numQtyPassedPreviously = parseFloat(qtyPassedPreviously) || 0;
   const numQtyNowOffered = parseFloat(qtyNowOffered) || 0;
   const numQtyNowRejected = parseFloat(qtyNowRejected) || 0;
-
-  const rawAccepted = numQtyNowOffered > 0 ? Math.max(0, numQtyNowOffered - numQtyNowRejected) : (parseFloat(String(qtyNowPassed || 0).replace(/\*/g, '')) || 0);
-  const displayQtyNowPassed = String(qtyNowPassed || "").endsWith('*') ? qtyNowPassed : `${rawAccepted}*`;
 
   // Calculate total erc_used_for_testing sum from data or lot details
   let ercUsedCount = 0;
@@ -100,10 +97,14 @@ const ErcFinalIc = ({ data = {}, isEditing = false, isBusy = false, onFieldChang
     ercUsedCount = data.finalLotDetails.reduce((sum, l) => sum + (parseFloat(l.ercUsedForTesting || l.erc_used_for_testing || l.ercUsed || l.erc_used || l.noOfErcUsed || l.no_of_erc_used || l.testingQty) || 0), 0);
   }
 
-  // Still Due Qty = Order Qty - Previously Passed Qty - Now Accepted Dispatched Qty (rawAccepted - ercUsedCount)
-  // i.e. Order Qty - Previously Passed Qty - rawAccepted + ercUsedCount (e.g. 123441 + 29 = 123470)
-  const dispatchAccepted = Math.max(0, rawAccepted - ercUsedCount);
-  const calculatedQtyStillDue = Math.max(0, numQtyOnOrder - numQtyPassedPreviously - dispatchAccepted);
+  const rawAccepted = (qtyNowPassed !== undefined && qtyNowPassed !== null && qtyNowPassed !== "")
+    ? (parseFloat(String(qtyNowPassed).replace(/\*/g, '')) || 0)
+    : (numQtyNowOffered > 0 ? Math.max(0, numQtyNowOffered - numQtyNowRejected - ercUsedCount) : 0);
+
+  const displayQtyNowPassed = String(qtyNowPassed || rawAccepted);
+
+  // Still Due Qty = Order Qty - Previously Passed Qty - Now Accepted Qty
+  const calculatedQtyStillDue = Math.max(0, numQtyOnOrder - numQtyPassedPreviously - rawAccepted);
   const displayQtyStillDue = (numQtyOnOrder > 0 || numQtyPassedPreviously > 0 || rawAccepted > 0)
     ? String(calculatedQtyStillDue)
     : (qtyStillDue || "0");

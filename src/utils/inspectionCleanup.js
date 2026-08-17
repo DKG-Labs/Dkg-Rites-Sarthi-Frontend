@@ -80,6 +80,44 @@ export const performInspectionCleanup = (inspectionCallNo, productionLines, manu
         console.error('❌ [Cleanup] Error clearing sessionStorage:', error);
     }
 
+    // Step 2b: Clear process dashboard state keys from localStorage
+    try {
+        const sessionKeys = [
+            'processProductionLinesData',
+            'processSelectedLineTab',
+            'processFinalInspectionRemarks',
+            'additionalInitiatedCalls',
+            'processSelectedLotByLine',
+            'processCallInitiationDataCache',
+            'processManufacturedQtyByLine',
+            'process_shift_completed'
+        ];
+
+        const localKeysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (!key) continue;
+
+            const isProcessKey = sessionKeys.some(base => key === base || key.startsWith(`${base}_`) || key.includes(base));
+            if (isProcessKey) {
+                if (clearAllShifts) {
+                    localKeysToRemove.push(key);
+                } else {
+                    const normKey = key.toLowerCase();
+                    const matchesCall = !normCallNo || normKey.replace(/[-_/]/g, '').includes(normCallNo);
+                    const matchesShift = !shift || normKey.includes(`_${shift.toLowerCase()}`);
+                    if (matchesCall || matchesShift) {
+                        localKeysToRemove.push(key);
+                    }
+                }
+            }
+        }
+        localKeysToRemove.forEach(k => localStorage.removeItem(k));
+        console.log(`✅ [Cleanup] Cleared ${localKeysToRemove.length} localStorage dashboard state keys`);
+    } catch (error) {
+        console.error('❌ [Cleanup] Error clearing localStorage dashboard state:', error);
+    }
+
     // Step 3: Clear localStorage for all lines
     if (manufacturingLines && productionLines) {
         manufacturingLines.forEach(line => {
@@ -127,6 +165,14 @@ export const performInspectionCleanup = (inspectionCallNo, productionLines, manu
             localStorage.removeItem(k);
             console.log(`🧹 [Cleanup] Removed draft key: ${k}`);
         });
+
+        // Remove draft images from IndexedDB
+        import('../utils/imageStorage').then(({ removeImages }) => {
+            draftKeysToRemove.forEach(k => removeImages(k).catch(() => {}));
+            if (clearAllShifts) {
+                removeImages('capturedImages').catch(() => {});
+            }
+        }).catch(() => {});
     } catch (error) {
         console.error('❌ [Cleanup] Error clearing dashboard drafts:', error);
     }

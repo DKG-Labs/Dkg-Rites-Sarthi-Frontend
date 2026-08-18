@@ -712,7 +712,7 @@ const CompactionConcrete = ({
                                     <div className="table-outer-wrapper" style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                                         <div className="table-responsive">
                                             <table className="ui-table">
-                                                <thead><tr><th>Location</th><th>Shift</th><th>Source</th><th>Date</th><th>Time</th><th>Batch</th><th>Bench</th><th>Type</th><th>RPM Range</th><th>Dur Range</th><th>Actions</th></tr></thead>
+                                                <thead><tr><th>Location</th><th>Shift</th><th>Source</th><th>Date</th><th>Time</th><th>Batch</th><th>Bench</th><th>RPM Range</th><th>Dur Range</th><th>Actions</th></tr></thead>
                                                 <tbody>
                                                     {recordsSubset.map(e => (
                                                         <tr key={e.id}>
@@ -720,7 +720,7 @@ const CompactionConcrete = ({
                                                             <td style={{ fontSize: '11px' }}>{e.shift || '—'}</td>
                                                             <td><span className={`status-pill ${e.source === 'Manual' ? 'manual' : 'witnessed'}`}>{e.source}</span></td>
                                                             <td>{e.date && e.date.includes('-') ? e.date.split('-').reverse().join('/') : (e.date || '—')}</td>
-                                                            <td>{e.time}</td><td>{e.batchNo}</td><td><strong>{e.benchNo}</strong></td><td>{e.sleeperType || '—'}</td><td>{e.minRpm}-{e.maxRpm}</td><td>{e.duration}s</td>
+                                                            <td>{e.time}</td><td>{e.batchNo}</td><td><strong>{e.benchNo}</strong></td><td>{e.minRpm}-{e.maxRpm}</td><td>{e.duration}s</td>
                                                             <td>
                                                                 {isActiveDuty ? (
                                                                     <button 

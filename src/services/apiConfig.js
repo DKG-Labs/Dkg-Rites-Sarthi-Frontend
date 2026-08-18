@@ -21,6 +21,7 @@ export const API_BASE_URL = isLocal
 //Base url for prd
 //export const API_BASE_URL = "https://api.ritesqasarthi.com/sarthi-backend";
 
+
 /**
  * Common API endpoint
  */

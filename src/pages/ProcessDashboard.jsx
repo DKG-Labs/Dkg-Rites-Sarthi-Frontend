@@ -5639,17 +5639,10 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           }
 
           const currentLotData = lineLotData[lotNo] || {};
-          const stateMfg = Math.max(
-            parseInt(currentLotData.shearing || 0, 10) || 0,
-            parseInt(currentLotData.turning || 0, 10) || 0,
-            parseInt(currentLotData.mpiTesting || 0, 10) || 0,
-            parseInt(currentLotData.forging || 0, 10) || 0,
-            parseInt(currentLotData.quenching || 0, 10) || 0,
-            parseInt(currentLotData.tempering || 0, 10) || 0,
-            parseInt(currentLotData.testingFinishing || 0, 10) || 0
-          );
-
-          const currentShiftManufacturedQty = Math.max(lotFinalResult?.totalManufactured || 0, stateMfg);
+          // Manufactured quantity for the workflow transition is strictly restricted to Shearing stage only
+          const shearingMfgFromState = parseInt(currentLotData.shearing || 0, 10) || 0;
+          const shearingMfgFromSaved = parseInt(lotFinalResult?.shearingManufactured, 10) || (lotFinalResult?.totalManufactured ? parseInt(lotFinalResult.totalManufactured, 10) : 0);
+          const currentShiftManufacturedQty = shearingMfgFromState > 0 ? shearingMfgFromState : shearingMfgFromSaved;
           const currentShiftRejectedQty = lotFinalResult?.totalRejected || 0;
 
           // Negative inspected quantity formula:
@@ -6219,17 +6212,10 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
             loadFromLocalStorage('lineFinalResult', callNo, poNo, lineNo, shift, lotNo);
 
           const currentLotData = lineLotData[lotNo] || {};
-          const stateMfg = Math.max(
-            parseInt(currentLotData.shearing || 0, 10) || 0,
-            parseInt(currentLotData.turning || 0, 10) || 0,
-            parseInt(currentLotData.mpiTesting || 0, 10) || 0,
-            parseInt(currentLotData.forging || 0, 10) || 0,
-            parseInt(currentLotData.quenching || 0, 10) || 0,
-            parseInt(currentLotData.tempering || 0, 10) || 0,
-            parseInt(currentLotData.testingFinishing || 0, 10) || 0
-          );
-
-          const currentShiftManufacturedQty = Math.max(lotFinalResult?.totalManufactured || 0, stateMfg);
+          // Manufactured quantity for the workflow transition is strictly restricted to Shearing stage only
+          const shearingMfgFromState = parseInt(currentLotData.shearing || 0, 10) || 0;
+          const shearingMfgFromSaved = parseInt(lotFinalResult?.shearingManufactured, 10) || (lotFinalResult?.totalManufactured ? parseInt(lotFinalResult.totalManufactured, 10) : 0);
+          const currentShiftManufacturedQty = shearingMfgFromState > 0 ? shearingMfgFromState : shearingMfgFromSaved;
 
           // Get current shift rejected quantity
           const currentTotalRejected = lotFinalResult?.totalRejected || rejectedQty.totalRejected || 0;

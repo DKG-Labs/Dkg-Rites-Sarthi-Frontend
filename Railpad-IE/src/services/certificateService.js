@@ -295,10 +295,58 @@ export const validateBookSetNo = async (empNo, bookNo, setNo, status = "F") => {
  * @returns {Promise<Object>} Upload response
  */
 export const uploadSignedCertificate = async (payload) => {
-  await delay(500);
-  console.log('📤 [MOCK] Uploading signed certificate to Azure for IC:', payload.icNumber);
-  localStorage.setItem(`signed_cert_${payload.icNumber}`, JSON.stringify(payload));
-  return { success: true, message: "Signed certificate uploaded successfully" };
+  try {
+    console.log('📤 Uploading signed certificate to Azure for IC:', payload.icNumber);
+    const response = await fetch(`${getBaseUrl()}/certificate-storage/upload`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('authToken') || ''}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || `Failed to upload certificate: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ Signed certificate successfully saved to Azure & DB:', data);
+    return data;
+  } catch (error) {
+    console.error('❌ Error uploading certificate to Azure:', error);
+    throw error;
+  }
+};
+
+/**
+ * View/Download Signed IC from Azure Blob Storage
+ * @param {string} icNumber 
+ * @returns {Promise<Object>} { fileName, signedData }
+ */
+export const viewSignedCertificate = async (icNumber) => {
+  try {
+    console.log('🔍 Fetching signed certificate from Azure for IC:', icNumber);
+    const response = await fetch(`${getBaseUrl()}/certificate-storage/view?icNumber=${encodeURIComponent(icNumber)}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('authToken') || ''}`
+      }
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || `Failed to fetch certificate: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('❌ Error fetching certificate from Azure:', error);
+    throw error;
+  }
 };
 
 // ─── Process IC Save Changes ──────────────────────────────────────────────────

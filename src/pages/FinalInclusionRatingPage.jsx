@@ -82,23 +82,20 @@ const FinalInclusionRatingPage = ({ onBack, productModel: propProductModel, onNa
       const heatNo = lot.heatNo || lot.heatNumber;
       const lotSize = lot.lotSize || lot.offeredQty || 0;
 
-      // New Logic: Sample Size based on Hardness Test Sample Size
+      // Sample Size based on Hardness Test Sample Size (IS 2500)
       const hardnessAQL = getHardnessToeLoadAQL(lotSize);
       const hardnessSampleSize = hardnessAQL.n1;
 
-      // General Sample Size (Decarb, Micro, Defects) = 5% of Hardness Sample Size
-      const calculatedGeneralSampleSize = Math.ceil(hardnessSampleSize * 0.05);
-
-      // Inclusion Sample Size = Max(6, General Sample Size)
-      const finalInclusionSampleSize = Math.max(6, calculatedGeneralSampleSize);
+      // Sample for inclusions and other tests = 5% of hardness sample or 6 whichever is higher
+      const sampleSize = Math.max(6, Math.ceil(hardnessSampleSize * 0.05));
 
       return {
         ...lot,
         lotNo,
         heatNo,
         quantity: lotSize,
-        generalSampleSize: calculatedGeneralSampleSize,
-        inclusionSampleSize: finalInclusionSampleSize,
+        generalSampleSize: sampleSize,
+        inclusionSampleSize: sampleSize,
         // Dynamic Decarb limit based on Product Model
         // MK-III: Max 0.2064 mm
         // MK-V: Max 0.23 mm

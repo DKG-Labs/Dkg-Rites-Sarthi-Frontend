@@ -121,35 +121,26 @@ export const InspectionProvider = ({ children }) => {
 
   const [processLotNumbers] = useState(['LOT-001', 'LOT-002', 'LOT-003']);
 
-  // Captured Images (shared across dashboards)
+  // Captured Images (scoped per call in dashboards)
   const [capturedImages, setCapturedImages] = useState([]);
-
-  // Load from IndexedDB on mount
-  useEffect(() => {
-    const loadImages = async () => {
-      try {
-        const { getImages } = await import('../utils/imageStorage');
-        const images = await getImages('capturedImages');
-        if (images && images.length > 0) {
-          setCapturedImages(images);
-        }
-      } catch (e) {
-        console.error('Failed to load images from IndexedDB', e);
-      }
-    };
-    loadImages();
-  }, []);
 
   // Landing page active tab
   const [landingActiveTab, setLandingActiveTab] = useState('pending');
 
   // Persist to sessionStorage on change
   const updateSelectedCall = useCallback((call) => {
-    setSelectedCall(call);
+    setSelectedCall(prev => {
+      // If switching to a different call, reset captured images to prevent cross-call bleed
+      if (prev?.call_no !== call?.call_no) {
+        setCapturedImages([]);
+      }
+      return call;
+    });
     if (call) {
       sessionStorage.setItem('selectedCall', JSON.stringify(call));
     } else {
       sessionStorage.removeItem('selectedCall');
+      setCapturedImages([]);
     }
   }, []);
 

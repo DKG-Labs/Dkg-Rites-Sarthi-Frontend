@@ -1034,13 +1034,20 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
   // State for historical totals across all shifts for the selected lot
   const [lotHistoricalTotals, setLotHistoricalTotals] = useState(null);
 
+  // Get active user ID for multi-user shared laptop cache scoping
+  const activeUserId = getStoredUser()?.userId || localStorage.getItem('userId') || '';
+  const userPrefix = activeUserId ? `${activeUserId}_` : '';
+
   // State for additional initiated calls (added through "Add New Call Number" modal)
-  // Persisted in sessionStorage - scoped to call number
+  // Persisted in localStorage & sessionStorage - scoped to user, call number, and shift
   const [additionalInitiatedCalls, setAdditionalInitiatedCalls] = useState(() => {
     const callNoForScoping = call?.call_no;
     if (!callNoForScoping) return [];
 
-    const saved = sessionStorage.getItem(`additionalInitiatedCalls_${callNoForScoping}_${shift}`);
+    const saved = localStorage.getItem(`additionalInitiatedCalls_${userPrefix}${callNoForScoping}_${shift}`) ||
+      sessionStorage.getItem(`additionalInitiatedCalls_${userPrefix}${callNoForScoping}_${shift}`) ||
+      localStorage.getItem(`additionalInitiatedCalls_${callNoForScoping}_${shift}`) ||
+      sessionStorage.getItem(`additionalInitiatedCalls_${callNoForScoping}_${shift}`);
     if (saved) {
       try {
         return JSON.parse(saved);
@@ -1056,13 +1063,16 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
 
   const { capturedImages, setCapturedImages } = useInspection();
 
-  // State for editable production lines - persisted in sessionStorage - scoped to call number
+  // State for editable production lines - persisted in localStorage & sessionStorage - scoped to user, call number, and shift
   const [localProductionLines, setLocalProductionLines] = useState(() => {
     const callNoForScoping = call?.call_no;
     if (!callNoForScoping) return [{ lineNumber: 1, icNumber: '', poNumber: '', rawMaterialICs: '', productType: '' }];
 
-    // First check sessionStorage for persisted data
-    const savedLines = sessionStorage.getItem(`processProductionLinesData_${callNoForScoping}_${shift}`);
+    // First check localStorage, then sessionStorage for persisted data
+    const savedLines = localStorage.getItem(`processProductionLinesData_${userPrefix}${callNoForScoping}_${shift}`) ||
+      sessionStorage.getItem(`processProductionLinesData_${userPrefix}${callNoForScoping}_${shift}`) ||
+      localStorage.getItem(`processProductionLinesData_${callNoForScoping}_${shift}`) ||
+      sessionStorage.getItem(`processProductionLinesData_${callNoForScoping}_${shift}`);
     if (savedLines) {
       try {
         const parsed = JSON.parse(savedLines);
@@ -1158,11 +1168,12 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
 
   // State to store fetched initiation data for each call (keyed by call number)
   // This stores PO data, heat numbers, lot numbers, etc. from the backend API
-  // Persisted in sessionStorage to avoid re-fetching when navigating between modules
+  // Persisted in localStorage & sessionStorage to avoid re-fetching
   const [callInitiationDataCache, setCallInitiationDataCache] = useState(() => {
     const callNoForScoping = call?.call_no;
-    const cacheKey = callNoForScoping ? `processCallInitiationDataCache_${callNoForScoping}_${shift}` : 'processCallInitiationDataCache';
-    const saved = sessionStorage.getItem(cacheKey);
+    const cacheKey = callNoForScoping ? `processCallInitiationDataCache_${userPrefix}${callNoForScoping}_${shift}` : `processCallInitiationDataCache_${userPrefix}`;
+    const legacyCacheKey = callNoForScoping ? `processCallInitiationDataCache_${callNoForScoping}_${shift}` : 'processCallInitiationDataCache';
+    const saved = localStorage.getItem(cacheKey) || sessionStorage.getItem(cacheKey) || localStorage.getItem(legacyCacheKey) || sessionStorage.getItem(legacyCacheKey);
     if (saved) {
       try {
         return JSON.parse(saved);
@@ -1178,11 +1189,14 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
   const currentCallRef = useRef(null);
 
   // Manual entry state for "Manufactured" column - PER LINE PER LOT (keyed by [line][lot])
-  // Initialize with persisted session data or empty object
+  // Initialize with persisted localStorage or session data (scoped by user)
   const [manufacturedQtyByLine, setManufacturedQtyByLine] = useState(() => {
     const callNoForScoping = call?.call_no;
     if (!callNoForScoping) return {};
-    const saved = sessionStorage.getItem(`processManufacturedQtyByLine_${callNoForScoping}_${shift}`);
+    const saved = localStorage.getItem(`processManufacturedQtyByLine_${userPrefix}${callNoForScoping}_${shift}`) ||
+      sessionStorage.getItem(`processManufacturedQtyByLine_${userPrefix}${callNoForScoping}_${shift}`) ||
+      localStorage.getItem(`processManufacturedQtyByLine_${callNoForScoping}_${shift}`) ||
+      sessionStorage.getItem(`processManufacturedQtyByLine_${callNoForScoping}_${shift}`);
     if (saved) {
       try {
         return JSON.parse(saved);
@@ -1213,12 +1227,13 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           }
 
           // Get all lots for this line from the initiation data
-          const initiationData = callInitiationDataCache[prodLine.icNumber];
-          const lotsForThisLine = initiationData?.lotDetailsList?.map(lot => lot.lotNumber) || [];
+          const activeCallNo = prodLine.icNumber || call?.call_no || '';
+          const initiationData = callInitiationDataCache[activeCallNo] || callInitiationDataCache[call?.call_no];
+          const lotsForThisLine = initiationData?.lotDetailsList?.map(lot => lot.lotNumber) || (initiationData?.lotNumber ? [initiationData.lotNumber] : []);
 
           // Load manufactured quantities for each lot in this line
           lotsForThisLine.forEach(lotNo => {
-            const lineFinalResult = loadFromLocalStorage('lineFinalResult', inspectionCallNo, poNo, lineNo, shift, lotNo);
+            const lineFinalResult = loadFromLocalStorage('lineFinalResult', activeCallNo, poNo, lineNo, shift, lotNo);
             if (lineFinalResult) {
               const mfgData = {};
               if (lineFinalResult.shearingManufactured) mfgData.shearing = String(lineFinalResult.shearingManufactured);
@@ -1336,35 +1351,38 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
   const [newCallInitiateError, setNewCallInitiateError] = useState('');
   const [isNewCallSaving, setIsNewCallSaving] = useState(false);
 
-  // Persist production lines to sessionStorage whenever they change - scoped to call number
+  // Persist production lines to localStorage & sessionStorage whenever they change - scoped to user, call number, and shift
   useEffect(() => {
     if (isSessionEnded()) return;
     if (call?.call_no && localProductionLines && localProductionLines.length > 0) {
-      sessionStorage.setItem(`processProductionLinesData_${call.call_no}_${shift}`, JSON.stringify(localProductionLines));
+      localStorage.setItem(`processProductionLinesData_${userPrefix}${call.call_no}_${shift}`, JSON.stringify(localProductionLines));
+      sessionStorage.setItem(`processProductionLinesData_${userPrefix}${call.call_no}_${shift}`, JSON.stringify(localProductionLines));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localProductionLines, call?.call_no, shift]);
+  }, [localProductionLines, call?.call_no, shift, userPrefix]);
 
-  // Persist additional initiated calls to sessionStorage - scoped to call number
+  // Persist additional initiated calls to localStorage & sessionStorage - scoped to user, call number, and shift
   useEffect(() => {
     if (isSessionEnded()) return;
     if (call?.call_no && additionalInitiatedCalls) {
-      sessionStorage.setItem(`additionalInitiatedCalls_${call.call_no}_${shift}`, JSON.stringify(additionalInitiatedCalls));
+      localStorage.setItem(`additionalInitiatedCalls_${userPrefix}${call.call_no}_${shift}`, JSON.stringify(additionalInitiatedCalls));
+      sessionStorage.setItem(`additionalInitiatedCalls_${userPrefix}${call.call_no}_${shift}`, JSON.stringify(additionalInitiatedCalls));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [additionalInitiatedCalls, call?.call_no, shift]);
+  }, [additionalInitiatedCalls, call?.call_no, shift, userPrefix]);
 
-  // Persist call initiation data cache to sessionStorage whenever it changes
+  // Persist call initiation data cache to localStorage & sessionStorage whenever it changes
   useEffect(() => {
     if (isSessionEnded()) return;
     if (callInitiationDataCache && Object.keys(callInitiationDataCache).length > 0) {
       const callNoForScoping = call?.call_no;
-      const cacheKey = callNoForScoping ? `processCallInitiationDataCache_${callNoForScoping}_${shift}` : 'processCallInitiationDataCache';
+      const cacheKey = callNoForScoping ? `processCallInitiationDataCache_${userPrefix}${callNoForScoping}_${shift}` : `processCallInitiationDataCache_${userPrefix}`;
+      localStorage.setItem(cacheKey, JSON.stringify(callInitiationDataCache));
       sessionStorage.setItem(cacheKey, JSON.stringify(callInitiationDataCache));
-      console.log(`💾 [Cache] Persisted call initiation data cache to sessionStorage: ${cacheKey}`);
+      console.log(`💾 [Cache] Persisted call initiation data cache to storage: ${cacheKey}`);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [callInitiationDataCache, call?.call_no, shift]);
+  }, [callInitiationDataCache, call?.call_no, shift, userPrefix]);
 
   // Fetch all process calls on component mount and cache them
   const fetchAllProcessCalls = useCallback(async (forceRefresh = false) => {
@@ -1773,6 +1791,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
 
 
   // Handle "Add New Call Number" button click
+  // eslint-disable-next-line no-unused-vars
   const handleAddNewCallNumber = () => {
     console.log('🔵 Add New Call Number clicked');
     console.log('💾 Using cached process calls:', allProcessCalls.length);
@@ -2286,14 +2305,17 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           dateOfInspection: sessionStorage.getItem('inspectionDate') || new Date().toISOString().split('T')[0]
         });
 
-        // Restore production lines from sessionStorage if present to preserve user selections
+        // Restore production lines from localStorage or sessionStorage if present to preserve user selections
         try {
-          const savedLines = sessionStorage.getItem(`processProductionLinesData_${callNo}_${shift}`);
+          const savedLines = localStorage.getItem(`processProductionLinesData_${userPrefix}${callNo}_${shift}`) ||
+            sessionStorage.getItem(`processProductionLinesData_${userPrefix}${callNo}_${shift}`) ||
+            localStorage.getItem(`processProductionLinesData_${callNo}_${shift}`) ||
+            sessionStorage.getItem(`processProductionLinesData_${callNo}_${shift}`);
           if (savedLines) {
             const parsed = JSON.parse(savedLines);
             if (parsed && parsed.length > 0) {
               setLocalProductionLines(parsed);
-              console.log('💾 [Process Dashboard] Restored production lines from sessionStorage (cached path)');
+              console.log('💾 [Process Dashboard] Restored production lines from storage (cached path)');
             } else if (initialProductionLines && initialProductionLines.length > 0) {
               setLocalProductionLines(initialProductionLines);
               console.log('💾 [Process Dashboard] Initialized production lines from initialProductionLines (cached path)');
@@ -2405,14 +2427,17 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           dateOfInspection: sessionStorage.getItem('inspectionDate') || new Date().toISOString().split('T')[0]
         });
 
-        // Restore production lines from sessionStorage if present to preserve user selections
+        // Restore production lines from localStorage or sessionStorage if present to preserve user selections
         try {
-          const savedLines = sessionStorage.getItem(`processProductionLinesData_${callNo}_${shift}`);
+          const savedLines = localStorage.getItem(`processProductionLinesData_${userPrefix}${callNo}_${shift}`) ||
+            sessionStorage.getItem(`processProductionLinesData_${userPrefix}${callNo}_${shift}`) ||
+            localStorage.getItem(`processProductionLinesData_${callNo}_${shift}`) ||
+            sessionStorage.getItem(`processProductionLinesData_${callNo}_${shift}`);
           if (savedLines) {
             const parsed = JSON.parse(savedLines);
             if (parsed && parsed.length > 0) {
               setLocalProductionLines(parsed);
-              console.log('💾 [Process Dashboard] Restored production lines from sessionStorage (fresh fetch path)');
+              console.log('💾 [Process Dashboard] Restored production lines from storage (fresh fetch path)');
             } else {
               populateDefaultLines();
             }
@@ -2420,7 +2445,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
             populateDefaultLines();
           }
         } catch (e) {
-          console.log('⚠️ [Process Dashboard] Error restoring production lines from sessionStorage:', e);
+          console.log('⚠️ [Process Dashboard] Error restoring production lines from storage:', e);
           populateDefaultLines();
         }
 
@@ -2603,20 +2628,26 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localProductionLines.length, isLoading, localProductionLines.map(l => l?.icNumber).join(',')]); // Trigger when lines are added, loading completes, or call numbers change
 
-  // Selected line tab - persisted in sessionStorage - scoped to call number
+  // Selected line tab - persisted in localStorage & sessionStorage - scoped to user, call number, and shift
   const [selectedLine, setSelectedLine] = useState(() => {
     const callNoForScoping = call?.call_no;
     if (!callNoForScoping) return 'Line-1';
-    return sessionStorage.getItem(`processSelectedLineTab_${callNoForScoping}_${shift}`) || 'Line-1';
+    return localStorage.getItem(`processSelectedLineTab_${userPrefix}${callNoForScoping}_${shift}`) ||
+      sessionStorage.getItem(`processSelectedLineTab_${userPrefix}${callNoForScoping}_${shift}`) ||
+      localStorage.getItem(`processSelectedLineTab_${callNoForScoping}_${shift}`) ||
+      sessionStorage.getItem(`processSelectedLineTab_${callNoForScoping}_${shift}`) || 'Line-1';
   });
 
   // Track selected lot number for each production line (line-specific)
   // This prevents cross-line interference when selecting lots
-  // Persisted in sessionStorage - scoped to call number
+  // Persisted in localStorage & sessionStorage - scoped to user, call number, and shift
   const [selectedLotByLine, setSelectedLotByLine] = useState(() => {
     const callNoForScoping = call?.call_no;
     if (!callNoForScoping) return {};
-    const saved = sessionStorage.getItem(`processSelectedLotByLine_${callNoForScoping}_${shift}`);
+    const saved = localStorage.getItem(`processSelectedLotByLine_${userPrefix}${callNoForScoping}_${shift}`) ||
+      sessionStorage.getItem(`processSelectedLotByLine_${userPrefix}${callNoForScoping}_${shift}`) ||
+      localStorage.getItem(`processSelectedLotByLine_${callNoForScoping}_${shift}`) ||
+      sessionStorage.getItem(`processSelectedLotByLine_${callNoForScoping}_${shift}`);
     if (saved) {
       try {
         return JSON.parse(saved);
@@ -2632,8 +2663,10 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
 
   // Resolve current active production line product type
   const currentLineProductType = useMemo(() => {
-    const idx = parseInt(selectedLine.replace('Line-', ''), 10) - 1;
-    const prodLine = localProductionLines?.[idx];
+    const cleanNum = parseInt(String(selectedLine).replace(/Line-?/i, '').trim(), 10);
+    const prodLine = localProductionLines?.find(l => l && l.lineNumber === cleanNum) ||
+      (!isNaN(cleanNum) && cleanNum >= 1 && cleanNum <= (localProductionLines?.length || 0) ? localProductionLines[cleanNum - 1] : null) ||
+      localProductionLines?.[0];
     return prodLine?.productType || call?.product_type || call?.erc_type || '';
   }, [selectedLine, localProductionLines, call]);
 
@@ -2664,31 +2697,34 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     console.log(`📋[Lot Display] All lot selections: `, selectedLotByLine);
   }, [selectedLine, selectedLotForDisplay, selectedLotByLine]);
 
-  // Persist selected line tab - scoped to call number
+  // Persist selected line tab - scoped to user and call number
   useEffect(() => {
     if (isSessionEnded()) return;
     if (call?.call_no) {
-      sessionStorage.setItem(`processSelectedLineTab_${call.call_no}_${shift}`, selectedLine);
+      localStorage.setItem(`processSelectedLineTab_${userPrefix}${call.call_no}_${shift}`, selectedLine);
+      sessionStorage.setItem(`processSelectedLineTab_${userPrefix}${call.call_no}_${shift}`, selectedLine);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedLine, call?.call_no, shift]);
+  }, [selectedLine, call?.call_no, shift, userPrefix]);
 
   useEffect(() => {
     if (isSessionEnded()) return;
     if (call?.call_no && Object.keys(selectedLotByLine).length > 0) {
-      sessionStorage.setItem(`processSelectedLotByLine_${call.call_no}_${shift}`, JSON.stringify(selectedLotByLine));
+      localStorage.setItem(`processSelectedLotByLine_${userPrefix}${call.call_no}_${shift}`, JSON.stringify(selectedLotByLine));
+      sessionStorage.setItem(`processSelectedLotByLine_${userPrefix}${call.call_no}_${shift}`, JSON.stringify(selectedLotByLine));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedLotByLine, call?.call_no, shift]);
+  }, [selectedLotByLine, call?.call_no, shift, userPrefix]);
 
-  // Persist manufactured quantities to sessionStorage whenever they change - scoped to call number and shift
+  // Persist manufactured quantities to storage whenever they change - scoped to user, call number and shift
   useEffect(() => {
     if (isSessionEnded()) return;
     if (call?.call_no && Object.keys(manufacturedQtyByLine).length > 0) {
-      sessionStorage.setItem(`processManufacturedQtyByLine_${call.call_no}_${shift}`, JSON.stringify(manufacturedQtyByLine));
+      localStorage.setItem(`processManufacturedQtyByLine_${userPrefix}${call.call_no}_${shift}`, JSON.stringify(manufacturedQtyByLine));
+      sessionStorage.setItem(`processManufacturedQtyByLine_${userPrefix}${call.call_no}_${shift}`, JSON.stringify(manufacturedQtyByLine));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [manufacturedQtyByLine, call?.call_no, shift]);
+  }, [manufacturedQtyByLine, call?.call_no, shift, userPrefix]);
 
   // Listen for lot selection events from toggle tab buttons
   useEffect(() => {
@@ -2797,11 +2833,14 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
   // (removed) refresh trigger for recalculating rejected quantities — unused
 
   // Final Inspection Results - Remarks (manual entry, required)
-  // Persisted in sessionStorage - scoped to call number
+  // Persisted in localStorage & sessionStorage - scoped to user, call number, and shift
   const [finalInspectionRemarks, setFinalInspectionRemarks] = useState(() => {
     const callNoForScoping = call?.call_no;
     if (!callNoForScoping) return '';
-    return sessionStorage.getItem(`processFinalInspectionRemarks_${callNoForScoping}_${shift}`) || '';
+    return localStorage.getItem(`processFinalInspectionRemarks_${userPrefix}${callNoForScoping}_${shift}`) ||
+      sessionStorage.getItem(`processFinalInspectionRemarks_${userPrefix}${callNoForScoping}_${shift}`) ||
+      localStorage.getItem(`processFinalInspectionRemarks_${callNoForScoping}_${shift}`) ||
+      sessionStorage.getItem(`processFinalInspectionRemarks_${callNoForScoping}_${shift}`) || '';
   });
   // App-level notification state
   const [notification, setNotification] = useState({ type: '', message: '', autoClose: true });
@@ -2887,8 +2926,11 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     // Reset manufactured quantities
     setManufacturedQtyByLine({});
 
+    // Reset captured images
+    setCapturedImages([]);
+
     console.log('✅ Production lines state reset complete');
-  }, [availableCalls, call]);
+  }, [availableCalls, call, setCapturedImages]);
 
   // Detect call number changes and reset state
   useEffect(() => {
@@ -2902,22 +2944,24 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     if (call?.call_no && currentCallRef.current !== call.call_no) {
       console.log(`🔄 Call number changed: ${currentCallRef.current} → ${call.call_no} `);
 
-      // Reset production lines state for new inspection
+      // Reset production lines state and images for new inspection
       resetProductionLinesState();
+      setCapturedImages([]);
     }
 
     // Update current call ref
     currentCallRef.current = call?.call_no;
-  }, [call?.call_no, resetProductionLinesState]);
+  }, [call?.call_no, resetProductionLinesState, setCapturedImages]);
 
-  // Persist final inspection remarks - scoped to call number
+  // Persist final inspection remarks - scoped to user and call number
   useEffect(() => {
     if (isSessionEnded()) return;
     if (call?.call_no) {
-      sessionStorage.setItem(`processFinalInspectionRemarks_${call.call_no}_${shift}`, finalInspectionRemarks);
+      localStorage.setItem(`processFinalInspectionRemarks_${userPrefix}${call.call_no}_${shift}`, finalInspectionRemarks);
+      sessionStorage.setItem(`processFinalInspectionRemarks_${userPrefix}${call.call_no}_${shift}`, finalInspectionRemarks);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [finalInspectionRemarks, call?.call_no, shift]);
+  }, [finalInspectionRemarks, call?.call_no, shift, userPrefix]);
 
   // Reset session control when dashboard mounts (new inspection)
   useEffect(() => {
@@ -2935,13 +2979,19 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     const callNo = call.call_no;
 
     // 1. Reload Selected Line
-    const savedLine = sessionStorage.getItem(`processSelectedLineTab_${callNo}_${shift}`);
+    const savedLine = localStorage.getItem(`processSelectedLineTab_${userPrefix}${callNo}_${shift}`) ||
+      sessionStorage.getItem(`processSelectedLineTab_${userPrefix}${callNo}_${shift}`) ||
+      localStorage.getItem(`processSelectedLineTab_${callNo}_${shift}`) ||
+      sessionStorage.getItem(`processSelectedLineTab_${callNo}_${shift}`);
     if (savedLine) {
       setSelectedLine(savedLine);
     }
 
     // 2. Reload Local Production Lines
-    const savedLines = sessionStorage.getItem(`processProductionLinesData_${callNo}_${shift}`);
+    const savedLines = localStorage.getItem(`processProductionLinesData_${userPrefix}${callNo}_${shift}`) ||
+      sessionStorage.getItem(`processProductionLinesData_${userPrefix}${callNo}_${shift}`) ||
+      localStorage.getItem(`processProductionLinesData_${callNo}_${shift}`) ||
+      sessionStorage.getItem(`processProductionLinesData_${callNo}_${shift}`);
     if (savedLines) {
       try {
         const parsed = JSON.parse(savedLines);
@@ -2952,7 +3002,10 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     }
 
     // 3. Reload Selected Lot By Line
-    const savedLots = sessionStorage.getItem(`processSelectedLotByLine_${callNo}_${shift}`);
+    const savedLots = localStorage.getItem(`processSelectedLotByLine_${userPrefix}${callNo}_${shift}`) ||
+      sessionStorage.getItem(`processSelectedLotByLine_${userPrefix}${callNo}_${shift}`) ||
+      localStorage.getItem(`processSelectedLotByLine_${callNo}_${shift}`) ||
+      sessionStorage.getItem(`processSelectedLotByLine_${callNo}_${shift}`);
     if (savedLots) {
       try {
         const parsed = JSON.parse(savedLots);
@@ -2963,15 +3016,21 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     }
 
     // 4. Reload Final Inspection Remarks
-    const savedRemarks = sessionStorage.getItem(`processFinalInspectionRemarks_${callNo}_${shift}`);
-    if (savedRemarks !== null) {
+    const savedRemarks = localStorage.getItem(`processFinalInspectionRemarks_${userPrefix}${callNo}_${shift}`) ||
+      sessionStorage.getItem(`processFinalInspectionRemarks_${userPrefix}${callNo}_${shift}`) ||
+      localStorage.getItem(`processFinalInspectionRemarks_${callNo}_${shift}`) ||
+      sessionStorage.getItem(`processFinalInspectionRemarks_${callNo}_${shift}`);
+    if (savedRemarks !== null && savedRemarks !== undefined) {
       setFinalInspectionRemarks(savedRemarks);
     } else {
       setFinalInspectionRemarks('');
     }
 
     // 5. Reload Additional Initiated Calls
-    const savedAddCalls = sessionStorage.getItem(`additionalInitiatedCalls_${callNo}_${shift}`);
+    const savedAddCalls = localStorage.getItem(`additionalInitiatedCalls_${userPrefix}${callNo}_${shift}`) ||
+      sessionStorage.getItem(`additionalInitiatedCalls_${userPrefix}${callNo}_${shift}`) ||
+      localStorage.getItem(`additionalInitiatedCalls_${callNo}_${shift}`) ||
+      sessionStorage.getItem(`additionalInitiatedCalls_${callNo}_${shift}`);
     if (savedAddCalls) {
       try {
         const parsed = JSON.parse(savedAddCalls);
@@ -2982,8 +3041,9 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     }
 
     // 6. Reload Call Initiation Data Cache
-    const cacheKey = `processCallInitiationDataCache_${callNo}_${shift}`;
-    const savedCache = sessionStorage.getItem(cacheKey);
+    const cacheKey = `processCallInitiationDataCache_${userPrefix}${callNo}_${shift}`;
+    const legacyCacheKey = `processCallInitiationDataCache_${callNo}_${shift}`;
+    const savedCache = localStorage.getItem(cacheKey) || sessionStorage.getItem(cacheKey) || localStorage.getItem(legacyCacheKey) || sessionStorage.getItem(legacyCacheKey);
     if (savedCache) {
       try {
         const parsed = JSON.parse(savedCache);
@@ -2994,7 +3054,10 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     }
 
     // 7. Reload Manufactured Quantities
-    const savedMfg = sessionStorage.getItem(`processManufacturedQtyByLine_${callNo}_${shift}`);
+    const savedMfg = localStorage.getItem(`processManufacturedQtyByLine_${userPrefix}${callNo}_${shift}`) ||
+      sessionStorage.getItem(`processManufacturedQtyByLine_${userPrefix}${callNo}_${shift}`) ||
+      localStorage.getItem(`processManufacturedQtyByLine_${callNo}_${shift}`) ||
+      sessionStorage.getItem(`processManufacturedQtyByLine_${callNo}_${shift}`);
     if (savedMfg) {
       try {
         const parsed = JSON.parse(savedMfg);
@@ -3005,7 +3068,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     } else {
       setManufacturedQtyByLine({});
     }
-  }, [shift, call?.call_no]);
+  }, [shift, call?.call_no, userPrefix]);
 
 
   // Derive manufacturing lines from production lines table (moved up for use in callbacks)
@@ -3042,8 +3105,8 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         productionLinesExpanded: productionLinesExpanded
       };
 
-      // Save to localStorage with inspection call number as key
-      const storageKey = `${DASHBOARD_DRAFT_KEY}${inspectionCallNo}_${shift}`;
+      // Save to localStorage with user prefix, inspection call number and shift
+      const storageKey = `${DASHBOARD_DRAFT_KEY}${userPrefix}${inspectionCallNo}_${shift}`;
       localStorage.setItem(storageKey, JSON.stringify(draftData));
 
       // Save images to IndexedDB
@@ -3076,16 +3139,17 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     } finally {
       setIsSavingDraft(false);
     }
-  }, [call?.call_no, localProductionLines, selectedLine, finalInspectionRemarks, productionLinesExpanded, shift, capturedImages]);
+  }, [call?.call_no, localProductionLines, selectedLine, finalInspectionRemarks, productionLinesExpanded, shift, capturedImages, userPrefix]);
 
-  // Load draft data from localStorage on mount
+  // Load draft data from localStorage on mount (scoped by user)
   useEffect(() => {
     const inspectionCallNo = call?.call_no;
     if (!inspectionCallNo) return;
 
     try {
-      const storageKey = `${DASHBOARD_DRAFT_KEY}${inspectionCallNo}_${shift}`;
-      const savedDraft = localStorage.getItem(storageKey);
+      const storageKey = `${DASHBOARD_DRAFT_KEY}${userPrefix}${inspectionCallNo}_${shift}`;
+      const legacyStorageKey = `${DASHBOARD_DRAFT_KEY}${inspectionCallNo}_${shift}`;
+      const savedDraft = localStorage.getItem(storageKey) || localStorage.getItem(legacyStorageKey);
 
       if (savedDraft) {
         const draftData = JSON.parse(savedDraft);
@@ -3341,21 +3405,37 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         return null;
       }
 
-      const currentLineIndex = parseInt(selectedLine.replace('Line-', ''), 10) - 1;
-      const prodLine = localProductionLines[currentLineIndex];
+      const cleanNum = parseInt(String(selectedLine).replace(/Line-?/i, '').trim(), 10);
+      const prodLine = localProductionLines.find(l => l && l.lineNumber === cleanNum) ||
+        (!isNaN(cleanNum) && cleanNum >= 1 && cleanNum <= localProductionLines.length ? localProductionLines[cleanNum - 1] : null) ||
+        localProductionLines[0];
 
       // Ensure we have valid production line data
-      if (!prodLine || !prodLine.icNumber) {
+      if (!prodLine) {
         return null;
       }
 
-      const poNo = prodLine.poNumber || prodLine.po_no || '';
-      // Use the line's specific IC number, not the main call number
-      const lineIcNumber = prodLine.icNumber || '';
-      const inspectionCallNo = lineIcNumber || call?.call_no || '';
+      const poNo = prodLine.poNumber || prodLine.po_no || call?.po_no || '';
+      // Use the line's specific IC number, or fall back to the main call number
+      const lineIcNumber = prodLine.icNumber || call?.call_no || '';
+      const inspectionCallNo = lineIcNumber;
 
-      // Get all process data from localStorage
-      const allData = getAllProcessData(inspectionCallNo, poNo, selectedLine, shift);
+      const lineIndex = localProductionLines.indexOf(prodLine);
+      const internalLineKey = `Line-${lineIndex + 1}`;
+      const customLineKey = `Line-${prodLine.lineNumber || (lineIndex + 1)}`;
+
+      // Get all process data from localStorage (try selectedLine, internalLineKey, and customLineKey)
+      let allData = getAllProcessData(inspectionCallNo, poNo, selectedLine, shift);
+      if (!allData || Object.keys(allData).length === 0 || !Object.values(allData).some(v => Array.isArray(v) && v.length > 0)) {
+        if (internalLineKey !== selectedLine) {
+          allData = getAllProcessData(inspectionCallNo, poNo, internalLineKey, shift);
+        }
+      }
+      if (!allData || Object.keys(allData).length === 0 || !Object.values(allData).some(v => Array.isArray(v) && v.length > 0)) {
+        if (customLineKey !== selectedLine && customLineKey !== internalLineKey) {
+          allData = getAllProcessData(inspectionCallNo, poNo, customLineKey, shift);
+        }
+      }
 
       // Check shearing data first (most common starting point)
       // Note: getAllProcessData returns keys like 'shearingData', 'turningData', etc.
@@ -3382,7 +3462,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
 
       // NEW FALLBACK: If no lot found in localStorage (user hasn't entered grid data yet),
       // try to get the lot from the initiation data cache.
-      const initiationData = callInitiationDataCache[lineIcNumber];
+      const initiationData = callInitiationDataCache[lineIcNumber] || callInitiationDataCache[call?.call_no];
       if (initiationData) {
         // Try lotDetailsList first
         if (initiationData.lotDetailsList && initiationData.lotDetailsList.length > 0) {
@@ -3433,22 +3513,38 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         return [];
       }
 
-      const currentLineIndex = parseInt(targetLine.replace('Line-', ''), 10) - 1;
-      const prodLine = localProductionLines[currentLineIndex];
+      const cleanNum = parseInt(String(targetLine).replace(/Line-?/i, '').trim(), 10);
+      const prodLine = localProductionLines.find(l => l && l.lineNumber === cleanNum) ||
+        (!isNaN(cleanNum) && cleanNum >= 1 && cleanNum <= localProductionLines.length ? localProductionLines[cleanNum - 1] : null) ||
+        localProductionLines[0];
 
       // Ensure we have valid production line data
-      if (!prodLine || !prodLine.icNumber) {
+      if (!prodLine) {
         return [];
       }
 
-      const poNo = prodLine.poNumber || prodLine.po_no || '';
-      // Use the line's specific IC number, not the main call number
-      const lineIcNumber = prodLine.icNumber || '';
-      const inspectionCallNo = lineIcNumber || call?.call_no || '';
+      const poNo = prodLine.poNumber || prodLine.po_no || call?.po_no || '';
+      // Use the line's specific IC number, or fall back to main call number
+      const lineIcNumber = prodLine.icNumber || call?.call_no || '';
+      const inspectionCallNo = lineIcNumber;
+
+      const lineIndex = localProductionLines.indexOf(prodLine);
+      const internalLineKey = `Line-${lineIndex + 1}`;
+      const customLineKey = `Line-${prodLine.lineNumber || (lineIndex + 1)}`;
 
       console.log(`📋[All Selected Lots] Getting all lots for: ${targetLine} `, { poNo, inspectionCallNo, lineIcNumber });
-      // Get all process data from localStorage
-      const allData = getAllProcessData(inspectionCallNo, poNo, targetLine, shift);
+      // Get all process data from localStorage (try targetLine, internalLineKey, and customLineKey)
+      let allData = getAllProcessData(inspectionCallNo, poNo, targetLine, shift);
+      if (!allData || Object.keys(allData).length === 0 || !Object.values(allData).some(v => Array.isArray(v) && v.length > 0)) {
+        if (internalLineKey !== targetLine) {
+          allData = getAllProcessData(inspectionCallNo, poNo, internalLineKey, shift);
+        }
+      }
+      if (!allData || Object.keys(allData).length === 0 || !Object.values(allData).some(v => Array.isArray(v) && v.length > 0)) {
+        if (customLineKey !== targetLine && customLineKey !== internalLineKey) {
+          allData = getAllProcessData(inspectionCallNo, poNo, customLineKey, shift);
+        }
+      }
 
       // Collect all unique lot numbers from all modules
       const lotsSet = new Set();
@@ -3469,11 +3565,11 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       // If no lots found in localStorage (user hasn't saved yet), fallback to initiation data cache
       if ((!allLots || allLots.length === 0) && callInitiationDataCache) {
         try {
-          const initData = callInitiationDataCache[lineIcNumber] || null;
-          const initLots = initData?.lotDetailsList ? initData.lotDetailsList.map(l => l.lotNumber) : [];
+          const initData = callInitiationDataCache[lineIcNumber] || callInitiationDataCache[call?.call_no] || null;
+          const initLots = initData?.lotDetailsList ? initData.lotDetailsList.map(l => l.lotNumber) : (initData?.lotNumber ? [initData.lotNumber] : []);
           if (initLots && initLots.length > 0) {
             console.log(`ℹ️[All Selected Lots] Falling back to initiation data lots for ${targetLine}: `, initLots);
-            allLots = initLots.map(l => l.trim()).sort();
+            allLots = initLots.map(l => String(l).trim()).sort();
           }
         } catch (e) {
           // ignore
@@ -3498,21 +3594,39 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
 
     // Use current active line if not provided
     const targetLine = lineNo || selectedLine;
-    const lineIndex = parseInt(targetLine.replace('Line-', ''), 10) - 1;
-    const prodLine = localProductionLines[lineIndex];
+    const cleanNum = parseInt(String(targetLine).replace(/Line-?/i, '').trim(), 10);
+    const prodLine = localProductionLines.find(l => l && l.lineNumber === cleanNum) ||
+      (!isNaN(cleanNum) && cleanNum >= 1 && cleanNum <= localProductionLines.length ? localProductionLines[cleanNum - 1] : null) ||
+      localProductionLines[0];
 
     // Ensure we have valid production line data
-    if (!prodLine || !prodLine.icNumber) {
+    if (!prodLine) {
       console.log(`📊[Rejected Calc] No production line data for ${targetLine}`);
       return 0;
     }
 
-    const poNo = prodLine.poNumber || prodLine.po_no || '';
-    const lineIcNumber = prodLine.icNumber || '';
-    const inspectionCallNo = lineIcNumber || call?.call_no || '';
+    const poNo = prodLine.poNumber || prodLine.po_no || call?.po_no || '';
+    const lineIcNumber = prodLine.icNumber || call?.call_no || '';
+    const inspectionCallNo = lineIcNumber;
+
+    const lineIndex = localProductionLines.indexOf(prodLine);
+    const internalLineKey = `Line-${lineIndex + 1}`;
+    const customLineKey = `Line-${prodLine.lineNumber || (lineIndex + 1)}`;
 
     const effectiveShift = targetShift || shift;
-    const allData = getAllProcessData(inspectionCallNo, poNo, targetLine, effectiveShift);
+    let allData = getAllProcessData(inspectionCallNo, poNo, targetLine, effectiveShift);
+    if (!allData || !allData[submoduleName]) {
+      if (internalLineKey !== targetLine) {
+        const internalData = getAllProcessData(inspectionCallNo, poNo, internalLineKey, effectiveShift);
+        if (internalData && internalData[submoduleName]) allData = internalData;
+      }
+    }
+    if (!allData || !allData[submoduleName]) {
+      if (customLineKey !== targetLine && customLineKey !== internalLineKey) {
+        const customData = getAllProcessData(inspectionCallNo, poNo, customLineKey, effectiveShift);
+        if (customData && customData[submoduleName]) allData = customData;
+      }
+    }
 
     if (!allData || !allData[submoduleName]) {
       return 0;
@@ -3564,7 +3678,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       console.log(`✅[Rejected Calc] ${submoduleName} | Lot: ${specificLot} | Line: ${targetLine} | Rejections: ${totalRejected} `);
     }
     return totalRejected;
-  }, [call?.call_no, selectedLine, localProductionLines, getAllSelectedLotsForCurrentLine, shift]);
+  }, [call?.call_no, call?.po_no, selectedLine, localProductionLines, getAllSelectedLotsForCurrentLine, shift]);
 
   // Helper function to get the full rejected quantity for a specific module and lot
   // Handles multi-field rejections for Forging, Quenching, Tempering, and Testing
@@ -3645,15 +3759,15 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     const prodLine = localProductionLines[currentLineIndex];
 
     // Ensure we have valid production line data
-    if (!prodLine || !prodLine.icNumber) {
+    if (!prodLine) {
       console.log(`📊[Final Check] No production line data for ${targetLine}`);
       return 0;
     }
 
-    const poNo = prodLine.poNumber || prodLine.po_no || '';
-    // Use the line's specific IC number, not the main call number
-    const lineIcNumber = prodLine.icNumber || '';
-    const inspectionCallNo = lineIcNumber || call?.call_no || '';
+    const poNo = prodLine.poNumber || prodLine.po_no || call?.po_no || '';
+    // Use the line's specific IC number, or fall back to main call number
+    const lineIcNumber = prodLine.icNumber || call?.call_no || '';
+    const inspectionCallNo = lineIcNumber;
 
     const effectiveShift = targetShift || shift;
     const allData = getAllProcessData(inspectionCallNo, poNo, targetLine, effectiveShift);
@@ -3720,15 +3834,15 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     const prodLine = localProductionLines[currentLineIndex];
 
     // Ensure we have valid production line data
-    if (!prodLine || !prodLine.icNumber) {
+    if (!prodLine) {
       console.log(`📦[Lot Wise] No production line data for ${targetLine}`);
       return 0;
     }
 
-    const poNo = prodLine.poNumber || prodLine.po_no || '';
-    // Use the line's specific IC number, not the main call number
-    const lineIcNumber = prodLine.icNumber || '';
-    const inspectionCallNo = lineIcNumber || call?.call_no || '';
+    const poNo = prodLine.poNumber || prodLine.po_no || call?.po_no || '';
+    // Use the line's specific IC number, or fall back to main call number
+    const lineIcNumber = prodLine.icNumber || call?.call_no || '';
+    const inspectionCallNo = lineIcNumber;
 
     console.log(`📦[Lot Wise] Loading lineFinalResult for lot ${lotNo}, IC: ${inspectionCallNo}, PO: ${poNo}, Line: ${targetLine} `);
 
@@ -3981,14 +4095,14 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     const prodLine = localProductionLines[currentLineIndex];
 
     // Ensure we have valid production line data
-    if (!prodLine || !prodLine.icNumber) {
+    if (!prodLine) {
       console.log(`📋 [Load Data] No production line data for ${lineNo} at index ${currentLineIndex}, skipping load`);
       return;
     }
 
-    const poNo = prodLine.poNumber || prodLine.po_no || '';
-    const lineIcNumber = prodLine.icNumber || '';
-    const inspectionCallNo = lineIcNumber || call?.call_no || '';
+    const poNo = prodLine.poNumber || prodLine.po_no || call?.po_no || '';
+    const lineIcNumber = prodLine.icNumber || call?.call_no || '';
+    const inspectionCallNo = lineIcNumber;
 
     console.log(`📋 [Load Data] ${lineNo} - Loading from localStorage with IC: ${inspectionCallNo}, PO: ${poNo}`);
 
@@ -4049,7 +4163,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         }
       }
     });
-  }, [localProductionLines, call?.call_no, shift]);
+  }, [localProductionLines, call?.call_no, call?.po_no, shift]);
 
   // Load line-specific data whenever call or selectedLine changes
   // This ensures data is loaded when returning from submodules
@@ -4064,11 +4178,11 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
   useEffect(() => {
   }, [call?.call_no, call?.po_no]);
 
-  // Get current line index from selectedLine (e.g., "Line-1" → 0)
-  const currentLineIndex = parseInt(selectedLine.replace('Line-', ''), 10) - 1;
-
-  // Get the production line data for the selected line tab
-  const currentProductionLine = localProductionLines[currentLineIndex] || localProductionLines[0] || {};
+  // Get current production line data for the selected line tab
+  const cleanSelectedLineNum = parseInt(String(selectedLine).replace(/Line-?/i, '').trim(), 10);
+  const currentLineIndex = (!isNaN(cleanSelectedLineNum) && cleanSelectedLineNum >= 1 && cleanSelectedLineNum <= localProductionLines.length) ? (cleanSelectedLineNum - 1) : 0;
+  const currentProductionLine = localProductionLines.find(l => l && l.lineNumber === cleanSelectedLineNum) ||
+    localProductionLines[currentLineIndex] || localProductionLines[0] || {};
 
   // Get manufactured quantity for a specific lot from Shearing input field
   const getShearingManufacturedQtyForLot = useCallback((lotNo) => {
@@ -4076,11 +4190,12 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     return parseInt(lotMfgQty.shearing) || 0;
   }, [manufacturedQtyByLine, selectedLine]);
 
-  // Get PO data based on the call selected in current production line
-  const currentCallData = allCallOptions.find(c => c.call_no === currentProductionLine.icNumber);
+  // Get PO data based on the call selected in current production line (or fallback to main call)
+  const activeLineCallNo = currentProductionLine.icNumber || call?.call_no;
+  const currentCallData = allCallOptions.find(c => c.call_no === activeLineCallNo) || call;
 
   // Get cached initiation data for the current line's selected call
-  const currentLineInitiationData = callInitiationDataCache[currentProductionLine.icNumber];
+  const currentLineInitiationData = callInitiationDataCache[activeLineCallNo] || callInitiationDataCache[call?.call_no];
 
   // Get lot/heat data from cached initiation data (from process_inspection_details table)
   // ONLY use cached initiation data - no fallback to rm_heat_tc_mapping to avoid mock data
@@ -4609,12 +4724,13 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         const currentLineIndex = parseInt(selectedLine.replace('Line-', ''), 10) - 1;
         const prodLine = localProductionLines[currentLineIndex];
 
-        if (!prodLine || !prodLine.icNumber) {
+        if (!prodLine) {
           console.log('⏭️ [Heat Wise Accountal] No production line data available, skipping fetch');
           return;
         }
 
-        const callNo = prodLine.icNumber;
+        const callNo = prodLine.icNumber || call?.call_no;
+        if (!callNo) return;
 
         // Use the lot details from currentLineInitiationData
         if (!currentLineInitiationData) {
@@ -4623,7 +4739,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         }
 
         // Get lot details list
-        const lotDetailsList = currentLineInitiationData.lotDetailsList || [];
+        const lotDetailsList = currentLineInitiationData.lotDetailsList || (currentLineInitiationData.lotNumber ? [{ lotNumber: currentLineInitiationData.lotNumber, heatNumber: currentLineInitiationData.heatNumber || '' }] : []);
         if (lotDetailsList.length === 0) {
           console.log('⏭️ [Heat Wise Accountal] No lot details available, skipping fetch');
           return;
@@ -4681,7 +4797,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     if (localProductionLines.length > 0 && selectedLine && currentLineInitiationData) {
       fetchHeatWiseAccountalData();
     }
-  }, [selectedLine, localProductionLines, currentLineInitiationData]);
+  }, [selectedLine, localProductionLines, currentLineInitiationData, call?.call_no]);
 
   // Fetch Previous Shift Data for Lot Wise Quantity Breakup
   // This fetches cumulative quantities from all previous shifts
@@ -4692,12 +4808,13 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         const currentLineIndex = parseInt(selectedLine.replace('Line-', ''), 10) - 1;
         const prodLine = localProductionLines[currentLineIndex];
 
-        if (!prodLine || !prodLine.icNumber) {
+        if (!prodLine) {
           console.log('⏭️ [Previous Shift Data] No production line data available, skipping fetch');
           return;
         }
 
-        const callNo = prodLine.icNumber;
+        const callNo = prodLine.icNumber || call?.call_no;
+        if (!callNo) return;
 
         setIsLoadingPreviousShiftData(true);
         setPreviousShiftDataError(null);
@@ -4744,7 +4861,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     if (localProductionLines.length > 0 && selectedLine) {
       fetchPreviousShiftData();
     }
-  }, [selectedLine, localProductionLines, shift]);
+  }, [selectedLine, localProductionLines, shift, call?.call_no]);
 
   /**
    * Validate 8-hour grid data completeness for a specific lot
@@ -4981,28 +5098,37 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     const linesToCheck = linesToValidate || localProductionLines;
 
     linesToCheck.forEach((prodLine, lineIndex) => {
-      const lineNo = `Line-${lineIndex + 1}`;
+      const internalLineNo = `Line-${lineIndex + 1}`;
+      const customLineNo = `Line-${prodLine.lineNumber || (lineIndex + 1)}`;
+      const displayLineLabel = getLineLabel(internalLineNo);
       const callNo = prodLine.icNumber;
       const poNo = prodLine.poNumber || prodLine.po_no || '';
       const productType = prodLine.productType || '';
 
       // Skip if no call number
       if (!callNo) {
-        console.log(`🔍 [Validation] Skipping ${lineNo} - no call number`);
+        console.log(`🔍 [Validation] Skipping ${displayLineLabel} - no call number`);
         return;
       }
 
-      console.log(`🔍 [Validation] Validating ${lineNo} (Call: ${callNo}, Product: ${productType})`);
+      console.log(`🔍 [Validation] Validating ${displayLineLabel} (Internal: ${internalLineNo}, Call: ${callNo}, Product: ${productType})`);
 
-      // Get all lots for this line from localStorage
-      const allData = getAllProcessData(callNo, poNo, lineNo, shift);
+      // Get all lots for this line from localStorage (try internalLineNo first, fallback to customLineNo)
+      let allData = getAllProcessData(callNo, poNo, internalLineNo, shift);
+      const hasAnyInternalData = allData && Object.keys(allData).length > 0 && Object.values(allData).some(v => Array.isArray(v) && v.length > 0);
+      if (!hasAnyInternalData && customLineNo !== internalLineNo) {
+        const customData = getAllProcessData(callNo, poNo, customLineNo, shift);
+        if (customData && Object.keys(customData).length > 0 && Object.values(customData).some(v => Array.isArray(v) && v.length > 0)) {
+          allData = customData;
+        }
+      }
       const lotsSet = new Set();
       let modules = ['shearingData', 'turningData', 'mpiData', 'forgingData', 'quenchingData', 'temperingData', 'finalCheckData', 'testingFinishingData'];
 
       // Skip turningData validation entirely for MK-III product type
       const isMkIII = productType && /MK-III/i.test(productType);
       if (isMkIII) {
-        console.log(`🔍 [Validation] Skipping turningData validation entirely for MK-III product in ${lineNo}`);
+        console.log(`🔍 [Validation] Skipping turningData validation entirely for MK-III product in ${displayLineLabel}`);
         modules = modules.filter(moduleName => moduleName !== 'turningData');
       }
 
@@ -5017,7 +5143,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       });
 
       const allLots = Array.from(lotsSet);
-      console.log(`🔍 [Validation] Found ${allLots.length} lots in ${lineNo}:`, allLots);
+      console.log(`🔍 [Validation] Found ${allLots.length} lots in ${displayLineLabel}:`, allLots);
 
       // VALIDATION FIX: Check EACH section independently for "No Production" vs empty data
       // This fixes the issue where user unchecks No Production for one section but doesn't fill data
@@ -5074,31 +5200,31 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
                 const hourLabel = hourLabels[hourIndex] || `Hour ${hourIndex + 1}`;
                 const sectionName = moduleName.replace('Data', '').replace(/([A-Z])/g, ' $1').trim();
                 
-                const errKey = `${lineNo}|${sectionName} (${hourLabel})`;
+                const errKey = `${displayLineLabel}|${sectionName} (${hourLabel})`;
                 validationErrors.set(errKey, [
                   `Please select Lot No. for that hour or section.`
                 ]);
-                console.log(`❌ [Validation] ${lineNo} - ${moduleName} FAILED - entered data for ${hourLabel} but no lot number selected`);
+                console.log(`❌ [Validation] ${displayLineLabel} - ${moduleName} FAILED - entered data for ${hourLabel} but no lot number selected`);
               }
             }
           }
         });
 
-        console.log(`🔍 [Validation] ${lineNo} - ${moduleName}: hasData=${sectionHasAnyData}, hasLots=${sectionHasLots}, hasNoProduction=${sectionHasNoProduction}`);
+        console.log(`🔍 [Validation] ${displayLineLabel} - ${moduleName}: hasData=${sectionHasAnyData}, hasLots=${sectionHasLots}, hasNoProduction=${sectionHasNoProduction}`);
 
         // Validation for this section:
         // FAIL if: Has data entries BUT no lot numbers AND no "No Production" marked
         if (sectionHasAnyData && !sectionHasLots && !sectionHasNoProduction) {
           const sectionName = moduleName.replace('Data', '').replace(/([A-Z])/g, ' $1').trim();
           // Only add general section error if we didn't already add more specific hourly errors
-          const hasSpecificErrors = Array.from(validationErrors.keys()).some(k => k.startsWith(`${lineNo}|${sectionName} (`));
+          const hasSpecificErrors = Array.from(validationErrors.keys()).some(k => k.startsWith(`${displayLineLabel}|${sectionName} (`));
           if (!hasSpecificErrors) {
-            validationErrors.set(`${lineNo}|${sectionName}`, [
+            validationErrors.set(`${displayLineLabel}|${sectionName}`, [
               `${sectionName} section has incomplete data. Please either:\n` +
               `  - Enter lot numbers and production data for all hours, OR\n` +
               `  - Mark the section as "No Production"`
             ]);
-            console.log(`❌ [Validation] ${lineNo} - ${moduleName} FAILED - has data but no lots and no "No Production"`);
+            console.log(`❌ [Validation] ${displayLineLabel} - ${moduleName} FAILED - has data but no lots and no "No Production"`);
           }
         }
       });
@@ -5112,15 +5238,21 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       });
 
       if (!hasAnyDataInAnySection) {
-        validationErrors.set(`${lineNo}|General`, [`No production data entered for ${lineNo}. Please open at least one section and enter production data or mark as "No Production".`]);
-        console.log(`❌ [Validation] ${lineNo} FAILED - no data in any section`);
+        validationErrors.set(`${displayLineLabel}|General`, [`No production data entered for ${displayLineLabel}. Please open at least one section and enter production data or mark as "No Production".`]);
+        console.log(`❌ [Validation] ${displayLineLabel} FAILED - no data in any section`);
       }
 
       // Validate each lot
       allLots.forEach(lotNo => {
-        const incompleteSections = validateLotGridData(callNo, poNo, lineNo, lotNo, productType);
+        let incompleteSections = validateLotGridData(callNo, poNo, internalLineNo, lotNo, productType);
+        if (incompleteSections.length > 0 && customLineNo !== internalLineNo) {
+          const customSections = validateLotGridData(callNo, poNo, customLineNo, lotNo, productType);
+          if (customSections.length === 0) {
+            incompleteSections = [];
+          }
+        }
         if (incompleteSections.length > 0) {
-          const key = `${lineNo}|${lotNo}`;
+          const key = `${displayLineLabel}|${lotNo}`;
           validationErrors.set(key, incompleteSections);
         }
       });
@@ -5130,17 +5262,25 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     console.log(`🔍 [Validation] Validation ${isValid ? 'PASSED' : 'FAILED'}. Errors found: ${validationErrors.size}`);
 
     return { isValid, errors: validationErrors };
-  }, [localProductionLines, validateLotGridData, shift]);
+  }, [localProductionLines, validateLotGridData, shift, getLineLabel]);
 
   /**
    * Handle Shift Completed - collect lot-wise data from ALL production lines and trigger performTransitionAction
    * Groups by unique (callNumber + lotNumber) combinations and sends separate API calls for each
    */
   const handleInspectionCompleted = useCallback(async () => {
-    if (isProcessingShiftRef.current) return;
+    if (isProcessingShiftRef.current || isSaving) {
+      console.warn('⚠️ Shift completion already in progress, ignoring duplicate click');
+      return;
+    }
+
+    setIsSaving(true);
+    isProcessingShiftRef.current = true;
 
     // Image validation (maximum 10 only)
     if (capturedImages && capturedImages.length > 10) {
+      setIsSaving(false);
+      isProcessingShiftRef.current = false;
       showNotification('error', `Maximum of 10 inspection images allowed (Currently: ${capturedImages.length})`);
       return;
     }
@@ -5150,6 +5290,8 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     const validation = validateAllLots();
 
     if (!validation.isValid) {
+      setIsSaving(false);
+      isProcessingShiftRef.current = false;
       // Build error message
       const errorContent = (
         <div>
@@ -5182,9 +5324,6 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
 
     console.log('🔍 [Shift Completed] ✅ Validation passed, proceeding with shift completion...');
 
-    setIsSaving(true);
-    isProcessingShiftRef.current = true;
-
     try {
       const currentUser = getStoredUser();
       const userId = currentUser?.userId || currentUser?.username || 'SYSTEM';
@@ -5193,35 +5332,39 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       console.log('💾 [Shift Completed] Saving 8-hour grid data...');
       const linesData = [];
 
-      // Strictly process only lines actively configured/selected by the current user
+      // Strictly process only lines actively configured or having entered data in this shift
       const linesToSave = localProductionLines.filter((line, idx) => {
-        if (!line || (!line.icNumber && !line.poNumber)) return false;
+        if (!line) return false;
+        const internalLineKey = `Line-${idx + 1}`;
         const lineNum = line.lineNumber || (idx + 1);
         const lineKey = `Line-${lineNum}`;
         const simpleLineKey = String(lineNum);
-        const chosenLot = selectedLotByLine[lineKey] || selectedLotByLine[simpleLineKey];
-        const lineLotData = manufacturedQtyByLine[lineKey] || manufacturedQtyByLine[simpleLineKey] || {};
-        const hasQty = chosenLot && Object.values(lineLotData[chosenLot] || {}).some(v => parseInt(v, 10) > 0);
-        return lineKey === selectedLine || (chosenLot && chosenLot !== 'undefined') || hasQty;
+        const chosenLot = selectedLotByLine[internalLineKey] || selectedLotByLine[lineKey] || selectedLotByLine[simpleLineKey];
+        const lineLotData = manufacturedQtyByLine[internalLineKey] || manufacturedQtyByLine[lineKey] || manufacturedQtyByLine[simpleLineKey] || {};
+        const hasQty = Object.values(lineLotData).some(lotObj => Object.values(lotObj || {}).some(v => parseInt(v, 10) > 0));
+        return internalLineKey === selectedLine || lineKey === selectedLine || (chosenLot && chosenLot !== 'undefined') || hasQty || (line.icNumber && line.poNumber);
       });
 
       for (const line of linesToSave) {
+        const lineIndex = localProductionLines.indexOf(line) !== -1 ? localProductionLines.indexOf(line) : linesToSave.indexOf(line);
+        const internalLineKey = `Line-${lineIndex + 1}`;
+        const customLineNum = line.lineNumber || (lineIndex + 1);
+        const customLineKey = `Line-${customLineNum}`;
+        const simpleLineKey = String(customLineNum);
+
         // Use the line's specific IC number if available, otherwise fall back to main call number
-        const lineCallNo = line.icNumber || call.call_no;
-        const linePoNo = line.poNumber || line.po_no || call.po_no;
+        const lineCallNo = line.icNumber || call?.call_no;
+        const linePoNo = line.poNumber || line.po_no || call?.po_no || '';
 
         // Strictly use the user-selected shift
         const determinedShift = shift || sessionStorage.getItem('inspectionShift') || call.shiftOfInspection || call.shift || 'A';
         const hourLabels = getHourLabels(determinedShift);
 
-        const currentLineNum = line.lineNumber || (linesToSave.indexOf(line) + 1);
-        const lineKey = `Line-${currentLineNum}`;
-        const simpleLineKey = String(currentLineNum);
-        const lineLotData = manufacturedQtyByLine[lineKey] || manufacturedQtyByLine[simpleLineKey] || {};
+        const lineLotData = manufacturedQtyByLine[internalLineKey] || manufacturedQtyByLine[customLineKey] || manufacturedQtyByLine[simpleLineKey] || {};
 
         // Collect ALL active lots for this line (dropdown selection, manual quantity inputs, or 8-hour grid readings)
         const activeLotsSet = new Set();
-        const userChosenLot = selectedLotByLine[lineKey] || selectedLotByLine[simpleLineKey] || (lineKey === selectedLine ? selectedLotForDisplay : null);
+        const userChosenLot = selectedLotByLine[internalLineKey] || selectedLotByLine[customLineKey] || selectedLotByLine[simpleLineKey] || ((internalLineKey === selectedLine || customLineKey === selectedLine) ? selectedLotForDisplay : null);
         if (userChosenLot && userChosenLot !== 'undefined' && userChosenLot !== '') {
           activeLotsSet.add(String(userChosenLot).trim());
         }
@@ -5229,8 +5372,10 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           if (k && k !== 'undefined' && k !== '') activeLotsSet.add(String(k).trim());
         });
 
-        // Load latest grid data from local storage
-        const gridData = loadGridDataForLine(lineCallNo, linePoNo, `Line-${currentLineNum}`, determinedShift);
+        // Load latest grid data from local storage (try internalLineKey first, fallback to customLineKey)
+        const gridData = loadGridDataForLine(lineCallNo, linePoNo, internalLineKey, determinedShift) ||
+          loadGridDataForLine(lineCallNo, linePoNo, customLineKey, determinedShift) ||
+          loadGridDataForLine(lineCallNo, linePoNo, `Line-${customLineNum}`, determinedShift);
         const submodulesList = ['shearing', 'turning', 'mpi', 'forging', 'quenching', 'tempering', 'finalCheck', 'testingFinishing'];
         for (const sub of submodulesList) {
           if (gridData?.[sub] && Array.isArray(gridData[sub])) {
@@ -5242,13 +5387,24 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           }
         }
 
+        const lineInitiationData = callInitiationDataCache[lineCallNo];
+        const lotDetails = (lineInitiationData?.lotDetailsList && Array.isArray(lineInitiationData.lotDetailsList) && lineInitiationData.lotDetailsList.length > 0)
+          ? lineInitiationData.lotDetailsList
+          : (lineInitiationData?.lotNumber ? [{ lotNumber: lineInitiationData.lotNumber, heatNumber: lineInitiationData.heatNumber || '', offeredQty: lineInitiationData.offeredQty || 0 }] : (call?.rm_heat_tc_mapping || []));
+
+        if (activeLotsSet.size === 0 && lotDetails.length > 0 && (lotDetails[0]?.lotNumber || lotDetails[0]?.subPoNumber)) {
+          if (internalLineKey === selectedLine || customLineKey === selectedLine || (line.icNumber && line.poNumber)) {
+            activeLotsSet.add(String(lotDetails[0]?.lotNumber || lotDetails[0]?.subPoNumber).trim());
+          }
+        }
+
         const lotsToProcess = Array.from(activeLotsSet);
         if (lotsToProcess.length === 0) {
-          console.log(`⏭️ [Shift Completed] Skipping ${lineKey} - no active lots`);
+          console.log(`⏭️ [Shift Completed] Skipping Line-${customLineNum} (${internalLineKey}) - no active lots`);
           continue;
         }
 
-        console.log(`📋 [Shift Completed] Processing Line-${currentLineNum} (Shift: ${determinedShift}, Lots: ${lotsToProcess.join(', ')}):`, {
+        console.log(`📋 [Shift Completed] Processing Line-${customLineNum} (${internalLineKey}, Shift: ${determinedShift}, Lots: ${lotsToProcess.join(', ')}):`, {
           lineCallNo,
           linePoNo,
           hasGridData: !!gridData
@@ -5263,9 +5419,6 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
             createdBy: userId
           }));
         };
-
-        const lineInitiationData = callInitiationDataCache[lineCallNo];
-        const lotDetails = lineInitiationData?.lotDetailsList || [];
 
         for (const lotNo of lotsToProcess) {
           const lotData = lineLotData[lotNo] || {};
@@ -5305,12 +5458,12 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           const hasAnyGridRows = [filteredShearing, filteredTurning, filteredMpi, filteredForging, filteredQuenching, filteredTempering, filteredFinalCheck, filteredTestingFinishing].some(arr => arr.length > 0);
 
           if (!hasAnyMfgQty && !hasAnyGridRows) {
-            console.log(`⏭️ [Shift Complete] Skipping inactive lot ${lotNo} on Line-${currentLineNum}`);
+            console.log(`⏭️ [Shift Complete] Skipping inactive lot ${lotNo} on Line-${customLineNum}`);
             continue;
           }
 
           const lotLineDto = {
-            lineNo: `Line-${currentLineNum}`,
+            lineNo: `Line-${customLineNum}`,
             poNo: linePoNo,
             inspectionCallNo: lineCallNo,
             shearingData: enrichData(filteredShearing),
@@ -5324,7 +5477,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
             remarks: ''
           };
 
-          const targetLotDetail = lotDetails.find(l => l.lotNumber === lotNo) || lotDetails.find(l => l.lotNumber === lotNo.trim()) || lotDetails[0];
+          const targetLotDetail = lotDetails.find(l => String(l.lotNumber || l.subPoNumber || '').trim() === String(lotNo).trim()) || lotDetails[0] || { lotNumber: lotNo, heatNumber: '', offeredQty: 0 };
 
           const metaData = {
             lotNumbers: targetLotDetail?.lotNumber || lotNo || '',
@@ -5336,7 +5489,8 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           const transformedLineDto = transformLineDataForBackend(lotLineDto, manualQuantities, metaData);
           if (transformedLineDto) {
             if (transformedLineDto.lineFinalResult) {
-              saveToLocalStorage('lineFinalResult', lineCallNo, linePoNo, lotLineDto.lineNo, transformedLineDto.lineFinalResult, determinedShift, lotNo);
+              saveToLocalStorage('lineFinalResult', lineCallNo, linePoNo, internalLineKey, transformedLineDto.lineFinalResult, determinedShift, lotNo);
+              saveToLocalStorage('lineFinalResult', lineCallNo, linePoNo, customLineKey, transformedLineDto.lineFinalResult, determinedShift, lotNo);
             }
             linesData.push(transformedLineDto);
           }
@@ -5369,9 +5523,13 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         const prodLine = localProductionLines[lineIndex];
         if (!prodLine) continue; // Skip if line is undefined
 
-        const lineNo = `Line-${lineIndex + 1}`;
-        const callNo = prodLine.icNumber;
-        const poNo = prodLine.poNumber || prodLine.po_no || '';
+        const internalLineKey = `Line-${lineIndex + 1}`;
+        const currentLineNum = prodLine.lineNumber || (lineIndex + 1);
+        const lineNo = `Line-${currentLineNum}`;
+        const lineNoKey = `Line-${currentLineNum}`;
+        const simpleLineKey = String(currentLineNum);
+        const callNo = prodLine.icNumber || call?.call_no;
+        const poNo = prodLine.poNumber || prodLine.po_no || call?.po_no || '';
         const pincode = prodLine.pincode || call?.pincode || '560001';
 
         // Skip if no call number
@@ -5380,15 +5538,13 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           continue;
         }
 
-        console.log(`📋 [Shift Completed] Processing ${lineNo} (Call: ${callNo})`);
+        console.log(`📋 [Shift Completed] Processing ${lineNo} (Internal: ${internalLineKey}, Call: ${callNo})`);
 
         // Get initiation data for this line to get lot details (offered qty, heat numbers)
         const lineInitiationData = callInitiationDataCache[callNo];
-
-        if (!lineInitiationData?.lotDetailsList) {
-          console.log(`⚠️ [Shift Completed] No initiation data for ${lineNo}, skipping`);
-          continue;
-        }
+        const lotDetails = (lineInitiationData?.lotDetailsList && Array.isArray(lineInitiationData.lotDetailsList) && lineInitiationData.lotDetailsList.length > 0)
+          ? lineInitiationData.lotDetailsList
+          : (lineInitiationData?.lotNumber ? [{ lotNumber: lineInitiationData.lotNumber, heatNumber: lineInitiationData.heatNumber || '', offeredQty: lineInitiationData.offeredQty || 0 }] : (call?.rm_heat_tc_mapping || []));
 
         // Fetch previous shift data for this call (lot-wise array)
         let previousShiftDataByLot = {};
@@ -5413,12 +5569,11 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         }
 
         // Process ONLY active lots that were saved in Step 1 (linesData) or configured for this line
-        const lineNoKey = `Line-${prodLine.lineNumber || (lineIndex + 1)}`;
         const activeLotsSet = new Set();
 
         if (linesData && linesData.length > 0) {
           linesData.forEach(d => {
-            if (d.inspectionCallNo === callNo && (d.lineNo === lineNoKey || d.lineNo === lineNo)) {
+            if (d.inspectionCallNo === callNo && (d.lineNo === lineNoKey || d.lineNo === internalLineKey || d.lineNo === lineNo)) {
               const dtoLot = d.lotNo || d.lineFinalResult?.lotNumber;
               if (dtoLot) activeLotsSet.add(String(dtoLot).trim());
             }
@@ -5429,28 +5584,72 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         if (selectedLotByLine[lineNoKey] && String(selectedLotByLine[lineNoKey]).trim()) {
           activeLotsSet.add(String(selectedLotByLine[lineNoKey]).trim());
         }
-        const lineLotData = manufacturedQtyByLine[lineNoKey] || manufacturedQtyByLine[String(prodLine.lineNumber || (lineIndex + 1))] || {};
+        if (selectedLotByLine[internalLineKey] && String(selectedLotByLine[internalLineKey]).trim()) {
+          activeLotsSet.add(String(selectedLotByLine[internalLineKey]).trim());
+        }
+        if (selectedLotByLine[simpleLineKey] && String(selectedLotByLine[simpleLineKey]).trim()) {
+          activeLotsSet.add(String(selectedLotByLine[simpleLineKey]).trim());
+        }
+        if ((lineNoKey === selectedLine || internalLineKey === selectedLine || lineNo === selectedLine) && selectedLotForDisplay) {
+          activeLotsSet.add(String(selectedLotForDisplay).trim());
+        }
+
+        const lineLotData = manufacturedQtyByLine[lineNoKey] || manufacturedQtyByLine[internalLineKey] || manufacturedQtyByLine[simpleLineKey] || manufacturedQtyByLine[lineNo] || {};
         Object.keys(lineLotData).forEach(k => {
           if (k && k !== 'undefined' && k !== '') activeLotsSet.add(String(k).trim());
         });
 
-        const lotDetails = lineInitiationData?.lotDetailsList || [];
+        // Check gridData as well
+        const determinedShift = shift || sessionStorage.getItem('inspectionShift') || call.shiftOfInspection || call.shift || 'A';
+        const gridData = loadGridDataForLine(callNo, poNo, lineNoKey, determinedShift) ||
+          loadGridDataForLine(callNo, poNo, internalLineKey, determinedShift) ||
+          loadGridDataForLine(callNo, poNo, lineNo, determinedShift);
+        const submodulesList = ['shearing', 'turning', 'mpi', 'forging', 'quenching', 'tempering', 'finalCheck', 'testingFinishing'];
+        for (const sub of submodulesList) {
+          if (gridData?.[sub] && Array.isArray(gridData[sub])) {
+            gridData[sub].forEach(row => {
+              if (row && row.lotNo && String(row.lotNo).trim()) {
+                activeLotsSet.add(String(row.lotNo).trim());
+              }
+            });
+          }
+        }
+
+        if (activeLotsSet.size === 0 && lotDetails.length > 0 && (lotDetails[0]?.lotNumber || lotDetails[0]?.subPoNumber)) {
+          if (lineNoKey === selectedLine || internalLineKey === selectedLine || lineNo === selectedLine || (prodLine.icNumber && prodLine.poNumber)) {
+            activeLotsSet.add(String(lotDetails[0]?.lotNumber || lotDetails[0]?.subPoNumber).trim());
+          }
+        }
+
         const lotsToProcessForMap = Array.from(activeLotsSet);
 
         lotsToProcessForMap.forEach(lotNo => {
-          const lotDetail = lotDetails.find(l => String(l.lotNumber).trim() === String(lotNo).trim()) || { lotNumber: lotNo, heatNumber: '', offeredQty: 0 };
+          const lotDetail = lotDetails.find(l => String(l.lotNumber || l.subPoNumber || '').trim() === String(lotNo).trim()) || { lotNumber: lotNo, heatNumber: '', offeredQty: 0 };
           const heatNo = lotDetail.heatNumber || '';
           const offeredQty = lotDetail.offeredQty || 0;
           const trimmedLotNo = lotNo ? String(lotNo).trim() : '';
 
           // Load persisted lineFinalResult for this lot (contains current shift metrics)
-          let lotFinalResult = loadFromLocalStorage('lineFinalResult', callNo, poNo, lineNo, shift, lotNo);
+          let lotFinalResult = loadFromLocalStorage('lineFinalResult', callNo, poNo, lineNoKey, shift, lotNo) ||
+            loadFromLocalStorage('lineFinalResult', callNo, poNo, internalLineKey, shift, lotNo) ||
+            loadFromLocalStorage('lineFinalResult', callNo, poNo, lineNo, shift, lotNo);
           if (!lotFinalResult && linesData && linesData.length > 0) {
-            const matchDto = linesData.find(d => d.inspectionCallNo === callNo && (d.lineNo === lineNo || d.lineNo === lineNoKey) && (d.lotNo === lotNo || d.lineFinalResult?.lotNumber === lotNo));
+            const matchDto = linesData.find(d => d.inspectionCallNo === callNo && (d.lineNo === lineNo || d.lineNo === lineNoKey || d.lineNo === internalLineKey) && (d.lotNo === lotNo || d.lineFinalResult?.lotNumber === lotNo));
             if (matchDto) lotFinalResult = matchDto.lineFinalResult;
           }
 
-          const currentShiftManufacturedQty = lotFinalResult?.totalManufactured || 0;
+          const currentLotData = lineLotData[lotNo] || {};
+          const stateMfg = Math.max(
+            parseInt(currentLotData.shearing || 0, 10) || 0,
+            parseInt(currentLotData.turning || 0, 10) || 0,
+            parseInt(currentLotData.mpiTesting || 0, 10) || 0,
+            parseInt(currentLotData.forging || 0, 10) || 0,
+            parseInt(currentLotData.quenching || 0, 10) || 0,
+            parseInt(currentLotData.tempering || 0, 10) || 0,
+            parseInt(currentLotData.testingFinishing || 0, 10) || 0
+          );
+
+          const currentShiftManufacturedQty = Math.max(lotFinalResult?.totalManufactured || 0, stateMfg);
           const currentShiftRejectedQty = lotFinalResult?.totalRejected || 0;
 
           // Negative inspected quantity formula:
@@ -5502,7 +5701,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
             shiftCode: (sessionStorage.getItem('inspectionShift') || lineInitiationData?.shiftOfInspection || call.shiftOfInspection || call.shift || 'A').charAt(0).toUpperCase()
           });
 
-          console.log(`✅ [Shift Completed] Prepared payload for ${lineNoKey} - Lot ${lotNo}. Mfg: ${currentShiftManufacturedQty}, Rej: ${currentShiftRejectedQty}, Inspected: ${currentShiftInspectedQty}`);
+          console.log(`✅ [Shift Completed] Prepared payload for ${lineNoKey} (${internalLineKey}) - Lot ${lotNo}. Mfg: ${currentShiftManufacturedQty}, Rej: ${currentShiftRejectedQty}, Inspected: ${currentShiftInspectedQty}`);
         });
       }
 
@@ -5572,34 +5771,25 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           workflowResults.push({ key, callNo, lotNo, heatNo, success: true });
         } catch (workflowError) {
           console.error(`❌ [Shift Completed] Workflow API error for ${key}:`, workflowError);
-          workflowResults.push({ key, callNo, lotNo, heatNo, success: false, error: workflowError.message });
+          throw new Error(`Failed to complete shift for ${key}: ${workflowError?.message || workflowError}`);
         }
       }
 
-      // Step 3: Show summary of workflow results
-      const successCount = workflowResults.filter(r => r.success).length;
-      const failCount = workflowResults.filter(r => !r.success).length;
+      showNotification('success', 'Shift completed successfully!');
 
-      if (failCount > 0) {
-        const failedCombos = workflowResults.filter(r => !r.success).map(r => r.key).join(', ');
-        showNotification('warning', `Shift completed. ${successCount} lot(s) processed successfully. Warning: ${failCount} lot(s) failed: ${failedCombos}`);
-      } else {
-        showNotification('success', 'Shift completed successfully!');
+      // Perform comprehensive cleanup ONLY after 100% successful API saves (Clear only this shift)
+      performInspectionCleanup(call?.call_no, localProductionLines, manufacturingLines, shift, false);
 
-        // Perform comprehensive cleanup BEFORE navigation (Clear only this shift)
-        performInspectionCleanup(call?.call_no, localProductionLines, manufacturingLines, shift, false);
+      // Reset React state
+      resetProductionLinesState();
 
-        // Reset React state
-        resetProductionLinesState();
+      // Small delay to ensure cleanup completes before unmount
+      await new Promise(resolve => setTimeout(resolve, 100));
 
-        // Small delay to ensure cleanup completes before unmount
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        // Navigate back to pending calls tab after successful completion
-        setTimeout(() => {
-          onBack();
-        }, 1500); // Give user time to see the success message
-      }
+      // Navigate back to pending calls tab after successful completion
+      setTimeout(() => {
+        onBack();
+      }, 1500); // Give user time to see the success message
     } catch (error) {
       console.error('Error completing shift:', error);
       showNotification('error', `Failed to complete shift: ${error?.message || error}`);
@@ -5607,7 +5797,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       setIsSaving(false);
       isProcessingShiftRef.current = false;
     }
-  }, [call, localProductionLines, allCallOptions, callInitiationDataCache, manufacturedQtyByLine, manufacturingLines, onBack, resetProductionLinesState, validateAllLots, shift, capturedImages, selectedLine, selectedLotByLine, selectedLotForDisplay]);
+  }, [call, localProductionLines, allCallOptions, callInitiationDataCache, manufacturedQtyByLine, manufacturingLines, onBack, resetProductionLinesState, validateAllLots, shift, capturedImages, selectedLine, selectedLotByLine, selectedLotForDisplay, isSaving]);
 
   /**
    * Finishes inspection for the selected calls
@@ -5646,16 +5836,23 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       const linesToProcess = localProductionLines.filter((line, idx) => {
         if (!line || (!line.icNumber && !line.poNumber)) return false;
         if (!selectedCalls.includes(line.icNumber || call.call_no)) return false;
+        const internalLineKey = `Line-${idx + 1}`;
         const lineNum = line.lineNumber || (idx + 1);
         const lineKey = `Line-${lineNum}`;
         const simpleLineKey = String(lineNum);
-        const chosenLot = selectedLotByLine[lineKey] || selectedLotByLine[simpleLineKey];
-        const lineLotData = manufacturedQtyByLine[lineKey] || manufacturedQtyByLine[simpleLineKey] || {};
+        const chosenLot = selectedLotByLine[internalLineKey] || selectedLotByLine[lineKey] || selectedLotByLine[simpleLineKey];
+        const lineLotData = manufacturedQtyByLine[internalLineKey] || manufacturedQtyByLine[lineKey] || manufacturedQtyByLine[simpleLineKey] || {};
         const hasQty = chosenLot && Object.values(lineLotData[chosenLot] || {}).some(v => parseInt(v, 10) > 0);
-        return lineKey === selectedLine || (chosenLot && chosenLot !== 'undefined') || hasQty;
+        return internalLineKey === selectedLine || lineKey === selectedLine || (chosenLot && chosenLot !== 'undefined') || hasQty;
       });
 
       for (const line of linesToProcess) {
+        const lineIndex = localProductionLines.indexOf(line) !== -1 ? localProductionLines.indexOf(line) : linesToProcess.indexOf(line);
+        const internalLineKey = `Line-${lineIndex + 1}`;
+        const customLineNum = line.lineNumber || (lineIndex + 1);
+        const customLineKey = `Line-${customLineNum}`;
+        const simpleLineKey = String(customLineNum);
+
         // Use the line's specific IC number if available, otherwise fall back to main call number
         const lineCallNo = line.icNumber || call.call_no;
         const linePoNo = line.poNumber || line.po_no || call.po_no;
@@ -5664,14 +5861,11 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         const determinedShift = shift || sessionStorage.getItem('inspectionShift') || call.shiftOfInspection || call.shift || 'A';
         const hourLabels = getHourLabels(determinedShift);
 
-        const currentLineNum = line.lineNumber || (linesToProcess.indexOf(line) + 1);
-        const lineKey = `Line-${currentLineNum}`;
-        const simpleLineKey = String(currentLineNum);
-        const lineLotData = manufacturedQtyByLine[lineKey] || manufacturedQtyByLine[simpleLineKey] || {};
+        const lineLotData = manufacturedQtyByLine[internalLineKey] || manufacturedQtyByLine[customLineKey] || manufacturedQtyByLine[simpleLineKey] || {};
 
         // Collect ALL active lots for this line
         const activeLotsSet = new Set();
-        const userChosenLot = selectedLotByLine[lineKey] || selectedLotByLine[simpleLineKey] || (lineKey === selectedLine ? selectedLotForDisplay : null);
+        const userChosenLot = selectedLotByLine[internalLineKey] || selectedLotByLine[customLineKey] || selectedLotByLine[simpleLineKey] || ((internalLineKey === selectedLine || customLineKey === selectedLine) ? selectedLotForDisplay : null);
         if (userChosenLot && userChosenLot !== 'undefined' && userChosenLot !== '') {
           activeLotsSet.add(String(userChosenLot).trim());
         }
@@ -5679,8 +5873,10 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           if (k && k !== 'undefined' && k !== '') activeLotsSet.add(String(k).trim());
         });
 
-        // Load latest grid data from local storage
-        const gridData = loadGridDataForLine(lineCallNo, linePoNo, `Line-${currentLineNum}`, determinedShift);
+        // Load latest grid data from local storage (try internalLineKey first, fallback to customLineKey)
+        const gridData = loadGridDataForLine(lineCallNo, linePoNo, internalLineKey, determinedShift) ||
+          loadGridDataForLine(lineCallNo, linePoNo, customLineKey, determinedShift) ||
+          loadGridDataForLine(lineCallNo, linePoNo, `Line-${customLineNum}`, determinedShift);
         const submodulesList = ['shearing', 'turning', 'mpi', 'forging', 'quenching', 'tempering', 'finalCheck', 'testingFinishing'];
         for (const sub of submodulesList) {
           if (gridData?.[sub] && Array.isArray(gridData[sub])) {
@@ -5694,11 +5890,11 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
 
         const lotsToProcess = Array.from(activeLotsSet);
         if (lotsToProcess.length === 0) {
-          console.log(`⏭️ [Finish Inspection] Skipping ${lineKey} - no active lots`);
+          console.log(`⏭️ [Finish Inspection] Skipping Line-${customLineNum} (${internalLineKey}) - no active lots`);
           continue;
         }
 
-        console.log(`📋 [Finish Inspection] Processing Line-${currentLineNum} (Shift: ${determinedShift}, Lots: ${lotsToProcess.join(', ')}):`, {
+        console.log(`📋 [Finish Inspection] Processing Line-${customLineNum} (${internalLineKey}, Shift: ${determinedShift}, Lots: ${lotsToProcess.join(', ')}):`, {
           lineCallNo,
           linePoNo,
           hasGridData: !!gridData
@@ -5755,12 +5951,12 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           const hasAnyGridRows = [filteredShearing, filteredTurning, filteredMpi, filteredForging, filteredQuenching, filteredTempering, filteredFinalCheck, filteredTestingFinishing].some(arr => arr.length > 0);
 
           if (!hasAnyMfgQty && !hasAnyGridRows) {
-            console.log(`⏭️ [Finish] Skipping inactive lot ${lotNo} on Line-${currentLineNum}`);
+            console.log(`⏭️ [Finish] Skipping inactive lot ${lotNo} on Line-${customLineNum}`);
             continue;
           }
 
           const lotLineDto = {
-            lineNo: `Line-${currentLineNum}`,
+            lineNo: `Line-${customLineNum}`,
             poNo: linePoNo,
             inspectionCallNo: lineCallNo,
             shearingData: enrichData(filteredShearing),
@@ -5786,7 +5982,8 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           const transformedLineDto = transformLineDataForBackend(lotLineDto, manualQuantities, metaData);
           if (transformedLineDto) {
             if (transformedLineDto.lineFinalResult) {
-              saveToLocalStorage('lineFinalResult', lineCallNo, linePoNo, lotLineDto.lineNo, transformedLineDto.lineFinalResult, determinedShift, lotNo);
+              saveToLocalStorage('lineFinalResult', lineCallNo, linePoNo, internalLineKey, transformedLineDto.lineFinalResult, determinedShift, lotNo);
+              saveToLocalStorage('lineFinalResult', lineCallNo, linePoNo, customLineKey, transformedLineDto.lineFinalResult, determinedShift, lotNo);
             }
             linesData.push(transformedLineDto);
           }
@@ -5831,43 +6028,54 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
    * Handle finish selected calls from modal
    */
   const handleFinishSelectedCalls = useCallback(async () => {
-    if (isProcessingFinishRef.current) return;
-    
+    if (isProcessingFinishRef.current || isSaving) {
+      console.warn('⚠️ Finish inspection already in progress, ignoring duplicate click');
+      return;
+    }
+
+    setIsSaving(true);
+    isProcessingFinishRef.current = true;
+
     if (selectedCallsToFinish.length === 0) {
+      setIsSaving(false);
+      isProcessingFinishRef.current = false;
       showNotification('error', 'Please select at least one call to finish');
       return;
     }
 
     const callsToFinish = [...selectedCallsToFinish];
 
-    // STEP 1: Validate 8-hour grid data for selected calls only
-    console.log('🔍 [Finish] Starting validation for selected calls...', callsToFinish);
+    // Validate ALL production lines before finishing
+    const { isValid: allLotsValid, errors: validationErrors } = validateAllLots();
 
-    // Filter production lines to only those with selected call numbers (and are valid objects)
-    const linesToValidate = localProductionLines.filter(l => l && typeof l === 'object').filter((prodLine) => {
-      const callNo = prodLine.icNumber || call?.call_no;
-      return callsToFinish.includes(callNo);
-    });
+    if (!allLotsValid) {
+      setIsSaving(false);
+      isProcessingFinishRef.current = false;
 
-    console.log(`🔍 [Finish] Validating ${linesToValidate.length} production lines for selected calls`);
+      // Group errors by line for a cleaner multi-line layout
+      const groupedErrors = {};
+      Array.from(validationErrors.entries()).forEach(([key, errorList]) => {
+        const [line, section] = key.split('|');
+        if (!groupedErrors[line]) groupedErrors[line] = [];
+        groupedErrors[line].push({ section, errorList });
+      });
 
-    const validation = validateAllLots(linesToValidate);
-
-    if (!validation.isValid) {
-      // Build error message
-      // Build error message
       const errorContent = (
-        <div>
-          <strong>Incomplete 8-hour grid data found:</strong>
-          <div style={{ maxHeight: '300px', overflowY: 'auto', marginTop: '8px', fontSize: '13px' }}>
-            {Array.from(validation.errors.entries()).map(([key, errors]) => {
-              const [lineNo, lotNo] = key.split('|');
+        <div style={{ textAlign: 'left', maxHeight: '60vh', overflowY: 'auto', paddingRight: '8px' }}>
+          <div style={{ fontWeight: 'bold', marginBottom: '8px', color: 'var(--color-danger, #d32f2f)' }}>
+            ⚠️ Incomplete Data - Please fix the following errors before finishing:
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {Object.entries(groupedErrors).map(([line, items]) => {
               return (
-                <div key={key} style={{ marginBottom: '8px' }}>
-                  <div style={{ fontWeight: '600', color: '#b91c1c' }}>{lineNo}, {lotNo}:</div>
-                  <ul style={{ paddingLeft: '20px', margin: '4px 0', color: '#b91c1c' }}>
-                    {errors.map((err, i) => (
-                      <li key={i}>{err}</li>
+                <div key={line} style={{ background: 'rgba(0,0,0,0.03)', padding: '6px 10px', borderRadius: '4px', borderLeft: '3px solid var(--color-danger, #d32f2f)' }}>
+                  <span style={{ fontWeight: '600' }}>{line}:</span>
+                  <ul style={{ margin: '4px 0 0 0', paddingLeft: '20px', fontSize: '13px' }}>
+                    {items.map((item, idx) => (
+                      <li key={idx} style={{ marginBottom: '2px' }}>
+                        {item.section && item.section !== 'General' && <strong>{item.section}: </strong>}
+                        <span>{item.errorList.join(', ')}</span>
+                      </li>
                     ))}
                   </ul>
                 </div>
@@ -5887,9 +6095,6 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
 
     console.log('🔍 [Finish] ✅ Validation passed, proceeding with finish inspection...');
 
-    setIsSaving(true);
-    isProcessingFinishRef.current = true;
-
     try {
       // Get logged in user
       const currentUser = getStoredUser();
@@ -5904,9 +6109,15 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       // Iterate through all production lines to collect lot-wise data
       for (let lineIndex = 0; lineIndex < localProductionLines.length; lineIndex++) {
         const prodLine = localProductionLines[lineIndex];
-        const lineNo = `Line-${lineIndex + 1}`;
-        const callNo = prodLine.icNumber;
-        const poNo = prodLine.poNumber || prodLine.po_no || '';
+        if (!prodLine) continue;
+
+        const internalLineKey = `Line-${lineIndex + 1}`;
+        const currentLineNum = prodLine.lineNumber || (lineIndex + 1);
+        const lineNo = `Line-${currentLineNum}`;
+        const lineNoKey = `Line-${currentLineNum}`;
+        const simpleLineKey = String(currentLineNum);
+        const callNo = prodLine.icNumber || call?.call_no;
+        const poNo = prodLine.poNumber || prodLine.po_no || call?.po_no || '';
         const pincode = prodLine.pincode || call?.pincode || '560001';
 
         // Skip if no call number
@@ -5916,26 +6127,23 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         }
 
         // Determine action based on whether this call is selected
-        const action = selectedCallsToFinish.includes(callNo)
+        const action = (selectedCallsToFinish && selectedCallsToFinish.includes(callNo))
           ? 'INSPECTION_COMPLETE_CONFIRM'
           : 'ENTRY_INSPECTION_RESULTS';
 
-        console.log(`📋 [Finish] Processing ${lineNo} (Call: ${callNo}) - Action: ${action}`);
+        console.log(`📋 [Finish] Processing ${lineNo} (Internal: ${internalLineKey}, Call: ${callNo}) - Action: ${action}`);
 
         // Get initiation data for this line to get lot details (offered qty, heat numbers)
         const lineInitiationData = callInitiationDataCache[callNo];
-
-        if (!lineInitiationData?.lotDetailsList) {
-          console.log(`⚠️ [Finish] No initiation data for ${lineNo}, skipping`);
-          continue;
-        }
+        const lotDetails = (lineInitiationData?.lotDetailsList && Array.isArray(lineInitiationData.lotDetailsList) && lineInitiationData.lotDetailsList.length > 0)
+          ? lineInitiationData.lotDetailsList
+          : (lineInitiationData?.lotNumber ? [{ lotNumber: lineInitiationData.lotNumber, heatNumber: lineInitiationData.heatNumber || '', offeredQty: lineInitiationData.offeredQty || 0 }] : (call?.rm_heat_tc_mapping || []));
 
         // Fetch previous shift data for this call (lot-wise array)
         let previousShiftDataByLot = {};
         try {
           const quantitySummaryData = await getQuantitySummary(callNo);
           if (quantitySummaryData && Array.isArray(quantitySummaryData)) {
-            // Convert array to map: lotNumber -> { manufacturedQty, rejectedQty }
             quantitySummaryData.forEach(lotData => {
               if (lotData.lotNumber) {
                 previousShiftDataByLot[lotData.lotNumber] = {
@@ -5952,13 +6160,14 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           console.error(`⚠️ [Finish] Failed to fetch previous shift data for ${callNo}:`, error);
         }
 
-        // Process only active lots for this line (do not loop all unused lots in lotDetailsList)
-        const lineNoKey = `Line-${prodLine.lineNumber || (lineIndex + 1)}`;
+        // Process active lots for this line
         const activeLotsSet = new Set();
 
         // 1. Check gridData in localStorage
-        const determinedShift = shift || lineInitiationData?.shiftOfInspection || call.shiftOfInspection || call.shift || 'A';
-        const gridData = loadGridDataForLine(callNo, poNo, lineNo, determinedShift);
+        const determinedShift = shift || sessionStorage.getItem('inspectionShift') || lineInitiationData?.shiftOfInspection || call.shiftOfInspection || call.shift || 'A';
+        const gridData = loadGridDataForLine(callNo, poNo, lineNoKey, determinedShift) ||
+          loadGridDataForLine(callNo, poNo, internalLineKey, determinedShift) ||
+          loadGridDataForLine(callNo, poNo, lineNo, determinedShift);
         const submodulesList = ['shearing', 'turning', 'mpi', 'forging', 'quenching', 'tempering', 'finalCheck', 'testingFinishing'];
         for (const sub of submodulesList) {
           if (gridData?.[sub] && Array.isArray(gridData[sub])) {
@@ -5974,70 +6183,98 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         if (selectedLotByLine[lineNoKey] && String(selectedLotByLine[lineNoKey]).trim()) {
           activeLotsSet.add(String(selectedLotByLine[lineNoKey]).trim());
         }
-        const lineLotData = manufacturedQtyByLine[lineNoKey] || manufacturedQtyByLine[String(prodLine.lineNumber || (lineIndex + 1))] || {};
+        if (selectedLotByLine[internalLineKey] && String(selectedLotByLine[internalLineKey]).trim()) {
+          activeLotsSet.add(String(selectedLotByLine[internalLineKey]).trim());
+        }
+        if (selectedLotByLine[simpleLineKey] && String(selectedLotByLine[simpleLineKey]).trim()) {
+          activeLotsSet.add(String(selectedLotByLine[simpleLineKey]).trim());
+        }
+        if ((lineNoKey === selectedLine || internalLineKey === selectedLine || lineNo === selectedLine) && selectedLotForDisplay) {
+          activeLotsSet.add(String(selectedLotForDisplay).trim());
+        }
+
+        const lineLotData = manufacturedQtyByLine[lineNoKey] || manufacturedQtyByLine[internalLineKey] || manufacturedQtyByLine[simpleLineKey] || manufacturedQtyByLine[lineNo] || {};
         Object.keys(lineLotData).forEach(k => {
           if (k && k !== 'undefined' && k !== '') activeLotsSet.add(String(k).trim());
         });
 
-        // Fall back to first lot in lotDetailsList ONLY if no active lot exists anywhere
-        const lotDetails = lineInitiationData?.lotDetailsList || [];
-        if (activeLotsSet.size === 0 && lotDetails.length > 0 && lotDetails[0]?.lotNumber) {
-          activeLotsSet.add(String(lotDetails[0].lotNumber).trim());
+        // Fall back to first lot in lotDetails ONLY if no active lot exists anywhere and line is active
+        if (activeLotsSet.size === 0 && lotDetails.length > 0 && (lotDetails[0]?.lotNumber || lotDetails[0]?.subPoNumber)) {
+          if (lineNoKey === selectedLine || internalLineKey === selectedLine || lineNo === selectedLine || (prodLine.icNumber && prodLine.poNumber)) {
+            activeLotsSet.add(String(lotDetails[0]?.lotNumber || lotDetails[0]?.subPoNumber).trim());
+          }
         }
 
         const lotsToProcessForMap = Array.from(activeLotsSet);
 
         lotsToProcessForMap.forEach(lotNo => {
-          const lotDetail = lotDetails.find(l => String(l.lotNumber).trim() === String(lotNo).trim()) || { lotNumber: lotNo, heatNumber: '', offeredQty: 0 };
+          const lotDetail = lotDetails.find(l => String(l.lotNumber || l.subPoNumber || '').trim() === String(lotNo).trim()) || { lotNumber: lotNo, heatNumber: '', offeredQty: 0 };
           const heatNo = lotDetail.heatNumber || '';
           const offeredQty = lotDetail.offeredQty || 0;
+          const trimmedLotNo = lotNo ? String(lotNo).trim() : '';
 
           // Get current shift quantities from persisted lineFinalResult or manufacturedQtyByLine state
-          const lotFinalResult = loadFromLocalStorage('lineFinalResult', callNo, poNo, lineNo, shift, lotNo);
-          const currentLotData = manufacturedQtyByLine[lineNo]?.[lotNo] || {};
-          const currentShiftManufacturedQty = lotFinalResult?.totalManufactured || Math.max(
-            parseInt(currentLotData.shearing || 0) || 0,
-            parseInt(currentLotData.turning || 0) || 0,
-            parseInt(currentLotData.mpiTesting || 0) || 0,
-            parseInt(currentLotData.forging || 0) || 0,
-            parseInt(currentLotData.quenching || 0) || 0,
-            parseInt(currentLotData.tempering || 0) || 0,
-            parseInt(currentLotData.testingFinishing || 0) || 0
+          let lotFinalResult = loadFromLocalStorage('lineFinalResult', callNo, poNo, lineNoKey, shift, lotNo) ||
+            loadFromLocalStorage('lineFinalResult', callNo, poNo, internalLineKey, shift, lotNo) ||
+            loadFromLocalStorage('lineFinalResult', callNo, poNo, lineNo, shift, lotNo);
+
+          const currentLotData = lineLotData[lotNo] || {};
+          const stateMfg = Math.max(
+            parseInt(currentLotData.shearing || 0, 10) || 0,
+            parseInt(currentLotData.turning || 0, 10) || 0,
+            parseInt(currentLotData.mpiTesting || 0, 10) || 0,
+            parseInt(currentLotData.forging || 0, 10) || 0,
+            parseInt(currentLotData.quenching || 0, 10) || 0,
+            parseInt(currentLotData.tempering || 0, 10) || 0,
+            parseInt(currentLotData.testingFinishing || 0, 10) || 0
           );
+
+          const currentShiftManufacturedQty = Math.max(lotFinalResult?.totalManufactured || 0, stateMfg);
 
           // Get current shift rejected quantity
           const currentTotalRejected = lotFinalResult?.totalRejected || rejectedQty.totalRejected || 0;
 
           // Get previous shift data for THIS SPECIFIC LOT
-          const previousShiftDataForLot = previousShiftDataByLot[lotNo] || { manufacturedQty: 0, rejectedQty: 0 };
-
-          // Calculate cumulative quantities
-          const cumulativeManufacturedQty = currentShiftManufacturedQty + previousShiftDataForLot.manufacturedQty;
-          const cumulativeRejectedQty = currentTotalRejected + previousShiftDataForLot.rejectedQty;
-          const cumulativeAcceptedQty = Math.max(0, cumulativeManufacturedQty - cumulativeRejectedQty);
-          const currentShiftRejectedQty = currentTotalRejected;
+          const previousShiftDataForLot = previousShiftDataByLot[lotNo] || previousShiftDataByLot[trimmedLotNo] || { manufacturedQty: 0, rejectedQty: 0 };
 
           // Negative inspected quantity formula:
           // If manufactured is 0 and rejected > 0 => inspectedQty = -rejectedQty
           // Otherwise => inspectedQty = manufacturedQty - rejectedQty
-          const currentShiftInspectedQty = (currentShiftManufacturedQty === 0 && currentShiftRejectedQty > 0)
-            ? -currentShiftRejectedQty
-            : (currentShiftManufacturedQty - currentShiftRejectedQty);
+          const currentShiftInspectedQty = (currentShiftManufacturedQty === 0 && currentTotalRejected > 0)
+            ? -currentTotalRejected
+            : (currentShiftManufacturedQty - currentTotalRejected);
           const currentShiftAcceptedQty = Math.max(0, currentShiftInspectedQty);
 
           const key = `${callNo}|${lotNo}`;
+          const existingData = lotDataMap.get(key);
+
+          // Sum up across lines if the same lot is worked on multiple lines in this shift
+          const prevMfg = existingData?.currentShiftManufacturedQty || 0;
+          const prevRej = existingData?.currentShiftRejectedQty || 0;
+          const prevAcc = existingData?.currentShiftAcceptedQty || 0;
+          const prevInspected = existingData?.currentShiftInspectedQty || 0;
+
+          const totalShiftMfg = prevMfg + currentShiftManufacturedQty;
+          const totalShiftRej = prevRej + currentTotalRejected;
+          const totalShiftAcc = prevAcc + currentShiftAcceptedQty;
+          const totalShiftInspected = prevInspected + currentShiftInspectedQty;
+
+          const finalCumulativeMfg = totalShiftMfg + previousShiftDataForLot.manufacturedQty;
+          const finalCumulativeRej = totalShiftRej + previousShiftDataForLot.rejectedQty;
+          const finalCumulativeAcc = Math.max(0, finalCumulativeMfg - finalCumulativeRej);
+
           lotDataMap.set(key, {
             callNo,
             lotNo,
             heatNo,
             offeredQty,
-            currentShiftManufacturedQty,
-            currentShiftRejectedQty,
-            currentShiftAcceptedQty,
-            currentShiftInspectedQty,
-            cumulativeManufacturedQty,
-            cumulativeRejectedQty,
-            cumulativeAcceptedQty,
+            currentShiftManufacturedQty: totalShiftMfg,
+            currentShiftRejectedQty: totalShiftRej,
+            currentShiftAcceptedQty: totalShiftAcc,
+            currentShiftInspectedQty: totalShiftInspected,
+            cumulativeManufacturedQty: finalCumulativeMfg,
+            cumulativeRejectedQty: finalCumulativeRej,
+            cumulativeAcceptedQty: finalCumulativeAcc,
             lineNo,
             poNo,
             pincode,
@@ -6045,10 +6282,10 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
             shiftCode: (sessionStorage.getItem('inspectionShift') || lineInitiationData?.shiftOfInspection || call.shiftOfInspection || call.shift || 'A').charAt(0).toUpperCase()
           });
 
-          console.log(`✅ [Finish] ${lineNo} - Lot ${lotNo} - Action: ${action}:`, {
-            currentShift: { manufactured: currentShiftManufacturedQty, rejected: currentShiftRejectedQty, accepted: currentShiftAcceptedQty, inspected: currentShiftInspectedQty },
+          console.log(`✅ [Finish] ${lineNo} (${internalLineKey}) - Lot ${lotNo} - Action: ${action}:`, {
+            currentShift: { manufactured: totalShiftMfg, rejected: totalShiftRej, accepted: totalShiftAcc, inspected: totalShiftInspected },
             previousShifts: previousShiftDataForLot,
-            cumulative: { manufactured: cumulativeManufacturedQty, rejected: cumulativeRejectedQty, accepted: cumulativeAcceptedQty }
+            cumulative: { manufactured: finalCumulativeMfg, rejected: finalCumulativeRej, accepted: finalCumulativeAcc }
           });
         });
       }
@@ -6119,19 +6356,8 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
           workflowResults.push({ key, callNo, lotNo, heatNo, action, success: true });
         } catch (workflowError) {
           console.error(`❌ [Finish] Workflow API error for ${key}:`, workflowError);
-          workflowResults.push({ key, callNo, lotNo, heatNo, action, success: false, error: workflowError.message });
+          throw new Error(`Failed to finish inspection for ${key}: ${workflowError?.message || workflowError}`);
         }
-      }
-
-      // Step 3: Show summary
-      const successCount = workflowResults.filter(r => r.success).length;
-      const failCount = workflowResults.filter(r => !r.success).length;
-
-      if (failCount > 0) {
-        const failedCombos = workflowResults.filter(r => !r.success).map(r => r.key).join(', ');
-        showNotification('warning', `Finish processed. ${successCount} lot(s) processed successfully. Warning: ${failCount} lot(s) failed: ${failedCombos}`);
-      } else {
-        showNotification('success', `Finish processed successfully! ${successCount} lot(s) processed.`);
       }
 
       setShowFinishCallSelectionModal(false);
@@ -6147,7 +6373,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       setIsSaving(false);
       isProcessingFinishRef.current = false;
     }
-  }, [selectedCallsToFinish, executeFinishInspection, localProductionLines, call, callInitiationDataCache, manufacturedQtyByLine, selectedLotByLine, shift, allCallOptions, validateAllLots, rejectedQty.totalRejected]);
+  }, [selectedCallsToFinish, executeFinishInspection, localProductionLines, call, callInitiationDataCache, manufacturedQtyByLine, selectedLotByLine, selectedLine, selectedLotForDisplay, shift, allCallOptions, validateAllLots, rejectedQty.totalRejected, isSaving]);
 
 
 
@@ -6436,7 +6662,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
               >
                 + Add Production Line
               </button>
-              <button
+              {/* <button
                 type="button"
                 className="btn btn-primary"
                 onClick={handleAddNewCallNumber}
@@ -6453,7 +6679,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
                 }}
               >
                 + Add New Call Number
-              </button>
+              </button> */}
             </div>
           </>
         )}

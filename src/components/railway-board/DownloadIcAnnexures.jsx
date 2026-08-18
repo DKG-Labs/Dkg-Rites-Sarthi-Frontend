@@ -180,12 +180,13 @@ const DownloadIcAnnexures = ({ selectedProduct = 'ERC', fromDate: initialFromDat
             let matchStage = true;
             if (activeFilters.stage && activeFilters.stage !== 'all') {
                 const callNum = (record.callNumber || '').toUpperCase().trim();
+                const stageStr = (record.stage || '').toUpperCase().trim();
                 if (activeFilters.stage === 'RAW MATERIAL') {
-                    matchStage = callNum.startsWith('ER');
+                    matchStage = callNum.startsWith('ER') || callNum.startsWith('RPRM') || stageStr.includes('RAW') || stageStr === 'RM';
                 } else if (activeFilters.stage === 'PROCESS') {
-                    matchStage = callNum.startsWith('EP');
+                    matchStage = callNum.startsWith('EP') || callNum.startsWith('RPP') || stageStr.includes('PROCESS');
                 } else if (activeFilters.stage === 'FINAL') {
-                    matchStage = callNum.startsWith('EF');
+                    matchStage = callNum.startsWith('EF') || callNum.startsWith('RPF') || stageStr.includes('FINAL');
                 } else {
                     matchStage = (record.stage && record.stage.trim().toLowerCase() === activeFilters.stage.trim().toLowerCase());
                 }

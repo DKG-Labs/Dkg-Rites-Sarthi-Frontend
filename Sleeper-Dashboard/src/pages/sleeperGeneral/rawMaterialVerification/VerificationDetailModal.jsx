@@ -642,11 +642,13 @@ const VerificationDetailModal = ({ row, moduleLabel, actionBy, onClose, onDone }
                             </button>
                             <button
                                 onClick={() => setPendingAction('REJECT')}
+                                disabled={true}
                                 style={{
                                     flex: 1, padding: '10px', border: 'none', borderRadius: '8px',
                                     background: accentColors.REJECT, color: '#fff',
-                                    fontWeight: '700', fontSize: '13px', cursor: 'pointer',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                                    fontWeight: '700', fontSize: '13px', cursor: 'not-allowed',
+                                    display: 'none', // Hidden and disabled as requested
+                                    alignItems: 'center', justifyContent: 'center', gap: '6px',
                                 }}
                             >
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

@@ -37,10 +37,9 @@ const numberToWords = (num) => {
 const generateQuantityRemarks = (c) => {
     const qtyNowOffered = Number(c.qtyNowOffered || 0);
     const qtyNowRejected = Number(c.qtyNowRejected || 0);
-    const qtyNowAccepted = qtyNowOffered > 0 ? Math.max(0, qtyNowOffered - qtyNowRejected) : (Number(String(c.qtyNowPassed || 0).replace(/\*/g, '')) || 0);
     
     // Calculate total erc_used_for_testing sum from call or lot details
-    let ercUsedCount = null;
+    let ercUsedCount = 0;
     if (c.ercUsedForTesting !== undefined && c.ercUsedForTesting !== null) {
         ercUsedCount = Number(c.ercUsedForTesting);
     } else if (c.erc_used_for_testing !== undefined && c.erc_used_for_testing !== null) {
@@ -51,45 +50,51 @@ const generateQuantityRemarks = (c) => {
         ercUsedCount = c.finalLotDetails.reduce((sum, l) => sum + (Number(l.ercUsedForTesting || l.erc_used_for_testing || l.ercUsed || l.erc_used || l.noOfErcUsed || l.no_of_erc_used || l.testingQty) || 0), 0);
     }
     
+    // Accepted quantity = passed qty (or offered - rejected - ercUsedCount if offered > 0)
+    let qtyNowAccepted = 0;
+    if (c.qtyNowPassed !== undefined && c.qtyNowPassed !== null && c.qtyNowPassed !== "") {
+        qtyNowAccepted = Number(String(c.qtyNowPassed).replace(/\*/g, '')) || 0;
+    } else if (qtyNowOffered > 0) {
+        qtyNowAccepted = Math.max(0, qtyNowOffered - qtyNowRejected - ercUsedCount);
+    }
+    
     let text = "";
-    if (ercUsedCount !== null && !isNaN(ercUsedCount) && ercUsedCount > 0) {
-        const dispatchQty = Math.max(0, qtyNowAccepted - ercUsedCount);
-        const dispatchWords = numberToWords(dispatchQty).toUpperCase();
+    const acceptedWords = numberToWords(qtyNowAccepted).toUpperCase();
+    if (ercUsedCount > 0) {
         const testingWords = numberToWords(ercUsedCount).toUpperCase();
-        text = `* Out of above ${qtyNowAccepted}, ${dispatchWords} (${dispatchQty})NOS ONLY has been finally accepted for dispatch and ${testingWords} (${ercUsedCount})Nos. has been consumed for DESTRUCTIVE TESTING.\n`;
+        text = `QUANTITY NOW PASSED ${acceptedWords} NOS ONLY. ${ercUsedCount} (${testingWords}) NOS CONSUMED IN DESTRUCTIVE TESTING FROM THE QUANTITY OFFERED.\n`;
     } else {
-        const words = numberToWords(qtyNowAccepted).toUpperCase();
-        text = `* Out of above ${qtyNowAccepted}, ${words} (${qtyNowAccepted})NOS ONLY has been finally accepted for dispatch.\n`;
+        text = `QUANTITY NOW PASSED ${acceptedWords} NOS ONLY.\n`;
     }
     
     if (c.lotDetails && c.lotDetails.length > 0) {
-        let markings = c.lotDetails.map(l => `${l.lotNo || ''}, H No - ${l.heatNo || ''}`).join(' & ');
-        text += `\nMarking - ${markings}\n`;
+        let markings = c.lotDetails.map(l => `${l.lotNo || ''}, HNO - ${l.heatNo || ''}`).join(' & ');
+        text += `\nMARKING - ${markings} `;
     }
     
     if (qtyNowAccepted > 0) {
         let bagsOf50 = Math.floor(qtyNowAccepted / 50);
         let rem = qtyNowAccepted % 50;
         let packText = [];
-        if (bagsOf50 > 0) packText.push(`${bagsOf50.toString().padStart(2, '0')} Bags x 50 Nos`);
-        if (rem > 0) packText.push(`01 Bag x ${rem} Nos`);
+        if (bagsOf50 > 0) packText.push(`${bagsOf50} BAGS X 50 NOS`);
+        if (rem > 0) packText.push(`01 BAG X ${rem.toString().padStart(2, '0')} NOS`);
         if (packText.length > 0) {
-            text += `\nPacking - ${packText.join(', ')}\n`;
+            text += `PACKING - ${packText.join(', ')} `;
         }
     }
 
     if (c.rmIcNo || c.processIcNo) {
-        let rmDateStr = c.rmIcDate ? ` Date- ${c.rmIcDate}` : "";
-        let processDateStr = c.processIcDate ? ` Date- ${c.processIcDate}` : "";
-        let rmText = c.rmIcNo ? `RM IC No-${c.rmIcNo}${rmDateStr}` : "";
-        let processText = c.processIcNo ? `Process IC No-${c.processIcNo}${processDateStr}` : "";
+        let rmDateStr = c.rmIcDate ? ` DATE- ${c.rmIcDate}` : "";
+        let processDateStr = c.processIcDate ? ` DATE- ${c.processIcDate}` : "";
+        let rmText = c.rmIcNo ? `RM IC NO-${c.rmIcNo}${rmDateStr}` : "";
+        let processText = c.processIcNo ? `PROCESS IC NO-${c.processIcNo}${processDateStr}` : "";
 
         if (rmText && processText) {
-            text += `\nRM Inspection and Process Inspection Accepted against Vide\n${rmText}\n& ${processText}`;
+            text += `RM INSPECTION AND PROCESS INSPECTION ACCEPTED AGAINST VIDE ${rmText} & ${processText}`;
         } else if (rmText) {
-            text += `\nRM Inspection Accepted against Vide\n${rmText}`;
+            text += `RM INSPECTION ACCEPTED AGAINST VIDE ${rmText}`;
         } else if (processText) {
-            text += `\nProcess Inspection Accepted against Vide\n${processText}`;
+            text += `PROCESS INSPECTION ACCEPTED AGAINST VIDE ${processText}`;
         }
         
         if (c.ibsCaseNo && c.ibsCaseNo !== '-') {
@@ -213,6 +218,23 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
       };
     }
 
+    const ercTestingCount = c.ercUsedForTesting ?? c.erc_used_for_testing ?? (
+      c.lotDetails && Array.isArray(c.lotDetails) && c.lotDetails.length > 0
+        ? c.lotDetails.reduce((sum, l) => sum + (Number(l.ercUsedForTesting || l.erc_used_for_testing || l.ercUsed || l.erc_used || l.noOfErcUsed || l.no_of_erc_used || l.testingQty) || 0), 0)
+        : (c.finalLotDetails && Array.isArray(c.finalLotDetails) && c.finalLotDetails.length > 0
+            ? c.finalLotDetails.reduce((sum, l) => sum + (Number(l.ercUsedForTesting || l.erc_used_for_testing || l.ercUsed || l.erc_used || l.noOfErcUsed || l.no_of_erc_used || l.testingQty) || 0), 0)
+            : 0)
+    );
+
+    const calculatedAccepted = (c.qtyNowPassed !== undefined && c.qtyNowPassed !== null && c.qtyNowPassed !== "")
+      ? (Number(String(c.qtyNowPassed).replace(/\*/g, '')) || 0)
+      : (Number(c.qtyNowOffered || 0) > 0 ? Math.max(0, Number(c.qtyNowOffered || 0) - Number(c.qtyNowRejected || 0) - ercTestingCount) : 0);
+
+    const passedVal = calculatedAccepted > Number(c.qtyOnOrder || 0) ? Number(c.qtyOnOrder || 0) : calculatedAccepted;
+    const stillDueVal = (c.qtyStillDue !== undefined && c.qtyStillDue !== null && c.qtyStillDue !== "")
+      ? c.qtyStillDue
+      : Math.max(0, Number(c.qtyOnOrder || 0) - Number(c.qtyPassedPreviously || 0) - passedVal);
+
     return {
       certificateNo: c.certificateNo || c.icNo || "",
       certificateDate: c.certificateDate || formatDate(new Date().toISOString()),
@@ -230,16 +252,10 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
       qtyOfferedPreviously: c.qtyOfferedPreviously || 0,
       qtyPassedPreviously: c.qtyPassedPreviously || 0,
       qtyNowOffered: c.qtyNowOffered || 0,
-      qtyNowPassed: Number(c.qtyNowPassed || 0) > Number(c.qtyOnOrder || 0) ? Number(c.qtyOnOrder || 0) : Number(c.qtyNowPassed || 0),
+      qtyNowPassed: passedVal,
       qtyNowRejected: c.qtyNowRejected || 0,
-      qtyStillDue: c.qtyStillDue || 0,
-      ercUsedForTesting: c.ercUsedForTesting ?? c.erc_used_for_testing ?? (
-        c.lotDetails && Array.isArray(c.lotDetails) && c.lotDetails.length > 0
-          ? c.lotDetails.reduce((sum, l) => sum + (Number(l.ercUsedForTesting || l.erc_used_for_testing || l.ercUsed || l.erc_used || l.noOfErcUsed || l.no_of_erc_used || l.testingQty) || 0), 0)
-          : (c.finalLotDetails && Array.isArray(c.finalLotDetails) && c.finalLotDetails.length > 0
-              ? c.finalLotDetails.reduce((sum, l) => sum + (Number(l.ercUsedForTesting || l.erc_used_for_testing || l.ercUsed || l.erc_used || l.noOfErcUsed || l.no_of_erc_used || l.testingQty) || 0), 0)
-              : 0)
-      ),
+      qtyStillDue: stillDueVal,
+      ercUsedForTesting: ercTestingCount,
       noOfItemsChecked: c.noOfItemsChecked || "",
       dateOfCall: c.dateOfCall || "",
       noOfVisits: c.noOfVisits || "",
@@ -316,9 +332,10 @@ export default function FinalProductCertificate({ call = {}, onBack }) {
         const nowOffered = parseFloat(updated.qtyNowOffered) || 0;
         const nowRejected = parseFloat(updated.qtyNowRejected) || 0;
         const ercTesting = parseFloat(updated.ercUsedForTesting) || 0;
-        const rawAccepted = nowOffered > 0 ? Math.max(0, nowOffered - nowRejected) : (parseFloat(String(updated.qtyNowPassed || 0).replace(/\*/g, '')) || 0);
-        const dispatchAccepted = Math.max(0, rawAccepted - ercTesting);
-        updated.qtyStillDue = Math.max(0, order - prevPassed - dispatchAccepted);
+        const rawAccepted = (updated.qtyNowPassed !== undefined && updated.qtyNowPassed !== null && updated.qtyNowPassed !== "")
+          ? (parseFloat(String(updated.qtyNowPassed).replace(/\*/g, '')) || 0)
+          : (nowOffered > 0 ? Math.max(0, nowOffered - nowRejected - ercTesting) : 0);
+        updated.qtyStillDue = Math.max(0, order - prevPassed - rawAccepted);
       }
       return updated;
     });

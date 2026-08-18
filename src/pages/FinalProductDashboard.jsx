@@ -990,6 +990,9 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
   useEffect(() => {
     const callNo = selectedCall?.call_no;
     if (callNo) {
+      // Reset captured images on call switch so previous call images do not bleed
+      setCapturedImages([]);
+
       try {
         const persistedData = localStorage.getItem(`fpLotInspectionData_${callNo}`);
         if (persistedData) {
@@ -1028,7 +1031,7 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
                 localStorage.setItem(`fpCleanedWithCoating_${callNo}`, String(summary.cleanedWithCoating));
               }
 
-              if ((!capturedImages || capturedImages.length === 0) && summary.capturedImages && summary.capturedImages.length > 0) {
+              if (summary.capturedImages && summary.capturedImages.length > 0) {
                 setCapturedImages(summary.capturedImages);
               }
             }
@@ -1616,8 +1619,13 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
         console.warn('Inspection saved but workflow transition failed');
       }
 
-      // Clear draft data
+      // Clear draft data and images
       localStorage.removeItem(`${DASHBOARD_DRAFT_KEY}${callNo}`);
+      import('../utils/imageStorage').then(({ removeImages }) => {
+        removeImages(`${DASHBOARD_DRAFT_KEY}${callNo}`).catch(console.error);
+        removeImages('capturedImages').catch(console.error);
+      });
+      setCapturedImages([]);
 
       // Set finish success data for custom modal display
       setFinishSuccessData({

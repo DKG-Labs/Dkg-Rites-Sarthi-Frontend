@@ -186,12 +186,40 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
     }, [dutyUnit, contextVendorId]);
 
     const SLEEPER_RULES = {
-        'RT-2496': { wires: 18, diaMin: 2.97, diaMax: 3.03, nominalWeight: 0.166 },
-        'RT-8746': { wires: 16, diaMin: 2.97, diaMax: 3.03, nominalWeight: 0.166 },
-        'RT-1234': { wires: 18, diaMin: 2.97, diaMax: 3.03, nominalWeight: 0.166 },
-        'RT-5678': { wires: 20, diaMin: 2.97, diaMax: 3.03, nominalWeight: 0.166 },
-        'RT-9012': { wires: 24, diaMin: 2.97, diaMax: 3.03, nominalWeight: 0.166 },
-        'G-101': { wires: 18, diaMin: 2.97, diaMax: 3.03, nominalWeight: 0.166 }
+        'RT-2496': { wires: 18, diaMin: 2.87, diaMax: 3.03, nominalWeight: 0.166 },
+        'RT-8746': { wires: 16, diaMin: 2.87, diaMax: 3.03, nominalWeight: 0.166 },
+        'RT-1234': { wires: 18, diaMin: 2.87, diaMax: 3.03, nominalWeight: 0.166 },
+        'RT-5678': { wires: 20, diaMin: 2.87, diaMax: 3.03, nominalWeight: 0.166 },
+        'RT-9012': { wires: 24, diaMin: 2.87, diaMax: 3.03, nominalWeight: 0.166 },
+        'G-101': { wires: 18, diaMin: 2.87, diaMax: 3.03, nominalWeight: 0.166 }
+    };
+
+    const getValidWires = (ruleWires) => {
+        const base = [10, 16, 18, 20, 24, 27];
+        if (typeof ruleWires === 'number') {
+            if (!base.includes(ruleWires)) base.push(ruleWires);
+        } else if (typeof ruleWires === 'string') {
+            ruleWires.split('/').map(Number).forEach(n => {
+                if (!isNaN(n) && !base.includes(n)) base.push(n);
+            });
+        }
+        return base;
+    };
+
+    const checkWireDiaOk = (diaNum, rules) => {
+        if (isNaN(diaNum) || diaNum <= 0) return false;
+        const minDia = rules?.diaMin || 2.87;
+        const maxDia = rules?.diaMax || 3.03;
+        const is3mmOk = diaNum >= minDia && diaNum <= maxDia;
+        const is7PlyOk = diaNum >= 9.35 && diaNum <= 10.16;
+        return is3mmOk || is7PlyOk;
+    };
+
+    const checkLayLengthOk = (layLenNum) => {
+        if (isNaN(layLenNum) || layLenNum <= 0) return false;
+        const isStandardOk = layLenNum >= 72 && layLenNum <= 108;
+        const is7PlyOk = layLenNum >= 114 && layLenNum <= 152;
+        return isStandardOk || is7PlyOk;
     };
 
 
@@ -211,7 +239,7 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
 
     // Auto Overall Status calculation
     useEffect(() => {
-        const rules = SLEEPER_RULES[formData.sleeperType] || { wires: '16/18/20/24/27', diaMin: 2.97, diaMax: 3.03 };
+        const rules = SLEEPER_RULES[formData.sleeperType] || { wires: '10/16/18/20/24/27', diaMin: 2.87, diaMax: 3.03 };
         
         const { noOfWires, wireDia, layLength, observedWeight, arrangement } = formData;
 
@@ -227,12 +255,12 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
         const diaNum = parseFloat(wireDia);
         const layLenNum = parseFloat(layLength);
 
-        const validWires = typeof rules.wires === 'string' ? rules.wires.split('/').map(Number) : [rules.wires];
+        const validWires = getValidWires(rules.wires);
 
         // Validation checks (only if value is present)
         const isWiresOk = !noOfWires || validWires.includes(wiresNum);
-        const isDiaOk = !wireDia || (!isNaN(diaNum) && diaNum >= rules.diaMin && diaNum <= rules.diaMax);
-        const isLayLenOk = !layLength || (!isNaN(layLenNum) && layLenNum >= 72 && layLenNum <= 108);
+        const isDiaOk = !wireDia || checkWireDiaOk(diaNum, rules);
+        const isLayLenOk = !layLength || checkLayLengthOk(layLenNum);
         const isArrangementChecked = arrangement === 'OK';
         const isArrangementFailed = arrangement === 'Not OK';
 
@@ -304,24 +332,23 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
 
         setValidationErrors([]);
 
-        const rules = SLEEPER_RULES[formData.sleeperType] || { wires: '16/18/20/24/27', diaMin: 2.97, diaMax: 3.03, nominalWeight: 0.166 };
+        const rules = SLEEPER_RULES[formData.sleeperType] || { wires: '10/16/18/20/24/27', diaMin: 2.87, diaMax: 3.03, nominalWeight: 0.166 };
         const layLenNum = parseFloat(formData.layLength);
         const diaNum = parseFloat(formData.wireDia);
         const wiresNum = parseInt(formData.noOfWires);
 
         // Hard validation — block save if any value is out of range
         const errors = [];
-        const requiredWires = rules.wires;
-        const validWires = typeof requiredWires === 'string' ? requiredWires.split('/').map(Number) : [requiredWires];
+        const validWires = getValidWires(rules.wires);
 
         if (!validWires.includes(wiresNum)) {
-            errors.push(`• No. of Wires: ${wiresNum} (Required: ${requiredWires})`);
+            errors.push(`• No. of Wires: ${wiresNum} (Required: 10/16/18/20/24/27 wires)`);
         }
-        if (diaNum < rules.diaMin || diaNum > rules.diaMax) {
-            errors.push(`• Wire Dia: ${diaNum.toFixed(2)}mm (Allowed: ${rules.diaMin}–${rules.diaMax}mm)`);
+        if (!checkWireDiaOk(diaNum, rules)) {
+            errors.push(`• Wire Dia: ${diaNum.toFixed(2)}mm (Allowed: 2.87–3.03mm for 3.0mm wire OR 9.35–10.16mm for 9.5mm 7-Ply wire)`);
         }
-        if (layLenNum < 72 || layLenNum > 108) {
-            errors.push(`• Lay Length: ${layLenNum.toFixed(1)}mm (Allowed: 72–108mm)`);
+        if (!checkLayLengthOk(layLenNum)) {
+            errors.push(`• Lay Length: ${layLenNum.toFixed(1)}mm (Allowed: 72–108mm for 3.0mm wire OR 114–152mm for 7-Ply wire)`);
         }
 
         if (errors.length > 0) {
@@ -365,8 +392,8 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
     };
 
     const fieldLabel = (formData.location || '').toLowerCase().includes('line') ? 'Gang' : 'Bench';
-    const currentRules = SLEEPER_RULES[formData.sleeperType] || { wires: '16/18/20/24/27', diaMin: 2.97, diaMax: 3.03, nominalWeight: 0.166 };
-    const validCurrentWires = typeof currentRules.wires === 'string' ? currentRules.wires.split('/').map(Number) : [currentRules.wires];
+    const currentRules = SLEEPER_RULES[formData.sleeperType] || { wires: '10/16/18/20/24/27', diaMin: 2.87, diaMax: 3.03, nominalWeight: 0.166 };
+    const validCurrentWires = getValidWires(currentRules.wires);
 
     return (
         <div className="form-container" style={{ padding: '20px' }}>
@@ -473,23 +500,23 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
                         onChange={e => handleChange('noOfWires', e.target.value)}
                     />
                     <div style={{ fontSize: '11px', marginTop: '4px', color: formData.noOfWires && (!validCurrentWires.includes(parseInt(formData.noOfWires))) ? '#ef4444' : '#64748b' }}>
-                        Required: {currentRules.wires} wires
+                        Required: 10/16/18/20/24/27 wires
                     </div>
                 </div>
 
                 <div className="form-field">
-                    <label htmlFor="wireDia" style={{ fontSize: '11px', fontWeight: '700' }}>HTS Wire Dia (Nominal: 3.00mm) <span className="required">*</span></label>
+                    <label htmlFor="wireDia" style={{ fontSize: '11px', fontWeight: '700' }}>HTS Wire Dia (Nominal: 3.00mm / 9.50mm) <span className="required">*</span></label>
                     <input
                         id="wireDia"
                         type="number"
                         step="0.01"
-                        placeholder="3.00"
-                        className={`form-input-standard ${formData.wireDia && (parseFloat(formData.wireDia) < currentRules.diaMin || parseFloat(formData.wireDia) > currentRules.diaMax) ? 'form-input-error' : ''}`}
+                        placeholder="3.00 or 9.50"
+                        className={`form-input-standard ${formData.wireDia && !checkWireDiaOk(parseFloat(formData.wireDia), currentRules) ? 'form-input-error' : ''}`}
                         value={formData.wireDia}
                         onChange={e => handleChange('wireDia', e.target.value)}
                     />
-                    <div style={{ fontSize: '11px', marginTop: '4px', color: formData.wireDia && (parseFloat(formData.wireDia) < currentRules.diaMin || parseFloat(formData.wireDia) > currentRules.diaMax) ? '#ef4444' : '#64748b' }}>
-                        Required: {currentRules.diaMin}-{currentRules.diaMax} mm
+                    <div style={{ fontSize: '11px', marginTop: '4px', color: formData.wireDia && !checkWireDiaOk(parseFloat(formData.wireDia), currentRules) ? '#ef4444' : '#64748b' }}>
+                        Required: 2.87-3.03 mm (3.0mm) or 9.35-10.16 mm (9.5mm 7-Ply)
                     </div>
                 </div>
 
@@ -499,13 +526,13 @@ const HTSWireForm = ({ onSave, onCancel, isLongLine, existingEntries = [], initi
                         id="layLength"
                         type="number"
                         step="0.1"
-                        placeholder="e.g. 100.0"
-                        className={`form-input-standard ${formData.layLength && (parseFloat(formData.layLength) < 72 || parseFloat(formData.layLength) > 108) ? 'form-input-error' : ''}`}
+                        placeholder="e.g. 100.0 or 130.0"
+                        className={`form-input-standard ${formData.layLength && !checkLayLengthOk(parseFloat(formData.layLength)) ? 'form-input-error' : ''}`}
                         value={formData.layLength}
                         onChange={e => handleChange('layLength', e.target.value)}
                     />
-                    <div style={{ fontSize: '11px', marginTop: '4px', color: formData.layLength && (parseFloat(formData.layLength) < 72 || parseFloat(formData.layLength) > 108) ? '#ef4444' : '#64748b' }}>
-                        Required: 72-108 mm
+                    <div style={{ fontSize: '11px', marginTop: '4px', color: formData.layLength && !checkLayLengthOk(parseFloat(formData.layLength)) ? '#ef4444' : '#64748b' }}>
+                        Required: 72-108 mm (3.0mm) or 114-152 mm (7-Ply)
                     </div>
                 </div>
 

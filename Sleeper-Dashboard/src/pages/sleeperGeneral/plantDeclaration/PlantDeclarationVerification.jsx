@@ -305,7 +305,71 @@ const PlantDeclarationVerification = () => {
         );
     };
 
-    const renderTable = (records, isHistory = false) => {
+    const PlantRecordTable = ({ records, isHistory, selectedModuleId }) => {
+        const [sortConfig, setSortConfig] = useState({ key: 'requestId', direction: 'desc' });
+
+        const handleSort = (key) => {
+            let direction = 'asc';
+            if (sortConfig.key === key) {
+                direction = sortConfig.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                if (['requestId', 'workflowTransitionId', 'index'].includes(key)) {
+                    direction = 'desc';
+                }
+            }
+            setSortConfig({ key, direction });
+        };
+
+        const getRawFieldValue = (row, key) => {
+            if (key === 'index') return Number(row.requestId || row.workflowTransitionId || 0);
+            if (key === 'requestId') return Number(row.requestId || 0);
+            if (key === 'workflowTransitionId') return Number(row.workflowTransitionId || 0);
+            if (key === 'assignedTo') return String(row.assignedTo || '');
+            if (key === 'status') return String(row.status || '');
+            return row.detail?.[key] ?? '';
+        };
+
+        const sortedRecords = React.useMemo(() => {
+            if (!records || !Array.isArray(records)) return [];
+            const items = [...records];
+            if (!sortConfig.key) return items;
+
+            return items.sort((a, b) => {
+                const valA = getRawFieldValue(a, sortConfig.key);
+                const valB = getRawFieldValue(b, sortConfig.key);
+
+                const numA = Number(valA);
+                const numB = Number(valB);
+                const isNumA = !isNaN(numA) && typeof valA !== 'boolean' && String(valA).trim() !== '';
+                const isNumB = !isNaN(numB) && typeof valB !== 'boolean' && String(valB).trim() !== '';
+
+                if (isNumA && isNumB) {
+                    return sortConfig.direction === 'asc' ? numA - numB : numB - numA;
+                }
+
+                const strA = String(valA).toLowerCase();
+                const strB = String(valB).toLowerCase();
+                const comp = strA.localeCompare(strB, undefined, { numeric: true, sensitivity: 'base' });
+                return sortConfig.direction === 'asc' ? comp : -comp;
+            });
+        }, [records, sortConfig]);
+
+        const renderSortIcon = (key) => {
+            const isCurrent = sortConfig.key === key;
+            return (
+                <span style={{ 
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    marginLeft: '4px',
+                    fontSize: '10px',
+                    color: isCurrent ? '#7c3aed' : '#94a3b8',
+                    fontWeight: isCurrent ? 'bold' : 'normal'
+                }}>
+                    {isCurrent ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '↕'}
+                </span>
+            );
+        };
+
         if (!records || records.length === 0) {
             return (
                 <div className="pdv-api-empty" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>
@@ -319,19 +383,31 @@ const PlantDeclarationVerification = () => {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                 <thead>
                     <tr style={{ background: '#f8fafc' }}>
-                        <th style={thStyle}>#</th>
-                        <th style={thStyle}>Request ID</th>
-                        <th style={thStyle}>Transition ID</th>
-                        <th style={thStyle}>Assigned</th>
+                        <th style={{ ...thStyle, cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('index')}>
+                            <div style={{ display: 'flex', alignItems: 'center' }}># {renderSortIcon('index')}</div>
+                        </th>
+                        <th style={{ ...thStyle, cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('requestId')}>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>Request ID {renderSortIcon('requestId')}</div>
+                        </th>
+                        <th style={{ ...thStyle, cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('workflowTransitionId')}>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>Transition ID {renderSortIcon('workflowTransitionId')}</div>
+                        </th>
+                        <th style={{ ...thStyle, cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('assignedTo')}>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>Assigned {renderSortIcon('assignedTo')}</div>
+                        </th>
                         {MODULE_TABLE_FIELDS[records[0]?.moduleId || selectedModuleId]?.map(col => (
-                            <th key={col.key} style={thStyle}>{col.label}</th>
+                            <th key={col.key} style={{ ...thStyle, cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort(col.key)}>
+                                <div style={{ display: 'flex', alignItems: 'center' }}>{col.label} {renderSortIcon(col.key)}</div>
+                            </th>
                         ))}
-                        <th style={thStyle}>Status</th>
+                        <th style={{ ...thStyle, cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('status')}>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>Status {renderSortIcon('status')}</div>
+                        </th>
                         <th style={thStyle}>Action</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {records.map((row, idx) => (
+                    {sortedRecords.map((row, idx) => (
                         <tr key={row.workflowTransitionId || idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
                             <td style={tdStyle}>{idx + 1}</td>
                             <td style={{ ...tdStyle, fontWeight: '700', color: '#7c3aed' }}>#{row.requestId}</td>
@@ -386,6 +462,16 @@ const PlantDeclarationVerification = () => {
                     ))}
                 </tbody>
             </table>
+        );
+    };
+
+    const renderTable = (records, isHistory = false) => {
+        return (
+            <PlantRecordTable 
+                records={records} 
+                isHistory={isHistory} 
+                selectedModuleId={selectedModuleId} 
+            />
         );
     };
 

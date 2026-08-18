@@ -281,25 +281,205 @@ const getStatusDisplay = (status) => {
     return { label: status, bg: '#f1f5f9', color: '#475569' };
 };
 
+const parseToTimestamp = (val) => {
+    if (!val) return 0;
+    if (typeof val === 'number') return val;
+    const str = String(val).trim();
+    if (!str) return 0;
+
+    if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
+        const t = new Date(str).getTime();
+        if (!isNaN(t)) return t;
+    }
+    if (/^\d{1,2}[\/-]\d{1,2}[\/-]\d{4}/.test(str)) {
+        const parts = str.split(/[\/-]/);
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const year = parseInt(parts[2], 10);
+        const d = new Date(year, month, day);
+        if (!isNaN(d.getTime())) return d.getTime();
+    }
+    const t = new Date(str).getTime();
+    return !isNaN(t) ? t : 0;
+};
+
+const getSecondarySortVal = (row) => {
+    const detail = row.detail || {};
+    const dateStr = row.createdDate || row.createdAt || detail.createdDate || detail.createdAt;
+    if (dateStr) {
+        const t = parseToTimestamp(dateStr);
+        if (t > 0) return t;
+    }
+    const reqStr = String(row.requestId || detail.requestId || '').replace(/\D/g, '');
+    if (reqStr) {
+        const reqId = parseInt(reqStr, 10);
+        if (!isNaN(reqId) && reqId > 0) return reqId;
+    }
+    if (row.workflowTransitionId) {
+        const trId = Number(row.workflowTransitionId);
+        if (!isNaN(trId) && trId > 0) return trId;
+    }
+    return 0;
+};
+
+const getDeclarationTimestamp = (item) => {
+    const detail = item.detail || item;
+    const dateStr = item.createdDate || item.createdAt || detail.createdDate || detail.createdAt;
+    if (dateStr) {
+        const t = parseToTimestamp(dateStr);
+        if (t > 0) return t;
+    }
+    const reqStr = String(item.requestId || detail.requestId || item.workflowTransitionId || 0).replace(/\D/g, '');
+    if (reqStr) {
+        const reqId = parseInt(reqStr, 10);
+        if (!isNaN(reqId) && reqId > 0) return reqId;
+    }
+    return 0;
+};
+
 // ─────────────────────────────────────────────
 //  Sub-component: Record Table
 // ─────────────────────────────────────────────
 const RecordTable = ({ records, moduleId, onView, btnLabel, btnColor }) => {
+    // Default sort by date / timestamp descending (latest declaration on top)
+    const [sortConfig, setSortConfig] = useState({ key: 'castingDate', direction: 'desc' });
+
+    const handleSort = (key) => {
+        let direction = 'asc';
+        if (sortConfig.key === key) {
+            direction = sortConfig.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            if (['date', 'castingDate', 'createdDate', 'index', 'batchNumber', 'totalCastedSleepers', 'noOfSleepers'].includes(key)) {
+                direction = 'desc';
+            }
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const getRawFieldValue = (row, key) => {
+        if (key === 'index') {
+            return Number(row.requestId || row.workflowTransitionId || 0);
+        }
+        if (key === 'status') {
+            return row.status || '';
+        }
+        const detail = row.detail || {};
+        let rawVal = detail[key];
+
+        if (key === 'manufacturer' || key === 'brand' || key === 'supplierName') {
+            rawVal = detail.manufacturer || detail.brand || detail.source || detail.supplierName || '';
+        }
+        if (key === 'invoiceNo' || key === 'invoiceNumber' || key === 'challanNumber') {
+            rawVal = detail.invoiceNo || detail.invoiceNumber || detail.challanNumber || detail.consignmentNo || detail.mtcNo || '';
+        }
+        if (key === 'dateOfReceipt' || key === 'castingDate' || key === 'date' || key === 'arrivalDate') {
+            rawVal = detail.dateOfReceipt || detail.receivedDate || detail.arrivalDate || detail.castingDate || detail.createdDate || detail.createdAt || row.createdDate || row.createdAt || '';
+        }
+        return rawVal;
+    };
+
+    const sortedRecords = React.useMemo(() => {
+        if (!records || !Array.isArray(records)) return [];
+        const items = [...records];
+        if (!sortConfig.key) return items;
+
+        return items.sort((a, b) => {
+            const rawA = getRawFieldValue(a, sortConfig.key);
+            const rawB = getRawFieldValue(b, sortConfig.key);
+
+            let valA = rawA ?? '';
+            let valB = rawB ?? '';
+
+            let primaryComp = 0;
+
+            const timeA = parseToTimestamp(valA);
+            const timeB = parseToTimestamp(valB);
+            const isDateKey = ['date', 'castingDate', 'createdDate', 'dateOfReceipt', 'arrivalDate'].includes(sortConfig.key);
+
+            if ((isDateKey || (timeA > 0 && timeB > 0)) && typeof valA === 'string' && typeof valB === 'string' && valA.length >= 8 && valB.length >= 8) {
+                primaryComp = timeA - timeB;
+            } else {
+                const numA = Number(valA);
+                const numB = Number(valB);
+                const isNumA = !isNaN(numA) && typeof valA !== 'boolean' && String(valA).trim() !== '';
+                const isNumB = !isNaN(numB) && typeof valB !== 'boolean' && String(valB).trim() !== '';
+
+                if (isNumA && isNumB) {
+                    primaryComp = numA - numB;
+                } else {
+                    const strA = String(valA).trim();
+                    const strB = String(valB).trim();
+                    primaryComp = strA.localeCompare(strB, undefined, { numeric: true, sensitivity: 'base' });
+                }
+            }
+
+            if (primaryComp !== 0) {
+                return sortConfig.direction === 'asc' ? primaryComp : -primaryComp;
+            }
+
+            // TIE-BREAKER: When primary values match (e.g. same date 2026-08-07), sort latest declaration first!
+            const secA = getSecondarySortVal(a);
+            const secB = getSecondarySortVal(b);
+            return secB - secA;
+        });
+    }, [records, sortConfig]);
+
+    const renderSortIcon = (key) => {
+        const isCurrent = sortConfig.key === key;
+        return (
+            <span style={{ 
+                display: 'inline-flex',
+                alignItems: 'center',
+                marginLeft: '6px',
+                fontSize: '11px',
+                color: isCurrent ? '#0891b2' : '#94a3b8',
+                fontWeight: isCurrent ? 'bold' : 'normal'
+            }}>
+                {isCurrent ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '↕'}
+            </span>
+        );
+    };
+
     return (
         <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                 <thead>
                     <tr style={{ background: '#f8fafc' }}>
-                        <th style={thStyle}>#</th>
+                        <th 
+                            style={{ ...thStyle, cursor: 'pointer', userSelect: 'none' }}
+                            onClick={() => handleSort('index')}
+                            title="Click to sort by index / ID"
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                                # {renderSortIcon('index')}
+                            </div>
+                        </th>
                         {MODULE_TABLE_FIELDS[moduleId]?.map(col => (
-                            <th key={col.key} style={thStyle}>{col.label}</th>
+                            <th 
+                                key={col.key} 
+                                style={{ ...thStyle, cursor: 'pointer', userSelect: 'none' }}
+                                onClick={() => handleSort(col.key)}
+                                title={`Click to sort by ${col.label}`}
+                            >
+                                <div style={{ display: 'flex', alignItems: 'center' }}>
+                                    {col.label} {renderSortIcon(col.key)}
+                                </div>
+                            </th>
                         ))}
-                        <th style={thStyle}>Status</th>
+                        <th 
+                            style={{ ...thStyle, cursor: 'pointer', userSelect: 'none' }}
+                            onClick={() => handleSort('status')}
+                            title="Click to sort by status"
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                                Status {renderSortIcon('status')}
+                            </div>
+                        </th>
                         <th style={thStyle}>Details</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {records.map((row, idx) => {
+                    {sortedRecords.map((row, idx) => {
                         const { label, bg, color } = getStatusDisplay(row.status);
                         return (
                             <tr key={row.workflowTransitionId || idx}
@@ -484,7 +664,7 @@ const IncomingVerificationDashboard = ({ initialGroup = null, initialModuleId = 
             let myPending = filterByModuleAndPlant(pendingList);
 
             if (isModule11) {
-                myPending.sort((a, b) => new Date(b.createdDate || 0) - new Date(a.createdDate || 0));
+                myPending.sort((a, b) => getDeclarationTimestamp(b) - getDeclarationTimestamp(a));
                 setTotalPending(pendingRes?.responseData?.totalElements ?? myPending.length);
             } else {
                 setTotalPending(myPending.length);
@@ -528,7 +708,7 @@ const IncomingVerificationDashboard = ({ initialGroup = null, initialModuleId = 
                     let myVerified = filterByModuleAndPlant(verifiedList);
 
                     if (isModule11) {
-                        myVerified.sort((a, b) => new Date(b.createdDate || 0) - new Date(a.createdDate || 0));
+                        myVerified.sort((a, b) => getDeclarationTimestamp(b) - getDeclarationTimestamp(a));
                         setTotalVerified(completedRes?.responseData?.totalElements ?? myVerified.length);
                     } else {
                         setTotalVerified(myVerified.length);

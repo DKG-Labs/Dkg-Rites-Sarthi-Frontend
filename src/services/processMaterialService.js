@@ -348,6 +348,18 @@ export const pauseProcessInspection = async (payload) => {
   return handleResponse(response);
 };
 
+export const revertPauseProcessInspection = async (payload) => {
+  const response = await fetch(
+    `${API_BASE_URL}/rollback-pause`,
+    {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload)
+    }
+  );
+  return handleResponse(response);
+};
+
 // ==================== Final Results Validation ====================
 
 /**

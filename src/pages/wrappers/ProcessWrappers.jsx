@@ -251,6 +251,7 @@ export const ProcessParametersWrapper = () => {
       lotNumbers={lotNumbers}
       shift={processShift}
       selectedLines={allLines}
+      initialLine={selectedLine}
       onNavigateSubmodule={handleNavigateSubmodule}
       lineData={lineData}
       productionLines={productionLines}

@@ -351,11 +351,19 @@ const AnnexurePage = ({ onBack }) => {
     );
   }
 
-  // Filtering Logic based on Call Prefix
+  // Filtering Logic based on Call Prefix & Product Type
   const getFilteredAnnexures = () => {
     if (!selectedCall || !selectedCall.call_no) return annexureList;
 
-    const prefix = selectedCall.call_no.substring(0, 2).toUpperCase();
+    const callNo = (selectedCall.call_no || '').toUpperCase();
+    const productType = (selectedCall.productType || selectedCall.product_type || '').toLowerCase();
+    const prefix = callNo.substring(0, 2);
+
+    // Rail Pad Calls (RPP, RPF, RP prefixes or Rail Pad product type):
+    // Hide ERC annexures for Rail Pad since they belong strictly to ERC
+    if (prefix.startsWith('RP') || productType.includes('rail pad') || productType.includes('railpad')) {
+      return [];
+    }
 
     if (prefix === 'ER') {
       // ER Prefix (Raw Material): ITP, Annexure-I, Annexure-II

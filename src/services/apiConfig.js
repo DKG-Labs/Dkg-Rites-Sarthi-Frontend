@@ -13,8 +13,8 @@
 // Get API URL from environment variable or fallback to Azure production URL
 const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 export const API_BASE_URL = isLocal
-   ? 'http://localhost:8080/sarthi-backend'
-   : 'https://sarthibackendservice-bfe2eag3byfkbsa6.canadacentral-01.azurewebsites.net/sarthi-backend';
+    ? 'http://localhost:8080/sarthi-backend'
+    : 'https://sarthibackendservice-bfe2eag3byfkbsa6.canadacentral-01.azurewebsites.net/sarthi-backend';
 
 // API Configuration determined by exports above
 //export const API_BASE_URL = 'https://sarthibackendservice-bfe2eag3byfkbsa6.canadacentral-01.azurewebsites.net/sarthi-backend';
@@ -54,8 +54,8 @@ export const API_ENDPOINTS = {
     // Certificates
     CERTIFICATES: `${API_BASE_URL}/api/certificate`,
     CERTIFICATE_STORAGE: isLocal
-       ? 'https://sarthibackendservice-bfe2eag3byfkbsa6.canadacentral-01.azurewebsites.net/sarthi-backend/api/certificate-storage'
-       : `${API_BASE_URL}/api/certificate-storage`,
+        ? 'https://sarthibackendservice-bfe2eag3byfkbsa6.canadacentral-01.azurewebsites.net/sarthi-backend/api/certificate-storage'
+        : `${API_BASE_URL}/api/certificate-storage`,
 
     // Schedule
     SCHEDULE: `${API_BASE_URL}/api/inspection-schedule`,

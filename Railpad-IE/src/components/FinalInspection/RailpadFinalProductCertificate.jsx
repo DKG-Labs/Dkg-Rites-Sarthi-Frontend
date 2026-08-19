@@ -402,6 +402,18 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
           mappedData.lotNo = formatLotNo(mappedData.lotNo);
         }
 
+        const effectiveCaseNo = fetchedData.caseNo || mappedData.caseNo;
+        if (effectiveCaseNo && mappedData.quantityNowPassedText && !mappedData.quantityNowPassedText.toUpperCase().includes("CASE NO")) {
+          const caseText = `, (CASE NO. ${effectiveCaseNo})`;
+          if (/only\./i.test(mappedData.quantityNowPassedText)) {
+            mappedData.quantityNowPassedText = mappedData.quantityNowPassedText.replace(/only\./i, `only.${caseText}`);
+          } else if (/only/i.test(mappedData.quantityNowPassedText)) {
+            mappedData.quantityNowPassedText = mappedData.quantityNowPassedText.replace(/only/i, `only${caseText}`);
+          } else {
+            mappedData.quantityNowPassedText += caseText;
+          }
+        }
+
         setData(mappedData);
       } catch (error) {
         console.error("Error loading certificate:", error);

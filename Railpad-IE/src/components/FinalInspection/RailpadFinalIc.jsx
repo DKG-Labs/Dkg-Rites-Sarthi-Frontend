@@ -190,11 +190,11 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
       lineHeight: '1.25'
     }}>
 
-      {/* Top spacing to match RITES letterhead margin exactly (matching ERC 35mm) */}
-      <div style={{ height: '35mm' }}></div>
+      {/* Top spacing to match RITES letterhead margin exactly (adjusted to 42mm for clean separation) */}
+      <div style={{ height: '42mm' }}></div>
 
       {/* Book & Set Number Container */}
-      <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginTop: '8px', marginBottom: '10px' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginTop: '12px', marginBottom: '14px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <div style={{ display: 'flex', border: '1px solid black', width: '180px', background: 'white' }}>
             <div style={{ flex: 1, borderRight: '1px solid black', display: 'flex', flexDirection: 'column' }}>
@@ -267,8 +267,9 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
         justifyContent: 'space-between',
         alignItems: 'flex-end',
         width: '100%',
-        paddingBottom: '6px',
-        marginBottom: '12px'
+        marginTop: '14px',
+        marginBottom: '18px',
+        paddingBottom: '6px'
       }}>
         <div style={{ flex: 1 }}></div>
         <div style={{
@@ -292,6 +293,9 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
           <div style={{ fontSize: '7.5px' }}>Contains 0 Continuation Sheets</div>
         </div>
       </div>
+
+      {/* Spacer to give clear separation above Certificate Info Row */}
+      <div style={{ height: '6px' }} />
 
       {/* Certificate Info Row — 75% width aligned right, matching Sleeper IC design exactly */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0px', width: '100%' }}>

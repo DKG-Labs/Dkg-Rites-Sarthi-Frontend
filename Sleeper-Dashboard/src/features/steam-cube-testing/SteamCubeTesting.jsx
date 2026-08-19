@@ -72,7 +72,8 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
                 isTested: false,
                 // Use backend createdDate if available (Date & time of Log)
                 createdAt: r.createdDate || r.updatedDate || new Date(),
-                castingDate: DateUtils.formatFromBackend(r.castingDate)
+                castingDate: DateUtils.formatFromBackend(r.castingDate),
+                declarationDate: DateUtils.formatFromBackend(r.declarationDate || r.dateOfDeclaration),
             }));
 
             // Process Tested Results
@@ -197,6 +198,7 @@ const SteamCubeTesting = ({ onBack, testedRecords: propTestedRecords, setTestedR
                 shedNo: formData.shedNo || null,
                 location: formData.lineNo || formData.shedNo,
                 castingDate: DateUtils.formatToBackend(formData.castingDate),
+                declarationDate: DateUtils.formatToBackend(formData.declarationDate),
                 lbcTime: formData.lbcTime,
                 batchNo: String(formData.batchNo),
                 concreteGrade: formData.concreteGrade,
@@ -668,6 +670,10 @@ const SteamCubeDetailsModal = ({ sample, onClose, onModify, onEnterTest, onDelet
             label: 'Date & Time of Casting', 
             value: `${sample.castingDate ? sample.castingDate.split('-').reverse().join('/') : '-'} ${sample.lbcTime || '-'}`
         },
+        { 
+            label: 'Date of Declaration', 
+            value: sample.declarationDate ? sample.declarationDate.split('-').reverse().join('/') : '-'
+        },
         { label: 'Concrete Grade', value: sample.concreteGrade || sample.grade || '-' },
         { label: 'No. of Cubes', value: (sample.cubes || sample.cubeResults)?.length || 0 },
         { 
@@ -915,6 +921,7 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
         lineNo: sample?.lineNo || (activeContainer?.type !== 'Shed' ? activeContainer?.name : null) || (sample?.location && !sample?.shedNo ? sample.location : ''),
         shedNo: sample?.shedNo || (activeContainer?.type === 'Shed' ? activeContainer?.name : null) || (sample?.location && sample?.shedNo ? sample.location : ''),
         castingDate: sample?.castingDate || sample?.date || sample?.entryDate || new Date().toISOString().split('T')[0],
+        declarationDate: sample?.declarationDate || sample?.dateOfDeclaration || sample?.castingDate || new Date().toISOString().split('T')[0],
         lbcTime: sample?.lbcTime || (new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })),
         batchNo: sample?.batchNo || '',
         concreteGrade: sample?.concreteGrade || sample?.grade || 'M60',
@@ -1103,6 +1110,15 @@ const SampleDeclarationModal = ({ sample, isModifying, onClose, onSave, onDelete
                                 type="date" 
                                 value={formData.castingDate} 
                                 onChange={e => setFormData({ ...formData, castingDate: e.target.value })} 
+                                style={{ width: '100%', padding: '0 12px', height: '42px', borderRadius: '8px', border: '1.5px solid #e2e8f0', fontSize: '14px', color: '#1e293b', outline: 'none' }}
+                            />
+                        </div>
+                        <div className="input-group">
+                            <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569', marginBottom: '4px' }}>Date of Declaration</label>
+                            <input 
+                                type="date" 
+                                value={formData.declarationDate} 
+                                onChange={e => setFormData({ ...formData, declarationDate: e.target.value })} 
                                 style={{ width: '100%', padding: '0 12px', height: '42px', borderRadius: '8px', border: '1.5px solid #e2e8f0', fontSize: '14px', color: '#1e293b', outline: 'none' }}
                             />
                         </div>

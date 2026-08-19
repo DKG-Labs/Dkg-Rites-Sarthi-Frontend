@@ -48,8 +48,8 @@ export const API_ENDPOINTS = {
     // Certificates
     CERTIFICATES: `${API_BASE_URL}/api/certificate`,
     CERTIFICATE_STORAGE: isLocal
-       ? 'https://sarthibackendservice-bfe2eag3byfkbsa6.canadacentral-01.azurewebsites.net/sarthi-backend/api/certificate-storage'
-       : `${API_BASE_URL}/api/certificate-storage`,
+        ? 'https://sarthibackendservice-bfe2eag3byfkbsa6.canadacentral-01.azurewebsites.net/sarthi-backend/api/certificate-storage'
+        : `${API_BASE_URL}/api/certificate-storage`,
 
     // Schedule
     SCHEDULE: `${API_BASE_URL}/api/inspection-schedule`,

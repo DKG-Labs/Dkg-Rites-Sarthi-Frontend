@@ -3,13 +3,15 @@ import CustomSelect from '../common/CustomSelect';
 
 const REJECTION_REASONS = [
   'NIL',
-  'Short Filling',
-  'Burn Edge',
-  'Poor Embossing',
-  'Uneven Thickness',
-  'Scratches',
-  'Dimension Not Ok',
-  'Cut Marks'
+  'Short Moulding',
+  'Bubbles / Blisters',
+  'Surface Roughness',
+  'Nylon Cord Exposure',
+  'Uneven Edges',
+  'Unclean Cut Sides',
+  'Blow Holes',
+  'Porosity',
+  'Improper Grooves'
 ];
 
 const ProductionVerificationScreen = ({ declaration, onBack, onVerify, onReturn, isSubmitting }) => {

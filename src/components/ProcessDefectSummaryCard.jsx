@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import ExcelJS from 'exceljs/dist/exceljs.min.js';
 import { API_ENDPOINTS, getAuthHeaders, handleResponse } from '../services/apiConfig';
 import { formatDate } from '../utils/helpers';
@@ -23,6 +23,56 @@ if (!document.getElementById('pds-keyframes')) {
     document.head.appendChild(s);
 }
 
+const sortAccessors = {
+    date: (s) => s.basicDetails?.date || '',
+    createdAt: (s) => s.basicDetails?.createdAt || s.basicDetails?.date || '',
+    shift: (s) => s.basicDetails?.shift || '',
+    line: (s) => s.basicDetails?.lineNo || '',
+    engineer: (s) => s.basicDetails?.engineer || '',
+    poSrNo: (s) => s.basicDetails?.poSrNo || '',
+    lotNo: (s) => s.basicDetails?.lotNumber || '',
+    acceptedQty: (s) => Number(s.basicDetails?.totalAcceptedQty ?? 0),
+    rejectedQty: (s) => Number(s.basicDetails?.totalRejectionQty ?? 0),
+    shearingProd: (s) => Number(s.processQty?.shearingProductionQty ?? 0),
+    shearingRej: (s) => Number(s.processQty?.shearingRejectionQty ?? 0),
+    turningProd: (s) => Number(s.processQty?.turningProductionQty ?? 0),
+    turningRej: (s) => Number(s.processQty?.turningRejectionQty ?? 0),
+    mpiProd: (s) => Number(s.processQty?.mpiProductionQty ?? 0),
+    mpiRej: (s) => Number(s.processQty?.mpiRejectionQty ?? 0),
+    forgingProd: (s) => Number(s.processQty?.forgingProductionQty ?? 0),
+    forgingRej: (s) => Number(s.processQty?.forgingRejectionQty ?? 0),
+    quenchingProd: (s) => Number(s.processQty?.quenchingProductionQty ?? 0),
+    quenchingRej: (s) => Number(s.processQty?.quenchingRejectionQty ?? 0),
+    temperingProd: (s) => Number(s.processQty?.temperingProductionQty ?? 0),
+    temperingRej: (s) => Number(s.processQty?.temperingRejectionQty ?? 0),
+    shearingCutLen: (s) => Number(s.shearingDefects?.lengthOfCutBar ?? 0),
+    shearingOvality: (s) => Number(s.shearingDefects?.ovalityImproperDiaAtEnd ?? 0),
+    shearingSharpEdges: (s) => Number(s.shearingDefects?.sharpEdges ?? 0),
+    shearingCracks: (s) => Number(s.shearingDefects?.crackedEdges ?? 0),
+    turningParaLen: (s) => Number(s.turningDefects?.parallelLength ?? 0),
+    turningFullTurn: (s) => Number(s.turningDefects?.fullTurningLength ?? 0),
+    turningTurnDia: (s) => Number(s.turningDefects?.turningDia ?? 0),
+    mpiMpiRej: (s) => Number(s.processQty?.mpiRejectionQty ?? 0),
+    forgingForgeTemp: (s) => Number(s.forgingDefects?.forgingTemperature ?? 0),
+    forgingStabilise: (s) => Number(s.forgingDefects?.forgingStabilisationRejection ?? 0),
+    forgingImproper: (s) => Number(s.forgingDefects?.improperForging ?? 0),
+    forgingDefect: (s) => Number(s.forgingDefects?.forgingMarksNotches ?? 0),
+    quenchingHardness: (s) => Number(s.quenchingDefects?.quenchingHardness ?? 0),
+    temperingTemp: (s) => Number(s.temperingDefects?.temperingTemp ?? 0),
+    temperingDur: (s) => Number(s.temperingDefects?.temperingDuration ?? 0),
+    boxGauge: (s) => Number(s.dimensionalDefects?.boxGauge ?? 0),
+    bearingArea: (s) => Number(s.dimensionalDefects?.flatBearingArea ?? 0),
+    fallingGauge: (s) => Number(s.dimensionalDefects?.fallingGauge ?? 0),
+    surface: (s) => Number(s.visualDefects?.surfaceDefect ?? 0),
+    embossing: (s) => Number(s.visualDefects?.embossingDefect ?? 0),
+    marking: (s) => Number(s.visualDefects?.marking ?? 0),
+    tempHard: (s) => Number(s.testingDefects?.temperingHardness ?? 0),
+    toeLoad: (s) => Number(s.testingDefects?.toeLoad ?? 0),
+    weight: (s) => Number(s.testingDefects?.weight ?? 0),
+    paintId: (s) => Number(s.finishingDefects?.paintIdentification ?? 0),
+    coating: (s) => Number(s.finishingDefects?.ercCoating ?? 0)
+};
+
 export default function ProcessDefectSummaryPage() {
     const [callNoInput, setCallNoInput] = useState('');
     const [submittedCallNo, setSubmittedCallNo] = useState('');
@@ -33,6 +83,9 @@ export default function ProcessDefectSummaryPage() {
     const [fetchingIcNumbers, setFetchingIcNumbers] = useState(false);
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [searchIc, setSearchIc] = useState('');
+    const [sortConfig, setSortConfig] = useState({ key: '', direction: 'desc' });
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
 
     // Fetch IC numbers list for the logged-in user
     const fetchIcNumbersList = async () => {
@@ -58,7 +111,7 @@ export default function ProcessDefectSummaryPage() {
     const fetchData = async (callNo) => {
         if (!callNo) return;
         const trimmed = callNo.trim();
-        setLoading(true); setError(''); setData([]);
+        setLoading(true); setError(''); setData([]); setCurrentPage(1);
         try {
             const res = await fetch(`${API_ENDPOINTS.REPORTS}/4thLevelReportICData/${trimmed}`, { headers: getAuthHeaders() });
             const json = await handleResponse(res);
@@ -90,11 +143,79 @@ export default function ProcessDefectSummaryPage() {
     }, [dropdownOpen]);
 
 
-    const handleClear = () => { setCallNoInput(''); setSubmittedCallNo(''); setData([]); setError(''); };
+    const handleClear = () => { setCallNoInput(''); setSubmittedCallNo(''); setData([]); setError(''); setCurrentPage(1); };
+
+    const handleSort = (key) => {
+        setSortConfig((prev) => {
+            if (prev.key === key) {
+                return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+            }
+            return { key, direction: 'asc' };
+        });
+    };
+
+    const sortedData = useMemo(() => {
+        if (!data || data.length === 0 || !sortConfig.key) return data;
+        const accessor = sortAccessors[sortConfig.key];
+        if (!accessor) return data;
+
+        return [...data].sort((a, b) => {
+            let valA = accessor(a);
+            let valB = accessor(b);
+
+            if (typeof valA === 'string' && typeof valB === 'string') {
+                const cmp = valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' });
+                return sortConfig.direction === 'asc' ? cmp : -cmp;
+            }
+            if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+    }, [data, sortConfig]);
+
+    const totalItems = sortedData.length;
+    const totalPages = pageSize === 'all' ? 1 : (Math.ceil(totalItems / pageSize) || 1);
+    const safeCurrentPage = Math.min(Math.max(currentPage, 1), totalPages);
+    const startIndex = pageSize === 'all' ? 0 : (safeCurrentPage - 1) * pageSize;
+    const endIndex = pageSize === 'all' ? totalItems : Math.min(startIndex + pageSize, totalItems);
+    const paginatedData = useMemo(() => {
+        return sortedData.slice(startIndex, endIndex);
+    }, [sortedData, startIndex, endIndex]);
+
+    const getPageNumbers = () => {
+        if (totalPages <= 7) {
+            return Array.from({ length: totalPages }, (_, i) => i + 1);
+        }
+        if (safeCurrentPage <= 4) {
+            return [1, 2, 3, 4, 5, '...', totalPages];
+        }
+        if (safeCurrentPage >= totalPages - 3) {
+            return [1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+        }
+        return [1, '...', safeCurrentPage - 1, safeCurrentPage, safeCurrentPage + 1, '...', totalPages];
+    };
+
+    const renderSortIcon = (key) => {
+        const isSorted = sortConfig.key === key;
+        return (
+            <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                marginLeft: 4,
+                opacity: isSorted ? 1 : 0.35,
+                color: isSorted ? '#0284c7' : 'inherit',
+                fontSize: '10px'
+            }}>
+                {isSorted ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '↕'}
+            </span>
+        );
+    };
 
     const exportColumns = [
         { label: 'Date', getValue: (s) => s.basicDetails?.date ? formatDate(s.basicDetails.date) : '—' },
         { label: 'Shift', getValue: (s) => s.basicDetails?.shift || '—' },
+        { label: 'Line', getValue: (s) => s.basicDetails?.lineNo || '—' },
+        { label: 'Engineer', getValue: (s) => s.basicDetails?.engineer || '—' },
         { label: 'Sl.', getValue: (s, idx) => idx + 1 },
         { label: 'PO_Sr. No.', getValue: (s) => s.basicDetails?.poSrNo || '—' },
         { label: 'Lot No.', getValue: (s) => s.basicDetails?.lotNumber || '—' },
@@ -141,7 +262,7 @@ export default function ProcessDefectSummaryPage() {
     ];
 
     const downloadExcel = async () => {
-        if (!data || data.length === 0) return;
+        if (!sortedData || sortedData.length === 0) return;
         const displayTitle = `Process Defect Summary - Call No: ${submittedCallNo || ''}`;
         
         const workbook = new ExcelJS.Workbook();
@@ -162,7 +283,7 @@ export default function ProcessDefectSummaryPage() {
             cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
         });
 
-        data.forEach((shift, idx) => {
+        sortedData.forEach((shift, idx) => {
             const rowData = exportColumns.map(col => {
                 const val = col.getValue(shift, idx);
                 return (val === null || val === undefined) ? '' : val;
@@ -222,6 +343,13 @@ export default function ProcessDefectSummaryPage() {
         tempering: { ...thC, background: '#f5f3ff', color: '#5b21b6' },
         leaf: { ...thC, background: '#fff', fontWeight: 500, fontSize: '10px', padding: '5px 8px', textTransform: 'none', letterSpacing: '0.01em', color: '#374151' },
     };
+
+    const getTh = (baseStyle) => ({
+        ...baseStyle,
+        cursor: 'pointer',
+        userSelect: 'none',
+        transition: 'background 0.15s ease'
+    });
 
 
     return (
@@ -588,17 +716,19 @@ export default function ProcessDefectSummaryPage() {
 
                 {!loading && (
                     <div style={{ overflowX: 'auto' }}>
-                        <table className="data-table complex-table" style={{ minWidth: 1100, fontSize: '12px', borderCollapse: 'collapse', border: '1px solid #000', marginTop: '-1px' }}>
+                        <table className="data-table complex-table" style={{ minWidth: 1200, fontSize: '12px', borderCollapse: 'collapse', border: '1px solid #000', marginTop: '-1px' }}>
                             <thead>
                                 {/* ── Row 1: top-level groups ── */}
                                 <tr>
-                                    <th rowSpan={3} style={TH.base}>Date</th>
-                                    <th rowSpan={3} style={TH.base}>Shift</th>
+                                    <th rowSpan={3} style={getTh(TH.base)} onClick={() => handleSort('date')}>Date {renderSortIcon('date')}</th>
+                                    <th rowSpan={3} style={getTh(TH.base)} onClick={() => handleSort('shift')}>Shift {renderSortIcon('shift')}</th>
+                                    <th rowSpan={3} style={getTh(TH.base)} onClick={() => handleSort('line')}>Line {renderSortIcon('line')}</th>
+                                    <th rowSpan={3} style={getTh(TH.base)} onClick={() => handleSort('engineer')}>Engineer {renderSortIcon('engineer')}</th>
                                     <th rowSpan={3} style={TH.base}>Sl.</th>
-                                    <th rowSpan={3} style={{ ...TH.base, whiteSpace: 'nowrap' }}>PO_Sr. No.</th>
-                                    <th rowSpan={3} style={TH.base}>Lot No.</th>
-                                    <th rowSpan={3} style={TH.accepted}>Accepted Qty</th>
-                                    <th rowSpan={3} style={TH.rejected}>Rejected Qty</th>
+                                    <th rowSpan={3} style={{ ...getTh(TH.base), whiteSpace: 'nowrap' }} onClick={() => handleSort('poSrNo')}>PO_Sr. No. {renderSortIcon('poSrNo')}</th>
+                                    <th rowSpan={3} style={getTh(TH.base)} onClick={() => handleSort('lotNo')}>Lot No. {renderSortIcon('lotNo')}</th>
+                                    <th rowSpan={3} style={getTh(TH.accepted)} onClick={() => handleSort('acceptedQty')}>Accepted Qty {renderSortIcon('acceptedQty')}</th>
+                                    <th rowSpan={3} style={getTh(TH.rejected)} onClick={() => handleSort('rejectedQty')}>Rejected Qty {renderSortIcon('rejectedQty')}</th>
                                     {/* Process Production */}
                                     <th colSpan={2} style={TH.proc}>Shearing</th>
                                     <th colSpan={2} style={TH.proc}>Turning</th>
@@ -611,12 +741,18 @@ export default function ProcessDefectSummaryPage() {
                                 </tr>
                                 {/* ── Row 2: sub-group labels ── */}
                                 <tr>
-                                    <th rowSpan={2} style={TH.procSub}>Prod</th><th rowSpan={2} style={TH.procSub}>Rej</th>
-                                    <th rowSpan={2} style={TH.procSub}>Prod</th><th rowSpan={2} style={TH.procSub}>Rej</th>
-                                    <th rowSpan={2} style={TH.procSub}>Prod</th><th rowSpan={2} style={TH.procSub}>Rej</th>
-                                    <th rowSpan={2} style={TH.procSub}>Prod</th><th rowSpan={2} style={TH.procSub}>Rej</th>
-                                    <th rowSpan={2} style={TH.procSub}>Prod</th><th rowSpan={2} style={TH.procSub}>Rej</th>
-                                    <th rowSpan={2} style={TH.procSub}>Prod</th><th rowSpan={2} style={TH.procSub}>Rej</th>
+                                    <th rowSpan={2} style={getTh(TH.procSub)} onClick={() => handleSort('shearingProd')}>Prod {renderSortIcon('shearingProd')}</th>
+                                    <th rowSpan={2} style={getTh(TH.procSub)} onClick={() => handleSort('shearingRej')}>Rej {renderSortIcon('shearingRej')}</th>
+                                    <th rowSpan={2} style={getTh(TH.procSub)} onClick={() => handleSort('turningProd')}>Prod {renderSortIcon('turningProd')}</th>
+                                    <th rowSpan={2} style={getTh(TH.procSub)} onClick={() => handleSort('turningRej')}>Rej {renderSortIcon('turningRej')}</th>
+                                    <th rowSpan={2} style={getTh(TH.procSub)} onClick={() => handleSort('mpiProd')}>Prod {renderSortIcon('mpiProd')}</th>
+                                    <th rowSpan={2} style={getTh(TH.procSub)} onClick={() => handleSort('mpiRej')}>Rej {renderSortIcon('mpiRej')}</th>
+                                    <th rowSpan={2} style={getTh(TH.procSub)} onClick={() => handleSort('forgingProd')}>Prod {renderSortIcon('forgingProd')}</th>
+                                    <th rowSpan={2} style={getTh(TH.procSub)} onClick={() => handleSort('forgingRej')}>Rej {renderSortIcon('forgingRej')}</th>
+                                    <th rowSpan={2} style={getTh(TH.procSub)} onClick={() => handleSort('quenchingProd')}>Prod {renderSortIcon('quenchingProd')}</th>
+                                    <th rowSpan={2} style={getTh(TH.procSub)} onClick={() => handleSort('quenchingRej')}>Rej {renderSortIcon('quenchingRej')}</th>
+                                    <th rowSpan={2} style={getTh(TH.procSub)} onClick={() => handleSort('temperingProd')}>Prod {renderSortIcon('temperingProd')}</th>
+                                    <th rowSpan={2} style={getTh(TH.procSub)} onClick={() => handleSort('temperingRej')}>Rej {renderSortIcon('temperingRej')}</th>
                                     <th colSpan={4} style={TH.rejSub}>Shearing Defects</th>
                                     <th colSpan={3} style={TH.rejSub}>Turning Defects</th>
                                     <th style={TH.rejSub}>MPI</th>
@@ -630,25 +766,39 @@ export default function ProcessDefectSummaryPage() {
                                 </tr>
                                 {/* ── Row 3: leaf column names ── */}
                                 <tr>
-                                    <th style={TH.leaf}>Cut Len</th><th style={TH.leaf}>Ovality</th>
-                                    <th style={TH.leaf}>Sharp Edges</th><th style={TH.leaf}>Cracks</th>
-                                    <th style={TH.leaf}>Para Len</th><th style={TH.leaf}>Full Turn</th><th style={TH.leaf}>Turn Dia</th>
-                                    <th style={TH.leaf}>MPI Rej</th>
-                                    <th style={TH.leaf}>Forge Temp</th><th style={TH.leaf}>Stabilise</th>
-                                    <th style={TH.leaf}>Improper</th><th style={TH.leaf}>Defect</th>
-                                    <th style={TH.leaf}>Hardness</th>
-                                    <th style={TH.leaf}>Temp.</th><th style={TH.leaf}>Dur.</th>
-                                    <th style={TH.leaf}>Box Gauge</th><th style={TH.leaf}>Bearing Area</th><th style={TH.leaf}>Falling</th>
-                                    <th style={TH.leaf}>Surface</th><th style={TH.leaf}>Embossing</th><th style={TH.leaf}>Marking</th>
-                                    <th style={TH.leaf}>Temp Hard</th><th style={TH.leaf}>Toe Load</th><th style={TH.leaf}>Weight</th>
-                                    <th style={TH.leaf}>Paint ID</th><th style={TH.leaf}>Coating</th>
+                                    <th style={getTh(TH.leaf)} onClick={() => handleSort('shearingCutLen')}>Cut Len {renderSortIcon('shearingCutLen')}</th>
+                                    <th style={getTh(TH.leaf)} onClick={() => handleSort('shearingOvality')}>Ovality {renderSortIcon('shearingOvality')}</th>
+                                    <th style={getTh(TH.leaf)} onClick={() => handleSort('shearingSharpEdges')}>Sharp Edges {renderSortIcon('shearingSharpEdges')}</th>
+                                    <th style={getTh(TH.leaf)} onClick={() => handleSort('shearingCracks')}>Cracks {renderSortIcon('shearingCracks')}</th>
+                                    <th style={getTh(TH.leaf)} onClick={() => handleSort('turningParaLen')}>Para Len {renderSortIcon('turningParaLen')}</th>
+                                    <th style={getTh(TH.leaf)} onClick={() => handleSort('turningFullTurn')}>Full Turn {renderSortIcon('turningFullTurn')}</th>
+                                    <th style={getTh(TH.leaf)} onClick={() => handleSort('turningTurnDia')}>Turn Dia {renderSortIcon('turningTurnDia')}</th>
+                                    <th style={getTh(TH.leaf)} onClick={() => handleSort('mpiMpiRej')}>MPI Rej {renderSortIcon('mpiMpiRej')}</th>
+                                    <th style={getTh(TH.leaf)} onClick={() => handleSort('forgingForgeTemp')}>Forge Temp {renderSortIcon('forgingForgeTemp')}</th>
+                                    <th style={getTh(TH.leaf)} onClick={() => handleSort('forgingStabilise')}>Stabilise {renderSortIcon('forgingStabilise')}</th>
+                                    <th style={getTh(TH.leaf)} onClick={() => handleSort('forgingImproper')}>Improper {renderSortIcon('forgingImproper')}</th>
+                                    <th style={getTh(TH.leaf)} onClick={() => handleSort('forgingDefect')}>Defect {renderSortIcon('forgingDefect')}</th>
+                                    <th style={getTh(TH.leaf)} onClick={() => handleSort('quenchingHardness')}>Hardness {renderSortIcon('quenchingHardness')}</th>
+                                    <th style={getTh(TH.leaf)} onClick={() => handleSort('temperingTemp')}>Temp. {renderSortIcon('temperingTemp')}</th>
+                                    <th style={getTh(TH.leaf)} onClick={() => handleSort('temperingDur')}>Dur. {renderSortIcon('temperingDur')}</th>
+                                    <th style={getTh(TH.leaf)} onClick={() => handleSort('boxGauge')}>Box Gauge {renderSortIcon('boxGauge')}</th>
+                                    <th style={getTh(TH.leaf)} onClick={() => handleSort('bearingArea')}>Bearing Area {renderSortIcon('bearingArea')}</th>
+                                    <th style={getTh(TH.leaf)} onClick={() => handleSort('fallingGauge')}>Falling {renderSortIcon('fallingGauge')}</th>
+                                    <th style={getTh(TH.leaf)} onClick={() => handleSort('surface')}>Surface {renderSortIcon('surface')}</th>
+                                    <th style={getTh(TH.leaf)} onClick={() => handleSort('embossing')}>Embossing {renderSortIcon('embossing')}</th>
+                                    <th style={getTh(TH.leaf)} onClick={() => handleSort('marking')}>Marking {renderSortIcon('marking')}</th>
+                                    <th style={getTh(TH.leaf)} onClick={() => handleSort('tempHard')}>Temp Hard {renderSortIcon('tempHard')}</th>
+                                    <th style={getTh(TH.leaf)} onClick={() => handleSort('toeLoad')}>Toe Load {renderSortIcon('toeLoad')}</th>
+                                    <th style={getTh(TH.leaf)} onClick={() => handleSort('weight')}>Weight {renderSortIcon('weight')}</th>
+                                    <th style={getTh(TH.leaf)} onClick={() => handleSort('paintId')}>Paint ID {renderSortIcon('paintId')}</th>
+                                    <th style={getTh(TH.leaf)} onClick={() => handleSort('coating')}>Coating {renderSortIcon('coating')}</th>
                                 </tr>
                             </thead>
 
                             <tbody>
-                                {data.length === 0 ? (
+                                {sortedData.length === 0 ? (
                                     <tr>
-                                        <td colSpan={43} style={{ padding: '72px 20px', textAlign: 'center', background: '#fafbfc' }}>
+                                        <td colSpan={45} style={{ padding: '72px 20px', textAlign: 'center', background: '#fafbfc' }}>
                                             <div style={{
                                                 display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 12,
                                                 padding: '32px 48px',
@@ -670,9 +820,10 @@ export default function ProcessDefectSummaryPage() {
                                         </td>
                                     </tr>
                                 ) : (
-                                    data.map((shift, idx) => {
+                                    paginatedData.map((shift, idx) => {
                                         const even = idx % 2 === 0;
                                         const rejQty = shift.basicDetails?.totalRejectionQty ?? 0;
+                                        const globalSl = startIndex + idx + 1;
                                         return (
                                             <tr key={idx} className={`pds-tr ${even ? 'row-odd' : 'row-even'}`}>
                                                 <td style={{ whiteSpace: 'nowrap', fontWeight: 500 }}>{shift.basicDetails?.date ? formatDate(shift.basicDetails.date) : '—'}</td>
@@ -681,7 +832,9 @@ export default function ProcessDefectSummaryPage() {
                                                         {shift.basicDetails?.shift || '—'}
                                                     </span>
                                                 </td>
-                                                <td style={{ color: '#94a3b8', fontSize: '11px' }}>{idx + 1}</td>
+                                                <td style={{ fontWeight: 600, color: '#0f172a' }}>{shift.basicDetails?.lineNo || '—'}</td>
+                                                <td style={{ fontWeight: 600, color: '#0369a1', whiteSpace: 'nowrap' }}>{shift.basicDetails?.engineer || '—'}</td>
+                                                <td style={{ color: '#94a3b8', fontSize: '11px' }}>{globalSl}</td>
                                                 <td style={{ whiteSpace: 'nowrap', fontWeight: 500 }}>{shift.basicDetails?.poSrNo || '—'}</td>
                                                 <td>{shift.basicDetails?.lotNumber || '—'}</td>
                                                 <td>
@@ -738,6 +891,162 @@ export default function ProcessDefectSummaryPage() {
                                 )}
                             </tbody>
                         </table>
+                    </div>
+                )}
+
+                {/* ── Pagination Footer ── */}
+                {!loading && totalItems > 0 && (
+                    <div style={{
+                        padding: '12px 20px',
+                        borderTop: '1px solid #e2e8f0',
+                        background: '#f8fafc',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: '12px'
+                    }}>
+                        {/* Left: summary & rows per page */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>
+                                Showing <strong style={{ color: '#0f172a' }}>{totalItems === 0 ? 0 : startIndex + 1}</strong> to <strong style={{ color: '#0f172a' }}>{endIndex}</strong> of <strong style={{ color: '#0f172a' }}>{totalItems}</strong> entries
+                            </span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>Rows per page:</span>
+                                <select
+                                    value={pageSize}
+                                    onChange={(e) => {
+                                        const val = e.target.value === 'all' ? 'all' : Number(e.target.value);
+                                        setPageSize(val);
+                                        setCurrentPage(1);
+                                    }}
+                                    style={{
+                                        padding: '4px 8px',
+                                        borderRadius: '6px',
+                                        border: '1px solid #cbd5e1',
+                                        fontSize: '12px',
+                                        fontWeight: 600,
+                                        color: '#1e293b',
+                                        background: '#fff',
+                                        cursor: 'pointer',
+                                        outline: 'none'
+                                    }}
+                                >
+                                    <option value={10}>10</option>
+                                    <option value={25}>25</option>
+                                    <option value={50}>50</option>
+                                    <option value={100}>100</option>
+                                    <option value="all">All</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Right: navigation buttons */}
+                        {pageSize !== 'all' && totalPages > 1 && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <button
+                                    onClick={() => setCurrentPage(1)}
+                                    disabled={safeCurrentPage === 1}
+                                    title="First Page"
+                                    style={{
+                                        padding: '5px 9px',
+                                        borderRadius: '6px',
+                                        border: '1px solid #e2e8f0',
+                                        background: safeCurrentPage === 1 ? '#f1f5f9' : '#fff',
+                                        color: safeCurrentPage === 1 ? '#94a3b8' : '#334155',
+                                        cursor: safeCurrentPage === 1 ? 'not-allowed' : 'pointer',
+                                        fontSize: '12px',
+                                        fontWeight: 600,
+                                    }}
+                                >
+                                    «
+                                </button>
+                                <button
+                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                    disabled={safeCurrentPage === 1}
+                                    title="Previous Page"
+                                    style={{
+                                        padding: '5px 10px',
+                                        borderRadius: '6px',
+                                        border: '1px solid #e2e8f0',
+                                        background: safeCurrentPage === 1 ? '#f1f5f9' : '#fff',
+                                        color: safeCurrentPage === 1 ? '#94a3b8' : '#334155',
+                                        cursor: safeCurrentPage === 1 ? 'not-allowed' : 'pointer',
+                                        fontSize: '12px',
+                                        fontWeight: 600,
+                                    }}
+                                >
+                                    ‹
+                                </button>
+
+                                {getPageNumbers().map((pg, i) => {
+                                    if (pg === '...') {
+                                        return (
+                                            <span key={`ellipsis-${i}`} style={{ padding: '0 6px', color: '#94a3b8', fontSize: '12px', fontWeight: 600 }}>
+                                                …
+                                            </span>
+                                        );
+                                    }
+                                    const isActive = pg === safeCurrentPage;
+                                    return (
+                                        <button
+                                            key={pg}
+                                            onClick={() => setCurrentPage(pg)}
+                                            style={{
+                                                minWidth: '32px',
+                                                height: '30px',
+                                                padding: '0 6px',
+                                                borderRadius: '6px',
+                                                border: isActive ? '1px solid #0284c7' : '1px solid #e2e8f0',
+                                                background: isActive ? '#0284c7' : '#fff',
+                                                color: isActive ? '#fff' : '#334155',
+                                                cursor: 'pointer',
+                                                fontSize: '12px',
+                                                fontWeight: isActive ? 700 : 500,
+                                                boxShadow: isActive ? '0 1px 3px rgba(2,132,199,0.3)' : 'none'
+                                            }}
+                                        >
+                                            {pg}
+                                        </button>
+                                    );
+                                })}
+
+                                <button
+                                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                    disabled={safeCurrentPage === totalPages}
+                                    title="Next Page"
+                                    style={{
+                                        padding: '5px 10px',
+                                        borderRadius: '6px',
+                                        border: '1px solid #e2e8f0',
+                                        background: safeCurrentPage === totalPages ? '#f1f5f9' : '#fff',
+                                        color: safeCurrentPage === totalPages ? '#94a3b8' : '#334155',
+                                        cursor: safeCurrentPage === totalPages ? 'not-allowed' : 'pointer',
+                                        fontSize: '12px',
+                                        fontWeight: 600,
+                                    }}
+                                >
+                                    ›
+                                </button>
+                                <button
+                                    onClick={() => setCurrentPage(totalPages)}
+                                    disabled={safeCurrentPage === totalPages}
+                                    title="Last Page"
+                                    style={{
+                                        padding: '5px 9px',
+                                        borderRadius: '6px',
+                                        border: '1px solid #e2e8f0',
+                                        background: safeCurrentPage === totalPages ? '#f1f5f9' : '#fff',
+                                        color: safeCurrentPage === totalPages ? '#94a3b8' : '#334155',
+                                        cursor: safeCurrentPage === totalPages ? 'not-allowed' : 'pointer',
+                                        fontSize: '12px',
+                                        fontWeight: 600,
+                                    }}
+                                >
+                                    »
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

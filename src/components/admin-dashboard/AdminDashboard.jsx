@@ -252,14 +252,23 @@ export const AdminDashboard = () => {
                         existingId = parseInt(idStr, 10);
                     }
                 }
-                const payload = {
-                    id: existingId,
-                    poiCode: railpadMapping.poiCode,
-                    plantId: railpadMapping.plantId,
-                    ieUserId: railpadMapping.employeeId,
-                    ieType: (role && role.includes('Main')) || formData.roleId === 'Rail Main IE' ? 'MAIN_IE' : 'PROCESS_IE'
-                };
-                await saveRailpadMappingApi(payload);
+                const ieType = (role && role.includes('Main')) || formData.roleId === 'Rail Main IE' ? 'MAIN_IE' : 'PROCESS_IE';
+                const entries = railpadMapping.entries && railpadMapping.entries.length > 0
+                    ? railpadMapping.entries
+                    : [{ poiCode: railpadMapping.poiCode, plantId: railpadMapping.plantId }];
+
+                for (let i = 0; i < entries.length; i++) {
+                    const entry = entries[i];
+                    if (!entry.plantId) continue;
+                    const payload = {
+                        id: (i === 0 && existingId) ? existingId : null,
+                        poiCode: entry.poiCode,
+                        plantId: entry.plantId,
+                        ieUserId: railpadMapping.employeeId,
+                        ieType: ieType
+                    };
+                    await saveRailpadMappingApi(payload);
+                }
             } else {
                 // Original IE/ERC mapping logic
                 if (!userId) {

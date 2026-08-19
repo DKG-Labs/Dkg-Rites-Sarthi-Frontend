@@ -26,8 +26,8 @@ import {
 import { isSessionEnded } from '../utils/inspectionSessionControl';
 import './ProcessParametersGridPage.css';
 
-const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A', selectedLines = [], onNavigateSubmodule, productionLines = [], allCallOptions = [], callInitiationDataCache = {}, mapping = null }) => {
-  const [activeLine, setActiveLine] = useState((selectedLines && selectedLines[0]) || 'Line-1');
+const ProcessParametersGridPage = ({ call, onBack, lotNumbers = [], shift = 'A', selectedLines = [], initialLine, onNavigateSubmodule, productionLines = [], allCallOptions = [], callInitiationDataCache = {}, mapping = null, lineData = null }) => {
+  const [activeLine, setActiveLine] = useState(initialLine || lineData?.selectedLine || (selectedLines && selectedLines[0]) || 'Line-1');
 
   // Get line index for active line
   const activeLineIndex = useMemo(() => {

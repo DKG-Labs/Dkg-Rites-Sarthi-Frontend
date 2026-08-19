@@ -157,7 +157,6 @@ export const IEFieldsForm = ({
     const [ieUsers, setIeUsers] = useState([]); // List of IEs (role 'IE') for Process IE mapping
     const [companies, setCompanies] = useState([]);
     const [sleeperPlants, setSleeperPlants] = useState([]);
-    const [railpadPlants, setRailpadPlants] = useState([]);
     const [mappedEmployees, setMappedEmployees] = useState([]);
     const [loading, setLoading] = useState(false);
     const [validating, setValidating] = useState(false);
@@ -195,11 +194,9 @@ export const IEFieldsForm = ({
             employeeId: '',
             employeeName: '',
             employeeCode: '',
-            companyName: '',
-            vendorCode: '',
-            poiCode: '',
-            plantId: '',
-            plantName: ''
+            entries: [
+                { id: Date.now(), companyName: '', vendorCode: '', poiCode: '', plantId: '', plantName: '', plants: [] }
+            ]
         }
     });
 
@@ -239,7 +236,6 @@ export const IEFieldsForm = ({
         setUsers([]);
         setCompanies([]);
         setSleeperPlants([]);
-        setRailpadPlants([]);
 
         const fetchInitialData = async () => {
             setLoading(true);
@@ -321,12 +317,18 @@ export const IEFieldsForm = ({
                 setFormData(prev => ({
                     ...prev,
                     railpadMapping: {
-                        ...prev.railpadMapping,
                         employeeId: '',
-                        companyName: initialData.poiName || '',
-                        vendorCode: initialData.vendorCode || '',
-                        poiCode: initialData.poiCode || '',
-                        plantId: initialData.poiName || ''
+                        employeeName: initialData.ieName || '',
+                        employeeCode: '',
+                        entries: [{
+                            id: Date.now(),
+                            companyName: initialData.poiName || '',
+                            vendorCode: initialData.vendorCode || '',
+                            poiCode: initialData.poiCode || '',
+                            plantId: initialData.poiName || '',
+                            plantName: initialData.poiName || '',
+                            plants: []
+                        }]
                     }
                 }));
             } else if (isSleeper) {
@@ -423,23 +425,27 @@ export const IEFieldsForm = ({
                 }
 
                 // Match Railpad Company & fetch Plants when editing
-                if (productType === 'RAILPAD' && companies.length > 0 && initialData && !updated.railpadMapping.vendorCode) {
-                    const matchedCompany = companies.find(c => 
-                        (initialData.vendorCode && String(c.vendorCode) === String(initialData.vendorCode)) ||
-                        (initialData.poiCode && String(c.poiCode) === String(initialData.poiCode)) ||
-                        (initialData.poiName && c.vendorCode && initialData.poiName.includes(String(c.vendorCode).replace(':', ''))) ||
-                        (initialData.poiName && c.companyName && initialData.poiName.includes(c.companyName))
-                    );
-                    if (matchedCompany) {
-                        updated.railpadMapping.companyName = matchedCompany.companyName;
-                        updated.railpadMapping.vendorCode = matchedCompany.vendorCode;
-                        updated.railpadMapping.poiCode = matchedCompany.poiCode;
-                        updated.railpadMapping.plantId = initialData.poiName || '';
-                        modified = true;
-                        
-                        getRailpadPlants(matchedCompany.vendorCode).then(plants => {
-                            setRailpadPlants(plants || []);
-                        }).catch(err => console.error('Error fetching Railpad plants on edit match:', err));
+                if (productType === 'RAILPAD' && companies.length > 0 && initialData) {
+                    const firstEntry = updated.railpadMapping?.entries?.[0];
+                    if (firstEntry && !firstEntry.vendorCode) {
+                        const matchedCompany = companies.find(c => 
+                            (initialData.vendorCode && String(c.vendorCode) === String(initialData.vendorCode)) ||
+                            (initialData.poiCode && String(c.poiCode) === String(initialData.poiCode)) ||
+                            (initialData.poiName && c.vendorCode && initialData.poiName.includes(String(c.vendorCode).replace(':', ''))) ||
+                            (initialData.poiName && c.companyName && initialData.poiName.includes(c.companyName))
+                        );
+                        if (matchedCompany) {
+                            firstEntry.companyName = matchedCompany.companyName;
+                            firstEntry.vendorCode = matchedCompany.vendorCode;
+                            firstEntry.poiCode = matchedCompany.poiCode;
+                            firstEntry.plantId = initialData.poiName || '';
+                            modified = true;
+                            
+                            getRailpadPlants(matchedCompany.vendorCode).then(plants => {
+                                firstEntry.plants = plants || [];
+                                setFormData(current => ({ ...current, railpadMapping: { ...current.railpadMapping, entries: [{ ...firstEntry, plants: plants || [] }] } }));
+                            }).catch(err => console.error('Error fetching Railpad plants on edit match:', err));
+                        }
                     }
                 }
 
@@ -580,53 +586,101 @@ export const IEFieldsForm = ({
         }
     };
 
-    const handleRailpadInputChange = async (name, value) => {
-        if (name === 'employee') {
-            setFormData(prev => ({
-                ...prev,
-                railpadMapping: {
-                    ...prev.railpadMapping,
-                    employeeId: value.userId,
-                    employeeCode: value.employeeCode
-                }
-            }));
-        } else if (name === 'company') {
+    const handleRailpadEmployeeChange = (user) => {
+        setFormData(prev => ({
+            ...prev,
+            railpadMapping: {
+                ...prev.railpadMapping,
+                employeeId: user?.userId || '',
+                employeeCode: user?.employeeCode || '',
+                employeeName: user?.fullName || user?.userName || ''
+            }
+        }));
+    };
+
+    const handleRailpadEntryChange = async (index, field, value) => {
+        const newEntries = [...(formData.railpadMapping.entries || [])];
+        if (!newEntries[index]) return;
+
+        if (field === 'company') {
             setLoading(true);
             try {
                 const plants = await getRailpadPlants(value.vendorCode);
-                setRailpadPlants(plants || []);
+                newEntries[index] = {
+                    ...newEntries[index],
+                    companyName: value.companyName || '',
+                    vendorCode: value.vendorCode || '',
+                    poiCode: value.poiCode || '',
+                    plantId: '', // Reset plant on company change
+                    plantName: '',
+                    plants: plants || []
+                };
                 setFormData(prev => ({
                     ...prev,
                     railpadMapping: {
                         ...prev.railpadMapping,
-                        companyName: value.companyName,
-                        vendorCode: value.vendorCode,
-                        poiCode: value.poiCode,
-                        plantId: '' // Reset plant on company change
+                        entries: newEntries
                     }
                 }));
             } catch (error) {
-                console.error('Error fetching plants:', error);
+                console.error('Error fetching Railpad plants:', error);
             } finally {
                 setLoading(false);
             }
-        } else if (name === 'plantId') {
+        } else if (field === 'plantId') {
+            newEntries[index] = {
+                ...newEntries[index],
+                plantId: value.plantId || value,
+                plantName: value.plantName || value.plantId || value
+            };
             setFormData(prev => ({
                 ...prev,
                 railpadMapping: {
                     ...prev.railpadMapping,
-                    plantId: value.plantId
-                }
-            }));
-        } else {
-            setFormData(prev => ({
-                ...prev,
-                railpadMapping: {
-                    ...prev.railpadMapping,
-                    [name]: value
+                    entries: newEntries
                 }
             }));
         }
+    };
+
+    const addRailpadEntry = () => {
+        setFormData(prev => ({
+            ...prev,
+            railpadMapping: {
+                ...prev.railpadMapping,
+                entries: [
+                    ...(prev.railpadMapping.entries || []),
+                    { id: Date.now(), companyName: '', vendorCode: '', poiCode: '', plantId: '', plantName: '', plants: [] }
+                ]
+            }
+        }));
+    };
+
+    const getAvailablePlantsForEntry = (currentIndex) => {
+        const entry = formData.railpadMapping.entries?.[currentIndex];
+        if (!entry || !entry.plants) return [];
+
+        // Collect all plantIds selected in OTHER rows
+        const otherSelectedPlantIds = (formData.railpadMapping.entries || [])
+            .filter((e, idx) => idx !== currentIndex && e.plantId)
+            .map(e => String(e.plantId).trim().toLowerCase().replace(/^:/, ''));
+
+        return entry.plants.filter(p => {
+            const rawPlantId = String(p.plantId || p.name || p).trim().toLowerCase().replace(/^:/, '');
+            return !otherSelectedPlantIds.includes(rawPlantId);
+        });
+    };
+
+    const removeRailpadEntry = (id) => {
+        const currentEntries = formData.railpadMapping.entries || [];
+        if (currentEntries.length <= 1) return;
+        setFormData(prev => ({
+            ...prev,
+            railpadMapping: {
+                ...prev.railpadMapping,
+                entries: currentEntries.filter(e => e.id !== id)
+            }
+        }));
     };
 
     // Mapping changes for IE Role
@@ -788,10 +842,38 @@ export const IEFieldsForm = ({
             return;
         } else if (productType === 'RAILPAD') {
             const { railpadMapping } = formData;
-            if (!railpadMapping.employeeId || !railpadMapping.poiCode || !railpadMapping.plantId) {
-                alert('Please fill all fields for Railpad mapping');
+            if (!railpadMapping.employeeId) {
+                alert('Please select an Employee (Code)');
                 return;
             }
+            const entries = railpadMapping.entries || [];
+            if (entries.length === 0) {
+                alert('Please add at least one Company & Plant mapping');
+                return;
+            }
+            for (let i = 0; i < entries.length; i++) {
+                const entry = entries[i];
+                if (!entry.vendorCode || !entry.companyName) {
+                    alert(`Entry #${i + 1}: Please select a Company`);
+                    return;
+                }
+                if (!entry.plantId) {
+                    alert(`Entry #${i + 1}: Please select a Plant ID`);
+                    return;
+                }
+            }
+
+            // Duplicate check across entries
+            const plantSet = new Set();
+            for (let i = 0; i < entries.length; i++) {
+                const pId = String(entries[i].plantId).trim().toLowerCase();
+                if (plantSet.has(pId)) {
+                    alert(`Duplicate Entry: Plant "${entries[i].plantId}" is added multiple times.`);
+                    return;
+                }
+                plantSet.add(pId);
+            }
+
             const submissionData = {
                 productType,
                 role: selectedRole,
@@ -911,7 +993,6 @@ export const IEFieldsForm = ({
                                     setCompanies([]);
                                     setUsers([]);
                                     setSleeperPlants([]);
-                                    setRailpadPlants([]);
                                     setProductType(val);
                                     // Reset role when product type changes to ensure valid roles
                                     if (val === 'SLEEPER') {
@@ -947,7 +1028,6 @@ export const IEFieldsForm = ({
                                     setCompanies([]);
                                     setUsers([]);
                                     setSleeperPlants([]);
-                                    setRailpadPlants([]);
                                     setSelectedRole(e.target.value);
                                     // Reset form data on role change
                                     setFormData(prev => ({
@@ -1085,46 +1165,93 @@ export const IEFieldsForm = ({
                             Railpad Mapping
                         </h3>
                         
-                        <div className="mapping-card">
-                            <div className="form-grid">
-                                <div className="form-group">
-                                    <label className="form-label">Select Employee (Code) <small className="required-star">*</small></label>
-                                    <SearchableSelect
-                                        options={users}
-                                        value={formData.railpadMapping.employeeId}
-                                        displayKey="displayName"
-                                        valueKey="userId"
-                                        onChange={(val) => handleRailpadInputChange('employee', val)}
-                                        placeholder="Search Employee Code..."
-                                    />
-                                </div>
+                        <div className="form-group" style={{ marginBottom: '16px' }}>
+                            <label className="form-label">Select Employee (Code) <small className="required-star">*</small></label>
+                            <SearchableSelect
+                                options={users}
+                                value={formData.railpadMapping.employeeId}
+                                displayKey="displayName"
+                                valueKey="userId"
+                                onChange={handleRailpadEmployeeChange}
+                                placeholder="Search Employee Code..."
+                            />
+                        </div>
 
-                                <div className="form-group mapping-full-row">
-                                    <label className="form-label">Company Name <small className="required-star">*</small></label>
-                                    <SearchableSelect
-                                        options={companies}
-                                        value={formData.railpadMapping.vendorCode}
-                                        displayKey="companyName"
-                                        valueKey="vendorCode"
-                                        onChange={(val) => handleRailpadInputChange('company', val)}
-                                        placeholder="Select Company"
-                                    />
-                                </div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '16px', marginBottom: '8px' }}>
+                            <h4 style={{ margin: 0, fontSize: '13px', fontWeight: '700', color: '#0f3a5e', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                Company & Plant Mappings
+                            </h4>
+                        </div>
 
-                                <div className="form-group mapping-full-row">
-                                    <label className="form-label">Plant ID <small className="required-star">*</small></label>
-                                    <SearchableSelect
-                                        options={railpadPlants}
-                                        value={formData.railpadMapping.plantId}
-                                        displayKey="plantId"
-                                        valueKey="plantId"
-                                        onChange={(val) => handleRailpadInputChange('plantId', val)}
-                                        placeholder="Select Plant"
-                                        disabled={!formData.railpadMapping.vendorCode}
-                                    />
+                        {(formData.railpadMapping.entries || []).map((entry, index) => (
+                            <div key={entry.id || index} className="mapping-card" style={{ marginBottom: '12px' }}>
+                                <div className="mapping-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                    <span className="mapping-card-title" style={{ fontWeight: '700', fontSize: '12px' }}>
+                                        Mapping #{index + 1}
+                                    </span>
+                                    {(formData.railpadMapping.entries || []).length > 1 && (
+                                        <button
+                                            type="button"
+                                            className="remove-btn"
+                                            onClick={() => removeRailpadEntry(entry.id)}
+                                            style={{
+                                                background: '#fee2e2', color: '#ef4444', border: '1px solid #fca5a5',
+                                                borderRadius: '50%', width: '22px', height: '22px', cursor: 'pointer',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'
+                                            }}
+                                        >
+                                            &times;
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="form-grid">
+                                    <div className="form-group mapping-full-row">
+                                        <label className="form-label">Company Name <small className="required-star">*</small></label>
+                                        <SearchableSelect
+                                            options={companies}
+                                            value={entry.vendorCode}
+                                            displayKey="companyName"
+                                            valueKey="vendorCode"
+                                            onChange={(val) => handleRailpadEntryChange(index, 'company', val)}
+                                            placeholder="Select Company"
+                                        />
+                                    </div>
+
+                                    <div className="form-group mapping-full-row">
+                                        <label className="form-label">Plant ID <small className="required-star">*</small></label>
+                                        <SearchableSelect
+                                            options={getAvailablePlantsForEntry(index)}
+                                            value={entry.plantId}
+                                            displayKey="plantId"
+                                            valueKey="plantId"
+                                            onChange={(val) => handleRailpadEntryChange(index, 'plantId', val)}
+                                            placeholder={
+                                                !entry.vendorCode 
+                                                    ? "Select Plant" 
+                                                    : getAvailablePlantsForEntry(index).length === 0 
+                                                        ? "All plants for this company already mapped" 
+                                                        : "Select Plant"
+                                            }
+                                            disabled={!entry.vendorCode || (getAvailablePlantsForEntry(index).length === 0 && !entry.plantId)}
+                                        />
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        ))}
+
+                        <button
+                            type="button"
+                            className="add-mapping-btn"
+                            onClick={addRailpadEntry}
+                            style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '6px',
+                                padding: '8px 14px', borderRadius: '6px', background: '#f0fdf4',
+                                border: '1px dashed #22c55e', color: '#16a34a', fontWeight: '700',
+                                fontSize: '13px', cursor: 'pointer', marginTop: '6px'
+                            }}
+                        >
+                            <span>+</span> Add Another Company
+                        </button>
                     </div>
                 ) : (
                     <>

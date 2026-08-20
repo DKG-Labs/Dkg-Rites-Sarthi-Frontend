@@ -4241,9 +4241,31 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
 
   // Find the initiation data for the CURRENT PRODUCTION LINE based on its IC number
   const currentLineInitiationData = useMemo(() => {
-    if (!currentProductionLine || !currentProductionLine.icNumber) return null;
-    return callInitiationDataCache[currentProductionLine.icNumber] || null;
-  }, [currentProductionLine, callInitiationDataCache]);
+    const lineIc = currentProductionLine?.icNumber;
+    const mainCallNo = call?.call_no;
+
+    // Check in cache by line IC, main call number, or first cached entry
+    const cached = (lineIc && callInitiationDataCache[lineIc]) ||
+                   (mainCallNo && callInitiationDataCache[mainCallNo]) ||
+                   Object.values(callInitiationDataCache || {})[0];
+    if (cached) return cached;
+
+    // Fallback to reading directly from sessionStorage
+    try {
+      const keysToTry = [
+        lineIc ? `inspection_initiation_${lineIc}` : null,
+        mainCallNo ? `inspection_initiation_${mainCallNo}` : null,
+        'inspection_initiation_data'
+      ].filter(Boolean);
+
+      for (const k of keysToTry) {
+        const raw = sessionStorage.getItem(k) || localStorage.getItem(k);
+        if (raw) return JSON.parse(raw);
+      }
+    } catch (e) { /* ignore */ }
+
+    return null;
+  }, [currentProductionLine, callInitiationDataCache, call?.call_no]);
 
   // Extract lot numbers, heat numbers, and RM IC numbers from the current line's initiation data
   const { lineLotNumbers, lineHeatNumbersMap, lineRmIcMap, lotOfferedQtyMap, uniqueHeats, lotsByHeat } = useMemo(() => {
@@ -4263,15 +4285,29 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     let rmIcMap = {};
     let offeredQtyMap = {};
 
+    const extractOfferedQty = (item) => {
+      if (!item) return 0;
+      const val = item.offeredQty ?? item.offeredQuantity ?? item.offered_qty ?? item.quantity ?? item.lotQty ?? item.acceptedQty;
+      return (!isNaN(Number(val)) && Number(val) > 0) ? Number(val) : 0;
+    };
+
     // 1. Try to get from lotDetailsList (Preferred multi-lot structure)
     if (currentLineInitiationData.lotDetailsList && Array.isArray(currentLineInitiationData.lotDetailsList) && currentLineInitiationData.lotDetailsList.length > 0) {
       currentLineInitiationData.lotDetailsList.forEach(lot => {
-        const lotNo = lot.lotNumber || lot.subPoNumber;
-        if (lotNo) {
-          lotNumbers.push(lotNo);
-          if (lot.heatNumber) heatMap[lotNo] = lot.heatNumber;
-          if (lot.rmInspectionCallNumber) rmIcMap[lotNo] = lot.rmInspectionCallNumber;
-          if (lot.offeredQty) offeredQtyMap[lotNo] = lot.offeredQty;
+        const rawLotNo = lot.lotNumber || lot.subPoNumber;
+        if (rawLotNo) {
+          const cleanLot = String(rawLotNo).replace(/^Lot\s*/i, '').trim();
+          lotNumbers.push(cleanLot);
+          if (lot.heatNumber) heatMap[cleanLot] = lot.heatNumber;
+          if (lot.rmInspectionCallNumber) rmIcMap[cleanLot] = lot.rmInspectionCallNumber;
+          
+          const qty = extractOfferedQty(lot);
+          if (qty > 0) {
+            offeredQtyMap[rawLotNo] = qty;
+            offeredQtyMap[cleanLot] = qty;
+            offeredQtyMap[`Lot ${cleanLot}`] = qty;
+            offeredQtyMap[cleanLot.replace(/\s+/g, '')] = qty;
+          }
         }
       });
     }
@@ -4280,9 +4316,17 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     if (lotNumbers.length === 0 && currentLineInitiationData.rmIcHeatInfoList && Array.isArray(currentLineInitiationData.rmIcHeatInfoList) && currentLineInitiationData.rmIcHeatInfoList.length > 0) {
       currentLineInitiationData.rmIcHeatInfoList.forEach(item => {
         if (item.lotNumber) {
-          lotNumbers.push(item.lotNumber);
-          if (item.heatNumber) heatMap[item.lotNumber] = item.heatNumber;
-          if (item.rmInspectionCallNumber) rmIcMap[item.lotNumber] = item.rmInspectionCallNumber;
+          const cleanLot = String(item.lotNumber).replace(/^Lot\s*/i, '').trim();
+          lotNumbers.push(cleanLot);
+          if (item.heatNumber) heatMap[cleanLot] = item.heatNumber;
+          if (item.rmInspectionCallNumber) rmIcMap[cleanLot] = item.rmInspectionCallNumber;
+          const qty = extractOfferedQty(item);
+          if (qty > 0) {
+            offeredQtyMap[item.lotNumber] = qty;
+            offeredQtyMap[cleanLot] = qty;
+            offeredQtyMap[`Lot ${cleanLot}`] = qty;
+            offeredQtyMap[cleanLot.replace(/\s+/g, '')] = qty;
+          }
         }
       });
     }
@@ -4291,12 +4335,19 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     if (lotNumbers.length === 0) {
       const mainLotNumber = currentLineInitiationData.lotNumber;
       if (mainLotNumber) {
-        lotNumbers = [mainLotNumber];
+        const cleanLot = String(mainLotNumber).replace(/^Lot\s*/i, '').trim();
+        lotNumbers = [cleanLot];
         const mainHeatNumber = currentLineInitiationData.heatNumber;
         const mainRmIcNumber = currentLineInitiationData.rmInspectionCallNumber;
-        if (mainHeatNumber) heatMap[mainLotNumber] = mainHeatNumber;
-        if (mainRmIcNumber) rmIcMap[mainLotNumber] = mainRmIcNumber;
-        offeredQtyMap[mainLotNumber] = currentLineInitiationData.offeredQty || 0;
+        if (mainHeatNumber) heatMap[cleanLot] = mainHeatNumber;
+        if (mainRmIcNumber) rmIcMap[cleanLot] = mainRmIcNumber;
+        const qty = extractOfferedQty(currentLineInitiationData);
+        if (qty > 0) {
+          offeredQtyMap[mainLotNumber] = qty;
+          offeredQtyMap[cleanLot] = qty;
+          offeredQtyMap[`Lot ${cleanLot}`] = qty;
+          offeredQtyMap[cleanLot.replace(/\s+/g, '')] = qty;
+        }
       }
     }
 
@@ -7321,7 +7372,16 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
 
                         // Get offered quantity for this specific lot from the map
                         // NOTE: Offered Qty is constant (provided by vendor) - NOT cumulative
-                        const lotOfferedQty = lotOfferedQtyMap[selectedLot] || rawMaterialAccepted || '-';
+                        const cleanLotName = String(selectedLot || '').replace(/^Lot\s*/i, '').trim();
+                        const lotOfferedQty = lotOfferedQtyMap[selectedLot] ||
+                                              lotOfferedQtyMap[cleanLotName] ||
+                                              lotOfferedQtyMap[cleanLotName.replace(/\s+/g, '')] ||
+                                              lotOfferedQtyMap[`Lot ${cleanLotName}`] ||
+                                              rawMaterialAccepted ||
+                                              call?.offered_qty ||
+                                              call?.offeredQuantity ||
+                                              currentLineInitiationData?.offeredQty ||
+                                              '-';
 
                         // Get previous shift data for THIS SPECIFIC LOT
                         const previousShiftDataForLot = previousShiftData[selectedLot] || {

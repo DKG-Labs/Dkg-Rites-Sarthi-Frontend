@@ -1,3 +1,4 @@
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ProcessDashboard from '../ProcessDashboard';
 import ProcessCalibrationDocumentsPage from '../ProcessCalibrationDocumentsPage';
@@ -8,6 +9,20 @@ import ProcessSummaryReportsPage from '../ProcessSummaryReportsPage';
 import { useInspection } from '../../context/InspectionContext';
 import { ROUTES, PROCESS_SUBMODULE_ROUTES } from '../../routes';
 import { formatDate } from '../../utils/helpers';
+import { getStoredUser } from '../../services/authService';
+
+/**
+ * Safe helper: reads & parses processCurrentLineData from sessionStorage.
+ * Always returns the most up-to-date value at call time.
+ */
+const readLineDataFromSession = () => {
+  try {
+    const raw = sessionStorage.getItem('processCurrentLineData');
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+};
 
 /**
  * Wrapper for ProcessDashboard
@@ -26,13 +41,29 @@ export const ProcessDashboardWrapper = () => {
   const handleNavigateToSubModule = (subModule, lineData = null) => {
     // Store line data in sessionStorage for sub-modules to access
     if (lineData) {
-      // Inject shift into lineData so submodules have it
-      const enrichedLineData = { ...lineData, shift: processShift };
-      sessionStorage.setItem('processCurrentLineData', JSON.stringify(enrichedLineData));
+      try {
+        // Inject shift into lineData so submodules have it
+        const enrichedLineData = { ...lineData, shift: processShift };
+        sessionStorage.setItem('processCurrentLineData', JSON.stringify(enrichedLineData));
+      } catch (e) {
+        console.warn('Could not serialize full lineData to sessionStorage, storing compact lineData:', e);
+        try {
+          const compactLineData = {
+            selectedLine: lineData.selectedLine,
+            productionLines: lineData.productionLines,
+            mapping: lineData.mapping,
+            lotNumbers: lineData.lotNumbers,
+            shift: processShift
+          };
+          sessionStorage.setItem('processCurrentLineData', JSON.stringify(compactLineData));
+        } catch (err) {
+          console.error('Failed to store compact lineData:', err);
+        }
+      }
     }
     const route = PROCESS_SUBMODULE_ROUTES[subModule];
     if (route) {
-      navigate(route);
+      window.location.href = route;
     }
   };
 
@@ -92,9 +123,12 @@ export const ProcessCalibrationWrapper = () => {
   const navigate = useNavigate();
   const { selectedCall, processSelectedLines } = useInspection();
 
-  // Get line data from sessionStorage (passed from ProcessDashboard)
-  const storedLineData = sessionStorage.getItem('processCurrentLineData');
-  const lineData = storedLineData ? JSON.parse(storedLineData) : null;
+  const [lineData, setLineData] = useState(() => readLineDataFromSession());
+
+  useEffect(() => {
+    const fresh = readLineDataFromSession();
+    if (fresh) setLineData(fresh);
+  }, []);
 
   // Get all production lines and their call options
   const productionLines = lineData?.productionLines || [];
@@ -109,7 +143,7 @@ export const ProcessCalibrationWrapper = () => {
   const handleBack = () => navigate(ROUTES.PROCESS);
   const handleNavigateSubmodule = (subModule) => {
     const route = PROCESS_SUBMODULE_ROUTES[subModule];
-    if (route) navigate(route);
+    if (route) window.location.href = route;
   };
 
   return (
@@ -135,9 +169,12 @@ export const ProcessStaticCheckWrapper = () => {
   const navigate = useNavigate();
   const { selectedCall, processSelectedLines } = useInspection();
 
-  // Get line data from sessionStorage (passed from ProcessDashboard)
-  const storedLineData = sessionStorage.getItem('processCurrentLineData');
-  const lineData = storedLineData ? JSON.parse(storedLineData) : null;
+  const [lineData, setLineData] = useState(() => readLineDataFromSession());
+
+  useEffect(() => {
+    const fresh = readLineDataFromSession();
+    if (fresh) setLineData(fresh);
+  }, []);
 
   // Get all production lines and their call options
   const productionLines = lineData?.productionLines || [];
@@ -152,7 +189,7 @@ export const ProcessStaticCheckWrapper = () => {
   const handleBack = () => navigate(ROUTES.PROCESS);
   const handleNavigateSubmodule = (subModule) => {
     const route = PROCESS_SUBMODULE_ROUTES[subModule];
-    if (route) navigate(route);
+    if (route) window.location.href = route;
   };
 
   const lotNumbers = lineData?.lotNumbers || [];
@@ -179,9 +216,12 @@ export const ProcessOilTankWrapper = () => {
   const navigate = useNavigate();
   const { selectedCall, processSelectedLines } = useInspection();
 
-  // Get line data from sessionStorage (passed from ProcessDashboard)
-  const storedLineData = sessionStorage.getItem('processCurrentLineData');
-  const lineData = storedLineData ? JSON.parse(storedLineData) : null;
+  const [lineData, setLineData] = useState(() => readLineDataFromSession());
+
+  useEffect(() => {
+    const fresh = readLineDataFromSession();
+    if (fresh) setLineData(fresh);
+  }, []);
 
   // Get all production lines and their call options
   const productionLines = lineData?.productionLines || [];
@@ -196,7 +236,7 @@ export const ProcessOilTankWrapper = () => {
   const handleBack = () => navigate(ROUTES.PROCESS);
   const handleNavigateSubmodule = (subModule) => {
     const route = PROCESS_SUBMODULE_ROUTES[subModule];
-    if (route) navigate(route);
+    if (route) window.location.href = route;
   };
 
   return (
@@ -220,14 +260,39 @@ export const ProcessParametersWrapper = () => {
   const navigate = useNavigate();
   const { selectedCall, processLotNumbers, processShift, processSelectedLines } = useInspection();
 
-  // Get line data from sessionStorage (passed from ProcessDashboard)
-  const storedLineData = sessionStorage.getItem('processCurrentLineData');
-  const lineData = storedLineData ? JSON.parse(storedLineData) : null;
+  // Use state to hold lineData so React always sees the latest sessionStorage value on mount.
+  const [lineData, setLineData] = useState(() => readLineDataFromSession());
+
+  useEffect(() => {
+    const fresh = readLineDataFromSession();
+    if (fresh) {
+      setLineData(fresh);
+    }
+  }, []);
 
   // Get all production lines and their call options
   const productionLines = lineData?.productionLines || [];
   const allCallOptions = lineData?.allCallOptions || [];
-  const callInitiationDataCache = lineData?.callInitiationDataCache || {};
+
+  // Safe helper to get cached initiation data if not directly provided in lineData
+  const callInitiationDataCache = useMemo(() => {
+    if (lineData?.callInitiationDataCache && Object.keys(lineData.callInitiationDataCache).length > 0) {
+      return lineData.callInitiationDataCache;
+    }
+    try {
+      const user = getStoredUser();
+      const userPrefix = user?.employeeCode ? `${user.employeeCode}_` : (user?.userId ? `${user.userId}_` : '');
+      const callNoForScoping = selectedCall?.call_no;
+      const cacheKey = callNoForScoping ? `processCallInitiationDataCache_${userPrefix}${callNoForScoping}_${processShift}` : `processCallInitiationDataCache_${userPrefix}`;
+      const legacyCacheKey = callNoForScoping ? `processCallInitiationDataCache_${callNoForScoping}_${processShift}` : 'processCallInitiationDataCache';
+      const saved = localStorage.getItem(cacheKey) || sessionStorage.getItem(cacheKey) || localStorage.getItem(legacyCacheKey) || sessionStorage.getItem(legacyCacheKey);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.warn('Error reading fallback callInitiationDataCache:', e);
+    }
+    return {};
+  }, [lineData, selectedCall, processShift]);
+
   const selectedLine = lineData?.selectedLine || (processSelectedLines && processSelectedLines[0]) || 'Line-1';
 
   // Build all lines array from production lines
@@ -238,7 +303,7 @@ export const ProcessParametersWrapper = () => {
   const handleBack = () => navigate(ROUTES.PROCESS);
   const handleNavigateSubmodule = (subModule) => {
     const route = PROCESS_SUBMODULE_ROUTES[subModule];
-    if (route) navigate(route);
+    if (route) window.location.href = route;
   };
 
   // Use line data from sessionStorage if available, otherwise fall back to context
@@ -269,9 +334,12 @@ export const ProcessSummaryWrapper = () => {
   const navigate = useNavigate();
   const { selectedCall, processSelectedLines } = useInspection();
 
-  // Get line data from sessionStorage (passed from ProcessDashboard)
-  const storedLineData = sessionStorage.getItem('processCurrentLineData');
-  const lineData = storedLineData ? JSON.parse(storedLineData) : null;
+  const [lineData, setLineData] = useState(() => readLineDataFromSession());
+
+  useEffect(() => {
+    const fresh = readLineDataFromSession();
+    if (fresh) setLineData(fresh);
+  }, []);
 
   // Get all production lines and their call options
   const productionLines = lineData?.productionLines || [];
@@ -286,7 +354,7 @@ export const ProcessSummaryWrapper = () => {
   const handleBack = () => navigate(ROUTES.PROCESS);
   const handleNavigateSubmodule = (subModule) => {
     const route = PROCESS_SUBMODULE_ROUTES[subModule];
-    if (route) navigate(route);
+    if (route) window.location.href = route;
   };
 
   return (
@@ -302,4 +370,5 @@ export const ProcessSummaryWrapper = () => {
     />
   );
 };
+
 

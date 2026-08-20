@@ -28,14 +28,20 @@ const readLineDataFromSession = () => {
  * Wrapper for ProcessDashboard
  */
 export const ProcessDashboardWrapper = () => {
-  const navigate = useNavigate();
-  const { selectedCall, selectedCalls, processProductionLines, processShift, setLandingActiveTab } = useInspection();
+  const { selectedCall, selectedCalls, processProductionLines, processShift, setLandingActiveTab, setSelectedCall, setSelectedCalls } = useInspection();
 
   const handleBack = () => {
-    // Ensure landing page shows Pending tab and forces a refresh of pending calls
+    // Clear the selected call so the landing page doesn't auto-resume back to /process
+    setSelectedCall(null);
+    setSelectedCalls([]);
     setLandingActiveTab('pending');
-    try { sessionStorage.setItem('ie_landing_force_refresh', '1'); } catch (e) { /* ignore */ }
-    navigate(ROUTES.LANDING);
+    // Clear tab from sessionStorage so landing page restores to 'pending'
+    try {
+      sessionStorage.setItem('ie_landing_active_tab', 'pending');
+      sessionStorage.setItem('ie_landing_force_refresh', '1');
+    } catch (e) { /* ignore */ }
+    // Use hard navigation so any lingering React state/context doesn't block the route
+    window.location.href = '/';
   };
 
   const handleNavigateToSubModule = (subModule, lineData = null) => {

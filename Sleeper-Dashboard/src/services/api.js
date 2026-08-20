@@ -298,7 +298,7 @@ export const apiService = {
         api.get('/production-declaration/getAll/batchesWithId', {
             params: { vendorId, castingDate, plantId, productionUnit }
         }),
-    getAllProductionBenches: (batchNo, productionUnit) => api.get('/production-declaration/getAll/benches', { params: { batchNo, productionUnit } }),
+    getAllProductionBenches: (batchNo, productionUnit, castingDate) => api.get('/production-declaration/getAll/benches', { params: { batchNo, productionUnit, castingDate } }),
     getAllProductionSleeperTypes: (batchNo, benchNo, productionUnit) => api.get('/production-declaration/getAll/sleeper-types', { params: { batchNo, benchNo, productionUnit } }),
     getAllProductionSleepers: (batchNo, benchNo, sleeperType, productionUnit) => api.get('/production-declaration/getAll/sleepers', { params: { batchNo, benchNo, sleeperType, productionUnit } }),
 

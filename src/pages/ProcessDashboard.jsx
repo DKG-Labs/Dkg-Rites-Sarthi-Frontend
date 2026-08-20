@@ -1034,6 +1034,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
   // Ref that holds the latest fetched historical totals for the selected lot.
   // A ref is used (not state) so the onChange handler always reads the latest value synchronously.
   const lotHistoricalTotalsRef = useRef(null);
+  const lotHistoricalTotalsMapRef = useRef({});
 
   // Get active user ID for multi-user shared laptop cache scoping
   const activeUserId = getStoredUser()?.userId || localStorage.getItem('userId') || '';
@@ -2747,30 +2748,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     };
   }, [selectedLine]);
 
-  // Fetch historical totals for the selected lot whenever lot changes
-  useEffect(() => {
-    const fetchLotHistoricalTotals = async () => {
-      const activeCallNo = currentProductionLine?.icNumber || call?.call_no;
-      const activeLotNo = selectedLotForDisplay || (selectedLotByLine && selectedLotByLine[selectedLine]) || Object.values(selectedLotByLine || {})[0] || null;
 
-      if (!activeCallNo || !activeLotNo || activeLotNo === 'None') {
-        return;
-      }
-
-      try {
-        console.log(`📊 [Process Dashboard] Fetching historical totals for Call: ${activeCallNo}, Lot: ${activeLotNo}`);
-        const totals = await getAcceptedQuantitySum(activeCallNo, activeLotNo);
-        if (totals) {
-          console.log('✅ [Process Dashboard] Historical totals fetched:', totals);
-          lotHistoricalTotalsRef.current = totals;
-        }
-      } catch (err) {
-        console.error('❌ [Process Dashboard] Error fetching historical totals:', err);
-      }
-    };
-
-    fetchLotHistoricalTotals();
-  }, [currentProductionLine, call?.call_no, selectedLotForDisplay, selectedLotByLine, selectedLine, localProductionLines, shift]);
 
   // Auto-select first lot for current line if no lot is selected and lots are available
   useEffect(() => {
@@ -3484,6 +3462,39 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [call?.call_no, selectedLine, localProductionLines]);
+
+  // Fetch historical totals for the selected lot whenever lot changes
+  useEffect(() => {
+    const fetchLotHistoricalTotals = async () => {
+      const rawCallNo = currentProductionLine?.icNumber || call?.call_no;
+      const rawLotNo = selectedLotForDisplay || (selectedLotByLine && selectedLotByLine[selectedLine]) || getSelectedLotForCurrentLine() || Object.values(selectedLotByLine || {})[0] || null;
+
+      const activeCallNo = String(rawCallNo || '').trim();
+      const activeLotNo = String(rawLotNo || '').replace(/^Lot\s*/i, '').trim();
+
+      if (!activeCallNo || !activeLotNo || activeLotNo === 'None' || activeLotNo === 'null') {
+        return;
+      }
+
+      try {
+        console.log(`📊 [Process Dashboard] Fetching historical totals for Call: ${activeCallNo}, Lot: ${activeLotNo}`);
+        let totals = await getAcceptedQuantitySum(activeCallNo, activeLotNo);
+        if (!totals && call?.call_no && call.call_no !== activeCallNo) {
+          totals = await getAcceptedQuantitySum(call.call_no, activeLotNo);
+        }
+        if (totals) {
+          console.log('✅ [Process Dashboard] Historical totals fetched:', totals);
+          lotHistoricalTotalsRef.current = totals;
+          if (!lotHistoricalTotalsMapRef.current) lotHistoricalTotalsMapRef.current = {};
+          lotHistoricalTotalsMapRef.current[activeLotNo] = totals;
+        }
+      } catch (err) {
+        console.error('❌ [Process Dashboard] Error fetching historical totals:', err);
+      }
+    };
+
+    fetchLotHistoricalTotals();
+  }, [currentProductionLine, call?.call_no, selectedLotForDisplay, selectedLotByLine, selectedLine, localProductionLines, shift, getSelectedLotForCurrentLine]);
 
   // Get manufactured qty for current line and selected lot
   const manufacturedQty = useMemo(() => {
@@ -4428,9 +4439,23 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     }
 
     // VALIDATION 2: Cascade Validation against Previous Stages' Accepted Quantities (Across All Shifts)
-    const historicalTotalsForValidation = lotHistoricalTotalsRef.current;
-    if (value !== '' && historicalTotalsForValidation != null) {
-      // Helper function to calculate current shift's total accepted for a stage (Across All Lines for current IC/Lot)
+    if (value !== '') {
+      // Helper to safely get manufactured qty for a unique production line index (avoids alias double-counting)
+      const getLineMfg = (lineIdx, stageField) => {
+        const internalKey = `Line-${lineIdx + 1}`;
+        const prodLine = localProductionLines[lineIdx];
+        const customKey = prodLine?.lineNumber ? `Line-${prodLine.lineNumber}` : internalKey;
+        const simpleKey = prodLine?.lineNumber ? String(prodLine.lineNumber) : String(lineIdx + 1);
+
+        const data = manufacturedQtyByLine[internalKey]?.[lotNo] ||
+                     manufacturedQtyByLine[customKey]?.[lotNo] ||
+                     manufacturedQtyByLine[simpleKey]?.[lotNo] ||
+                     manufacturedQtyByLine[`Line-${lineIdx + 1}`]?.[lotNo];
+
+        return parseInt(data?.[stageField]) || 0;
+      };
+
+      // Helper function to calculate current shift's total accepted for a stage (Across All Unique Lines for current IC/Lot)
       const getCurrentShiftStageAcceptedTotal = (stageField) => {
         const moduleMap = {
           'shearing': 'shearingData',
@@ -4443,22 +4468,27 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         const moduleName = moduleMap[stageField];
         let totalAccepted = 0;
 
-        Object.keys(manufacturedQtyByLine).forEach(lineKey => {
-          const mfg = parseInt(manufacturedQtyByLine[lineKey]?.[lotNo]?.[stageField]) || 0;
-          const rej = getModuleTotalRejected(moduleName, lotNo, lineKey);
+        const numLines = Math.max(localProductionLines.length, 1);
+        for (let i = 0; i < numLines; i++) {
+          const internalKey = `Line-${i + 1}`;
+          const mfg = getLineMfg(i, stageField);
+          const rej = getModuleTotalRejected(moduleName, lotNo, internalKey);
           totalAccepted += Math.max(0, mfg - rej);
-        });
+        }
         
         return totalAccepted;
       };
 
-      // Helper function to calculate current shift's total manufactured for a stage (Across Other Lines for current IC/Lot)
+      // Helper function to calculate current shift's total manufactured for a stage (Across Other Unique Lines for current IC/Lot)
       const getCurrentShiftStageManufacturedTotal = (stageField, excludeCurrentLine = false) => {
         let totalMfg = 0;
-        Object.keys(manufacturedQtyByLine).forEach(lineKey => {
-          if (excludeCurrentLine && lineKey === selectedLine) return;
-          totalMfg += parseInt(manufacturedQtyByLine[lineKey]?.[lotNo]?.[stageField]) || 0;
-        });
+        const currentLineIndex = parseInt(selectedLine.replace('Line-', ''), 10) - 1;
+        const numLines = Math.max(localProductionLines.length, 1);
+
+        for (let i = 0; i < numLines; i++) {
+          if (excludeCurrentLine && i === currentLineIndex) continue;
+          totalMfg += getLineMfg(i, stageField);
+        }
         return totalMfg;
       };
 
@@ -4468,6 +4498,8 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       let currentShiftProducedOthers = 0;
 
       // Map frontend fields to lotHistoricalTotals properties
+      const cleanLotNo = String(lotNo || '').replace(/^Lot\s*/i, '').trim();
+      const historicalTotalsForValidation = lotHistoricalTotalsMapRef.current?.[cleanLotNo] || lotHistoricalTotalsRef.current;
       
       const getHistoricalAccepted = (field) => {
         const val = parseInt(historicalTotalsForValidation?.[field]);
@@ -4489,8 +4521,8 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         case 'turning':
           {
             const shearingAcc = getHistoricalAccepted('totalShearingAccepted') + getCurrentShiftStageAcceptedTotal('shearing');
-            maxAllowedAllShifts = shearingAcc;
-            prevStageName = 'Shearing Accepted (Total)';
+            maxAllowedAllShifts = shearingAcc > 0 ? shearingAcc : offeredQty;
+            prevStageName = shearingAcc > 0 ? 'Shearing Accepted (Total)' : 'Offered Quantity';
             historicalProducedOthers = getHistoricalManufactured('totalTurningManufactured');
             currentShiftProducedOthers = getCurrentShiftStageManufacturedTotal('turning', true);
           }
@@ -4498,8 +4530,8 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         case 'mpiTesting':
           {
             const shearingAcc = getHistoricalAccepted('totalShearingAccepted') + getCurrentShiftStageAcceptedTotal('shearing');
-            maxAllowedAllShifts = shearingAcc;
-            prevStageName = 'Shearing Accepted (Total)';
+            maxAllowedAllShifts = shearingAcc > 0 ? shearingAcc : offeredQty;
+            prevStageName = shearingAcc > 0 ? 'Shearing Accepted (Total)' : 'Offered Quantity';
             historicalProducedOthers = getHistoricalManufactured('totalMpiManufactured');
             currentShiftProducedOthers = getCurrentShiftStageManufacturedTotal('mpiTesting', true);
           }
@@ -4512,14 +4544,15 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
 
             const prevStageAccepted = (histMpi > 0) ? histMpi :
                                       (histTurning > 0) ? histTurning :
-                                      (histShearing > 0) ? histShearing : offeredQty;
+                                      (histShearing > 0) ? histShearing : 0;
 
             const currentShiftPrevAccepted = getCurrentShiftStageAcceptedTotal('mpiTesting') ||
                                              getCurrentShiftStageAcceptedTotal('turning') ||
                                              getCurrentShiftStageAcceptedTotal('shearing');
 
-            maxAllowedAllShifts = prevStageAccepted + currentShiftPrevAccepted;
-            prevStageName = 'Previous Stage Accepted (Total)';
+            const totalPrevAcc = prevStageAccepted + currentShiftPrevAccepted;
+            maxAllowedAllShifts = totalPrevAcc > 0 ? totalPrevAcc : offeredQty;
+            prevStageName = totalPrevAcc > 0 ? 'Previous Stage Accepted (Total)' : 'Offered Quantity';
             historicalProducedOthers = getHistoricalManufactured('totalForgingManufactured');
             currentShiftProducedOthers = getCurrentShiftStageManufacturedTotal('forging', true);
           }
@@ -4527,8 +4560,8 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         case 'quenching':
           {
             const forgingAcc = getHistoricalAccepted('totalForgingAccepted') + getCurrentShiftStageAcceptedTotal('forging');
-            maxAllowedAllShifts = forgingAcc;
-            prevStageName = 'Forging Accepted (Total)';
+            maxAllowedAllShifts = forgingAcc > 0 ? forgingAcc : offeredQty;
+            prevStageName = forgingAcc > 0 ? 'Forging Accepted (Total)' : 'Offered Quantity';
             historicalProducedOthers = getHistoricalManufactured('totalQuenchingManufactured');
             currentShiftProducedOthers = getCurrentShiftStageManufacturedTotal('quenching', true);
           }
@@ -4536,8 +4569,8 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         case 'tempering':
           {
             const quenchingAcc = getHistoricalAccepted('totalQuenchingAccepted') + getCurrentShiftStageAcceptedTotal('quenching');
-            maxAllowedAllShifts = quenchingAcc;
-            prevStageName = 'Quenching Accepted (Total)';
+            maxAllowedAllShifts = quenchingAcc > 0 ? quenchingAcc : offeredQty;
+            prevStageName = quenchingAcc > 0 ? 'Quenching Accepted (Total)' : 'Offered Quantity';
             historicalProducedOthers = getHistoricalManufactured('totalTemperingManufactured');
             currentShiftProducedOthers = getCurrentShiftStageManufacturedTotal('tempering', true);
           }

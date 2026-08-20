@@ -332,7 +332,7 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
                         });
                     }
 
-                    const response = await apiService.getAllProductionBenches(formData.batch, formData.location);
+                    const response = await apiService.getAllProductionBenches(formData.batch, formData.location, formData.casting);
                     if (isSubscribed && response?.responseData) {
                         const newBenches = response.responseData;
                         setBenches(newBenches);

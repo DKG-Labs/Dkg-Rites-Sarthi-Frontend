@@ -405,13 +405,7 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
         const effectiveCaseNo = fetchedData.caseNo || mappedData.caseNo;
         if (effectiveCaseNo && mappedData.quantityNowPassedText && !mappedData.quantityNowPassedText.toUpperCase().includes("CASE NO")) {
           const caseText = `, (CASE NO. ${effectiveCaseNo})`;
-          if (/only\./i.test(mappedData.quantityNowPassedText)) {
-            mappedData.quantityNowPassedText = mappedData.quantityNowPassedText.replace(/only\./i, `only.${caseText}`);
-          } else if (/only/i.test(mappedData.quantityNowPassedText)) {
-            mappedData.quantityNowPassedText = mappedData.quantityNowPassedText.replace(/only/i, `only${caseText}`);
-          } else {
-            mappedData.quantityNowPassedText += caseText;
-          }
+          mappedData.quantityNowPassedText = mappedData.quantityNowPassedText.trim() + caseText;
         }
 
         setData(mappedData);

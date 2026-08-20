@@ -1031,8 +1031,9 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
 
 
 
-  // State for historical totals across all shifts for the selected lot
-  const [lotHistoricalTotals, setLotHistoricalTotals] = useState(null);
+  // Ref that holds the latest fetched historical totals for the selected lot.
+  // A ref is used (not state) so the onChange handler always reads the latest value synchronously.
+  const lotHistoricalTotalsRef = useRef(null);
 
   // Get active user ID for multi-user shared laptop cache scoping
   const activeUserId = getStoredUser()?.userId || localStorage.getItem('userId') || '';
@@ -2661,14 +2662,18 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
   // Get the selected lot for the current line
   const selectedLotForDisplay = selectedLotByLine[selectedLine] || null;
 
+  // Resolve current active production line object
+  const currentProductionLine = useMemo(() => {
+    const cleanNum = parseInt(String(selectedLine).replace(/Line-?/i, '').trim(), 10);
+    return localProductionLines?.find(l => l && l.lineNumber === cleanNum) ||
+      (!isNaN(cleanNum) && cleanNum >= 1 && cleanNum <= (localProductionLines?.length || 0) ? localProductionLines[cleanNum - 1] : null) ||
+      localProductionLines?.[0] || {};
+  }, [selectedLine, localProductionLines]);
+
   // Resolve current active production line product type
   const currentLineProductType = useMemo(() => {
-    const cleanNum = parseInt(String(selectedLine).replace(/Line-?/i, '').trim(), 10);
-    const prodLine = localProductionLines?.find(l => l && l.lineNumber === cleanNum) ||
-      (!isNaN(cleanNum) && cleanNum >= 1 && cleanNum <= (localProductionLines?.length || 0) ? localProductionLines[cleanNum - 1] : null) ||
-      localProductionLines?.[0];
-    return prodLine?.productType || call?.product_type || call?.erc_type || '';
-  }, [selectedLine, localProductionLines, call]);
+    return currentProductionLine?.productType || call?.product_type || call?.erc_type || '';
+  }, [currentProductionLine, call]);
 
   // Check if the current line product type is MK-III
   const isMkIII = useMemo(() => {
@@ -2745,20 +2750,19 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
   // Fetch historical totals for the selected lot whenever lot changes
   useEffect(() => {
     const fetchLotHistoricalTotals = async () => {
-      const activeCallNo = call?.call_no;
-      const lotNo = selectedLotForDisplay; // Use selectedLotForDisplay directly
+      const activeCallNo = currentProductionLine?.icNumber || call?.call_no;
+      const activeLotNo = selectedLotForDisplay || (selectedLotByLine && selectedLotByLine[selectedLine]) || Object.values(selectedLotByLine || {})[0] || null;
 
-      if (!activeCallNo || !lotNo || lotNo === 'None') {
-        setLotHistoricalTotals(null);
+      if (!activeCallNo || !activeLotNo || activeLotNo === 'None') {
         return;
       }
 
       try {
-        console.log(`📊 [Process Dashboard] Fetching historical totals for Call: ${activeCallNo}, Lot: ${lotNo}`);
-        const totals = await getAcceptedQuantitySum(activeCallNo, lotNo);
+        console.log(`📊 [Process Dashboard] Fetching historical totals for Call: ${activeCallNo}, Lot: ${activeLotNo}`);
+        const totals = await getAcceptedQuantitySum(activeCallNo, activeLotNo);
         if (totals) {
           console.log('✅ [Process Dashboard] Historical totals fetched:', totals);
-          setLotHistoricalTotals(totals);
+          lotHistoricalTotalsRef.current = totals;
         }
       } catch (err) {
         console.error('❌ [Process Dashboard] Error fetching historical totals:', err);
@@ -2766,7 +2770,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     };
 
     fetchLotHistoricalTotals();
-  }, [call?.call_no, selectedLotForDisplay, localProductionLines, shift]);
+  }, [currentProductionLine, call?.call_no, selectedLotForDisplay, selectedLotByLine, selectedLine, localProductionLines, shift]);
 
   // Auto-select first lot for current line if no lot is selected and lots are available
   useEffect(() => {
@@ -4163,12 +4167,12 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         setManufacturedQtyByLine(prev => {
           const currentLineMfg = prev[lineNo]?.[lotNo] || prev[internalLineKey]?.[lotNo] || prev[customLineKey]?.[lotNo] || {};
           const loadedMfg = {
-            shearing: currentLineMfg.shearing || (lineFinalResult.shearingManufactured !== null && lineFinalResult.shearingManufactured !== undefined ? String(lineFinalResult.shearingManufactured) : ''),
-            turning: currentLineMfg.turning || (lineFinalResult.turningManufactured !== null && lineFinalResult.turningManufactured !== undefined ? String(lineFinalResult.turningManufactured) : ''),
-            mpiTesting: currentLineMfg.mpiTesting || (lineFinalResult.mpiManufactured !== null && lineFinalResult.mpiManufactured !== undefined ? String(lineFinalResult.mpiManufactured) : ''),
-            forging: currentLineMfg.forging || (lineFinalResult.forgingManufactured !== null && lineFinalResult.forgingManufactured !== undefined ? String(lineFinalResult.forgingManufactured) : ''),
-            quenching: currentLineMfg.quenching || (lineFinalResult.quenchingManufactured !== null && lineFinalResult.quenchingManufactured !== undefined ? String(lineFinalResult.quenchingManufactured) : ''),
-            tempering: currentLineMfg.tempering || (lineFinalResult.temperingManufactured !== null && lineFinalResult.temperingManufactured !== undefined ? String(lineFinalResult.temperingManufactured) : '')
+            shearing: (currentLineMfg.shearing !== undefined && currentLineMfg.shearing !== null) ? currentLineMfg.shearing : (lineFinalResult.shearingManufactured !== null && lineFinalResult.shearingManufactured !== undefined ? String(lineFinalResult.shearingManufactured) : ''),
+            turning: (currentLineMfg.turning !== undefined && currentLineMfg.turning !== null) ? currentLineMfg.turning : (lineFinalResult.turningManufactured !== null && lineFinalResult.turningManufactured !== undefined ? String(lineFinalResult.turningManufactured) : ''),
+            mpiTesting: (currentLineMfg.mpiTesting !== undefined && currentLineMfg.mpiTesting !== null) ? currentLineMfg.mpiTesting : (lineFinalResult.mpiManufactured !== null && lineFinalResult.mpiManufactured !== undefined ? String(lineFinalResult.mpiManufactured) : ''),
+            forging: (currentLineMfg.forging !== undefined && currentLineMfg.forging !== null) ? currentLineMfg.forging : (lineFinalResult.forgingManufactured !== null && lineFinalResult.forgingManufactured !== undefined ? String(lineFinalResult.forgingManufactured) : ''),
+            quenching: (currentLineMfg.quenching !== undefined && currentLineMfg.quenching !== null) ? currentLineMfg.quenching : (lineFinalResult.quenchingManufactured !== null && lineFinalResult.quenchingManufactured !== undefined ? String(lineFinalResult.quenchingManufactured) : ''),
+            tempering: (currentLineMfg.tempering !== undefined && currentLineMfg.tempering !== null) ? currentLineMfg.tempering : (lineFinalResult.temperingManufactured !== null && lineFinalResult.temperingManufactured !== undefined ? String(lineFinalResult.temperingManufactured) : '')
           };
 
           return {
@@ -4198,7 +4202,8 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         }
       }
     });
-  }, [localProductionLines, call?.call_no, call?.po_no, shift, selectedLotByLine, manufacturedQtyByLine, callInitiationDataCache]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localProductionLines, call?.call_no, call?.po_no, shift, selectedLotByLine, callInitiationDataCache]);
 
   // Load line-specific data whenever call or selectedLine changes
   // This ensures data is loaded when returning from submodules
@@ -4212,14 +4217,6 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
   // Refresh rejected quantities when call or PO changes (on initial load or call change)
   useEffect(() => {
   }, [call?.call_no, call?.po_no]);
-
-  // Get current production line data for the selected line tab
-  const currentProductionLine = useMemo(() => {
-    const cleanSelectedLineNum = parseInt(String(selectedLine).replace(/Line-?/i, '').trim(), 10);
-    const currentLineIndex = (!isNaN(cleanSelectedLineNum) && cleanSelectedLineNum >= 1 && cleanSelectedLineNum <= localProductionLines.length) ? (cleanSelectedLineNum - 1) : 0;
-    return localProductionLines.find(l => l && l.lineNumber === cleanSelectedLineNum) ||
-      localProductionLines[currentLineIndex] || localProductionLines[0] || {};
-  }, [selectedLine, localProductionLines]);
 
   // Get manufactured quantity for a specific lot from Shearing input field
   const getShearingManufacturedQtyForLot = useCallback((lotNo) => {
@@ -4292,13 +4289,47 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
       }
     }
 
+    // 4. Group lots by heat number and extract unique heat numbers
+    const lotsByHeatMap = {};
+    const uniqueHeatsList = [];
+
+    lotNumbers.forEach(lotNo => {
+      const heat = heatMap[lotNo] || currentLineInitiationData?.heatNumber;
+      if (heat) {
+        if (!lotsByHeatMap[heat]) {
+          lotsByHeatMap[heat] = [];
+          uniqueHeatsList.push(heat);
+        }
+        if (!lotsByHeatMap[heat].includes(lotNo)) {
+          lotsByHeatMap[heat].push(lotNo);
+        }
+      }
+    });
+
+    // If heat was not mapped per lot, but heatNumber exists on initiation data
+    if (uniqueHeatsList.length === 0 && currentLineInitiationData.heatNumber) {
+      const heat = currentLineInitiationData.heatNumber;
+      uniqueHeatsList.push(heat);
+      lotsByHeatMap[heat] = lotNumbers;
+    }
+
+    // Also check rmIcHeatInfoList if uniqueHeats is still empty
+    if (uniqueHeatsList.length === 0 && currentLineInitiationData.rmIcHeatInfoList && Array.isArray(currentLineInitiationData.rmIcHeatInfoList)) {
+      currentLineInitiationData.rmIcHeatInfoList.forEach(item => {
+        if (item.heatNumber && !uniqueHeatsList.includes(item.heatNumber)) {
+          uniqueHeatsList.push(item.heatNumber);
+          lotsByHeatMap[item.heatNumber] = item.lotNumber ? [item.lotNumber] : lotNumbers;
+        }
+      });
+    }
+
     return {
       lineLotNumbers: lotNumbers,
       lineHeatNumbersMap: heatMap,
       lineRmIcMap: rmIcMap,
       lotOfferedQtyMap: offeredQtyMap,
-      uniqueHeats: [],
-      lotsByHeat: {}
+      uniqueHeats: uniqueHeatsList,
+      lotsByHeat: lotsByHeatMap
     };
   }, [currentLineInitiationData]);
 
@@ -4397,7 +4428,8 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
     }
 
     // VALIDATION 2: Cascade Validation against Previous Stages' Accepted Quantities (Across All Shifts)
-    if (value !== '') {
+    const historicalTotalsForValidation = lotHistoricalTotalsRef.current;
+    if (value !== '' && historicalTotalsForValidation != null) {
       // Helper function to calculate current shift's total accepted for a stage (Across All Lines for current IC/Lot)
       const getCurrentShiftStageAcceptedTotal = (stageField) => {
         const moduleMap = {
@@ -4430,30 +4462,6 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
         return totalMfg;
       };
 
-      // Helper function to calculate current shift's total rejected for a stage (Across All Lines for current IC/Lot)
-      const getCurrentShiftStageRejectedTotal = (stageField) => {
-        const moduleMap = {
-          'shearing': 'shearingData',
-          'turning': 'turningData',
-          'mpiTesting': 'mpiData',
-          'forging': 'forgingData',
-          'quenching': 'quenchingData',
-          'tempering': 'temperingData'
-        };
-        const moduleName = moduleMap[stageField];
-        const targetLineIc = currentProductionLine?.icNumber;
-        let totalRejected = 0;
-
-        localProductionLines.forEach((line, index) => {
-          const lineKey = `Line-${index + 1}`;
-          // Match by IC Number and Lot Number
-          if (line.icNumber === targetLineIc && selectedLotByLine[lineKey] === lotNo) {
-            totalRejected += getModuleTotalRejected(moduleName, lotNo, lineKey);
-          }
-        });
-        return totalRejected;
-      };
-
       let maxAllowedAllShifts = Infinity;
       let prevStageName = '';
       let historicalProducedOthers = 0;
@@ -4461,83 +4469,89 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
 
       // Map frontend fields to lotHistoricalTotals properties
       
-      // Helper to fallback to legacy overall shift data if granular ProcessLineFinalResult data is missing
-      const legacyQty = previousShiftData[lotNo]?.manufacturedQty || 0;
-      
-      const hasStageWiseHistory = lotHistoricalTotals && (
-        (lotHistoricalTotals.totalShearingManufactured > 0) ||
-        (lotHistoricalTotals.totalTurningManufactured > 0) ||
-        (lotHistoricalTotals.totalMpiManufactured > 0) ||
-        (lotHistoricalTotals.totalForgingManufactured > 0) ||
-        (lotHistoricalTotals.totalQuenchingManufactured > 0) ||
-        (lotHistoricalTotals.totalTemperingManufactured > 0)
-      );
-
       const getHistoricalAccepted = (field) => {
-        const val = lotHistoricalTotals?.[field] || 0;
-        return (val === 0 && !hasStageWiseHistory && legacyQty > 0) ? legacyQty : val;
+        const val = parseInt(historicalTotalsForValidation?.[field]);
+        return (!isNaN(val) && val >= 0) ? val : 0;
       };
 
       const getHistoricalManufactured = (field) => {
-        const val = lotHistoricalTotals?.[field] || 0;
-        return (val === 0 && !hasStageWiseHistory && legacyQty > 0) ? legacyQty : val;
+        const val = parseInt(historicalTotalsForValidation?.[field]);
+        return (!isNaN(val) && val >= 0) ? val : 0;
       };
 
       switch (field) {
         case 'shearing':
           maxAllowedAllShifts = offeredQty; 
           prevStageName = 'Offered Quantity';
-          historicalProducedOthers = 0;
-          currentShiftProducedOthers = 0;
+          historicalProducedOthers = getHistoricalManufactured('totalShearingManufactured');
+          currentShiftProducedOthers = getCurrentShiftStageManufacturedTotal('shearing', true);
           break;
         case 'turning':
-          // Formula: Shearing Production - Rejection in Shearing (Total Shearing Accepted)
-          maxAllowedAllShifts = getHistoricalAccepted('totalShearingAccepted') + getCurrentShiftStageAcceptedTotal('shearing');
-          prevStageName = 'Shearing Accepted (Total)';
-          historicalProducedOthers = getHistoricalManufactured('totalTurningManufactured');
-          currentShiftProducedOthers = getCurrentShiftStageManufacturedTotal('turning', true);
+          {
+            const shearingAcc = getHistoricalAccepted('totalShearingAccepted') + getCurrentShiftStageAcceptedTotal('shearing');
+            maxAllowedAllShifts = shearingAcc;
+            prevStageName = 'Shearing Accepted (Total)';
+            historicalProducedOthers = getHistoricalManufactured('totalTurningManufactured');
+            currentShiftProducedOthers = getCurrentShiftStageManufacturedTotal('turning', true);
+          }
           break;
         case 'mpiTesting':
-          // Formula: Shearing Production - Rejection in Shearing (Total Shearing Accepted)
-          maxAllowedAllShifts = getHistoricalAccepted('totalShearingAccepted') + getCurrentShiftStageAcceptedTotal('shearing');
-          prevStageName = 'Shearing Accepted (Total)';
-          historicalProducedOthers = getHistoricalManufactured('totalMpiManufactured');
-          currentShiftProducedOthers = getCurrentShiftStageManufacturedTotal('mpiTesting', true);
+          {
+            const shearingAcc = getHistoricalAccepted('totalShearingAccepted') + getCurrentShiftStageAcceptedTotal('shearing');
+            maxAllowedAllShifts = shearingAcc;
+            prevStageName = 'Shearing Accepted (Total)';
+            historicalProducedOthers = getHistoricalManufactured('totalMpiManufactured');
+            currentShiftProducedOthers = getCurrentShiftStageManufacturedTotal('mpiTesting', true);
+          }
           break;
         case 'forging':
-          // Formula: Production in Shearing - (rejection in Shearing + Rejection in Turning + Rejection in MPI)
-          // Equivalent to: Shearing Accepted (Total) - Turning Rejected (Total) - MPI Rejected (Total)
-          const totalShearingAccepted = getHistoricalAccepted('totalShearingAccepted') + getCurrentShiftStageAcceptedTotal('shearing');
-          const totalTurningRejected = (getHistoricalManufactured('totalTurningManufactured') - getHistoricalAccepted('totalTurningAccepted')) + getCurrentShiftStageRejectedTotal('turning');
-          const totalMpiRejected = (getHistoricalManufactured('totalMpiManufactured') - getHistoricalAccepted('totalMpiAccepted')) + getCurrentShiftStageRejectedTotal('mpiTesting');
-          
-          maxAllowedAllShifts = totalShearingAccepted - (totalTurningRejected + totalMpiRejected);
-          prevStageName = 'Cumulative Accepted from Previous Stages';
-          historicalProducedOthers = getHistoricalManufactured('totalForgingManufactured');
-          currentShiftProducedOthers = getCurrentShiftStageManufacturedTotal('forging', true);
+          {
+            const histMpi = getHistoricalAccepted('totalMpiAccepted');
+            const histTurning = getHistoricalAccepted('totalTurningAccepted');
+            const histShearing = getHistoricalAccepted('totalShearingAccepted');
+
+            const prevStageAccepted = (histMpi > 0) ? histMpi :
+                                      (histTurning > 0) ? histTurning :
+                                      (histShearing > 0) ? histShearing : offeredQty;
+
+            const currentShiftPrevAccepted = getCurrentShiftStageAcceptedTotal('mpiTesting') ||
+                                             getCurrentShiftStageAcceptedTotal('turning') ||
+                                             getCurrentShiftStageAcceptedTotal('shearing');
+
+            maxAllowedAllShifts = prevStageAccepted + currentShiftPrevAccepted;
+            prevStageName = 'Previous Stage Accepted (Total)';
+            historicalProducedOthers = getHistoricalManufactured('totalForgingManufactured');
+            currentShiftProducedOthers = getCurrentShiftStageManufacturedTotal('forging', true);
+          }
           break;
         case 'quenching':
-          maxAllowedAllShifts = getHistoricalAccepted('totalForgingAccepted') + getCurrentShiftStageAcceptedTotal('forging');
-          prevStageName = 'Forging Accepted (Total)';
-          historicalProducedOthers = getHistoricalManufactured('totalQuenchingManufactured');
-          currentShiftProducedOthers = getCurrentShiftStageManufacturedTotal('quenching', true);
+          {
+            const forgingAcc = getHistoricalAccepted('totalForgingAccepted') + getCurrentShiftStageAcceptedTotal('forging');
+            maxAllowedAllShifts = forgingAcc;
+            prevStageName = 'Forging Accepted (Total)';
+            historicalProducedOthers = getHistoricalManufactured('totalQuenchingManufactured');
+            currentShiftProducedOthers = getCurrentShiftStageManufacturedTotal('quenching', true);
+          }
           break;
         case 'tempering':
-          maxAllowedAllShifts = getHistoricalAccepted('totalQuenchingAccepted') + getCurrentShiftStageAcceptedTotal('quenching');
-          prevStageName = 'Quenching Accepted (Total)';
-          historicalProducedOthers = getHistoricalManufactured('totalTemperingManufactured');
-          currentShiftProducedOthers = getCurrentShiftStageManufacturedTotal('tempering', true);
+          {
+            const quenchingAcc = getHistoricalAccepted('totalQuenchingAccepted') + getCurrentShiftStageAcceptedTotal('quenching');
+            maxAllowedAllShifts = quenchingAcc;
+            prevStageName = 'Quenching Accepted (Total)';
+            historicalProducedOthers = getHistoricalManufactured('totalTemperingManufactured');
+            currentShiftProducedOthers = getCurrentShiftStageManufacturedTotal('tempering', true);
+          }
           break;
         default:
           break;
       }
 
-      const totalProducedPredicted = numValue + historicalProducedOthers + currentShiftProducedOthers;
+      const totalProducedPredicted = (parseInt(numValue) || 0) + (parseInt(historicalProducedOthers) || 0) + (parseInt(currentShiftProducedOthers) || 0);
 
       if (maxAllowedAllShifts !== Infinity && totalProducedPredicted > maxAllowedAllShifts) {
          const currentStoredValue = parseInt(manufacturedQtyByLine[selectedLine]?.[lotNo]?.[field]) || 0;
          if (numValue >= currentStoredValue) {
-           const remainingAllowed = Math.max(0, maxAllowedAllShifts - (historicalProducedOthers + currentShiftProducedOthers));
+           const remainingAllowed = Math.max(0, maxAllowedAllShifts - ((parseInt(historicalProducedOthers) || 0) + (parseInt(currentShiftProducedOthers) || 0)));
            showNotification(
              'error', 
              `Total ${field} produced across all shifts and lines (${totalProducedPredicted}) cannot exceed ${prevStageName} (${maxAllowedAllShifts}) for Lot ${lotNo}. Maximum allowed in this line/shift: ${remainingAllowed}`
@@ -6999,7 +7013,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
                 alignItems: 'center',
                 gap: '8px'
               }}>
-                🔥 Heat Wise Accoutnal
+                🔥 Heat Wise Accountal
               </div>
               <div style={{ overflowX: 'auto' }}>
                 <table className="heat-wise-accoutnal-table" style={{
@@ -7104,6 +7118,17 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
                           color: '#ef4444'
                         }}>
                           Error loading data: {heatWiseDataError}
+                        </td>
+                      </tr>
+                    )}
+                    {!isLoadingHeatWiseData && !heatWiseDataError && uniqueHeats.length === 0 && (
+                      <tr>
+                        <td colSpan="6" style={{
+                          padding: '20px',
+                          textAlign: 'center',
+                          color: '#64748b'
+                        }}>
+                          No heat numbers found for the selected line.
                         </td>
                       </tr>
                     )}

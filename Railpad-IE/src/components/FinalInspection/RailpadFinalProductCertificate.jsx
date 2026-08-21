@@ -198,11 +198,11 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
 
           // Step 3: Perform workflow transaction API
           try {
-            console.log('🔄 Triggering workflow transition to IC_GENERATION / DSC_SIGN_IC');
+            console.log('🔄 Triggering workflow transition to GENERATE_IC');
             await performTransitionAction({
               workflowTransitionId: call?.workflowTransitionId || call?.id,
               requestId: call?.requestId || call?.call_no || call?.callNo,
-              action: isProcessCall ? 'DSC_SIGN_IC' : 'IC_GENERATION',
+              action: 'GENERATE_IC',
               remarks: 'Digital signature applied and stored in Azure',
               actionBy: user?.userId || getStoredUser()?.userId || 1
             });

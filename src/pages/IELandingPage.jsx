@@ -211,17 +211,32 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
     call.billing_status !== BILLING_STATUS.PAYMENT_DONE
   ).length;
 
-  // Check if logged-in user is a Process IE
-  const isProcessIE = (() => {
+  // Check if logged-in user is a Process IE or if there are EP (Process) calls present
+  const isProcessIE = useMemo(() => {
     const storedRoleName = localStorage.getItem('roleName');
     return storedRoleName ? storedRoleName.toLowerCase().includes('process') : false;
-  })();
+  }, []);
+
+  const hasEpCalls = useMemo(() => {
+    const allCalls = [
+      ...(pendingCalls || []),
+      ...(completedCalls || []),
+      ...(combinedPendingCalls || [])
+    ];
+    return allCalls.some(call => {
+      const callNo = String(call?.call_no || call?.callNo || '').toUpperCase();
+      const prodType = String(call?.product_type || call?.productType || '').toLowerCase();
+      return callNo.startsWith('EP') || prodType.includes('process');
+    });
+  }, [pendingCalls, completedCalls, combinedPendingCalls]);
+
+  const showDefectSummary = isProcessIE || hasEpCalls;
 
   const tabs = [
     { id: 'pending', label: 'List of Calls Pending', description: `${pendingCount} pending` },
     { id: 'certificates', label: 'Issuance of IC & Annexures', description: `${completedCount} ready for IC` },
     { id: 'completed', label: 'Calls Completed', description: `${signedCallsCount} completed` },
-    ...(isProcessIE ? [{ id: 'defect-summary', label: 'Process Defect Summary', description: 'Call-wise defect data' }] : []),
+    ...(showDefectSummary ? [{ id: 'defect-summary', label: 'Process Defect Summary', description: 'Call-wise defect data' }] : []),
     { id: 'feedback-discrepancy', label: 'Process Inspection Feedback module', description: 'Manage discrepancies' },
   ];
 
@@ -963,8 +978,8 @@ const IELandingPage = ({ onStartInspection, onStartMultipleInspections, setSelec
         />
       )}
 
-      {/* Process Defect Summary Tab - only for Process IE */}
-      {activeTab === 'defect-summary' && isProcessIE && (
+      {/* Process Defect Summary Tab - shown for Process IE or when EP calls exist */}
+      {activeTab === 'defect-summary' && showDefectSummary && (
         <ProcessDefectSummaryCard />
       )}
 

@@ -4055,12 +4055,9 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
   const handleLineChange = (line) => {
     console.log(`🔄 [Line Change] Switching to ${line}`);
     setSelectedLine(line);
+    loadLineDataFromStorage(line);
 
-    // Force reload data for the new line after a short delay to ensure state is updated
-    setTimeout(() => {
-      loadLineDataFromStorage(line);
-
-      // Auto-select first lot for this line if no lot is currently selected
+    // Auto-select first lot for this line if no lot is currently selected
       if (!selectedLotByLine[line]) {
         const currentLineIndex = parseInt(line.replace('Line-', ''), 10) - 1;
         const prodLine = localProductionLines[currentLineIndex];
@@ -4093,9 +4090,8 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
               [line]: allLots[0]
             }));
           }
-        }
       }
-    }, 100);
+    }
   };
 
   // Helper function to load line-specific data from localStorage
@@ -6101,8 +6097,7 @@ const ProcessDashboard = ({ call, onBack, onNavigateToSubModule, productionLines
 
           const lotFinalResult = loadFromLocalStorage('lineFinalResult', lineCallNo, linePoNo, internalLineKey, determinedShift, lotNo) ||
             loadFromLocalStorage('lineFinalResult', lineCallNo, linePoNo, customLineKey, determinedShift, lotNo) ||
-            loadFromLocalStorage('lineFinalResult', lineCallNo, linePoNo, simpleLineKey, determinedShift, lotNo) ||
-            loadFromLocalStorage('lineFinalResult', lineCallNo, linePoNo, selectedLine, determinedShift, lotNo);
+            loadFromLocalStorage('lineFinalResult', lineCallNo, linePoNo, simpleLineKey, determinedShift, lotNo);
 
           const manualQuantities = {
             shearing: parseInt(lotData.shearing !== undefined && lotData.shearing !== '' ? lotData.shearing : (lotFinalResult?.shearingManufactured || 0), 10) || 0,

@@ -21,8 +21,9 @@ const getStorageKey = (submodule, inspectionCallNo, poNo, lineNo, shift = '', lo
   const effectiveDate = date || sessionStorage.getItem('inspectionDate') || '';
   const dateSuffix = effectiveDate ? `_${effectiveDate}` : '';
   const shiftSuffix = shift ? `_${shift}` : '';
-  if (lotNo) {
-    return `${userPrefix}${submodule}_${inspectionCallNo}_${poNo}_${lineNo}${dateSuffix}${shiftSuffix}_${lotNo}`;
+  const cleanLotNo = lotNo ? String(lotNo).trim() : null;
+  if (cleanLotNo) {
+    return `${userPrefix}${submodule}_${inspectionCallNo}_${poNo}_${lineNo}${dateSuffix}${shiftSuffix}_${cleanLotNo}`;
   }
   return `${userPrefix}${submodule}_${inspectionCallNo}_${poNo}_${lineNo}${dateSuffix}${shiftSuffix}`;
 };

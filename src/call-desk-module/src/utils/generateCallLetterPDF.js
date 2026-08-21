@@ -53,23 +53,28 @@ export const generateRailpadCallLetterPDF = (call, shouldDownload = true) => {
 
     // RIO To address resolution
     const getRioDetails = (rioCode) => {
-        const code = String(rioCode || '').toUpperCase();
-        if (code.includes('ER')) {
+        const code = String(rioCode || '').trim().toUpperCase();
+        if (code === 'CRIO' || code === 'CR' || code.includes('CENTRAL')) {
+            return {
+                region: 'Central Region',
+                address: '50, EXPANSION BUIDING,BHILAI STEEL PLANT AREA\nBHILAI -490001'
+            };
+        } else if (code === 'ERIO' || code === 'ER' || (code.includes('ER') && !code.includes('SERVER'))) {
             return {
                 region: 'Eastern Region',
                 address: 'OJAS BHAWAN, 7TH FLOOR, PLOT NO. DJ/20, STREET NO.326,\nACTION AREA 1D, NEW TOWN, KOLKATA - 700 156'
             };
-        } else if (code.includes('NR')) {
+        } else if (code === 'NRIO' || code === 'NR' || (code.includes('NR') && code !== 'NWR')) {
             return {
                 region: 'Northern Region',
                 address: '12TH FLOOR, CORE-2, SCOPE MINAR,\nLAXMI NAGAR, DELHI-110092'
             };
-        } else if (code.includes('WR')) {
+        } else if (code === 'WRIO' || code === 'WR' || code === 'SWR' || code === 'WCR' || (code.endsWith('WR') && code !== 'NWR')) {
             return {
                 region: 'Western Region',
                 address: '5TH FLOOR, REGENT CHAMBER, ABOVE STATUS RESTAURANT,\nNARIMAN POINT, MUMBAI - 400021'
             };
-        } else if (code.includes('SR')) {
+        } else if (code === 'SRIO' || code === 'SR' || code.includes('SOUTHERN')) {
             return {
                 region: 'Southern Region',
                 address: 'CTS BUILDING - 2ND FLOOR, BSNL COMPLEX, NO. 16,\nGREAMS ROAD CHENNAI - 600006'
@@ -81,7 +86,21 @@ export const generateRailpadCallLetterPDF = (call, shouldDownload = true) => {
         };
     };
 
-    const rio = getRioDetails(merged.rio || merged.rlyShortName || merged.region);
+    // Mapping of Railway SCR codes to RITES RIO regions
+    // Used as fallback when rio/rioCode is not returned by backend API
+    const scrCodeToRio = {
+        'ECR': 'ERIO', 'ER': 'ERIO', 'SER': 'ERIO', 'ECOR': 'ERIO',
+        'NR':  'NRIO', 'NWR': 'NRIO', 'NFR': 'NRIO', 'NER': 'NRIO',
+        'NCR': 'CRIO', 'CR': 'CRIO', 'WCR': 'CRIO',
+        'WR':  'WRIO', 'SWR': 'WRIO',
+        'SR':  'SRIO', 'SCR': 'SRIO',
+    };
+
+    const rawScrCode = String(merged.scrCode || merged.rlyShortName || '').trim().toUpperCase();
+    const rioFromScr = rawScrCode ? (scrCodeToRio[rawScrCode] || null) : null;
+
+    const rawRioCode = merged.rio || merged.rioCode || merged.rioName || rioFromScr || merged.region;
+    const rio = getRioDetails(rawRioCode);
 
     // Call Serial & Date
     const rawCallDate = merged.inspectionDate || merged.created_at || merged.callDate || new Date().toLocaleDateString('en-GB');
@@ -98,7 +117,7 @@ export const generateRailpadCallLetterPDF = (call, shouldDownload = true) => {
     const poDate = merged.poDate || '';
     const poFullNo = poNo ? (poDate ? `${poNo} Dated:${poDate}` : poNo) : '';
     const purchaser = merged.purchaserDetail || merged.purchaser || merged.purchasingAuthority || '';
-    const caseNo = merged.caseNo || callNo;
+    const caseNo = merged.caseNo || merged.callNo || merged.call_no || '';
 
     // Item details / Description of stores
     let itemDescStr = merged.itemDesc || merged.itemDescription || (merged.drawingNo ? `COMPOSITE GROOVED RUBBER SOLE PLATES 10 MM THICK FOR WIDER PSC SLEEPERS TO USE WITH 60KG (UIC) & 52KG RAILS TO RDSO DRG NO ${merged.drawingNo}, WITH LATEST ALTERATION IF ANY, SPECIFICATION: IRS T 55-2025 WITH LATEST ALTERATIONS.` : (merged.railPadType ? `RAIL PAD - ${merged.railPadType}` : 'RAIL PAD INSPECTION'));
@@ -106,7 +125,7 @@ export const generateRailpadCallLetterPDF = (call, shouldDownload = true) => {
     const consigneeVal = merged.consigneeDetail || merged.consignee || '';
 
     // Determine UOM and Quantities:
-    const isProcessCall = callTypeUpper === 'PROCESS' || String(callNo).startsWith('RPP-');
+    const isProcessCall = (merged.callType || '').toUpperCase() === 'PROCESS' || String(callNo || '').startsWith('RPP-');
     let effectiveUom = 'Nos.';
     let effectiveOfferedQty = merged.totalOfferedQty || merged.totalQty || merged.qtyOffered || merged.quantityNowOffered || '';
     let effectiveOrderQty = merged.poSrQty || merged.poQty || merged.orderQty || merged.qtyOnOrder || merged.totalQty || '';
@@ -230,6 +249,7 @@ export const generateRailpadCallLetterPDF = (call, shouldDownload = true) => {
     // ─────────────────────────────────────────────────────────────────
     // TABLE 1: HEADER BOX (ONLINE INSPECTION CALL / FROM / TO / DATES)
     // ─────────────────────────────────────────────────────────────────
+
     const headerBody = [
         [{ content: 'ONLINE INSPECTION CALL', colSpan: 2, styles: { halign: 'center', fontStyle: 'bold', fontSize: 10.5 } }],
         [{ content: stageText, colSpan: 2, styles: { fontStyle: 'bold', fontSize: 9.5 } }],

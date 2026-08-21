@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { fetchPendingWorkflowTransitions, fetchCompletedCalls, performTransitionAction, isPlantIdMatching } from '../services/workflowService';
 import { scheduleInspection } from '../services/scheduleService';
+import { viewSignedCertificate } from '../services/certificateService';
+import { getBaseUrl } from '../services/apiConfig';
 import Notification from './Notification';
 import { getStoredUser } from '../services/authService';
 
@@ -24,6 +26,7 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
   const [showResumeModal, setShowResumeModal] = useState(false);
   const [callToResume, setCallToResume] = useState(null);
   const [remarks, setRemarks] = useState('');
+  const [showCorrectionSlipModal, setShowCorrectionSlipModal] = useState(false);
   
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -301,6 +304,49 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
     }
   };
 
+  const handleViewSignedIC = async (call) => {
+    const icNumber = call.icNumber || call.icNo || call.requestId || call.callNo;
+    if (!icNumber) {
+      setNotification({ message: 'Call / IC number not found.', type: 'error' });
+      return;
+    }
+
+    setNotification({ message: 'Retrieving signed Inspection Certificate from Azure...', type: 'info' });
+
+    try {
+      const response = await viewSignedCertificate(icNumber);
+      const signedData = response?.signedData || response?.responseData?.signedData;
+
+      if (signedData) {
+        const byteCharacters = atob(signedData);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        setNotification({ message: '', type: 'info' });
+        return;
+      }
+
+      // Fallback: try opening direct PDF URL
+      const directUrl = `${getBaseUrl()}/certificate-storage/view/${encodeURIComponent(icNumber)}.pdf`;
+      window.open(directUrl, '_blank');
+      setNotification({ message: '', type: 'info' });
+    } catch (err) {
+      console.warn('viewSignedCertificate error, attempting direct view URL:', err);
+      try {
+        const directUrl = `${getBaseUrl()}/certificate-storage/view/${encodeURIComponent(icNumber)}.pdf`;
+        window.open(directUrl, '_blank');
+        setNotification({ message: '', type: 'info' });
+      } catch (fallbackErr) {
+        setNotification({ message: 'Signed Inspection Certificate is not available in Azure storage.', type: 'error' });
+      }
+    }
+  };
+
   return (
     <div className="dashboard-container" style={{ padding: '24px', background: '#ffffff', minHeight: '100vh' }}>
       {/* Notification Component */}
@@ -421,7 +467,10 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                {['CALL NO', 'VENDOR NAME', 'PLANT ID', 'CREATED DATE', 'STATUS', 'ACTIONS'].map(header => (
+                {(activeTab === 'completed'
+                  ? ['CALL NO.', 'PO NO.', 'IBS CASE NUMBER', 'VENDOR NAME', 'PRODUCT TYPE', 'DATE', 'STATUS', 'ACTIONS']
+                  : ['CALL NO', 'VENDOR NAME', 'PLANT ID', 'CREATED DATE', 'STATUS', 'ACTIONS']
+                ).map(header => (
                   <th key={header} style={{ padding: '12px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     {header}
                   </th>
@@ -437,7 +486,8 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
                       (call.requestId?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
                       (call.vendorCode?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
                       (call.vendorName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-                      (call.plantId?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+                      (call.plantId?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                      (call.poNo?.toLowerCase() || '').includes(searchTerm.toLowerCase())
                     )
                   )
                   .sort((a, b) => new Date(b.createdDate || 0) - new Date(a.createdDate || 0));
@@ -451,167 +501,253 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
                     {paginatedCalls.map((call, index) => (
                     <tr key={index} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                   <td style={{ padding: '12px 16px', fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>{call.requestId}</td>
-                  <td style={{ padding: '12px 16px', fontSize: '13px', color: '#475569' }}>{call.vendorName || call.vendorCode}</td>
-                  <td style={{ padding: '12px 16px', fontSize: '13px', color: '#475569' }}>{call.plantId}</td>
-                  <td style={{ padding: '12px 16px', fontSize: '13px', color: '#64748b' }}>
-                    {call.createdDate ? new Date(call.createdDate).toLocaleDateString() : 'N/A'}
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <span style={{
-                      padding: '2px 8px',
-                      borderRadius: '10px',
-                      fontSize: '10px',
-                      fontWeight: '700',
-                      background: call.jobStatus === 'CREATED' ? '#eff6ff' : '#f0fdf4',
-                      color: call.jobStatus === 'CREATED' ? '#1e40af' : '#166534',
-                      border: `1px solid ${call.jobStatus === 'CREATED' ? '#bfdbfe' : '#bbf7d0'}`
-                    }}>
-                      {call.jobStatus === 'IC_ISSUE' || call.status === 'IC_ISSUE' || call.jobStatus === 'ISSUE IC' || call.status === 'ISSUE IC' ? 'IC ISSUED' : (call.jobStatus || call.status)}
-                    </span>
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      {/* DETAILS button removed per user request */}
-                      {call.jobStatus === 'RIO_VERIFIED' && (
-                        <button
-                          onClick={() => handleOpenSchedule(call)}
-                          style={{
-                            padding: '6px 12px',
-                            borderRadius: '6px',
-                            border: '1px solid #bbf7d0',
-                            background: '#f0fdf4',
-                            color: '#166534',
-                            fontSize: '11px',
-                            fontWeight: '700',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          SCHEDULE
-                        </button>
-                      )}
-                      {(call.jobStatus === 'SCHEDULED' || call.status === 'SCHEDULED') && (
-                        <button
-                          onClick={() => handleStartInspection(call)}
-                          disabled={isSubmitting}
-                          style={{
-                            padding: '6px 12px',
-                            borderRadius: '6px',
-                            border: '1px solid #bfdbfe',
-                            background: isSubmitting ? '#f1f5f9' : '#eff6ff',
-                            color: isSubmitting ? '#94a3b8' : '#1e40af',
-                            fontSize: '11px',
-                            fontWeight: '700',
-                            cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                            minWidth: '60px'
-                          }}
-                        >
-                          {isSubmitting ? '...' : 'START'}
-                        </button>
-                      )}
-                      {(call.jobStatus === 'INITIATED' || call.status === 'INITIATED') && (
-                        <button
-                          onClick={() => onStart(call)}
-                          style={{
-                            padding: '6px 12px',
-                            borderRadius: '6px',
-                            border: '1px solid #fde68a',
-                            background: '#fffbeb',
-                            color: '#92400e',
-                            fontSize: '11px',
-                            fontWeight: '700',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          RESUME
-                        </button>
-                      )}
-                      {(call.jobStatus === 'PO_VERIFICATION' || call.status === 'PO_VERIFICATION' || call.jobStatus === 'RESUME' || call.status === 'RESUME') && (
-                        <button
-                          onClick={() => handleResumeClick(call)}
-                          style={{
-                            padding: '6px 12px',
-                            borderRadius: '6px',
-                            border: '1px solid #fde68a',
-                            background: '#fffbeb',
-                            color: '#92400e',
-                            fontSize: '11px',
-                            fontWeight: '700',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          RESUME
-                        </button>
-                      )}
-                      {(call.jobStatus === 'PAUSED' || call.status === 'PAUSED') && (
-                        <button
-                          onClick={() => handleResumeClick(call)}
-                          style={{
-                            padding: '6px 12px',
-                            borderRadius: '6px',
-                            border: '1px solid #93c5fd',
-                            background: '#eff6ff',
-                            color: '#1e40af',
-                            fontSize: '11px',
-                            fontWeight: '700',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          Enter Shift Details
-                        </button>
-                      )}
-                      {(call.jobStatus === 'INSPECTION_DONE' || call.status === 'INSPECTION_DONE' || call.jobStatus === 'CERTIFICATE_PENDING' || call.status === 'CERTIFICATE_PENDING' || call.jobStatus === 'COMPLETED' || call.status === 'COMPLETED') && (
-                        <button
-                          onClick={() => handleIssueICClick(call)}
-                          style={{
-                            padding: '6px 12px',
-                            borderRadius: '6px',
-                            border: '1px solid #10b981',
-                            background: '#ecfdf5',
-                            color: '#047857',
-                            fontSize: '11px',
-                            fontWeight: '700',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          ISSUE IC
-                        </button>
-                      )}
-                      {(call.jobStatus === 'ISSUE IC' || call.status === 'ISSUE IC' || call.jobStatus === 'IC_ISSUE' || call.status === 'IC_ISSUE' || call.jobStatus === 'IC_GENERATION' || call.status === 'IC_GENERATION' || call.jobStatus === 'GENERATED' || call.status === 'GENERATED') && (
-                        <button
-                          onClick={() => onIssueIc && onIssueIc(call, false)}
-                          style={{
-                            padding: '6px 12px',
-                            borderRadius: '6px',
-                            border: '1px solid #10b981',
-                            background: '#ecfdf5',
-                            color: '#047857',
-                            fontSize: '11px',
-                            fontWeight: '700',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          ISSUE IC
-                        </button>
-                      )}
-                      {(call.jobStatus === 'DSC_SIGN_IC' || call.status === 'DSC_SIGN_IC' || call.jobStatus === 'IC_SIGNED' || call.status === 'IC_SIGNED' || call.jobStatus === 'SIGNED' || call.status === 'SIGNED') && (
-                        <button
-                          onClick={() => onIssueIc && onIssueIc(call, true)}
-                          style={{
-                            padding: '6px 12px',
-                            borderRadius: '6px',
-                            border: '1px solid #3b82f6',
-                            background: '#eff6ff',
-                            color: '#1d4ed8',
-                            fontSize: '11px',
-                            fontWeight: '700',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          VIEW IC
-                        </button>
-                      )}
-                    </div>
-                  </td>
+                  {activeTab === 'completed' ? (
+                    <>
+                      <td style={{ padding: '12px 16px', fontSize: '13px', color: '#334155' }}>
+                        {call.rlyPoSrNo && call.rlyPoSrNo !== '-' ? call.rlyPoSrNo : (call.poNo ? `${call.rlyShortName ? call.rlyShortName + ' / ' : ''}${call.poNo} / ${call.poSr || '001'}` : 'N/A')}
+                      </td>
+                      <td style={{ padding: '12px 16px', fontSize: '13px', color: '#64748b' }}>
+                        {call.caseNo || call.ibsCaseNo || 'N/A'}
+                      </td>
+                      <td style={{ padding: '12px 16px', fontSize: '13px', color: '#475569' }}>{call.vendorName || call.vendorCode}</td>
+                      <td style={{ padding: '12px 16px', fontSize: '13px', color: '#475569' }}>{call.railPadType || call.productType || 'Rail Pad'}</td>
+                      <td style={{ padding: '12px 16px', fontSize: '13px', color: '#64748b' }}>
+                        {call.createdDate ? new Date(call.createdDate).toLocaleDateString('en-GB') : 'N/A'}
+                      </td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <span style={{
+                          padding: '4px 10px',
+                          borderRadius: '12px',
+                          fontSize: '11px',
+                          fontWeight: '700',
+                          background: '#dcfce7',
+                          color: '#15803d',
+                          border: '1px solid #86efac',
+                          display: 'inline-block'
+                        }}>
+                          Completed - E-Signed
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          <button
+                            onClick={() => handleViewSignedIC(call)}
+                            style={{
+                              padding: '6px 14px',
+                              borderRadius: '6px',
+                              border: 'none',
+                              background: '#2563eb',
+                              color: '#ffffff',
+                              fontSize: '11px',
+                              fontWeight: '700',
+                              cursor: 'pointer',
+                              boxShadow: '0 1px 2px rgba(37, 99, 235, 0.2)'
+                            }}
+                          >
+                            View IC
+                          </button>
+                          <button
+                            disabled={true}
+                            title="Under development"
+                            style={{
+                              padding: '6px 14px',
+                              borderRadius: '6px',
+                              border: '1px solid #e2e8f0',
+                              background: '#f8fafc',
+                              color: '#94a3b8',
+                              fontSize: '11px',
+                              fontWeight: '700',
+                              cursor: 'not-allowed',
+                              opacity: 0.6
+                            }}
+                          >
+                            Annexures
+                          </button>
+                          <button
+                            disabled={true}
+                            title="Under development"
+                            style={{
+                              padding: '6px 14px',
+                              borderRadius: '6px',
+                              border: 'none',
+                              background: '#cbd5e1',
+                              color: '#64748b',
+                              fontSize: '11px',
+                              fontWeight: '700',
+                              cursor: 'not-allowed',
+                              opacity: 0.6
+                            }}
+                          >
+                            Correction Slip
+                          </button>
+                        </div>
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td style={{ padding: '12px 16px', fontSize: '13px', color: '#475569' }}>{call.vendorName || call.vendorCode}</td>
+                      <td style={{ padding: '12px 16px', fontSize: '13px', color: '#475569' }}>{call.plantId}</td>
+                      <td style={{ padding: '12px 16px', fontSize: '13px', color: '#64748b' }}>
+                        {call.createdDate ? new Date(call.createdDate).toLocaleDateString() : 'N/A'}
+                      </td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <span style={{
+                          padding: '2px 8px',
+                          borderRadius: '10px',
+                          fontSize: '10px',
+                          fontWeight: '700',
+                          background: call.jobStatus === 'CREATED' ? '#eff6ff' : '#f0fdf4',
+                          color: call.jobStatus === 'CREATED' ? '#1e40af' : '#166534',
+                          border: `1px solid ${call.jobStatus === 'CREATED' ? '#bfdbfe' : '#bbf7d0'}`
+                        }}>
+                          {call.jobStatus === 'IC_ISSUE' || call.status === 'IC_ISSUE' || call.jobStatus === 'ISSUE IC' || call.status === 'ISSUE IC' ? 'IC ISSUED' : (call.jobStatus || call.status)}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          {/* DETAILS button removed per user request */}
+                          {call.jobStatus === 'RIO_VERIFIED' && (
+                            <button
+                              onClick={() => handleOpenSchedule(call)}
+                              style={{
+                                padding: '6px 12px',
+                                borderRadius: '6px',
+                                border: '1px solid #bbf7d0',
+                                background: '#f0fdf4',
+                                color: '#166534',
+                                fontSize: '11px',
+                                fontWeight: '700',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              SCHEDULE
+                            </button>
+                          )}
+                          {(call.jobStatus === 'SCHEDULED' || call.status === 'SCHEDULED') && (
+                            <button
+                              onClick={() => handleStartInspection(call)}
+                              disabled={isSubmitting}
+                              style={{
+                                padding: '6px 12px',
+                                borderRadius: '6px',
+                                border: '1px solid #bfdbfe',
+                                background: isSubmitting ? '#f1f5f9' : '#eff6ff',
+                                color: isSubmitting ? '#94a3b8' : '#1e40af',
+                                fontSize: '11px',
+                                fontWeight: '700',
+                                cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                                minWidth: '60px'
+                              }}
+                            >
+                              {isSubmitting ? '...' : 'START'}
+                            </button>
+                          )}
+                          {(call.jobStatus === 'INITIATED' || call.status === 'INITIATED') && (
+                            <button
+                              onClick={() => onStart(call)}
+                              style={{
+                                padding: '6px 12px',
+                                borderRadius: '6px',
+                                border: '1px solid #fde68a',
+                                background: '#fffbeb',
+                                color: '#92400e',
+                                fontSize: '11px',
+                                fontWeight: '700',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              RESUME
+                            </button>
+                          )}
+                          {(call.jobStatus === 'PO_VERIFICATION' || call.status === 'PO_VERIFICATION' || call.jobStatus === 'RESUME' || call.status === 'RESUME') && (
+                            <button
+                              onClick={() => handleResumeClick(call)}
+                              style={{
+                                padding: '6px 12px',
+                                borderRadius: '6px',
+                                border: '1px solid #fde68a',
+                                background: '#fffbeb',
+                                color: '#92400e',
+                                fontSize: '11px',
+                                fontWeight: '700',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              RESUME
+                            </button>
+                          )}
+                          {(call.jobStatus === 'PAUSED' || call.status === 'PAUSED') && (
+                            <button
+                              onClick={() => handleResumeClick(call)}
+                              style={{
+                                padding: '6px 12px',
+                                borderRadius: '6px',
+                                border: '1px solid #93c5fd',
+                                background: '#eff6ff',
+                                color: '#1e40af',
+                                fontSize: '11px',
+                                fontWeight: '700',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Enter Shift Details
+                            </button>
+                          )}
+                          {(call.jobStatus === 'INSPECTION_DONE' || call.status === 'INSPECTION_DONE' || call.jobStatus === 'CERTIFICATE_PENDING' || call.status === 'CERTIFICATE_PENDING' || call.jobStatus === 'COMPLETED' || call.status === 'COMPLETED') && (
+                            <button
+                              onClick={() => handleIssueICClick(call)}
+                              style={{
+                                padding: '6px 12px',
+                                borderRadius: '6px',
+                                border: '1px solid #10b981',
+                                background: '#ecfdf5',
+                                color: '#047857',
+                                fontSize: '11px',
+                                fontWeight: '700',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              ISSUE IC
+                            </button>
+                          )}
+                          {(call.jobStatus === 'ISSUE IC' || call.status === 'ISSUE IC' || call.jobStatus === 'IC_ISSUE' || call.status === 'IC_ISSUE' || call.jobStatus === 'IC_GENERATION' || call.status === 'IC_GENERATION' || call.jobStatus === 'GENERATED' || call.status === 'GENERATED') && (
+                            <button
+                              onClick={() => onIssueIc && onIssueIc(call, false)}
+                              style={{
+                                padding: '6px 12px',
+                                borderRadius: '6px',
+                                border: '1px solid #10b981',
+                                background: '#ecfdf5',
+                                color: '#047857',
+                                fontSize: '11px',
+                                fontWeight: '700',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              ISSUE IC
+                            </button>
+                          )}
+                          {(call.jobStatus === 'DSC_SIGN_IC' || call.status === 'DSC_SIGN_IC' || call.jobStatus === 'IC_SIGNED' || call.status === 'IC_SIGNED' || call.jobStatus === 'SIGNED' || call.status === 'SIGNED') && (
+                            <button
+                              onClick={() => onIssueIc && onIssueIc(call, true)}
+                              style={{
+                                padding: '6px 12px',
+                                borderRadius: '6px',
+                                border: '1px solid #3b82f6',
+                                background: '#eff6ff',
+                                color: '#1d4ed8',
+                                fontSize: '11px',
+                                fontWeight: '700',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              VIEW IC
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </>
+                  )}
                 </tr>
                     ))}
                   </>
@@ -877,6 +1013,122 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
                 }}
               >
                 {isSubmitting ? 'Scheduling...' : 'Confirm Schedule'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Correction Slip Modal */}
+      {showCorrectionSlipModal && selectedCall && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '16px',
+            padding: '24px',
+            width: '100%',
+            maxWidth: '560px',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+            border: '1px solid #e2e8f0'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a' }}>
+                Correction Slip — {selectedCall.requestId}
+              </div>
+              <button
+                onClick={() => setShowCorrectionSlipModal(false)}
+                style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#64748b' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px', fontSize: '13px', color: '#92400e' }}>
+              <strong>Notice:</strong> This action issues a formal Correction Slip against the digitally signed Inspection Certificate.
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>Call Number:</div>
+              <div style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a' }}>{selectedCall.requestId}</div>
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>Vendor Name:</div>
+              <div style={{ fontSize: '14px', color: '#334155' }}>{selectedCall.vendorName || selectedCall.vendorCode}</div>
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>
+                Reason for Correction / Revision Note: <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <textarea
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+                placeholder="Enter details of correction (e.g., corrected lot number, revised consignee, clerical amendment)..."
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  border: '1px solid #cbd5e1',
+                  fontSize: '13px',
+                  minHeight: '90px',
+                  resize: 'vertical',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setShowCorrectionSlipModal(false)}
+                style={{
+                  padding: '10px 18px',
+                  borderRadius: '8px',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#475569',
+                  fontWeight: '600',
+                  fontSize: '13px',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (!remarks.trim()) {
+                    setNotification({ message: 'Please enter reason for correction', type: 'error' });
+                    return;
+                  }
+                  setShowCorrectionSlipModal(false);
+                  if (onIssueIc) {
+                    onIssueIc(selectedCall, false);
+                  }
+                }}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: '#f59e0b',
+                  color: '#ffffff',
+                  fontWeight: '700',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 4px rgba(245, 158, 11, 0.3)'
+                }}
+              >
+                Proceed to Correction Slip
               </button>
             </div>
           </div>

@@ -208,6 +208,8 @@ export const transformLineDataForBackend = (frontendLineData, manualQuantities =
     const totalRejected = shearingRejected + turningRejected + mpiRejected + forgingRejected +
         quenchingRejected + temperingRejected;
 
+    const totalManufactured = manualQuantities.shearing || 0;
+
     const lineFinalResult = {
         // Map metadata for IC/Lot resolution
         lotNumber: metaData.lotNumbers || '',
@@ -243,8 +245,8 @@ export const transformLineDataForBackend = (frontendLineData, manualQuantities =
         testingFinishingManufactured: manualQuantities.testingFinishing || 0,
         testingFinishingAccepted,
         testingFinishingRejected,
-        totalManufactured: manualQuantities.shearing || 0,
-        totalAccepted: Math.max(0, (manualQuantities.shearing || 0) - totalRejected),
+        totalManufactured: totalManufactured,
+        totalAccepted: Math.max(0, totalManufactured - totalRejected),
         totalRejected
     };
 

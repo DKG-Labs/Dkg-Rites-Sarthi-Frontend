@@ -745,20 +745,7 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
         const fileName = (data.certificateNo || "Railpad_IC") + ".pdf";
         window.abc(xmlRequest, data.certificateNo || call.requestId || "Railpad_IC", fileName);
       } else {
-        console.warn("abc signature bridge not detected. Falling back to local E-sign simulator...");
-        showToast("Bridge not detected. Simulating digital signature process...", "info");
-        await delay(2000);
-        
-        const mockEvent = new CustomEvent('pki-status', {
-          detail: {
-            status: 'success',
-            message: 'Digital signature snapshot generated successfully!',
-            signedData: base64Pdf,
-            certificateNo: data.certificateNo || "C/SECR/C26030056/AI01",
-            fileName: (data.certificateNo || "Railpad_IC") + ".pdf"
-          }
-        });
-        window.dispatchEvent(mockEvent);
+        throw new Error("Digital signature bridge (abc.js) not found. Please ensure the Capricorn PKI client is running and refresh the page.");
       }
 
     } catch (error) {

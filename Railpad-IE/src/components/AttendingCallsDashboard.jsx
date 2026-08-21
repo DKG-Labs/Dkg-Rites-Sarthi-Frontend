@@ -63,12 +63,27 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
         rpCompletedAll = rpCompletedAll.filter(c => !c.plantId || isPlantIdMatching(c.plantId, dutyPlantId));
       }
 
+      const isCallSignedAndCompleted = (c) => {
+        return c.action === 'GENERATE_IC' ||
+               c.action === 'DSC_SIGN_IC' ||
+               c.action === 'IC_GENERATION' ||
+               c.status === 'GENERATE_IC' ||
+               c.jobStatus === 'GENERATE_IC' ||
+               c.status === 'DSC_SIGN_IC' ||
+               c.jobStatus === 'DSC_SIGN_IC' ||
+               c.status === 'IC_GENERATION' ||
+               c.jobStatus === 'IC_GENERATION' ||
+               c.status === 'GENERATED' ||
+               c.jobStatus === 'GENERATED' ||
+               c.status === 'IC_SIGNED' ||
+               c.jobStatus === 'IC_SIGNED';
+      };
+
       let certCalls = rpCompletedAll.filter(c => {
-        const isCompleted = c.status === 'IC_GENERATION' || c.jobStatus === 'IC_GENERATION' || c.status === 'GENERATED' || c.jobStatus === 'GENERATED';
-        if (isCompleted) return false;
+        if (isCallSignedAndCompleted(c)) return false;
         return (c.status === 'INSPECTION_DONE' || c.status === 'CERTIFICATE_PENDING' || c.status === 'COMPLETED' || c.jobStatus === 'COMPLETED' || c.status === 'ISSUE IC' || c.status === 'IC_ISSUE' || c.jobStatus === 'ISSUE IC' || c.jobStatus === 'IC_ISSUE');
       });
-      let finalCompletedCalls = rpCompletedAll.filter(c => c.status === 'IC_GENERATION' || c.jobStatus === 'IC_GENERATION' || c.status === 'GENERATED' || c.jobStatus === 'GENERATED');
+      let finalCompletedCalls = rpCompletedAll.filter(c => isCallSignedAndCompleted(c));
 
       setCounts({
         pending: rpPending.length,
@@ -563,6 +578,23 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
                       )}
                       {(call.jobStatus === 'ISSUE IC' || call.status === 'ISSUE IC' || call.jobStatus === 'IC_ISSUE' || call.status === 'IC_ISSUE' || call.jobStatus === 'IC_GENERATION' || call.status === 'IC_GENERATION' || call.jobStatus === 'GENERATED' || call.status === 'GENERATED') && (
                         <button
+                          onClick={() => onIssueIc && onIssueIc(call, false)}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '6px',
+                            border: '1px solid #10b981',
+                            background: '#ecfdf5',
+                            color: '#047857',
+                            fontSize: '11px',
+                            fontWeight: '700',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          ISSUE IC
+                        </button>
+                      )}
+                      {(call.jobStatus === 'DSC_SIGN_IC' || call.status === 'DSC_SIGN_IC' || call.jobStatus === 'IC_SIGNED' || call.status === 'IC_SIGNED' || call.jobStatus === 'SIGNED' || call.status === 'SIGNED') && (
+                        <button
                           onClick={() => onIssueIc && onIssueIc(call, true)}
                           style={{
                             padding: '6px 12px',
@@ -575,7 +607,7 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
                             cursor: 'pointer'
                           }}
                         >
-                          VIEW
+                          VIEW IC
                         </button>
                       )}
                     </div>

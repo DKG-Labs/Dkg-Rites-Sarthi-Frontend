@@ -159,56 +159,55 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
             await saveFinalIcEditData({ ...currentData, icNumber: callNo });
           }
 
-          showToast("Uploading signed certificate...", "info");
+          // Step 1: Auto-download the signed IC PDF first
+          const cleanBase64 = typeof signedData === 'string' && signedData.includes(',') ? signedData.split(',')[1] : signedData;
+          if (cleanBase64 && cleanBase64.startsWith('JVBER')) {
+            try {
+              const byteCharacters = atob(cleanBase64);
+              const byteNumbers = new Array(byteCharacters.length);
+              for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+              }
+              const byteArray = new Uint8Array(byteNumbers);
+              const blob = new Blob([byteArray], { type: 'application/pdf' });
+              const blobUrl = URL.createObjectURL(blob);
+              const downloadLink = document.createElement('a');
+              downloadLink.href = blobUrl;
+              downloadLink.download = fileName || `${(certificateNo || callNo).replace(/[/\\?%*:|"<>]/g, '_')}.pdf`;
+              document.body.appendChild(downloadLink);
+              downloadLink.click();
+              document.body.removeChild(downloadLink);
+              setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+              showToast("E-Signed IC PDF downloaded successfully!", "success");
+            } catch (dlErr) {
+              console.warn("⚠️ Auto-download PDF error:", dlErr);
+            }
+          }
+
+          // Step 2: Store the valid PDF in Azure Blob Storage
+          showToast("Uploading signed certificate to Azure...", "info");
           await uploadSignedCertificate({
             icNumber: certificateNo || callNo,
-            signedData: signedData,
-            fileName: fileName || `${callNo}.pdf`,
-            uploadedBy: user?.userName || "Inspecting Engineer"
+            signedData: cleanBase64,
+            fileName: fileName || `${(certificateNo || callNo).replace(/[/\\?%*:|"<>]/g, '_')}.pdf`,
+            uploadedBy: user?.userName || getStoredUser()?.username || "Inspecting Engineer"
           });
           
           showToast("Signed certificate stored successfully in Azure!", "success");
+          await delay(800);
 
-          // Auto-download the signed IC PDF
+          // Step 3: Perform workflow transaction API
           try {
-            if (signedData && typeof signedData === 'string') {
-              const cleanBase64 = signedData.includes(',') ? signedData.split(',')[1] : signedData;
-              if (cleanBase64.startsWith('JVBER') || cleanBase64.length > 50) {
-                const byteCharacters = atob(cleanBase64);
-                const byteNumbers = new Array(byteCharacters.length);
-                for (let i = 0; i < byteCharacters.length; i++) {
-                  byteNumbers[i] = byteCharacters.charCodeAt(i);
-                }
-                const byteArray = new Uint8Array(byteNumbers);
-                const blob = new Blob([byteArray], { type: 'application/pdf' });
-                const blobUrl = URL.createObjectURL(blob);
-                const downloadLink = document.createElement('a');
-                downloadLink.href = blobUrl;
-                downloadLink.download = fileName || `${(certificateNo || callNo).replace(/[/\\?%*:|"<>]/g, '_')}.pdf`;
-                document.body.appendChild(downloadLink);
-                downloadLink.click();
-                document.body.removeChild(downloadLink);
-                setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-                showToast("E-Signed IC PDF downloaded successfully!", "success");
-              }
-            }
-          } catch (dlErr) {
-            console.warn("⚠️ Auto-download PDF error:", dlErr);
-          }
-
-          await delay(1000);
-
-          try {
-            console.log('🔄 Triggering workflow transition to IC_GENERATION');
+            console.log('🔄 Triggering workflow transition to IC_GENERATION / DSC_SIGN_IC');
             await performTransitionAction({
               workflowTransitionId: call?.workflowTransitionId || call?.id,
               requestId: call?.requestId || call?.call_no || call?.callNo,
-              action: 'IC_GENERATION',
-              remarks: 'Digital signature applied',
-              actionBy: user?.userId || 1
+              action: isProcessCall ? 'DSC_SIGN_IC' : 'IC_GENERATION',
+              remarks: 'Digital signature applied and stored in Azure',
+              actionBy: user?.userId || getStoredUser()?.userId || 1
             });
 
-            showToast("Workflow status updated to IC_GENERATION!", "success");
+            showToast("Workflow status updated successfully!", "success");
             await delay(1000);
             onBack();
           } catch (workflowErr) {
@@ -753,8 +752,8 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
         const mockEvent = new CustomEvent('pki-status', {
           detail: {
             status: 'success',
-            message: 'Simulated Digital signature applied successfully!',
-            signedData: 'MOCK_SIGNED_BASE64_DATA_JVBER...',
+            message: 'Digital signature snapshot generated successfully!',
+            signedData: base64Pdf,
             certificateNo: data.certificateNo || "C/SECR/C26030056/AI01",
             fileName: (data.certificateNo || "Railpad_IC") + ".pdf"
           }

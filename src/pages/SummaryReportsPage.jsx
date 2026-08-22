@@ -7,13 +7,14 @@ import { getInspectionDataByCallNo } from '../services/rmInspectionService';
 import './SummaryReportsPage.css';
 
 // Helper to get divisor for ERC type weight calculation
+// MK-V: 1.14, MK-III: 0.91, J-Type: 0.915
 const getErcDivisor = (modelName) => {
-  if (!modelName) return 1.133; // Default
+  if (!modelName) return 1.14; // Default
   const normalizedModel = String(modelName).toUpperCase().replace(/\s+/g, '');
-  if (normalizedModel.includes('MK-III') || normalizedModel.includes('MKIII')) return 0.928426;
-  if (normalizedModel.includes('MK-V') || normalizedModel.includes('MKV')) return 1.133;
-  if (normalizedModel.includes('J-TYPE') || normalizedModel.includes('JTYPE') || normalizedModel.includes('ERC-J') || normalizedModel === 'J') return 0.928;
-  return 1.133; // Default fallback
+  if (normalizedModel.includes('MK-III') || normalizedModel.includes('MKIII') || normalizedModel.includes('MK3')) return 0.91;
+  if (normalizedModel.includes('MK-V') || normalizedModel.includes('MKV') || normalizedModel.includes('MK5')) return 1.14;
+  if (normalizedModel.includes('J-TYPE') || normalizedModel.includes('JTYPE') || normalizedModel.includes('ERC-J') || normalizedModel === 'J') return 0.915;
+  return 1.14; // Default fallback
 };
 
 const SPEC_LIMITS = {

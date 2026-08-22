@@ -319,7 +319,7 @@ const RailpadProcessIc = ({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', width: '100%', marginTop: '14px', marginBottom: '18px', paddingBottom: '6px' }}>
         <div style={{ flex: 1 }}></div>
         <div style={{ flex: 3, textAlign: 'center', fontWeight: 'bold', fontSize: '13px', letterSpacing: '0.2px', textTransform: 'uppercase' }}>
-          RITES LTD, CENTRAL REGION, BHILAI
+          {data?.region || "RITES LIMITED, NORTHERN REGION, DELHI"}
         </div>
         <div style={{ flex: 1, textAlign: 'right', lineHeight: '1.1', fontSize: '8.5px', fontWeight: 'bold' }}>
           <div>निरंतरता पत्रक शामिल</div>

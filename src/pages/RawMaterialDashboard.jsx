@@ -15,13 +15,14 @@ import ImageCaptureComponent from '../components/ImageCaptureComponent';
 import './RawMaterialDashboard.css';
 
 // Helper to get divisor for ERC type weight calculation
+// MK-V: 1.14, MK-III: 0.91, J-Type: 0.915
 const getErcDivisor = (modelName) => {
-  if (!modelName) return 1.133; // Default
+  if (!modelName) return 1.14; // Default
   const normalizedModel = String(modelName).toUpperCase().replace(/\s+/g, '');
-  if (normalizedModel.includes('MK-III') || normalizedModel.includes('MKIII')) return 0.928426;
-  if (normalizedModel.includes('MK-V') || normalizedModel.includes('MKV')) return 1.133;
-  if (normalizedModel.includes('J-TYPE') || normalizedModel.includes('JTYPE') || normalizedModel.includes('ERC-J') || normalizedModel === 'J') return 0.928;
-  return 1.133; // Default fallback
+  if (normalizedModel.includes('MK-III') || normalizedModel.includes('MKIII') || normalizedModel.includes('MK3')) return 0.91;
+  if (normalizedModel.includes('MK-V') || normalizedModel.includes('MKV') || normalizedModel.includes('MK5')) return 1.14;
+  if (normalizedModel.includes('J-TYPE') || normalizedModel.includes('JTYPE') || normalizedModel.includes('ERC-J') || normalizedModel === 'J') return 0.915;
+  return 1.14; // Default fallback
 };
 
 
@@ -843,20 +844,14 @@ const RawMaterialDashboard = ({ call, onBack, onNavigateToSubModule, onHeatsChan
 
   /**
    * Calculate No. of ERC (Finished) based on product model
-   * MK-V:   (Weight * 1000) / 1.133
-   * ERC-J:  (Weight * 1000) / 0.928
-   * MK-III: (Weight * 1000) / 0.928426
+   * MK-V:   (Weight * 1000) / 1.14
+   * ERC-J:  (Weight * 1000) / 0.915
+   * MK-III: (Weight * 1000) / 0.91
    */
   const numberOfERC = useMemo(() => {
     const weightMT = parseFloat(totalQuantity) || 0;
-    if (productModel === 'MK-V') {
-      return Math.floor((weightMT * 1000) / 1.133);
-    } else if (productModel === 'ERC-J') {
-      return Math.floor((weightMT * 1000) / 0.928);
-    } else {
-      // MK-III
-      return Math.floor((weightMT * 1000) / 0.928426);
-    }
+    const divisor = getErcDivisor(productModel);
+    return Math.floor((weightMT * 1000) / divisor);
   }, [totalQuantity, productModel]);
 
   // Sync consolidated heats and productModel to parent for submodule pages

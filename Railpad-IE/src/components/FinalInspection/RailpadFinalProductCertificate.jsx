@@ -294,8 +294,27 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
             facsimileText: "RITES HOLOGRAM SEAL",
             reasonsForRejection: fetchedData.reasonOfRejection || "Not Applicable",
             inspectingEngineer: "",
+            region: fetchedData.region || "",
             lotDetails: []
         };
+
+        // Fetch region dynamically from API matching ERC
+        try {
+          const regionRes = await fetch(`${getBaseUrl()}/api/reports/region?callNo=${encodeURIComponent(callNo)}`, {
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('authToken') || ''}`
+            }
+          });
+          if (regionRes.ok) {
+            const regionJson = await regionRes.json();
+            if (regionJson && regionJson.responseData) {
+              mappedData.region = regionJson.responseData;
+            }
+          }
+        } catch (e) {
+          console.error("Failed to fetch region dynamically:", e);
+        }
 
         if (isProcessCall) {
           try {
@@ -392,6 +411,7 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
             mappedData.facsimileText = savedEdit.facsimileText || mappedData.facsimileText;
             mappedData.reasonsForRejection = savedEdit.reasonsForRejection || mappedData.reasonsForRejection;
             mappedData.inspectingEngineer = savedEdit.inspectingEngineer || mappedData.inspectingEngineer;
+            mappedData.region = savedEdit.region || mappedData.region;
         }
 
         if (isProcessCall && mappedData.reasonsForRejection) {

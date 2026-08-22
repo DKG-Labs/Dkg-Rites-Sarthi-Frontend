@@ -280,7 +280,7 @@ const RailpadFinalIc = ({ data = {}, isEditing = false, isBusy = false, isViewOn
           letterSpacing: '0.2px',
           textTransform: 'uppercase'
         }}>
-          RITES LTD, CENTRAL REGION, BHILAI
+          {data?.region || "RITES LIMITED, NORTHERN REGION, DELHI"}
         </div>
         <div style={{
           flex: 1,

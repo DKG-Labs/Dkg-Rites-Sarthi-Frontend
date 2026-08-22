@@ -42,11 +42,7 @@ export const generateRailpadCallLetterPDF = (call, shouldDownload = true) => {
     const pageW = doc.internal.pageSize.getWidth(); // 210
     const margin = 12;
     const tableW = pageW - margin * 2; // 186
-    const lightBlueBorder = [186, 214, 251]; // #bad6fb
-    const darkText = [15, 23, 42];
-
     const callTypeUpper = (merged.callType || merged.typeOfCall || (String(callNo).startsWith('RPP') ? 'PROCESS' : 'FINAL')).toUpperCase();
-    const stageText = `STAGE CALL(${callTypeUpper})`;
 
     // Vendor / From details
     const vendorName = merged.vendorName || merged.companyName || merged.firmDetails || merged.vendor_name || '';
@@ -126,7 +122,6 @@ export const generateRailpadCallLetterPDF = (call, shouldDownload = true) => {
     const formattedCallDate = typeof rawCallDate === 'string' && rawCallDate.includes('T') ? rawCallDate.split('T')[0] : String(rawCallDate);
 
     // Contact info
-    const contactName = merged.contactPersonName || merged.contactPerson || merged.vendorName || merged.companyName || '';
     const contactPhone = merged.contactMobile || merged.mobile || merged.phone || '';
     const contactEmail = merged.contactEmail || merged.email || '';
     const ieName = merged.ieAssignedName || merged.assignedIeName || merged.ieName || merged.assignedIE || '';
@@ -134,9 +129,7 @@ export const generateRailpadCallLetterPDF = (call, shouldDownload = true) => {
     // PO & Case details
     const poNo = merged.poNo || merged.rlyPoSr || merged.poNumber || merged.rlyPoNo || '';
     const poDate = merged.poDate || '';
-    const poFullNo = poNo ? (poDate ? `${poNo} Dated:${poDate}` : poNo) : '';
     const purchaser = merged.purchaserDetail || merged.purchaser || merged.purchasingAuthority || '';
-    const caseNo = merged.caseNo || merged.callNo || merged.call_no || '';
 
     // Item details / Description of stores
     let itemDescStr = merged.itemDesc || merged.itemDescription || (merged.drawingNo ? `COMPOSITE GROOVED RUBBER SOLE PLATES 10 MM THICK FOR WIDER PSC SLEEPERS TO USE WITH 60KG (UIC) & 52KG RAILS TO RDSO DRG NO ${merged.drawingNo}, WITH LATEST ALTERATION IF ANY, SPECIFICATION: IRS T 55-2025 WITH LATEST ALTERATIONS.` : (merged.railPadType ? `RAIL PAD - ${merged.railPadType}` : 'RAIL PAD INSPECTION'));
@@ -235,6 +228,7 @@ export const generateRailpadCallLetterPDF = (call, shouldDownload = true) => {
             ? merged.poItems
             : [];
 
+    // eslint-disable-next-line no-unused-vars
     let annexureRows = [];
 
     if (items.length > 0) {
@@ -250,6 +244,7 @@ export const generateRailpadCallLetterPDF = (call, shouldDownload = true) => {
             ''
         ]);
     } else {
+        // eslint-disable-next-line no-unused-vars
         annexureRows = [
             [
                 resolvePoSrNo(merged, 1),
@@ -351,14 +346,12 @@ export const generateRailpadCallLetterPDF = (call, shouldDownload = true) => {
     const bpoDisplay = merged.billPayingOfficer || billPayOfficer || '-';
     const manufacturerDisplay = merged.manufacturerName || vendorName || '-';
 
-    const rawMatPassed = merged.rawMaterialQtyPassed ? `${merged.rawMaterialQtyPassed} MT` : '0.000 MT';
     const finalAccQty = merged.finalAcceptedQty ? `${merged.finalAcceptedQty} ${uomText}` : `0 ${uomText}`;
     const rawTotalPoQty = merged.totalPoQty || merged.poQty || merged.poSrQty || effectiveOrderQty;
     const totalPoQtyVal = rawTotalPoQty
         ? (String(rawTotalPoQty).match(/[a-zA-Z]/) ? rawTotalPoQty : `${rawTotalPoQty} ${uomText}`)
         : '-';
     const totalPoValDisplay = merged.totalPoValue || merged.poValue || '-';
-    const rawMatDetailsDisplay = merged.rawMaterialDetails || '-';
     const prodSelectedVendor = merged.productSelectedByVendor || merged.ercType || merged.type_of_erc || merged.erc_type || merged.product || merged.productType || merged.railPadType || '-';
 
     const mainTableBody = [

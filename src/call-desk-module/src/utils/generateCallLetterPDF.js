@@ -30,7 +30,8 @@ const isRailpadCall = (c) => {
 
 /**
  * Generates the official Online Inspection Call Letter PDF matching Railpad Vendor format.
- */
+ 
+*/
 export const generateRailpadCallLetterPDF = (call, shouldDownload = true) => {
     if (!call) return;
 
@@ -108,10 +109,10 @@ export const generateRailpadCallLetterPDF = (call, shouldDownload = true) => {
     // Used as fallback when rio/rioCode is not returned by backend API
     const scrCodeToRio = {
         'ECR': 'ERIO', 'ER': 'ERIO', 'SER': 'ERIO', 'ECOR': 'ERIO',
-        'NR':  'NRIO', 'NWR': 'NRIO', 'NFR': 'NRIO', 'NER': 'NRIO',
+        'NR': 'NRIO', 'NWR': 'NRIO', 'NFR': 'NRIO', 'NER': 'NRIO',
         'NCR': 'CRIO', 'CR': 'CRIO', 'WCR': 'CRIO',
-        'WR':  'WRIO', 'SWR': 'WRIO',
-        'SR':  'SRIO', 'SCR': 'SRIO',
+        'WR': 'WRIO', 'SWR': 'WRIO',
+        'SR': 'SRIO', 'SCR': 'SRIO',
     };
 
     const rawScrCode = String(merged.scrCode || merged.rlyShortName || '').trim().toUpperCase();
@@ -195,7 +196,7 @@ export const generateRailpadCallLetterPDF = (call, shouldDownload = true) => {
 
         // 2. Check call's dedicated po_sr / poSr / poSrNo / poSerialNo field
         const callSr = target.po_sr || target.poSr || target.poSrNo || target.poSerialNo ||
-                       merged.po_sr || merged.poSr || merged.poSrNo || merged.poSerialNo;
+            merged.po_sr || merged.poSr || merged.poSrNo || merged.poSerialNo;
         if (callSr && String(callSr).trim() !== '' && String(callSr).trim() !== 'null' && String(callSr).trim() !== 'undefined') {
             let str = String(callSr).trim();
             if (str.includes('/')) {
@@ -206,8 +207,8 @@ export const generateRailpadCallLetterPDF = (call, shouldDownload = true) => {
         }
 
         // 3. Check composite rlyPoSr (e.g. "SER / 60265359103833 / 001")
-        const rawRlyPo = String(target.rlyPoSr || target.rlyPoNo || target.poNumber || 
-                                merged.rlyPoSr || merged.rlyPoNo || merged.poNumber || '');
+        const rawRlyPo = String(target.rlyPoSr || target.rlyPoNo || target.poNumber ||
+            merged.rlyPoSr || merged.rlyPoNo || merged.poNumber || '');
         if (rawRlyPo.includes('/')) {
             const parts = rawRlyPo.split('/').map(p => p.trim()).filter(Boolean);
             const last = parts[parts.length - 1];
@@ -228,10 +229,10 @@ export const generateRailpadCallLetterPDF = (call, shouldDownload = true) => {
     };
 
     // Build Annexure-1 rows (PO Item Details)
-    const items = (Array.isArray(merged.items) && merged.items.length > 0) 
-        ? merged.items 
-        : (Array.isArray(merged.poItems) && merged.poItems.length > 0) 
-            ? merged.poItems 
+    const items = (Array.isArray(merged.items) && merged.items.length > 0)
+        ? merged.items
+        : (Array.isArray(merged.poItems) && merged.poItems.length > 0)
+            ? merged.poItems
             : [];
 
     let annexureRows = [];
@@ -278,7 +279,7 @@ export const generateRailpadCallLetterPDF = (call, shouldDownload = true) => {
 
     // Header Top Bar
     const topBarText = `Generated on: ${formattedGenDate}  |  Call No: ${callNo}  |  System: RITES Sarthi`;
-    
+
     autoTable(doc, {
         startY: margin,
         margin: { left: margin, right: margin },
@@ -329,7 +330,7 @@ export const generateRailpadCallLetterPDF = (call, shouldDownload = true) => {
     const displayFrom = `${vendorName}${vendorAddress ? ' - ' + vendorAddress : ''}`;
     const displayTo = `(SBU Head/${rio.code || 'NRIO'})\n${rio.officeName || 'NORTHERN REGION INSPECTION OFFICE'}\nRITES LTD. (A Govt. of India Enterprise)\n${rio.address}${rio.contactInfo ? '\n' + rio.contactInfo : ''}`;
     const displayPoNoDate = `${merged.rlyPoNoSerial || merged.rlyPoNo || poNo}\nDate of PO: ${poDate || '-'}`;
-    
+
     // Stage text
     const isProcess = callTypeUpper === 'PROCESS' || String(callNo).startsWith('RPP');
     const stageDisplay = isProcess ? 'Process Inspection' : (merged.stageOfInspection || 'Final Inspection');

@@ -145,11 +145,13 @@ export default function RawMaterialCertificate({ call = {}, onBack }) {
           
           let ercNos = 0;
           if (ercType === "MK-III") {
-            ercNos = Math.floor((totalMt * 1000) / 0.928426);
+            ercNos = Math.floor((totalMt * 1000) / 0.91);
           } else if (ercType === "MK-V") {
-            ercNos = Math.floor((totalMt * 1000) / 1.133);
-          } else if (ercType === "ERC-J") {
-            ercNos = Math.floor((totalMt * 1000) / 0.928);
+            ercNos = Math.floor((totalMt * 1000) / 1.14);
+          } else if (ercType === "ERC-J" || ercType === "J-Type" || ercType === "J") {
+            ercNos = Math.floor((totalMt * 1000) / 0.915);
+          } else {
+            ercNos = Math.floor((totalMt * 1000) / 1.14);
           }
           
           if (totalMt > 0) {

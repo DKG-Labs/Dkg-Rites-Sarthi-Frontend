@@ -67,24 +67,40 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
       }
 
       const isCallSignedAndCompleted = (c) => {
-        return c.action === 'GENERATE_IC' ||
-               c.action === 'DSC_SIGN_IC' ||
-               c.action === 'IC_GENERATION' ||
-               c.status === 'GENERATE_IC' ||
-               c.jobStatus === 'GENERATE_IC' ||
-               c.status === 'DSC_SIGN_IC' ||
-               c.jobStatus === 'DSC_SIGN_IC' ||
-               c.status === 'IC_GENERATION' ||
-               c.jobStatus === 'IC_GENERATION' ||
-               c.status === 'GENERATED' ||
-               c.jobStatus === 'GENERATED' ||
-               c.status === 'IC_SIGNED' ||
-               c.jobStatus === 'IC_SIGNED';
+        const action = (c.action || '').toUpperCase();
+        const status = (c.status || '').toUpperCase();
+        const jobStatus = (c.jobStatus || '').toUpperCase();
+        return action === 'GENERATE_IC' ||
+               action === 'DSC_SIGN_IC' ||
+               action === 'IC_GENERATION' ||
+               status === 'GENERATE_IC' ||
+               jobStatus === 'GENERATE_IC' ||
+               status === 'DSC_SIGN_IC' ||
+               jobStatus === 'DSC_SIGN_IC' ||
+               status === 'IC_GENERATION' ||
+               jobStatus === 'IC_GENERATION' ||
+               status === 'GENERATED' ||
+               jobStatus === 'GENERATED' ||
+               status === 'IC_SIGNED' ||
+               jobStatus === 'IC_SIGNED';
       };
 
       let certCalls = rpCompletedAll.filter(c => {
         if (isCallSignedAndCompleted(c)) return false;
-        return (c.status === 'INSPECTION_DONE' || c.status === 'CERTIFICATE_PENDING' || c.status === 'COMPLETED' || c.jobStatus === 'COMPLETED' || c.status === 'ISSUE IC' || c.status === 'IC_ISSUE' || c.jobStatus === 'ISSUE IC' || c.jobStatus === 'IC_ISSUE');
+        const action = (c.action || '').toUpperCase();
+        const status = (c.status || '').toUpperCase();
+        const jobStatus = (c.jobStatus || '').toUpperCase();
+        return (status === 'INSPECTION_DONE' || 
+                status === 'CERTIFICATE_PENDING' || 
+                status === 'COMPLETED' || 
+                jobStatus === 'COMPLETED' || 
+                status === 'ISSUE IC' || 
+                status === 'IC_ISSUE' || 
+                jobStatus === 'ISSUE IC' || 
+                jobStatus === 'IC_ISSUE' ||
+                action === 'IC_ISSUE' ||
+                action === 'ISSUE IC' ||
+                action === 'FINISH');
       });
       let finalCompletedCalls = rpCompletedAll.filter(c => isCallSignedAndCompleted(c));
 
@@ -193,38 +209,9 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
     }
   };
 
-  const handleIssueICClick = async (call) => {
-    setIsSubmitting(true);
-    try {
-      if (call.jobStatus !== 'IC_ISSUE' && call.status !== 'IC_ISSUE' && call.jobStatus !== 'ISSUE IC' && call.status !== 'ISSUE IC') {
-        console.log('🔄 Calling performTransitionAction to update status');
-        const actionData = {
-          workflowTransitionId: call.workflowTransitionId || call.id,
-          requestId: call.requestId || call.call_no,
-          action: 'IC_ISSUE',
-          remarks: 'System updated status prior to Issue IC',
-          actionBy: user?.userId || 1
-        };
-        const result = await performTransitionAction(actionData);
-        if (result && result.responseStatus?.statusCode === 0) {
-          // Temporarily update local status so it reflects immediately
-          call.status = 'IC_ISSUE';
-          call.jobStatus = 'IC_ISSUE';
-        } else {
-          console.error('⚠️ Failed to update workflow status:', result);
-        }
-      }
-      
-      if (onIssueIc) {
-        onIssueIc(call, false);
-      }
-    } catch (error) {
-      console.error('Error in Issue IC flow:', error);
-      setNotification({ message: 'Error: ' + error.message, type: 'error' });
-      // Still allow opening the IC even if status update fails
-      if (onIssueIc) onIssueIc(call, false);
-    } finally {
-      setIsSubmitting(false);
+  const handleIssueICClick = (call) => {
+    if (onIssueIc) {
+      onIssueIc(call, false);
     }
   };
 
@@ -480,16 +467,28 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
             <tbody>
               {(() => {
                 const filteredCalls = calls
-                  .filter(call =>
-                    (call.status !== 'CREATED' && call.jobStatus !== 'CREATED') &&
-                    (call.accessibleUserIds?.includes(Number(user?.userId))) && (
-                      (call.requestId?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-                      (call.vendorCode?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-                      (call.vendorName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-                      (call.plantId?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-                      (call.poNo?.toLowerCase() || '').includes(searchTerm.toLowerCase())
-                    )
-                  )
+                  .filter(call => {
+                    const st = (call.status || '').toUpperCase();
+                    const jst = (call.jobStatus || '').toUpperCase();
+                    if (st === 'CREATED' || jst === 'CREATED') return false;
+
+                    const userIdNum = Number(user?.userId);
+                    const hasAccess = !call.accessibleUserIds || 
+                                      call.accessibleUserIds.length === 0 || 
+                                      call.accessibleUserIds.map(Number).includes(userIdNum) || 
+                                      Number(call.assignedToUser) === userIdNum;
+
+                    if (!hasAccess) return false;
+
+                    const q = (searchTerm || '').toLowerCase();
+                    return (
+                      (call.requestId?.toLowerCase() || '').includes(q) ||
+                      (call.vendorCode?.toLowerCase() || '').includes(q) ||
+                      (call.vendorName?.toLowerCase() || '').includes(q) ||
+                      (call.plantId?.toLowerCase() || '').includes(q) ||
+                      (call.poNo?.toLowerCase() || '').includes(q)
+                    );
+                  })
                   .sort((a, b) => new Date(b.createdDate || 0) - new Date(a.createdDate || 0));
 
                 const totalPages = Math.ceil(filteredCalls.length / itemsPerPage);
@@ -600,13 +599,13 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
                           color: call.jobStatus === 'CREATED' ? '#1e40af' : '#166534',
                           border: `1px solid ${call.jobStatus === 'CREATED' ? '#bfdbfe' : '#bbf7d0'}`
                         }}>
-                          {call.jobStatus === 'IC_ISSUE' || call.status === 'IC_ISSUE' || call.jobStatus === 'ISSUE IC' || call.status === 'ISSUE IC' ? 'IC ISSUED' : (call.jobStatus || call.status)}
+                          {((call.jobStatus || call.status || '').toUpperCase().includes('IC_ISSUE') || (call.jobStatus || call.status || '').toUpperCase().includes('ISSUE IC')) ? 'IC ISSUED' : (call.jobStatus || call.status)}
                         </span>
                       </td>
                       <td style={{ padding: '12px 16px' }}>
                         <div style={{ display: 'flex', gap: '8px' }}>
                           {/* DETAILS button removed per user request */}
-                          {call.jobStatus === 'RIO_VERIFIED' && (
+                          {(call.jobStatus || '').toUpperCase() === 'RIO_VERIFIED' && (
                             <button
                               onClick={() => handleOpenSchedule(call)}
                               style={{
@@ -623,7 +622,7 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
                               SCHEDULE
                             </button>
                           )}
-                          {(call.jobStatus === 'SCHEDULED' || call.status === 'SCHEDULED') && (
+                          {((call.jobStatus || '').toUpperCase() === 'SCHEDULED' || (call.status || '').toUpperCase() === 'SCHEDULED') && (
                             <button
                               onClick={() => handleStartInspection(call)}
                               disabled={isSubmitting}
@@ -642,7 +641,7 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
                               {isSubmitting ? '...' : 'START'}
                             </button>
                           )}
-                          {(call.jobStatus === 'INITIATED' || call.status === 'INITIATED') && (
+                          {((call.jobStatus || '').toUpperCase() === 'INITIATED' || (call.status || '').toUpperCase() === 'INITIATED') && (
                             <button
                               onClick={() => onStart(call)}
                               style={{
@@ -659,7 +658,7 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
                               RESUME
                             </button>
                           )}
-                          {(call.jobStatus === 'PO_VERIFICATION' || call.status === 'PO_VERIFICATION' || call.jobStatus === 'RESUME' || call.status === 'RESUME') && (
+                          {((call.jobStatus || '').toUpperCase() === 'PO_VERIFICATION' || (call.status || '').toUpperCase() === 'PO_VERIFICATION' || (call.jobStatus || '').toUpperCase() === 'RESUME' || (call.status || '').toUpperCase() === 'RESUME') && (
                             <button
                               onClick={() => handleResumeClick(call)}
                               style={{
@@ -676,7 +675,7 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
                               RESUME
                             </button>
                           )}
-                          {(call.jobStatus === 'PAUSED' || call.status === 'PAUSED') && (
+                          {((call.jobStatus || '').toUpperCase() === 'PAUSED' || (call.status || '').toUpperCase() === 'PAUSED') && (
                             <button
                               onClick={() => handleResumeClick(call)}
                               style={{
@@ -693,7 +692,23 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
                               Enter Shift Details
                             </button>
                           )}
-                          {(call.jobStatus === 'INSPECTION_DONE' || call.status === 'INSPECTION_DONE' || call.jobStatus === 'CERTIFICATE_PENDING' || call.status === 'CERTIFICATE_PENDING' || call.jobStatus === 'COMPLETED' || call.status === 'COMPLETED') && (
+                          {/* IC Issuance Stage */}
+                          {(
+                            (call.jobStatus || '').toUpperCase() === 'INSPECTION_DONE' ||
+                            (call.status || '').toUpperCase() === 'INSPECTION_DONE' ||
+                            (call.jobStatus || '').toUpperCase() === 'CERTIFICATE_PENDING' ||
+                            (call.status || '').toUpperCase() === 'CERTIFICATE_PENDING' ||
+                            (call.jobStatus || '').toUpperCase() === 'COMPLETED' ||
+                            (call.status || '').toUpperCase() === 'COMPLETED' ||
+                            (call.jobStatus || '').toUpperCase() === 'ISSUE IC' ||
+                            (call.status || '').toUpperCase() === 'ISSUE IC' ||
+                            (call.jobStatus || '').toUpperCase() === 'IC_ISSUE' ||
+                            (call.status || '').toUpperCase() === 'IC_ISSUE' ||
+                            (call.jobStatus || '').toUpperCase() === 'IC_GENERATION' ||
+                            (call.status || '').toUpperCase() === 'IC_GENERATION' ||
+                            (call.jobStatus || '').toUpperCase() === 'GENERATED' ||
+                            (call.status || '').toUpperCase() === 'GENERATED'
+                          ) && (
                             <button
                               onClick={() => handleIssueICClick(call)}
                               style={{
@@ -707,27 +722,10 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
                                 cursor: 'pointer'
                               }}
                             >
-                              ISSUE IC
+                              {(call.action === 'IC_ISSUE' || call.action === 'ISSUE IC' || (call.jobStatus || '').toUpperCase().includes('IC_ISSUE') || (call.status || '').toUpperCase().includes('IC_ISSUE')) ? 'VIEW IC' : 'ISSUE IC'}
                             </button>
                           )}
-                          {(call.jobStatus === 'ISSUE IC' || call.status === 'ISSUE IC' || call.jobStatus === 'IC_ISSUE' || call.status === 'IC_ISSUE' || call.jobStatus === 'IC_GENERATION' || call.status === 'IC_GENERATION' || call.jobStatus === 'GENERATED' || call.status === 'GENERATED') && (
-                            <button
-                              onClick={() => onIssueIc && onIssueIc(call, false)}
-                              style={{
-                                padding: '6px 12px',
-                                borderRadius: '6px',
-                                border: '1px solid #10b981',
-                                background: '#ecfdf5',
-                                color: '#047857',
-                                fontSize: '11px',
-                                fontWeight: '700',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              ISSUE IC
-                            </button>
-                          )}
-                          {(call.jobStatus === 'DSC_SIGN_IC' || call.status === 'DSC_SIGN_IC' || call.jobStatus === 'IC_SIGNED' || call.status === 'IC_SIGNED' || call.jobStatus === 'SIGNED' || call.status === 'SIGNED') && (
+                          {((call.jobStatus || '').toUpperCase() === 'DSC_SIGN_IC' || (call.status || '').toUpperCase() === 'DSC_SIGN_IC' || (call.jobStatus || '').toUpperCase() === 'IC_SIGNED' || (call.status || '').toUpperCase() === 'IC_SIGNED' || (call.jobStatus || '').toUpperCase() === 'SIGNED' || (call.status || '').toUpperCase() === 'SIGNED') && (
                             <button
                               onClick={() => onIssueIc && onIssueIc(call, true)}
                               style={{

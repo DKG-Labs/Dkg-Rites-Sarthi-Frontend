@@ -349,8 +349,9 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     setVisibleLoadRows(prev => prev - 1);
   };
 
-  const activeLot = lots.find(l => l.id === selectedLot) || lots[0] || { railpadType: 'GRSP' };
-  const activeRailpadType = activeLot.railpadType || 'GRSP';
+  const activeLot = lots.find(l => l.id === selectedLot) || lots[0] || { railpadType: call?.railPadType || 'GRSP' };
+  const activeRailpadType = activeLot.railpadType || call?.railPadType || call?.railpadType || 'GRSP';
+  const isNCRGRSP = (activeRailpadType || '').toUpperCase().includes('NCR') || (call?.railPadType || '').toUpperCase().includes('NCR') || (call?.railpadType || '').toUpperCase().includes('NCR');
 
   // State Management for Dirty Form
   const [isDirty, setIsDirty] = useState(false);
@@ -430,11 +431,22 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     'RDSO/T-8998': { type: '10mm CGRSP', max: 445 },
   };
 
+  const getVisualDimSampleSize = (lotOrId) => {
+    const lot = (typeof lotOrId === 'object' && lotOrId) ? lotOrId : (lots.find(l => l.id === lotOrId) || { size: 1500, railpadType: '' });
+    const type = (lot?.railpadType || activeRailpadType || '').toUpperCase();
+    const size = parseInt(lot?.size, 10) || 0;
+    if (type.includes('NCR')) {
+      // Minimum 1% of the lot size, subject to minimum 10 nos.
+      return Math.max(10, Math.ceil(size * 0.01));
+    }
+    return 25;
+  };
+
   const getHardnessTolerance = (lotId) => {
     const lot = lots.find(l => l.id === lotId) || { drawingNo: '', railpadType: '' };
-    const type = lot.railpadType || '';
+    const type = lot.railpadType || activeRailpadType || '';
 
-    if (type.includes('NCRGRSP')) return { a: { min: 75, max: 85 }, b: { min: 75, max: 85 } };
+    if (type.includes('NCRGRSP') || type.includes('NCR')) return { a: { min: 75, max: 85 }, b: { min: 75, max: 85 } };
     if (type === '6mm GRSP') return { a: { min: 75, max: 85 }, b: { min: 75, max: 85 } };
     if (type === '10mm GRSP') return { a: { min: 70, max: 80 }, b: { min: 70, max: 80 } };
     if (type.includes('CGRSP')) return { a: { min: 75, max: 85 }, b: { min: 60, max: 70 } };
@@ -622,6 +634,8 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
     localStorage.setItem(draftKey, JSON.stringify(draftData));
     localStorage.setItem(`railpad_selected_lot_${currentCallId}`, selectedLot);
+    localStorage.setItem(`railpad_call_hologram_${currentCallId}`, JSON.stringify(hologramEntries));
+    localStorage.setItem(`railpad_call_sealing_type_${currentCallId}`, sealingType);
     // If data was entered, mark as dirty
     if (visualData.dv || visualData.dd || weightData.samples1.some(s => s !== '') || remarks || sealingType) {
       setIsDirty(true);
@@ -754,9 +768,15 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
     if (saved) {
       try {
-        const draft = JSON.parse(saved);
-        if (draft.activeTab) setActiveTab(draft.activeTab);
-        if (draft.visualData) setVisualData(draft.visualData);
+        const lotForDraft = lots.find(l => l.id === lotId) || { size: 1500, railpadType: '' };
+        const calculatedDraftN = getVisualDimSampleSize(lotForDraft);
+        if (draft.visualData) {
+          setVisualData({
+            ...draft.visualData,
+            visualN: (lotForDraft.railpadType || activeRailpadType || '').toUpperCase().includes('NCR') ? calculatedDraftN : (draft.visualData.visualN || calculatedDraftN),
+            dimN: (lotForDraft.railpadType || activeRailpadType || '').toUpperCase().includes('NCR') ? calculatedDraftN : (draft.visualData.dimN || calculatedDraftN)
+          });
+        }
         if (draft.weightData) setWeightData(draft.weightData);
 
         let paddedPhys = padPhysicalData(draft.physicalData);
@@ -771,10 +791,25 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         if (draft.specType) setSpecType(draft.specType);
         if (draft.reTestActive !== undefined) setReTestActive(draft.reTestActive);
         if (draft.reOfferActive !== undefined) setReOfferActive(draft.reOfferActive);
+        const callHoloKey = `railpad_call_hologram_${currentCallId}`;
+        const callSealKey = `railpad_call_sealing_type_${currentCallId}`;
+        const savedCallHolo = localStorage.getItem(callHoloKey);
+        const savedCallSeal = localStorage.getItem(callSealKey);
+
+        let finalHolo = draft.hologramEntries || [];
+        let finalSeal = draft.sealingType || 'RITES_HOLOGRAM';
+        if (savedCallHolo) {
+          try {
+            const parsed = JSON.parse(savedCallHolo);
+            if (Array.isArray(parsed) && parsed.length > 0) finalHolo = parsed;
+          } catch (e) {}
+        }
+        if (savedCallSeal !== null && savedCallSeal !== '') finalSeal = savedCallSeal;
+
         setRemarks(draft.remarks || '');
-        setSealingType(draft.sealingType || '');
+        setSealingType(finalSeal);
         setSteelStampNumber(draft.steelStampNumber || '');
-        setHologramEntries(draft.hologramEntries || []);
+        setHologramEntries(finalHolo);
 
         if (draft.dbDimensionalStatus !== undefined) {
           setDbDimensionalStatus(draft.dbDimensionalStatus);
@@ -889,38 +924,61 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
       const currentLotResult = lotResults.find(r => r.lotNo === lotId);
       let finalRemarks = '';
-      let finalSealingType = 'RITES_HOLOGRAM';
       let finalSteelStampNumber = '';
-      let finalHologramEntries = [];
       let finalSpecType = 'CGRSP';
       let finalReTestActive = false;
       let finalReOfferActive = false;
 
+      // Check Call-wide Hologram / Sealing entries first
+      const callHoloKey = `railpad_call_hologram_${currentCallId}`;
+      const callSealKey = `railpad_call_sealing_type_${currentCallId}`;
+      const savedCallHolo = localStorage.getItem(callHoloKey);
+      const savedCallSeal = localStorage.getItem(callSealKey);
+
+      let finalHologramEntries = [];
+      let finalSealingType = 'RITES_HOLOGRAM';
+
+      if (savedCallHolo) {
+        try {
+          const parsed = JSON.parse(savedCallHolo);
+          if (Array.isArray(parsed) && parsed.length > 0) finalHologramEntries = parsed;
+        } catch (e) {}
+      }
+      if (savedCallSeal !== null && savedCallSeal !== '') {
+        finalSealingType = savedCallSeal;
+      } else {
+        // If not in localStorage, check if ANY lot in lotResults has hologram from DB
+        const lotWithHolo = lotResults.find(r => r.hologram);
+        if (lotWithHolo && lotWithHolo.hologram) {
+          finalSealingType = 'RITES_HOLOGRAM';
+          finalHologramEntries = lotWithHolo.hologram.split(',').map((part, idx) => {
+            if (part.includes('-')) {
+              const rangeParts = part.split('-');
+              return { id: Date.now() + idx, type: 'range', from: rangeParts[0] || '', to: rangeParts[1] || '' };
+            } else {
+              return { id: Date.now() + idx, type: 'single', value: part || '' };
+            }
+          });
+          localStorage.setItem(callHoloKey, JSON.stringify(finalHologramEntries));
+          localStorage.setItem(callSealKey, finalSealingType);
+        }
+      }
+
       if (currentLotResult) {
         finalRemarks = currentLotResult.remarks || '';
         finalSpecType = currentLotResult.railpadType || 'CGRSP';
-        const dbHologram = currentLotResult.hologram;
-        if (dbHologram) {
+        if (finalHologramEntries.length === 0 && currentLotResult.hologram) {
           finalSealingType = 'RITES_HOLOGRAM';
-          finalHologramEntries = dbHologram.split(',').map((part, idx) => {
+          finalHologramEntries = currentLotResult.hologram.split(',').map((part, idx) => {
             if (part.includes('-')) {
               const rangeParts = part.split('-');
-              return {
-                id: Date.now() + idx,
-                type: 'range',
-                from: rangeParts[0] || '',
-                to: rangeParts[1] || ''
-              };
+              return { id: Date.now() + idx, type: 'range', from: rangeParts[0] || '', to: rangeParts[1] || '' };
             } else {
-              return {
-                id: Date.now() + idx,
-                type: 'single',
-                value: part || ''
-              };
+              return { id: Date.now() + idx, type: 'single', value: part || '' };
             }
           });
-        } else {
-          finalSealingType = '';
+          localStorage.setItem(callHoloKey, JSON.stringify(finalHologramEntries));
+          localStorage.setItem(callSealKey, finalSealingType);
         }
       }
 
@@ -932,13 +990,16 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         : null;
       setDbDimensionalNotOk(finalDbDimensionalNotOk);
 
+      const lot = lots.find(l => l.id === lotId) || { size: 1500, drawingNo: 'RDSO/T-8528' };
+      const calculatedSampleN = getVisualDimSampleSize(lot);
+
       let baseVisual;
       if (visualDbData) {
         baseVisual = {
-          visualN: visualDbData.visualSamples || 25,
+          visualN: (lot.railpadType || activeRailpadType || '').toUpperCase().includes('NCR') ? calculatedSampleN : (visualDbData.visualSamples || calculatedSampleN),
           dv: visualDbData.visualNotOk !== null && visualDbData.visualNotOk !== undefined ? String(visualDbData.visualNotOk) : '',
           visualReason: visualDbData.visualReason || '',
-          dimN: visualDbData.dimensionalSamples || 25,
+          dimN: (lot.railpadType || activeRailpadType || '').toUpperCase().includes('NCR') ? calculatedSampleN : (visualDbData.dimensionalSamples || calculatedSampleN),
           dd: visualDbData.dimensionalNotOk !== null && visualDbData.dimensionalNotOk !== undefined ? String(visualDbData.dimensionalNotOk) : '',
           dimReason: visualDbData.dimensionalReason || ''
         };
@@ -948,13 +1009,12 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           dd: '',
           visualReason: '',
           dimReason: '',
-          visualN: 25,
-          dimN: 25
+          visualN: calculatedSampleN,
+          dimN: calculatedSampleN
         };
       }
       setVisualData(baseVisual);
 
-      const lot = lots.find(l => l.id === lotId) || { size: 1500, drawingNo: 'RDSO/T-8528' };
       const aql = getWeightAQL(lot.size);
       const tolerance = WEIGHT_TOLERANCE[lot.drawingNo] || { max: 445 };
 
@@ -1417,8 +1477,8 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         const ncrStatus = ncrDecision === 'LOT PASSED' ? 'PASS' : ncrDecision === 'PENDING VERIFICATION' ? 'PENDING' : ncrDecision === 'RE-TEST REQUIRED' ? 'RE-TEST' : 'FAIL';
 
         const isDimensionalReOffered = dimensionalStatus === 'RE-OFFERED' || dimensionalStatus === 'RE-OFFER';
-        const isWeightPass = weightStatus === 'ACCEPTED';
-        const isWeightPending = !isWeightPass && weightStatus !== 'REJECTED';
+        const isWeightPass = isNCRGRSP ? true : (weightStatus === 'ACCEPTED');
+        const isWeightPending = isNCRGRSP ? false : (!isWeightPass && weightStatus !== 'REJECTED');
         const isAllCorePass = visualStatus === 'PASS' && dimensionalStatus === 'PASS' && isWeightPass;
         const isAnyCorePending = visualStatus === 'PENDING'
           || (dimensionalStatus === 'PENDING' && !isDimensionalReOffered)
@@ -1530,12 +1590,12 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
             sampleSize: String(visualData.dimN || 25),
             status: dimensionalResult
           },
-          {
+          ...(!isNCRGRSP ? [{
             sectionKey: 'weight',
             sectionName: 'Weight Test',
             sampleSize: String((weightData.isSecondActive || showWeightSecond) ? `${weightData.n1} + ${weightData.n2}` : weightData.n1),
             status: weightStatus === 'ACCEPTED' ? 'PASS' : weightStatus === 'REJECTED' ? 'FAIL' : weightStatus
-          },
+          }] : []),
           ...localActiveSections.map(k => {
             const rep = localRawReports[k];
             const name = SECTION_CONFIG[k]?.name || k;
@@ -1574,6 +1634,9 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           sectionResults: sectionResultsPayload
         };
 
+        const currentVisualN = isNCRGRSP ? getVisualDimSampleSize(lots.find(l => l.id === selectedLot)) : (visualData.visualN || 25);
+        const currentDimN = isNCRGRSP ? getVisualDimSampleSize(lots.find(l => l.id === selectedLot)) : (visualData.dimN || 25);
+
         const visualDimPayload = {
           callNo: currentCallId,
           lotNo: selectedLot,
@@ -1582,11 +1645,11 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           shift: call?.shift || 'A',
           railpadType: activeRailpadType,
           offeredQty: offeredQty,
-          visualSamples: visualData.visualN || 25,
+          visualSamples: currentVisualN,
           visualNotOk: visualData.dv !== '' ? parseInt(visualData.dv, 10) : 0,
           visualReason: visualData.visualReason || '',
           visualResult: visualResult,
-          dimensionalSamples: visualData.dimN || 25,
+          dimensionalSamples: currentDimN,
           dimensionalNotOk: visualData.dd !== '' ? parseInt(visualData.dd, 10) : 0,
           dimensionalReason: visualData.dimReason || '',
           dimensionalResult: dimensionalResult,
@@ -2540,6 +2603,8 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         }
         keysToRemove.forEach(key => localStorage.removeItem(key));
         localStorage.removeItem(`railpad_selected_lot_${currentCallId}`);
+        localStorage.removeItem(`railpad_call_hologram_${currentCallId}`);
+        localStorage.removeItem(`railpad_call_sealing_type_${currentCallId}`);
         showNotification(`Inspection for lot ${selectedLot} finished successfully with status: ${activeLotOverallStatus}`, 'success');
         if (onPauseComplete) {
           setTimeout(() => {
@@ -2591,8 +2656,8 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         // Visual Inspection, Dimensional Inspection, Weight Test.
         // Priority: RE-OFFERED (dimensional) > PENDING > ACCEPTED > REJECTED
         const isDimensionalReOffered = dimensionalStatus === 'RE-OFFERED' || dimensionalStatus === 'RE-OFFER';
-        const isWeightPass = weightStatus === 'ACCEPTED';
-        const isWeightPending = !isWeightPass && weightStatus !== 'REJECTED';
+        const isWeightPass = isNCRGRSP ? true : (weightStatus === 'ACCEPTED');
+        const isWeightPending = isNCRGRSP ? false : (!isWeightPass && weightStatus !== 'REJECTED');
         const isAllCorePass = visualStatus === 'PASS' && dimensionalStatus === 'PASS' && isWeightPass;
         // PENDING check covers ALL sections - if any section (incl. Physical/Elec/Spec) is not yet done, lot stays PENDING
         const isAnyCorePending = visualStatus === 'PENDING'
@@ -2619,12 +2684,12 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           acceptedQty = 0;
           rejectedQty = 0;
         } else if (isAllCorePass) {
-          // All 3 sections pass → lot ACCEPTED
+          // All sections pass → lot ACCEPTED
           activeLotOverallStatus = 'ACCEPTED';
           acceptedQty = offeredQty;
           rejectedQty = 0;
         } else {
-          // Any of the 3 sections failed / not pass → lot REJECTED
+          // Any of the sections failed / not pass → lot REJECTED
           activeLotOverallStatus = 'REJECTED';
           acceptedQty = 0;
           rejectedQty = offeredQty;
@@ -2710,12 +2775,12 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
             sampleSize: String(visualData.dimN || 25),
             status: dimensionalResult
           },
-          {
+          ...(!isNCRGRSP ? [{
             sectionKey: 'weight',
             sectionName: 'Weight Test',
             sampleSize: String((weightData.isSecondActive || showWeightSecond) ? `${weightData.n1} + ${weightData.n2}` : weightData.n1),
             status: weightStatus === 'ACCEPTED' ? 'PASS' : weightStatus === 'REJECTED' ? 'FAIL' : weightStatus
-          },
+          }] : []),
           ...localActiveSections.map(k => {
             const rep = localRawReports[k];
             const name = SECTION_CONFIG[k]?.name || k;
@@ -2754,6 +2819,9 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           sectionResults: sectionResultsPayload
         };
 
+        const currentVisualN = isNCRGRSP ? getVisualDimSampleSize(lots.find(l => l.id === selectedLot)) : (visualData.visualN || 25);
+        const currentDimN = isNCRGRSP ? getVisualDimSampleSize(lots.find(l => l.id === selectedLot)) : (visualData.dimN || 25);
+
         const visualDimPayload = {
           callNo: currentCallId,
           lotNo: selectedLot,
@@ -2762,11 +2830,11 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           shift: call?.shift || 'A',
           railpadType: activeRailpadType,
           offeredQty: offeredQty,
-          visualSamples: visualData.visualN || 25,
+          visualSamples: currentVisualN,
           visualNotOk: visualData.dv !== '' ? parseInt(visualData.dv, 10) : 0,
           visualReason: visualData.visualReason || '',
           visualResult: visualResult,
-          dimensionalSamples: visualData.dimN || 25,
+          dimensionalSamples: currentDimN,
           dimensionalNotOk: visualData.dd !== '' ? parseInt(visualData.dd, 10) : 0,
           dimensionalReason: visualData.dimReason || '',
           dimensionalResult: dimensionalResult,
@@ -3678,15 +3746,14 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     isSecondActive: weightData.isSecondActive
   });
 
-  const finalDecision = (visualResult === 'PASS' && dimensionalResult === 'PASS' && (weightStatus === 'ACCEPTED' || weightStatus === 'PENDING' || weightStatus === '2ND SAMPLING'))
+  const isCGRSP = Boolean(activeRailpadType && activeRailpadType.includes('CGRSP'));
+
+  const finalDecision = (visualResult === 'PASS' && dimensionalResult === 'PASS' && (isNCRGRSP || weightStatus === 'ACCEPTED' || weightStatus === 'PENDING' || weightStatus === '2ND SAMPLING'))
     ? 'LOT PASSED'
     : (visualResult === 'PENDING' || dimensionalResult === 'PENDING') ? 'PENDING VERIFICATION'
       : (dimensionalResult === 'FAIL') ? 'LOT REJECTED (Dimensional)'
       : (visualResult !== 'PASS' && dimensionalResult !== 'PASS') ? 'LOT REJECTED (Visual & Dimensional)'
         : (dimensionalResult !== 'PASS') ? 'RE-OFFER REQUIRED (Dimensional)' : 'RE-TEST REQUIRED (Visual)';
-
-  const isCGRSP = activeRailpadType.includes('CGRSP');
-  const isNCRGRSP = activeRailpadType && activeRailpadType.includes('NCRGRSP');
 
 
   // New Marginal Double Sampling calculations
@@ -4171,14 +4238,15 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       case 'ncrCord': {
         if (!specData.ncrgrsp || !specData.ncrgrsp.nylonCord) break;
         const checkSample = (v) => {
-          if (!v || v.epi === '' || v.thickness === '' || v.loadAtBreak === '' || v.elongation === '' || v.twists === '') return { filled: false, out: false };
+          if (!v || v.denier === '' || v.epi === '' || v.thickness === '' || v.loadAtBreak === '' || v.elongation === '' || v.twists === '') return { filled: false, out: false };
+          const denierVal = parseFloat(v.denier);
           const epiVal = parseFloat(v.epi);
           const thickVal = parseFloat(v.thickness);
           const loadVal = parseFloat(v.loadAtBreak);
           const elongVal = parseFloat(v.elongation);
           const twistVal = parseFloat(v.twists);
-          if (isNaN(epiVal) || isNaN(thickVal) || isNaN(loadVal) || isNaN(elongVal) || isNaN(twistVal)) return { filled: false, out: false };
-          const out = epiVal < 22 || epiVal > 26 || thickVal < 0.75 || loadVal < 16 || elongVal > 20 || twistVal < 380 || twistVal > 400;
+          if (isNaN(denierVal) || isNaN(epiVal) || isNaN(thickVal) || isNaN(loadVal) || isNaN(elongVal) || isNaN(twistVal)) return { filled: false, out: false };
+          const out = denierVal < 3200 || epiVal < 22 || epiVal > 24 || thickVal < 0.75 || loadVal < 16 || elongVal > 20 || twistVal < 305 || twistVal > 335;
           return { filled: true, out };
         };
 
@@ -4503,8 +4571,9 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
   const periodicStatus = periodicDecision === 'LOT PASSED' ? 'PASS' : periodicDecision === 'PENDING VERIFICATION' ? 'PENDING' : periodicDecision === 'RE-TEST REQUIRED' ? 'RE-TEST' : 'FAIL';
 
   const isDimensionalReOffered = dimensionalStatus === 'RE-OFFERED' || dimensionalStatus === 'RE-OFFER';
-  const isWeightPass = weightStatus === 'ACCEPTED';
-  const isWeightPending = !isWeightPass && weightStatus !== 'REJECTED';
+  const isWeightPass = isNCRGRSP ? true : (weightStatus === 'ACCEPTED');
+  const isWeightPending = isNCRGRSP ? false : (!isWeightPass && weightStatus !== 'REJECTED');
+  const isWeightFailed = isNCRGRSP ? false : (weightStatus === 'REJECTED');
   const isAllCorePass = visualStatus === 'PASS' && dimensionalStatus === 'PASS' && isWeightPass;
   const isAnyCorePending = visualStatus === 'PENDING'
     || (dimensionalStatus === 'PENDING' && !isDimensionalReOffered)
@@ -4517,7 +4586,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
   const isAnyCoreFailed = visualStatus === 'FAIL'
     || dimensionalStatus === 'FAIL'
-    || weightStatus === 'REJECTED'
+    || isWeightFailed
     || physicalStatus === 'FAIL'
     || elecStatus === 'FAIL'
     || specStatus === 'FAIL'
@@ -4901,7 +4970,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                           <td style={{ padding: '16px', textAlign: 'center' }}>
                             <input
                               type="number"
-                              value={visualData.visualN}
+                              value={isNCRGRSP ? getVisualDimSampleSize(lots.find(l => l.id === selectedLot)) : (visualData.visualN || 25)}
                               readOnly
                               style={{ width: '60px', padding: '6px', borderRadius: '6px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '700', background: '#f1f5f9' }}
                             />
@@ -4963,7 +5032,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                           <td style={{ padding: '16px', textAlign: 'center' }}>
                             <input
                               type="number"
-                              value={visualData.dimN}
+                              value={isNCRGRSP ? getVisualDimSampleSize(lots.find(l => l.id === selectedLot)) : (visualData.dimN || 25)}
                               readOnly
                               style={{ width: '60px', padding: '6px', borderRadius: '6px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '700', background: '#f1f5f9' }}
                             />
@@ -5026,260 +5095,248 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                     </table>
                   </div>
 
-                  {/* Weight Testing Section */}
-                  <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-                      <tbody>
-                        {/* Weight Testing Header */}
-                        <tr style={{ background: '#f8fafc' }}>
-                          <td style={{ padding: '16px', fontWeight: '800', color: '#0f172a', width: '250px' }}>
-                            Weight Testing (gm)
-                            <div style={{ fontSize: '10px', color: '#64748b', marginTop: '4px', fontWeight: '500' }}>
-                              Type: {lots.find(l => l.id === selectedLot)?.railpadType} | Drg: {lots.find(l => l.id === selectedLot)?.drawingNo}
-                            </div>
-                            <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px', fontWeight: '500' }}>
-                              Max Permissible Weight: {weightData.max}g
-                            </div>
-                          </td>
-                          <td style={{ padding: '16px', textAlign: 'center' }}>
-                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '700', marginBottom: '4px' }}>
-                              {showWeightSecond ? 'Samples (n1/n2)' : 'Samples (n1)'}
-                            </div>
-                            <div style={{ fontWeight: '700', color: '#334155' }}>
-                              {showWeightSecond ? `${weightData.n1} / ${weightData.n2}` : weightData.n1}
-                            </div>
-                          </td>
-                          <td style={{ padding: '16px', textAlign: 'center' }}>
-                            <div style={{ fontSize: '11px', color: '#059669', fontWeight: '700', marginBottom: '4px' }}>
-                              {showWeightSecond ? 'Acc (Ac1/Ac2)' : 'Acc (Ac1)'}
-                            </div>
-                            <div style={{ fontWeight: '700', color: '#059669' }}>
-                              {showWeightSecond ? `${weightData.ac1} / ${weightData.ac2}` : weightData.ac1}
-                            </div>
-                          </td>
-                          <td style={{ padding: '16px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                              <div>
-                                <div style={{ fontSize: '11px', color: '#b91c1c', fontWeight: '700', marginBottom: '4px' }}>
-                                  {showWeightSecond ? 'Rej (Re1/Re2)' : 'Rej (Re1)'}
+                  {!isNCRGRSP && (
+                    <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                        <tbody>
+                          <tr style={{ background: '#f8fafc' }}>
+                            <td style={{ padding: '16px', fontWeight: '800', color: '#0f172a', width: '250px' }}>
+                              Weight Testing (gm)
+                              <div style={{ fontSize: '10px', color: '#64748b', marginTop: '4px', fontWeight: '500' }}>
+                                Type: {lots.find(l => l.id === selectedLot)?.railpadType} | Drg: {lots.find(l => l.id === selectedLot)?.drawingNo}
+                              </div>
+                              <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px', fontWeight: '500' }}>
+                                Max Permissible Weight: {weightData.max}g
+                              </div>
+                            </td>
+                            <td style={{ padding: '16px', textAlign: 'center' }}>
+                              <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '700', marginBottom: '4px' }}>
+                                {showWeightSecond ? 'Samples (n1/n2)' : 'Samples (n1)'}
+                              </div>
+                              <div style={{ fontWeight: '700', color: '#334155' }}>
+                                {showWeightSecond ? `${weightData.n1} / ${weightData.n2}` : weightData.n1}
+                              </div>
+                            </td>
+                            <td style={{ padding: '16px', textAlign: 'center' }}>
+                              <div style={{ fontSize: '11px', color: '#059669', fontWeight: '700', marginBottom: '4px' }}>
+                                {showWeightSecond ? 'Acc (Ac1/Ac2)' : 'Acc (Ac1)'}
+                              </div>
+                              <div style={{ fontWeight: '700', color: '#059669' }}>
+                                {showWeightSecond ? `${weightData.ac1} / ${weightData.ac2}` : weightData.ac1}
+                              </div>
+                            </td>
+                            <td style={{ padding: '16px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                                <div>
+                                  <div style={{ fontSize: '11px', color: '#b91c1c', fontWeight: '700', marginBottom: '4px' }}>
+                                    {showWeightSecond ? 'Rej (Re1/Re2)' : 'Rej (Re1)'}
+                                  </div>
+                                  <div style={{ fontWeight: '700', color: '#b91c1c' }}>
+                                    {showWeightSecond ? `${weightData.re1} / ${weightData.re2}` : weightData.re1}
+                                  </div>
                                 </div>
-                                <div style={{ fontWeight: '700', color: '#b91c1c' }}>
-                                  {showWeightSecond ? `${weightData.re1} / ${weightData.re2}` : weightData.re1}
+                                <div style={{ flex: 1, textAlign: 'right', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                  <button
+                                    onClick={() => downloadTemplate(weightData.isSecondActive ? 'samples2' : 'samples1')}
+                                    className="action-btn action-btn--secondary"
+                                    style={{
+                                      padding: '8px 16px',
+                                      fontSize: '11px',
+                                      background: '#fff',
+                                      border: '1px solid #e2e8f0',
+                                      borderRadius: '10px',
+                                      cursor: 'pointer',
+                                      fontWeight: '700',
+                                      color: '#64748b',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '6px',
+                                      transition: 'all 0.2s ease',
+                                      boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                                    }}
+                                    onMouseOver={(e) => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.05)'; }}
+                                    onMouseOut={(e) => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)'; }}
+                                  >
+                                    📥 Download Template
+                                  </button>
+                                  <button
+                                    onClick={() => document.getElementById('weight-import-1').click()}
+                                    style={{
+                                      padding: '8px 16px',
+                                      fontSize: '11px',
+                                      background: 'linear-gradient(135deg, #21808d 0%, #155e75 100%)',
+                                      color: 'white',
+                                      border: 'none',
+                                      borderRadius: '10px',
+                                      cursor: 'pointer',
+                                      fontWeight: '700',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '6px',
+                                      transition: 'all 0.2s ease',
+                                      boxShadow: '0 4px 12px rgba(33, 128, 141, 0.2)'
+                                    }}
+                                    onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(33, 128, 141, 0.3)'; }}
+                                    onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(33, 128, 141, 0.2)'; }}
+                                  >
+                                    📤 Import Data
+                                  </button>
+                                  <input id="weight-import-1" type="file" accept=".csv" onChange={(e) => handleExcelImport(e, weightData.isSecondActive ? 'samples2' : 'samples1')} style={{ display: 'none' }} />
                                 </div>
                               </div>
-                              <div style={{ flex: 1, textAlign: 'right', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                                <button
-                                  onClick={() => downloadTemplate(weightData.isSecondActive ? 'samples2' : 'samples1')}
-                                  className="action-btn action-btn--secondary"
-                                  style={{
-                                    padding: '8px 16px',
-                                    fontSize: '11px',
-                                    background: '#fff',
-                                    border: '1px solid #e2e8f0',
-                                    borderRadius: '10px',
-                                    cursor: 'pointer',
-                                    fontWeight: '700',
-                                    color: '#64748b',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px',
-                                    transition: 'all 0.2s ease',
-                                    boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
-                                  }}
-                                  onMouseOver={(e) => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.05)'; }}
-                                  onMouseOut={(e) => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)'; }}
-                                >
-                                  📥 Download Template
-                                </button>
-                                <button
-                                  onClick={() => document.getElementById('weight-import-1').click()}
-                                  style={{
-                                    padding: '8px 16px',
-                                    fontSize: '11px',
-                                    background: 'linear-gradient(135deg, #21808d 0%, #155e75 100%)',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '10px',
-                                    cursor: 'pointer',
-                                    fontWeight: '700',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px',
-                                    transition: 'all 0.2s ease',
-                                    boxShadow: '0 4px 12px rgba(33, 128, 141, 0.2)'
-                                  }}
-                                  onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(33, 128, 141, 0.3)'; }}
-                                  onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(33, 128, 141, 0.2)'; }}
-                                >
-                                  📤 Import Data
-                                </button>
-                                <input id="weight-import-1" type="file" accept=".csv" onChange={(e) => handleExcelImport(e, weightData.isSecondActive ? 'samples2' : 'samples1')} style={{ display: 'none' }} />
-                              </div>
-                            </div>
-                          </td>
-                          <td style={{ padding: '16px', textAlign: 'center', width: '120px' }}>
-                            <span style={{
-                              padding: '4px 10px',
-                              borderRadius: '6px',
-                              fontSize: '11px',
-                              fontWeight: '800',
-                              background: weightStatus === 'ACCEPTED' ? '#dcfce7' : weightStatus === 'REJECTED' ? '#fee2e2' : weightStatus === '2ND SAMPLING' ? '#fff7ed' : '#f1f5f9',
-                              color: weightStatus === 'ACCEPTED' ? '#166534' : weightStatus === 'REJECTED' ? '#991b1b' : weightStatus === '2ND SAMPLING' ? '#c2410c' : '#475569'
-                            }}>
-                              {weightStatus}
-                            </span>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
+                            </td>
+                            <td style={{ padding: '16px', textAlign: 'center', width: '120px' }}>
+                              <span style={{
+                                padding: '4px 10px',
+                                borderRadius: '6px',
+                                fontSize: '11px',
+                                fontWeight: '800',
+                                background: weightStatus === 'ACCEPTED' ? '#dcfce7' : weightStatus === 'REJECTED' ? '#fee2e2' : weightStatus === '2ND SAMPLING' ? '#fff7ed' : '#f1f5f9',
+                                color: weightStatus === 'ACCEPTED' ? '#166534' : weightStatus === 'REJECTED' ? '#991b1b' : weightStatus === '2ND SAMPLING' ? '#c2410c' : '#475569'
+                              }}>
+                                {weightStatus}
+                              </span>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
 
-                    {/* Weight Data Grid Section */}
-                    <div style={{ padding: '20px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                        <div style={{ display: 'flex', gap: '16px' }}>
-                          <button
-                            onClick={() => setWeightData(prev => ({ ...prev, isSecondActive: false }))}
-                            style={{
-                              padding: '8px 16px',
-                              borderRadius: '8px',
-                              fontSize: '12px',
-                              fontWeight: '700',
-                              border: 'none',
-                              background: !weightData.isSecondActive ? '#0f172a' : '#f1f5f9',
-                              color: !weightData.isSecondActive ? 'white' : '#64748b',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            FIRST SAMPLING ({filled1}/{weightData.n1})
-                          </button>
-                          {showWeightSecond && (
+                      <div style={{ padding: '20px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                          <div style={{ display: 'flex', gap: '16px' }}>
                             <button
-                              onClick={() => setWeightData(prev => ({ ...prev, isSecondActive: true }))}
+                              onClick={() => setWeightData(prev => ({ ...prev, isSecondActive: false }))}
                               style={{
                                 padding: '8px 16px',
                                 borderRadius: '8px',
                                 fontSize: '12px',
                                 fontWeight: '700',
                                 border: 'none',
-                                background: weightData.isSecondActive ? '#0f172a' : '#f1f5f9',
-                                color: weightData.isSecondActive ? 'white' : '#64748b',
+                                background: !weightData.isSecondActive ? '#0f172a' : '#f1f5f9',
+                                color: !weightData.isSecondActive ? 'white' : '#64748b',
                                 cursor: 'pointer'
                               }}
                             >
-                              SECOND SAMPLING ({weightData.samples2.filter(v => v !== '').length}/{weightData.n2})
+                              FIRST SAMPLING ({filled1}/{weightData.n1})
                             </button>
-                          )}
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          {!weightData.isSecondActive ? (
-                            <>
-                              <div style={{
-                                padding: '6px 12px',
-                                border: '1px solid #e2e8f0',
-                                borderRadius: '8px',
-                                background: '#f8fafc',
-                                fontSize: '12px',
-                                fontWeight: '600',
-                                color: '#475569'
-                              }}>
-                                Rejected (R1): <span style={{ color: notOk1 > weightData.ac1 ? '#ef4444' : '#10b981', fontWeight: '800' }}>{notOk1}</span>
-                              </div>
-                              <div style={{
-                                padding: '6px 12px',
-                                border: `1px solid ${notOk1 <= weightData.ac1 ? '#10b981' : notOk1 >= weightData.re1 ? '#ef4444' : '#f59e0b'}`,
-                                color: notOk1 <= weightData.ac1 ? '#10b981' : notOk1 >= weightData.re1 ? '#ef4444' : '#f59e0b',
-                                borderRadius: '8px',
-                                fontWeight: '700',
-                                fontSize: '12px',
-                                background: 'white',
-                                textTransform: 'uppercase'
-                              }}>
-                                {notOk1 <= weightData.ac1 ? 'OK' : notOk1 >= weightData.re1 ? 'NOT OK' : '2nd Sampling'}
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <div style={{
-                                padding: '6px 12px',
-                                border: '1px solid #e2e8f0',
-                                borderRadius: '8px',
-                                background: '#f8fafc',
-                                fontSize: '12px',
-                                fontWeight: '600',
-                                color: '#475569'
-                              }}>
-                                Rejected (R2): <span style={{ color: notOk2 > 0 ? '#ef4444' : '#10b981', fontWeight: '800' }}>{notOk2}</span>
-                              </div>
-                              <div style={{
-                                padding: '6px 12px',
-                                border: '1px solid #e2e8f0',
-                                borderRadius: '8px',
-                                background: '#f8fafc',
-                                fontSize: '12px',
-                                fontWeight: '600',
-                                color: '#475569'
-                              }}>
-                                Total (R1 + R2): <span style={{ color: totalNotOk > weightData.ac2 ? '#ef4444' : '#10b981', fontWeight: '800' }}>{totalNotOk}</span>
-                              </div>
-                              <div style={{
-                                padding: '6px 12px',
-                                border: `1px solid ${totalNotOk <= weightData.ac2 ? '#10b981' : totalNotOk >= weightData.re2 ? '#ef4444' : '#f59e0b'}`,
-                                color: totalNotOk <= weightData.ac2 ? '#10b981' : totalNotOk >= weightData.re2 ? '#ef4444' : '#f59e0b',
-                                borderRadius: '8px',
-                                fontWeight: '700',
-                                fontSize: '12px',
-                                background: 'white',
-                                textTransform: 'uppercase'
-                              }}>
-                                {totalNotOk <= weightData.ac2 ? 'OK' : totalNotOk >= weightData.re2 ? 'NOT OK' : 'Under Testing'}
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Weight Data Grid */}
-                      <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(10, 1fr)',
-                        gap: '8px',
-                        maxHeight: '300px',
-                        overflowY: 'auto',
-                        paddingRight: '4px'
-                      }}>
-                        {(weightData.isSecondActive ? weightData.samples2 : weightData.samples1).map((val, idx) => {
-                          const isFailing = val !== '' && parseFloat(val) > weightData.max;
-                          return (
-                            <div key={idx} style={{ position: 'relative' }}>
-                              <span style={{ position: 'absolute', top: '-4px', left: '4px', fontSize: '8px', color: '#94a3b8', fontWeight: '800', background: 'white', padding: '0 2px', zIndex: 1 }}>{idx + 1}</span>
-                              <input
-                                type="number"
-                                value={val}
-                                onChange={(e) => {
-                                  const target = weightData.isSecondActive ? 'samples2' : 'samples1';
-                                  const newSamples = [...weightData[target]];
-                                  newSamples[idx] = e.target.value;
-                                  setWeightData(prev => ({ ...prev, [target]: newSamples }));
-                                  markDirty();
-                                }}
+                            {showWeightSecond && (
+                              <button
+                                onClick={() => setWeightData(prev => ({ ...prev, isSecondActive: true }))}
                                 style={{
-                                  width: '100%',
-                                  padding: '8px 4px',
-                                  borderRadius: '6px',
-                                  border: isFailing ? '2px solid #fee2e2' : '1px solid #e2e8f0',
-                                  textAlign: 'center',
-                                  fontSize: '13px',
+                                  padding: '8px 16px',
+                                  borderRadius: '8px',
+                                  fontSize: '12px',
                                   fontWeight: '700',
-                                  background: isFailing ? '#fef2f2' : val === '' ? '#fcfcfc' : '#f0f9fa',
-                                  color: isFailing ? '#991b1b' : '#1e293b'
+                                  border: 'none',
+                                  background: weightData.isSecondActive ? '#0f172a' : '#f1f5f9',
+                                  color: weightData.isSecondActive ? 'white' : '#64748b',
+                                  cursor: 'pointer'
                                 }}
-                              />
-                            </div>
-                          );
-                        })}
+                              >
+                                SECOND SAMPLING ({weightData.samples2.filter(v => v !== '').length}/{weightData.n2})
+                              </button>
+                            )}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            {!weightData.isSecondActive ? (
+                              <>
+                                <div style={{
+                                  padding: '6px 12px',
+                                  border: '1px solid #e2e8f0',
+                                  borderRadius: '8px',
+                                  background: '#f8fafc',
+                                  fontSize: '12px',
+                                  fontWeight: '600',
+                                  color: '#475569'
+                                }}>
+                                  Rejected (R1): <span style={{ color: notOk1 > weightData.ac1 ? '#ef4444' : '#10b981', fontWeight: '800' }}>{notOk1}</span>
+                                </div>
+                                <div style={{
+                                  padding: '6px 12px',
+                                  border: `1px solid ${notOk1 <= weightData.ac1 ? '#10b981' : notOk1 >= weightData.re1 ? '#ef4444' : '#f59e0b'}`,
+                                  color: notOk1 <= weightData.ac1 ? '#10b981' : notOk1 >= weightData.re1 ? '#ef4444' : '#f59e0b',
+                                  borderRadius: '8px',
+                                  fontWeight: '700',
+                                  fontSize: '12px',
+                                  background: 'white',
+                                  textTransform: 'uppercase'
+                                }}>
+                                  {notOk1 <= weightData.ac1 ? 'OK' : notOk1 >= weightData.re1 ? 'NOT OK' : '2nd Sampling'}
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div style={{
+                                  padding: '6px 12px',
+                                  border: '1px solid #e2e8f0',
+                                  borderRadius: '8px',
+                                  background: '#f8fafc',
+                                  fontSize: '12px',
+                                  fontWeight: '600',
+                                  color: '#475569'
+                                }}>
+                                  Total (R1 + R2): <span style={{ color: totalNotOk > weightData.ac2 ? '#ef4444' : '#10b981', fontWeight: '800' }}>{totalNotOk}</span>
+                                </div>
+                                <div style={{
+                                  padding: '6px 12px',
+                                  border: `1px solid ${totalNotOk <= weightData.ac2 ? '#10b981' : totalNotOk >= weightData.re2 ? '#ef4444' : '#f59e0b'}`,
+                                  color: totalNotOk <= weightData.ac2 ? '#10b981' : totalNotOk >= weightData.re2 ? '#ef4444' : '#f59e0b',
+                                  borderRadius: '8px',
+                                  fontWeight: '700',
+                                  fontSize: '12px',
+                                  background: 'white',
+                                  textTransform: 'uppercase'
+                                }}>
+                                  {totalNotOk <= weightData.ac2 ? 'OK' : totalNotOk >= weightData.re2 ? 'NOT OK' : 'Under Testing'}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(10, 1fr)',
+                          gap: '6px',
+                          background: '#f8fafc',
+                          padding: '12px',
+                          borderRadius: '12px',
+                          border: '1px solid #f1f5f9'
+                        }}>
+                          {(weightData.isSecondActive ? weightData.samples2 : weightData.samples1).map((val, idx) => {
+                            const isFailing = val !== '' && parseFloat(val) > weightData.max;
+                            return (
+                              <div key={idx} style={{ position: 'relative' }}>
+                                <span style={{ position: 'absolute', top: '-4px', left: '4px', fontSize: '8px', color: '#94a3b8', fontWeight: '800', background: 'white', padding: '0 2px', zIndex: 1 }}>{idx + 1}</span>
+                                <input
+                                  type="number"
+                                  value={val}
+                                  onChange={(e) => {
+                                    const target = weightData.isSecondActive ? 'samples2' : 'samples1';
+                                    const newSamples = [...weightData[target]];
+                                    newSamples[idx] = e.target.value;
+                                    setWeightData(prev => ({ ...prev, [target]: newSamples }));
+                                    markDirty();
+                                  }}
+                                  style={{
+                                    width: '100%',
+                                    padding: '8px 4px',
+                                    borderRadius: '6px',
+                                    border: isFailing ? '2px solid #fee2e2' : '1px solid #e2e8f0',
+                                    textAlign: 'center',
+                                    fontSize: '13px',
+                                    fontWeight: '700',
+                                    background: isFailing ? '#fef2f2' : val === '' ? '#fcfcfc' : '#f0f9fa',
+                                    color: isFailing ? '#991b1b' : '#1e293b'
+                                  }}
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Final Decision Block */}
                   {finalDecision !== 'PENDING VERIFICATION' && (
@@ -5449,7 +5506,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                     <div style={{ display: 'flex', gap: '8px' }}>
                       {[
                         { label: 'PAD', value: activeRailpadType },
-                        { label: 'HARDNESS', value: isCGRSP ? '60-85' : '70-85' },
+                        { label: 'HARDNESS', value: isCGRSP ? '60-85' : `${currentHardnessSpecs.a.min}-${currentHardnessSpecs.a.max}` },
                         { label: 'TENSILE', value: `≥${currentTensileSpecs.retention}%` },
                         { label: 'ELONGATION', value: `≥${currentElongationSpecs.retention}%` },
                         { label: 'COMPRESSION', value: '≤30%' },
@@ -6621,12 +6678,12 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                         <thead>
                           <tr>
                             <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Sample</th>
-                            <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Denier (gm/9000m)</th>
-                            <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>No. of end/inch (22-26)</th>
-                            <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Thickness (0.75 min)</th>
-                            <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Load at Break (16 min)</th>
-                            <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Elongation (20% max)</th>
-                            <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Twists/m (380-400)</th>
+                            <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Denier (gm/9000m) (3200 min)</th>
+                            <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>No. of ends/inch (22-24)</th>
+                            <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Thickness (mm) (0.75 min)</th>
+                            <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Load at Break (kg) (16 min)</th>
+                            <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Elongation at Break (%) (20 max)</th>
+                            <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Twists/m (305-335)</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -7793,12 +7850,12 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                 <thead>
                                   <tr>
                                     <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Sample</th>
-                                    <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Denier (gm/9000m)</th>
-                                    <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>No. of end/inch (22-26)</th>
-                                    <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Thickness (0.75 min)</th>
-                                    <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Load at Break (16 min)</th>
-                                    <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Elongation (20% max)</th>
-                                    <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Twists/m (380-400)</th>
+                                    <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Denier (gm/9000m) (3200 min)</th>
+                                    <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>No. of ends/inch (22-24)</th>
+                                    <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Thickness (mm) (0.75 min)</th>
+                                    <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Load at Break (kg) (16 min)</th>
+                                    <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Elongation at Break (%) (20 max)</th>
+                                    <th style={{ padding: '8px', border: '1px solid #e2e8f0', fontSize: '10px', color: '#64748b' }}>Twists/m (305-335)</th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -8143,11 +8200,11 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                         rows = [
                           { name: "Visual Inspection", size: visualData.visualN || 25, status: visualResult },
                           { name: "Dimensional Inspection", size: visualData.dimN || 25, status: dimensionalResult },
-                          {
+                          ...(!isNCRGRSP ? [{
                             name: "Weight Test",
                             size: (weightData.isSecondActive || showWeightSecond) ? `${weightData.n1} + ${weightData.n2}` : weightData.n1,
                             status: weightStatus === 'ACCEPTED' ? 'PASS' : weightStatus === 'REJECTED' ? 'FAIL' : weightStatus
-                          }
+                          }] : [])
                         ];
                       } else if (activeSubmoduleTab === 'physical') {
                         const keys = ['hardness', 'tensile', 'elongation', 'modulus', 'compression', 'tension', 'load', 'resilience'];

@@ -6,6 +6,45 @@ import Notification from '../Notification';
 import AnnexureLoader from '../annexures/AnnexureLoader';
 import './ProcessInspection.css'; // Let's make sure it's pretty and responsive
 
+// Complete Master Catalog of required pieces per set for all NCRGRSP Turnout types
+const NCRGRSP_SET_SIZES = {
+  '4865': 216,  // RT-4865 (6mm Thick Pocket Type 1 in 8.5 Turnout)
+  '6154': 345,  // RT-6154 (1 in 12 TWB Switch for 60 Kg)
+  '4734': 67,   // RT-4734 (1 in 12 CMS x-ing B.G. for 52 Kg)
+  '4733': 345,  // RT-4733 (1 in 12 O.R. T/out for 52 Kg)
+  '4867': 216,  // RT-4867 (1 in 8.5 T/out for 52 Kg)
+  '5691': 385,  // RT-5691 (6mm Thick 1 in 16 Turnout ORS)
+  '5693': 86,   // RT-5693 (6mm Thick CMS Crossing 1 in 16)
+  '5836': 80,   // RT-5836 (6mm Thick NCR GRSP Turnout)
+  '4732': 332,  // RT-4732 (6mm Turnout)
+  '10070': 403, // RT-10070 (10mm Thick 1 in 16 Turnout)
+  '4218': 321,  // RT-4218 (60 kg 1 in 12 Turnout Alt.6)
+  '8779': 351,  // RT-8779 (60 kg 1 in 12 Turnout per Set Alt-3)
+  '10241': 385, // RT-10241 (6mm Thick TWS 1 in 16 Turnout, 60 kg)
+  '10243': 86,  // RT-10243 (6mm Thick CMS Crossing 1 in 16, 60 kg)
+  '8822': 60,   // RT-8822 (10mm Thick for TWSEJ)
+  '9790': 351,  // RT-9790 (Pocket Type 1 in 12 Turnout for 25T Axle Load)
+  '9841': 234,  // RT-9841 (10mm 1 in 8.5 60E1 Turnout)
+  '9774': 234,  // RT-9774 (TWS 60 Kg 1 in 8.5 Alt-2)
+  '9842': 132,  // RT-9842 to RT-9843 (10mm Turnout Series)
+  '9843': 132,
+  '6068': 80,   // RT-6068 (6mm Derailing Switch 1 in 8.5)
+  '4220': 321,
+  '4967': 216
+};
+
+const getQtyPerSet = (drawingStr, railPadTypeStr) => {
+  const isNcr = railPadTypeStr && /NCR\s*GRSP/i.test(railPadTypeStr);
+  if (!isNcr || !drawingStr) return null;
+
+  for (const [key, qty] of Object.entries(NCRGRSP_SET_SIZES)) {
+    if (drawingStr.includes(key)) {
+      return qty;
+    }
+  }
+  return null;
+};
+
 const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, onUpdateCall, onPauseComplete }) => {
   const [batches, setBatches] = useState([]);
   const [selectedBatches, setSelectedBatches] = useState({}); // { declarationBatchId: { qtyRejected: 0 } }
@@ -23,23 +62,25 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
 
-  const getCacheKey = () => `process_inspection_cache_v3_${call.requestId || call.callNo}`;
+  const getDraftKey = () => `process_ic_draft_state_v4_${call.requestId || call.callNo}`;
 
   useEffect(() => {
     if (isDataLoaded) {
-      const cacheData = {
-        summary,
-        batches,
-        selectedBatches,
-        remarks,
-        reasonForRejection,
-        lotRangeFrom,
-        lotRangeTo,
-        drawingNo
-      };
-      localStorage.setItem(getCacheKey(), JSON.stringify(cacheData));
+      try {
+        const draftState = {
+          selectedBatches,
+          remarks,
+          reasonForRejection,
+          lotRangeFrom,
+          lotRangeTo,
+          expandedDates
+        };
+        localStorage.setItem(getDraftKey(), JSON.stringify(draftState));
+      } catch (e) {
+        console.error('Error persisting active draft state', e);
+      }
     }
-  }, [summary, batches, selectedBatches, remarks, reasonForRejection, lotRangeFrom, lotRangeTo, drawingNo, isDataLoaded]);
+  }, [selectedBatches, remarks, reasonForRejection, lotRangeFrom, lotRangeTo, expandedDates, isDataLoaded]);
 
   useEffect(() => {
     fetchData();
@@ -48,29 +89,6 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      // 1. Check Full Cache First
-      const cachedDataStr = localStorage.getItem(getCacheKey());
-      if (cachedDataStr) {
-        try {
-          const cachedData = JSON.parse(cachedDataStr);
-          if (cachedData.batches && cachedData.summary) {
-            setSummary(cachedData.summary);
-            setBatches(cachedData.batches);
-            setSelectedBatches(cachedData.selectedBatches || {});
-            setRemarks(cachedData.remarks || '');
-            setReasonForRejection(cachedData.reasonForRejection || '');
-            setLotRangeFrom(cachedData.lotRangeFrom || '');
-            setLotRangeTo(cachedData.lotRangeTo || '');
-            setDrawingNo(cachedData.drawingNo || '');
-            setIsDataLoaded(true);
-            setIsLoading(false);
-            return; // Skip API calls completely!
-          }
-        } catch (e) {
-          console.error("Error parsing cache data", e);
-        }
-      }
-
       const headers = getDefaultHeaders(user?.token || localStorage.getItem('authToken'));
       const callId = encodeURIComponent(call.requestId || call.callNo);
 
@@ -83,7 +101,7 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
       const fetchedDrawingNo = summaryData.drawingNo || '';
       setDrawingNo(fetchedDrawingNo);
 
-      // 1. Fetch Draft Data
+      // 1. Fetch Draft Data from server
       const draftReq = await fetch(`${getBaseUrl()}/rail-inspection-call/process/inspect/${callId}`, {
         method: 'GET',
         headers
@@ -149,6 +167,35 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
             };
           });
         }
+      }
+
+      // 3. Check for any active user selections in local storage to preserve across refresh
+      try {
+        const localDraftStr = localStorage.getItem(getDraftKey());
+        if (localDraftStr) {
+          const savedLocalDraft = JSON.parse(localDraftStr);
+          if (savedLocalDraft) {
+            if (savedLocalDraft.remarks !== undefined) setRemarks(savedLocalDraft.remarks || '');
+            if (savedLocalDraft.reasonForRejection !== undefined) setReasonForRejection(savedLocalDraft.reasonForRejection || '');
+            if (savedLocalDraft.lotRangeFrom !== undefined) setLotRangeFrom(savedLocalDraft.lotRangeFrom || '');
+            if (savedLocalDraft.lotRangeTo !== undefined) setLotRangeTo(savedLocalDraft.lotRangeTo || '');
+            if (savedLocalDraft.expandedDates && savedLocalDraft.expandedDates.length > 0) {
+              setExpandedDates(savedLocalDraft.expandedDates);
+            }
+
+            // Restore active local selected batches that are valid and present in allBatches
+            if (savedLocalDraft.selectedBatches && typeof savedLocalDraft.selectedBatches === 'object') {
+              Object.keys(savedLocalDraft.selectedBatches).forEach(batchId => {
+                const batchExists = allBatches.some(b => b.declarationBatchId.toString() === batchId.toString());
+                if (batchExists) {
+                  newSelectedBatches[batchId] = savedLocalDraft.selectedBatches[batchId];
+                }
+              });
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Error restoring local draft state', e);
       }
 
       setBatches(allBatches);
@@ -254,6 +301,26 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
     return acc;
   }, {});
 
+  const areAllBatchesSelected = batches.length > 0 && batches.every(b => !!selectedBatches[b.declarationBatchId]);
+  const isSomeBatchesSelected = batches.some(b => !!selectedBatches[b.declarationBatchId]) && !areAllBatchesSelected;
+
+  const handleSelectAllToggle = () => {
+    if (areAllBatchesSelected) {
+      // Deselect all
+      setSelectedBatches({});
+    } else {
+      // Select all batches across all dates
+      const next = {};
+      batches.forEach(b => {
+        next[b.declarationBatchId] = {
+          qtyRejected: b.verificationRejectedQty || 0,
+          qtyManufactured: b.qtyManufactured
+        };
+      });
+      setSelectedBatches(next);
+    }
+  };
+
   useEffect(() => {
     if (Object.keys(groupedBatches).length > 0 && expandedDates.length === 0) {
       setExpandedDates([Object.keys(groupedBatches)[0]]);
@@ -294,6 +361,24 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
     }
 
     if (isFinish) {
+      // Validation for NCRGRSP required quantity
+      const currentRailPadType = summary?.ercType || call?.railPadType || '';
+      const isNcrgrsp = /NCR\s*GRSP/i.test(currentRailPadType);
+      const currentDrawing = drawingNo || call?.drawingNo || summary?.drawingNo || '';
+      const qtyPerSet = isNcrgrsp ? getQtyPerSet(currentDrawing, currentRailPadType) : null;
+      const offeredSets = Number(summary?.totalOfferedQty || call?.qtyDesiredForFinal || call?.callQty || call?.totalQty || 0);
+
+      if (qtyPerSet && offeredSets > 0) {
+        const minRequiredQty = offeredSets * qtyPerSet;
+        if (totals.totalAccepted < minRequiredQty) {
+          showNotification(
+            `Cannot finish inspection: Total Accepted Quantity (${totals.totalAccepted.toLocaleString()} Nos) must be at least ${minRequiredQty.toLocaleString()} Nos (${offeredSets} Sets × ${qtyPerSet}). Please select more batches.`,
+            'error'
+          );
+          return;
+        }
+      }
+
       setPendingAction(actionType);
       setShowConfirmModal(true);
       return;
@@ -443,9 +528,11 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
         await performTransitionAction(transitionPayload);
       }
 
-      // Clear cache on Pause or Finish
+      // Clear draft on Pause or Finish
       if (actionType === 'PAUSE' || actionType === 'FINISH') {
-        localStorage.removeItem(getCacheKey());
+        try {
+          localStorage.removeItem(getDraftKey());
+        } catch (e) {}
       }
 
       if (isFinish) {
@@ -495,6 +582,14 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
   const displayPoSr = summary?.rlyPoNoSerial || call.poSr || 'N/A';
   const displayDrawingNo = drawingNo || call.drawingNo || '';
 
+  const isNcrgrsp = /NCR\s*GRSP/i.test(displayRailPadType);
+  const qtyPerSet = isNcrgrsp ? getQtyPerSet(displayDrawingNo, displayRailPadType) : null;
+  const totalPiecesRequired = qtyPerSet ? (Number(displayQty) || 0) * qtyPerSet : null;
+  const isSet = isNcrgrsp && (summary?.unit?.toLowerCase().includes('set') || (!summary?.unit && qtyPerSet));
+
+  const isNcrInsufficient = isNcrgrsp && !!qtyPerSet && (Number(displayQty) > 0) && (totals.totalAccepted < totalPiecesRequired);
+  const isFinishDisabled = isSubmitting || isNcrInsufficient;
+
   return (
     <div className="process-ic-dashboard fade-in">
       {notification.message && (
@@ -539,14 +634,30 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
         <div className="left-panel">
           <div className="info-card">
             <h3>Information Displayed to Main IE</h3>
-            <div className="info-grid">
+            <div className="info-grid" style={{ gridTemplateColumns: qtyPerSet ? 'repeat(auto-fit, minmax(160px, 1fr))' : 'repeat(5, 1fr)' }}>
               <div className="info-item">
                 <label>Call No</label>
                 <div className="value">{call.requestId || call.callNo}</div>
               </div>
-              <div className="info-item">
+              <div className="info-item" style={{ minWidth: qtyPerSet ? '220px' : 'auto' }}>
                 <label>Quantity Offered Now</label>
-                <div className="value">{displayQty}</div>
+                <div className="value">
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '18px', fontWeight: '800', color: '#0f3a5e' }}>
+                      {displayQty} {isSet ? 'Sets' : (summary?.unit || 'Nos.')}
+                    </span>
+                    {qtyPerSet && (
+                      <span style={{ fontSize: '14px', fontWeight: '700', color: '#0284c7' }}>
+                        ({displayQty} × {qtyPerSet} = {totalPiecesRequired.toLocaleString()} Nos)
+                      </span>
+                    )}
+                  </div>
+                  {qtyPerSet && (
+                    <div style={{ fontSize: '12px', fontWeight: '700', color: '#0369a1', marginTop: '3px' }}>
+                      1 Set = {qtyPerSet} required qty
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="info-item">
                 <label>RailPad Type</label>
@@ -566,7 +677,39 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
           </div>
 
           <div className="batches-card">
-            <h3>ACCEPTED INVENTORY (DATE-WISE)</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <h3 style={{ margin: 0 }}>ACCEPTED INVENTORY (DATE-WISE)</h3>
+              {batches.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <label style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    color: '#0f3a5e',
+                    userSelect: 'none',
+                    backgroundColor: areAllBatchesSelected ? '#e0f2fe' : '#f1f5f9',
+                    padding: '6px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid',
+                    borderColor: areAllBatchesSelected ? '#38bdf8' : '#cbd5e1',
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                  }}>
+                    <input
+                      type="checkbox"
+                      className="custom-checkbox"
+                      checked={areAllBatchesSelected}
+                      ref={el => { if (el) el.indeterminate = isSomeBatchesSelected; }}
+                      onChange={handleSelectAllToggle}
+                    />
+                    <span>{areAllBatchesSelected ? 'Deselect All Dates' : 'Select All Dates'}</span>
+                  </label>
+                </div>
+              )}
+            </div>
             <p className="helper-text">Select batches from Vendor Production Declaration to include in this Process IC.</p>
 
             {Object.keys(groupedBatches).length === 0 ? (
@@ -664,13 +807,18 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
                 <label>Qty Rejected</label>
                 <div className="stat-val">{totals.totalRejected}</div>
               </div>
-              <div className="stat-box success">
-                <label>Qty Accepted</label>
-                <div className="stat-val">{totals.totalAccepted}</div>
+              <div className={`stat-box ${isNcrInsufficient ? 'danger' : 'success'}`} style={isNcrInsufficient ? { borderColor: '#ef4444', backgroundColor: '#fef2f2' } : {}}>
+                <label style={isNcrInsufficient ? { color: '#b91c1c' } : {}}>Qty Accepted</label>
+                <div className="stat-val" style={isNcrInsufficient ? { color: '#b91c1c' } : {}}>{totals.totalAccepted}</div>
+                {isNcrgrsp && qtyPerSet && (
+                  <div style={{ fontSize: '11px', fontWeight: '700', color: isNcrInsufficient ? '#dc2626' : '#16a34a', marginTop: '4px' }}>
+                    {isNcrInsufficient 
+                      ? `Min: ${totalPiecesRequired.toLocaleString()} (Short by ${(totalPiecesRequired - totals.totalAccepted).toLocaleString()} Nos)`
+                      : `Req: ${totalPiecesRequired.toLocaleString()} (Met)`}
+                  </div>
+                )}
               </div>
             </div>
-
-            {/* Manually entering rejections is removed since it's fetched from Production Verification */}
 
             <div className="form-group" style={{ marginTop: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: '400px' }}>
               <label style={{ fontSize: '14px', margin: 0, fontWeight: '600', color: '#0f3a5e' }}>Lot Range <span style={{color: 'red'}}>*</span></label>
@@ -687,20 +835,20 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
               }}>
                 <input
                   type="text"
+                  placeholder="From (e.g. L-100)"
                   value={lotRangeFrom}
                   onChange={(e) => setLotRangeFrom(e.target.value)}
-                  placeholder="From (e.g. L-100)"
                   disabled={isSubmitting}
-                  style={{ flex: 1, border: 'none', outline: 'none', padding: '6px', fontSize: '13px', background: 'transparent', width: '100%', minWidth: 0 }}
+                  style={{ border: 'none', outline: 'none', width: '100%', fontSize: '13px', padding: '4px 0', background: 'transparent' }}
                 />
-                <span style={{ color: '#94a3b8', fontWeight: 'bold', fontSize: '12px' }}>→</span>
+                <span style={{ color: '#94a3b8', fontSize: '12px' }}>&rarr;</span>
                 <input
                   type="text"
+                  placeholder="To (e.g. L-200)"
                   value={lotRangeTo}
                   onChange={(e) => setLotRangeTo(e.target.value)}
-                  placeholder="To (e.g. L-200)"
                   disabled={isSubmitting}
-                  style={{ flex: 1, border: 'none', outline: 'none', padding: '6px', fontSize: '13px', background: 'transparent', width: '100%', minWidth: 0 }}
+                  style={{ border: 'none', outline: 'none', width: '100%', fontSize: '13px', padding: '4px 0', background: 'transparent' }}
                 />
               </div>
             </div>
@@ -798,10 +946,23 @@ const RailpadProcessInspectionDashboard = ({ user, call, currentShift, onBack, o
         </button>
         <button
           onClick={() => handleSaveOrFinish('FINISH')}
-          disabled={isSubmitting}
-          style={{ backgroundColor: '#10b981', color: '#ffffff', border: 'none', padding: '12px 32px', fontSize: '16px', fontWeight: '700', borderRadius: '8px', cursor: isSubmitting ? 'not-allowed' : 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)', opacity: isSubmitting ? 0.7 : 1 }}
-          onMouseEnter={(e) => { if (!isSubmitting) e.currentTarget.style.backgroundColor = '#059669'; }}
-          onMouseLeave={(e) => { if (!isSubmitting) e.currentTarget.style.backgroundColor = '#10b981'; }}
+          disabled={isFinishDisabled}
+          title={isNcrInsufficient ? `Cannot finish: Total Accepted Quantity (${totals.totalAccepted.toLocaleString()} Nos) is less than the required ${totalPiecesRequired.toLocaleString()} Nos (${displayQty} Sets × ${qtyPerSet})` : ''}
+          style={{
+            backgroundColor: isFinishDisabled ? '#94a3b8' : '#10b981',
+            color: '#ffffff',
+            border: 'none',
+            padding: '12px 32px',
+            fontSize: '16px',
+            fontWeight: '700',
+            borderRadius: '8px',
+            cursor: isFinishDisabled ? 'not-allowed' : 'pointer',
+            transition: 'all 0.2s',
+            boxShadow: isFinishDisabled ? 'none' : '0 2px 4px rgba(16, 185, 129, 0.2)',
+            opacity: isFinishDisabled ? 0.65 : 1
+          }}
+          onMouseEnter={(e) => { if (!isFinishDisabled) e.currentTarget.style.backgroundColor = '#059669'; }}
+          onMouseLeave={(e) => { if (!isFinishDisabled) e.currentTarget.style.backgroundColor = '#10b981'; }}
         >
           {isSubmitting ? 'Processing...' : 'Finish Inspection'}
         </button>

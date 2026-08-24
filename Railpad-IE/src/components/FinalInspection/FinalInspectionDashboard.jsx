@@ -768,6 +768,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
     if (saved) {
       try {
+        const draft = JSON.parse(saved);
         const lotForDraft = lots.find(l => l.id === lotId) || { size: 1500, railpadType: '' };
         const calculatedDraftN = getVisualDimSampleSize(lotForDraft);
         if (draft.visualData) {
@@ -787,6 +788,9 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
         let paddedSpec = padSpecData(draft.specData);
         setSpecData(paddedSpec);
+
+        let paddedPeriodic = padPeriodicData(draft.periodicData);
+        setPeriodicData(paddedPeriodic);
 
         if (draft.specType) setSpecType(draft.specType);
         if (draft.reTestActive !== undefined) setReTestActive(draft.reTestActive);
@@ -1060,7 +1064,6 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         };
       }
       setWeightData(baseWeight);
-
       let basePhys = padPhysicalData(null);
       if (hardnessDbData) {
         basePhys.hardness = {
@@ -1148,6 +1151,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       }
       if (loadDbData) {
         basePhys.loadTest = {
+          loads: padPhysicalData(null).loadTest.loads,
           pad1: [
             { left: loadDbData.pad1L1 || '', right: loadDbData.pad1R1 || '' },
             { left: loadDbData.pad1L2 || '', right: loadDbData.pad1R2 || '' },
@@ -1216,6 +1220,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           { i1: resilienceDbData.s3Impact1 || '', i2: resilienceDbData.s3Impact2 || '', i3: resilienceDbData.s3Impact3 || '', i4: resilienceDbData.s3Impact4 || '', i5: resilienceDbData.s3Impact5 || '', i6: resilienceDbData.s3Impact6 || '' }
         ];
       }
+      basePhys = padPhysicalData(basePhys);
       setPhysicalData(basePhys);
       let baseElec = padElecData(null);
       if (electricalDbData) {
@@ -1234,17 +1239,23 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
             { air: sgDbData.s1AAir || '', water: sgDbData.s1AWater || '' },
             { air: sgDbData.s2AAir || '', water: sgDbData.s2AWater || '' },
             { air: sgDbData.s3AAir || '', water: sgDbData.s3AWater || '' },
-            { air: sgDbData.s4AAir || '', water: sgDbData.s4AWater || '' },
-            { air: sgDbData.s5AAir || '', water: sgDbData.s5AWater || '' },
-            { air: sgDbData.s6AAir || '', water: sgDbData.s6AWater || '' }
+            { air: sgDbData.m1AAir || '', water: sgDbData.m1AWater || '' },
+            { air: sgDbData.m2AAir || '', water: sgDbData.m2AWater || '' },
+            { air: sgDbData.m3AAir || '', water: sgDbData.m3AWater || '' },
+            { air: sgDbData.m4AAir || '', water: sgDbData.m4AWater || '' },
+            { air: sgDbData.m5AAir || '', water: sgDbData.m5AWater || '' },
+            { air: sgDbData.m6AAir || '', water: sgDbData.m6AWater || '' }
           ],
           compoundB: [
             { air: sgDbData.s1BAir || '', water: sgDbData.s1BWater || '' },
             { air: sgDbData.s2BAir || '', water: sgDbData.s2BWater || '' },
             { air: sgDbData.s3BAir || '', water: sgDbData.s3BWater || '' },
-            { air: sgDbData.s4BAir || '', water: sgDbData.s4BWater || '' },
-            { air: sgDbData.s5BAir || '', water: sgDbData.s5BWater || '' },
-            { air: sgDbData.s6BAir || '', water: sgDbData.s6BWater || '' }
+            { air: sgDbData.m1BAir || '', water: sgDbData.m1BWater || '' },
+            { air: sgDbData.m2BAir || '', water: sgDbData.m2BWater || '' },
+            { air: sgDbData.m3BAir || '', water: sgDbData.m3BWater || '' },
+            { air: sgDbData.m4BAir || '', water: sgDbData.m4BWater || '' },
+            { air: sgDbData.m5BAir || '', water: sgDbData.m5BWater || '' },
+            { air: sgDbData.m6BAir || '', water: sgDbData.m6BWater || '' }
           ]
         };
       }
@@ -1279,6 +1290,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           { initial: ozoneDbData.initialLength || '40', stretched: ozoneDbData.stretchedLength || '52', obs: ozoneDbData.observation || '' }
         ];
       }
+      baseElec = padElecData(baseElec);
       setElecData(baseElec);
 
       let baseSpec = padSpecData(null);
@@ -1349,6 +1361,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           { denier: ncrCordDbData.m6Denier || '', epi: ncrCordDbData.m6Epi || '', thickness: ncrCordDbData.m6Thickness || '', loadAtBreak: ncrCordDbData.m6LoadAtBreak || '', elongation: ncrCordDbData.m6Elongation || '', twists: ncrCordDbData.m6Twists || '' }
         ];
       }
+      baseSpec = padSpecData(baseSpec);
       setSpecData(baseSpec);
 
       let basePeriodic = padPeriodicData(null);
@@ -1385,7 +1398,8 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           { lotNo: periodicAbrasionDbData.s5LotNo || '', sampleNo: periodicAbrasionDbData.s5SampleNo || '', initialMass: periodicAbrasionDbData.s5InitialMass || '', finalMass: periodicAbrasionDbData.s5FinalMass || '', relativeLoss: periodicAbrasionDbData.s5RelativeLoss || '' }
         ];
       }
-      setPeriodicData(basePeriodic);
+      basePeriodic = padPeriodicData(basePeriodic);
+      setPeriodicData(basePeriodic);;
       setRemarks(finalRemarks);
       setSealingType(finalSealingType);
       setSteelStampNumber(finalSteelStampNumber);
@@ -2626,13 +2640,10 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         }
         showNotification(userMessage, 'error');
       }
-    } else if (actionType === 'DRAFT') {
-      showNotification(`Draft for lot ${selectedLot} saved successfully.`, 'success');
-      setIsDirty(false);
-    } else if (actionType === 'PAUSE') {
+    } else if (actionType === 'DRAFT' || actionType === 'PAUSE') {
       try {
         setIsSubmitting(true);
-        setSubmitMessage('Saving Inspection Data...');
+        setSubmitMessage(actionType === 'DRAFT' ? 'Saving Draft to Database...' : 'Saving Inspection Data...');
         // Save the data to backend API
         let hologramStr = '';
         if (sealingType === 'RITES_HOLOGRAM' && hologramEntries.length > 0) {
@@ -3544,6 +3555,174 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           remarks: remarks || ''
         };
 
+        const resilienceReportPause = localRawReports['resilience'];
+        const resilienceStatusStrPause = getSectionStatus('resilience');
+        const resiliencePayloadPause = {
+          callNo: currentCallId,
+          lotNo: selectedLot,
+          plantId: call?.plantId || 'N/A',
+          vendorCode: call?.vendorCode || 'N/A',
+          shift: call?.shift || 'A',
+          railpadType: activeRailpadType,
+          offeredQty: offeredQty,
+          s1Impact1: physicalData.resilience[0]?.i1 || '',
+          s1Impact2: physicalData.resilience[0]?.i2 || '',
+          s1Impact3: physicalData.resilience[0]?.i3 || '',
+          s1Impact4: physicalData.resilience[0]?.i4 || '',
+          s1Impact5: physicalData.resilience[0]?.i5 || '',
+          s1Impact6: physicalData.resilience[0]?.i6 || '',
+          s2Impact1: physicalData.resilience[1]?.i1 || '',
+          s2Impact2: physicalData.resilience[1]?.i2 || '',
+          s2Impact3: physicalData.resilience[1]?.i3 || '',
+          s2Impact4: physicalData.resilience[1]?.i4 || '',
+          s2Impact5: physicalData.resilience[1]?.i5 || '',
+          s2Impact6: physicalData.resilience[1]?.i6 || '',
+          s3Impact1: physicalData.resilience[2]?.i1 || '',
+          s3Impact2: physicalData.resilience[2]?.i2 || '',
+          s3Impact3: physicalData.resilience[2]?.i3 || '',
+          s3Impact4: physicalData.resilience[2]?.i4 || '',
+          s3Impact5: physicalData.resilience[2]?.i5 || '',
+          s3Impact6: physicalData.resilience[2]?.i6 || '',
+          resilienceStatus: resilienceStatusStrPause,
+          notOkCount: resilienceReportPause ? (resilienceReportPause.primaryOutCount + resilienceReportPause.doubleOutCount) : 0,
+          remarks: remarks || ''
+        };
+
+        const ozoneReportPause = localRawReports['ozone'];
+        const ozoneStatusStrPause = getSectionStatus('ozone');
+        const ozonePayloadPause = {
+          callNo: currentCallId,
+          lotNo: selectedLot,
+          plantId: call?.plantId || 'N/A',
+          vendorCode: call?.vendorCode || 'N/A',
+          shift: call?.shift || 'A',
+          railpadType: activeRailpadType,
+          offeredQty: offeredQty,
+          initialLength: elecData.ozone[0]?.initial || '',
+          stretchedLength: elecData.ozone[0]?.stretched || '',
+          observation: elecData.ozone[0]?.obs || '',
+          ozoneStatus: ozoneStatusStrPause,
+          notOkCount: ozoneReportPause ? (ozoneReportPause.primaryOutCount + ozoneReportPause.doubleOutCount) : 0,
+          remarks: remarks || ''
+        };
+
+        const tgaPayloadPause = {
+          callNo: currentCallId,
+          lotNo: selectedLot,
+          plantId: call?.plantId || 'N/A',
+          vendorCode: call?.vendorCode || 'N/A',
+          shift: call?.shift || 'A',
+          railpadType: activeRailpadType,
+          offeredQty: offeredQty,
+          dateOfLastTest: periodicData.tga.dateOfLastTest,
+          qtyProducedSinceLastTest: periodicData.tga.qtyProduced ? parseInt(periodicData.tga.qtyProduced, 10) : null,
+          s1LotNo: periodicData.tga.samples[0]?.lotNo || '',
+          s1SampleNo: periodicData.tga.samples[0]?.sampleNo || '',
+          s1SampleWt: periodicData.tga.samples[0]?.weight || '',
+          s1TempRange: periodicData.tga.samples[0]?.tempRange || '',
+          s1PolymerContent: periodicData.tga.samples[0]?.polymer || '',
+          s2LotNo: periodicData.tga.samples[1]?.lotNo || '',
+          s2SampleNo: periodicData.tga.samples[1]?.sampleNo || '',
+          s2SampleWt: periodicData.tga.samples[1]?.weight || '',
+          s2TempRange: periodicData.tga.samples[1]?.tempRange || '',
+          s2PolymerContent: periodicData.tga.samples[1]?.polymer || '',
+          s3LotNo: periodicData.tga.samples[2]?.lotNo || '',
+          s3SampleNo: periodicData.tga.samples[2]?.sampleNo || '',
+          s3SampleWt: periodicData.tga.samples[2]?.weight || '',
+          s3TempRange: periodicData.tga.samples[2]?.tempRange || '',
+          s3PolymerContent: periodicData.tga.samples[2]?.polymer || '',
+          s4LotNo: periodicData.tga.samples[3]?.lotNo || '',
+          s4SampleNo: periodicData.tga.samples[3]?.sampleNo || '',
+          s4SampleWt: periodicData.tga.samples[3]?.weight || '',
+          s4TempRange: periodicData.tga.samples[3]?.tempRange || '',
+          s4PolymerContent: periodicData.tga.samples[3]?.polymer || '',
+          s5LotNo: periodicData.tga.samples[4]?.lotNo || '',
+          s5SampleNo: periodicData.tga.samples[4]?.sampleNo || '',
+          s5SampleWt: periodicData.tga.samples[4]?.weight || '',
+          s5TempRange: periodicData.tga.samples[4]?.tempRange || '',
+          s5PolymerContent: periodicData.tga.samples[4]?.polymer || '',
+          tgaStatus: getSectionStatus('tga'),
+          remarks: remarks || ''
+        };
+
+        const durabilityPayloadPause = {
+          callNo: currentCallId,
+          lotNo: selectedLot,
+          plantId: call?.plantId || 'N/A',
+          vendorCode: call?.vendorCode || 'N/A',
+          shift: call?.shift || 'A',
+          railpadType: activeRailpadType,
+          offeredQty: offeredQty,
+          dateOfLastTest: periodicData.durability.dateOfLastTest,
+          qtyProducedSinceLastTest: periodicData.durability.qtyProduced ? parseInt(periodicData.durability.qtyProduced, 10) : null,
+          s1LotNo: periodicData.durability.samples[0]?.lotNo || '',
+          s1InitialThickness: periodicData.durability.samples[0]?.initialThick || '',
+          s1FinalThickness: periodicData.durability.samples[0]?.finalThick || '',
+          s1InitialLoadComp: periodicData.durability.samples[0]?.initialLoad || '',
+          s1FinalLoadComp: periodicData.durability.samples[0]?.finalLoad || '',
+          s2LotNo: periodicData.durability.samples[1]?.lotNo || '',
+          s2InitialThickness: periodicData.durability.samples[1]?.initialThick || '',
+          s2FinalThickness: periodicData.durability.samples[1]?.finalThick || '',
+          s2InitialLoadComp: periodicData.durability.samples[1]?.initialLoad || '',
+          s2FinalLoadComp: periodicData.durability.samples[1]?.finalLoad || '',
+          s3LotNo: periodicData.durability.samples[2]?.lotNo || '',
+          s3InitialThickness: periodicData.durability.samples[2]?.initialThick || '',
+          s3FinalThickness: periodicData.durability.samples[2]?.finalThick || '',
+          s3InitialLoadComp: periodicData.durability.samples[2]?.initialLoad || '',
+          s3FinalLoadComp: periodicData.durability.samples[2]?.finalLoad || '',
+          s4LotNo: periodicData.durability.samples[3]?.lotNo || '',
+          s4InitialThickness: periodicData.durability.samples[3]?.initialThick || '',
+          s4FinalThickness: periodicData.durability.samples[3]?.finalThick || '',
+          s4InitialLoadComp: periodicData.durability.samples[3]?.initialLoad || '',
+          s4FinalLoadComp: periodicData.durability.samples[3]?.finalLoad || '',
+          s5LotNo: periodicData.durability.samples[4]?.lotNo || '',
+          s5InitialThickness: periodicData.durability.samples[4]?.initialThick || '',
+          s5FinalThickness: periodicData.durability.samples[4]?.finalThick || '',
+          s5InitialLoadComp: periodicData.durability.samples[4]?.initialLoad || '',
+          s5FinalLoadComp: periodicData.durability.samples[4]?.finalLoad || '',
+          durabilityStatus: getSectionStatus('durability'),
+          remarks: remarks || ''
+        };
+
+        const abrasionPayloadPause = {
+          callNo: currentCallId,
+          lotNo: selectedLot,
+          plantId: call?.plantId || 'N/A',
+          vendorCode: call?.vendorCode || 'N/A',
+          shift: call?.shift || 'A',
+          railpadType: activeRailpadType,
+          offeredQty: offeredQty,
+          dateOfLastTest: periodicData.abrasion.dateOfLastTest,
+          qtyProducedSinceLastTest: periodicData.abrasion.qtyProduced ? parseInt(periodicData.abrasion.qtyProduced, 10) : null,
+          s1LotNo: periodicData.abrasion.samples[0]?.lotNo || '',
+          s1SampleNo: periodicData.abrasion.samples[0]?.sampleNo || '',
+          s1InitialMass: periodicData.abrasion.samples[0]?.initialMass || '',
+          s1FinalMass: periodicData.abrasion.samples[0]?.finalMass || '',
+          s1RelativeLoss: periodicData.abrasion.samples[0]?.relativeLoss || '',
+          s2LotNo: periodicData.abrasion.samples[1]?.lotNo || '',
+          s2SampleNo: periodicData.abrasion.samples[1]?.sampleNo || '',
+          s2InitialMass: periodicData.abrasion.samples[1]?.initialMass || '',
+          s2FinalMass: periodicData.abrasion.samples[1]?.finalMass || '',
+          s2RelativeLoss: periodicData.abrasion.samples[1]?.relativeLoss || '',
+          s3LotNo: periodicData.abrasion.samples[2]?.lotNo || '',
+          s3SampleNo: periodicData.abrasion.samples[2]?.sampleNo || '',
+          s3InitialMass: periodicData.abrasion.samples[2]?.initialMass || '',
+          s3FinalMass: periodicData.abrasion.samples[2]?.finalMass || '',
+          s3RelativeLoss: periodicData.abrasion.samples[2]?.relativeLoss || '',
+          s4LotNo: periodicData.abrasion.samples[3]?.lotNo || '',
+          s4SampleNo: periodicData.abrasion.samples[3]?.sampleNo || '',
+          s4InitialMass: periodicData.abrasion.samples[3]?.initialMass || '',
+          s4FinalMass: periodicData.abrasion.samples[3]?.finalMass || '',
+          s4RelativeLoss: periodicData.abrasion.samples[3]?.relativeLoss || '',
+          s5LotNo: periodicData.abrasion.samples[4]?.lotNo || '',
+          s5SampleNo: periodicData.abrasion.samples[4]?.sampleNo || '',
+          s5InitialMass: periodicData.abrasion.samples[4]?.initialMass || '',
+          s5FinalMass: periodicData.abrasion.samples[4]?.finalMass || '',
+          s5RelativeLoss: periodicData.abrasion.samples[4]?.relativeLoss || '',
+          abrasionStatus: getSectionStatus('abrasion'),
+          remarks: remarks || ''
+        };
+
         console.log('Saving all submodule results in parallel during pause...');
         setSubmitMessage('Saving Inspection Data...');
         const pausePromises = [
@@ -3561,7 +3740,12 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           finalSpecificGravityService.save(sgPayloadPause),
           finalAshContentService.save(ashPayloadPause),
           finalAdhesionService.save(adhesionPayloadPause),
-          finalSecantStiffnessService.save(secantPayloadPause)
+          finalSecantStiffnessService.save(secantPayloadPause),
+          finalResilienceTestService.save(resiliencePayloadPause),
+          finalOzoneTestService.save(ozonePayloadPause),
+          finalPeriodicTgaService.save(tgaPayloadPause),
+          finalPeriodicDurabilityService.save(durabilityPayloadPause),
+          finalPeriodicAbrasionService.save(abrasionPayloadPause)
         ];
 
         if (isNCRGRSP) {
@@ -3575,7 +3759,14 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         await Promise.all(pausePromises);
         setDbDimensionalStatus(dimensionalResult);
 
-        // Perform workflow transition
+        if (actionType === 'DRAFT') {
+          setIsSubmitting(false);
+          setIsDirty(false);
+          showNotification(`Draft for lot ${selectedLot} saved to database successfully.`, 'success');
+          return;
+        }
+
+        // Perform workflow transition for PAUSE
         setSubmitMessage('Pausing Inspection...');
         const workflowActionData = {
           workflowTransitionId: call?.workflowTransitionId || call?.id,

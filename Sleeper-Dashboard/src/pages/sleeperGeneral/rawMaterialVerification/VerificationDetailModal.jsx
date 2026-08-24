@@ -208,20 +208,28 @@ const VerificationDetailModal = ({ row, moduleLabel, actionBy, onClose, onDone }
         }
         setSubmitting(true);
         try {
-            const actionLabel = pendingAction === 'VERIFY' ? 'verified' : (pendingAction === 'REJECT' ? 'rejected' : 'returned');
-            
             await apiService.performTransitionAction({
                 workflowTransitionId: row.workflowTransitionId,
                 moduleId:             row.moduleId,
                 requestId:            row.requestId,
                 action:               pendingAction,
                 actionBy,
-                remarks: remarks.trim() || (pendingAction === 'VERIFY' ? 'Verified by IE' : (pendingAction === 'REJECT' ? 'Rejected by IE' : 'Returned for change')),
+                remarks: remarks.trim() || (
+                    pendingAction === 'VERIFY' ? 'Verified by IE' : 
+                    pendingAction === 'UNLOCK' ? 'Unlocked for modification by IE' : 
+                    pendingAction === 'REJECT' ? 'Rejected by IE' : 'Returned for change'
+                ),
             });
             
-            alert(pendingAction === 'VERIFY'
-                ? '✓ Record verified successfully.'
-                : (pendingAction === 'REJECT' ? '✖ Record rejected.' : '↩ Record returned to vendor.'));
+            alert(
+                pendingAction === 'VERIFY'
+                    ? '✓ Record verified successfully.'
+                    : pendingAction === 'UNLOCK'
+                    ? '🔓 Record unlocked for modification successfully.'
+                    : pendingAction === 'REJECT'
+                    ? '✖ Record rejected.'
+                    : '↩ Record returned to vendor.'
+            );
             onDone();
             onClose();
         } catch (err) {
@@ -232,12 +240,13 @@ const VerificationDetailModal = ({ row, moduleLabel, actionBy, onClose, onDone }
     };
 
     // ── Render ──
-    // ── Render ──
-    const isAlreadyVerified = row.status === 'VERIFIED' || row.status === 'Verified';
+    const statusUpper = (row?.status || '').toUpperCase();
+    const isAlreadyVerified = statusUpper === 'VERIFIED' || statusUpper === 'COMPLETED';
     const accentColors = {
-        'VERIFY': '#059669',     // Green
+        'VERIFY': '#059669',       // Green
+        'UNLOCK': '#d97706',       // Amber / Orange
         'REQUEST_BACK': '#d97706', // Orange/Amber
-        'REJECT': '#dc2626',     // Red
+        'REJECT': '#dc2626',       // Red
     };
     const accentColor = accentColors[pendingAction] || '#0369a1';
 
@@ -597,17 +606,90 @@ const VerificationDetailModal = ({ row, moduleLabel, actionBy, onClose, onDone }
 
                     {/* ── Action Area ── */}
                     {isAlreadyVerified ? (
-                        <div style={{
-                            background: '#f0fdf4', border: '1px solid #bbf7d0',
-                            borderRadius: '12px', padding: '16px',
-                            display: 'flex', alignItems: 'center', gap: '10px',
-                            color: '#059669', fontWeight: '700', fontSize: '14px',
-                        }}>
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                                <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                            This record has already been verified.
-                        </div>
+                        !pendingAction ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                <div style={{
+                                    background: '#f0fdf4', border: '1px solid #bbf7d0',
+                                    borderRadius: '12px', padding: '14px 16px',
+                                    display: 'flex', alignItems: 'center', gap: '10px',
+                                    color: '#059669', fontWeight: '700', fontSize: '13px',
+                                }}>
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                        <polyline points="20 6 9 17 4 12" />
+                                    </svg>
+                                    This record has already been verified and locked.
+                                </div>
+                                <button
+                                    onClick={() => setPendingAction('UNLOCK')}
+                                    style={{
+                                        width: '100%', padding: '12px', border: 'none', borderRadius: '10px',
+                                        background: '#d97706', color: '#fff',
+                                        fontWeight: '700', fontSize: '14px', cursor: 'pointer',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                                        boxShadow: '0 2px 8px rgba(217, 119, 6, 0.25)',
+                                        transition: 'all 0.15s',
+                                    }}
+                                >
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                        <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+                                    </svg>
+                                    Unlock for modification
+                                </button>
+                            </div>
+                        ) : (
+                            <div style={{
+                                border: `2px solid ${accentColor}`,
+                                borderRadius: '14px', padding: '18px',
+                            }}>
+                                <p style={{
+                                    margin: '0 0 12px', fontWeight: '700',
+                                    fontSize: '14px', color: accentColor,
+                                }}>
+                                    🔓 Confirm Unlock for Modification
+                                </p>
+                                <textarea
+                                    rows={3}
+                                    placeholder="Enter reason for unlocking (optional)…"
+                                    value={remarks}
+                                    onChange={e => setRemarks(e.target.value)}
+                                    style={{
+                                        width: '100%', boxSizing: 'border-box',
+                                        border: '1px solid #e2e8f0', borderRadius: '10px',
+                                        padding: '10px 14px', fontSize: '13px',
+                                        resize: 'vertical', marginBottom: '14px',
+                                        fontFamily: 'inherit',
+                                    }}
+                                />
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    <button
+                                        onClick={handleConfirm}
+                                        disabled={submitting}
+                                        style={{
+                                            flex: 1, padding: '12px', border: 'none',
+                                            borderRadius: '10px', background: accentColor,
+                                            color: '#fff', fontWeight: '700', fontSize: '14px',
+                                            cursor: submitting ? 'not-allowed' : 'pointer',
+                                            opacity: submitting ? 0.65 : 1,
+                                            transition: 'opacity 0.15s',
+                                        }}
+                                    >
+                                        {submitting ? 'Submitting…' : 'Confirm'}
+                                    </button>
+                                    <button
+                                        onClick={() => { setPendingAction(null); setRemarks(''); }}
+                                        style={{
+                                            flex: 1, padding: '12px',
+                                            border: '1px solid #e2e8f0', borderRadius: '10px',
+                                            background: '#f8fafc', color: '#475569',
+                                            fontWeight: '600', fontSize: '14px', cursor: 'pointer',
+                                        }}
+                                    >
+                                        ← Back
+                                    </button>
+                                </div>
+                            </div>
+                        )
                     ) : !pendingAction ? (
                         /* Choose action */
                         <div style={{ display: 'flex', gap: '8px' }}>

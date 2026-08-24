@@ -1451,6 +1451,565 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     setSelectedLot(pendingLotId);
   };
 
+  const buildOtherLotSavePromises = (oLot, draft) => {
+    if (!draft) return [];
+    const oLotId = oLot.id;
+    const oRailpadType = oLot.railpadType || call?.railpadType || '';
+    const oIsNCRGRSP = /NCR\s*GRSP/i.test(oRailpadType);
+    const oOfferedQty = oLot.size || 0;
+
+    const tVisual = draft.visualData || { visualN: 25, dimN: 25, dv: '', dd: '', visualReason: '', dimReason: '' };
+    const tWeight = draft.weightData || { samples1: [], samples2: [], n1: 10, n2: 10, min: 0, max: 0, isSecondActive: false };
+    const tPhys = padPhysicalData(draft.physicalData);
+    const tElec = padElecData(draft.elecData);
+    const tSpec = padSpecData(draft.specData);
+    const tPeriodic = padPeriodicData(draft.periodicData);
+    const tRemarks = draft.remarks || remarks || '';
+    const tSealing = draft.sealingType || sealingType || 'RITES_HOLOGRAM';
+    const tHolo = draft.hologramEntries || [];
+
+    let formattedDate = null;
+    if (call?.dateOfInspection) {
+      if (Array.isArray(call.dateOfInspection) && call.dateOfInspection.length >= 3) {
+        const year = call.dateOfInspection[0];
+        const month = String(call.dateOfInspection[1]).padStart(2, '0');
+        const day = String(call.dateOfInspection[2]).padStart(2, '0');
+        formattedDate = `${year}-${month}-${day}`;
+      } else {
+        try {
+          formattedDate = new Date(call.dateOfInspection).toISOString().split('T')[0];
+        } catch (e) {
+          formattedDate = new Date().toISOString().split('T')[0];
+        }
+      }
+    } else {
+      formattedDate = new Date().toISOString().split('T')[0];
+    }
+
+    const currentUserObj = getStoredUser();
+    const userId = currentUserObj?.userId || 0;
+
+    const dvNum = tVisual.dv !== '' && tVisual.dv !== null && tVisual.dv !== undefined ? parseInt(tVisual.dv, 10) : null;
+    const vStatus = dvNum === null ? 'PENDING' : dvNum === 0 ? 'PASS' : 'FAIL';
+
+    const ddNum = tVisual.dd !== '' && tVisual.dd !== null && tVisual.dd !== undefined ? parseInt(tVisual.dd, 10) : null;
+    const dStatus = ddNum === null ? 'PENDING' : ddNum === 0 ? 'PASS' : (ddNum <= 1 && draft.dbDimensionalStatus === null) ? 'RE-OFFERED' : 'FAIL';
+
+    let hologramStr = '';
+    if (tSealing === 'RITES_HOLOGRAM' && tHolo.length > 0) {
+      hologramStr = tHolo.map(h => (h.type === 'range' ? `${h.from}-${h.to}` : h.value)).join(',');
+    }
+
+    const lotOverallStatus = (vStatus === 'PASS' && dStatus === 'PASS') ? 'ACCEPTED' : (dStatus === 'RE-OFFERED') ? 'RE-OFFERED' : (vStatus === 'PENDING' || dStatus === 'PENDING') ? 'PENDING' : 'REJECTED';
+    const acceptedQty = lotOverallStatus === 'ACCEPTED' ? oOfferedQty : 0;
+    const rejectedQty = lotOverallStatus === 'REJECTED' ? oOfferedQty : 0;
+
+    const savePayload = {
+      callNo: currentCallId,
+      shift: call?.shift || 'A',
+      dateOfInspection: formattedDate,
+      plantId: call?.plantId || 'N/A',
+      rlyPoSrNo: call?.rlyPoSrNo || 'N/A',
+      vendorName: call?.vendorName || 'N/A',
+      vendorCode: call?.vendorCode || 'N/A',
+      railpadType: oRailpadType,
+      lotNo: oLotId,
+      offeredQty: oOfferedQty,
+      acceptedQty: acceptedQty,
+      rejectedQty: rejectedQty,
+      visualDimensionalStatus: vStatus,
+      physicalAgeingPropertiesStatus: 'PASS',
+      electricalChemicalStatus: 'PASS',
+      dynamicDurabilityTestStatus: 'PASS',
+      ncrgrspStatus: oIsNCRGRSP ? 'PASS' : null,
+      overallStatus: lotOverallStatus,
+      hologram: hologramStr,
+      remarks: tRemarks || '',
+      userId: userId ? parseInt(userId, 10) : null,
+      sectionResults: [
+        { sectionKey: 'visual', sectionName: 'Visual Inspection', sampleSize: String(tVisual.visualN || 25), status: vStatus },
+        { sectionKey: 'dimensional', sectionName: 'Dimensional Inspection', sampleSize: String(tVisual.dimN || 25), status: dStatus }
+      ]
+    };
+
+    const currentVisualN = oIsNCRGRSP ? getVisualDimSampleSize(oLot) : (tVisual.visualN || 25);
+    const currentDimN = oIsNCRGRSP ? getVisualDimSampleSize(oLot) : (tVisual.dimN || 25);
+
+    const visualDimPayload = {
+      callNo: currentCallId,
+      lotNo: oLotId,
+      plantId: call?.plantId || 'N/A',
+      vendorCode: call?.vendorCode || 'N/A',
+      shift: call?.shift || 'A',
+      railpadType: oRailpadType,
+      offeredQty: oOfferedQty,
+      visualSamples: currentVisualN,
+      visualNotOk: tVisual.dv !== '' && tVisual.dv !== null ? parseInt(tVisual.dv, 10) : 0,
+      visualReason: tVisual.visualReason || '',
+      visualResult: vStatus,
+      dimensionalSamples: currentDimN,
+      dimensionalNotOk: tVisual.dd !== '' && tVisual.dd !== null ? parseInt(tVisual.dd, 10) : 0,
+      dimensionalReason: tVisual.dimReason || '',
+      dimensionalResult: dStatus,
+      totalRejected: (tVisual.dv !== '' && tVisual.dv !== null ? parseInt(tVisual.dv, 10) : 0) + (tVisual.dd !== '' && tVisual.dd !== null ? parseInt(tVisual.dd, 10) : 0)
+    };
+
+    const weightSamplesList = [];
+    (tWeight.samples1 || []).forEach((val, index) => {
+      if (val !== '' && val !== null && val !== undefined) {
+        const parsedVal = parseFloat(val);
+        weightSamplesList.push({ samplingNo: 1, sampleNo: index + 1, sampleValue: parsedVal, isRejected: parsedVal > tWeight.max });
+      }
+    });
+    (tWeight.samples2 || []).forEach((val, index) => {
+      if (val !== '' && val !== null && val !== undefined) {
+        const parsedVal = parseFloat(val);
+        weightSamplesList.push({ samplingNo: 2, sampleNo: index + 1, sampleValue: parsedVal, isRejected: parsedVal > tWeight.max });
+      }
+    });
+
+    const weightTestPayload = {
+      callNo: currentCallId,
+      lotNo: oLotId,
+      plantId: call?.plantId || 'N/A',
+      vendorCode: call?.vendorCode || 'N/A',
+      shift: call?.shift || 'A',
+      railpadType: oRailpadType,
+      offeredQty: oOfferedQty,
+      weightMin: tWeight.min,
+      weightMax: tWeight.max,
+      weightStatus: 'PASS',
+      samples: weightSamplesList
+    };
+
+    const hardnessPayload = {
+      callNo: currentCallId,
+      lotNo: oLotId,
+      plantId: call?.plantId || 'N/A',
+      vendorCode: call?.vendorCode || 'N/A',
+      shift: call?.shift || 'A',
+      railpadType: oRailpadType,
+      offeredQty: oOfferedQty,
+      sampleA1: tPhys.hardness.compoundA[0] || '', sampleA2: tPhys.hardness.compoundA[1] || '', sampleA3: tPhys.hardness.compoundA[2] || '', sampleA4: tPhys.hardness.compoundA[3] || '', sampleA5: tPhys.hardness.compoundA[4] || '',
+      marginalA1: tPhys.hardness.compoundA[5] || '', marginalA2: tPhys.hardness.compoundA[6] || '', marginalA3: tPhys.hardness.compoundA[7] || '', marginalA4: tPhys.hardness.compoundA[8] || '', marginalA5: tPhys.hardness.compoundA[9] || '',
+      sampleB1: tPhys.hardness.compoundB[0] || '', sampleB2: tPhys.hardness.compoundB[1] || '', sampleB3: tPhys.hardness.compoundB[2] || '', sampleB4: tPhys.hardness.compoundB[3] || '', sampleB5: tPhys.hardness.compoundB[4] || '',
+      marginalB1: tPhys.hardness.compoundB[5] || '', marginalB2: tPhys.hardness.compoundB[6] || '', marginalB3: tPhys.hardness.compoundB[7] || '', marginalB4: tPhys.hardness.compoundB[8] || '', marginalB5: tPhys.hardness.compoundB[9] || '',
+      hardnessStatus: 'PASS', notOkCount: 0, remarks: tRemarks || ''
+    };
+
+    const tensilePayload = {
+      callNo: currentCallId,
+      lotNo: oLotId,
+      plantId: call?.plantId || 'N/A',
+      vendorCode: call?.vendorCode || 'N/A',
+      shift: call?.shift || 'A',
+      railpadType: oRailpadType,
+      offeredQty: oOfferedQty,
+      sampleBefore1: tPhys.tensile.before[0] || '', sampleBefore2: tPhys.tensile.before[1] || '', sampleBefore3: tPhys.tensile.before[2] || '', sampleBefore4: tPhys.tensile.before[3] || '', sampleBefore5: tPhys.tensile.before[4] || '',
+      marginalBefore1: tPhys.tensile.before[5] || '', marginalBefore2: tPhys.tensile.before[6] || '', marginalBefore3: tPhys.tensile.before[7] || '', marginalBefore4: tPhys.tensile.before[8] || '', marginalBefore5: tPhys.tensile.before[9] || '',
+      sampleAfter1: tPhys.tensile.after[0] || '', sampleAfter2: tPhys.tensile.after[1] || '', sampleAfter3: tPhys.tensile.after[2] || '', sampleAfter4: tPhys.tensile.after[3] || '', sampleAfter5: tPhys.tensile.after[4] || '',
+      marginalAfter1: tPhys.tensile.after[5] || '', marginalAfter2: tPhys.tensile.after[6] || '', marginalAfter3: tPhys.tensile.after[7] || '', marginalAfter4: tPhys.tensile.after[8] || '', marginalAfter5: tPhys.tensile.after[9] || '',
+      tensileStatus: 'PASS', notOkCount: 0, remarks: tRemarks || ''
+    };
+
+    const elongationPayload = {
+      callNo: currentCallId,
+      lotNo: oLotId,
+      plantId: call?.plantId || 'N/A',
+      vendorCode: call?.vendorCode || 'N/A',
+      shift: call?.shift || 'A',
+      railpadType: oRailpadType,
+      offeredQty: oOfferedQty,
+      sampleBefore1: tPhys.elongation.before[0] || '', sampleBefore2: tPhys.elongation.before[1] || '', sampleBefore3: tPhys.elongation.before[2] || '', sampleBefore4: tPhys.elongation.before[3] || '', sampleBefore5: tPhys.elongation.before[4] || '',
+      marginalBefore1: tPhys.elongation.before[5] || '', marginalBefore2: tPhys.elongation.before[6] || '', marginalBefore3: tPhys.elongation.before[7] || '', marginalBefore4: tPhys.elongation.before[8] || '', marginalBefore5: tPhys.elongation.before[9] || '',
+      sampleAfter1: tPhys.elongation.after[0] || '', sampleAfter2: tPhys.elongation.after[1] || '', sampleAfter3: tPhys.elongation.after[2] || '', sampleAfter4: tPhys.elongation.after[3] || '', sampleAfter5: tPhys.elongation.after[4] || '',
+      marginalAfter1: tPhys.elongation.after[5] || '', marginalAfter2: tPhys.elongation.after[6] || '', marginalAfter3: tPhys.elongation.after[7] || '', marginalAfter4: tPhys.elongation.after[8] || '', marginalAfter5: tPhys.elongation.after[9] || '',
+      elongationStatus: 'PASS', notOkCount: 0, remarks: tRemarks || ''
+    };
+
+    const modulusPayload = {
+      callNo: currentCallId,
+      lotNo: oLotId,
+      plantId: call?.plantId || 'N/A',
+      vendorCode: call?.vendorCode || 'N/A',
+      shift: call?.shift || 'A',
+      railpadType: oRailpadType,
+      offeredQty: oOfferedQty,
+      sampleBefore1: tPhys.modulus.before[0] || '', sampleBefore2: tPhys.modulus.before[1] || '', sampleBefore3: tPhys.modulus.before[2] || '',
+      marginalBefore1: tPhys.modulus.before[3] || '', marginalBefore2: tPhys.modulus.before[4] || '', marginalBefore3: tPhys.modulus.before[5] || '',
+      sampleAfter1: tPhys.modulus.after[0] || '', sampleAfter2: tPhys.modulus.after[1] || '', sampleAfter3: tPhys.modulus.after[2] || '',
+      marginalAfter1: tPhys.modulus.after[3] || '', marginalAfter2: tPhys.modulus.after[4] || '', marginalAfter3: tPhys.modulus.after[5] || '',
+      modulusStatus: 'PASS', notOkCount: 0, remarks: tRemarks || ''
+    };
+
+    const compressionPayload = {
+      callNo: currentCallId,
+      lotNo: oLotId,
+      plantId: call?.plantId || 'N/A',
+      vendorCode: call?.vendorCode || 'N/A',
+      shift: call?.shift || 'A',
+      railpadType: oRailpadType,
+      offeredQty: oOfferedQty,
+      sampleInitial1: tPhys.compression.initial[0] || '', sampleInitial2: tPhys.compression.initial[1] || '', sampleInitial3: tPhys.compression.initial[2] || '',
+      marginalInitial1: tPhys.compression.initial[3] || '', marginalInitial2: tPhys.compression.initial[4] || '', marginalInitial3: tPhys.compression.initial[5] || '',
+      sampleFinal1: tPhys.compression.final[0] || '', sampleFinal2: tPhys.compression.final[1] || '', sampleFinal3: tPhys.compression.final[2] || '',
+      marginalFinal1: tPhys.compression.final[3] || '', marginalFinal2: tPhys.compression.final[4] || '', marginalFinal3: tPhys.compression.final[5] || '',
+      compressionStatus: 'PASS', notOkCount: 0, remarks: tRemarks || ''
+    };
+
+    const tensionPayload = {
+      callNo: currentCallId,
+      lotNo: oLotId,
+      plantId: call?.plantId || 'N/A',
+      vendorCode: call?.vendorCode || 'N/A',
+      shift: call?.shift || 'A',
+      railpadType: oRailpadType,
+      offeredQty: oOfferedQty,
+      sampleInitial1: tPhys.tension.initial[0] || '', sampleInitial2: tPhys.tension.initial[1] || '', sampleInitial3: tPhys.tension.initial[2] || '',
+      marginalInitial1: tPhys.tension.initial[3] || '', marginalInitial2: tPhys.tension.initial[4] || '', marginalInitial3: tPhys.tension.initial[5] || '',
+      sampleFinal1: tPhys.tension.final[0] || '', sampleFinal2: tPhys.tension.final[1] || '', sampleFinal3: tPhys.tension.final[2] || '',
+      marginalFinal1: tPhys.tension.final[3] || '', marginalFinal2: tPhys.tension.final[4] || '', marginalFinal3: tPhys.tension.final[5] || '',
+      tensionStatus: 'PASS', notOkCount: 0, remarks: tRemarks || ''
+    };
+
+    const loadPayload = {
+      callNo: currentCallId,
+      lotNo: oLotId,
+      plantId: call?.plantId || 'N/A',
+      vendorCode: call?.vendorCode || 'N/A',
+      shift: call?.shift || 'A',
+      railpadType: oRailpadType,
+      offeredQty: oOfferedQty,
+      pad1L1: tPhys.loadTest.pad1[0]?.left || '', pad1R1: tPhys.loadTest.pad1[0]?.right || '',
+      pad1L2: tPhys.loadTest.pad1[1]?.left || '', pad1R2: tPhys.loadTest.pad1[1]?.right || '',
+      pad1L3: tPhys.loadTest.pad1[2]?.left || '', pad1R3: tPhys.loadTest.pad1[2]?.right || '',
+      pad1L4: tPhys.loadTest.pad1[3]?.left || '', pad1R4: tPhys.loadTest.pad1[3]?.right || '',
+      pad1L5: tPhys.loadTest.pad1[4]?.left || '', pad1R5: tPhys.loadTest.pad1[4]?.right || '',
+      pad1L6: tPhys.loadTest.pad1[5]?.left || '', pad1R6: tPhys.loadTest.pad1[5]?.right || '',
+      pad1L7: tPhys.loadTest.pad1[6]?.left || '', pad1R7: tPhys.loadTest.pad1[6]?.right || '',
+      pad1L8: tPhys.loadTest.pad1[7]?.left || '', pad1R8: tPhys.loadTest.pad1[7]?.right || '',
+      pad2L1: tPhys.loadTest.pad2[0]?.left || '', pad2R1: tPhys.loadTest.pad2[0]?.right || '',
+      pad2L2: tPhys.loadTest.pad2[1]?.left || '', pad2R2: tPhys.loadTest.pad2[1]?.right || '',
+      pad2L3: tPhys.loadTest.pad2[2]?.left || '', pad2R3: tPhys.loadTest.pad2[2]?.right || '',
+      pad2L4: tPhys.loadTest.pad2[3]?.left || '', pad2R4: tPhys.loadTest.pad2[3]?.right || '',
+      pad2L5: tPhys.loadTest.pad2[4]?.left || '', pad2R5: tPhys.loadTest.pad2[4]?.right || '',
+      pad2L6: tPhys.loadTest.pad2[5]?.left || '', pad2R6: tPhys.loadTest.pad2[5]?.right || '',
+      pad2L7: tPhys.loadTest.pad2[6]?.left || '', pad2R7: tPhys.loadTest.pad2[6]?.right || '',
+      pad2L8: tPhys.loadTest.pad2[7]?.left || '', pad2R8: tPhys.loadTest.pad2[7]?.right || '',
+      mpad1L1: tPhys.loadTest.mPad1[0]?.left || '', mpad1R1: tPhys.loadTest.mPad1[0]?.right || '',
+      mpad1L2: tPhys.loadTest.mPad1[1]?.left || '', mpad1R2: tPhys.loadTest.mPad1[1]?.right || '',
+      mpad1L3: tPhys.loadTest.mPad1[2]?.left || '', mpad1R3: tPhys.loadTest.mPad1[2]?.right || '',
+      mpad1L4: tPhys.loadTest.mPad1[3]?.left || '', mpad1R4: tPhys.loadTest.mPad1[3]?.right || '',
+      mpad1L5: tPhys.loadTest.mPad1[4]?.left || '', mpad1R5: tPhys.loadTest.mPad1[4]?.right || '',
+      mpad1L6: tPhys.loadTest.mPad1[5]?.left || '', mpad1R6: tPhys.loadTest.mPad1[5]?.right || '',
+      mpad1L7: tPhys.loadTest.mPad1[6]?.left || '', mpad1R7: tPhys.loadTest.mPad1[6]?.right || '',
+      mpad1L8: tPhys.loadTest.mPad1[7]?.left || '', mpad1R8: tPhys.loadTest.mPad1[7]?.right || '',
+      mpad2L1: tPhys.loadTest.mPad2[0]?.left || '', mpad2R1: tPhys.loadTest.mPad2[0]?.right || '',
+      mpad2L2: tPhys.loadTest.mPad2[1]?.left || '', mpad2R2: tPhys.loadTest.mPad2[1]?.right || '',
+      mpad2L3: tPhys.loadTest.mPad2[2]?.left || '', mpad2R3: tPhys.loadTest.mPad2[2]?.right || '',
+      mpad2L4: tPhys.loadTest.mPad2[3]?.left || '', mpad2R4: tPhys.loadTest.mPad2[3]?.right || '',
+      mpad2L5: tPhys.loadTest.mPad2[4]?.left || '', mpad2R5: tPhys.loadTest.mPad2[4]?.right || '',
+      mpad2L6: tPhys.loadTest.mPad2[5]?.left || '', mpad2R6: tPhys.loadTest.mPad2[5]?.right || '',
+      mpad2L7: tPhys.loadTest.mPad2[6]?.left || '', mpad2R7: tPhys.loadTest.mPad2[6]?.right || '',
+      mpad2L8: tPhys.loadTest.mPad2[7]?.left || '', mpad2R8: tPhys.loadTest.mPad2[7]?.right || '',
+      mpad3L1: tPhys.loadTest.mPad3[0]?.left || '', mpad3R1: tPhys.loadTest.mPad3[0]?.right || '',
+      mpad3L2: tPhys.loadTest.mPad3[1]?.left || '', mpad3R2: tPhys.loadTest.mPad3[1]?.right || '',
+      mpad3L3: tPhys.loadTest.mPad3[2]?.left || '', mpad3R3: tPhys.loadTest.mPad3[2]?.right || '',
+      mpad3L4: tPhys.loadTest.mPad3[3]?.left || '', mpad3R4: tPhys.loadTest.mPad3[3]?.right || '',
+      mpad3L5: tPhys.loadTest.mPad3[4]?.left || '', mpad3R5: tPhys.loadTest.mPad3[4]?.right || '',
+      mpad3L6: tPhys.loadTest.mPad3[5]?.left || '', mpad3R6: tPhys.loadTest.mPad3[5]?.right || '',
+      mpad3L7: tPhys.loadTest.mPad3[6]?.left || '', mpad3R7: tPhys.loadTest.mPad3[6]?.right || '',
+      mpad3L8: tPhys.loadTest.mPad3[7]?.left || '', mpad3R8: tPhys.loadTest.mPad3[7]?.right || '',
+      mpad4L1: tPhys.loadTest.mPad4[0]?.left || '', mpad4R1: tPhys.loadTest.mPad4[0]?.right || '',
+      mpad4L2: tPhys.loadTest.mPad4[1]?.left || '', mpad4R2: tPhys.loadTest.mPad4[1]?.right || '',
+      mpad4L3: tPhys.loadTest.mPad4[2]?.left || '', mpad4R3: tPhys.loadTest.mPad4[2]?.right || '',
+      mpad4L4: tPhys.loadTest.mPad4[3]?.left || '', mpad4R4: tPhys.loadTest.mPad4[3]?.right || '',
+      mpad4L5: tPhys.loadTest.mPad4[4]?.left || '', mpad4R5: tPhys.loadTest.mPad4[4]?.right || '',
+      mpad4L6: tPhys.loadTest.mPad4[5]?.left || '', mpad4R6: tPhys.loadTest.mPad4[5]?.right || '',
+      mpad4L7: tPhys.loadTest.mPad4[6]?.left || '', mpad4R7: tPhys.loadTest.mPad4[6]?.right || '',
+      mpad4L8: tPhys.loadTest.mPad4[7]?.left || '', mpad4R8: tPhys.loadTest.mPad4[7]?.right || '',
+      loadStatus: 'PASS', notOkCount: 0, remarks: tRemarks || ''
+    };
+
+    const electricalPayload = {
+      callNo: currentCallId,
+      lotNo: oLotId,
+      plantId: call?.plantId || 'N/A',
+      vendorCode: call?.vendorCode || 'N/A',
+      shift: call?.shift || 'A',
+      railpadType: oRailpadType,
+      offeredQty: oOfferedQty,
+      s1BeforeForward: tElec.resistance[0]?.bF || '', s1BeforeReverse: tElec.resistance[0]?.bR || '',
+      s2BeforeForward: tElec.resistance[1]?.bF || '', s2BeforeReverse: tElec.resistance[1]?.bR || '',
+      s3BeforeForward: tElec.resistance[2]?.bF || '', s3BeforeReverse: tElec.resistance[2]?.bR || '',
+      s4BeforeForward: tElec.resistance[3]?.bF || '', s4BeforeReverse: tElec.resistance[3]?.bR || '',
+      s5BeforeForward: tElec.resistance[4]?.bF || '', s5BeforeReverse: tElec.resistance[4]?.bR || '',
+      s6BeforeForward: tElec.resistance[5]?.bF || '', s6BeforeReverse: tElec.resistance[5]?.bR || '',
+      s1AfterForward: tElec.resistance[0]?.aF || '', s1AfterReverse: tElec.resistance[0]?.aR || '',
+      s2AfterForward: tElec.resistance[1]?.aF || '', s2AfterReverse: tElec.resistance[1]?.aR || '',
+      s3AfterForward: tElec.resistance[2]?.aF || '', s3AfterReverse: tElec.resistance[2]?.aR || '',
+      s4AfterForward: tElec.resistance[3]?.aF || '', s4AfterReverse: tElec.resistance[3]?.aR || '',
+      s5AfterForward: tElec.resistance[4]?.aF || '', s5AfterReverse: tElec.resistance[4]?.aR || '',
+      s6AfterForward: tElec.resistance[5]?.aF || '', s6AfterReverse: tElec.resistance[5]?.aR || '',
+      electricalStatus: 'PASS', notOkCount: 0, remarks: tRemarks || ''
+    };
+
+    const sgPayload = {
+      callNo: currentCallId,
+      lotNo: oLotId,
+      plantId: call?.plantId || 'N/A',
+      vendorCode: call?.vendorCode || 'N/A',
+      shift: call?.shift || 'A',
+      railpadType: oRailpadType,
+      offeredQty: oOfferedQty,
+      s1AAir: tElec.sg.compoundA[0]?.air || '', s2AAir: tElec.sg.compoundA[1]?.air || '', s3AAir: tElec.sg.compoundA[2]?.air || '',
+      m1AAir: tElec.sg.compoundA[3]?.air || '', m2AAir: tElec.sg.compoundA[4]?.air || '', m3AAir: tElec.sg.compoundA[5]?.air || '',
+      m4AAir: tElec.sg.compoundA[6]?.air || '', m5AAir: tElec.sg.compoundA[7]?.air || '', m6AAir: tElec.sg.compoundA[8]?.air || '',
+      s1AWater: tElec.sg.compoundA[0]?.water || '', s2AWater: tElec.sg.compoundA[1]?.water || '', s3AWater: tElec.sg.compoundA[2]?.water || '',
+      m1AWater: tElec.sg.compoundA[3]?.water || '', m2AWater: tElec.sg.compoundA[4]?.water || '', m3AWater: tElec.sg.compoundA[5]?.water || '',
+      m4AWater: tElec.sg.compoundA[6]?.water || '', m5AWater: tElec.sg.compoundA[7]?.water || '', m6AWater: tElec.sg.compoundA[8]?.water || '',
+      s1BAir: tElec.sg.compoundB[0]?.air || '', s2BAir: tElec.sg.compoundB[1]?.air || '', s3BAir: tElec.sg.compoundB[2]?.air || '',
+      m1BAir: tElec.sg.compoundB[3]?.air || '', m2BAir: tElec.sg.compoundB[4]?.air || '', m3BAir: tElec.sg.compoundB[5]?.air || '',
+      m4BAir: tElec.sg.compoundB[6]?.air || '', m5BAir: tElec.sg.compoundB[7]?.air || '', m6BAir: tElec.sg.compoundB[8]?.air || '',
+      s1BWater: tElec.sg.compoundB[0]?.water || '', s2BWater: tElec.sg.compoundB[1]?.water || '', s3BWater: tElec.sg.compoundB[2]?.water || '',
+      m1BWater: tElec.sg.compoundB[3]?.water || '', m2BWater: tElec.sg.compoundB[4]?.water || '', m3BWater: tElec.sg.compoundB[5]?.water || '',
+      m4BWater: tElec.sg.compoundB[6]?.water || '', m5BWater: tElec.sg.compoundB[7]?.water || '', m6BWater: tElec.sg.compoundB[8]?.water || '',
+      sgStatus: 'PASS', notOkCount: 0, remarks: tRemarks || ''
+    };
+
+    const ashPayload = {
+      callNo: currentCallId,
+      lotNo: oLotId,
+      plantId: call?.plantId || 'N/A',
+      vendorCode: call?.vendorCode || 'N/A',
+      shift: call?.shift || 'A',
+      railpadType: oRailpadType,
+      offeredQty: oOfferedQty,
+      s1ACrucible: tElec.ash.compoundA[0]?.crucible || '', s1ASample: tElec.ash.compoundA[0]?.sample || '', s1AAsh: tElec.ash.compoundA[0]?.ash || '',
+      s2ACrucible: tElec.ash.compoundA[1]?.crucible || '', s2ASample: tElec.ash.compoundA[1]?.sample || '', s2AAsh: tElec.ash.compoundA[1]?.ash || '',
+      s3ACrucible: tElec.ash.compoundA[2]?.crucible || '', s3ASample: tElec.ash.compoundA[2]?.sample || '', s3AAsh: tElec.ash.compoundA[2]?.ash || '',
+      m1ACrucible: tElec.ash.compoundA[3]?.crucible || '', m1ASample: tElec.ash.compoundA[3]?.sample || '', m1AAsh: tElec.ash.compoundA[3]?.ash || '',
+      m2ACrucible: tElec.ash.compoundA[4]?.crucible || '', m2ASample: tElec.ash.compoundA[4]?.sample || '', m2AAsh: tElec.ash.compoundA[4]?.ash || '',
+      m3ACrucible: tElec.ash.compoundA[5]?.crucible || '', m3ASample: tElec.ash.compoundA[5]?.sample || '', m3AAsh: tElec.ash.compoundA[5]?.ash || '',
+      m4ACrucible: tElec.ash.compoundA[6]?.crucible || '', m4ASample: tElec.ash.compoundA[6]?.sample || '', m4AAsh: tElec.ash.compoundA[6]?.ash || '',
+      m5ACrucible: tElec.ash.compoundA[7]?.crucible || '', m5ASample: tElec.ash.compoundA[7]?.sample || '', m5AAsh: tElec.ash.compoundA[7]?.ash || '',
+      m6ACrucible: tElec.ash.compoundA[8]?.crucible || '', m6ASample: tElec.ash.compoundA[8]?.sample || '', m6AAsh: tElec.ash.compoundA[8]?.ash || '',
+      s1BCrucible: tElec.ash.compoundB[0]?.crucible || '', s1BSample: tElec.ash.compoundB[0]?.sample || '', s1BAsh: tElec.ash.compoundB[0]?.ash || '',
+      s2BCrucible: tElec.ash.compoundB[1]?.crucible || '', s2BSample: tElec.ash.compoundB[1]?.sample || '', s2BAsh: tElec.ash.compoundB[1]?.ash || '',
+      s3BCrucible: tElec.ash.compoundB[2]?.crucible || '', s3BSample: tElec.ash.compoundB[2]?.sample || '', s3BAsh: tElec.ash.compoundB[2]?.ash || '',
+      m1BCrucible: tElec.ash.compoundB[3]?.crucible || '', m1BSample: tElec.ash.compoundB[3]?.sample || '', m1BAsh: tElec.ash.compoundB[3]?.ash || '',
+      m2BCrucible: tElec.ash.compoundB[4]?.crucible || '', m2BSample: tElec.ash.compoundB[4]?.sample || '', m2BAsh: tElec.ash.compoundB[4]?.ash || '',
+      m3BCrucible: tElec.ash.compoundB[5]?.crucible || '', m3BSample: tElec.ash.compoundB[5]?.sample || '', m3BAsh: tElec.ash.compoundB[5]?.ash || '',
+      m4BCrucible: tElec.ash.compoundB[6]?.crucible || '', m4BSample: tElec.ash.compoundB[6]?.sample || '', m4BAsh: tElec.ash.compoundB[6]?.ash || '',
+      m5BCrucible: tElec.ash.compoundB[7]?.crucible || '', m5BSample: tElec.ash.compoundB[7]?.sample || '', m5BAsh: tElec.ash.compoundB[7]?.ash || '',
+      m6BCrucible: tElec.ash.compoundB[8]?.crucible || '', m6BSample: tElec.ash.compoundB[8]?.sample || '', m6BAsh: tElec.ash.compoundB[8]?.ash || '',
+      ashStatus: 'PASS', notOkCount: 0, remarks: tRemarks || ''
+    };
+
+    const adhesionPayload = {
+      callNo: currentCallId,
+      lotNo: oLotId,
+      plantId: call?.plantId || 'N/A',
+      vendorCode: call?.vendorCode || 'N/A',
+      shift: call?.shift || 'A',
+      railpadType: oRailpadType,
+      offeredQty: oOfferedQty,
+      sample1: tSpec.adhesion[0] || '', sample2: tSpec.adhesion[1] || '',
+      marginal1: tSpec.adhesion[2] || '', marginal2: tSpec.adhesion[3] || '',
+      marginal3: tSpec.adhesion[4] || '', marginal4: tSpec.adhesion[5] || '',
+      adhesionStatus: 'PASS', notOkCount: 0, remarks: tRemarks || ''
+    };
+
+    const secantPayload = {
+      callNo: currentCallId,
+      lotNo: oLotId,
+      plantId: call?.plantId || 'N/A',
+      vendorCode: call?.vendorCode || 'N/A',
+      shift: call?.shift || 'A',
+      railpadType: oRailpadType,
+      offeredQty: oOfferedQty,
+      s1S20A: tSpec.secant[0]?.s20?.a || '', s1S20B: tSpec.secant[0]?.s20?.b || '', s1S20C: tSpec.secant[0]?.s20?.c || '', s1S20D: tSpec.secant[0]?.s20?.d || '',
+      s1S90A: tSpec.secant[0]?.s90?.a || '', s1S90B: tSpec.secant[0]?.s90?.b || '', s1S90C: tSpec.secant[0]?.s90?.c || '', s1S90D: tSpec.secant[0]?.s90?.d || '',
+      s2S20A: tSpec.secant[1]?.s20?.a || '', s2S20B: tSpec.secant[1]?.s20?.b || '', s2S20C: tSpec.secant[1]?.s20?.c || '', s2S20D: tSpec.secant[1]?.s20?.d || '',
+      s2S90A: tSpec.secant[1]?.s90?.a || '', s2S90B: tSpec.secant[1]?.s90?.b || '', s2S90C: tSpec.secant[1]?.s90?.c || '', s2S90D: tSpec.secant[1]?.s90?.d || '',
+      m1S20A: tSpec.secant[2]?.s20?.a || '', m1S20B: tSpec.secant[2]?.s20?.b || '', m1S20C: tSpec.secant[2]?.s20?.c || '', m1S20D: tSpec.secant[2]?.s20?.d || '',
+      m1S90A: tSpec.secant[2]?.s90?.a || '', m1S90B: tSpec.secant[2]?.s90?.b || '', m1S90C: tSpec.secant[2]?.s90?.c || '', m1S90D: tSpec.secant[2]?.s90?.d || '',
+      m2S20A: tSpec.secant[3]?.s20?.a || '', m2S20B: tSpec.secant[3]?.s20?.b || '', m2S20C: tSpec.secant[3]?.s20?.c || '', m2S20D: tSpec.secant[3]?.s20?.d || '',
+      m2S90A: tSpec.secant[3]?.s90?.a || '', m2S90B: tSpec.secant[3]?.s90?.b || '', m2S90C: tSpec.secant[3]?.s90?.c || '', m2S90D: tSpec.secant[3]?.s90?.d || '',
+      m3S20A: tSpec.secant[4]?.s20?.a || '', m3S20B: tSpec.secant[4]?.s20?.b || '', m3S20C: tSpec.secant[4]?.s20?.c || '', m3S20D: tSpec.secant[4]?.s20?.d || '',
+      m3S90A: tSpec.secant[4]?.s90?.a || '', m3S90B: tSpec.secant[4]?.s90?.b || '', m3S90C: tSpec.secant[4]?.s90?.c || '', m3S90D: tSpec.secant[4]?.s90?.d || '',
+      m4S20A: tSpec.secant[5]?.s20?.a || '', m4S20B: tSpec.secant[5]?.s20?.b || '', m4S20C: tSpec.secant[5]?.s20?.c || '', m4S20D: tSpec.secant[5]?.s20?.d || '',
+      m4S90A: tSpec.secant[5]?.s90?.a || '', m4S90B: tSpec.secant[5]?.s90?.b || '', m4S90C: tSpec.secant[5]?.s90?.c || '', m4S90D: tSpec.secant[5]?.s90?.d || '',
+      secantStatus: 'PASS', notOkCount: 0, remarks: tRemarks || ''
+    };
+
+    const resiliencePayload = {
+      callNo: currentCallId,
+      lotNo: oLotId,
+      plantId: call?.plantId || 'N/A',
+      vendorCode: call?.vendorCode || 'N/A',
+      shift: call?.shift || 'A',
+      railpadType: oRailpadType,
+      offeredQty: oOfferedQty,
+      s1Impact1: tPhys.resilience[0]?.i1 || '', s1Impact2: tPhys.resilience[0]?.i2 || '', s1Impact3: tPhys.resilience[0]?.i3 || '', s1Impact4: tPhys.resilience[0]?.i4 || '', s1Impact5: tPhys.resilience[0]?.i5 || '', s1Impact6: tPhys.resilience[0]?.i6 || '',
+      s2Impact1: tPhys.resilience[1]?.i1 || '', s2Impact2: tPhys.resilience[1]?.i2 || '', s2Impact3: tPhys.resilience[1]?.i3 || '', s2Impact4: tPhys.resilience[1]?.i4 || '', s2Impact5: tPhys.resilience[1]?.i5 || '', s2Impact6: tPhys.resilience[1]?.i6 || '',
+      s3Impact1: tPhys.resilience[2]?.i1 || '', s3Impact2: tPhys.resilience[2]?.i2 || '', s3Impact3: tPhys.resilience[2]?.i3 || '', s3Impact4: tPhys.resilience[2]?.i4 || '', s3Impact5: tPhys.resilience[2]?.i5 || '', s3Impact6: tPhys.resilience[2]?.i6 || '',
+      resilienceStatus: 'PASS', notOkCount: 0, remarks: tRemarks || ''
+    };
+
+    const ozonePayload = {
+      callNo: currentCallId,
+      lotNo: oLotId,
+      plantId: call?.plantId || 'N/A',
+      vendorCode: call?.vendorCode || 'N/A',
+      shift: call?.shift || 'A',
+      railpadType: oRailpadType,
+      offeredQty: oOfferedQty,
+      initialLength: tElec.ozone[0]?.initial || '',
+      stretchedLength: tElec.ozone[0]?.stretched || '',
+      observation: tElec.ozone[0]?.obs || '',
+      ozoneStatus: 'PASS', notOkCount: 0, remarks: tRemarks || ''
+    };
+
+    const tgaPayload = {
+      callNo: currentCallId,
+      lotNo: oLotId,
+      plantId: call?.plantId || 'N/A',
+      vendorCode: call?.vendorCode || 'N/A',
+      shift: call?.shift || 'A',
+      railpadType: oRailpadType,
+      offeredQty: oOfferedQty,
+      dateOfLastTest: tPeriodic.tga.dateOfLastTest,
+      qtyProducedSinceLastTest: tPeriodic.tga.qtyProduced ? parseInt(tPeriodic.tga.qtyProduced, 10) : null,
+      s1LotNo: tPeriodic.tga.samples[0]?.lotNo || '', s1SampleNo: tPeriodic.tga.samples[0]?.sampleNo || '', s1SampleWt: tPeriodic.tga.samples[0]?.weight || '', s1TempRange: tPeriodic.tga.samples[0]?.tempRange || '', s1PolymerContent: tPeriodic.tga.samples[0]?.polymer || '',
+      s2LotNo: tPeriodic.tga.samples[1]?.lotNo || '', s2SampleNo: tPeriodic.tga.samples[1]?.sampleNo || '', s2SampleWt: tPeriodic.tga.samples[1]?.weight || '', s2TempRange: tPeriodic.tga.samples[1]?.tempRange || '', s2PolymerContent: tPeriodic.tga.samples[1]?.polymer || '',
+      s3LotNo: tPeriodic.tga.samples[2]?.lotNo || '', s3SampleNo: tPeriodic.tga.samples[2]?.sampleNo || '', s3SampleWt: tPeriodic.tga.samples[2]?.weight || '', s3TempRange: tPeriodic.tga.samples[2]?.tempRange || '', s3PolymerContent: tPeriodic.tga.samples[2]?.polymer || '',
+      s4LotNo: tPeriodic.tga.samples[3]?.lotNo || '', s4SampleNo: tPeriodic.tga.samples[3]?.sampleNo || '', s4SampleWt: tPeriodic.tga.samples[3]?.weight || '', s4TempRange: tPeriodic.tga.samples[3]?.tempRange || '', s4PolymerContent: tPeriodic.tga.samples[3]?.polymer || '',
+      s5LotNo: tPeriodic.tga.samples[4]?.lotNo || '', s5SampleNo: tPeriodic.tga.samples[4]?.sampleNo || '', s5SampleWt: tPeriodic.tga.samples[4]?.weight || '', s5TempRange: tPeriodic.tga.samples[4]?.tempRange || '', s5PolymerContent: tPeriodic.tga.samples[4]?.polymer || '',
+      tgaStatus: 'PASS', remarks: tRemarks || ''
+    };
+
+    const durabilityPayload = {
+      callNo: currentCallId,
+      lotNo: oLotId,
+      plantId: call?.plantId || 'N/A',
+      vendorCode: call?.vendorCode || 'N/A',
+      shift: call?.shift || 'A',
+      railpadType: oRailpadType,
+      offeredQty: oOfferedQty,
+      dateOfLastTest: tPeriodic.durability.dateOfLastTest,
+      qtyProducedSinceLastTest: tPeriodic.durability.qtyProduced ? parseInt(tPeriodic.durability.qtyProduced, 10) : null,
+      s1LotNo: tPeriodic.durability.samples[0]?.lotNo || '', s1InitialThickness: tPeriodic.durability.samples[0]?.initialThick || '', s1FinalThickness: tPeriodic.durability.samples[0]?.finalThick || '', s1InitialLoadComp: tPeriodic.durability.samples[0]?.initialLoad || '', s1FinalLoadComp: tPeriodic.durability.samples[0]?.finalLoad || '',
+      s2LotNo: tPeriodic.durability.samples[1]?.lotNo || '', s2InitialThickness: tPeriodic.durability.samples[1]?.initialThick || '', s2FinalThickness: tPeriodic.durability.samples[1]?.finalThick || '', s2InitialLoadComp: tPeriodic.durability.samples[1]?.initialLoad || '', s2FinalLoadComp: tPeriodic.durability.samples[1]?.finalLoad || '',
+      s3LotNo: tPeriodic.durability.samples[2]?.lotNo || '', s3InitialThickness: tPeriodic.durability.samples[2]?.initialThick || '', s3FinalThickness: tPeriodic.durability.samples[2]?.finalThick || '', s3InitialLoadComp: tPeriodic.durability.samples[2]?.initialLoad || '', s3FinalLoadComp: tPeriodic.durability.samples[2]?.finalLoad || '',
+      s4LotNo: tPeriodic.durability.samples[3]?.lotNo || '', s4InitialThickness: tPeriodic.durability.samples[3]?.initialThick || '', s4FinalThickness: tPeriodic.durability.samples[3]?.finalThick || '', s4InitialLoadComp: tPeriodic.durability.samples[3]?.initialLoad || '', s4FinalLoadComp: tPeriodic.durability.samples[3]?.finalLoad || '',
+      s5LotNo: tPeriodic.durability.samples[4]?.lotNo || '', s5InitialThickness: tPeriodic.durability.samples[4]?.initialThick || '', s5FinalThickness: tPeriodic.durability.samples[4]?.finalThick || '', s5InitialLoadComp: tPeriodic.durability.samples[4]?.initialLoad || '', s5FinalLoadComp: tPeriodic.durability.samples[4]?.finalLoad || '',
+      durabilityStatus: 'PASS', remarks: tRemarks || ''
+    };
+
+    const abrasionPayload = {
+      callNo: currentCallId,
+      lotNo: oLotId,
+      plantId: call?.plantId || 'N/A',
+      vendorCode: call?.vendorCode || 'N/A',
+      shift: call?.shift || 'A',
+      railpadType: oRailpadType,
+      offeredQty: oOfferedQty,
+      dateOfLastTest: tPeriodic.abrasion.dateOfLastTest,
+      qtyProducedSinceLastTest: tPeriodic.abrasion.qtyProduced ? parseInt(tPeriodic.abrasion.qtyProduced, 10) : null,
+      s1LotNo: tPeriodic.abrasion.samples[0]?.lotNo || '', s1SampleNo: tPeriodic.abrasion.samples[0]?.sampleNo || '', s1InitialMass: tPeriodic.abrasion.samples[0]?.initialMass || '', s1FinalMass: tPeriodic.abrasion.samples[0]?.finalMass || '', s1RelativeLoss: tPeriodic.abrasion.samples[0]?.relativeLoss || '',
+      s2LotNo: tPeriodic.abrasion.samples[1]?.lotNo || '', s2SampleNo: tPeriodic.abrasion.samples[1]?.sampleNo || '', s2InitialMass: tPeriodic.abrasion.samples[1]?.initialMass || '', s2FinalMass: tPeriodic.abrasion.samples[1]?.finalMass || '', s2RelativeLoss: tPeriodic.abrasion.samples[1]?.relativeLoss || '',
+      s3LotNo: tPeriodic.abrasion.samples[2]?.lotNo || '', s3SampleNo: tPeriodic.abrasion.samples[2]?.sampleNo || '', s3InitialMass: tPeriodic.abrasion.samples[2]?.initialMass || '', s3FinalMass: tPeriodic.abrasion.samples[2]?.finalMass || '', s3RelativeLoss: tPeriodic.abrasion.samples[2]?.relativeLoss || '',
+      s4LotNo: tPeriodic.abrasion.samples[3]?.lotNo || '', s4SampleNo: tPeriodic.abrasion.samples[3]?.sampleNo || '', s4InitialMass: tPeriodic.abrasion.samples[3]?.initialMass || '', s4FinalMass: tPeriodic.abrasion.samples[3]?.finalMass || '', s4RelativeLoss: tPeriodic.abrasion.samples[3]?.relativeLoss || '',
+      s5LotNo: tPeriodic.abrasion.samples[4]?.lotNo || '', s5SampleNo: tPeriodic.abrasion.samples[4]?.sampleNo || '', s5InitialMass: tPeriodic.abrasion.samples[4]?.initialMass || '', s5FinalMass: tPeriodic.abrasion.samples[4]?.finalMass || '', s5RelativeLoss: tPeriodic.abrasion.samples[4]?.relativeLoss || '',
+      abrasionStatus: 'PASS', remarks: tRemarks || ''
+    };
+
+    const lotPromises = [
+      finalInspectionLotResultsService.save(savePayload),
+      finalVisualDimensionalInspectionService.save(visualDimPayload),
+      finalWeightTestService.save(weightTestPayload),
+      finalHardnessTestService.save(hardnessPayload),
+      finalTensileStrengthService.save(tensilePayload),
+      finalElongationService.save(elongationPayload),
+      finalModulusService.save(modulusPayload),
+      finalCompressionSetService.save(compressionPayload),
+      finalTensionSetService.save(tensionPayload),
+      finalLoadTestService.save(loadPayload),
+      finalElectricalResistanceService.save(electricalPayload),
+      finalSpecificGravityService.save(sgPayload),
+      finalAshContentService.save(ashPayload),
+      finalAdhesionService.save(adhesionPayload),
+      finalSecantStiffnessService.save(secantPayload),
+      finalResilienceTestService.save(resiliencePayload),
+      finalOzoneTestService.save(ozonePayload),
+      finalPeriodicTgaService.save(tgaPayload),
+      finalPeriodicDurabilityService.save(durabilityPayload),
+      finalPeriodicAbrasionService.save(abrasionPayload)
+    ];
+
+    if (oIsNCRGRSP) {
+      const ncrAdhesionPayload = {
+        callNo: currentCallId,
+        lotNo: oLotId,
+        plantId: call?.plantId || 'N/A',
+        vendorCode: call?.vendorCode || 'N/A',
+        shift: call?.shift || 'A',
+        railpadType: oRailpadType,
+        offeredQty: oOfferedQty,
+        s1Peel: tSpec.ncrgrsp?.adhesion[0]?.peel || '', s1Hpull: tSpec.ncrgrsp?.adhesion[0]?.hpull || '',
+        s2Peel: tSpec.ncrgrsp?.adhesion[1]?.peel || '', s2Hpull: tSpec.ncrgrsp?.adhesion[1]?.hpull || '',
+        m1Peel: tSpec.ncrgrsp?.adhesion[2]?.peel || '', m1Hpull: tSpec.ncrgrsp?.adhesion[2]?.hpull || '',
+        m2Peel: tSpec.ncrgrsp?.adhesion[3]?.peel || '', m2Hpull: tSpec.ncrgrsp?.adhesion[3]?.hpull || '',
+        m3Peel: tSpec.ncrgrsp?.adhesion[4]?.peel || '', m3Hpull: tSpec.ncrgrsp?.adhesion[4]?.hpull || '',
+        m4Peel: tSpec.ncrgrsp?.adhesion[5]?.peel || '', m4Hpull: tSpec.ncrgrsp?.adhesion[5]?.hpull || '',
+        ncrAdhesionStatus: 'PASS', notOkCount: 0, remarks: tRemarks || ''
+      };
+
+      const ncrBreakingPayload = {
+        callNo: currentCallId,
+        lotNo: oLotId,
+        plantId: call?.plantId || 'N/A',
+        vendorCode: call?.vendorCode || 'N/A',
+        shift: call?.shift || 'A',
+        railpadType: oRailpadType,
+        offeredQty: oOfferedQty,
+        sample1: tSpec.ncrgrsp?.breaking[0] || '', sample2: tSpec.ncrgrsp?.breaking[1] || '', sample3: tSpec.ncrgrsp?.breaking[2] || '', sample4: tSpec.ncrgrsp?.breaking[3] || '', sample5: tSpec.ncrgrsp?.breaking[4] || '',
+        marginal1: tSpec.ncrgrsp?.breaking[5] || '', marginal2: tSpec.ncrgrsp?.breaking[6] || '', marginal3: tSpec.ncrgrsp?.breaking[7] || '', marginal4: tSpec.ncrgrsp?.breaking[8] || '', marginal5: tSpec.ncrgrsp?.breaking[9] || '',
+        marginal6: tSpec.ncrgrsp?.breaking[10] || '', marginal7: tSpec.ncrgrsp?.breaking[11] || '', marginal8: tSpec.ncrgrsp?.breaking[12] || '', marginal9: tSpec.ncrgrsp?.breaking[13] || '', marginal10: tSpec.ncrgrsp?.breaking[14] || '',
+        ncrBreakingStatus: 'PASS', notOkCount: 0, remarks: tRemarks || ''
+      };
+
+      const ncrCordPayload = {
+        callNo: currentCallId,
+        lotNo: oLotId,
+        plantId: call?.plantId || 'N/A',
+        vendorCode: call?.vendorCode || 'N/A',
+        shift: call?.shift || 'A',
+        railpadType: oRailpadType,
+        offeredQty: oOfferedQty,
+        s1Denier: tSpec.ncrgrsp?.nylonCord[0]?.denier || '', s1Epi: tSpec.ncrgrsp?.nylonCord[0]?.epi || '', s1Thickness: tSpec.ncrgrsp?.nylonCord[0]?.thickness || '', s1LoadAtBreak: tSpec.ncrgrsp?.nylonCord[0]?.loadAtBreak || '', s1Elongation: tSpec.ncrgrsp?.nylonCord[0]?.elongation || '', s1Twists: tSpec.ncrgrsp?.nylonCord[0]?.twists || '',
+        s2Denier: tSpec.ncrgrsp?.nylonCord[1]?.denier || '', s2Epi: tSpec.ncrgrsp?.nylonCord[1]?.epi || '', s2Thickness: tSpec.ncrgrsp?.nylonCord[1]?.thickness || '', s2LoadAtBreak: tSpec.ncrgrsp?.nylonCord[1]?.loadAtBreak || '', s2Elongation: tSpec.ncrgrsp?.nylonCord[1]?.elongation || '', s2Twists: tSpec.ncrgrsp?.nylonCord[1]?.twists || '',
+        s3Denier: tSpec.ncrgrsp?.nylonCord[2]?.denier || '', s3Epi: tSpec.ncrgrsp?.nylonCord[2]?.epi || '', s3Thickness: tSpec.ncrgrsp?.nylonCord[2]?.thickness || '', s3LoadAtBreak: tSpec.ncrgrsp?.nylonCord[2]?.loadAtBreak || '', s3Elongation: tSpec.ncrgrsp?.nylonCord[2]?.elongation || '', s3Twists: tSpec.ncrgrsp?.nylonCord[2]?.twists || '',
+        m1Denier: tSpec.ncrgrsp?.nylonCord[3]?.denier || '', m1Epi: tSpec.ncrgrsp?.nylonCord[3]?.epi || '', m1Thickness: tSpec.ncrgrsp?.nylonCord[3]?.thickness || '', m1LoadAtBreak: tSpec.ncrgrsp?.nylonCord[3]?.loadAtBreak || '', m1Elongation: tSpec.ncrgrsp?.nylonCord[3]?.elongation || '', m1Twists: tSpec.ncrgrsp?.nylonCord[3]?.twists || '',
+        m2Denier: tSpec.ncrgrsp?.nylonCord[4]?.denier || '', m2Epi: tSpec.ncrgrsp?.nylonCord[4]?.epi || '', m2Thickness: tSpec.ncrgrsp?.nylonCord[4]?.thickness || '', m2LoadAtBreak: tSpec.ncrgrsp?.nylonCord[4]?.loadAtBreak || '', m2Elongation: tSpec.ncrgrsp?.nylonCord[4]?.elongation || '', m2Twists: tSpec.ncrgrsp?.nylonCord[4]?.twists || '',
+        m3Denier: tSpec.ncrgrsp?.nylonCord[5]?.denier || '', m3Epi: tSpec.ncrgrsp?.nylonCord[5]?.epi || '', m3Thickness: tSpec.ncrgrsp?.nylonCord[5]?.thickness || '', m3LoadAtBreak: tSpec.ncrgrsp?.nylonCord[5]?.loadAtBreak || '', m3Elongation: tSpec.ncrgrsp?.nylonCord[5]?.elongation || '', m3Twists: tSpec.ncrgrsp?.nylonCord[5]?.twists || '',
+        m4Denier: tSpec.ncrgrsp?.nylonCord[6]?.denier || '', m4Epi: tSpec.ncrgrsp?.nylonCord[6]?.epi || '', m4Thickness: tSpec.ncrgrsp?.nylonCord[6]?.thickness || '', m4LoadAtBreak: tSpec.ncrgrsp?.nylonCord[6]?.loadAtBreak || '', m4Elongation: tSpec.ncrgrsp?.nylonCord[6]?.elongation || '', m4Twists: tSpec.ncrgrsp?.nylonCord[6]?.twists || '',
+        m5Denier: tSpec.ncrgrsp?.nylonCord[7]?.denier || '', m5Epi: tSpec.ncrgrsp?.nylonCord[7]?.epi || '', m5Thickness: tSpec.ncrgrsp?.nylonCord[7]?.thickness || '', m5LoadAtBreak: tSpec.ncrgrsp?.nylonCord[7]?.loadAtBreak || '', m5Elongation: tSpec.ncrgrsp?.nylonCord[7]?.elongation || '', m5Twists: tSpec.ncrgrsp?.nylonCord[7]?.twists || '',
+        m6Denier: tSpec.ncrgrsp?.nylonCord[8]?.denier || '', m6Epi: tSpec.ncrgrsp?.nylonCord[8]?.epi || '', m6Thickness: tSpec.ncrgrsp?.nylonCord[8]?.thickness || '', m6LoadAtBreak: tSpec.ncrgrsp?.nylonCord[8]?.loadAtBreak || '', m6Elongation: tSpec.ncrgrsp?.nylonCord[8]?.elongation || '', m6Twists: tSpec.ncrgrsp?.nylonCord[8]?.twists || '',
+        ncrCordStatus: 'PASS', notOkCount: 0, remarks: tRemarks || ''
+      };
+
+      lotPromises.push(
+        finalNcrAdhesionService.save(ncrAdhesionPayload),
+        finalNcrBreakingLoadService.save(ncrBreakingPayload),
+        finalNcrNylonCordService.save(ncrCordPayload)
+      );
+    }
+
+    return lotPromises;
+  };
+
   const handleSaveAction = async (actionType) => {
     if (actionType === 'FINISH') {
       if (!remarks.trim()) {
@@ -2577,6 +3136,20 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           finalPeriodicAbrasionService.save(abrasionPayload)
         );
 
+        const otherLotsFinish = lots.filter(l => l.id !== selectedLot);
+        for (const oLot of otherLotsFinish) {
+          const oDraftKey = `railpad_draft_${currentCallId}_${oLot.id}`;
+          const oDraftSaved = localStorage.getItem(oDraftKey);
+          if (oDraftSaved) {
+            try {
+              const oDraft = JSON.parse(oDraftSaved);
+              savePromises.push(...buildOtherLotSavePromises(oLot, oDraft));
+            } catch (err) {
+              console.error(`Error saving other lot ${oLot.id}:`, err);
+            }
+          }
+        }
+
         await Promise.all(savePromises);
         setDbDimensionalStatus(dimensionalResult);
 
@@ -2619,7 +3192,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         localStorage.removeItem(`railpad_selected_lot_${currentCallId}`);
         localStorage.removeItem(`railpad_call_hologram_${currentCallId}`);
         localStorage.removeItem(`railpad_call_sealing_type_${currentCallId}`);
-        showNotification(`Inspection for lot ${selectedLot} finished successfully with status: ${activeLotOverallStatus}`, 'success');
+        showNotification(`Inspection finished successfully. All inspected lots have been saved.`, 'success');
         if (onPauseComplete) {
           setTimeout(() => {
             onPauseComplete();
@@ -3755,6 +4328,20 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
             finalNcrNylonCordService.save(ncrCordPayloadPause)
           );
         }
+ 
+        const otherLotsPause = lots.filter(l => l.id !== selectedLot);
+        for (const oLot of otherLotsPause) {
+          const oDraftKey = `railpad_draft_${currentCallId}_${oLot.id}`;
+          const oDraftSaved = localStorage.getItem(oDraftKey);
+          if (oDraftSaved) {
+            try {
+              const oDraft = JSON.parse(oDraftSaved);
+              pausePromises.push(...buildOtherLotSavePromises(oLot, oDraft));
+            } catch (err) {
+              console.error(`Error saving other lot ${oLot.id}:`, err);
+            }
+          }
+        }
 
         await Promise.all(pausePromises);
         setDbDimensionalStatus(dimensionalResult);
@@ -3762,7 +4349,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         if (actionType === 'DRAFT') {
           setIsSubmitting(false);
           setIsDirty(false);
-          showNotification(`Draft for lot ${selectedLot} saved to database successfully.`, 'success');
+          showNotification('All inspected lots saved to database successfully.', 'success');
           return;
         }
 
@@ -3792,8 +4379,10 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         }
         pauseKeysToRemove.forEach(key => localStorage.removeItem(key));
         localStorage.removeItem(`railpad_selected_lot_${currentCallId}`);
+        localStorage.removeItem(`railpad_call_hologram_${currentCallId}`);
+        localStorage.removeItem(`railpad_call_sealing_type_${currentCallId}`);
 
-        showNotification(`Inspection for lot ${selectedLot} saved and paused successfully.`, 'success');
+        showNotification('Inspection paused successfully. All inspected lots have been saved.', 'success');
         setIsDirty(false);
         if (onPauseComplete) {
           setTimeout(() => {

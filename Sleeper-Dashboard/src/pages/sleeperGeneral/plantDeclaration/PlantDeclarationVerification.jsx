@@ -126,8 +126,43 @@ const PlantDeclarationVerification = () => {
     const [selectedModuleId, setSelectedModuleId] = useState(null);
     const [detailModal, setDetailModal]           = useState(null); 
     const [benchType, setBenchType]               = useState('STRESS_BENCH'); 
+    const [searchTerm, setSearchTerm]             = useState('');
     const [submitting, setSubmitting]             = useState(false);
     const [enriching, setEnriching]               = useState(false);
+
+    const filterBySearch = (items) => {
+        if (!searchTerm.trim()) return items;
+        const term = searchTerm.toLowerCase().trim();
+        return (items || []).filter(item => {
+            const detail = item.detail || item;
+            const fieldsToSearch = [
+                item.requestId,
+                item.batchNumber,
+                detail.batchNumber,
+                item.productionUnit,
+                detail.productionUnit,
+                item.castingDate,
+                detail.castingDate,
+                item.totalCastedSleepers,
+                detail.totalCastedSleepers,
+                item.status,
+                detail.status,
+                item.vendorCode,
+                detail.vendorCode,
+                item.plantId,
+                detail.plantId,
+                item.remarks,
+                detail.remarks,
+                ...(typeof detail === 'object' && detail !== null ? Object.values(detail).flatMap(v => {
+                    if (typeof v === 'string' || typeof v === 'number') return [v];
+                    if (Array.isArray(v)) return v.flatMap(i => typeof i === 'object' && i !== null ? Object.values(i) : [i]);
+                    return [];
+                }) : [])
+            ].map(val => String(val || '').toLowerCase());
+
+            return fieldsToSearch.some(str => str.includes(term));
+        });
+    };
 
     // Pagination states
     const [pendingPage, setPendingPage] = useState(0);
@@ -557,14 +592,40 @@ const PlantDeclarationVerification = () => {
                             
                             {/* Pending Table */}
                             <div className="pdv-api-table-card" style={{ borderTop: '4px solid #f59e0b' }}>
-                                <div className="pdv-api-table-header">
+                                <div className="pdv-api-table-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                                     <h3 style={{ margin: 0, fontSize: '16px', color: '#92400e' }}>Pending Verification</h3>
-                                    {selectedModuleId === 2 && (
-                                        <div className="pdv-bench-toggle">
-                                            <button onClick={() => setBenchType('STRESS_BENCH')} className={benchType === 'STRESS_BENCH' ? 'active' : ''}>Stress</button>
-                                            <button onClick={() => setBenchType('LONG_LINE')} className={benchType === 'LONG_LINE' ? 'active' : ''}>Long Line</button>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                        <div style={{
+                                            display: 'flex', alignItems: 'center', gap: '8px',
+                                            background: '#fff', border: '1px solid #fed7aa', borderRadius: '8px',
+                                            padding: '5px 12px', minWidth: '220px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
+                                        }}>
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#92400e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                                            </svg>
+                                            <input
+                                                type="text"
+                                                placeholder="Search details..."
+                                                value={searchTerm}
+                                                onChange={(e) => setSearchTerm(e.target.value)}
+                                                style={{ border: 'none', outline: 'none', background: 'transparent', width: '100%', fontSize: '12px', color: '#1e293b' }}
+                                            />
+                                            {searchTerm && (
+                                                <button
+                                                    onClick={() => setSearchTerm('')}
+                                                    style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#94a3b8', fontSize: '12px', padding: 0 }}
+                                                >
+                                                    ✕
+                                                </button>
+                                            )}
                                         </div>
-                                    )}
+                                        {selectedModuleId === 2 && (
+                                            <div className="pdv-bench-toggle">
+                                                <button onClick={() => setBenchType('STRESS_BENCH')} className={benchType === 'STRESS_BENCH' ? 'active' : ''}>Stress</button>
+                                                <button onClick={() => setBenchType('LONG_LINE')} className={benchType === 'LONG_LINE' ? 'active' : ''}>Long Line</button>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                                 {enriching ? (
                                     <div style={{ padding: '40px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
@@ -574,14 +635,16 @@ const PlantDeclarationVerification = () => {
                                 ) : (
                                     <>
                                         {renderTable(
-                                            selectedModuleId === 2
-                                                ? [...(enrichedPending[2] || []), ...(enrichedPending[12] || [])].filter(r => {
-                                                    const type = r.detail?.plantType || '';
-                                                    return benchType === 'STRESS_BENCH' 
-                                                        ? type.toUpperCase().includes('STRESS')
-                                                        : type.toUpperCase().includes('LONG');
-                                                  })
-                                                : (enrichedPending[selectedModuleId] || []),
+                                            filterBySearch(
+                                                selectedModuleId === 2
+                                                    ? [...(enrichedPending[2] || []), ...(enrichedPending[12] || [])].filter(r => {
+                                                        const type = r.detail?.plantType || '';
+                                                        return benchType === 'STRESS_BENCH' 
+                                                            ? type.toUpperCase().includes('STRESS')
+                                                            : type.toUpperCase().includes('LONG');
+                                                      })
+                                                    : (enrichedPending[selectedModuleId] || [])
+                                            ),
                                             false
                                         )}
                                         <PaginationControls 
@@ -597,14 +660,40 @@ const PlantDeclarationVerification = () => {
 
                             {/* Completed Table */}
                             <div className="pdv-api-table-card" style={{ borderTop: '4px solid #10b981' }}>
-                                <div className="pdv-api-table-header">
+                                <div className="pdv-api-table-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                                     <h3 style={{ margin: 0, fontSize: '16px', color: '#065f46' }}>Verified and Locked Log</h3>
-                                    {selectedModuleId === 2 && (
-                                        <div className="pdv-bench-toggle">
-                                            <button onClick={() => setBenchType('STRESS_BENCH')} className={benchType === 'STRESS_BENCH' ? 'active' : ''}>Stress</button>
-                                            <button onClick={() => setBenchType('LONG_LINE')} className={benchType === 'LONG_LINE' ? 'active' : ''}>Long Line</button>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                        <div style={{
+                                            display: 'flex', alignItems: 'center', gap: '8px',
+                                            background: '#fff', border: '1px solid #a7f3d0', borderRadius: '8px',
+                                            padding: '5px 12px', minWidth: '220px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
+                                        }}>
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#065f46" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                                            </svg>
+                                            <input
+                                                type="text"
+                                                placeholder="Search details..."
+                                                value={searchTerm}
+                                                onChange={(e) => setSearchTerm(e.target.value)}
+                                                style={{ border: 'none', outline: 'none', background: 'transparent', width: '100%', fontSize: '12px', color: '#1e293b' }}
+                                            />
+                                            {searchTerm && (
+                                                <button
+                                                    onClick={() => setSearchTerm('')}
+                                                    style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#94a3b8', fontSize: '12px', padding: 0 }}
+                                                >
+                                                    ✕
+                                                </button>
+                                            )}
                                         </div>
-                                    )}
+                                        {selectedModuleId === 2 && (
+                                            <div className="pdv-bench-toggle">
+                                                <button onClick={() => setBenchType('STRESS_BENCH')} className={benchType === 'STRESS_BENCH' ? 'active' : ''}>Stress</button>
+                                                <button onClick={() => setBenchType('LONG_LINE')} className={benchType === 'LONG_LINE' ? 'active' : ''}>Long Line</button>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                                 {enriching ? (
                                     <div style={{ padding: '40px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
@@ -614,14 +703,16 @@ const PlantDeclarationVerification = () => {
                                 ) : (
                                     <>
                                         {renderTable(
-                                            selectedModuleId === 2
-                                                ? [...(enrichedCompleted[2] || []), ...(enrichedCompleted[12] || [])].filter(r => {
-                                                    const type = r.detail?.plantType || '';
-                                                    return benchType === 'STRESS_BENCH' 
-                                                        ? type.toUpperCase().includes('STRESS')
-                                                        : type.toUpperCase().includes('LONG');
-                                                  })
-                                                : (enrichedCompleted[selectedModuleId] || []),
+                                            filterBySearch(
+                                                selectedModuleId === 2
+                                                    ? [...(enrichedCompleted[2] || []), ...(enrichedCompleted[12] || [])].filter(r => {
+                                                        const type = r.detail?.plantType || '';
+                                                        return benchType === 'STRESS_BENCH' 
+                                                            ? type.toUpperCase().includes('STRESS')
+                                                            : type.toUpperCase().includes('LONG');
+                                                      })
+                                                    : (enrichedCompleted[selectedModuleId] || [])
+                                            ),
                                             true
                                         )}
                                         <PaginationControls 

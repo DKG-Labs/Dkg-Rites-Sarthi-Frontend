@@ -603,6 +603,7 @@ const IncomingVerificationDashboard = ({ initialGroup = null, initialModuleId = 
     const [selectedModuleId, setSelectedModuleId] = useState(null);
     const [detailModal, setDetailModal] = useState(null); // row to show in the detail modal
     const [activeSubTab, setActiveSubTab] = useState('pending'); // 'pending' or 'verified'
+    const [searchTerm, setSearchTerm] = useState('');
     const [page, setPage] = useState(0);
     const [pageSize, setPageSize] = useState(10);
     const [totalPending, setTotalPending] = useState(0);
@@ -753,6 +754,43 @@ const IncomingVerificationDashboard = ({ initialGroup = null, initialModuleId = 
     
     const currentPending = enrichedByModule[selectedModuleId]?.pending || [];
     const currentVerified = enrichedByModule[selectedModuleId]?.verified || [];
+
+    const filterBySearch = (items) => {
+        if (!searchTerm.trim()) return items;
+        const term = searchTerm.toLowerCase().trim();
+        return items.filter(item => {
+            const detail = item.detail || item;
+            const fieldsToSearch = [
+                item.requestId,
+                item.batchNumber,
+                detail.batchNumber,
+                item.productionUnit,
+                detail.productionUnit,
+                item.castingDate,
+                detail.castingDate,
+                item.totalCastedSleepers,
+                detail.totalCastedSleepers,
+                item.status,
+                detail.status,
+                item.vendorCode,
+                detail.vendorCode,
+                item.plantId,
+                detail.plantId,
+                item.remarks,
+                detail.remarks,
+                ...(typeof detail === 'object' && detail !== null ? Object.values(detail).flatMap(v => {
+                    if (typeof v === 'string' || typeof v === 'number') return [v];
+                    if (Array.isArray(v)) return v.flatMap(i => typeof i === 'object' && i !== null ? Object.values(i) : [i]);
+                    return [];
+                }) : [])
+            ].map(val => String(val || '').toLowerCase());
+
+            return fieldsToSearch.some(str => str.includes(term));
+        });
+    };
+
+    const filteredPending = filterBySearch(currentPending);
+    const filteredVerified = filterBySearch(currentVerified);
 
     // ─────────────────────────────────────────────
     //  Render
@@ -958,24 +996,50 @@ const IncomingVerificationDashboard = ({ initialGroup = null, initialModuleId = 
                                     <div style={{
                                         padding: '16px 24px', borderBottom: '1px solid #f1f5f9',
                                         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                        background: '#fff7ed'
+                                        background: '#fff7ed', flexWrap: 'wrap', gap: '12px'
                                     }}>
                                         <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#c2410c' }}>
                                             Pending Verification
                                         </h3>
-                                        <span style={{ fontSize: '10px', fontWeight: '700', color: '#c2410c', background: '#fff', padding: '2px 8px', borderRadius: '4px' }}>
-                                            {currentPending.length} Items
-                                        </span>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                            <div style={{
+                                                display: 'flex', alignItems: 'center', gap: '8px',
+                                                background: '#fff', border: '1px solid #fed7aa', borderRadius: '8px',
+                                                padding: '5px 12px', minWidth: '240px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
+                                            }}>
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c2410c" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                    <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                                                </svg>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Search batch, location, date..."
+                                                    value={searchTerm}
+                                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                                    style={{ border: 'none', outline: 'none', background: 'transparent', width: '100%', fontSize: '12px', color: '#1e293b' }}
+                                                />
+                                                {searchTerm && (
+                                                    <button
+                                                        onClick={() => setSearchTerm('')}
+                                                        style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#94a3b8', fontSize: '12px', padding: 0 }}
+                                                    >
+                                                        ✕
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <span style={{ fontSize: '10px', fontWeight: '700', color: '#c2410c', background: '#fff', padding: '4px 8px', borderRadius: '6px', border: '1px solid #fed7aa' }}>
+                                                {filteredPending.length} Items
+                                            </span>
+                                        </div>
                                     </div>
 
-                                    {currentPending.length === 0 ? (
+                                    {filteredPending.length === 0 ? (
                                         <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
-                                            <div style={{ fontSize: '24px', marginBottom: '10px' }}>✅</div>
-                                            <strong>No pending records for this module on the current page.</strong>
+                                            <div style={{ fontSize: '24px', marginBottom: '10px' }}>{searchTerm ? '🔍' : '✅'}</div>
+                                            <strong>{searchTerm ? `No matching records found for "${searchTerm}"` : 'No pending records for this module on the current page.'}</strong>
                                         </div>
                                     ) : (
                                         <RecordTable 
-                                            records={currentPending} 
+                                            records={filteredPending} 
                                             moduleId={selectedModuleId} 
                                             onView={setDetailModal} 
                                             btnLabel="Verify"
@@ -994,23 +1058,50 @@ const IncomingVerificationDashboard = ({ initialGroup = null, initialModuleId = 
                                     <div style={{
                                         padding: '16px 24px', borderBottom: '1px solid #f1f5f9',
                                         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                        background: '#f0fdf4'
+                                        background: '#f0fdf4', flexWrap: 'wrap', gap: '12px'
                                     }}>
                                         <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#166534' }}>
-                                            Verified Records
+                                            Verified Production Records
                                         </h3>
-                                        <span style={{ fontSize: '10px', fontWeight: '700', color: '#166534', background: '#fff', padding: '2px 8px', borderRadius: '4px' }}>
-                                            {currentVerified.length} Items
-                                        </span>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                            <div style={{
+                                                display: 'flex', alignItems: 'center', gap: '8px',
+                                                background: '#fff', border: '1px solid #bbf7d0', borderRadius: '8px',
+                                                padding: '5px 12px', minWidth: '240px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
+                                            }}>
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#166534" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                    <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                                                </svg>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Search batch, location, date..."
+                                                    value={searchTerm}
+                                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                                    style={{ border: 'none', outline: 'none', background: 'transparent', width: '100%', fontSize: '12px', color: '#1e293b' }}
+                                                />
+                                                {searchTerm && (
+                                                    <button
+                                                        onClick={() => setSearchTerm('')}
+                                                        style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#94a3b8', fontSize: '12px', padding: 0 }}
+                                                    >
+                                                        ✕
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <span style={{ fontSize: '10px', fontWeight: '700', color: '#166534', background: '#fff', padding: '4px 8px', borderRadius: '6px', border: '1px solid #bbf7d0' }}>
+                                                {filteredVerified.length} Items
+                                            </span>
+                                        </div>
                                     </div>
 
-                                    {currentVerified.length === 0 ? (
+                                    {filteredVerified.length === 0 ? (
                                         <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
-                                            <strong>No records have been verified yet on the current page.</strong>
+                                            <div style={{ fontSize: '24px', marginBottom: '10px' }}>{searchTerm ? '🔍' : '📋'}</div>
+                                            <strong>{searchTerm ? `No matching records found for "${searchTerm}"` : 'No records have been verified yet on the current page.'}</strong>
                                         </div>
                                     ) : (
                                         <RecordTable 
-                                            records={currentVerified} 
+                                            records={filteredVerified} 
                                             moduleId={selectedModuleId} 
                                             onView={setDetailModal} 
                                             btnLabel="View Detail"

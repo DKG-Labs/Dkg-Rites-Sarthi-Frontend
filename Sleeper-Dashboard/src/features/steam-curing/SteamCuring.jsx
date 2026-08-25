@@ -182,6 +182,130 @@ const EditableBatchSelect = ({ value, onChange, availableBatches }) => {
     );
 };
 
+// Editable Chamber Select Component (Combobox with dropdown & open text)
+const EditableChamberSelect = ({ value, onChange, availableChambers = [] }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const wrapperRef = React.useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleSelect = (chNo) => {
+        onChange(chNo);
+        setIsOpen(false);
+    };
+
+    const chamberOptions = useMemo(() => {
+        const set = new Set();
+        if (availableChambers && availableChambers.length > 0) {
+            availableChambers.forEach(c => {
+                const val = typeof c === 'object' ? String(c.chamberNo || c.id || '') : String(c);
+                if (val) set.add(val);
+            });
+        } else {
+            ['1', '2', '3', '4', '5', '6', '7', '8'].forEach(c => set.add(c));
+        }
+        return Array.from(set);
+    }, [availableChambers]);
+
+    return (
+        <div ref={wrapperRef} style={{ position: 'relative', width: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+                <input
+                    type="text"
+                    value={value || ''}
+                    onChange={e => onChange(e.target.value)}
+                    onFocus={() => setIsOpen(true)}
+                    placeholder="Select or enter Chamber No."
+                    style={{
+                        width: '100%',
+                        padding: '6px 28px 6px 10px',
+                        fontSize: '13px',
+                        background: '#fff',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '4px',
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                    }}
+                />
+                <div
+                    onClick={() => setIsOpen(prev => !prev)}
+                    style={{
+                        position: 'absolute',
+                        right: '8px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        cursor: 'pointer',
+                        color: '#64748b',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '2px'
+                    }}
+                >
+                    <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}
+                    >
+                        <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                </div>
+            </div>
+
+            {isOpen && chamberOptions.length > 0 && (
+                <div style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 4px)',
+                    left: 0,
+                    right: 0,
+                    background: '#fff',
+                    border: '1.5px solid #3b82f6',
+                    borderRadius: '6px',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                    maxHeight: '180px',
+                    overflowY: 'auto',
+                    zIndex: 9999
+                }}>
+                    {chamberOptions.map((ch, idx) => {
+                        const displayText = String(ch).toLowerCase().startsWith('chamber') ? ch : `Chamber ${ch}`;
+                        return (
+                            <div
+                                key={idx}
+                                onClick={() => handleSelect(ch)}
+                                style={{
+                                    padding: '8px 12px',
+                                    fontSize: '13px',
+                                    cursor: 'pointer',
+                                    background: String(ch) === String(value) ? '#eff6ff' : '#fff',
+                                    color: String(ch) === String(value) ? '#1d4ed8' : '#1e293b',
+                                    fontWeight: String(ch) === String(value) ? '700' : '400',
+                                    borderBottom: idx < chamberOptions.length - 1 ? '1px solid #f1f5f9' : 'none'
+                                }}
+                                onMouseEnter={e => { if (String(ch) !== String(value)) e.currentTarget.style.background = '#f8fafc'; }}
+                                onMouseLeave={e => { if (String(ch) !== String(value)) e.currentTarget.style.background = '#fff'; }}
+                            >
+                                {displayText}
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+};
+
 const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: propSetSteamRecords, displayMode = 'modal', batches: propBatches = [], activeContainer }) => {
     const { containers, allBatchDeclarations, dutyDate, vendorId, dutyUnit, fetchSteamCuring, vendorCode, selectedShift, userId, isActiveDuty } = useShift();
     const [viewMode, setViewMode] = useState('witnessed');
@@ -1034,20 +1158,14 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                                             style={{ background: '#f1f5f9', fontSize: '13px', padding: '6px', border: '1px solid #e2e8f0', color: '#94a3b8', cursor: 'not-allowed' }} 
                                         />
                                     ) : (
-                                        <select
-                                            value={manualForm.chamberNo}
-                                            onChange={e => {
-                                                const val = e.target.value;
-                                                setManualForm(prev => ({ ...prev, chamberNo: val }));
-                                                setSelectedChamber(val);
-                                            }}
-                                            style={{ background: '#fff', fontSize: '13px', padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
-                                        >
-                                            <option value="">Select Chamber</option>
-                                            {availableChambers.map(ch => (
-                                                <option key={ch} value={ch}>{ch}</option>
-                                            ))}
-                                        </select>
+                                         <EditableChamberSelect
+                                             value={manualForm.chamberNo}
+                                             onChange={val => {
+                                                 setManualForm(prev => ({ ...prev, chamberNo: val }));
+                                                 setSelectedChamber(val);
+                                             }}
+                                             availableChambers={availableChambers}
+                                         />
                                     )}
                                 </div>
                                 <div className="form-field">
@@ -1088,17 +1206,14 @@ const SteamCuring = ({ onBack, steamRecords: propSteamRecords, setSteamRecords: 
                                 {!((manualForm.location || '').toLowerCase().includes('line')) && (
                                     <div className="form-field">
                                         <label style={{ fontSize: '10px', fontWeight: '700', color: '#374151' }}>Chamber Number</label>
-                                        <input
-                                            type="text"
-                                            value={manualForm.chamberNo}
-                                            onChange={e => {
-                                                const val = e.target.value;
-                                                setManualForm(prev => ({ ...prev, chamberNo: val }));
-                                                setSelectedChamber(val);
-                                            }}
-                                            placeholder="Enter Chamber No."
-                                            style={{ padding: '6px 10px', fontSize: '13px', background: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px' }}
-                                        />
+                                        <EditableChamberSelect
+                                             value={manualForm.chamberNo}
+                                             onChange={val => {
+                                                 setManualForm(prev => ({ ...prev, chamberNo: val }));
+                                                 setSelectedChamber(val);
+                                             }}
+                                             availableChambers={availableChambers}
+                                         />
                                     </div>
                                 )}
                                 <div className="form-field">

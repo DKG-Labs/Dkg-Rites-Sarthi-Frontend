@@ -274,13 +274,13 @@ const padPeriodicData = (prd) => {
     durability: {
       dateOfLastTest: prd?.durability?.dateOfLastTest || '',
       qtyProduced: prd?.durability?.qtyProduced || '',
-      threshold: 1000000,
+      threshold: 100000,
       samples: pad(prd?.durability?.samples, 5, { lotNo: '', initialThick: '', finalThick: '', initialLoad: '', finalLoad: '' })
     },
     abrasion: {
       dateOfLastTest: prd?.abrasion?.dateOfLastTest || '',
       qtyProduced: prd?.abrasion?.qtyProduced || '',
-      threshold: 1000000,
+      threshold: 100000,
       samples: pad(prd?.abrasion?.samples, 5, { lotNo: '', sampleNo: '', initialMass: '', finalMass: '' })
     }
   };
@@ -2132,9 +2132,43 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         const localShowMarginal = localOutOfSpecPrimary.length === 1;
         const localMarginalKey = localShowMarginal ? localOutOfSpecPrimary[0] : null;
 
+        const hasLocalTgaQty = periodicData?.tga?.qtyProduced !== '' && periodicData?.tga?.qtyProduced !== null && periodicData?.tga?.qtyProduced !== undefined;
+        const hasLocalDurabilityQty = periodicData?.durability?.qtyProduced !== '' && periodicData?.durability?.qtyProduced !== null && periodicData?.durability?.qtyProduced !== undefined;
+        const hasLocalAbrasionQty = periodicData?.abrasion?.qtyProduced !== '' && periodicData?.abrasion?.qtyProduced !== null && periodicData?.abrasion?.qtyProduced !== undefined;
+
+        const isLocalTgaMandatory = hasLocalTgaQty && parseInt(periodicData?.tga?.qtyProduced || 0, 10) >= 30000;
+        const isLocalDurabilityMandatory = hasLocalDurabilityQty && parseInt(periodicData?.durability?.qtyProduced || 0, 10) >= 100000;
+        const isLocalAbrasionMandatory = hasLocalAbrasionQty && parseInt(periodicData?.abrasion?.qtyProduced || 0, 10) >= 100000;
+
         const localGetSectionStatus = (key) => {
           const rep = localRawReports[key];
           if (!rep) return 'PENDING';
+
+          if (key === 'tga') {
+            if (!hasLocalTgaQty) return 'PENDING';
+            if (!isLocalTgaMandatory) {
+              if (rep.primaryFilled === 0) return 'BYPASSED';
+              if (rep.primaryFilled < rep.primaryCount) return 'UNDER TESTING';
+              return rep.primaryOutCount === 0 ? 'PASS' : 'FAIL';
+            }
+          }
+          if (key === 'durability') {
+            if (!hasLocalDurabilityQty) return 'PENDING';
+            if (!isLocalDurabilityMandatory) {
+              if (rep.primaryFilled === 0) return 'BYPASSED';
+              if (rep.primaryFilled < rep.primaryCount) return 'UNDER TESTING';
+              return rep.primaryOutCount === 0 ? 'PASS' : 'FAIL';
+            }
+          }
+          if (key === 'abrasion') {
+            if (!hasLocalAbrasionQty) return 'PENDING';
+            if (!isLocalAbrasionMandatory) {
+              if (rep.primaryFilled === 0) return 'BYPASSED';
+              if (rep.primaryFilled < rep.primaryCount) return 'UNDER TESTING';
+              return rep.primaryOutCount === 0 ? 'PASS' : 'FAIL';
+            }
+          }
+
           if (rep.primaryFilled < rep.primaryCount) {
             return rep.primaryFilled > 0 ? 'UNDER TESTING' : 'PENDING';
           }
@@ -3328,9 +3362,43 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         const localShowMarginal = localOutOfSpecPrimary.length === 1;
         const localMarginalKey = localShowMarginal ? localOutOfSpecPrimary[0] : null;
 
+        const hasLocalTgaQtyPause = periodicData?.tga?.qtyProduced !== '' && periodicData?.tga?.qtyProduced !== null && periodicData?.tga?.qtyProduced !== undefined;
+        const hasLocalDurabilityQtyPause = periodicData?.durability?.qtyProduced !== '' && periodicData?.durability?.qtyProduced !== null && periodicData?.durability?.qtyProduced !== undefined;
+        const hasLocalAbrasionQtyPause = periodicData?.abrasion?.qtyProduced !== '' && periodicData?.abrasion?.qtyProduced !== null && periodicData?.abrasion?.qtyProduced !== undefined;
+
+        const isLocalTgaMandatoryPause = hasLocalTgaQtyPause && parseInt(periodicData?.tga?.qtyProduced || 0, 10) >= 30000;
+        const isLocalDurabilityMandatoryPause = hasLocalDurabilityQtyPause && parseInt(periodicData?.durability?.qtyProduced || 0, 10) >= 100000;
+        const isLocalAbrasionMandatoryPause = hasLocalAbrasionQtyPause && parseInt(periodicData?.abrasion?.qtyProduced || 0, 10) >= 100000;
+
         const localGetSectionStatus = (key) => {
           const rep = localRawReports[key];
           if (!rep) return 'PENDING';
+
+          if (key === 'tga') {
+            if (!hasLocalTgaQtyPause) return 'PENDING';
+            if (!isLocalTgaMandatoryPause) {
+              if (rep.primaryFilled === 0) return 'BYPASSED';
+              if (rep.primaryFilled < rep.primaryCount) return 'UNDER TESTING';
+              return rep.primaryOutCount === 0 ? 'PASS' : 'FAIL';
+            }
+          }
+          if (key === 'durability') {
+            if (!hasLocalDurabilityQtyPause) return 'PENDING';
+            if (!isLocalDurabilityMandatoryPause) {
+              if (rep.primaryFilled === 0) return 'BYPASSED';
+              if (rep.primaryFilled < rep.primaryCount) return 'UNDER TESTING';
+              return rep.primaryOutCount === 0 ? 'PASS' : 'FAIL';
+            }
+          }
+          if (key === 'abrasion') {
+            if (!hasLocalAbrasionQtyPause) return 'PENDING';
+            if (!isLocalAbrasionMandatoryPause) {
+              if (rep.primaryFilled === 0) return 'BYPASSED';
+              if (rep.primaryFilled < rep.primaryCount) return 'UNDER TESTING';
+              return rep.primaryOutCount === 0 ? 'PASS' : 'FAIL';
+            }
+          }
+
           if (rep.primaryFilled < rep.primaryCount) {
             return rep.primaryFilled > 0 ? 'UNDER TESTING' : 'PENDING';
           }
@@ -5183,9 +5251,42 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
   const showMarginalTab = outOfSpecPrimarySections.length === 1;
   const marginalSectionKey = showMarginalTab ? outOfSpecPrimarySections[0] : null;
 
+  const hasTgaQty = periodicData?.tga?.qtyProduced !== '' && periodicData?.tga?.qtyProduced !== null && periodicData?.tga?.qtyProduced !== undefined;
+  const hasDurabilityQty = periodicData?.durability?.qtyProduced !== '' && periodicData?.durability?.qtyProduced !== null && periodicData?.durability?.qtyProduced !== undefined;
+  const hasAbrasionQty = periodicData?.abrasion?.qtyProduced !== '' && periodicData?.abrasion?.qtyProduced !== null && periodicData?.abrasion?.qtyProduced !== undefined;
+
+  const isTgaMandatory = hasTgaQty && parseInt(periodicData?.tga?.qtyProduced || 0, 10) >= 30000;
+  const isDurabilityMandatory = hasDurabilityQty && parseInt(periodicData?.durability?.qtyProduced || 0, 10) >= 100000;
+  const isAbrasionMandatory = hasAbrasionQty && parseInt(periodicData?.abrasion?.qtyProduced || 0, 10) >= 100000;
+
   const getSectionStatus = (key) => {
     const rep = rawReports[key];
     if (!rep) return 'PENDING';
+
+    if (key === 'tga') {
+      if (!hasTgaQty) return 'PENDING';
+      if (!isTgaMandatory) {
+        if (rep.primaryFilled === 0) return 'BYPASSED';
+        if (rep.primaryFilled < rep.primaryCount) return 'UNDER TESTING';
+        return rep.primaryOutCount === 0 ? 'PASS' : 'FAIL';
+      }
+    }
+    if (key === 'durability') {
+      if (!hasDurabilityQty) return 'PENDING';
+      if (!isDurabilityMandatory) {
+        if (rep.primaryFilled === 0) return 'BYPASSED';
+        if (rep.primaryFilled < rep.primaryCount) return 'UNDER TESTING';
+        return rep.primaryOutCount === 0 ? 'PASS' : 'FAIL';
+      }
+    }
+    if (key === 'abrasion') {
+      if (!hasAbrasionQty) return 'PENDING';
+      if (!isAbrasionMandatory) {
+        if (rep.primaryFilled === 0) return 'BYPASSED';
+        if (rep.primaryFilled < rep.primaryCount) return 'UNDER TESTING';
+        return rep.primaryOutCount === 0 ? 'PASS' : 'FAIL';
+      }
+    }
 
     if (rep.primaryFilled < rep.primaryCount) {
       return rep.primaryFilled > 0 ? 'UNDER TESTING' : 'PENDING';

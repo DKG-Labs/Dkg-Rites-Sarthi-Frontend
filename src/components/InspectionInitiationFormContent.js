@@ -1036,7 +1036,7 @@ const InspectionInitiationFormContent = ({ call, formData, onFormDataChange, sho
                   type="button"
                   className="btn btn-danger"
                   onClick={handleSectionAReject}
-                  disabled={isSaving || formData.sectionAStatus === 'rejected'}
+                  disabled={isSaving || formData.sectionAStatus === 'approved' || formData.sectionAStatus === 'rejected'}
                 >
                   {isSaving ? 'Saving...' : formData.sectionAStatus === 'rejected' ? 'Not OK' : 'Not OK'}
                 </button>
@@ -1044,7 +1044,7 @@ const InspectionInitiationFormContent = ({ call, formData, onFormDataChange, sho
                   type="button"
                   className="btn btn-success"
                   onClick={handleSectionAApprove}
-                  disabled={isSaving || formData.sectionAStatus === 'approved'}
+                  disabled={isSaving || formData.sectionAStatus === 'approved' || formData.sectionAStatus === 'rejected'}
                 >
                   {isSaving ? 'Saving...' : formData.sectionAStatus === 'approved' ? 'OK' : 'OK'}
                 </button>
@@ -1218,7 +1218,7 @@ const InspectionInitiationFormContent = ({ call, formData, onFormDataChange, sho
                   type="button"
                   className="btn btn-danger"
                   onClick={handleSectionBReject}
-                  disabled={isSaving || formData.sectionBStatus === 'rejected'}
+                  disabled={isSaving || formData.sectionBStatus === 'approved' || formData.sectionBStatus === 'rejected'}
                 >
                   {isSaving ? 'Saving...' : formData.sectionBStatus === 'rejected' ? 'Not OK' : 'Not OK'}
                 </button>
@@ -1226,7 +1226,7 @@ const InspectionInitiationFormContent = ({ call, formData, onFormDataChange, sho
                   type="button"
                   className="btn btn-success"
                   onClick={handleSectionBApprove}
-                  disabled={isSaving || formData.sectionBStatus === 'approved'}
+                  disabled={isSaving || formData.sectionBStatus === 'approved' || formData.sectionBStatus === 'rejected'}
                 >
                   {isSaving ? 'Saving...' : formData.sectionBStatus === 'approved' ? 'OK' : 'OK'}
                 </button>
@@ -1398,7 +1398,7 @@ const InspectionInitiationFormContent = ({ call, formData, onFormDataChange, sho
                   type="button"
                   className="btn btn-danger"
                   onClick={handleSectionCReject}
-                  disabled={isSaving || formData.sectionCStatus === 'rejected'}
+                  disabled={isSaving || formData.sectionCStatus === 'approved' || formData.sectionCStatus === 'rejected'}
                 >
                   {isSaving ? 'Saving...' : formData.sectionCStatus === 'rejected' ? 'Not OK' : 'Not OK'}
                 </button>
@@ -1406,7 +1406,7 @@ const InspectionInitiationFormContent = ({ call, formData, onFormDataChange, sho
                   type="button"
                   className="btn btn-success"
                   onClick={handleSectionCApprove}
-                  disabled={isSaving || formData.sectionCStatus === 'approved'}
+                  disabled={isSaving || formData.sectionCStatus === 'approved' || formData.sectionCStatus === 'rejected'}
                 >
                   {isSaving ? 'Saving...' : formData.sectionCStatus === 'approved' ? 'OK' : 'OK'}
                 </button>

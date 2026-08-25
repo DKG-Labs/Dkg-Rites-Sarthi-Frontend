@@ -309,7 +309,7 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
 
                     if (matchingRecords.length > 0) {
                         const latestRecord = matchingRecords[matchingRecords.length - 1];
-                        if (latestRecord && latestRecord.id) {
+                        if (initialData?.id && latestRecord && latestRecord.id) {
                             setExistingRecordId(latestRecord.id);
                         }
                         const rawDefects = latestRecord.defectiveSleepers || latestRecord.defectiveSleeperDetails || latestRecord.defectiveSleeperList || latestRecord.defective_sleepers || latestRecord.defects || [];
@@ -567,7 +567,7 @@ const DemouldingForm = ({ onSave, onCancel, isLongLine, existingEntries = [], in
 
             // Payload matching demoulding-inspection-controller schema exactly
             const payload = {
-                id: existingRecordId || initialData?.id,
+                id: initialData?.id || undefined,
                 lineShedNo: formData.location || activeContainer?.name || 'N/A',
                 inspectionDate: formatToBackendDate(formData.inspectionDate),
                 inspectionTime: formData.inspectionTime,

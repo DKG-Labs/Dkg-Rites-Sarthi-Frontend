@@ -381,12 +381,14 @@ const InspectionInitiationPage = ({ call, onProceed, onBack, onUpdateCall }) => 
                 <button 
                   className={`btn-status-not-ok ${sectionAStatus === 'rejected' ? 'active' : ''}`}
                   onClick={handleSectionAReject}
+                  disabled={sectionAStatus === 'approved' || sectionAStatus === 'rejected'}
                 >
                   Not OK
                 </button>
                 <button 
                   className={`btn-status-ok ${sectionAStatus === 'approved' ? 'active' : ''}`}
                   onClick={handleSectionAApprove}
+                  disabled={sectionAStatus === 'approved' || sectionAStatus === 'rejected'}
                 >
                   OK
                 </button>
@@ -504,12 +506,14 @@ const InspectionInitiationPage = ({ call, onProceed, onBack, onUpdateCall }) => 
                   <button 
                     className={`btn-status-not-ok ${sectionBStatus === 'rejected' ? 'active' : ''}`}
                     onClick={handleSectionBReject}
+                    disabled={sectionBStatus === 'approved' || sectionBStatus === 'rejected'}
                   >
                     Not OK
                   </button>
                   <button 
                     className={`btn-status-ok ${sectionBStatus === 'approved' ? 'active' : ''}`}
                     onClick={handleSectionBApprove}
+                    disabled={sectionBStatus === 'approved' || sectionBStatus === 'rejected'}
                   >
                     OK
                   </button>

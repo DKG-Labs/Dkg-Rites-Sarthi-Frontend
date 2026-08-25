@@ -50,13 +50,21 @@ const FinalHardnessTestPage = ({ onBack, onNavigateSubmodule }) => {
 
   /* --- LOT AQL Info --- */
   const availableLots = useMemo(() => {
+    let customSizes = {};
+    if (callNo) {
+      try {
+        const saved = localStorage.getItem(`fpCustomSampleSizes_${callNo}`);
+        if (saved) customSizes = JSON.parse(saved);
+      } catch (e) {}
+    }
+
     return lotsFromVendor.map((lot) => {
       // Handle both API response format (lotNumber, heatNumber) and mapped format (lotNo, heatNo)
       const lotNo = lot.lotNo || lot.lotNumber;
       const heatNo = lot.heatNo || lot.heatNumber;
       const lotSize = lot.lotSize || lot.offeredQty || 0;
 
-      const aql = getHardnessToeLoadAQL(lotSize);
+      const aql = getHardnessToeLoadAQL(lotSize, customSizes[lotNo]);
       const springType = normalizeErcType(
         cachedData?.dashboardData?.inspectionCall?.ercType ||
         cachedData?.inspectionCall?.ercType ||
@@ -515,6 +523,7 @@ const FinalHardnessTestPage = ({ onBack, onNavigateSubmodule }) => {
                 templateName={`${lot.lotNo}_Hardness_1st`}
                 sampleSize={lot.sampleSize}
                 valueLabel="Hardness"
+                currentValues={data.hardness1st}
                 onImport={(values) =>
                   handleExcelImport(lot.lotNo, values, false)
                 }
@@ -572,6 +581,7 @@ const FinalHardnessTestPage = ({ onBack, onNavigateSubmodule }) => {
                     templateName={`${lot.lotNo}_Hardness_2nd`}
                     sampleSize={lot.sample2Size}
                     valueLabel="Hardness"
+                    currentValues={data.hardness2nd}
                     onImport={(values) =>
                       handleExcelImport(lot.lotNo, values, true)
                     }

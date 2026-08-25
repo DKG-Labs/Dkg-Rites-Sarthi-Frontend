@@ -57,12 +57,21 @@ export default function FinalWeightTestPage({ onBack, onNavigateSubmodule }) {
   }, [cachedData, callNo]);
 
   /* Build lot data with IS 2500 Table 2 calculations */
-  const lotsData = useMemo(() => lotsFromVendor.map(lot => {
-    const lotNo = lot.lotNo || lot.lotNumber;
-    const heatNo = lot.heatNo || lot.heatNumber;
-    const quantity = lot.lotSize || lot.offeredQty || 0;
+  const lotsData = useMemo(() => {
+    let customSizes = {};
+    if (callNo) {
+      try {
+        const saved = localStorage.getItem(`fpCustomSampleSizes_${callNo}`);
+        if (saved) customSizes = JSON.parse(saved);
+      } catch (e) {}
+    }
 
-    const aql = getDimensionWeightAQL(quantity);
+    return lotsFromVendor.map(lot => {
+      const lotNo = lot.lotNo || lot.lotNumber;
+      const heatNo = lot.heatNo || lot.heatNumber;
+      const quantity = lot.lotSize || lot.offeredQty || 0;
+
+      const aql = getDimensionWeightAQL(quantity, customSizes[lotNo]);
     const springType = normalizeErcType(
       cachedData?.dashboardData?.inspectionCall?.ercType ||
       cachedData?.inspectionCall?.ercType ||
@@ -96,7 +105,8 @@ export default function FinalWeightTestPage({ onBack, onNavigateSubmodule }) {
       maxWeight: toleranceRange.max,
       weightRange: `${toleranceRange.min}–${toleranceRange.max}`
     };
-  }), [lotsFromVendor, cachedData?.dashboardData?.inspectionCall?.ercType, cachedData?.inspectionCall?.ercType, selectedCall?.ercType, callNo]);
+    });
+  }, [lotsFromVendor, cachedData?.dashboardData?.inspectionCall?.ercType, cachedData?.inspectionCall?.ercType, selectedCall?.ercType, callNo]);
 
   /* State for all lots */
   const [lotStates, setLotStates] = useState(() => {
@@ -533,6 +543,7 @@ export default function FinalWeightTestPage({ onBack, onNavigateSubmodule }) {
                   templateName={`${lot.lotNo}_Weight_1st`}
                   sampleSize={lot.sampleSize}
                   valueLabel="Weight (g)"
+                  currentValues={state.weight1st}
                   onImport={(values) => handleExcelImport(lot.lotNo, values, false)}
                   onNotification={showNotification}
                 />
@@ -581,6 +592,7 @@ export default function FinalWeightTestPage({ onBack, onNavigateSubmodule }) {
                     templateName={`${lot.lotNo}_Weight_2nd`}
                     sampleSize={lot.sampleSize2nd}
                     valueLabel="Weight (g)"
+                    currentValues={state.weight2nd}
                     onImport={(values) => handleExcelImport(lot.lotNo, values, true)}
                     onNotification={showNotification}
                   />

@@ -50,24 +50,34 @@ const FinalApplicationDeflectionPage = ({ onBack, onNavigateSubmodule }) => {
   const [activeTab, setActiveTab] = useState('deflection');
 
   /* Build lot data with IS 2500 Table 2 - Dimension & Weight (AQL 2.5) */
-  const lotsData = useMemo(() => lotsFromVendor.map(lot => {
-    const lotNo = lot.lotNo || lot.lotNumber;
-    const heatNo = lot.heatNo || lot.heatNumber;
-    const quantity = lot.lotSize || lot.offeredQty || 0;
+  const lotsData = useMemo(() => {
+    let customSizes = {};
+    if (callNo) {
+      try {
+        const saved = localStorage.getItem(`fpCustomSampleSizes_${callNo}`);
+        if (saved) customSizes = JSON.parse(saved);
+      } catch (e) {}
+    }
 
-    const aql = getDimensionWeightAQL(quantity);
-    return {
-      lotNo,
-      heatNo,
-      quantity,
-      sampleSize: aql.n1,
-      sampleSize2nd: aql.n2,
-      accpNo: aql.ac1,
-      rejNo: aql.re1,
-      cummRejNo: aql.cummRej,
-      useSingleSampling: aql.useSingleSampling
-    };
-  }), [lotsFromVendor]);
+    return lotsFromVendor.map(lot => {
+      const lotNo = lot.lotNo || lot.lotNumber;
+      const heatNo = lot.heatNo || lot.heatNumber;
+      const quantity = lot.lotSize || lot.offeredQty || 0;
+
+      const aql = getDimensionWeightAQL(quantity, customSizes[lotNo]);
+      return {
+        lotNo,
+        heatNo,
+        quantity,
+        sampleSize: aql.n1,
+        sampleSize2nd: aql.n2,
+        accpNo: aql.ac1,
+        rejNo: aql.re1,
+        cummRejNo: aql.cummRej,
+        useSingleSampling: aql.useSingleSampling
+      };
+    });
+  }, [lotsFromVendor, callNo]);
 
   // Track if we've already loaded data to prevent infinite loops
   const dataLoadedRef = useRef(false);

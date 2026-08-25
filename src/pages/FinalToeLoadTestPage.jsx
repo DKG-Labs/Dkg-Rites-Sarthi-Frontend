@@ -63,47 +63,53 @@ const FinalToeLoadTestPage = ({ onBack, onNavigateSubmodule }) => {
   /**
    * Compute sample size & AQL values for each lot using IS 2500 Table 2
    */
-  const lotsWithSampleSize = useMemo(
-    () =>
-      lotsFromVendor.map(lot => {
-        const lotNo = lot.lotNo || lot.lotNumber;
-        const heatNo = lot.heatNo || lot.heatNumber;
-        const quantity = lot.lotSize || lot.offeredQty || 0;
+  const lotsWithSampleSize = useMemo(() => {
+    let customSizes = {};
+    if (callNo) {
+      try {
+        const saved = localStorage.getItem(`fpCustomSampleSizes_${callNo}`);
+        if (saved) customSizes = JSON.parse(saved);
+      } catch (e) {}
+    }
 
-        const aql = getHardnessToeLoadAQL(quantity);
-        return {
-          lotNo,
-          heatNo,
-          quantity,
-          // Use fresh ERC type from dashboard data if available
-          // Check multiple paths: dashboardData.inspectionCall, spreading on cachedData, or selectedCall
-          springType: normalizeErcType(
-            cachedData?.dashboardData?.inspectionCall?.ercType ||
-            cachedData?.inspectionCall?.ercType ||
-            selectedCall?.ercType ||
-            lot.springType ||
-            (() => {
-              try {
-                const storedCache = sessionStorage.getItem('fpDashboardDataCache');
-                if (storedCache) {
-                  const cacheData = JSON.parse(storedCache);
-                  return cacheData[callNo]?.dashboardData?.inspectionCall?.ercType || 
-                         cacheData[callNo]?.inspectionCall?.ercType;
-                }
-              } catch (e) {}
-              return null;
-            })()
-          ),
-          sampleSize: aql.n1,
-          sampleSize2nd: aql.n2,
-          accpNo: aql.ac1,
-          rejNo: aql.re1,
-          cummRejNo: aql.cummRej,
-          singleSampling: aql.useSingleSampling || false
-        };
-      }),
-    [lotsFromVendor, cachedData, selectedCall, callNo]
-  );
+    return lotsFromVendor.map(lot => {
+      const lotNo = lot.lotNo || lot.lotNumber;
+      const heatNo = lot.heatNo || lot.heatNumber;
+      const quantity = lot.lotSize || lot.offeredQty || 0;
+
+      const aql = getHardnessToeLoadAQL(quantity, customSizes[lotNo]);
+      return {
+        lotNo,
+        heatNo,
+        quantity,
+        // Use fresh ERC type from dashboard data if available
+        // Check multiple paths: dashboardData.inspectionCall, spreading on cachedData, or selectedCall
+        springType: normalizeErcType(
+          cachedData?.dashboardData?.inspectionCall?.ercType ||
+          cachedData?.inspectionCall?.ercType ||
+          selectedCall?.ercType ||
+          lot.springType ||
+          (() => {
+            try {
+              const storedCache = sessionStorage.getItem('fpDashboardDataCache');
+              if (storedCache) {
+                const cacheData = JSON.parse(storedCache);
+                return cacheData[callNo]?.dashboardData?.inspectionCall?.ercType || 
+                       cacheData[callNo]?.inspectionCall?.ercType;
+              }
+            } catch (e) {}
+            return null;
+          })()
+        ),
+        sampleSize: aql.n1,
+        sampleSize2nd: aql.n2,
+        accpNo: aql.ac1,
+        rejNo: aql.re1,
+        cummRejNo: aql.cummRej,
+        singleSampling: aql.useSingleSampling || false
+      };
+    });
+  }, [lotsFromVendor, cachedData, selectedCall, callNo]);
 
   /**
    * Per-lot state:
@@ -592,6 +598,7 @@ const FinalToeLoadTestPage = ({ onBack, onNavigateSubmodule }) => {
                   templateName={`${lot.lotNo}_ToeLoad_1st`}
                   sampleSize={lot.sampleSize}
                   valueLabel="Toe Load (Kgf)"
+                  currentValues={state.toe1st}
                   onImport={(values) => handleExcelImport(lot.lotNo, values, false)}
                   onNotification={showNotification}
                 />
@@ -646,6 +653,7 @@ const FinalToeLoadTestPage = ({ onBack, onNavigateSubmodule }) => {
                       templateName={`${lot.lotNo}_ToeLoad_2nd`}
                       sampleSize={lot.sampleSize2nd}
                       valueLabel="Toe Load (Kgf)"
+                      currentValues={state.toe2nd}
                       onImport={(values) => handleExcelImport(lot.lotNo, values, true)}
                       onNotification={showNotification}
                     />

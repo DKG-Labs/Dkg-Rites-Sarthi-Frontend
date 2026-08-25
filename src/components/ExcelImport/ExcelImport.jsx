@@ -2,16 +2,18 @@ import { useRef } from 'react';
 import './ExcelImport.css';
 
 /**
- * Reusable Excel/CSV Import Component
+ * Reusable Excel/CSV Import & Export Component
  * - Download Template: Downloads a pre-defined template with exact row count
+ * - Export: Downloads entered sample data as CSV
  * - Import: Uploads filled template and parses data
  *
  * @param {string} templateName - Name for the downloaded template (e.g., "LOT-001_ToeLoad_1stSampling")
  * @param {number} sampleSize - Number of rows in template (dynamic based on lot's sample size)
  * @param {string} valueLabel - Label for the value column (e.g., "Toe Load (N)", "Weight (g)")
+ * @param {Array} currentValues - Array of user-entered values to export
  * @param {Function} onImport - Callback with array of values (strings)
  */
-const ExcelImport = ({ templateName = 'template', sampleSize = 10, valueLabel = 'Value', onImport, onNotification }) => {
+const ExcelImport = ({ templateName = 'template', sampleSize = 10, valueLabel = 'Value', currentValues = [], onImport, onNotification }) => {
   const fileInputRef = useRef(null);
 
   /* Generate and download CSV template with exact sample size */
@@ -26,6 +28,29 @@ const ExcelImport = ({ templateName = 'template', sampleSize = 10, valueLabel = 
     link.download = `${templateName}_${sampleSize}samples.csv`;
     link.click();
     URL.revokeObjectURL(link.href);
+  };
+
+  /* Generate and download CSV with user-entered data */
+  const handleExportData = () => {
+    const headers = `Sample No.,${valueLabel}`;
+    const valuesArray = Array.isArray(currentValues) ? currentValues : [];
+    const rows = Array(sampleSize).fill('').map((_, idx) => {
+      const val = valuesArray[idx] !== undefined && valuesArray[idx] !== null ? valuesArray[idx] : '';
+      return `${idx + 1},${val}`;
+    });
+    const csvContent = [headers, ...rows].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${templateName}_entered_data.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+
+    const filledCount = valuesArray.filter(v => v !== '' && v !== null && v !== undefined).length;
+    if (onNotification) {
+      onNotification(`Exported ${filledCount} entered values to CSV`, 'success');
+    }
   };
 
   /* Parse uploaded CSV file and extract values */
@@ -86,11 +111,19 @@ const ExcelImport = ({ templateName = 'template', sampleSize = 10, valueLabel = 
       </button>
       <button
         type="button"
+        className="excel-import__btn excel-import__btn--export"
+        onClick={handleExportData}
+        title={`Export current entered data (${sampleSize} rows) to CSV`}
+      >
+        📤 Export
+      </button>
+      <button
+        type="button"
         className="excel-import__btn excel-import__btn--import"
         onClick={() => fileInputRef.current?.click()}
         title="Import filled CSV"
       >
-        📤 Import
+        📥 Import
       </button>
       <input
         ref={fileInputRef}

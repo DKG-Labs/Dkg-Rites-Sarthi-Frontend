@@ -76,6 +76,14 @@ const FinalInclusionRatingPage = ({ onBack, productModel: propProductModel, onNa
     - Inclusion: Max(6, General Sample Size)
   */
   const lotsWithSampleSize = useMemo(() => {
+    let customSizes = {};
+    if (callNo) {
+      try {
+        const saved = localStorage.getItem(`fpCustomSampleSizes_${callNo}`);
+        if (saved) customSizes = JSON.parse(saved);
+      } catch (e) {}
+    }
+
     return lotsFromVendor.map((lot) => {
       // Handle both API response format (lotNumber, heatNumber) and mapped format (lotNo, heatNo)
       const lotNo = lot.lotNo || lot.lotNumber;
@@ -83,7 +91,7 @@ const FinalInclusionRatingPage = ({ onBack, productModel: propProductModel, onNa
       const lotSize = lot.lotSize || lot.offeredQty || 0;
 
       // Sample Size based on Hardness Test Sample Size (IS 2500)
-      const hardnessAQL = getHardnessToeLoadAQL(lotSize);
+      const hardnessAQL = getHardnessToeLoadAQL(lotSize, customSizes[lotNo]);
       const hardnessSampleSize = hardnessAQL.n1;
 
       // Sample for inclusions and other tests = 5% of hardness sample or 6 whichever is higher
@@ -102,7 +110,7 @@ const FinalInclusionRatingPage = ({ onBack, productModel: propProductModel, onNa
         maxDecarb: productModel?.toString().toUpperCase().includes('MK-V') ? 0.23 : 0.2064
       };
     });
-  }, [lotsFromVendor, productModel]);
+  }, [lotsFromVendor, productModel, callNo]);
 
   /* Initialize state for each lot */
   const [lotData, setLotData] = useState(() => {

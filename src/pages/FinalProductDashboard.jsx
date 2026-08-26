@@ -11,7 +11,7 @@ import {
   saveLotResults,
   getInspectionSummary
 } from '../services/finalProductInspectionService';
-import { getHardnessToeLoadAQL, getDimensionWeightAQL } from '../utils/is2500Calculations';
+import { getHardnessToeLoadAQL, getDimensionWeightAQL, SAMPLE_SIZE_OPTIONS } from '../utils/is2500Calculations';
 import { normalizeErcType } from '../utils/ercUtils';
 import { finishInspection } from '../services/finalInspectionSubmoduleService';
 import { performTransitionAction } from '../services/workflowService';
@@ -905,15 +905,41 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
   /* -------------------- LOTS DATA (Fetched from Backend) -------------------- */
   // lotsFromVendorCall is now fetched from backend in useEffect above
 
-  /* Calculate Sample Size for each lot based on Lot Size (IS 2500 Table 2) */
+  /* Custom sample size state for user override */
+  const [customSampleSizes, setCustomSampleSizes] = useState(() => {
+    const callNo = selectedCall?.call_no;
+    if (!callNo) return {};
+    try {
+      const saved = localStorage.getItem(`fpCustomSampleSizes_${callNo}`);
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+
+  const handleSampleSizeChange = (lotNo, newSize) => {
+    setCustomSampleSizes(prev => {
+      const next = { ...prev, [lotNo]: newSize };
+      const callNo = selectedCall?.call_no;
+      if (callNo) {
+        localStorage.setItem(`fpCustomSampleSizes_${callNo}`, JSON.stringify(next));
+      }
+      return next;
+    });
+  };
+
+  /* Calculate Sample Size for each lot based on Lot Size (IS 2500 Table 2) or user override */
   const lotsWithSampling = useMemo(() => {
     return (lotsFromVendorCall && Array.isArray(lotsFromVendorCall) && lotsFromVendorCall.length > 0)
       ? lotsFromVendorCall.map((lot) => {
-        const sampleSize = calculateSampleSize(lot.lotSize);
-        return { ...lot, sampleSize };
+        const defaultSampleSize = calculateSampleSize(lot.lotSize);
+        const sampleSize = (customSampleSizes && customSampleSizes[lot.lotNo] !== undefined)
+          ? customSampleSizes[lot.lotNo]
+          : defaultSampleSize;
+        return { ...lot, sampleSize, defaultSampleSize };
       })
       : [];
-  }, [lotsFromVendorCall, calculateSampleSize]);
+  }, [lotsFromVendorCall, calculateSampleSize, customSampleSizes]);
 
   /* Calculate totals */
   const totalQtyOffered = useMemo(() => lotsWithSampling.reduce((sum, l) => sum + (l.lotSize || 0), 0), [lotsWithSampling]);
@@ -1916,7 +1942,31 @@ export default function FinalProductDashboard({ onBack, onNavigateToSubModule })
                       <td className="fp-lot-cell">{lotRow.heatNo}</td>
                       <td className="fp-lot-cell">{lotRow.lotSize}</td>
                       <td className="fp-lot-cell">{lotRow.noOfBags}</td>
-                      <td className="fp-lot-cell">{lotRow.sampleSize}</td>
+                      <td className="fp-lot-cell">
+                        <select
+                          className="fp-input"
+                          style={{
+                            padding: '4px 8px',
+                            fontSize: '13px',
+                            fontWeight: '700',
+                            color: '#0f172a',
+                            background: '#fff',
+                            cursor: 'pointer',
+                            width: '90px',
+                            borderRadius: '6px',
+                            border: '1px solid #cbd5e1',
+                            display: 'inline-block'
+                          }}
+                          value={lotRow.sampleSize}
+                          onChange={(e) => handleSampleSizeChange(lotRow.lotNo, parseInt(e.target.value, 10))}
+                        >
+                          {SAMPLE_SIZE_OPTIONS.map((sizeOpt) => (
+                            <option key={sizeOpt} value={sizeOpt}>
+                              {sizeOpt}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
                       <td className="fp-lot-cell" style={{ fontWeight: 'bold', color: '#0d9488' }}>
                         {calculateBagsForSampling(lotRow.noOfBags)}
                       </td>

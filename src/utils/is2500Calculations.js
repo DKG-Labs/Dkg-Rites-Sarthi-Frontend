@@ -5,6 +5,8 @@
  * Table 2: Double Sampling for Hardness & Toe Load
  */
 
+export const SAMPLE_SIZE_OPTIONS = [2, 3, 5, 8, 13, 20, 32, 50, 80, 125, 200, 315, 500, 800, 1250];
+
 /* Table 1 - Sample Size based on Lot Size */
 export const calculateSampleSize = (lotSize) => {
   const size = parseInt(lotSize, 10) || 0;
@@ -35,7 +37,20 @@ export const calculateBagsForSampling = (totalBags) => {
  * Table 2 - Double Sampling for Dimension & Weight (AQL 2.5)
  * Returns: { n1, ac1, re1, n2, cummRej, useSingleSampling }
  */
-export const getDimensionWeightAQL = (lotSize) => {
+export const getDimensionWeightAQL = (lotSize, customSampleSize) => {
+  if (customSampleSize !== undefined && customSampleSize !== null && customSampleSize > 0) {
+    const n = parseInt(customSampleSize, 10);
+    if (n <= 13) return { n1: n, ac1: 0, re1: 1, n2: 0, cummRej: 1, useSingleSampling: true };
+    if (n <= 20) return { n1: 20, ac1: 0, re1: 3, n2: 20, cummRej: 4, useSingleSampling: false };
+    if (n <= 32) return { n1: 32, ac1: 1, re1: 3, n2: 32, cummRej: 5, useSingleSampling: false };
+    if (n <= 50) return { n1: 50, ac1: 2, re1: 5, n2: 50, cummRej: 7, useSingleSampling: false };
+    if (n <= 80) return { n1: 80, ac1: 3, re1: 6, n2: 80, cummRej: 10, useSingleSampling: false };
+    if (n <= 125) return { n1: 125, ac1: 5, re1: 9, n2: 125, cummRej: 13, useSingleSampling: false };
+    if (n <= 200) return { n1: 200, ac1: 7, re1: 11, n2: 200, cummRej: 19, useSingleSampling: false };
+    if (n <= 315) return { n1: 315, ac1: 11, re1: 16, n2: 315, cummRej: 27, useSingleSampling: false };
+    return { n1: 500, ac1: 11, re1: 16, n2: 500, cummRej: 27, useSingleSampling: false };
+  }
+
   const size = parseInt(lotSize, 10) || 0;
 
   // 2-150: Double sampling not provided, use single sampling
@@ -57,7 +72,20 @@ export const getDimensionWeightAQL = (lotSize) => {
  * Table 2 - Double Sampling for Hardness & Toe Load
  * Returns: { n1, ac1, re1, n2, cummRej, useSingleSampling }
  */
-export const getHardnessToeLoadAQL = (lotSize) => {
+export const getHardnessToeLoadAQL = (lotSize, customSampleSize) => {
+  if (customSampleSize !== undefined && customSampleSize !== null && customSampleSize > 0) {
+    const n = parseInt(customSampleSize, 10);
+    if (n <= 13) return { n1: n, ac1: 0, re1: 1, n2: 0, cummRej: 1, useSingleSampling: true };
+    if (n <= 20) return { n1: 20, ac1: 0, re1: 2, n2: 20, cummRej: 2, useSingleSampling: false };
+    if (n <= 32) return { n1: 32, ac1: 0, re1: 3, n2: 32, cummRej: 4, useSingleSampling: false };
+    if (n <= 50) return { n1: 50, ac1: 1, re1: 3, n2: 50, cummRej: 5, useSingleSampling: false };
+    if (n <= 80) return { n1: 80, ac1: 2, re1: 5, n2: 80, cummRej: 7, useSingleSampling: false };
+    if (n <= 125) return { n1: 125, ac1: 3, re1: 6, n2: 125, cummRej: 10, useSingleSampling: false };
+    if (n <= 200) return { n1: 200, ac1: 5, re1: 9, n2: 200, cummRej: 13, useSingleSampling: false };
+    if (n <= 315) return { n1: 315, ac1: 7, re1: 11, n2: 315, cummRej: 19, useSingleSampling: false };
+    return { n1: 500, ac1: 11, re1: 16, n2: 500, cummRej: 27, useSingleSampling: false };
+  }
+
   const size = parseInt(lotSize, 10) || 0;
 
   // 2-150: Double sampling not provided, use single sampling

@@ -5,11 +5,34 @@ const PeriodicTestingTab = ({ periodicData, setPeriodicData, activeRailpadType, 
   const durabilityStatus = getSectionStatus('durability');
   const abrasionStatus = getSectionStatus('abrasion');
 
-  // Helper to handle input changes
+  // Helpers to handle input changes
   const handleTgaChange = (idx, field, val) => {
     setPeriodicData(prev => {
       const newSamples = [...prev.tga.samples];
       newSamples[idx] = { ...newSamples[idx], [field]: val };
+      return { ...prev, tga: { ...prev.tga, samples: newSamples } };
+    });
+    markDirty();
+  };
+
+  const handleAddTgaRow = () => {
+    setPeriodicData(prev => ({
+      ...prev,
+      tga: {
+        ...prev.tga,
+        samples: [
+          ...prev.tga.samples,
+          { lotNo: '', sampleNo: '', weight: '', tempRange: '', polymer: '' }
+        ]
+      }
+    }));
+    markDirty();
+  };
+
+  const handleDeleteTgaRow = (idx) => {
+    setPeriodicData(prev => {
+      if (prev.tga.samples.length <= 1) return prev;
+      const newSamples = prev.tga.samples.filter((_, i) => i !== idx);
       return { ...prev, tga: { ...prev.tga, samples: newSamples } };
     });
     markDirty();
@@ -24,10 +47,56 @@ const PeriodicTestingTab = ({ periodicData, setPeriodicData, activeRailpadType, 
     markDirty();
   };
 
+  const handleAddDurabilityRow = () => {
+    setPeriodicData(prev => ({
+      ...prev,
+      durability: {
+        ...prev.durability,
+        samples: [
+          ...prev.durability.samples,
+          { lotNo: '', initialThick: '', finalThick: '', initialLoad: '', finalLoad: '' }
+        ]
+      }
+    }));
+    markDirty();
+  };
+
+  const handleDeleteDurabilityRow = (idx) => {
+    setPeriodicData(prev => {
+      if (prev.durability.samples.length <= 1) return prev;
+      const newSamples = prev.durability.samples.filter((_, i) => i !== idx);
+      return { ...prev, durability: { ...prev.durability, samples: newSamples } };
+    });
+    markDirty();
+  };
+
   const handleAbrasionChange = (idx, field, val) => {
     setPeriodicData(prev => {
       const newSamples = [...prev.abrasion.samples];
       newSamples[idx] = { ...newSamples[idx], [field]: val };
+      return { ...prev, abrasion: { ...prev.abrasion, samples: newSamples } };
+    });
+    markDirty();
+  };
+
+  const handleAddAbrasionRow = () => {
+    setPeriodicData(prev => ({
+      ...prev,
+      abrasion: {
+        ...prev.abrasion,
+        samples: [
+          ...prev.abrasion.samples,
+          { lotNo: '', sampleNo: '', initialMass: '', finalMass: '', relativeLoss: '' }
+        ]
+      }
+    }));
+    markDirty();
+  };
+
+  const handleDeleteAbrasionRow = (idx) => {
+    setPeriodicData(prev => {
+      if (prev.abrasion.samples.length <= 1) return prev;
+      const newSamples = prev.abrasion.samples.filter((_, i) => i !== idx);
       return { ...prev, abrasion: { ...prev.abrasion, samples: newSamples } };
     });
     markDirty();
@@ -45,6 +114,8 @@ const PeriodicTestingTab = ({ periodicData, setPeriodicData, activeRailpadType, 
   const isTgaMandatory = hasTgaQty && parseInt(periodicData.tga.qtyProduced || 0, 10) >= TGA_THRESHOLD;
   const isDurabilityMandatory = hasDurabilityQty && parseInt(periodicData.durability.qtyProduced || 0, 10) >= DURABILITY_THRESHOLD;
   const isAbrasionMandatory = hasAbrasionQty && parseInt(periodicData.abrasion.qtyProduced || 0, 10) >= ABRASION_THRESHOLD;
+
+  const maxThicknessReduction = (activeRailpadType || '').toLowerCase().includes('10mm') ? 1.0 : 0.6;
 
   const renderSectionHeader = (title, data, setData, threshold, hasQty, isMandatory, status) => (
     <div style={{ marginBottom: '16px', padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
@@ -152,22 +223,89 @@ const PeriodicTestingTab = ({ periodicData, setPeriodicData, activeRailpadType, 
                   <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Sample No</th>
                   <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Sample Wt (mg)</th>
                   <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Temp Range</th>
-                  <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>% Polymer Content</th>
+                  <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>% Polymer Content (&gt; 50.0%)</th>
+                  <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b', width: '50px' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {[0, 1, 2, 3, 4].map(idx => (
-                  <tr key={idx}>
-                    <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '700', color: '#64748b' }}>S{idx + 1}</td>
-                    <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}><input disabled={!hasTgaQty} type="text" value={periodicData.tga.samples[idx]?.lotNo || ''} onChange={(e) => handleTgaChange(idx, 'lotNo', e.target.value)} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontSize: '13px' }} /></td>
-                    <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}><input disabled={!hasTgaQty} type="text" value={periodicData.tga.samples[idx]?.sampleNo || ''} onChange={(e) => handleTgaChange(idx, 'sampleNo', e.target.value)} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontSize: '13px' }} /></td>
-                    <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}><input disabled={!hasTgaQty} type="number" value={periodicData.tga.samples[idx]?.weight || ''} onChange={(e) => handleTgaChange(idx, 'weight', e.target.value)} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontSize: '13px' }} /></td>
-                    <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}><input disabled={!hasTgaQty} type="text" value={periodicData.tga.samples[idx]?.tempRange || ''} onChange={(e) => handleTgaChange(idx, 'tempRange', e.target.value)} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontSize: '13px' }} /></td>
-                    <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}><input disabled={!hasTgaQty} type="number" value={periodicData.tga.samples[idx]?.polymer || ''} onChange={(e) => handleTgaChange(idx, 'polymer', e.target.value)} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontWeight: '800', fontSize: '13px' }} /></td>
-                  </tr>
-                ))}
+                {(periodicData.tga?.samples || []).map((sample, idx) => {
+                  const polymerVal = parseFloat(sample?.polymer);
+                  const isPolymerOut = !isNaN(polymerVal) && sample?.polymer !== '' && polymerVal <= 50.0;
+                  return (
+                    <tr key={idx}>
+                      <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '700', color: '#64748b' }}>S{idx + 1}</td>
+                      <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}><input disabled={!hasTgaQty} type="text" value={sample?.lotNo || ''} onChange={(e) => handleTgaChange(idx, 'lotNo', e.target.value)} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontSize: '13px' }} /></td>
+                      <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}><input disabled={!hasTgaQty} type="text" value={sample?.sampleNo || ''} onChange={(e) => handleTgaChange(idx, 'sampleNo', e.target.value)} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontSize: '13px' }} /></td>
+                      <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}><input disabled={!hasTgaQty} type="number" value={sample?.weight || ''} onChange={(e) => handleTgaChange(idx, 'weight', e.target.value)} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontSize: '13px' }} /></td>
+                      <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}><input disabled={!hasTgaQty} type="text" value={sample?.tempRange || ''} onChange={(e) => handleTgaChange(idx, 'tempRange', e.target.value)} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontSize: '13px' }} /></td>
+                      <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
+                        <input 
+                          disabled={!hasTgaQty} 
+                          type="number" 
+                          value={sample?.polymer || ''} 
+                          onChange={(e) => handleTgaChange(idx, 'polymer', e.target.value)} 
+                          style={{ 
+                            width: '100%', 
+                            padding: '8px', 
+                            border: 'none', 
+                            textAlign: 'center', 
+                            fontWeight: '800', 
+                            fontSize: '13px',
+                            color: isPolymerOut ? '#ef4444' : '#21808d'
+                          }} 
+                        />
+                      </td>
+                      <td style={{ padding: '4px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                        {periodicData.tga.samples.length > 1 && (
+                          <button
+                            type="button"
+                            disabled={!hasTgaQty}
+                            onClick={() => handleDeleteTgaRow(idx)}
+                            title="Delete Row"
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: '#ef4444',
+                              cursor: 'pointer',
+                              fontWeight: 'bold',
+                              fontSize: '14px',
+                              padding: '2px 6px'
+                            }}
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
+
+            {/* Add Row Button */}
+            <div style={{ marginTop: '12px', padding: '4px 0' }}>
+              <button
+                type="button"
+                disabled={!hasTgaQty}
+                onClick={handleAddTgaRow}
+                style={{
+                  background: '#f8fafc',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '6px',
+                  padding: '6px 16px',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  color: '#334155',
+                  cursor: hasTgaQty ? 'pointer' : 'not-allowed',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                }}
+              >
+                + Add Row
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -196,33 +334,82 @@ const PeriodicTestingTab = ({ periodicData, setPeriodicData, activeRailpadType, 
                   <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Load Comp.<br/>Before</th>
                   <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Load Comp.<br/>After</th>
                   <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Change in<br/>LD%</th>
+                  <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b', width: '50px' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {[0, 1, 2, 3, 4].map(idx => {
-                  const initialThick = parseFloat(periodicData.durability.samples[idx]?.initialThick) || 0;
-                  const finalThick = parseFloat(periodicData.durability.samples[idx]?.finalThick) || 0;
+                {(periodicData.durability?.samples || []).map((sample, idx) => {
+                  const initialThick = parseFloat(sample?.initialThick) || 0;
+                  const finalThick = parseFloat(sample?.finalThick) || 0;
                   const thickReduction = (initialThick > 0 && finalThick > 0) ? (initialThick - finalThick).toFixed(2) : '-';
+                  const isReductionOut = thickReduction !== '-' && parseFloat(thickReduction) > maxThicknessReduction;
                   
-                  const initialLoad = parseFloat(periodicData.durability.samples[idx]?.initialLoad) || 0;
-                  const finalLoad = parseFloat(periodicData.durability.samples[idx]?.finalLoad) || 0;
+                  const initialLoad = parseFloat(sample?.initialLoad) || 0;
+                  const finalLoad = parseFloat(sample?.finalLoad) || 0;
                   const changeLd = (initialLoad > 0 && finalLoad > 0) ? (((finalLoad - initialLoad) / initialLoad) * 100).toFixed(2) : '-';
+                  const isChangeLdOut = changeLd !== '-' && Math.abs(parseFloat(changeLd)) > 10;
 
                   return (
                     <tr key={idx}>
                       <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '700', color: '#64748b' }}>S{idx + 1}</td>
-                      <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}><input disabled={!hasDurabilityQty} type="text" value={periodicData.durability.samples[idx]?.lotNo || ''} onChange={(e) => handleDurabilityChange(idx, 'lotNo', e.target.value)} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontSize: '13px' }} /></td>
-                      <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}><input disabled={!hasDurabilityQty} type="number" value={periodicData.durability.samples[idx]?.initialThick || ''} onChange={(e) => handleDurabilityChange(idx, 'initialThick', e.target.value)} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontSize: '13px' }} /></td>
-                      <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}><input disabled={!hasDurabilityQty} type="number" value={periodicData.durability.samples[idx]?.finalThick || ''} onChange={(e) => handleDurabilityChange(idx, 'finalThick', e.target.value)} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontSize: '13px' }} /></td>
-                      <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: '#21808d', background: '#f8fafc' }}>{thickReduction}</td>
-                      <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}><input disabled={!hasDurabilityQty} type="number" value={periodicData.durability.samples[idx]?.initialLoad || ''} onChange={(e) => handleDurabilityChange(idx, 'initialLoad', e.target.value)} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontSize: '13px' }} /></td>
-                      <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}><input disabled={!hasDurabilityQty} type="number" value={periodicData.durability.samples[idx]?.finalLoad || ''} onChange={(e) => handleDurabilityChange(idx, 'finalLoad', e.target.value)} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontSize: '13px' }} /></td>
-                      <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: '#21808d', background: '#f8fafc' }}>{changeLd}{changeLd !== '-' && '%'}</td>
+                      <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}><input disabled={!hasDurabilityQty} type="text" value={sample?.lotNo || ''} onChange={(e) => handleDurabilityChange(idx, 'lotNo', e.target.value)} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontSize: '13px' }} /></td>
+                      <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}><input disabled={!hasDurabilityQty} type="number" value={sample?.initialThick || ''} onChange={(e) => handleDurabilityChange(idx, 'initialThick', e.target.value)} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontSize: '13px' }} /></td>
+                      <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}><input disabled={!hasDurabilityQty} type="number" value={sample?.finalThick || ''} onChange={(e) => handleDurabilityChange(idx, 'finalThick', e.target.value)} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontSize: '13px' }} /></td>
+                      <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: isReductionOut ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{thickReduction}</td>
+                      <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}><input disabled={!hasDurabilityQty} type="number" value={sample?.initialLoad || ''} onChange={(e) => handleDurabilityChange(idx, 'initialLoad', e.target.value)} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontSize: '13px' }} /></td>
+                      <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}><input disabled={!hasDurabilityQty} type="number" value={sample?.finalLoad || ''} onChange={(e) => handleDurabilityChange(idx, 'finalLoad', e.target.value)} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontSize: '13px' }} /></td>
+                      <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: isChangeLdOut ? '#ef4444' : '#21808d', background: '#f8fafc' }}>{changeLd}{changeLd !== '-' && '%'}</td>
+                      <td style={{ padding: '4px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                        {periodicData.durability.samples.length > 1 && (
+                          <button
+                            type="button"
+                            disabled={!hasDurabilityQty}
+                            onClick={() => handleDeleteDurabilityRow(idx)}
+                            title="Delete Row"
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: '#ef4444',
+                              cursor: 'pointer',
+                              fontWeight: 'bold',
+                              fontSize: '14px',
+                              padding: '2px 6px'
+                            }}
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
+
+            {/* Add Row Button */}
+            <div style={{ marginTop: '12px', padding: '4px 0' }}>
+              <button
+                type="button"
+                disabled={!hasDurabilityQty}
+                onClick={handleAddDurabilityRow}
+                style={{
+                  background: '#f8fafc',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '6px',
+                  padding: '6px 16px',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  color: '#334155',
+                  cursor: hasDurabilityQty ? 'pointer' : 'not-allowed',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                }}
+              >
+                + Add Row
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -250,28 +437,93 @@ const PeriodicTestingTab = ({ periodicData, setPeriodicData, activeRailpadType, 
                   <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Final Mass (g)</th>
                   <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Loss of Mass</th>
                   <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b' }}>Relative loss of<br/>volume/Mass</th>
+                  <th style={{ padding: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11px', color: '#64748b', width: '50px' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {[0, 1, 2, 3, 4].map(idx => {
-                  const initial = parseFloat(periodicData.abrasion.samples[idx]?.initialMass) || 0;
-                  const final = parseFloat(periodicData.abrasion.samples[idx]?.finalMass) || 0;
+                {(periodicData.abrasion?.samples || []).map((sample, idx) => {
+                  const initial = parseFloat(sample?.initialMass) || 0;
+                  const final = parseFloat(sample?.finalMass) || 0;
                   const lossOfMass = (initial > 0 && final > 0) ? (initial - final).toFixed(4) : '-';
+                  const rlVal = parseFloat(sample?.relativeLoss);
+                  const isRlOut = !isNaN(rlVal) && sample?.relativeLoss !== '' && (rlVal < 180 || rlVal > 220);
 
                   return (
                     <tr key={idx}>
                       <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '700', color: '#64748b' }}>S{idx + 1}</td>
-                      <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}><input disabled={!hasAbrasionQty} type="text" value={periodicData.abrasion.samples[idx]?.lotNo || ''} onChange={(e) => handleAbrasionChange(idx, 'lotNo', e.target.value)} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontSize: '13px' }} /></td>
-                      <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}><input disabled={!hasAbrasionQty} type="text" value={periodicData.abrasion.samples[idx]?.sampleNo || ''} onChange={(e) => handleAbrasionChange(idx, 'sampleNo', e.target.value)} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontSize: '13px' }} /></td>
-                      <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}><input disabled={!hasAbrasionQty} type="number" value={periodicData.abrasion.samples[idx]?.initialMass || ''} onChange={(e) => handleAbrasionChange(idx, 'initialMass', e.target.value)} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontSize: '13px' }} /></td>
-                      <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}><input disabled={!hasAbrasionQty} type="number" value={periodicData.abrasion.samples[idx]?.finalMass || ''} onChange={(e) => handleAbrasionChange(idx, 'finalMass', e.target.value)} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontSize: '13px' }} /></td>
+                      <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}><input disabled={!hasAbrasionQty} type="text" value={sample?.lotNo || ''} onChange={(e) => handleAbrasionChange(idx, 'lotNo', e.target.value)} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontSize: '13px' }} /></td>
+                      <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}><input disabled={!hasAbrasionQty} type="text" value={sample?.sampleNo || ''} onChange={(e) => handleAbrasionChange(idx, 'sampleNo', e.target.value)} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontSize: '13px' }} /></td>
+                      <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}><input disabled={!hasAbrasionQty} type="number" value={sample?.initialMass || ''} onChange={(e) => handleAbrasionChange(idx, 'initialMass', e.target.value)} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontSize: '13px' }} /></td>
+                      <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}><input disabled={!hasAbrasionQty} type="number" value={sample?.finalMass || ''} onChange={(e) => handleAbrasionChange(idx, 'finalMass', e.target.value)} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontSize: '13px' }} /></td>
                       <td style={{ padding: '10px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '900', color: '#21808d', background: '#f8fafc' }}>{lossOfMass}</td>
-                      <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}><input disabled={!hasAbrasionQty} type="number" value={periodicData.abrasion.samples[idx]?.relativeLoss || ''} onChange={(e) => handleAbrasionChange(idx, 'relativeLoss', e.target.value)} style={{ width: '100%', padding: '8px', border: 'none', textAlign: 'center', fontSize: '13px' }} /></td>
+                      <td style={{ padding: '4px', border: '1px solid #e2e8f0' }}>
+                        <input 
+                          disabled={!hasAbrasionQty} 
+                          type="number" 
+                          value={sample?.relativeLoss || ''} 
+                          onChange={(e) => handleAbrasionChange(idx, 'relativeLoss', e.target.value)} 
+                          style={{ 
+                            width: '100%', 
+                            padding: '8px', 
+                            border: 'none', 
+                            textAlign: 'center', 
+                            fontSize: '13px',
+                            fontWeight: '800',
+                            color: isRlOut ? '#ef4444' : '#21808d'
+                          }} 
+                        />
+                      </td>
+                      <td style={{ padding: '4px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                        {periodicData.abrasion.samples.length > 1 && (
+                          <button
+                            type="button"
+                            disabled={!hasAbrasionQty}
+                            onClick={() => handleDeleteAbrasionRow(idx)}
+                            title="Delete Row"
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: '#ef4444',
+                              cursor: 'pointer',
+                              fontWeight: 'bold',
+                              fontSize: '14px',
+                              padding: '2px 6px'
+                            }}
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
+
+            {/* Add Row Button */}
+            <div style={{ marginTop: '12px', padding: '4px 0' }}>
+              <button
+                type="button"
+                disabled={!hasAbrasionQty}
+                onClick={handleAddAbrasionRow}
+                style={{
+                  background: '#f8fafc',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '6px',
+                  padding: '6px 16px',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  color: '#334155',
+                  cursor: hasAbrasionQty ? 'pointer' : 'not-allowed',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                }}
+              >
+                + Add Row
+              </button>
+            </div>
           </div>
         </div>
       </div>

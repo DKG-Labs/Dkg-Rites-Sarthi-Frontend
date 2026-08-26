@@ -30,9 +30,17 @@ function getSamplingValues(lotSize) {
 
 // This will be populated from context with live data
 // Fallback to empty array if no lots available
-const getAvailableLots = (lotsFromVendor = []) => {
+const getAvailableLots = (lotsFromVendor = [], callNo = null) => {
   if (!lotsFromVendor || lotsFromVendor.length === 0) {
     return [];
+  }
+
+  let customSizes = {};
+  if (callNo) {
+    try {
+      const saved = localStorage.getItem(`fpCustomSampleSizes_${callNo}`);
+      if (saved) customSizes = JSON.parse(saved);
+    } catch (e) {}
   }
 
   return lotsFromVendor.map(lot => {
@@ -42,11 +50,12 @@ const getAvailableLots = (lotsFromVendor = []) => {
     const lotSize = lot.lotSize || lot.offeredQty || 0;
 
     const { ac, re, sample, cumulative } = getSamplingValues(lotSize);
+    const sampleSize = (customSizes && customSizes[lotNo] !== undefined) ? customSizes[lotNo] : sample;
     return {
       lotNo: lotNo,
       heatNo: heatNo,
       quantity: lotSize,
-      sampleSize: sample,
+      sampleSize: sampleSize,
       accpNo: ac,
       rejNo: re,
       cummRejNo: cumulative
@@ -84,7 +93,7 @@ const FinalVisualDimensionalPage = ({ onBack, onNavigateSubmodule }) => {
     return lots;
   }, [callNo, getFpCachedData]);
 
-  const availableLots = useMemo(() => getAvailableLots(lotsFromVendor), [lotsFromVendor]);
+  const availableLots = useMemo(() => getAvailableLots(lotsFromVendor, callNo), [lotsFromVendor, callNo]);
 
   // Track if we've already loaded data to prevent infinite loops
   const dataLoadedRef = useRef(false);

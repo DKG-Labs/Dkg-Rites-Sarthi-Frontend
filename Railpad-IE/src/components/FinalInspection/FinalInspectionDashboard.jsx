@@ -251,8 +251,9 @@ const padElecData = (ed) => {
 };
 
 const padPeriodicData = (prd) => {
-  const pad = (arr, size, fill = '') => {
+  const pad = (arr, minSize = 5, fill = '') => {
     const a = Array.isArray(arr) ? arr : [];
+    const size = Math.max(a.length, minSize);
     const padded = [];
     for (let i = 0; i < size; i++) {
       const val = a[i];
@@ -281,7 +282,7 @@ const padPeriodicData = (prd) => {
       dateOfLastTest: prd?.abrasion?.dateOfLastTest || '',
       qtyProduced: prd?.abrasion?.qtyProduced || '',
       threshold: 100000,
-      samples: pad(prd?.abrasion?.samples, 5, { lotNo: '', sampleNo: '', initialMass: '', finalMass: '' })
+      samples: pad(prd?.abrasion?.samples, 5, { lotNo: '', sampleNo: '', initialMass: '', finalMass: '', relativeLoss: '' })
     }
   };
 };
@@ -312,7 +313,7 @@ const padSpecData = (sd) => {
 };
 
 const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onPauseComplete }) => {
-  const currentCallId = call?.requestId || call?.id || call?.callNo || '';
+  const currentCallId = call?.callNo || call?.icNumber || call?.requestId || (call?.id ? String(call.id) : '');
   const [lots, setLots] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -489,14 +490,32 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
   const getLoadDeflectionTolerance = (lotId) => {
     const lot = lots.find(l => l.id === lotId) || { railpadType: '' };
-    const type = lot.railpadType || '';
+    const rawType = (lot.railpadType || activeRailpadType || '').toLowerCase();
 
-    if (type.includes('GRSP 6mm') || type.includes('6mm GRSP')) return { min: 0.4, max: 0.6 };
-    if (type.includes('GRSP 10mm') || type.includes('10mm GRSP')) return { min: 0.7, max: 1.0 };
-    if (type.includes('CGRSP 6.2mm') || type.includes('6.2mm CGRSP')) return { min: 0.6, max: 0.9 };
-    if (type.includes('CGRSP 10mm') || type.includes('10mm CGRSP')) return { min: 0.9, max: 1.2 };
-    if (type.includes('NCRGRSP 6mm') || type.includes('6mm NCRGRSP')) return { min: 0.3, max: 0.5 };
-    if (type.includes('NCRGRSP 10mm') || type.includes('10mm NCRGRSP')) return { min: 0.5, max: 0.8 };
+    // 10mm CGRSP: 0.9 to 1.2
+    if (rawType.includes('cgrsp') && (rawType.includes('10') || rawType.includes('10mm') || rawType.includes('10.00mm') || rawType.includes('10.0mm'))) {
+      return { min: 0.9, max: 1.2 };
+    }
+    // 6.2mm CGRSP: 0.6 to 0.9
+    if (rawType.includes('cgrsp') && (rawType.includes('6.2') || rawType.includes('6.2mm') || rawType.includes('6.20mm'))) {
+      return { min: 0.6, max: 0.9 };
+    }
+    // 6mm NCRGRSP / NCRNRSGP: 0.3 to 0.5
+    if ((rawType.includes('ncr') || rawType.includes('ncrgrsp') || rawType.includes('ncrnrsgp')) && (rawType.includes('6') || rawType.includes('6mm') || rawType.includes('6.00mm') || rawType.includes('6.0mm'))) {
+      return { min: 0.3, max: 0.5 };
+    }
+    // 10mm NCRGRSP / NCRNRSGP: 0.5 to 0.8
+    if ((rawType.includes('ncr') || rawType.includes('ncrgrsp') || rawType.includes('ncrnrsgp')) && (rawType.includes('10') || rawType.includes('10mm') || rawType.includes('10.00mm') || rawType.includes('10.0mm'))) {
+      return { min: 0.5, max: 0.8 };
+    }
+    // 10mm GRSP: 0.7 to 1.0
+    if (rawType.includes('10') || rawType.includes('10mm') || rawType.includes('10.00mm')) {
+      return { min: 0.7, max: 1.0 };
+    }
+    // 6mm GRSP: 0.4 to 0.6
+    if (rawType.includes('6') || rawType.includes('6mm') || rawType.includes('6.00mm')) {
+      return { min: 0.4, max: 0.6 };
+    }
     return { min: 0.4, max: 0.6 };
   };
 
@@ -612,7 +631,6 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
     // ONLY save if we have finished loading the draft for the active lot!
     if (loadedLot !== selectedLot) return;
 
-    const draftKey = `railpad_draft_${currentCallId}_${selectedLot}`;
     const draftData = {
       activeTab,
       visualData,
@@ -632,10 +650,21 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       dbDimensionalNotOk
     };
 
-    localStorage.setItem(draftKey, JSON.stringify(draftData));
-    localStorage.setItem(`railpad_selected_lot_${currentCallId}`, selectedLot);
-    localStorage.setItem(`railpad_call_hologram_${currentCallId}`, JSON.stringify(hologramEntries));
-    localStorage.setItem(`railpad_call_sealing_type_${currentCallId}`, sealingType);
+    const possibleCallIds = Array.from(new Set([
+      currentCallId,
+      call?.callNo,
+      call?.icNumber,
+      call?.requestId,
+      call?.id ? String(call.id) : null
+    ].filter(Boolean)));
+
+    possibleCallIds.forEach(cid => {
+      localStorage.setItem(`railpad_draft_${cid}_${selectedLot}`, JSON.stringify(draftData));
+      localStorage.setItem(`railpad_selected_lot_${cid}`, selectedLot);
+      localStorage.setItem(`railpad_call_hologram_${cid}`, JSON.stringify(hologramEntries));
+      localStorage.setItem(`railpad_call_sealing_type_${cid}`, sealingType);
+    });
+
     // If data was entered, mark as dirty
     if (visualData.dv || visualData.dd || weightData.samples1.some(s => s !== '') || remarks || sealingType) {
       setIsDirty(true);
@@ -763,8 +792,25 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       localStorage.setItem(`railpad_selected_lot_${currentCallId}`, lotId);
     }
     // Check if there is saved draft in localStorage first!
-    const draftKey = `railpad_draft_${currentCallId}_${lotId}`;
-    const saved = localStorage.getItem(draftKey);
+    const possibleCallIds = Array.from(new Set([
+      currentCallId,
+      call?.callNo,
+      call?.icNumber,
+      call?.requestId,
+      call?.id ? String(call.id) : null
+    ].filter(Boolean)));
+
+    let saved = null;
+    let matchingCallId = currentCallId;
+    for (const cid of possibleCallIds) {
+      const draftKey = `railpad_draft_${cid}_${lotId}`;
+      const item = localStorage.getItem(draftKey);
+      if (item) {
+        saved = item;
+        matchingCallId = cid;
+        break;
+      }
+    }
 
     if (saved) {
       try {
@@ -795,10 +841,14 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
         if (draft.specType) setSpecType(draft.specType);
         if (draft.reTestActive !== undefined) setReTestActive(draft.reTestActive);
         if (draft.reOfferActive !== undefined) setReOfferActive(draft.reOfferActive);
-        const callHoloKey = `railpad_call_hologram_${currentCallId}`;
-        const callSealKey = `railpad_call_sealing_type_${currentCallId}`;
-        const savedCallHolo = localStorage.getItem(callHoloKey);
-        const savedCallSeal = localStorage.getItem(callSealKey);
+        let savedCallHolo = null;
+        let savedCallSeal = null;
+        for (const cid of possibleCallIds) {
+          const h = localStorage.getItem(`railpad_call_hologram_${cid}`);
+          const s = localStorage.getItem(`railpad_call_sealing_type_${cid}`);
+          if (h && !savedCallHolo) savedCallHolo = h;
+          if (s && !savedCallSeal) savedCallSeal = s;
+        }
 
         let finalHolo = draft.hologramEntries || [];
         let finalSeal = draft.sealingType || 'RITES_HOLOGRAM';
@@ -874,31 +924,33 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       let periodicDurabilityDbData = null;
       let periodicAbrasionDbData = null;
 
-      if (currentCallId && lotId) {
+      const apiCallNo = call?.callNo || call?.icNumber || currentCallId;
+
+      if (apiCallNo && lotId) {
         const results = await Promise.allSettled([
-          finalVisualDimensionalInspectionService.getByCallAndLot(currentCallId, lotId),
-          finalInspectionLotResultsService.getByCallNo(currentCallId),
-          finalHardnessTestService.getByCallAndLot(currentCallId, lotId),
-          finalTensileStrengthService.getByCallAndLot(currentCallId, lotId),
-          finalElongationService.getByCallAndLot(currentCallId, lotId),
-          finalModulusService.getByCallAndLot(currentCallId, lotId),
-          finalCompressionSetService.getByCallAndLot(currentCallId, lotId),
-          finalTensionSetService.getByCallAndLot(currentCallId, lotId),
-          finalLoadTestService.getByCallAndLot(currentCallId, lotId),
-          finalElectricalResistanceService.getByCallAndLot(currentCallId, lotId),
-          finalSpecificGravityService.getByCallAndLot(currentCallId, lotId),
-          finalAshContentService.getByCallAndLot(currentCallId, lotId),
-          finalAdhesionService.getByCallAndLot(currentCallId, lotId),
-          finalSecantStiffnessService.getByCallAndLot(currentCallId, lotId),
-          finalNcrAdhesionService.getByCallAndLot(currentCallId, lotId),
-          finalNcrBreakingLoadService.getByCallAndLot(currentCallId, lotId),
-          finalNcrNylonCordService.getByCallAndLot(currentCallId, lotId),
-          finalWeightTestService.getByCallAndLot(currentCallId, lotId),
-          finalResilienceTestService.getByCallAndLot(currentCallId, lotId),
-          finalOzoneTestService.getByCallAndLot(currentCallId, lotId),
-          finalPeriodicTgaService.getByCallAndLot(currentCallId, lotId),
-          finalPeriodicDurabilityService.getByCallAndLot(currentCallId, lotId),
-          finalPeriodicAbrasionService.getByCallAndLot(currentCallId, lotId)
+          finalVisualDimensionalInspectionService.getByCallAndLot(apiCallNo, lotId),
+          finalInspectionLotResultsService.getByCallNo(apiCallNo),
+          finalHardnessTestService.getByCallAndLot(apiCallNo, lotId),
+          finalTensileStrengthService.getByCallAndLot(apiCallNo, lotId),
+          finalElongationService.getByCallAndLot(apiCallNo, lotId),
+          finalModulusService.getByCallAndLot(apiCallNo, lotId),
+          finalCompressionSetService.getByCallAndLot(apiCallNo, lotId),
+          finalTensionSetService.getByCallAndLot(apiCallNo, lotId),
+          finalLoadTestService.getByCallAndLot(apiCallNo, lotId),
+          finalElectricalResistanceService.getByCallAndLot(apiCallNo, lotId),
+          finalSpecificGravityService.getByCallAndLot(apiCallNo, lotId),
+          finalAshContentService.getByCallAndLot(apiCallNo, lotId),
+          finalAdhesionService.getByCallAndLot(apiCallNo, lotId),
+          finalSecantStiffnessService.getByCallAndLot(apiCallNo, lotId),
+          finalNcrAdhesionService.getByCallAndLot(apiCallNo, lotId),
+          finalNcrBreakingLoadService.getByCallAndLot(apiCallNo, lotId),
+          finalNcrNylonCordService.getByCallAndLot(apiCallNo, lotId),
+          finalWeightTestService.getByCallAndLot(apiCallNo, lotId),
+          finalResilienceTestService.getByCallAndLot(apiCallNo, lotId),
+          finalOzoneTestService.getByCallAndLot(apiCallNo, lotId),
+          finalPeriodicTgaService.getByCallAndLot(apiCallNo, lotId),
+          finalPeriodicDurabilityService.getByCallAndLot(apiCallNo, lotId),
+          finalPeriodicAbrasionService.getByCallAndLot(apiCallNo, lotId)
         ]);
 
         visualDbData = results[0].status === 'fulfilled' ? results[0].value : null;
@@ -4815,44 +4867,40 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
 
       case 'load': {
         const specs = currentLoadSpecs;
-        const getPadDeflectionInner = (pad) => {
-          if (!pad || !Array.isArray(pad)) return null;
-          const s8 = pad[7];
-          if (!s8 || s8.left === '' || s8.right === '') return null;
-          return (parseFloat(s8.left) + parseFloat(s8.right)) / 2;
+        primaryCount = visibleLoadRows * 2;
+        doubleCount = visibleLoadRows * 4;
+
+        const checkPadEntries = (pad) => {
+          if (!pad || !Array.isArray(pad)) return { filled: 0, out: 0 };
+          let filled = 0;
+          let out = 0;
+          pad.slice(0, visibleLoadRows).forEach(row => {
+            if (row && row.left !== '' && row.right !== '' && row.left !== null && row.right !== null && row.left !== undefined && row.right !== undefined) {
+              const l = parseFloat(row.left);
+              const r = parseFloat(row.right);
+              if (!isNaN(l) && !isNaN(r)) {
+                filled++;
+                const defl = (l + r) / 2;
+                if (defl < specs.min || defl > specs.max) {
+                  out++;
+                }
+              }
+            }
+          });
+          return { filled, out };
         };
 
-        const pad1Defl = getPadDeflectionInner(physicalData?.loadTest?.pad1);
-        if (pad1Defl !== null) {
-          primaryFilled++;
-          if (pad1Defl < specs.min || pad1Defl > specs.max) primaryOutCount++;
-        }
-        const pad2Defl = getPadDeflectionInner(physicalData?.loadTest?.pad2);
-        if (pad2Defl !== null) {
-          primaryFilled++;
-          if (pad2Defl < specs.min || pad2Defl > specs.max) primaryOutCount++;
-        }
+        const pad1Res = checkPadEntries(physicalData?.loadTest?.pad1);
+        const pad2Res = checkPadEntries(physicalData?.loadTest?.pad2);
+        primaryFilled = pad1Res.filled + pad2Res.filled;
+        primaryOutCount = pad1Res.out + pad2Res.out;
 
-        const mPad1Defl = getPadDeflectionInner(physicalData?.loadTest?.mPad1);
-        if (mPad1Defl !== null) {
-          doubleFilled++;
-          if (mPad1Defl < specs.min || mPad1Defl > specs.max) doubleOutCount++;
-        }
-        const mPad2Defl = getPadDeflectionInner(physicalData?.loadTest?.mPad2);
-        if (mPad2Defl !== null) {
-          doubleFilled++;
-          if (mPad2Defl < specs.min || mPad2Defl > specs.max) doubleOutCount++;
-        }
-        const mPad3Defl = getPadDeflectionInner(physicalData?.loadTest?.mPad3);
-        if (mPad3Defl !== null) {
-          doubleFilled++;
-          if (mPad3Defl < specs.min || mPad3Defl > specs.max) doubleOutCount++;
-        }
-        const mPad4Defl = getPadDeflectionInner(physicalData?.loadTest?.mPad4);
-        if (mPad4Defl !== null) {
-          doubleFilled++;
-          if (mPad4Defl < specs.min || mPad4Defl > specs.max) doubleOutCount++;
-        }
+        const mPad1Res = checkPadEntries(physicalData?.loadTest?.mPad1);
+        const mPad2Res = checkPadEntries(physicalData?.loadTest?.mPad2);
+        const mPad3Res = checkPadEntries(physicalData?.loadTest?.mPad3);
+        const mPad4Res = checkPadEntries(physicalData?.loadTest?.mPad4);
+        doubleFilled = mPad1Res.filled + mPad2Res.filled + mPad3Res.filled + mPad4Res.filled;
+        doubleOutCount = mPad1Res.out + mPad2Res.out + mPad3Res.out + mPad4Res.out;
         break;
       }
 
@@ -5149,25 +5197,27 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
       }
       
       case 'tga': {
-        if (!periodicData?.tga?.samples) break;
+        const samples = periodicData?.tga?.samples || [];
+        primaryCount = samples.length;
         const checkSample = (val) => {
           if (!val || val.weight === '' || val.tempRange === '' || val.polymer === '') return { filled: false, out: false };
           const p = parseFloat(val.polymer);
           if (isNaN(p)) return { filled: false, out: false };
           return { filled: true, out: p <= 50.0 };
         };
-        for (let i = 0; i < 5; i++) {
-          const r = checkSample(periodicData.tga.samples[i]);
+        samples.forEach(sample => {
+          const r = checkSample(sample);
           if (r.filled) {
             primaryFilled++;
             if (r.out) primaryOutCount++;
           }
-        }
+        });
         break;
       }
       
       case 'durability': {
-        if (!periodicData?.durability?.samples) break;
+        const samples = periodicData?.durability?.samples || [];
+        primaryCount = samples.length;
         const maxThicknessReduction = (activeRailpadType || '').toLowerCase().includes('10mm') ? 1.0 : 0.6;
         const checkSample = (val) => {
           if (!val || val.initialThick === '' || val.finalThick === '' || val.initialLoad === '' || val.finalLoad === '') return { filled: false, out: false };
@@ -5183,18 +5233,19 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           const out = reduction > maxThicknessReduction || changeLd > 10;
           return { filled: true, out };
         };
-        for (let i = 0; i < 5; i++) {
-          const r = checkSample(periodicData.durability.samples[i]);
+        samples.forEach(sample => {
+          const r = checkSample(sample);
           if (r.filled) {
             primaryFilled++;
             if (r.out) primaryOutCount++;
           }
-        }
+        });
         break;
       }
       
       case 'abrasion': {
-        if (!periodicData?.abrasion?.samples) break;
+        const samples = periodicData?.abrasion?.samples || [];
+        primaryCount = samples.length;
         const checkSample = (val) => {
           if (!val || val.initialMass === '' || val.finalMass === '' || !val.relativeLoss || val.relativeLoss === '') return { filled: false, out: false };
           const rl = parseFloat(val.relativeLoss);
@@ -5202,13 +5253,13 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
           const out = rl < 180 || rl > 220;
           return { filled: true, out };
         };
-        for (let i = 0; i < 5; i++) {
-          const r = checkSample(periodicData.abrasion.samples[i]);
+        samples.forEach(sample => {
+          const r = checkSample(sample);
           if (r.filled) {
             primaryFilled++;
             if (r.out) primaryOutCount++;
           }
-        }
+        });
         break;
       }
     }
@@ -5245,6 +5296,9 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
   const outOfSpecPrimarySections = activeSections.filter(key => {
     const rep = rawReports[key];
     if (!rep) return false;
+    if (key === 'load') {
+      return rep.primaryFilled > 0 && rep.primaryOutCount > 0;
+    }
     return rep.primaryFilled === rep.primaryCount && rep.primaryOutCount > 0;
   });
 
@@ -5262,6 +5316,17 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
   const getSectionStatus = (key) => {
     const rep = rawReports[key];
     if (!rep) return 'PENDING';
+
+    if (key === 'load') {
+      if (rep.primaryFilled === 0) return 'PENDING';
+      if (rep.primaryFilled < rep.primaryCount) return 'UNDER TESTING';
+      if (rep.primaryOutCount === 0) return 'PASS';
+      if (key === marginalSectionKey) {
+        if (rep.doubleFilled < rep.doubleCount) return rep.doubleFilled > 0 ? 'UNDER TESTING' : 'MARGINAL';
+        return rep.doubleOutCount === 0 ? 'PASS' : 'FAIL';
+      }
+      return 'FAIL';
+    }
 
     if (key === 'tga') {
       if (!hasTgaQty) return 'PENDING';
@@ -6887,7 +6952,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                       </div>
                       <div style={{ display: 'flex', gap: '20px' }}>
                         <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
-                          Status: <span style={{ color: physicalResults.load === 'PASS' ? '#059669' : (physicalResults.load === 'FAIL' || physicalResults.load === 'MARGINAL') ? '#f59e0b' : '#64748b', fontWeight: '800' }}>{(physicalResults.load === 'FAIL' || physicalResults.load === 'MARGINAL') ? 'MARGINAL' : physicalResults.load}</span>
+                          Status: <span style={{ color: physicalResults.load === 'PASS' ? '#059669' : physicalResults.load === 'UNDER TESTING' ? '#2563eb' : (physicalResults.load === 'FAIL' || physicalResults.load === 'MARGINAL') ? '#f59e0b' : '#64748b', fontWeight: '800' }}>{(physicalResults.load === 'FAIL' || physicalResults.load === 'MARGINAL') ? 'MARGINAL' : physicalResults.load}</span>
                         </div>
                       </div>
                     </div>
@@ -6928,7 +6993,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                             {['pad1', 'pad2'].map(padKey => {
                               const data = physicalData.loadTest[padKey][idx];
                               const defl = (data.left && data.right) ? ((parseFloat(data.left) + parseFloat(data.right)) / 2).toFixed(2) : '-';
-                              const isOutAtEnd = idx === (visibleLoadRows - 1) && defl !== '-' && (parseFloat(defl) < currentLoadSpecs.min || parseFloat(defl) > currentLoadSpecs.max);
+                              const isOutOfSpec = defl !== '-' && (parseFloat(defl) < currentLoadSpecs.min || parseFloat(defl) > currentLoadSpecs.max);
                               return (
                                 <React.Fragment key={padKey}>
                                   <td style={{ padding: '4px', border: '1px solid #f1f5f9' }}>
@@ -6937,7 +7002,7 @@ const FinalInspectionDashboard = ({ user, isShiftActive, call, onUpdateCall, onP
                                   <td style={{ padding: '4px', border: '1px solid #f1f5f9' }}>
                                     <input type="number" value={data.right} disabled={!load || String(load).trim() === ''} onChange={(e) => setPhysicalData(prev => ({ ...prev, loadTest: { ...prev.loadTest, [padKey]: prev.loadTest[padKey].map((v, i) => i === idx ? { ...v, right: e.target.value } : v) } }))} style={{ width: '100%', padding: '6px', border: '1px solid #e2e8f0', borderRadius: '4px', textAlign: 'center', fontSize: '12px', fontWeight: '700', backgroundColor: (!load || String(load).trim() === '') ? '#f8fafc' : '#fff' }} />
                                   </td>
-                                  <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', fontWeight: '900', background: '#f8fafc', border: '1px solid #f1f5f9', color: isOutAtEnd ? '#ef4444' : '#21808d' }}>{defl}</td>
+                                  <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', fontWeight: '900', background: '#f8fafc', border: '1px solid #f1f5f9', color: isOutOfSpec ? '#ef4444' : '#21808d' }}>{defl}</td>
                                 </React.Fragment>
                               );
                             })}

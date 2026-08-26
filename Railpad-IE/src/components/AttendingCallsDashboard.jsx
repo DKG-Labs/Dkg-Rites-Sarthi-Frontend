@@ -5,6 +5,7 @@ import { viewSignedCertificate } from '../services/certificateService';
 import { getBaseUrl } from '../services/apiConfig';
 import Notification from './Notification';
 import { getStoredUser } from '../services/authService';
+import CorrectionSlipModal from './CorrectionSlipModal';
 
 import ShiftDutyForm from './ShiftDutyForm';
 
@@ -563,18 +564,30 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
                             Annexures
                           </button>
                           <button
-                            disabled={true}
-                            title="Under development"
+                            onClick={() => {
+                              setSelectedCall(call);
+                              setShowCorrectionSlipModal(true);
+                            }}
+                            title="Issue Correction Slip"
                             style={{
                               padding: '6px 14px',
                               borderRadius: '6px',
-                              border: 'none',
-                              background: '#cbd5e1',
-                              color: '#64748b',
+                              border: '1px solid #fed7aa',
+                              background: '#fff7ed',
+                              color: '#ea580c',
                               fontSize: '11px',
                               fontWeight: '700',
-                              cursor: 'not-allowed',
-                              opacity: 0.6
+                              cursor: 'pointer',
+                              boxShadow: '0 1px 2px rgba(234, 88, 12, 0.1)',
+                              transition: 'all 0.2s ease'
+                            }}
+                            onMouseEnter={e => {
+                              e.currentTarget.style.background = '#ffedd5';
+                              e.currentTarget.style.borderColor = '#fdba74';
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.background = '#fff7ed';
+                              e.currentTarget.style.borderColor = '#fed7aa';
                             }}
                           >
                             Correction Slip
@@ -1019,118 +1032,13 @@ const AttendingCallsDashboard = ({ onStart, onResume, onIssueIc, onBackToPortal,
 
       {/* Correction Slip Modal */}
       {showCorrectionSlipModal && selectedCall && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            background: 'white',
-            borderRadius: '16px',
-            padding: '24px',
-            width: '100%',
-            maxWidth: '560px',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
-            border: '1px solid #e2e8f0'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <div style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a' }}>
-                Correction Slip — {selectedCall.requestId}
-              </div>
-              <button
-                onClick={() => setShowCorrectionSlipModal(false)}
-                style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#64748b' }}
-              >
-                ✕
-              </button>
-            </div>
-
-            <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px', fontSize: '13px', color: '#92400e' }}>
-              <strong>Notice:</strong> This action issues a formal Correction Slip against the digitally signed Inspection Certificate.
-            </div>
-
-            <div style={{ marginBottom: '16px' }}>
-              <div style={{ fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>Call Number:</div>
-              <div style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a' }}>{selectedCall.requestId}</div>
-            </div>
-
-            <div style={{ marginBottom: '16px' }}>
-              <div style={{ fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>Vendor Name:</div>
-              <div style={{ fontSize: '14px', color: '#334155' }}>{selectedCall.vendorName || selectedCall.vendorCode}</div>
-            </div>
-
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>
-                Reason for Correction / Revision Note: <span style={{ color: '#ef4444' }}>*</span>
-              </label>
-              <textarea
-                value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
-                placeholder="Enter details of correction (e.g., corrected lot number, revised consignee, clerical amendment)..."
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  borderRadius: '8px',
-                  border: '1px solid #cbd5e1',
-                  fontSize: '13px',
-                  minHeight: '90px',
-                  resize: 'vertical',
-                  boxSizing: 'border-box'
-                }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-              <button
-                onClick={() => setShowCorrectionSlipModal(false)}
-                style={{
-                  padding: '10px 18px',
-                  borderRadius: '8px',
-                  border: '1px solid #cbd5e1',
-                  background: '#ffffff',
-                  color: '#475569',
-                  fontWeight: '600',
-                  fontSize: '13px',
-                  cursor: 'pointer'
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  if (!remarks.trim()) {
-                    setNotification({ message: 'Please enter reason for correction', type: 'error' });
-                    return;
-                  }
-                  setShowCorrectionSlipModal(false);
-                  if (onIssueIc) {
-                    onIssueIc(selectedCall, false);
-                  }
-                }}
-                style={{
-                  padding: '10px 20px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  background: '#f59e0b',
-                  color: '#ffffff',
-                  fontWeight: '700',
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 4px rgba(245, 158, 11, 0.3)'
-                }}
-              >
-                Proceed to Correction Slip
-              </button>
-            </div>
-          </div>
-        </div>
+        <CorrectionSlipModal
+          row={selectedCall}
+          onClose={() => {
+            setShowCorrectionSlipModal(false);
+            setSelectedCall(null);
+          }}
+        />
       )}
     </div>
   );

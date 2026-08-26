@@ -1,6 +1,6 @@
 import React from 'react';
 
-const Sidebar = ({ activeItem, onItemClick, isOpen, expanded, onMouseEnter, onMouseLeave, onClick, isShiftActive }) => {
+const Sidebar = ({ activeItem, onItemClick, isOpen, expanded, onMouseEnter, onMouseLeave, onClick, onClose, isShiftActive }) => {
     const menuSections = [
         {
             label: 'Modules',
@@ -21,16 +21,25 @@ const Sidebar = ({ activeItem, onItemClick, isOpen, expanded, onMouseEnter, onMo
             <div className="sidebar-header" style={{ 
                 display: 'flex', 
                 alignItems: 'center',
-                justifyContent: expanded ? 'flex-end' : 'center',
-                height: '50px',
-                padding: expanded ? '0 16px' : '0',
+                justifyContent: (expanded || isOpen) ? 'space-between' : 'center',
+                height: '60px',
+                padding: (expanded || isOpen) ? '0 16px' : '0',
                 boxSizing: 'border-box',
                 borderBottom: '1px solid #f1f5f9'
             }}>
+                {(expanded || isOpen) && (
+                    <span style={{ fontWeight: '800', fontSize: '13px', color: '#1e293b', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                        Modules Navigation
+                    </span>
+                )}
                 <button
                     onClick={(e) => {
                         e.stopPropagation();
-                        onClick();
+                        if (isOpen && onClose) {
+                            onClose();
+                        } else if (onClick) {
+                            onClick();
+                        }
                     }}
                     style={{
                         background: '#f8fafc',
@@ -44,12 +53,12 @@ const Sidebar = ({ activeItem, onItemClick, isOpen, expanded, onMouseEnter, onMo
                         cursor: 'pointer',
                         color: '#475569',
                         fontWeight: 'bold',
-                        fontSize: '14px',
+                        fontSize: isOpen ? '14px' : '14px',
                         transition: 'all 0.2s ease'
                     }}
-                    title={expanded ? "Collapse Sidebar" : "Expand Sidebar"}
+                    title={isOpen ? "Close Sidebar" : (expanded ? "Collapse Sidebar" : "Expand Sidebar")}
                 >
-                    {expanded ? '«' : '»'}
+                    {isOpen ? '✕' : (expanded ? '«' : '»')}
                 </button>
             </div>
 

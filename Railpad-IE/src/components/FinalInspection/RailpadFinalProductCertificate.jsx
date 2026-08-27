@@ -22,6 +22,7 @@ import {
 import { performTransitionAction } from "../../services/workflowService";
 import { getStoredUser } from "../../services/authService";
 import { finalInspectionLotResultsService } from "../../services/finalInspectionLotResultsService";
+import { generatePdfBase64, calculateSignatureCoords } from "../../utils/exportUtils";
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -669,50 +670,56 @@ export default function RailpadFinalProductCertificate({ call = {}, onBack, isVi
       await delay(300);
       
       const element = printAreaRef.current;
-      const certificatePage = element.querySelector('.certificate-page') || element;
+      const base64Pdf = await generatePdfBase64(element);
+      if (!base64Pdf || !base64Pdf.startsWith('JVBER')) {
+        throw new Error('Failed to generate PDF snapshot from UI.');
+      }
 
-      const canvas = await html2canvas(certificatePage, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-        scrollY: -window.scrollY,
-        scrollX: -window.scrollX,
-        windowWidth: 1200,
-        removeContainer: true,
-      });
-
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      
-      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
-      
-      const pdfBase64 = pdf.output('datauristring').split(',')[1];
       const callNo = call.callNo || call.call_no || call.requestId;
       const certificateNo = data.certificateNo || "Railpad_IC";
       const sanitizedFilename = certificateNo.replace(/[/\\?%*:|"<>]/g, '-') + '.pdf';
       
-      console.log('Initiating PKI Signing Flow for IC:', callNo);
-      showToast("Triggering Digital Signature Utility...", "info");
-      
-      sessionStorage.setItem('pending_sign_ic', JSON.stringify({
-        icNumber: callNo,
-        certificateNo: certificateNo,
-        fileName: sanitizedFilename,
-        uploadedBy: user?.employeeCode || "IE",
-        pdfBase64: pdfBase64
-      }));
+      const now = new Date();
+      const pad = (n) => n.toString().padStart(2, '0');
+      const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}+05:30`;
+      const txn = Math.random().toString(16).slice(2, 10).toUpperCase();
 
-      const customEvent = new CustomEvent('INITIATE_PKI_SIGN', {
-        detail: {
-          pdfBase64: pdfBase64,
-          docName: sanitizedFilename,
-          callNo: callNo
-        }
-      });
-      window.dispatchEvent(customEvent);
+      const sigCoords = calculateSignatureCoords(element, "395,160", "170,36");
+
+      const xmlRequest = `
+        <request>
+          <command>pkiNetworkSign</command>
+          <ts>${timestamp}</ts>
+          <txn>${txn}</txn>
+          <certificate>
+            <attribute name='CN'></attribute>
+            <attribute name='O'></attribute>
+            <attribute name='OU'></attribute>
+            <attribute name='T'></attribute>
+            <attribute name='E'></attribute>
+            <attribute name='SN'></attribute>
+            <attribute name='CA'></attribute>
+            <attribute name='TC'>SG</attribute>
+            <attribute name='AP'>1</attribute>
+          </certificate>
+          <file>
+            <attribute name='type'>pdf</attribute>
+          </file>
+          <pdf>
+            <page>1</page>
+            <cood>${sigCoords.cood}</cood>
+            <size>${sigCoords.size}</size>
+          </pdf>
+          <data>${base64Pdf}</data>
+        </request>
+      `.replace(/>\s+</g, "><").trim();
+
+      if (typeof window.abc === 'function') {
+        showToast("Please complete the digital signature in the Capricorn bridge...", "info");
+        window.abc(xmlRequest, certificateNo || callNo, sanitizedFilename);
+      } else {
+        throw new Error("Digital signature bridge (abc.js) not found. Please ensure the Capricorn client is running.");
+      }
 
     } catch (error) {
       console.error("E-Sign error:", error);
